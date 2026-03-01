@@ -16,6 +16,7 @@
 	import { dragHandleZone, dragHandle, TRIGGERS, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
 
 	let { data } = $props();
 
@@ -70,6 +71,9 @@
 	let deleteGroupId: number | null = $state(null);
 	let deleteGroupOpen = $state(false);
 
+	// Checkbox selection state (bulk ops)
+	let selectedTcIds = $state<Set<number>>(new Set());
+
 	// DnD state for grouped view
 	type TcItem = {
 		id: number;
@@ -111,7 +115,13 @@
 			.sort((a, b) => a.sortOrder - b.sortOrder);
 	});
 
-	const hasActiveFilters = $derived(!!data.search || !!data.priority || !!data.tagId);
+	const selectedTagIds = $derived(
+		(data.tagIds ?? '')
+			.split(',')
+			.map(Number)
+			.filter((id) => !isNaN(id) && id > 0)
+	);
+	const hasActiveFilters = $derived(!!data.search || !!data.priority || selectedTagIds.length > 0 || !!data.groupId || !!data.createdBy);
 	const flipDurationMs = 150;
 
 	$effect(() => {
@@ -147,14 +157,50 @@
 		goto(`${basePath}?${params.toString()}`);
 	}
 
-	function setTagFilter(id: string) {
+	function toggleTag(id: number) {
 		const params = new URLSearchParams(page.url.searchParams);
-		if (id) {
-			params.set('tagId', id);
+		const current = new Set(selectedTagIds);
+		if (current.has(id)) {
+			current.delete(id);
 		} else {
-			params.delete('tagId');
+			current.add(id);
+		}
+		if (current.size > 0) {
+			params.set('tagIds', [...current].join(','));
+		} else {
+			params.delete('tagIds');
 		}
 		goto(`${basePath}?${params.toString()}`);
+	}
+
+	function clearAllTags() {
+		const params = new URLSearchParams(page.url.searchParams);
+		params.delete('tagIds');
+		goto(`${basePath}?${params.toString()}`);
+	}
+
+	function setGroupFilter(gId: string) {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (gId) {
+			params.set('groupId', gId);
+		} else {
+			params.delete('groupId');
+		}
+		goto(`${basePath}?${params.toString()}`);
+	}
+
+	function setCreatedByFilter(userId: string) {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (userId) {
+			params.set('createdBy', userId);
+		} else {
+			params.delete('createdBy');
+		}
+		goto(`${basePath}?${params.toString()}`);
+	}
+
+	function clearAllFilters() {
+		goto(basePath);
 	}
 
 	function addRunColumn(runId: string) {
@@ -554,6 +600,87 @@
 		}
 	}
 
+	// --- Checkbox selection helpers ---
+	function toggleTcSelection(tcId: number) {
+		const next = new Set(selectedTcIds);
+		if (next.has(tcId)) {
+			next.delete(tcId);
+		} else {
+			next.add(tcId);
+		}
+		selectedTcIds = next;
+	}
+
+	function toggleSelectAll() {
+		if (selectedTcIds.size === data.testCases.length) {
+			selectedTcIds = new Set();
+		} else {
+			selectedTcIds = new Set(data.testCases.map((tc) => tc.id));
+		}
+	}
+
+	// --- Bulk operations ---
+	let bulkLoading = $state(false);
+	let bulkDeleteOpen = $state(false);
+
+	async function bulkAction(action: string, extra: Record<string, unknown> = {}) {
+		if (selectedTcIds.size === 0 || bulkLoading) return;
+		bulkLoading = true;
+		try {
+			const res = await fetch(`/api/projects/${data.project.id}/test-cases/bulk`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					action,
+					testCaseIds: [...selectedTcIds],
+					...extra
+				})
+			});
+			if (res.ok) {
+				const result = await res.json();
+				if (action === 'delete') {
+					toast.success(m.tc_bulk_deleted({ count: result.affected }));
+				} else if (action === 'clone') {
+					toast.success(m.tc_bulk_cloned({ count: result.affected }));
+				} else {
+					toast.success(m.tc_bulk_success({ count: result.affected }));
+				}
+				selectedTcIds = new Set();
+				await invalidateAll();
+			} else {
+				const err = await res.json();
+				toast.error(err.error || 'Bulk operation failed');
+			}
+		} catch {
+			toast.error('Bulk operation failed');
+		} finally {
+			bulkLoading = false;
+			bulkDeleteOpen = false;
+		}
+	}
+
+	// --- Clone from sheet ---
+	async function cloneFromSheet() {
+		if (!selectedTcId) return;
+		try {
+			const res = await fetch(
+				`/api/projects/${data.project.id}/test-cases/${selectedTcId}/clone`,
+				{ method: 'POST' }
+			);
+			if (res.ok) {
+				const result = await res.json();
+				toast.success(m.tc_cloned());
+				await invalidateAll();
+				await openDetail(result.newTestCaseId);
+			} else {
+				const err = await res.json();
+				toast.error(err.error || 'Failed to clone');
+			}
+		} catch {
+			toast.error('Failed to clone');
+		}
+	}
+
 	// --- Group management ---
 	function toggleGroupCollapse(groupId: number) {
 		const next = new Set(collapsedGroups);
@@ -764,25 +891,86 @@
 		{#if data.projectTags.length > 0}
 			<div class="flex gap-1">
 				<Button
-					variant={!data.tagId ? 'default' : 'outline'}
+					variant={selectedTagIds.length === 0 ? 'default' : 'outline'}
 					size="sm"
 					class="h-7 px-2 text-xs"
-					onclick={() => setTagFilter('')}
+					onclick={clearAllTags}
 				>
 					{m.common_all()}
 				</Button>
 				{#each data.projectTags as t (t.id)}
 					<Button
-						variant={data.tagId === String(t.id) ? 'default' : 'outline'}
+						variant={selectedTagIds.includes(t.id) ? 'default' : 'outline'}
 						size="sm"
 						class="h-7 px-2 text-xs"
-						onclick={() => setTagFilter(String(t.id))}
+						onclick={() => toggleTag(t.id)}
 					>
 						<span class="mr-1 inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
 						{t.name}
 					</Button>
 				{/each}
 			</div>
+		{/if}
+
+		<!-- Group filter -->
+		{#if data.groups.length > 0}
+			<Select.Root
+				type="single"
+				value={data.groupId ?? ''}
+				onValueChange={(v: string) => setGroupFilter(v === '__all__' ? '' : v)}
+			>
+				<Select.Trigger size="sm" class="h-7 px-2 text-xs">
+					{#if data.groupId === 'uncategorized'}
+						{m.tc_filter_uncategorized()}
+					{:else if data.groupId}
+						{data.groups.find((g) => String(g.id) === data.groupId)?.name ?? data.groupId}
+					{:else}
+						{m.tc_filter_group()}: {m.common_all()}
+					{/if}
+				</Select.Trigger>
+				<Select.Content>
+					<Select.Item value="__all__" label="{m.tc_filter_group()}: {m.common_all()}" />
+					<Select.Item value="uncategorized" label={m.tc_filter_uncategorized()} />
+					{#each data.groups as g (g.id)}
+						<Select.Item value={String(g.id)} label={g.name} />
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		{/if}
+
+		<!-- CreatedBy filter -->
+		{#if data.projectMembers.length > 0}
+			<Select.Root
+				type="single"
+				value={data.createdBy ?? ''}
+				onValueChange={(v: string) => setCreatedByFilter(v === '__all__' ? '' : v)}
+			>
+				<Select.Trigger size="sm" class="h-7 px-2 text-xs">
+					{#if data.createdBy}
+						{data.projectMembers.find((mb) => mb.userId === data.createdBy)?.userName ?? data.createdBy}
+					{:else}
+						{m.tc_filter_created_by()}: {m.common_all()}
+					{/if}
+				</Select.Trigger>
+				<Select.Content>
+					<Select.Item value="__all__" label="{m.tc_filter_created_by()}: {m.common_all()}" />
+					{#each data.projectMembers as member}
+						<Select.Item value={member.userId} label={member.userName} />
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		{/if}
+
+		<!-- Clear all filters -->
+		{#if hasActiveFilters}
+			<Button
+				variant="ghost"
+				size="sm"
+				class="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+				onclick={clearAllFilters}
+			>
+				{m.tc_filter_clear()}
+			</Button>
 		{/if}
 
 		<!-- New group input -->
@@ -843,7 +1031,123 @@
 		</div>
 	{/if}
 
-	{#if data.testCases.length === 0 && !data.search && !data.priority && !data.tagId}
+	<!-- Bulk Action Bar -->
+	{#if selectedTcIds.size > 0 && canEdit}
+		<div class="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 px-4 py-2">
+			<span class="text-sm font-medium">{m.tc_bulk_selected({ count: selectedTcIds.size })}</span>
+			<div class="h-4 w-px bg-border"></div>
+
+			<!-- Bulk Add Tag -->
+			{#if data.projectTags.length > 0}
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						{#snippet child({ props })}
+							<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.tc_bulk_add_tag()}</Button>
+						{/snippet}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="start" class="min-w-[140px]">
+						{#each data.projectTags as t (t.id)}
+							<DropdownMenu.Item onclick={() => bulkAction('addTag', { tagId: t.id })} class="text-xs">
+								<span class="mr-1.5 inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
+								{t.name}
+							</DropdownMenu.Item>
+						{/each}
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+
+				<!-- Bulk Remove Tag -->
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						{#snippet child({ props })}
+							<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.tc_bulk_remove_tag()}</Button>
+						{/snippet}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="start" class="min-w-[140px]">
+						{#each data.projectTags as t (t.id)}
+							<DropdownMenu.Item onclick={() => bulkAction('removeTag', { tagId: t.id })} class="text-xs">
+								<span class="mr-1.5 inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
+								{t.name}
+							</DropdownMenu.Item>
+						{/each}
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+			{/if}
+
+			<!-- Bulk Set Priority -->
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.tc_bulk_set_priority()}</Button>
+					{/snippet}
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="start" class="min-w-[120px]">
+					{#each priorityOptions as p}
+						<DropdownMenu.Item onclick={() => bulkAction('setPriority', { priority: p })} class="text-xs">
+							<Badge variant={priorityVariant(p)} class="text-[10px] px-1.5 py-0 pointer-events-none">{p}</Badge>
+						</DropdownMenu.Item>
+					{/each}
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
+
+			<!-- Bulk Move to Group -->
+			{#if data.groups.length > 0}
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						{#snippet child({ props })}
+							<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.tc_bulk_move_group()}</Button>
+						{/snippet}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="start" class="min-w-[140px]">
+						<DropdownMenu.Item onclick={() => bulkAction('moveToGroup', { groupId: null })} class="text-xs">
+							{m.tc_filter_uncategorized()}
+						</DropdownMenu.Item>
+						{#each data.groups as g (g.id)}
+							<DropdownMenu.Item onclick={() => bulkAction('moveToGroup', { groupId: g.id })} class="text-xs">
+								{g.name}
+							</DropdownMenu.Item>
+						{/each}
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+			{/if}
+
+			<!-- Bulk Clone -->
+			<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} onclick={() => bulkAction('clone')}>
+				{m.tc_bulk_clone()}
+			</Button>
+
+			<!-- Bulk Delete -->
+			{#if canDelete}
+				<AlertDialog.Root bind:open={bulkDeleteOpen}>
+					<AlertDialog.Trigger>
+						{#snippet child({ props })}
+							<Button variant="destructive" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.tc_bulk_delete()}</Button>
+						{/snippet}
+					</AlertDialog.Trigger>
+					<AlertDialog.Portal>
+						<AlertDialog.Overlay />
+						<AlertDialog.Content>
+							<AlertDialog.Header>
+								<AlertDialog.Title>{m.tc_bulk_delete_title()}</AlertDialog.Title>
+								<AlertDialog.Description>
+									{m.tc_bulk_delete_confirm({ count: selectedTcIds.size })}
+								</AlertDialog.Description>
+							</AlertDialog.Header>
+							<AlertDialog.Footer>
+								<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+								<Button variant="destructive" disabled={bulkLoading} onclick={() => bulkAction('delete')}>{m.common_delete()}</Button>
+							</AlertDialog.Footer>
+						</AlertDialog.Content>
+					</AlertDialog.Portal>
+				</AlertDialog.Root>
+			{/if}
+
+			<Button variant="ghost" size="sm" class="h-7 text-xs ml-auto" onclick={() => { selectedTcIds = new Set(); }}>
+				{m.common_cancel()}
+			</Button>
+		</div>
+	{/if}
+
+	{#if data.testCases.length === 0 && !hasActiveFilters}
 		<div
 			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center"
 		>
@@ -878,6 +1182,14 @@
 		{/if}
 
 		{#snippet tcRow(tc: TcItem)}
+			{#if canEdit}
+				<input
+					type="checkbox"
+					class="h-3.5 w-3.5 shrink-0 rounded border-gray-300"
+					checked={selectedTcIds.has(tc.id)}
+					onclick={(e) => { e.stopPropagation(); toggleTcSelection(tc.id); }}
+				/>
+			{/if}
 			{#if !dndDisabled}
 				<span use:dragHandle data-drag-handle-tc class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 flex justify-center" onclick={(e) => e.stopPropagation()}>
 					<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
@@ -1014,6 +1326,7 @@
 				{#if groupKey !== -1}
 					<input type="hidden" name="groupId" value={String(groupKey)} />
 				{/if}
+				{#if canEdit}<span class="w-3.5 shrink-0"></span>{/if}
 				{#if !dndDisabled}<span class="w-6 shrink-0"></span>{/if}
 				<span class="w-20 shrink-0"></span>
 				<Input
@@ -1050,6 +1363,14 @@
 		<div class="rounded-lg border bg-card overflow-hidden">
 			<!-- Column header -->
 			<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/50 sticky top-0 z-10 text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+				{#if canEdit}
+					<input
+						type="checkbox"
+						class="h-3.5 w-3.5 shrink-0 rounded border-gray-300"
+						checked={selectedTcIds.size === data.testCases.length && data.testCases.length > 0}
+						onchange={toggleSelectAll}
+					/>
+				{/if}
 				{#if !dndDisabled}<span class="w-6 shrink-0"></span>{/if}
 				<span class="w-20 shrink-0">{m.common_key()}</span>
 				<span class="flex-1 min-w-0">{m.common_title()}</span>
@@ -1356,6 +1677,12 @@
 						<Button size="sm" class="h-7 text-xs" onclick={startDetailEdit}>
 							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
 							{m.common_edit()}
+						</Button>
+					{/if}
+					{#if canEdit && !detailEditing}
+						<Button variant="outline" size="sm" class="h-7 text-xs" onclick={cloneFromSheet}>
+							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+							{m.tc_clone()}
 						</Button>
 					{/if}
 					<Button variant="outline" size="sm" class="h-7 text-xs" onclick={() => (showVersions = !showVersions)}>

@@ -15,6 +15,7 @@
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
 	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
 	import TagBadge from '$lib/components/TagBadge.svelte';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
@@ -47,6 +48,25 @@
 	const canEdit = $derived(data.userRole !== 'VIEWER');
 	const canDelete = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
 	const basePath = $derived(`/projects/${data.project.id}/test-cases`);
+
+	async function cloneTestCase() {
+		try {
+			const res = await fetch(
+				`/api/projects/${data.project.id}/test-cases/${tc.id}/clone`,
+				{ method: 'POST' }
+			);
+			if (res.ok) {
+				const result = await res.json();
+				toast.success(m.tc_cloned());
+				goto(`${basePath}/${result.newTestCaseId}`);
+			} else {
+				const err = await res.json();
+				toast.error(err.error || 'Failed to clone');
+			}
+		} catch {
+			toast.error('Failed to clone');
+		}
+	}
 
 	const lockUrl = $derived(
 		`/api/projects/${data.project.id}/test-cases/${tc.id}/lock`
@@ -144,6 +164,10 @@
 				{showVersions ? m.tc_detail_hide_history() : m.tc_detail_version_history()}
 			</Button>
 			{#if canEdit && !editing}
+				<Button variant="outline" size="sm" onclick={cloneTestCase}>
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+					{m.tc_clone()}
+				</Button>
 				<Button size="sm" onclick={startEdit}>{m.common_edit()}</Button>
 			{/if}
 			{#if canDelete && !editing}
@@ -228,20 +252,29 @@
 									}
 								};
 							}} class="inline-flex">
-								<select
-									name="tagId"
-									class="border-input bg-background h-7 rounded-md border px-2 text-xs"
-									onchange={(e) => {
-										if (e.currentTarget.value) {
-											e.currentTarget.form?.requestSubmit();
+								<input type="hidden" name="tagId" value="" />
+								<Select.Root
+									type="single"
+									value=""
+									onValueChange={(v: string) => {
+										if (!v) return;
+										const form = document.querySelector<HTMLFormElement>('form[action="?/assignTag"]');
+										if (form) {
+											const hidden = form.querySelector<HTMLInputElement>('input[name="tagId"]');
+											if (hidden) hidden.value = v;
+											form.requestSubmit();
 										}
 									}}
 								>
-									<option value="">+ {m.tag_assign()}</option>
-									{#each unassignedTags as t (t.id)}
-										<option value={t.id}>{t.name}</option>
-									{/each}
-								</select>
+									<Select.Trigger size="sm" class="h-7 px-2 text-xs">
+										+ {m.tag_assign()}
+									</Select.Trigger>
+									<Select.Content>
+										{#each unassignedTags as t (t.id)}
+											<Select.Item value={String(t.id)} label={t.name} />
+										{/each}
+									</Select.Content>
+								</Select.Root>
 							</form>
 						{/if}
 					{/if}
@@ -265,18 +298,23 @@
 							</div>
 
 							<div class="space-y-2">
-								<Label for="priority">{m.common_priority()}</Label>
-								<select
-									id="priority"
-									name="priority"
-									bind:value={$form.priority}
-									class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+								<Label>{m.common_priority()}</Label>
+								<input type="hidden" name="priority" value={$form.priority} />
+								<Select.Root
+									type="single"
+									value={$form.priority as string}
+									onValueChange={(v: string) => { $form.priority = v; }}
 								>
-									<option value="LOW">{m.priority_low()}</option>
-									<option value="MEDIUM">{m.priority_medium()}</option>
-									<option value="HIGH">{m.priority_high()}</option>
-									<option value="CRITICAL">{m.priority_critical()}</option>
-								</select>
+									<Select.Trigger class="w-full">
+										{$form.priority === 'LOW' ? m.priority_low() : $form.priority === 'MEDIUM' ? m.priority_medium() : $form.priority === 'HIGH' ? m.priority_high() : m.priority_critical()}
+									</Select.Trigger>
+									<Select.Content>
+										<Select.Item value="LOW" label={m.priority_low()} />
+										<Select.Item value="MEDIUM" label={m.priority_medium()} />
+										<Select.Item value="HIGH" label={m.priority_high()} />
+										<Select.Item value="CRITICAL" label={m.priority_critical()} />
+									</Select.Content>
+								</Select.Root>
 							</div>
 
 							<div class="space-y-2">

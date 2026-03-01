@@ -8,6 +8,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import TagBadge from '$lib/components/TagBadge.svelte';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
@@ -17,6 +18,7 @@
 	let searchFilter = $state('');
 	let priorityFilter = $state('');
 	let tagFilter = $state('');
+	let selectedEnv = $state('DEV');
 
 	const filteredCases = $derived(
 		data.testCases.filter((tc) => {
@@ -100,16 +102,21 @@
 					</div>
 					<div class="space-y-2">
 						<Label for="environment">{m.common_environment()}</Label>
-						<select
-							id="environment"
-							name="environment"
-							required
-							class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+						<input type="hidden" name="environment" value={selectedEnv} />
+						<Select.Root
+							type="single"
+							value={selectedEnv}
+							onValueChange={(v: string) => { selectedEnv = v; }}
 						>
-							{#each environments as env}
-								<option value={env}>{env}</option>
-							{/each}
-						</select>
+							<Select.Trigger class="w-full">
+								{selectedEnv}
+							</Select.Trigger>
+							<Select.Content>
+								{#each environments as env}
+									<Select.Item value={env} label={env} />
+								{/each}
+							</Select.Content>
+						</Select.Root>
 					</div>
 				</div>
 

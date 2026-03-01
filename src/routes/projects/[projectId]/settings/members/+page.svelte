@@ -137,14 +137,20 @@
 
 						<div class="space-y-2">
 							<Label>{m.common_role()}</Label>
-							<select
-								bind:value={selectedRole}
-								class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+							<Select.Root
+								type="single"
+								value={selectedRole}
+								onValueChange={(v: string) => { selectedRole = v; }}
 							>
-								{#each roles as r}
-									<option value={r}>{r.replace('_', ' ')}</option>
-								{/each}
-							</select>
+								<Select.Trigger class="w-full">
+									{selectedRole.replace('_', ' ')}
+								</Select.Trigger>
+								<Select.Content>
+									{#each roles as r}
+										<Select.Item value={r} label={r.replace('_', ' ')} />
+									{/each}
+								</Select.Content>
+							</Select.Root>
 						</div>
 					</div>
 
@@ -210,16 +216,29 @@
 								}}
 							>
 								<input type="hidden" name="memberId" value={member.id} />
-								<select
-									name="role"
+								<input type="hidden" name="role" value={member.role} />
+								<Select.Root
+									type="single"
 									value={member.role}
-									onchange={(e) => e.currentTarget.form?.requestSubmit()}
-									class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-8 rounded-md border px-2 py-1 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+									onValueChange={(v: string) => {
+										const trigger = document.querySelector(`[data-member-role="${member.id}"]`);
+										const form = trigger?.closest('form');
+										if (form) {
+											const hidden = form.querySelector<HTMLInputElement>('input[name="role"]');
+											if (hidden) hidden.value = v;
+											form.requestSubmit();
+										}
+									}}
 								>
-									{#each roles as r}
-										<option value={r} selected={r === member.role}>{r.replace('_', ' ')}</option>
-									{/each}
-								</select>
+									<Select.Trigger size="sm" class="h-8" data-member-role={member.id}>
+										{member.role.replace('_', ' ')}
+									</Select.Trigger>
+									<Select.Content>
+										{#each roles as r}
+											<Select.Item value={r} label={r.replace('_', ' ')} />
+										{/each}
+									</Select.Content>
+								</Select.Root>
 							</form>
 						</Table.Cell>
 						<Table.Cell>

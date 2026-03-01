@@ -8,6 +8,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
@@ -45,17 +46,22 @@
 
 				<div class="space-y-2">
 					<Label for="priority">{m.common_priority()}</Label>
-					<select
-						id="priority"
-						name="priority"
-						bind:value={$form.priority}
-						class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+					<input type="hidden" name="priority" value={$form.priority} />
+					<Select.Root
+						type="single"
+						value={$form.priority as string}
+						onValueChange={(v: string) => { $form.priority = v; }}
 					>
-						<option value="LOW">{m.priority_low()}</option>
-						<option value="MEDIUM">{m.priority_medium()}</option>
-						<option value="HIGH">{m.priority_high()}</option>
-						<option value="CRITICAL">{m.priority_critical()}</option>
-					</select>
+						<Select.Trigger class="w-full">
+							{$form.priority === 'LOW' ? m.priority_low() : $form.priority === 'MEDIUM' ? m.priority_medium() : $form.priority === 'HIGH' ? m.priority_high() : m.priority_critical()}
+						</Select.Trigger>
+						<Select.Content>
+							<Select.Item value="LOW" label={m.priority_low()} />
+							<Select.Item value="MEDIUM" label={m.priority_medium()} />
+							<Select.Item value="HIGH" label={m.priority_high()} />
+							<Select.Item value="CRITICAL" label={m.priority_critical()} />
+						</Select.Content>
+					</Select.Root>
 				</div>
 
 				<div class="space-y-2">

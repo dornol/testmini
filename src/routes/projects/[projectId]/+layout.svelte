@@ -8,6 +8,7 @@
 		{ href: `/projects/${data.project.id}`, label: 'Dashboard', exact: true },
 		{ href: `/projects/${data.project.id}/test-cases`, label: 'Test Cases' },
 		{ href: `/projects/${data.project.id}/test-runs`, label: 'Test Runs' },
+		{ href: `/projects/${data.project.id}/reports`, label: 'Reports' },
 		...(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN'
 			? [{ href: `/projects/${data.project.id}/settings`, label: 'Settings' }]
 			: [])

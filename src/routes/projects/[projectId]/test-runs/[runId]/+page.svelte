@@ -236,8 +236,15 @@
 				<Badge variant={statusVariant(run.status)}>{run.status.replace('_', ' ')}</Badge>
 			</div>
 		</div>
-		{#if canExecute && run.status !== 'COMPLETED'}
-			<div class="flex gap-2">
+		<div class="flex gap-2">
+			<Button
+				variant="outline"
+				size="sm"
+				href="/api/projects/{data.project.id}/test-runs/{run.id}/export"
+			>
+				Export CSV
+			</Button>
+			{#if canExecute && run.status !== 'COMPLETED'}
 				{#if run.status === 'CREATED'}
 					<form method="POST" action="?/updateRunStatus" use:enhance={handleResult}>
 						<input type="hidden" name="status" value="IN_PROGRESS" />
@@ -250,8 +257,8 @@
 						<Button type="submit" variant="outline" size="sm">Complete Run</Button>
 					</form>
 				{/if}
-			</div>
-		{/if}
+			{/if}
+		</div>
 	</div>
 
 	<!-- Progress Stats -->

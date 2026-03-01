@@ -57,6 +57,10 @@
 	let editRevision = $state(1);
 	let editSaving = $state(false);
 
+	// Lock state for sheet detail
+	let sheetLockHolder = $state<{ userName: string } | null>(null);
+	let sheetHeartbeatInterval: ReturnType<typeof setInterval> | undefined;
+
 	// --- Group view state ---
 	let collapsedGroups: Set<number> = $state(new Set());
 	let newGroupName = $state('');
@@ -381,6 +385,7 @@
 		detailLoading = true;
 		detailEditing = false;
 		showVersions = false;
+		sheetLockHolder = null;
 		sheetOpen = true;
 
 		try {
@@ -391,6 +396,12 @@
 				toast.error('Failed to load test case');
 				sheetOpen = false;
 			}
+			// Check lock status
+			const lockRes = await fetch(`/api/projects/${data.project.id}/test-cases/${tcId}/lock`);
+			if (lockRes.ok) {
+				const lockData = await lockRes.json();
+				if (lockData.locked) sheetLockHolder = lockData.holder;
+			}
 		} catch {
 			toast.error('Failed to load test case');
 			sheetOpen = false;
@@ -399,8 +410,25 @@
 		}
 	}
 
-	function startDetailEdit() {
-		if (!detailData?.testCase.latestVersion) return;
+	async function startDetailEdit() {
+		if (!detailData?.testCase.latestVersion || !selectedTcId) return;
+
+		const lockUrl = `/api/projects/${data.project.id}/test-cases/${selectedTcId}/lock`;
+		const res = await fetch(lockUrl, { method: 'POST' });
+		const result = await res.json();
+		if (!res.ok) {
+			toast.error(m.lock_conflict({ name: result.holder?.userName ?? '?' }));
+			sheetLockHolder = result.holder;
+			return;
+		}
+		sheetLockHolder = null;
+
+		// Start heartbeat
+		clearInterval(sheetHeartbeatInterval);
+		sheetHeartbeatInterval = setInterval(() => {
+			fetch(lockUrl, { method: 'PUT' }).catch(() => {});
+		}, 60_000);
+
 		const v = detailData.testCase.latestVersion;
 		editTitle = v.title ?? '';
 		editPriority = v.priority ?? 'MEDIUM';
@@ -416,6 +444,17 @@
 
 	function cancelDetailEdit() {
 		detailEditing = false;
+		releaseSheetLock();
+	}
+
+	function releaseSheetLock() {
+		clearInterval(sheetHeartbeatInterval);
+		if (selectedTcId) {
+			fetch(`/api/projects/${data.project.id}/test-cases/${selectedTcId}/lock`, {
+				method: 'DELETE'
+			}).catch(() => {});
+		}
+		sheetLockHolder = null;
 	}
 
 	async function saveDetailEdit() {
@@ -441,6 +480,7 @@
 			if (res.ok) {
 				toast.success('Test case updated');
 				detailEditing = false;
+				releaseSheetLock();
 				await invalidateAll();
 				await openDetail(selectedTcId);
 			} else {
@@ -1264,7 +1304,7 @@
 </AlertDialog.Root>
 
 <!-- Detail Sheet Panel -->
-<Sheet.Root bind:open={sheetOpen} onOpenChange={(open) => { if (!open) { detailEditing = false; detailData = null; selectedTcId = null; } }}>
+<Sheet.Root bind:open={sheetOpen} onOpenChange={(open) => { if (!open) { if (detailEditing) releaseSheetLock(); detailEditing = false; detailData = null; selectedTcId = null; } }}>
 	<Sheet.Content side="right" class="sm:max-w-2xl w-full overflow-y-auto p-0 data-[state=open]:duration-300 data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-end data-[state=closed]:slide-out-to-end">
 		{#if detailLoading}
 			<!-- Loading skeleton -->
@@ -1305,7 +1345,12 @@
 					</div>
 				</div>
 
-				<!-- Action buttons -->
+				<!-- Lock indicator + Action buttons -->
+				{#if sheetLockHolder && !detailEditing}
+					<div class="mt-3 text-xs text-orange-600">
+						{m.lock_editing_by({ name: sheetLockHolder.userName })}
+					</div>
+				{/if}
 				<div class="flex items-center gap-2 mt-4">
 					{#if canEdit && !detailEditing}
 						<Button size="sm" class="h-7 text-xs" onclick={startDetailEdit}>

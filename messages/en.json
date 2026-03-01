@@ -301,5 +301,14 @@
 	"steps_editor_action": "Action",
 	"steps_editor_action_placeholder": "Describe the action to perform",
 	"steps_editor_expected": "Expected Result",
-	"steps_editor_expected_placeholder": "Describe the expected outcome"
+	"steps_editor_expected_placeholder": "Describe the expected outcome",
+
+	"dashboard_pass_rate_trend": "Pass Rate Trend",
+	"dashboard_exec_chart": "Execution Status",
+	"dashboard_activity": "Recent Activity",
+
+	"lock_editing_by": "Editing by {name}",
+	"lock_conflict": "{name} is currently editing this test case",
+
+	"sse_connected": "Live"
 }

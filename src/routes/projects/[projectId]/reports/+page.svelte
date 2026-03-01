@@ -3,12 +3,53 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import Chart from '$lib/components/Chart.svelte';
+	import type { ChartConfiguration } from 'chart.js';
 
 	let { data } = $props();
 
 	const envStats = $derived(data.envStats);
 	const recentRuns = $derived(data.recentRuns);
 	const priorityStats = $derived(data.priorityStats);
+
+	const trendBarConfig = $derived<ChartConfiguration>({
+		type: 'bar',
+		data: {
+			labels: recentRuns.map((r) =>
+				r.name.length > 10 ? r.name.slice(0, 10) + '..' : r.name
+			),
+			datasets: [
+				{
+					label: m.reports_pass(),
+					data: recentRuns.map((r) => r.passCount),
+					backgroundColor: '#22c55e'
+				},
+				{
+					label: m.reports_fail(),
+					data: recentRuns.map((r) => r.failCount),
+					backgroundColor: '#ef4444'
+				},
+				{
+					label: m.dashboard_blocked(),
+					data: recentRuns.map((r) => r.blockedCount),
+					backgroundColor: '#f97316'
+				},
+				{
+					label: m.dashboard_skipped(),
+					data: recentRuns.map((r) => r.skippedCount),
+					backgroundColor: '#9ca3af'
+				}
+			]
+		},
+		options: {
+			responsive: true,
+			plugins: { legend: { position: 'bottom' } },
+			scales: {
+				x: { stacked: true },
+				y: { stacked: true, beginAtZero: true }
+			}
+		}
+	});
 
 	function passRate(pass: number, total: number): string {
 		if (total === 0) return '-';
@@ -84,29 +125,7 @@
 				<Card.Title class="text-sm font-medium">{m.reports_trend_title()}</Card.Title>
 			</Card.Header>
 			<Card.Content>
-				<div class="flex items-end gap-1" style="height: 160px;">
-					{#each recentRuns as run (run.id)}
-						{@const rate = run.totalCount > 0 ? Math.round((run.passCount / run.totalCount) * 100) : 0}
-						{@const barHeight = run.totalCount > 0 ? rate : 0}
-						<div class="group relative flex flex-1 flex-col items-center">
-							<div class="relative w-full" style="height: 140px;">
-								<div
-									class="absolute bottom-0 w-full rounded-t {rate >= 80 ? 'bg-green-500' : rate >= 50 ? 'bg-yellow-500' : 'bg-red-500'}"
-									style="height: {barHeight}%;"
-								></div>
-							</div>
-							<span class="mt-1 text-[10px] text-muted-foreground truncate w-full text-center">
-								{run.name.length > 8 ? run.name.slice(0, 8) + '..' : run.name}
-							</span>
-							<!-- Tooltip -->
-							<div class="pointer-events-none absolute -top-10 left-1/2 z-10 hidden -translate-x-1/2 rounded bg-popover px-2 py-1 text-xs shadow-md group-hover:block">
-								<div class="font-medium">{run.name}</div>
-								<div>{rate}% ({run.passCount}/{run.totalCount})</div>
-								<div class="text-muted-foreground">{run.environment}</div>
-							</div>
-						</div>
-					{/each}
-				</div>
+				<Chart config={trendBarConfig} />
 			</Card.Content>
 		</Card.Root>
 	{/if}

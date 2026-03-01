@@ -22,6 +22,7 @@
 	let editing = $state(false);
 	let deleteDialogOpen = $state(false);
 	let showVersions = $state(false);
+	let lockHolder = $state<{ userName: string } | null>(null);
 
 	// @ts-ignore zod 3.24 type mismatch with superforms adapter
 	const validators = zodClient(updateTestCaseSchema);
@@ -33,6 +34,7 @@
 				if (form.valid) {
 					toast.success(form.message);
 					editing = false;
+					releaseLock();
 				} else {
 					toast.error(form.message);
 				}
@@ -46,14 +48,61 @@
 	const canDelete = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
 	const basePath = $derived(`/projects/${data.project.id}/test-cases`);
 
-	function startEdit() {
+	const lockUrl = $derived(
+		`/api/projects/${data.project.id}/test-cases/${tc.id}/lock`
+	);
+
+	// Check lock status on load
+	$effect(() => {
+		fetch(lockUrl)
+			.then((r) => r.json())
+			.then((d) => {
+				if (d.locked) lockHolder = d.holder;
+			})
+			.catch(() => {});
+	});
+
+	// Heartbeat while editing
+	$effect(() => {
+		if (!editing) return;
+		const interval = setInterval(() => {
+			fetch(lockUrl, { method: 'PUT' }).catch(() => {});
+		}, 60_000);
+		return () => clearInterval(interval);
+	});
+
+	// Release lock on page unload
+	$effect(() => {
+		if (!editing) return;
+		const handler = () => {
+			fetch(lockUrl, { method: 'DELETE', keepalive: true }).catch(() => {});
+		};
+		window.addEventListener('beforeunload', handler);
+		return () => window.removeEventListener('beforeunload', handler);
+	});
+
+	async function startEdit() {
+		const res = await fetch(lockUrl, { method: 'POST' });
+		const result = await res.json();
+		if (!res.ok) {
+			toast.error(m.lock_conflict({ name: result.holder?.userName ?? '?' }));
+			lockHolder = result.holder;
+			return;
+		}
+		lockHolder = null;
 		reset();
 		editing = true;
 	}
 
-	function cancelEdit() {
+	async function cancelEdit() {
 		reset();
 		editing = false;
+		await releaseLock();
+	}
+
+	async function releaseLock() {
+		await fetch(lockUrl, { method: 'DELETE' }).catch(() => {});
+		lockHolder = null;
 	}
 
 	function priorityVariant(
@@ -85,7 +134,12 @@
 				{/if}
 			</div>
 		</div>
-		<div class="flex gap-2">
+		<div class="flex items-center gap-2">
+			{#if lockHolder && !editing}
+				<span class="text-xs text-orange-600">
+					{m.lock_editing_by({ name: lockHolder.userName })}
+				</span>
+			{/if}
 			<Button variant="outline" size="sm" onclick={() => (showVersions = !showVersions)}>
 				{showVersions ? m.tc_detail_hide_history() : m.tc_detail_version_history()}
 			</Button>

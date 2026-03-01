@@ -301,5 +301,14 @@
 	"steps_editor_action": "동작",
 	"steps_editor_action_placeholder": "수행할 작업을 입력하세요",
 	"steps_editor_expected": "기대 결과",
-	"steps_editor_expected_placeholder": "기대하는 결과를 입력하세요"
+	"steps_editor_expected_placeholder": "기대하는 결과를 입력하세요",
+
+	"dashboard_pass_rate_trend": "합격률 추이",
+	"dashboard_exec_chart": "실행 상태",
+	"dashboard_activity": "최근 활동",
+
+	"lock_editing_by": "{name}님이 편집 중",
+	"lock_conflict": "{name}님이 현재 이 테스트 케이스를 편집하고 있습니다",
+
+	"sse_connected": "실시간"
 }

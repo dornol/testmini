@@ -4,6 +4,8 @@ import { db } from '$lib/server/db';
 import { testExecution, testRun } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { publish } from '$lib/server/redis';
+import type { RunEvent } from '$lib/types/events';
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	const user = requireAuth(locals);
@@ -53,6 +55,14 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 
 	// Auto-update run status
 	await autoUpdateRunStatus(runId);
+
+	const event: RunEvent = {
+		type: 'execution:updated',
+		executionId,
+		status,
+		executedBy: user.name
+	};
+	await publish(`run:${runId}:events`, event);
 
 	return json({ success: true, status });
 };

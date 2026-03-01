@@ -12,6 +12,8 @@ import {
 import { eq, and, inArray } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { createFailureSchema, type CreateFailureInput } from '$lib/schemas/failure.schema';
+import { publish } from '$lib/server/redis';
+import type { RunEvent } from '$lib/types/events';
 
 export const load: PageServerLoad = async ({ params, parent }) => {
 	await parent();
@@ -132,6 +134,14 @@ export const actions: Actions = {
 
 		await autoUpdateRunStatus(runId);
 
+		const event: RunEvent = {
+			type: 'execution:updated',
+			executionId,
+			status,
+			executedBy: authUser.name
+		};
+		await publish(`run:${runId}:events`, event);
+
 		return { success: true };
 	},
 
@@ -193,6 +203,18 @@ export const actions: Actions = {
 		});
 
 		await autoUpdateRunStatus(runId);
+
+		const event: RunEvent = {
+			type: 'execution:updated',
+			executionId,
+			status: 'FAIL',
+			executedBy: authUser.name
+		};
+		await publish(`run:${runId}:events`, event);
+		await publish(`run:${runId}:events`, {
+			type: 'failure:added',
+			executionId
+		} satisfies RunEvent);
 
 		return { success: true };
 	},
@@ -345,6 +367,13 @@ export const actions: Actions = {
 
 		await autoUpdateRunStatus(runId);
 
+		const event: RunEvent = {
+			type: 'executions:bulk_updated',
+			executionIds,
+			status: 'PASS'
+		};
+		await publish(`run:${runId}:events`, event);
+
 		return { success: true };
 	},
 
@@ -375,6 +404,13 @@ export const actions: Actions = {
 			.update(testRun)
 			.set(updates)
 			.where(and(eq(testRun.id, runId), eq(testRun.projectId, projectId)));
+
+		const event: RunEvent = {
+			type: 'run:status_changed',
+			runId,
+			status
+		};
+		await publish(`run:${runId}:events`, event);
 
 		return { success: true };
 	}

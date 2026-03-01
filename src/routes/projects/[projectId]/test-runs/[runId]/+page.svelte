@@ -12,9 +12,29 @@
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
+	import { createRunEventSource } from '$lib/sse.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
+
+	// SSE real-time sync
+	const sse = createRunEventSource(data.project.id, data.run.id);
+	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+	$effect(() => {
+		sse.connect();
+		return () => sse.disconnect();
+	});
+
+	$effect(() => {
+		const event = sse.lastEvent;
+		if (!event) return;
+
+		clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			invalidateAll();
+		}, 300);
+	});
 
 	let selectedPending = $state<Set<number>>(new Set());
 
@@ -235,6 +255,12 @@
 				<h2 class="text-xl font-bold">{run.name}</h2>
 				<Badge variant="outline">{run.environment}</Badge>
 				<Badge variant={statusVariant(run.status)}>{run.status.replace('_', ' ')}</Badge>
+				{#if sse.connected}
+					<span class="flex items-center gap-1 text-xs text-green-600">
+						<span class="inline-block h-2 w-2 animate-pulse rounded-full bg-green-500"></span>
+						{m.sse_connected()}
+					</span>
+				{/if}
 			</div>
 		</div>
 		<div class="flex gap-2">

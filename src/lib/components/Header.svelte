@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { locales, localizeHref, getLocale } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages.js';
 	import ThemeToggle from './ThemeToggle.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
@@ -26,7 +27,7 @@
 	</Button>
 
 	<a href="/" class="flex items-center gap-2 font-semibold">
-		<span class="text-lg">TMS</span>
+		<span class="text-lg">{m.app_name()}</span>
 	</a>
 
 	<div class="ml-auto flex items-center gap-1">
@@ -66,12 +67,12 @@
 					<DropdownMenu.Label>{user.email}</DropdownMenu.Label>
 					<DropdownMenu.Separator />
 					<DropdownMenu.Item onclick={handleLogout}>
-						Logout
+						{m.common_logout()}
 					</DropdownMenu.Item>
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
 		{:else}
-			<Button variant="ghost" size="sm" href="/auth/login">Login</Button>
+			<Button variant="ghost" size="sm" href="/auth/login">{m.common_login()}</Button>
 		{/if}
 	</div>
 </header>

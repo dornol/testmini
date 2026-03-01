@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages.js';
 	import { enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
@@ -38,7 +39,7 @@
 			update: () => Promise<void>;
 		}) => {
 			if (result.type === 'success') {
-				toast.success('Updated successfully');
+				toast.success(m.admin_updated());
 				await invalidateAll();
 			} else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Operation failed');
@@ -52,15 +53,15 @@
 	<!-- Search & Filters -->
 	<div class="flex flex-wrap items-center gap-2">
 		<form onsubmit={(e) => { e.preventDefault(); doSearch(); }} class="flex gap-2">
-			<Input placeholder="Search projects..." class="max-w-sm" bind:value={searchInput} />
-			<Button type="submit" variant="outline">Search</Button>
+			<Input placeholder={m.admin_projects_search()} class="max-w-sm" bind:value={searchInput} />
+			<Button type="submit" variant="outline">{m.common_search()}</Button>
 		</form>
 		<Button
 			variant={data.showInactive ? 'default' : 'outline'}
 			size="sm"
 			onclick={toggleInactive}
 		>
-			{data.showInactive ? 'Showing All' : 'Show Inactive'}
+			{data.showInactive ? m.admin_projects_showing_all() : m.admin_projects_show_inactive()}
 		</Button>
 	</div>
 
@@ -69,12 +70,12 @@
 		<Table.Root>
 			<Table.Header>
 				<Table.Row>
-					<Table.Head class="w-16">ID</Table.Head>
-					<Table.Head>Name</Table.Head>
-					<Table.Head class="w-24">Status</Table.Head>
-					<Table.Head class="w-24">Members</Table.Head>
-					<Table.Head class="w-32">Created</Table.Head>
-					<Table.Head class="w-32">Actions</Table.Head>
+					<Table.Head class="w-16">{m.admin_projects_id()}</Table.Head>
+					<Table.Head>{m.common_name()}</Table.Head>
+					<Table.Head class="w-24">{m.common_status()}</Table.Head>
+					<Table.Head class="w-24">{m.dashboard_members()}</Table.Head>
+					<Table.Head class="w-32">{m.common_created()}</Table.Head>
+					<Table.Head class="w-32">{m.common_actions()}</Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
@@ -91,7 +92,7 @@
 						</Table.Cell>
 						<Table.Cell>
 							<Badge variant={proj.active ? 'default' : 'secondary'}>
-								{proj.active ? 'Active' : 'Inactive'}
+								{proj.active ? m.common_active() : m.common_inactive()}
 							</Badge>
 						</Table.Cell>
 						<Table.Cell>{proj.memberCount}</Table.Cell>
@@ -108,7 +109,7 @@
 									size="sm"
 									class="h-7 px-2 text-xs {proj.active ? 'text-destructive' : 'text-green-600'}"
 								>
-									{proj.active ? 'Deactivate' : 'Activate'}
+									{proj.active ? m.admin_projects_deactivate() : m.admin_projects_activate()}
 								</Button>
 							</form>
 						</Table.Cell>
@@ -117,7 +118,7 @@
 				{#if data.projects.length === 0}
 					<Table.Row>
 						<Table.Cell colspan={6} class="text-muted-foreground text-center">
-							No projects found.
+							{m.admin_projects_no_results()}
 						</Table.Cell>
 					</Table.Row>
 				{/if}
@@ -129,7 +130,7 @@
 	{#if data.pagination.totalPages > 1}
 		<div class="flex items-center justify-between">
 			<p class="text-muted-foreground text-sm">
-				{data.pagination.total} projects total
+				{m.admin_projects_total({ count: data.pagination.total })}
 			</p>
 			<div class="flex gap-2">
 				{#if data.pagination.page > 1}
@@ -138,7 +139,7 @@
 						size="sm"
 						href="/admin/projects?page={data.pagination.page - 1}{data.search ? `&search=${data.search}` : ''}{data.showInactive ? '&inactive=true' : ''}"
 					>
-						Previous
+						{m.common_previous()}
 					</Button>
 				{/if}
 				<span class="text-muted-foreground flex items-center text-sm">
@@ -150,7 +151,7 @@
 						size="sm"
 						href="/admin/projects?page={data.pagination.page + 1}{data.search ? `&search=${data.search}` : ''}{data.showInactive ? '&inactive=true' : ''}"
 					>
-						Next
+						{m.common_next()}
 					</Button>
 				{/if}
 			</div>

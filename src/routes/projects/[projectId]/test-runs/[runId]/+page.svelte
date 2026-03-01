@@ -12,6 +12,7 @@
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -175,7 +176,7 @@
 		}) => {
 			if (result.type === 'success') {
 				failDialogOpen = false;
-				toast.success('Marked as FAIL with details');
+				toast.success(m.fail_marked());
 				await invalidateAll();
 			} else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Failed to save');
@@ -194,7 +195,7 @@
 		}) => {
 			if (result.type === 'success') {
 				editFailureDialogOpen = false;
-				toast.success('Failure detail updated');
+				toast.success(m.fail_updated());
 				await invalidateAll();
 			} else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Failed to update');
@@ -213,7 +214,7 @@
 		}) => {
 			if (result.type === 'success') {
 				deleteDialogOpen = false;
-				toast.success('Failure detail deleted');
+				toast.success(m.fail_deleted());
 				await invalidateAll();
 			} else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Failed to delete');
@@ -228,7 +229,7 @@
 	<div class="flex items-center justify-between">
 		<div>
 			<a href={basePath} class="text-muted-foreground hover:text-foreground text-sm"
-				>&larr; Back to Test Runs</a
+				>&larr; {m.common_back_to({ target: m.tr_title() })}</a
 			>
 			<div class="mt-1 flex items-center gap-3">
 				<h2 class="text-xl font-bold">{run.name}</h2>
@@ -242,19 +243,19 @@
 				size="sm"
 				href="/api/projects/{data.project.id}/test-runs/{run.id}/export"
 			>
-				Export CSV
+				{m.run_export_csv()}
 			</Button>
 			{#if canExecute && run.status !== 'COMPLETED'}
 				{#if run.status === 'CREATED'}
 					<form method="POST" action="?/updateRunStatus" use:enhance={handleResult}>
 						<input type="hidden" name="status" value="IN_PROGRESS" />
-						<Button type="submit" size="sm">Start Run</Button>
+						<Button type="submit" size="sm">{m.run_start()}</Button>
 					</form>
 				{/if}
 				{#if run.status === 'IN_PROGRESS'}
 					<form method="POST" action="?/updateRunStatus" use:enhance={handleResult}>
 						<input type="hidden" name="status" value="COMPLETED" />
-						<Button type="submit" variant="outline" size="sm">Complete Run</Button>
+						<Button type="submit" variant="outline" size="sm">{m.run_complete()}</Button>
 					</form>
 				{/if}
 			{/if}
@@ -266,8 +267,8 @@
 		<Card.Content class="pt-6">
 			<div class="space-y-3">
 				<div class="flex items-center justify-between text-sm">
-					<span class="font-medium">Progress</span>
-					<span class="text-muted-foreground">{completedPct}% complete</span>
+					<span class="font-medium">{m.run_progress()}</span>
+					<span class="text-muted-foreground">{m.run_pct_complete({ pct: completedPct })}</span>
 				</div>
 				<div class="bg-secondary flex h-3 overflow-hidden rounded-full">
 					{#if stats.pass > 0}
@@ -298,23 +299,23 @@
 				<div class="flex flex-wrap gap-4 text-sm">
 					<span class="flex items-center gap-1">
 						<span class="inline-block h-3 w-3 rounded-full bg-green-500"></span>
-						Pass: {stats.pass}
+						{m.dashboard_pass()}: {stats.pass}
 					</span>
 					<span class="flex items-center gap-1">
 						<span class="inline-block h-3 w-3 rounded-full bg-red-500"></span>
-						Fail: {stats.fail}
+						{m.dashboard_fail()}: {stats.fail}
 					</span>
 					<span class="flex items-center gap-1">
 						<span class="inline-block h-3 w-3 rounded-full bg-orange-500"></span>
-						Blocked: {stats.blocked}
+						{m.dashboard_blocked()}: {stats.blocked}
 					</span>
 					<span class="flex items-center gap-1">
 						<span class="inline-block h-3 w-3 rounded-full bg-gray-400"></span>
-						Skipped: {stats.skipped}
+						{m.dashboard_skipped()}: {stats.skipped}
 					</span>
 					<span class="flex items-center gap-1">
 						<span class="bg-secondary inline-block h-3 w-3 rounded-full"></span>
-						Pending: {stats.pending}
+						{m.dashboard_pending()}: {stats.pending}
 					</span>
 				</div>
 			</div>
@@ -324,12 +325,12 @@
 	<!-- Bulk Actions -->
 	{#if canExecute && selectedPending.size > 0}
 		<div class="bg-muted flex items-center gap-3 rounded-lg p-3">
-			<span class="text-sm font-medium">{selectedPending.size} pending selected</span>
+			<span class="text-sm font-medium">{m.run_pending_selected({ count: selectedPending.size })}</span>
 			<form method="POST" action="?/bulkPass" use:enhance={handleResult}>
 				{#each [...selectedPending] as id (id)}
 					<input type="hidden" name="executionIds" value={id} />
 				{/each}
-				<Button type="submit" size="sm" variant="outline">Bulk Pass</Button>
+				<Button type="submit" size="sm" variant="outline">{m.run_bulk_pass()}</Button>
 			</form>
 		</div>
 	{/if}
@@ -349,14 +350,14 @@
 							/>
 						</Table.Head>
 					{/if}
-					<Table.Head class="w-28">Key</Table.Head>
-					<Table.Head>Title</Table.Head>
-					<Table.Head class="w-24">Priority</Table.Head>
-					<Table.Head class="w-28">Status</Table.Head>
+					<Table.Head class="w-28">{m.common_key()}</Table.Head>
+					<Table.Head>{m.common_title()}</Table.Head>
+					<Table.Head class="w-24">{m.common_priority()}</Table.Head>
+					<Table.Head class="w-28">{m.common_status()}</Table.Head>
 					{#if canExecute}
-						<Table.Head class="w-52">Actions</Table.Head>
+						<Table.Head class="w-52">{m.common_actions()}</Table.Head>
 					{/if}
-					<Table.Head class="w-32">Executed By</Table.Head>
+					<Table.Head class="w-32">{m.run_executed_by()}</Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
@@ -463,7 +464,7 @@
 								<div class="bg-red-50 dark:bg-red-950/30 space-y-3 rounded-md p-4">
 									<div class="flex items-center justify-between">
 										<h4 class="text-sm font-medium text-red-800 dark:text-red-300">
-											Failure Details
+											{m.fail_details()}
 										</h4>
 										{#if canExecute}
 											<Button
@@ -472,7 +473,7 @@
 												size="sm"
 												onclick={() => openFailDialog(exec.id, exec.testCaseKey)}
 											>
-												Add Detail
+												{m.fail_add_detail()}
 											</Button>
 										{/if}
 									</div>
@@ -485,7 +486,7 @@
 									</div>
 									{#if execFailures.length === 0}
 										<p class="text-muted-foreground text-sm">
-											No failure details recorded.
+											{m.fail_no_details()}
 										</p>
 									{:else}
 										{#each execFailures as f (f.id)}
@@ -494,19 +495,19 @@
 													<div class="space-y-1 text-sm">
 														{#if f.errorMessage}
 															<div>
-																<span class="font-medium">Error:</span>
+																<span class="font-medium">{m.fail_error()}:</span>
 																{f.errorMessage}
 															</div>
 														{/if}
 														{#if f.testMethod}
 															<div>
-																<span class="font-medium">Method:</span>
+																<span class="font-medium">{m.fail_method()}:</span>
 																{f.testMethod}
 															</div>
 														{/if}
 														{#if f.failureEnvironment}
 															<div>
-																<span class="font-medium">Environment:</span>
+																<span class="font-medium">{m.common_environment()}:</span>
 																{f.failureEnvironment}
 															</div>
 														{/if}
@@ -514,7 +515,7 @@
 															<details class="mt-2">
 																<summary
 																	class="text-muted-foreground cursor-pointer text-xs"
-																	>Stack Trace</summary
+																	>{m.fail_stack_trace()}</summary
 																>
 																<pre
 																	class="bg-muted mt-1 overflow-x-auto rounded p-2 text-xs">{f.stackTrace}</pre>
@@ -535,7 +536,7 @@
 																class="h-7 px-2 text-xs"
 																onclick={() => openEditFailure(f)}
 															>
-																Edit
+																{m.common_edit()}
 															</Button>
 															<Button
 																type="button"
@@ -544,7 +545,7 @@
 																class="text-destructive hover:text-destructive h-7 px-2 text-xs"
 																onclick={() => openDeleteFailure(f.id)}
 															>
-																Delete
+																{m.common_delete()}
 															</Button>
 														</div>
 													{/if}
@@ -578,69 +579,69 @@
 		<Dialog.Overlay />
 		<Dialog.Content class="sm:max-w-lg">
 			<Dialog.Header>
-				<Dialog.Title>Mark as FAIL — {failExecutionKey}</Dialog.Title>
-				<Dialog.Description>Record failure details for this test execution</Dialog.Description>
+				<Dialog.Title>{m.fail_mark_title({ key: failExecutionKey })}</Dialog.Title>
+				<Dialog.Description>{m.fail_mark_desc()}</Dialog.Description>
 			</Dialog.Header>
 			<form method="POST" action="?/failWithDetail" use:enhance={handleFailResult}>
 				<input type="hidden" name="executionId" value={failExecutionId} />
 				<div class="space-y-4 py-4">
 					<div class="space-y-2">
-						<Label for="errorMessage">Error Message</Label>
+						<Label for="errorMessage">{m.fail_error_message()}</Label>
 						<Textarea
 							id="errorMessage"
 							name="errorMessage"
 							bind:value={errorMessage}
-							placeholder="Describe the error..."
+							placeholder={m.fail_error_placeholder()}
 							rows={2}
 						/>
 					</div>
 					<div class="grid gap-4 sm:grid-cols-2">
 						<div class="space-y-2">
-							<Label for="failureEnvironment">Environment</Label>
+							<Label for="failureEnvironment">{m.common_environment()}</Label>
 							<Input
 								id="failureEnvironment"
 								name="failureEnvironment"
 								bind:value={failureEnvironment}
-								placeholder="e.g., Chrome 120, Ubuntu"
+								placeholder={m.fail_env_placeholder()}
 							/>
 						</div>
 						<div class="space-y-2">
-							<Label for="testMethod">Test Method</Label>
+							<Label for="testMethod">{m.fail_method_label()}</Label>
 							<Input
 								id="testMethod"
 								name="testMethod"
 								bind:value={testMethod}
-								placeholder="e.g., manual, automated"
+								placeholder={m.fail_method_placeholder()}
 							/>
 						</div>
 					</div>
 					<div class="space-y-2">
-						<Label for="stackTrace">Stack Trace</Label>
+						<Label for="stackTrace">{m.fail_stack_trace()}</Label>
 						<Textarea
 							id="stackTrace"
 							name="stackTrace"
 							bind:value={stackTrace}
-							placeholder="Paste stack trace if available..."
+							placeholder={m.fail_stack_placeholder()}
 							rows={4}
 							class="font-mono text-xs"
 						/>
 					</div>
 					<div class="space-y-2">
-						<Label for="failComment">Comment</Label>
+						<Label for="failComment">{m.common_comment()}</Label>
 						<Textarea
 							id="failComment"
 							name="comment"
 							bind:value={failComment}
-							placeholder="Additional notes..."
+							placeholder={m.fail_comment_placeholder()}
 							rows={2}
 						/>
 					</div>
 				</div>
 				<Dialog.Footer>
 					<Button type="button" variant="outline" onclick={() => (failDialogOpen = false)}>
-						Cancel
+						{m.common_cancel()}
 					</Button>
-					<Button type="submit" variant="destructive">Mark as FAIL</Button>
+					<Button type="submit" variant="destructive">{m.fail_mark_submit()}</Button>
 				</Dialog.Footer>
 			</form>
 		</Dialog.Content>
@@ -653,13 +654,13 @@
 		<Dialog.Overlay />
 		<Dialog.Content class="sm:max-w-lg">
 			<Dialog.Header>
-				<Dialog.Title>Edit Failure Detail</Dialog.Title>
+				<Dialog.Title>{m.fail_edit_title()}</Dialog.Title>
 			</Dialog.Header>
 			<form method="POST" action="?/updateFailure" use:enhance={handleEditFailResult}>
 				<input type="hidden" name="failureId" value={editFailureId} />
 				<div class="space-y-4 py-4">
 					<div class="space-y-2">
-						<Label for="editErrorMessage">Error Message</Label>
+						<Label for="editErrorMessage">{m.fail_error_message()}</Label>
 						<Textarea
 							id="editErrorMessage"
 							name="errorMessage"
@@ -669,7 +670,7 @@
 					</div>
 					<div class="grid gap-4 sm:grid-cols-2">
 						<div class="space-y-2">
-							<Label for="editFailureEnvironment">Environment</Label>
+							<Label for="editFailureEnvironment">{m.common_environment()}</Label>
 							<Input
 								id="editFailureEnvironment"
 								name="failureEnvironment"
@@ -677,7 +678,7 @@
 							/>
 						</div>
 						<div class="space-y-2">
-							<Label for="editTestMethod">Test Method</Label>
+							<Label for="editTestMethod">{m.fail_method_label()}</Label>
 							<Input
 								id="editTestMethod"
 								name="testMethod"
@@ -686,7 +687,7 @@
 						</div>
 					</div>
 					<div class="space-y-2">
-						<Label for="editStackTrace">Stack Trace</Label>
+						<Label for="editStackTrace">{m.fail_stack_trace()}</Label>
 						<Textarea
 							id="editStackTrace"
 							name="stackTrace"
@@ -696,7 +697,7 @@
 						/>
 					</div>
 					<div class="space-y-2">
-						<Label for="editComment">Comment</Label>
+						<Label for="editComment">{m.common_comment()}</Label>
 						<Textarea
 							id="editComment"
 							name="comment"
@@ -711,9 +712,9 @@
 						variant="outline"
 						onclick={() => (editFailureDialogOpen = false)}
 					>
-						Cancel
+						{m.common_cancel()}
 					</Button>
-					<Button type="submit">Save Changes</Button>
+					<Button type="submit">{m.common_save_changes()}</Button>
 				</Dialog.Footer>
 			</form>
 		</Dialog.Content>
@@ -726,16 +727,16 @@
 		<AlertDialog.Overlay />
 		<AlertDialog.Content>
 			<AlertDialog.Header>
-				<AlertDialog.Title>Delete Failure Detail</AlertDialog.Title>
+				<AlertDialog.Title>{m.fail_delete_title()}</AlertDialog.Title>
 				<AlertDialog.Description>
-					Are you sure you want to delete this failure detail? This action cannot be undone.
+					{m.fail_delete_confirm()}
 				</AlertDialog.Description>
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
 				<form method="POST" action="?/deleteFailure" use:enhance={handleDeleteFailResult}>
 					<input type="hidden" name="failureId" value={deleteFailureId} />
-					<Button type="submit" variant="destructive">Delete</Button>
+					<Button type="submit" variant="destructive">{m.common_delete()}</Button>
 				</form>
 			</AlertDialog.Footer>
 		</AlertDialog.Content>

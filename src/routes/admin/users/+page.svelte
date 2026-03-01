@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages.js';
 	import { enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
@@ -42,7 +43,7 @@
 			update: () => Promise<void>;
 		}) => {
 			if (result.type === 'success') {
-				toast.success('Updated successfully');
+				toast.success(m.admin_updated());
 				await invalidateAll();
 			} else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Operation failed');
@@ -61,7 +62,7 @@
 		}) => {
 			if (result.type === 'success') {
 				banDialogOpen = false;
-				toast.success('User banned');
+				toast.success(m.admin_user_banned());
 				await invalidateAll();
 			} else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Failed to ban user');
@@ -76,8 +77,8 @@
 <div class="space-y-4">
 	<!-- Search -->
 	<form onsubmit={(e) => { e.preventDefault(); doSearch(); }} class="flex gap-2">
-		<Input placeholder="Search by name or email..." class="max-w-sm" bind:value={searchInput} />
-		<Button type="submit" variant="outline">Search</Button>
+		<Input placeholder={m.admin_search_placeholder()} class="max-w-sm" bind:value={searchInput} />
+		<Button type="submit" variant="outline">{m.common_search()}</Button>
 	</form>
 
 	<!-- Users Table -->
@@ -85,12 +86,12 @@
 		<Table.Root>
 			<Table.Header>
 				<Table.Row>
-					<Table.Head>Name</Table.Head>
-					<Table.Head>Email</Table.Head>
-					<Table.Head class="w-28">Role</Table.Head>
-					<Table.Head class="w-24">Status</Table.Head>
-					<Table.Head class="w-32">Created</Table.Head>
-					<Table.Head class="w-40">Actions</Table.Head>
+					<Table.Head>{m.common_name()}</Table.Head>
+					<Table.Head>{m.common_email()}</Table.Head>
+					<Table.Head class="w-28">{m.common_role()}</Table.Head>
+					<Table.Head class="w-24">{m.common_status()}</Table.Head>
+					<Table.Head class="w-32">{m.common_created()}</Table.Head>
+					<Table.Head class="w-40">{m.common_actions()}</Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
@@ -105,9 +106,9 @@
 						</Table.Cell>
 						<Table.Cell>
 							{#if u.banned}
-								<Badge variant="destructive">Banned</Badge>
+								<Badge variant="destructive">{m.admin_banned()}</Badge>
 							{:else}
-								<Badge variant="outline">Active</Badge>
+								<Badge variant="outline">{m.common_active()}</Badge>
 							{/if}
 						</Table.Cell>
 						<Table.Cell class="text-muted-foreground text-xs">
@@ -121,7 +122,7 @@
 											<input type="hidden" name="userId" value={u.id} />
 											<input type="hidden" name="role" value="admin" />
 											<Button type="submit" variant="ghost" size="sm" class="h-7 px-2 text-xs">
-												Make Admin
+												{m.admin_make_admin()}
 											</Button>
 										</form>
 									{:else}
@@ -129,7 +130,7 @@
 											<input type="hidden" name="userId" value={u.id} />
 											<input type="hidden" name="role" value="user" />
 											<Button type="submit" variant="ghost" size="sm" class="h-7 px-2 text-xs">
-												Remove Admin
+												{m.admin_remove_admin()}
 											</Button>
 										</form>
 									{/if}
@@ -137,7 +138,7 @@
 										<form method="POST" action="?/unban" use:enhance={handleResult}>
 											<input type="hidden" name="userId" value={u.id} />
 											<Button type="submit" variant="ghost" size="sm" class="h-7 px-2 text-xs text-green-600">
-												Unban
+												{m.admin_unban()}
 											</Button>
 										</form>
 									{:else}
@@ -148,12 +149,12 @@
 											class="text-destructive h-7 px-2 text-xs"
 											onclick={() => openBanDialog(u.id, u.name)}
 										>
-											Ban
+											{m.admin_ban()}
 										</Button>
 									{/if}
 								</div>
 							{:else}
-								<span class="text-muted-foreground text-xs">You</span>
+								<span class="text-muted-foreground text-xs">{m.admin_you()}</span>
 							{/if}
 						</Table.Cell>
 					</Table.Row>
@@ -161,7 +162,7 @@
 				{#if data.users.length === 0}
 					<Table.Row>
 						<Table.Cell colspan={6} class="text-muted-foreground text-center">
-							No users found.
+							{m.admin_no_users()}
 						</Table.Cell>
 					</Table.Row>
 				{/if}
@@ -173,7 +174,7 @@
 	{#if data.pagination.totalPages > 1}
 		<div class="flex items-center justify-between">
 			<p class="text-muted-foreground text-sm">
-				{data.pagination.total} users total
+				{m.admin_users_total({ count: data.pagination.total })}
 			</p>
 			<div class="flex gap-2">
 				{#if data.pagination.page > 1}
@@ -182,7 +183,7 @@
 						size="sm"
 						href="/admin/users?page={data.pagination.page - 1}{data.search ? `&search=${data.search}` : ''}"
 					>
-						Previous
+						{m.common_previous()}
 					</Button>
 				{/if}
 				<span class="text-muted-foreground flex items-center text-sm">
@@ -194,7 +195,7 @@
 						size="sm"
 						href="/admin/users?page={data.pagination.page + 1}{data.search ? `&search=${data.search}` : ''}"
 					>
-						Next
+						{m.common_next()}
 					</Button>
 				{/if}
 			</div>
@@ -206,20 +207,20 @@
 <AlertDialog.Root bind:open={banDialogOpen}>
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>Ban User</AlertDialog.Title>
+			<AlertDialog.Title>{m.admin_ban_title()}</AlertDialog.Title>
 			<AlertDialog.Description>
-				Are you sure you want to ban "{banTarget?.name}"? They will not be able to log in.
+				{m.admin_ban_confirm({ name: banTarget?.name ?? '' })}
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<div class="py-3">
-			<Input placeholder="Ban reason (optional)" bind:value={banReason} />
+			<Input placeholder={m.admin_ban_reason_placeholder()} bind:value={banReason} />
 		</div>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
 			<form method="POST" action="?/ban" use:enhance={handleBanResult}>
 				<input type="hidden" name="userId" value={banTarget?.id ?? ''} />
 				<input type="hidden" name="banReason" value={banReason} />
-				<Button type="submit" variant="destructive">Ban</Button>
+				<Button type="submit" variant="destructive">{m.admin_ban()}</Button>
 			</form>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

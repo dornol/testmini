@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 
@@ -88,7 +89,7 @@
 
 <div class="space-y-2">
 	<div class="flex items-center justify-between">
-		<h4 class="text-sm font-medium">Attachments ({attachments.length})</h4>
+		<h4 class="text-sm font-medium">{m.attachments_title()} ({attachments.length})</h4>
 		{#if editable}
 			<input
 				bind:this={fileInput}
@@ -102,13 +103,13 @@
 				disabled={uploading}
 				onclick={() => fileInput?.click()}
 			>
-				{uploading ? 'Uploading...' : 'Upload'}
+				{uploading ? m.attachments_uploading() : m.attachments_upload()}
 			</Button>
 		{/if}
 	</div>
 
 	{#if attachments.length === 0}
-		<p class="text-muted-foreground text-xs">No attachments</p>
+		<p class="text-muted-foreground text-xs">{m.attachments_none()}</p>
 	{:else}
 		<ul class="divide-y rounded-md border text-sm">
 			{#each attachments as att (att.id)}
@@ -132,7 +133,7 @@
 									deleteOpen = true;
 								}}
 							>
-								Delete
+								{m.common_delete()}
 							</Button>
 						{/if}
 					</div>
@@ -145,14 +146,14 @@
 <AlertDialog.Root bind:open={deleteOpen}>
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>Delete Attachment</AlertDialog.Title>
+			<AlertDialog.Title>{m.attachments_delete_title()}</AlertDialog.Title>
 			<AlertDialog.Description>
-				Are you sure you want to delete "{deleteTarget?.fileName}"? This cannot be undone.
+				{m.attachments_delete_confirm({ name: deleteTarget?.fileName ?? '' })}
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<AlertDialog.Action onclick={handleDelete}>Delete</AlertDialog.Action>
+			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+			<AlertDialog.Action onclick={handleDelete}>{m.common_delete()}</AlertDialog.Action>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>

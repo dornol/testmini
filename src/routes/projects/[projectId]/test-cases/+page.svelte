@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -69,15 +70,15 @@
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
-		<h2 class="text-lg font-semibold">Test Cases</h2>
+		<h2 class="text-lg font-semibold">{m.tc_title()}</h2>
 		{#if data.userRole !== 'VIEWER'}
-			<Button href="{basePath}/new">New Test Case</Button>
+			<Button href="{basePath}/new">{m.tc_new()}</Button>
 		{/if}
 	</div>
 
 	<div class="flex flex-wrap items-center gap-3">
 		<Input
-			placeholder="Search by title or key..."
+			placeholder={m.tc_search_placeholder()}
 			class="max-w-sm"
 			bind:value={searchInput}
 			oninput={handleSearch}
@@ -89,7 +90,7 @@
 					size="sm"
 					onclick={() => setPriority(p)}
 				>
-					{p || 'All'}
+					{p || m.common_all()}
 				</Button>
 			{/each}
 		</div>
@@ -117,16 +118,16 @@
 				<path d="M16 17H8" />
 				<path d="M10 9H8" />
 			</svg>
-			<h3 class="text-lg font-semibold">No test cases found</h3>
+			<h3 class="text-lg font-semibold">{m.tc_empty_title()}</h3>
 			<p class="text-muted-foreground mt-1 text-sm">
 				{#if data.search || data.priority}
-					No test cases match your filters. Try adjusting your search.
+					{m.tc_empty_search()}
 				{:else}
-					Get started by creating your first test case.
+					{m.tc_empty_create()}
 				{/if}
 			</p>
 			{#if !data.search && !data.priority && data.userRole !== 'VIEWER'}
-				<Button href="{basePath}/new" class="mt-4">Create Test Case</Button>
+				<Button href="{basePath}/new" class="mt-4">{m.tc_create()}</Button>
 			{/if}
 		</div>
 	{:else}
@@ -134,11 +135,11 @@
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head class="w-28">Key</Table.Head>
-						<Table.Head>Title</Table.Head>
-						<Table.Head class="w-28">Priority</Table.Head>
-						<Table.Head class="w-36">Updated By</Table.Head>
-						<Table.Head class="w-40">Updated At</Table.Head>
+						<Table.Head class="w-28">{m.common_key()}</Table.Head>
+						<Table.Head>{m.common_title()}</Table.Head>
+						<Table.Head class="w-28">{m.common_priority()}</Table.Head>
+						<Table.Head class="w-36">{m.tc_updated_by()}</Table.Head>
+						<Table.Head class="w-40">{m.tc_updated_at()}</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -170,7 +171,7 @@
 					disabled={data.meta.page <= 1}
 					onclick={() => goToPage(data.meta.page - 1)}
 				>
-					Previous
+					{m.common_previous()}
 				</Button>
 				<span class="text-muted-foreground text-sm">
 					Page {data.meta.page} of {data.meta.totalPages}
@@ -181,7 +182,7 @@
 					disabled={data.meta.page >= data.meta.totalPages}
 					onclick={() => goToPage(data.meta.page + 1)}
 				>
-					Next
+					{m.common_next()}
 				</Button>
 			</div>
 		{/if}

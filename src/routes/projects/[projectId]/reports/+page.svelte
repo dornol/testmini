@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -39,11 +40,11 @@
 	<!-- Environment Breakdown -->
 	<Card.Root>
 		<Card.Header>
-			<Card.Title class="text-sm font-medium">Pass Rate by Environment</Card.Title>
+			<Card.Title class="text-sm font-medium">{m.reports_env_pass_rate()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
 			{#if envStats.length === 0}
-				<p class="text-muted-foreground text-sm">No test runs yet.</p>
+				<p class="text-muted-foreground text-sm">{m.reports_no_runs()}</p>
 			{:else}
 				<div class="grid gap-4 sm:grid-cols-2">
 					{#each envStats as env (env.environment)}
@@ -65,8 +66,8 @@
 									{/if}
 								</div>
 								<div class="text-muted-foreground flex justify-between text-xs">
-									<span>{env.totalRuns} runs</span>
-									<span>{env.passCount} pass / {env.failCount} fail</span>
+									<span>{m.reports_runs_count({ count: env.totalRuns })}</span>
+									<span>{m.reports_pass_fail({ pass: env.passCount, fail: env.failCount })}</span>
 								</div>
 							</div>
 						</div>
@@ -80,7 +81,7 @@
 	{#if recentRuns.length > 0}
 		<Card.Root>
 			<Card.Header>
-				<Card.Title class="text-sm font-medium">Pass Rate Trend (Last 10 Completed Runs)</Card.Title>
+				<Card.Title class="text-sm font-medium">{m.reports_trend_title()}</Card.Title>
 			</Card.Header>
 			<Card.Content>
 				<div class="flex items-end gap-1" style="height: 160px;">
@@ -114,18 +115,18 @@
 	{#if priorityStats.length > 0}
 		<Card.Root>
 			<Card.Header>
-				<Card.Title class="text-sm font-medium">Results by Priority</Card.Title>
+				<Card.Title class="text-sm font-medium">{m.reports_by_priority()}</Card.Title>
 			</Card.Header>
 			<Card.Content class="p-0">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
-							<Table.Head>Priority</Table.Head>
-							<Table.Head class="w-28">Total</Table.Head>
-							<Table.Head class="w-28">Pass</Table.Head>
-							<Table.Head class="w-28">Fail</Table.Head>
-							<Table.Head class="w-28">Pass Rate</Table.Head>
-							<Table.Head class="w-40">Distribution</Table.Head>
+							<Table.Head>{m.common_priority()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_total()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_fail()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass_rate()}</Table.Head>
+							<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
@@ -163,20 +164,20 @@
 	{#if recentRuns.length > 0}
 		<Card.Root>
 			<Card.Header>
-				<Card.Title class="text-sm font-medium">Recent Completed Runs</Card.Title>
+				<Card.Title class="text-sm font-medium">{m.reports_recent_completed()}</Card.Title>
 			</Card.Header>
 			<Card.Content class="p-0">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
-							<Table.Head>Name</Table.Head>
-							<Table.Head class="w-24">Env</Table.Head>
-							<Table.Head class="w-20">Pass</Table.Head>
-							<Table.Head class="w-20">Fail</Table.Head>
-							<Table.Head class="w-24">Blocked</Table.Head>
-							<Table.Head class="w-24">Skipped</Table.Head>
-							<Table.Head class="w-28">Pass Rate</Table.Head>
-							<Table.Head class="w-32">Finished</Table.Head>
+							<Table.Head>{m.common_name()}</Table.Head>
+							<Table.Head class="w-24">{m.dashboard_env()}</Table.Head>
+							<Table.Head class="w-20">{m.reports_pass()}</Table.Head>
+							<Table.Head class="w-20">{m.reports_fail()}</Table.Head>
+							<Table.Head class="w-24">{m.dashboard_blocked()}</Table.Head>
+							<Table.Head class="w-24">{m.dashboard_skipped()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass_rate()}</Table.Head>
+							<Table.Head class="w-32">{m.reports_finished()}</Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>

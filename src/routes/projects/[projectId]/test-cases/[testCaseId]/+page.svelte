@@ -14,6 +14,7 @@
 	import { toast } from 'svelte-sonner';
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
 	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -74,7 +75,7 @@
 	<div class="flex items-center justify-between">
 		<div>
 			<a href={basePath} class="text-muted-foreground hover:text-foreground text-sm"
-				>&larr; Back to Test Cases</a
+				>&larr; {m.common_back_to({ target: m.tc_title() })}</a
 			>
 			<div class="mt-1 flex items-center gap-3">
 				<h2 class="text-xl font-bold">{tc.key}</h2>
@@ -85,37 +86,36 @@
 		</div>
 		<div class="flex gap-2">
 			<Button variant="outline" size="sm" onclick={() => (showVersions = !showVersions)}>
-				{showVersions ? 'Hide History' : 'Version History'}
+				{showVersions ? m.tc_detail_hide_history() : m.tc_detail_version_history()}
 			</Button>
 			{#if canEdit && !editing}
-				<Button size="sm" onclick={startEdit}>Edit</Button>
+				<Button size="sm" onclick={startEdit}>{m.common_edit()}</Button>
 			{/if}
 			{#if canDelete && !editing}
 				<AlertDialog.Root bind:open={deleteDialogOpen}>
 					<AlertDialog.Trigger>
 						{#snippet child({ props })}
-							<Button variant="destructive" size="sm" {...props}>Delete</Button>
+							<Button variant="destructive" size="sm" {...props}>{m.common_delete()}</Button>
 						{/snippet}
 					</AlertDialog.Trigger>
 					<AlertDialog.Portal>
 						<AlertDialog.Overlay />
 						<AlertDialog.Content>
 							<AlertDialog.Header>
-								<AlertDialog.Title>Delete Test Case</AlertDialog.Title>
+								<AlertDialog.Title>{m.tc_detail_delete_title()}</AlertDialog.Title>
 								<AlertDialog.Description>
-									Are you sure you want to delete "{tc.key}"? This action cannot be undone and will
-									remove all version history.
+									{m.tc_detail_delete_confirm({ key: tc.key })}
 								</AlertDialog.Description>
 							</AlertDialog.Header>
 							<AlertDialog.Footer>
-								<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+								<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
 								<form
 									method="POST"
 									action="?/delete"
 									use:formEnhance={() => {
 										return async ({ result }) => {
 											if (result.type === 'success') {
-												toast.success('Test case deleted');
+												toast.success(m.tc_deleted());
 												goto(basePath);
 											} else {
 												toast.error('Failed to delete test case');
@@ -123,7 +123,7 @@
 										};
 									}}
 								>
-									<Button type="submit" variant="destructive">Delete</Button>
+									<Button type="submit" variant="destructive">{m.common_delete()}</Button>
 								</form>
 							</AlertDialog.Footer>
 						</AlertDialog.Content>
@@ -140,12 +140,12 @@
 				<!-- Edit Mode -->
 				<Card.Root>
 					<Card.Header>
-						<Card.Title>Edit Test Case</Card.Title>
+						<Card.Title>{m.tc_detail_edit()}</Card.Title>
 					</Card.Header>
 					<Card.Content>
 						<form method="POST" action="?/update" use:enhance class="space-y-6">
 							<div class="space-y-2">
-								<Label for="title">Title</Label>
+								<Label for="title">{m.tc_title_label()}</Label>
 								<Input id="title" name="title" bind:value={$form.title} />
 								{#if $errors.title}
 									<p class="text-destructive text-sm">{$errors.title}</p>
@@ -153,22 +153,22 @@
 							</div>
 
 							<div class="space-y-2">
-								<Label for="priority">Priority</Label>
+								<Label for="priority">{m.common_priority()}</Label>
 								<select
 									id="priority"
 									name="priority"
 									bind:value={$form.priority}
 									class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 								>
-									<option value="LOW">Low</option>
-									<option value="MEDIUM">Medium</option>
-									<option value="HIGH">High</option>
-									<option value="CRITICAL">Critical</option>
+									<option value="LOW">{m.priority_low()}</option>
+									<option value="MEDIUM">{m.priority_medium()}</option>
+									<option value="HIGH">{m.priority_high()}</option>
+									<option value="CRITICAL">{m.priority_critical()}</option>
 								</select>
 							</div>
 
 							<div class="space-y-2">
-								<Label for="precondition">Precondition</Label>
+								<Label for="precondition">{m.tc_precondition()}</Label>
 								<Textarea
 									id="precondition"
 									name="precondition"
@@ -189,7 +189,7 @@
 							/>
 
 							<div class="space-y-2">
-								<Label for="expectedResult">Overall Expected Result</Label>
+								<Label for="expectedResult">{m.tc_expected_result()}</Label>
 								<Textarea
 									id="expectedResult"
 									name="expectedResult"
@@ -203,9 +203,9 @@
 
 							<div class="flex gap-3">
 								<Button type="submit" disabled={$submitting}>
-									{$submitting ? 'Saving...' : 'Save Changes'}
+									{$submitting ? m.common_saving() : m.common_save_changes()}
 								</Button>
-								<Button type="button" variant="outline" onclick={cancelEdit}>Cancel</Button>
+								<Button type="button" variant="outline" onclick={cancelEdit}>{m.common_cancel()}</Button>
 							</div>
 						</form>
 					</Card.Content>
@@ -214,9 +214,9 @@
 				<!-- View Mode -->
 				<Card.Root>
 					<Card.Header>
-						<Card.Title>{version?.title ?? 'Untitled'}</Card.Title>
+						<Card.Title>{version?.title ?? m.tc_detail_untitled()}</Card.Title>
 						<Card.Description>
-							Version {version?.versionNo ?? 0} &middot; Created {new Date(
+							{m.tc_detail_version({ version: version?.versionNo ?? 0 })} &middot; Created {new Date(
 								tc.createdAt
 							).toLocaleDateString()}
 						</Card.Description>
@@ -224,7 +224,7 @@
 					<Card.Content class="space-y-6">
 						{#if version?.precondition}
 							<div>
-								<h4 class="text-sm font-medium">Precondition</h4>
+								<h4 class="text-sm font-medium">{m.tc_precondition()}</h4>
 								<p class="text-muted-foreground mt-1 whitespace-pre-wrap text-sm">
 									{version.precondition}
 								</p>
@@ -233,21 +233,21 @@
 
 						{#if version?.steps && version.steps.length > 0}
 							<div>
-								<h4 class="text-sm font-medium">Steps</h4>
+								<h4 class="text-sm font-medium">{m.tc_detail_steps()}</h4>
 								<div class="mt-2 space-y-2">
 									{#each version.steps as step, i (step.order)}
 										<div class="rounded-md border p-3">
 											<div class="text-muted-foreground mb-1 text-xs font-medium">
-												Step {step.order}
+												{m.tc_detail_step_n({ n: step.order })}
 											</div>
 											<div class="grid gap-2 sm:grid-cols-2">
 												<div>
-													<span class="text-muted-foreground text-xs">Action:</span>
+													<span class="text-muted-foreground text-xs">{m.tc_detail_action()}:</span>
 													<p class="text-sm">{step.action}</p>
 												</div>
 												{#if step.expected}
 													<div>
-														<span class="text-muted-foreground text-xs">Expected:</span>
+														<span class="text-muted-foreground text-xs">{m.tc_detail_expected()}:</span>
 														<p class="text-sm">{step.expected}</p>
 													</div>
 												{/if}
@@ -260,7 +260,7 @@
 
 						{#if version?.expectedResult}
 							<div>
-								<h4 class="text-sm font-medium">Overall Expected Result</h4>
+								<h4 class="text-sm font-medium">{m.tc_expected_result()}</h4>
 								<p class="text-muted-foreground mt-1 whitespace-pre-wrap text-sm">
 									{version.expectedResult}
 								</p>
@@ -286,11 +286,11 @@
 		{#if showVersions}
 			<Card.Root class="h-fit">
 				<Card.Header>
-					<Card.Title class="text-base">Version History</Card.Title>
+					<Card.Title class="text-base">{m.tc_detail_version_history()}</Card.Title>
 				</Card.Header>
 				<Card.Content>
 					{#if data.versions.length === 0}
-						<p class="text-muted-foreground text-sm">No version history.</p>
+						<p class="text-muted-foreground text-sm">{m.tc_detail_no_versions()}</p>
 					{:else}
 						<div class="space-y-3">
 							{#each data.versions as v (v.id)}

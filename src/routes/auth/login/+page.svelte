@@ -6,6 +6,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let email = $state('');
 	let password = $state('');
@@ -24,7 +25,7 @@
 			return;
 		}
 
-		toast.success('Welcome back!');
+		toast.success(m.auth_welcome_back());
 		await invalidateAll();
 		goto('/projects');
 	}
@@ -32,30 +33,30 @@
 
 <Card.Root>
 	<Card.Header>
-		<Card.Title class="text-2xl">Login</Card.Title>
-		<Card.Description>Enter your credentials to sign in</Card.Description>
+		<Card.Title class="text-2xl">{m.auth_login_title()}</Card.Title>
+		<Card.Description>{m.auth_login_desc()}</Card.Description>
 	</Card.Header>
 	<Card.Content>
 		<form onsubmit={handleSubmit} class="space-y-4">
 			<div class="space-y-2">
-				<Label for="email">Email</Label>
-				<Input id="email" type="email" placeholder="you@example.com" bind:value={email} required />
+				<Label for="email">{m.common_email()}</Label>
+				<Input id="email" type="email" placeholder={m.auth_email_placeholder()} bind:value={email} required />
 			</div>
 
 			<div class="space-y-2">
-				<Label for="password">Password</Label>
+				<Label for="password">{m.auth_password()}</Label>
 				<Input id="password" type="password" bind:value={password} required />
 			</div>
 
 			<Button type="submit" class="w-full" disabled={loading}>
-				{loading ? 'Signing in...' : 'Sign in'}
+				{loading ? m.auth_signing_in() : m.auth_sign_in()}
 			</Button>
 		</form>
 	</Card.Content>
 	<Card.Footer class="justify-center">
 		<p class="text-sm text-muted-foreground">
-			Don't have an account?
-			<a href="/auth/register" class="text-primary underline-offset-4 hover:underline">Register</a>
+			{m.auth_no_account()}
+			<a href="/auth/register" class="text-primary underline-offset-4 hover:underline">{m.auth_register()}</a>
 		</p>
 	</Card.Footer>
 </Card.Root>

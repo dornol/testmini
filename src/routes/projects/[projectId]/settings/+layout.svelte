@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { cn } from '$lib/utils';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let { data, children } = $props();
 
 	const projectId = $derived(data.project.id);
 
 	const subNav = $derived([
-		{ href: `/projects/${projectId}/settings`, label: 'General', exact: true },
-		{ href: `/projects/${projectId}/settings/members`, label: 'Members' }
+		{ href: `/projects/${projectId}/settings`, label: m.nav_general(), exact: true },
+		{ href: `/projects/${projectId}/settings/members`, label: m.nav_members() }
 	]);
 
 	function isActive(href: string, exact?: boolean): boolean {

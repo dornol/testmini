@@ -8,6 +8,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -23,42 +24,42 @@
 	<div class="mb-6">
 		<a
 			href="/projects/{data.project.id}/test-cases"
-			class="text-muted-foreground hover:text-foreground text-sm">&larr; Back to Test Cases</a
+			class="text-muted-foreground hover:text-foreground text-sm">&larr; {m.common_back_to({ target: m.tc_title() })}</a
 		>
 	</div>
 
 	<Card.Root>
 		<Card.Header>
-			<Card.Title class="text-2xl">New Test Case</Card.Title>
-			<Card.Description>Create a new test case with steps and expected results</Card.Description>
+			<Card.Title class="text-2xl">{m.tc_new_title()}</Card.Title>
+			<Card.Description>{m.tc_new_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<form method="POST" use:enhance class="space-y-6">
 				<div class="space-y-2">
-					<Label for="title">Title</Label>
-					<Input id="title" name="title" bind:value={$form.title} placeholder="Test case title" />
+					<Label for="title">{m.tc_title_label()}</Label>
+					<Input id="title" name="title" bind:value={$form.title} placeholder={m.tc_title_placeholder()} />
 					{#if $errors.title}
 						<p class="text-destructive text-sm">{$errors.title}</p>
 					{/if}
 				</div>
 
 				<div class="space-y-2">
-					<Label for="priority">Priority</Label>
+					<Label for="priority">{m.common_priority()}</Label>
 					<select
 						id="priority"
 						name="priority"
 						bind:value={$form.priority}
 						class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 					>
-						<option value="LOW">Low</option>
-						<option value="MEDIUM">Medium</option>
-						<option value="HIGH">High</option>
-						<option value="CRITICAL">Critical</option>
+						<option value="LOW">{m.priority_low()}</option>
+						<option value="MEDIUM">{m.priority_medium()}</option>
+						<option value="HIGH">{m.priority_high()}</option>
+						<option value="CRITICAL">{m.priority_critical()}</option>
 					</select>
 				</div>
 
 				<div class="space-y-2">
-					<Label for="precondition">Precondition</Label>
+					<Label for="precondition">{m.tc_precondition()}</Label>
 					<Textarea
 						id="precondition"
 						name="precondition"
@@ -66,7 +67,7 @@
 						oninput={(e) => {
 							$form.precondition = e.currentTarget.value;
 						}}
-						placeholder="Prerequisites or initial conditions..."
+						placeholder={m.tc_precondition_placeholder()}
 						rows={3}
 					/>
 				</div>
@@ -80,7 +81,7 @@
 				/>
 
 				<div class="space-y-2">
-					<Label for="expectedResult">Overall Expected Result</Label>
+					<Label for="expectedResult">{m.tc_expected_result()}</Label>
 					<Textarea
 						id="expectedResult"
 						name="expectedResult"
@@ -88,16 +89,16 @@
 						oninput={(e) => {
 							$form.expectedResult = e.currentTarget.value;
 						}}
-						placeholder="The overall expected outcome..."
+						placeholder={m.tc_expected_result_placeholder()}
 						rows={3}
 					/>
 				</div>
 
 				<div class="flex gap-3 pt-2">
 					<Button type="submit" disabled={$submitting}>
-						{$submitting ? 'Creating...' : 'Create Test Case'}
+						{$submitting ? m.common_creating() : m.tc_create()}
 					</Button>
-					<Button variant="outline" href="/projects/{data.project.id}/test-cases">Cancel</Button>
+					<Button variant="outline" href="/projects/{data.project.id}/test-cases">{m.common_cancel()}</Button>
 				</div>
 			</form>
 		</Card.Content>

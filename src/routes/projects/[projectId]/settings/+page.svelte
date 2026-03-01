@@ -9,6 +9,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { toast } from 'svelte-sonner';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -29,13 +30,13 @@
 <div class="space-y-8">
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>General Settings</Card.Title>
-			<Card.Description>Update your project details</Card.Description>
+			<Card.Title>{m.settings_general()}</Card.Title>
+			<Card.Description>{m.settings_general_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<form method="POST" action="?/update" use:enhance class="space-y-4">
 				<div class="space-y-2">
-					<Label for="name">Project Name</Label>
+					<Label for="name">{m.project_name_label()}</Label>
 					<Input id="name" name="name" bind:value={$form.name} />
 					{#if $errors.name}
 						<p class="text-destructive text-sm">{$errors.name}</p>
@@ -43,7 +44,7 @@
 				</div>
 
 				<div class="space-y-2">
-					<Label for="description">Description</Label>
+					<Label for="description">{m.common_description()}</Label>
 					<Textarea
 						id="description"
 						name="description"
@@ -57,7 +58,7 @@
 				</div>
 
 				<Button type="submit" disabled={$submitting}>
-					{$submitting ? 'Saving...' : 'Save Changes'}
+					{$submitting ? m.common_saving() : m.common_save_changes()}
 				</Button>
 			</form>
 		</Card.Content>
@@ -66,31 +67,31 @@
 	{#if data.project.active}
 		<Card.Root class="border-destructive">
 			<Card.Header>
-				<Card.Title class="text-destructive">Danger Zone</Card.Title>
+				<Card.Title class="text-destructive">{m.settings_danger_zone()}</Card.Title>
 				<Card.Description>
-					Deactivating a project will hide it from the project list. This action can be reversed by an administrator.
+					{m.settings_deactivate_desc()}
 				</Card.Description>
 			</Card.Header>
 			<Card.Content>
 				<AlertDialog.Root bind:open={deactivateOpen}>
 					<AlertDialog.Trigger>
 						{#snippet child({ props })}
-							<Button variant="destructive" {...props}>Deactivate Project</Button>
+							<Button variant="destructive" {...props}>{m.settings_deactivate()}</Button>
 						{/snippet}
 					</AlertDialog.Trigger>
 					<AlertDialog.Portal>
 						<AlertDialog.Overlay />
 						<AlertDialog.Content>
 							<AlertDialog.Header>
-								<AlertDialog.Title>Deactivate Project</AlertDialog.Title>
+								<AlertDialog.Title>{m.settings_deactivate_title()}</AlertDialog.Title>
 								<AlertDialog.Description>
-									Are you sure you want to deactivate "{data.project.name}"? The project will be hidden from the project list.
+									{m.settings_deactivate_confirm({ name: data.project.name })}
 								</AlertDialog.Description>
 							</AlertDialog.Header>
 							<AlertDialog.Footer>
-								<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+								<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
 								<form method="POST" action="?/deactivate">
-									<Button type="submit" variant="destructive">Deactivate</Button>
+									<Button type="submit" variant="destructive">{m.settings_deactivate()}</Button>
 								</form>
 							</AlertDialog.Footer>
 						</AlertDialog.Content>

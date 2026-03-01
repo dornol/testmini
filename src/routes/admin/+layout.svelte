@@ -1,19 +1,20 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { cn } from '$lib/utils';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let { children } = $props();
 
 	const tabs = [
-		{ href: '/admin/users', label: 'Users' },
-		{ href: '/admin/projects', label: 'Projects' }
-	] as const;
+		{ href: '/admin/users', label: m.nav_users() },
+		{ href: '/admin/projects', label: m.nav_projects() }
+	];
 </script>
 
 <div class="space-y-6">
 	<div>
-		<h1 class="text-2xl font-bold">Admin</h1>
-		<p class="text-muted-foreground text-sm">System administration</p>
+		<h1 class="text-2xl font-bold">{m.admin_title()}</h1>
+		<p class="text-muted-foreground text-sm">{m.admin_desc()}</p>
 	</div>
 
 	<div class="border-b">

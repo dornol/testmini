@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -39,20 +40,20 @@
 
 <div class="space-y-3">
 	<div class="flex items-center justify-between">
-		<Label>Steps</Label>
+		<Label>{m.steps_editor_title()}</Label>
 		{#if !disabled}
-			<Button type="button" variant="outline" size="sm" onclick={addStep}>Add Step</Button>
+			<Button type="button" variant="outline" size="sm" onclick={addStep}>{m.steps_editor_add()}</Button>
 		{/if}
 	</div>
 
 	{#if value.length === 0}
-		<p class="text-muted-foreground text-sm">No steps added yet.</p>
+		<p class="text-muted-foreground text-sm">{m.common_no_results()}</p>
 	{:else}
 		<div class="space-y-3">
 			{#each value as step, i (i)}
 				<div class="rounded-md border p-3">
 					<div class="mb-2 flex items-center justify-between">
-						<span class="text-muted-foreground text-sm font-medium">Step {i + 1}</span>
+						<span class="text-muted-foreground text-sm font-medium">{m.steps_editor_step_n({ n: i + 1 })}</span>
 						{#if !disabled}
 							<div class="flex items-center gap-1">
 								<Button
@@ -126,10 +127,10 @@
 					</div>
 					<div class="grid gap-3 sm:grid-cols-2">
 						<div class="space-y-1">
-							<label for="step-action-{i}" class="text-muted-foreground text-xs">Action</label>
+							<label for="step-action-{i}" class="text-muted-foreground text-xs">{m.steps_editor_action()}</label>
 							<Input
 								id="step-action-{i}"
-								placeholder="What to do..."
+								placeholder={m.steps_editor_action_placeholder()}
 								value={step.action}
 								oninput={(e) => updateStep(i, 'action', e.currentTarget.value)}
 								{disabled}
@@ -137,11 +138,11 @@
 						</div>
 						<div class="space-y-1">
 							<label for="step-expected-{i}" class="text-muted-foreground text-xs"
-								>Expected Result</label
+								>{m.steps_editor_expected()}</label
 							>
 							<Input
 								id="step-expected-{i}"
-								placeholder="What should happen..."
+								placeholder={m.steps_editor_expected_placeholder()}
 								value={step.expected}
 								oninput={(e) => updateStep(i, 'expected', e.currentTarget.value)}
 								{disabled}

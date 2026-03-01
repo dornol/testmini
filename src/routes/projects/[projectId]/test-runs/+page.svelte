@@ -5,6 +5,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -48,9 +49,9 @@
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
-		<h2 class="text-lg font-semibold">Test Runs</h2>
+		<h2 class="text-lg font-semibold">{m.tr_title()}</h2>
 		{#if data.userRole !== 'VIEWER'}
-			<Button href="{basePath}/new">New Test Run</Button>
+			<Button href="{basePath}/new">{m.tr_new()}</Button>
 		{/if}
 	</div>
 
@@ -61,7 +62,7 @@
 				size="sm"
 				onclick={() => setStatus(s)}
 			>
-				{s || 'All'}
+				{s || m.common_all()}
 			</Button>
 		{/each}
 	</div>
@@ -87,16 +88,16 @@
 				<path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
 				<path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
 			</svg>
-			<h3 class="text-lg font-semibold">No test runs found</h3>
+			<h3 class="text-lg font-semibold">{m.tr_empty_title()}</h3>
 			<p class="text-muted-foreground mt-1 text-sm">
 				{#if data.statusFilter}
-					No test runs match this filter.
+					{m.tr_empty_filter()}
 				{:else}
-					Create a test run to start executing test cases.
+					{m.tr_empty_create()}
 				{/if}
 			</p>
 			{#if !data.statusFilter && data.userRole !== 'VIEWER'}
-				<Button href="{basePath}/new" class="mt-4">Create Test Run</Button>
+				<Button href="{basePath}/new" class="mt-4">{m.tr_create()}</Button>
 			{/if}
 		</div>
 	{:else}
@@ -104,12 +105,12 @@
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head>Name</Table.Head>
-						<Table.Head class="w-28">Environment</Table.Head>
-						<Table.Head class="w-32">Status</Table.Head>
-						<Table.Head class="w-40">Progress</Table.Head>
-						<Table.Head class="w-32">Created By</Table.Head>
-						<Table.Head class="w-36">Created At</Table.Head>
+						<Table.Head>{m.common_name()}</Table.Head>
+						<Table.Head class="w-28">{m.common_environment()}</Table.Head>
+						<Table.Head class="w-32">{m.common_status()}</Table.Head>
+						<Table.Head class="w-40">{m.tr_progress()}</Table.Head>
+						<Table.Head class="w-32">{m.tr_created_by()}</Table.Head>
+						<Table.Head class="w-36">{m.tr_created_at()}</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -156,7 +157,7 @@
 					disabled={data.meta.page <= 1}
 					onclick={() => goToPage(data.meta.page - 1)}
 				>
-					Previous
+					{m.common_previous()}
 				</Button>
 				<span class="text-muted-foreground text-sm">
 					Page {data.meta.page} of {data.meta.totalPages}
@@ -167,7 +168,7 @@
 					disabled={data.meta.page >= data.meta.totalPages}
 					onclick={() => goToPage(data.meta.page + 1)}
 				>
-					Next
+					{m.common_next()}
 				</Button>
 			</div>
 		{/if}

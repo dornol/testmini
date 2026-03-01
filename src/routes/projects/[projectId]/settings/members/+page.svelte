@@ -11,6 +11,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -78,22 +79,22 @@
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<div>
-			<h2 class="text-lg font-semibold">Members</h2>
-			<p class="text-muted-foreground text-sm">Manage project team members and their roles</p>
+			<h2 class="text-lg font-semibold">{m.members_title()}</h2>
+			<p class="text-muted-foreground text-sm">{m.members_desc()}</p>
 		</div>
 
 		<Dialog.Root bind:open={addDialogOpen} onOpenChange={(open) => { if (!open) resetAddDialog(); }}>
 			<Dialog.Trigger>
 				{#snippet child({ props })}
-					<Button {...props}>Add Member</Button>
+					<Button {...props}>{m.members_add()}</Button>
 				{/snippet}
 			</Dialog.Trigger>
 			<Dialog.Portal>
 				<Dialog.Overlay />
 				<Dialog.Content class="sm:max-w-md">
 					<Dialog.Header>
-						<Dialog.Title>Add Member</Dialog.Title>
-						<Dialog.Description>Search for a user to add to this project</Dialog.Description>
+						<Dialog.Title>{m.members_add_title()}</Dialog.Title>
+						<Dialog.Description>{m.members_add_desc()}</Dialog.Description>
 					</Dialog.Header>
 
 					<div class="space-y-4 py-4">
@@ -104,14 +105,14 @@
 									<p class="text-muted-foreground text-sm">{selectedUser.email}</p>
 								</div>
 								<Button variant="ghost" size="sm" onclick={() => (selectedUser = null)}>
-									Change
+									{m.members_change()}
 								</Button>
 							</div>
 						{:else}
 							<div class="space-y-2">
-								<Label>Search User</Label>
+								<Label>{m.members_search_user()}</Label>
 								<Input
-									placeholder="Search by name or email..."
+									placeholder={m.members_search_placeholder()}
 									bind:value={searchQuery}
 									oninput={handleSearch}
 								/>
@@ -129,13 +130,13 @@
 										{/each}
 									</div>
 								{:else if searchQuery.length >= 2 && !searching}
-									<p class="text-muted-foreground text-sm">No users found</p>
+									<p class="text-muted-foreground text-sm">{m.members_no_users()}</p>
 								{/if}
 							</div>
 						{/if}
 
 						<div class="space-y-2">
-							<Label>Role</Label>
+							<Label>{m.common_role()}</Label>
 							<select
 								bind:value={selectedRole}
 								class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
@@ -155,7 +156,7 @@
 								use:enhance={() => {
 									return async ({ result, update }) => {
 										if (result.type === 'success' || result.type === 'redirect') {
-											toast.success('Member added successfully');
+											toast.success(m.members_added());
 											addDialogOpen = false;
 											resetAddDialog();
 											await invalidateAll();
@@ -168,7 +169,7 @@
 							>
 								<input type="hidden" name="userId" value={selectedUser.id} />
 								<input type="hidden" name="role" value={selectedRole} />
-								<Button type="submit">Add Member</Button>
+								<Button type="submit">{m.members_add()}</Button>
 							</form>
 						</Dialog.Footer>
 					{/if}
@@ -181,10 +182,10 @@
 		<Table.Root>
 			<Table.Header>
 				<Table.Row>
-					<Table.Head>Name</Table.Head>
-					<Table.Head>Email</Table.Head>
-					<Table.Head>Role</Table.Head>
-					<Table.Head class="w-24">Actions</Table.Head>
+					<Table.Head>{m.common_name()}</Table.Head>
+					<Table.Head>{m.common_email()}</Table.Head>
+					<Table.Head>{m.common_role()}</Table.Head>
+					<Table.Head class="w-24">{m.common_actions()}</Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
@@ -199,7 +200,7 @@
 								use:enhance={() => {
 									return async ({ result, update }) => {
 										if (result.type === 'success') {
-											toast.success('Role updated');
+											toast.success(m.members_role_updated());
 											await invalidateAll();
 										} else if (result.type === 'failure') {
 											toast.error(result.data?.error as string ?? 'Failed to update role');
@@ -228,7 +229,7 @@
 								class="text-destructive hover:text-destructive"
 								onclick={() => openRemoveDialog(member.id, member.userName)}
 							>
-								Remove
+								{m.members_remove()}
 							</Button>
 						</Table.Cell>
 					</Table.Row>
@@ -243,20 +244,20 @@
 			<AlertDialog.Overlay />
 			<AlertDialog.Content>
 				<AlertDialog.Header>
-					<AlertDialog.Title>Remove Member</AlertDialog.Title>
+					<AlertDialog.Title>{m.members_remove_title()}</AlertDialog.Title>
 					<AlertDialog.Description>
-						Are you sure you want to remove {removeMemberName} from this project? They will lose all access.
+						{m.members_remove_confirm({ name: removeMemberName })}
 					</AlertDialog.Description>
 				</AlertDialog.Header>
 				<AlertDialog.Footer>
-					<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+					<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
 					<form
 						method="POST"
 						action="?/removeMember"
 						use:enhance={() => {
 							return async ({ result, update }) => {
 								if (result.type === 'success') {
-									toast.success('Member removed');
+									toast.success(m.members_removed());
 									removeDialogOpen = false;
 									await invalidateAll();
 								} else if (result.type === 'failure') {
@@ -267,7 +268,7 @@
 						}}
 					>
 						<input type="hidden" name="memberId" value={removeMemberId} />
-						<Button type="submit" variant="destructive">Remove</Button>
+						<Button type="submit" variant="destructive">{m.members_remove()}</Button>
 					</form>
 				</AlertDialog.Footer>
 			</AlertDialog.Content>

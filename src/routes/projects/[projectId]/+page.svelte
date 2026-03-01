@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -32,7 +33,7 @@
 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 	<Card.Root>
 		<Card.Header class="pb-2">
-			<Card.Title class="text-muted-foreground text-sm font-medium">Test Cases</Card.Title>
+			<Card.Title class="text-muted-foreground text-sm font-medium">{m.dashboard_test_cases()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
 			<p class="text-2xl font-bold">{stats.testCaseCount}</p>
@@ -41,16 +42,16 @@
 
 	<Card.Root>
 		<Card.Header class="pb-2">
-			<Card.Title class="text-muted-foreground text-sm font-medium">Test Runs</Card.Title>
+			<Card.Title class="text-muted-foreground text-sm font-medium">{m.dashboard_test_runs()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
 			<p class="text-2xl font-bold">{stats.runCounts.total}</p>
 			<div class="text-muted-foreground mt-1 flex gap-2 text-xs">
 				{#if stats.runCounts.inProgress > 0}
-					<span class="text-blue-600">{stats.runCounts.inProgress} in progress</span>
+					<span class="text-blue-600">{m.dashboard_in_progress({ count: stats.runCounts.inProgress })}</span>
 				{/if}
 				{#if stats.runCounts.completed > 0}
-					<span class="text-green-600">{stats.runCounts.completed} completed</span>
+					<span class="text-green-600">{m.dashboard_completed({ count: stats.runCounts.completed })}</span>
 				{/if}
 			</div>
 		</Card.Content>
@@ -58,7 +59,7 @@
 
 	<Card.Root>
 		<Card.Header class="pb-2">
-			<Card.Title class="text-muted-foreground text-sm font-medium">Pass Rate</Card.Title>
+			<Card.Title class="text-muted-foreground text-sm font-medium">{m.dashboard_pass_rate()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
 			<p class="text-2xl font-bold {passRate >= 80 ? 'text-green-600' : passRate >= 50 ? 'text-yellow-600' : stats.execCounts.total === 0 ? '' : 'text-red-600'}">
@@ -66,7 +67,7 @@
 			</p>
 			{#if stats.execCounts.total > 0}
 				<p class="text-muted-foreground mt-1 text-xs">
-					{stats.execCounts.pass} / {executed} executed
+					{m.dashboard_executed({ pass: stats.execCounts.pass, executed })}
 				</p>
 			{/if}
 		</Card.Content>
@@ -74,12 +75,12 @@
 
 	<Card.Root>
 		<Card.Header class="pb-2">
-			<Card.Title class="text-muted-foreground text-sm font-medium">Members</Card.Title>
+			<Card.Title class="text-muted-foreground text-sm font-medium">{m.dashboard_members()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
 			<p class="text-2xl font-bold">{proj.memberCount}</p>
 			<p class="text-muted-foreground mt-1 text-xs">
-				{proj.active ? 'Active' : 'Inactive'} &middot; {new Date(proj.createdAt).toLocaleDateString()}
+				{proj.active ? m.common_active() : m.common_inactive()} &middot; {new Date(proj.createdAt).toLocaleDateString()}
 			</p>
 		</Card.Content>
 	</Card.Root>
@@ -89,7 +90,7 @@
 {#if stats.execCounts.total > 0}
 	<Card.Root class="mt-6">
 		<Card.Header>
-			<Card.Title class="text-sm font-medium">Execution Summary</Card.Title>
+			<Card.Title class="text-sm font-medium">{m.dashboard_exec_summary()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
 			<div class="space-y-3">
@@ -122,23 +123,23 @@
 				<div class="flex flex-wrap gap-4 text-sm">
 					<span class="flex items-center gap-1">
 						<span class="inline-block h-3 w-3 rounded-full bg-green-500"></span>
-						Pass: {stats.execCounts.pass}
+						{m.dashboard_pass()}: {stats.execCounts.pass}
 					</span>
 					<span class="flex items-center gap-1">
 						<span class="inline-block h-3 w-3 rounded-full bg-red-500"></span>
-						Fail: {stats.execCounts.fail}
+						{m.dashboard_fail()}: {stats.execCounts.fail}
 					</span>
 					<span class="flex items-center gap-1">
 						<span class="inline-block h-3 w-3 rounded-full bg-orange-500"></span>
-						Blocked: {stats.execCounts.blocked}
+						{m.dashboard_blocked()}: {stats.execCounts.blocked}
 					</span>
 					<span class="flex items-center gap-1">
 						<span class="inline-block h-3 w-3 rounded-full bg-gray-400"></span>
-						Skipped: {stats.execCounts.skipped}
+						{m.dashboard_skipped()}: {stats.execCounts.skipped}
 					</span>
 					<span class="flex items-center gap-1">
 						<span class="bg-secondary inline-block h-3 w-3 rounded-full border"></span>
-						Pending: {stats.execCounts.pending}
+						{m.dashboard_pending()}: {stats.execCounts.pending}
 					</span>
 				</div>
 			</div>
@@ -151,12 +152,12 @@
 	<Card.Root class="mt-6">
 		<Card.Header>
 			<div class="flex items-center justify-between">
-				<Card.Title class="text-sm font-medium">Recent Test Runs</Card.Title>
+				<Card.Title class="text-sm font-medium">{m.dashboard_recent_runs()}</Card.Title>
 				<a
 					href="/projects/{proj.id}/test-runs"
 					class="text-muted-foreground hover:text-foreground text-xs"
 				>
-					View all &rarr;
+					{m.dashboard_view_all()} &rarr;
 				</a>
 			</div>
 		</Card.Header>
@@ -164,11 +165,11 @@
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head>Name</Table.Head>
-						<Table.Head class="w-24">Env</Table.Head>
-						<Table.Head class="w-28">Status</Table.Head>
-						<Table.Head class="w-40">Result</Table.Head>
-						<Table.Head class="w-28">Date</Table.Head>
+						<Table.Head>{m.common_name()}</Table.Head>
+						<Table.Head class="w-24">{m.dashboard_env()}</Table.Head>
+						<Table.Head class="w-28">{m.common_status()}</Table.Head>
+						<Table.Head class="w-40">{m.dashboard_result()}</Table.Head>
+						<Table.Head class="w-28">{m.common_date()}</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -221,7 +222,7 @@
 {#if proj.description}
 	<Card.Root class="mt-6">
 		<Card.Header>
-			<Card.Title class="text-sm font-medium">Description</Card.Title>
+			<Card.Title class="text-sm font-medium">{m.common_description()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
 			<p class="text-muted-foreground whitespace-pre-wrap">{proj.description}</p>

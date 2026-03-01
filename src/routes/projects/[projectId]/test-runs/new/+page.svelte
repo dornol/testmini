@@ -7,6 +7,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 	const actionData = $derived(page.form as Record<string, unknown> | null);
@@ -75,27 +76,27 @@
 	<div class="mb-6">
 		<a
 			href="/projects/{data.project.id}/test-runs"
-			class="text-muted-foreground hover:text-foreground text-sm">&larr; Back to Test Runs</a
+			class="text-muted-foreground hover:text-foreground text-sm">&larr; {m.common_back_to({ target: m.tr_title() })}</a
 		>
 	</div>
 
 	<Card.Root>
 		<Card.Header>
-			<Card.Title class="text-2xl">New Test Run</Card.Title>
-			<Card.Description>Configure a test run and select test cases to execute</Card.Description>
+			<Card.Title class="text-2xl">{m.tr_new_title()}</Card.Title>
+			<Card.Description>{m.tr_new_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<form method="POST" use:enhance class="space-y-6">
 				<div class="grid gap-4 sm:grid-cols-2">
 					<div class="space-y-2">
-						<Label for="name">Run Name</Label>
-						<Input id="name" name="name" placeholder="e.g., Sprint 42 Regression" required />
+						<Label for="name">{m.tr_run_name()}</Label>
+						<Input id="name" name="name" placeholder={m.tr_run_name_placeholder()} required />
 						{#if (actionData?.errors as Record<string, string[]> | undefined)?.name}
 							<p class="text-destructive text-sm">{(actionData?.errors as Record<string, string[]>).name}</p>
 						{/if}
 					</div>
 					<div class="space-y-2">
-						<Label for="environment">Environment</Label>
+						<Label for="environment">{m.common_environment()}</Label>
 						<select
 							id="environment"
 							name="environment"
@@ -112,12 +113,12 @@
 				<!-- Test Case Selection -->
 				<div class="space-y-3">
 					<div class="flex items-center justify-between">
-						<Label>Select Test Cases ({selectedIds.size} selected)</Label>
+						<Label>{m.tr_select_cases({ count: selectedIds.size })}</Label>
 					</div>
 
 					<div class="flex flex-wrap items-center gap-2">
 						<Input
-							placeholder="Filter by title or key..."
+							placeholder={m.tr_filter_placeholder()}
 							class="max-w-xs"
 							bind:value={searchFilter}
 						/>
@@ -129,7 +130,7 @@
 									size="sm"
 									onclick={() => (priorityFilter = p)}
 								>
-									{p || 'All'}
+									{p || m.common_all()}
 								</Button>
 							{/each}
 						</div>
@@ -137,7 +138,7 @@
 
 					{#if data.testCases.length === 0}
 						<p class="text-muted-foreground text-sm">
-							No test cases in this project. Create test cases first.
+							{m.tr_no_cases()}
 						</p>
 					{:else}
 						<Card.Root>
@@ -152,9 +153,9 @@
 												class="rounded"
 											/>
 										</Table.Head>
-										<Table.Head class="w-28">Key</Table.Head>
-										<Table.Head>Title</Table.Head>
-										<Table.Head class="w-28">Priority</Table.Head>
+										<Table.Head class="w-28">{m.common_key()}</Table.Head>
+										<Table.Head>{m.common_title()}</Table.Head>
+										<Table.Head class="w-28">{m.common_priority()}</Table.Head>
 									</Table.Row>
 								</Table.Header>
 								<Table.Body>
@@ -196,9 +197,9 @@
 
 				<div class="flex gap-3 pt-2">
 					<Button type="submit" disabled={selectedIds.size === 0}>
-						Create Test Run ({selectedIds.size} cases)
+						{m.tr_create_run({ count: selectedIds.size })}
 					</Button>
-					<Button variant="outline" href="/projects/{data.project.id}/test-runs">Cancel</Button>
+					<Button variant="outline" href="/projects/{data.project.id}/test-runs">{m.common_cancel()}</Button>
 				</div>
 			</form>
 		</Card.Content>

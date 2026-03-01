@@ -4,12 +4,44 @@
 	import { toast } from 'svelte-sonner';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
 
 	let { data } = $props();
 
 	let selectedPending = $state<Set<number>>(new Set());
+
+	// Failure modal state
+	let failDialogOpen = $state(false);
+	let failExecutionId = $state<number | null>(null);
+	let failExecutionKey = $state('');
+	let failureEnvironment = $state('');
+	let testMethod = $state('');
+	let errorMessage = $state('');
+	let stackTrace = $state('');
+	let failComment = $state('');
+
+	// Edit failure state
+	let editFailureDialogOpen = $state(false);
+	let editFailureId = $state<number | null>(null);
+	let editFailureEnvironment = $state('');
+	let editTestMethod = $state('');
+	let editErrorMessage = $state('');
+	let editStackTrace = $state('');
+	let editComment = $state('');
+
+	// View failures state
+	let viewFailuresExecId = $state<number | null>(null);
+
+	// Delete failure state
+	let deleteFailureId = $state<number | null>(null);
+	let deleteDialogOpen = $state(false);
 
 	const run = $derived(data.run);
 	const stats = $derived(data.stats);
@@ -25,6 +57,10 @@
 	const allPendingSelected = $derived(
 		pendingExecutions.length > 0 && pendingExecutions.every((e) => selectedPending.has(e.id))
 	);
+
+	function getFailures(executionId: number) {
+		return data.failures.filter((f) => f.testExecutionId === executionId);
+	}
 
 	function togglePendingAll() {
 		if (allPendingSelected) {
@@ -42,6 +78,32 @@
 			newSet.add(id);
 		}
 		selectedPending = newSet;
+	}
+
+	function openFailDialog(execId: number, key: string) {
+		failExecutionId = execId;
+		failExecutionKey = key;
+		failureEnvironment = '';
+		testMethod = '';
+		errorMessage = '';
+		stackTrace = '';
+		failComment = '';
+		failDialogOpen = true;
+	}
+
+	function openEditFailure(f: typeof data.failures[0]) {
+		editFailureId = f.id;
+		editFailureEnvironment = f.failureEnvironment ?? '';
+		editTestMethod = f.testMethod ?? '';
+		editErrorMessage = f.errorMessage ?? '';
+		editStackTrace = f.stackTrace ?? '';
+		editComment = f.comment ?? '';
+		editFailureDialogOpen = true;
+	}
+
+	function openDeleteFailure(id: number) {
+		deleteFailureId = id;
+		deleteDialogOpen = true;
 	}
 
 	function statusColor(s: string): string {
@@ -86,12 +148,75 @@
 	}
 
 	function handleResult() {
-		return async ({ result, update }: { result: { type: string; data?: Record<string, unknown> }; update: () => Promise<void> }) => {
+		return async ({
+			result,
+			update
+		}: {
+			result: { type: string; data?: Record<string, unknown> };
+			update: () => Promise<void>;
+		}) => {
 			if (result.type === 'success') {
 				selectedPending = new Set();
 				await invalidateAll();
 			} else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Operation failed');
+				await update();
+			}
+		};
+	}
+
+	function handleFailResult() {
+		return async ({
+			result,
+			update
+		}: {
+			result: { type: string; data?: Record<string, unknown> };
+			update: () => Promise<void>;
+		}) => {
+			if (result.type === 'success') {
+				failDialogOpen = false;
+				toast.success('Marked as FAIL with details');
+				await invalidateAll();
+			} else if (result.type === 'failure') {
+				toast.error((result.data?.error as string) ?? 'Failed to save');
+				await update();
+			}
+		};
+	}
+
+	function handleEditFailResult() {
+		return async ({
+			result,
+			update
+		}: {
+			result: { type: string; data?: Record<string, unknown> };
+			update: () => Promise<void>;
+		}) => {
+			if (result.type === 'success') {
+				editFailureDialogOpen = false;
+				toast.success('Failure detail updated');
+				await invalidateAll();
+			} else if (result.type === 'failure') {
+				toast.error((result.data?.error as string) ?? 'Failed to update');
+				await update();
+			}
+		};
+	}
+
+	function handleDeleteFailResult() {
+		return async ({
+			result,
+			update
+		}: {
+			result: { type: string; data?: Record<string, unknown> };
+			update: () => Promise<void>;
+		}) => {
+			if (result.type === 'success') {
+				deleteDialogOpen = false;
+				toast.success('Failure detail deleted');
+				await invalidateAll();
+			} else if (result.type === 'failure') {
+				toast.error((result.data?.error as string) ?? 'Failed to delete');
 				await update();
 			}
 		};
@@ -229,6 +354,7 @@
 			</Table.Header>
 			<Table.Body>
 				{#each data.executions as exec (exec.id)}
+					{@const execFailures = getFailures(exec.id)}
 					<Table.Row>
 						{#if canExecute && pendingExecutions.length > 0}
 							<Table.Cell>
@@ -253,19 +379,31 @@
 							</Badge>
 						</Table.Cell>
 						<Table.Cell>
-							<span
+							<button
+								type="button"
 								class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium {statusColor(
 									exec.status
 								)}"
+								onclick={() => {
+									if (exec.status === 'FAIL') {
+										viewFailuresExecId =
+											viewFailuresExecId === exec.id ? null : exec.id;
+									}
+								}}
+								class:cursor-pointer={exec.status === 'FAIL'}
+								class:underline={exec.status === 'FAIL' && execFailures.length > 0}
 							>
 								{exec.status}
-							</span>
+								{#if exec.status === 'FAIL' && execFailures.length > 0}
+									({execFailures.length})
+								{/if}
+							</button>
 						</Table.Cell>
 						{#if canExecute}
 							<Table.Cell>
 								{#if exec.status === 'PENDING' || run.status !== 'COMPLETED'}
 									<div class="flex gap-1">
-										{#each ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED'] as s (s)}
+										{#each ['PASS', 'BLOCKED', 'SKIPPED'] as s (s)}
 											{#if exec.status !== s}
 												<form
 													method="POST"
@@ -281,17 +419,26 @@
 														size="sm"
 														class="h-7 px-2 text-xs {s === 'PASS'
 															? 'text-green-600 hover:text-green-700'
-															: s === 'FAIL'
-																? 'text-red-600 hover:text-red-700'
-																: s === 'BLOCKED'
-																	? 'text-orange-600 hover:text-orange-700'
-																	: 'text-gray-600 hover:text-gray-700'}"
+															: s === 'BLOCKED'
+																? 'text-orange-600 hover:text-orange-700'
+																: 'text-gray-600 hover:text-gray-700'}"
 													>
 														{s}
 													</Button>
 												</form>
 											{/if}
 										{/each}
+										{#if exec.status !== 'FAIL'}
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												class="h-7 px-2 text-xs text-red-600 hover:text-red-700"
+												onclick={() => openFailDialog(exec.id, exec.testCaseKey)}
+											>
+												FAIL
+											</Button>
+										{/if}
 									</div>
 								{/if}
 							</Table.Cell>
@@ -300,8 +447,290 @@
 							{exec.executedBy ?? '-'}
 						</Table.Cell>
 					</Table.Row>
+					<!-- Inline failure details -->
+					{#if exec.status === 'FAIL' && viewFailuresExecId === exec.id}
+						<Table.Row>
+							<Table.Cell
+								colspan={canExecute ? (pendingExecutions.length > 0 ? 8 : 7) : (pendingExecutions.length > 0 ? 7 : 6)}
+							>
+								<div class="bg-red-50 dark:bg-red-950/30 space-y-3 rounded-md p-4">
+									<div class="flex items-center justify-between">
+										<h4 class="text-sm font-medium text-red-800 dark:text-red-300">
+											Failure Details
+										</h4>
+										{#if canExecute}
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												onclick={() => openFailDialog(exec.id, exec.testCaseKey)}
+											>
+												Add Detail
+											</Button>
+										{/if}
+									</div>
+									<div class="mb-3 border-b pb-3">
+										<AttachmentManager
+											referenceType="EXECUTION"
+											referenceId={exec.id}
+											editable={canExecute}
+										/>
+									</div>
+									{#if execFailures.length === 0}
+										<p class="text-muted-foreground text-sm">
+											No failure details recorded.
+										</p>
+									{:else}
+										{#each execFailures as f (f.id)}
+											<div class="rounded border bg-white p-3 dark:bg-gray-900">
+												<div class="flex items-start justify-between">
+													<div class="space-y-1 text-sm">
+														{#if f.errorMessage}
+															<div>
+																<span class="font-medium">Error:</span>
+																{f.errorMessage}
+															</div>
+														{/if}
+														{#if f.testMethod}
+															<div>
+																<span class="font-medium">Method:</span>
+																{f.testMethod}
+															</div>
+														{/if}
+														{#if f.failureEnvironment}
+															<div>
+																<span class="font-medium">Environment:</span>
+																{f.failureEnvironment}
+															</div>
+														{/if}
+														{#if f.stackTrace}
+															<details class="mt-2">
+																<summary
+																	class="text-muted-foreground cursor-pointer text-xs"
+																	>Stack Trace</summary
+																>
+																<pre
+																	class="bg-muted mt-1 overflow-x-auto rounded p-2 text-xs">{f.stackTrace}</pre>
+															</details>
+														{/if}
+														{#if f.comment}
+															<div class="text-muted-foreground mt-1">
+																{f.comment}
+															</div>
+														{/if}
+													</div>
+													{#if canExecute}
+														<div class="flex gap-1">
+															<Button
+																type="button"
+																variant="ghost"
+																size="sm"
+																class="h-7 px-2 text-xs"
+																onclick={() => openEditFailure(f)}
+															>
+																Edit
+															</Button>
+															<Button
+																type="button"
+																variant="ghost"
+																size="sm"
+																class="text-destructive hover:text-destructive h-7 px-2 text-xs"
+																onclick={() => openDeleteFailure(f.id)}
+															>
+																Delete
+															</Button>
+														</div>
+													{/if}
+												</div>
+												<div class="text-muted-foreground mt-2 text-xs">
+													{f.createdBy} &middot; {new Date(f.createdAt).toLocaleString()}
+												</div>
+												<div class="mt-3 border-t pt-3">
+													<AttachmentManager
+														referenceType="FAILURE"
+														referenceId={f.id}
+														editable={canExecute}
+													/>
+												</div>
+											</div>
+										{/each}
+									{/if}
+								</div>
+							</Table.Cell>
+						</Table.Row>
+					{/if}
 				{/each}
 			</Table.Body>
 		</Table.Root>
 	</Card.Root>
 </div>
+
+<!-- FAIL with Detail Dialog -->
+<Dialog.Root bind:open={failDialogOpen}>
+	<Dialog.Portal>
+		<Dialog.Overlay />
+		<Dialog.Content class="sm:max-w-lg">
+			<Dialog.Header>
+				<Dialog.Title>Mark as FAIL — {failExecutionKey}</Dialog.Title>
+				<Dialog.Description>Record failure details for this test execution</Dialog.Description>
+			</Dialog.Header>
+			<form method="POST" action="?/failWithDetail" use:enhance={handleFailResult}>
+				<input type="hidden" name="executionId" value={failExecutionId} />
+				<div class="space-y-4 py-4">
+					<div class="space-y-2">
+						<Label for="errorMessage">Error Message</Label>
+						<Textarea
+							id="errorMessage"
+							name="errorMessage"
+							bind:value={errorMessage}
+							placeholder="Describe the error..."
+							rows={2}
+						/>
+					</div>
+					<div class="grid gap-4 sm:grid-cols-2">
+						<div class="space-y-2">
+							<Label for="failureEnvironment">Environment</Label>
+							<Input
+								id="failureEnvironment"
+								name="failureEnvironment"
+								bind:value={failureEnvironment}
+								placeholder="e.g., Chrome 120, Ubuntu"
+							/>
+						</div>
+						<div class="space-y-2">
+							<Label for="testMethod">Test Method</Label>
+							<Input
+								id="testMethod"
+								name="testMethod"
+								bind:value={testMethod}
+								placeholder="e.g., manual, automated"
+							/>
+						</div>
+					</div>
+					<div class="space-y-2">
+						<Label for="stackTrace">Stack Trace</Label>
+						<Textarea
+							id="stackTrace"
+							name="stackTrace"
+							bind:value={stackTrace}
+							placeholder="Paste stack trace if available..."
+							rows={4}
+							class="font-mono text-xs"
+						/>
+					</div>
+					<div class="space-y-2">
+						<Label for="failComment">Comment</Label>
+						<Textarea
+							id="failComment"
+							name="comment"
+							bind:value={failComment}
+							placeholder="Additional notes..."
+							rows={2}
+						/>
+					</div>
+				</div>
+				<Dialog.Footer>
+					<Button type="button" variant="outline" onclick={() => (failDialogOpen = false)}>
+						Cancel
+					</Button>
+					<Button type="submit" variant="destructive">Mark as FAIL</Button>
+				</Dialog.Footer>
+			</form>
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>
+
+<!-- Edit Failure Dialog -->
+<Dialog.Root bind:open={editFailureDialogOpen}>
+	<Dialog.Portal>
+		<Dialog.Overlay />
+		<Dialog.Content class="sm:max-w-lg">
+			<Dialog.Header>
+				<Dialog.Title>Edit Failure Detail</Dialog.Title>
+			</Dialog.Header>
+			<form method="POST" action="?/updateFailure" use:enhance={handleEditFailResult}>
+				<input type="hidden" name="failureId" value={editFailureId} />
+				<div class="space-y-4 py-4">
+					<div class="space-y-2">
+						<Label for="editErrorMessage">Error Message</Label>
+						<Textarea
+							id="editErrorMessage"
+							name="errorMessage"
+							bind:value={editErrorMessage}
+							rows={2}
+						/>
+					</div>
+					<div class="grid gap-4 sm:grid-cols-2">
+						<div class="space-y-2">
+							<Label for="editFailureEnvironment">Environment</Label>
+							<Input
+								id="editFailureEnvironment"
+								name="failureEnvironment"
+								bind:value={editFailureEnvironment}
+							/>
+						</div>
+						<div class="space-y-2">
+							<Label for="editTestMethod">Test Method</Label>
+							<Input
+								id="editTestMethod"
+								name="testMethod"
+								bind:value={editTestMethod}
+							/>
+						</div>
+					</div>
+					<div class="space-y-2">
+						<Label for="editStackTrace">Stack Trace</Label>
+						<Textarea
+							id="editStackTrace"
+							name="stackTrace"
+							bind:value={editStackTrace}
+							rows={4}
+							class="font-mono text-xs"
+						/>
+					</div>
+					<div class="space-y-2">
+						<Label for="editComment">Comment</Label>
+						<Textarea
+							id="editComment"
+							name="comment"
+							bind:value={editComment}
+							rows={2}
+						/>
+					</div>
+				</div>
+				<Dialog.Footer>
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => (editFailureDialogOpen = false)}
+					>
+						Cancel
+					</Button>
+					<Button type="submit">Save Changes</Button>
+				</Dialog.Footer>
+			</form>
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>
+
+<!-- Delete Failure Dialog -->
+<AlertDialog.Root bind:open={deleteDialogOpen}>
+	<AlertDialog.Portal>
+		<AlertDialog.Overlay />
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Delete Failure Detail</AlertDialog.Title>
+				<AlertDialog.Description>
+					Are you sure you want to delete this failure detail? This action cannot be undone.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+				<form method="POST" action="?/deleteFailure" use:enhance={handleDeleteFailResult}>
+					<input type="hidden" name="failureId" value={deleteFailureId} />
+					<Button type="submit" variant="destructive">Delete</Button>
+				</form>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Portal>
+</AlertDialog.Root>

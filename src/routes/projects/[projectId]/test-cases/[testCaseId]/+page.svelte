@@ -13,6 +13,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { toast } from 'svelte-sonner';
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
+	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
 
 	let { data } = $props();
 
@@ -268,6 +269,17 @@
 					</Card.Content>
 				</Card.Root>
 			{/if}
+
+			<!-- Attachments -->
+			<Card.Root>
+				<Card.Content class="pt-6">
+					<AttachmentManager
+						referenceType="TESTCASE"
+						referenceId={tc.id}
+						editable={canEdit}
+					/>
+				</Card.Content>
+			</Card.Root>
 		</div>
 
 		<!-- Version History Sidebar -->

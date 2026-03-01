@@ -6,10 +6,12 @@ import {
 	testExecution,
 	testCaseVersion,
 	testCase,
+	testFailureDetail,
 	user
 } from '$lib/server/db/schema';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { createFailureSchema, type CreateFailureInput } from '$lib/schemas/failure.schema';
 
 export const load: PageServerLoad = async ({ params, parent }) => {
 	await parent();
@@ -48,6 +50,39 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		.where(eq(testExecution.testRunId, runId))
 		.orderBy(testCase.key);
 
+	// Get failure details for all FAIL executions
+	const failExecutionIds = executions.filter((e) => e.status === 'FAIL').map((e) => e.id);
+	let failures: {
+		id: number;
+		testExecutionId: number;
+		failureEnvironment: string | null;
+		testMethod: string | null;
+		errorMessage: string | null;
+		stackTrace: string | null;
+		comment: string | null;
+		createdBy: string | null;
+		createdAt: Date;
+	}[] = [];
+
+	if (failExecutionIds.length > 0) {
+		failures = await db
+			.select({
+				id: testFailureDetail.id,
+				testExecutionId: testFailureDetail.testExecutionId,
+				failureEnvironment: testFailureDetail.failureEnvironment,
+				testMethod: testFailureDetail.testMethod,
+				errorMessage: testFailureDetail.errorMessage,
+				stackTrace: testFailureDetail.stackTrace,
+				comment: testFailureDetail.comment,
+				createdBy: user.name,
+				createdAt: testFailureDetail.createdAt
+			})
+			.from(testFailureDetail)
+			.leftJoin(user, eq(testFailureDetail.createdBy, user.id))
+			.where(inArray(testFailureDetail.testExecutionId, failExecutionIds))
+			.orderBy(testFailureDetail.createdAt);
+	}
+
 	// Compute progress stats
 	const stats = {
 		total: executions.length,
@@ -58,7 +93,7 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		skipped: executions.filter((e) => e.status === 'SKIPPED').length
 	};
 
-	return { run, executions, stats };
+	return { run, executions, failures, stats };
 };
 
 export const actions: Actions = {
@@ -77,7 +112,6 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid execution ID or status' });
 		}
 
-		// Verify execution belongs to this run
 		const execution = await db.query.testExecution.findFirst({
 			where: and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId))
 		});
@@ -96,8 +130,184 @@ export const actions: Actions = {
 			})
 			.where(eq(testExecution.id, executionId));
 
-		// Auto-update run status
 		await autoUpdateRunStatus(runId);
+
+		return { success: true };
+	},
+
+	failWithDetail: async ({ request, locals, params }) => {
+		const authUser = requireAuth(locals);
+		const projectId = Number(params.projectId);
+		const runId = Number(params.runId);
+		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+
+		const formData = await request.formData();
+		const executionId = Number(formData.get('executionId'));
+
+		if (!executionId) {
+			return fail(400, { error: 'Missing execution ID' });
+		}
+
+		const execution = await db.query.testExecution.findFirst({
+			where: and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId))
+		});
+
+		if (!execution) {
+			return fail(404, { error: 'Execution not found' });
+		}
+
+		const input: CreateFailureInput = {
+			failureEnvironment: (formData.get('failureEnvironment') as string) || '',
+			testMethod: (formData.get('testMethod') as string) || '',
+			errorMessage: (formData.get('errorMessage') as string) || '',
+			stackTrace: (formData.get('stackTrace') as string) || '',
+			comment: (formData.get('comment') as string) || ''
+		};
+
+		const parsed = createFailureSchema.safeParse(input);
+		if (!parsed.success) {
+			return fail(400, { error: 'Invalid failure detail data' });
+		}
+
+		await db.transaction(async (tx) => {
+			// Set execution to FAIL
+			await tx
+				.update(testExecution)
+				.set({
+					status: 'FAIL',
+					executedBy: authUser.id,
+					executedAt: new Date()
+				})
+				.where(eq(testExecution.id, executionId));
+
+			// Create failure detail
+			await tx.insert(testFailureDetail).values({
+				testExecutionId: executionId,
+				failureEnvironment: parsed.data.failureEnvironment || null,
+				testMethod: parsed.data.testMethod || null,
+				errorMessage: parsed.data.errorMessage || null,
+				stackTrace: parsed.data.stackTrace || null,
+				comment: parsed.data.comment || null,
+				createdBy: authUser.id
+			});
+		});
+
+		await autoUpdateRunStatus(runId);
+
+		return { success: true };
+	},
+
+	addFailure: async ({ request, locals, params }) => {
+		const authUser = requireAuth(locals);
+		const projectId = Number(params.projectId);
+		const runId = Number(params.runId);
+		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+
+		const formData = await request.formData();
+		const executionId = Number(formData.get('executionId'));
+
+		if (!executionId) {
+			return fail(400, { error: 'Missing execution ID' });
+		}
+
+		const execution = await db.query.testExecution.findFirst({
+			where: and(
+				eq(testExecution.id, executionId),
+				eq(testExecution.testRunId, runId),
+				eq(testExecution.status, 'FAIL')
+			)
+		});
+
+		if (!execution) {
+			return fail(404, { error: 'FAIL execution not found' });
+		}
+
+		const input: CreateFailureInput = {
+			failureEnvironment: (formData.get('failureEnvironment') as string) || '',
+			testMethod: (formData.get('testMethod') as string) || '',
+			errorMessage: (formData.get('errorMessage') as string) || '',
+			stackTrace: (formData.get('stackTrace') as string) || '',
+			comment: (formData.get('comment') as string) || ''
+		};
+
+		const parsed = createFailureSchema.safeParse(input);
+		if (!parsed.success) {
+			return fail(400, { error: 'Invalid failure detail data' });
+		}
+
+		await db.insert(testFailureDetail).values({
+			testExecutionId: executionId,
+			failureEnvironment: parsed.data.failureEnvironment || null,
+			testMethod: parsed.data.testMethod || null,
+			errorMessage: parsed.data.errorMessage || null,
+			stackTrace: parsed.data.stackTrace || null,
+			comment: parsed.data.comment || null,
+			createdBy: authUser.id
+		});
+
+		return { success: true };
+	},
+
+	updateFailure: async ({ request, locals, params }) => {
+		const authUser = requireAuth(locals);
+		const projectId = Number(params.projectId);
+		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+
+		const formData = await request.formData();
+		const failureId = Number(formData.get('failureId'));
+
+		if (!failureId) {
+			return fail(400, { error: 'Missing failure ID' });
+		}
+
+		const existing = await db.query.testFailureDetail.findFirst({
+			where: eq(testFailureDetail.id, failureId)
+		});
+
+		if (!existing) {
+			return fail(404, { error: 'Failure detail not found' });
+		}
+
+		const input: CreateFailureInput = {
+			failureEnvironment: (formData.get('failureEnvironment') as string) || '',
+			testMethod: (formData.get('testMethod') as string) || '',
+			errorMessage: (formData.get('errorMessage') as string) || '',
+			stackTrace: (formData.get('stackTrace') as string) || '',
+			comment: (formData.get('comment') as string) || ''
+		};
+
+		const parsed = createFailureSchema.safeParse(input);
+		if (!parsed.success) {
+			return fail(400, { error: 'Invalid failure detail data' });
+		}
+
+		await db
+			.update(testFailureDetail)
+			.set({
+				failureEnvironment: parsed.data.failureEnvironment || null,
+				testMethod: parsed.data.testMethod || null,
+				errorMessage: parsed.data.errorMessage || null,
+				stackTrace: parsed.data.stackTrace || null,
+				comment: parsed.data.comment || null
+			})
+			.where(eq(testFailureDetail.id, failureId));
+
+		return { success: true };
+	},
+
+	deleteFailure: async ({ request, locals, params }) => {
+		const authUser = requireAuth(locals);
+		const projectId = Number(params.projectId);
+		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+
+		const formData = await request.formData();
+		const failureId = Number(formData.get('failureId'));
+
+		if (!failureId) {
+			return fail(400, { error: 'Missing failure ID' });
+		}
+
+		await db.delete(testFailureDetail).where(eq(testFailureDetail.id, failureId));
 
 		return { success: true };
 	},
@@ -109,7 +319,10 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const executionIds = formData.getAll('executionIds').map(Number).filter((id) => !isNaN(id));
+		const executionIds = formData
+			.getAll('executionIds')
+			.map(Number)
+			.filter((id) => !isNaN(id));
 
 		if (executionIds.length === 0) {
 			return fail(400, { error: 'No executions selected' });

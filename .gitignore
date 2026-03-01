@@ -29,5 +29,8 @@ project.inlang/cache/
 .idea/
 .vscode/
 
+# Uploads
+data/uploads/
+
 # MCP
 .mcp.json

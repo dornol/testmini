@@ -279,3 +279,10 @@ export const attachment = pgTable(
 	},
 	(table) => [index('attachment_ref_idx').on(table.referenceType, table.referenceId)]
 );
+
+export const attachmentRelations = relations(attachment, ({ one }) => ({
+	uploader: one(user, {
+		fields: [attachment.uploadedBy],
+		references: [user.id]
+	})
+}));

@@ -5,12 +5,13 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { authClient } from '$lib/auth-client';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 
 	let { user, onToggleSidebar }: { user: any; onToggleSidebar: () => void } = $props();
 
 	async function handleLogout() {
 		await authClient.signOut();
+		await invalidateAll();
 		goto('/auth/login');
 	}
 </script>

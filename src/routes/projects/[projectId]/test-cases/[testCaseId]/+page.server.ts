@@ -4,7 +4,7 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { updateTestCaseSchema, type UpdateTestCaseInput } from '$lib/schemas/test-case.schema';
 import { db } from '$lib/server/db';
-import { testCase, testCaseVersion, user } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, user, tag, testCaseTag } from '$lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 
@@ -59,6 +59,23 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		zod(updateTestCaseSchema)
 	);
 
+	const projectId = Number(params.projectId);
+
+	// Load project tags and assigned tags
+	const [projectTags, assignedTags] = await Promise.all([
+		db
+			.select({ id: tag.id, name: tag.name, color: tag.color })
+			.from(tag)
+			.where(eq(tag.projectId, projectId))
+			.orderBy(tag.name),
+		db
+			.select({ id: tag.id, name: tag.name, color: tag.color })
+			.from(testCaseTag)
+			.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
+			.where(eq(testCaseTag.testCaseId, testCaseId))
+			.orderBy(tag.name)
+	]);
+
 	return {
 		testCaseDetail: {
 			id: tc.id,
@@ -67,7 +84,9 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 			latestVersion: latest
 		},
 		versions,
-		form
+		form,
+		projectTags,
+		assignedTags
 	};
 };
 
@@ -138,6 +157,60 @@ export const actions: Actions = {
 		});
 
 		return message(form, 'Test case updated successfully');
+	},
+
+	assignTag: async ({ request, locals, params }) => {
+		const authUser = requireAuth(locals);
+		const projectId = Number(params.projectId);
+		const testCaseId = Number(params.testCaseId);
+		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+
+		const formData = await request.formData();
+		const tagId = Number(formData.get('tagId'));
+
+		if (!tagId) {
+			return fail(400, { error: 'Missing tagId' });
+		}
+
+		// Verify tag belongs to project
+		const t = await db.query.tag.findFirst({
+			where: and(eq(tag.id, tagId), eq(tag.projectId, projectId))
+		});
+
+		if (!t) {
+			return fail(404, { error: 'Tag not found' });
+		}
+
+		// Check not already assigned
+		const existing = await db.query.testCaseTag.findFirst({
+			where: and(eq(testCaseTag.testCaseId, testCaseId), eq(testCaseTag.tagId, tagId))
+		});
+
+		if (!existing) {
+			await db.insert(testCaseTag).values({ testCaseId, tagId });
+		}
+
+		return { tagAssigned: true };
+	},
+
+	removeTag: async ({ request, locals, params }) => {
+		const authUser = requireAuth(locals);
+		const projectId = Number(params.projectId);
+		const testCaseId = Number(params.testCaseId);
+		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+
+		const formData = await request.formData();
+		const tagId = Number(formData.get('tagId'));
+
+		if (!tagId) {
+			return fail(400, { error: 'Missing tagId' });
+		}
+
+		await db
+			.delete(testCaseTag)
+			.where(and(eq(testCaseTag.testCaseId, testCaseId), eq(testCaseTag.tagId, tagId)));
+
+		return { tagRemoved: true };
 	},
 
 	delete: async ({ locals, params }) => {

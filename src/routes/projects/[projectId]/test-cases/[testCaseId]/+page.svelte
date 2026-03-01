@@ -14,6 +14,7 @@
 	import { toast } from 'svelte-sonner';
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
 	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
+	import TagBadge from '$lib/components/TagBadge.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
@@ -136,6 +137,63 @@
 	<div class="grid gap-6 {showVersions ? 'lg:grid-cols-[1fr_300px]' : ''}">
 		<!-- Main Content -->
 		<div>
+			<!-- Tags Section -->
+			{#if !editing}
+				<div class="mb-4 flex flex-wrap items-center gap-2">
+					{#each data.assignedTags as t (t.id)}
+						{#if canEdit}
+							<form method="POST" action="?/removeTag" use:formEnhance={() => {
+								return async ({ result, update }) => {
+									if (result.type === 'success') {
+										toast.success(m.tag_removed());
+										await update();
+									}
+								};
+							}} class="inline-flex">
+								<input type="hidden" name="tagId" value={t.id} />
+								<span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium">
+									<span class="h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
+									{t.name}
+									<button type="submit" class="text-muted-foreground hover:text-foreground ml-0.5">&times;</button>
+								</span>
+							</form>
+						{:else}
+							<TagBadge name={t.name} color={t.color} />
+						{/if}
+					{/each}
+					{#if canEdit}
+						{@const unassignedTags = data.projectTags.filter(
+							(pt) => !data.assignedTags.some((at) => at.id === pt.id)
+						)}
+						{#if unassignedTags.length > 0}
+							<form method="POST" action="?/assignTag" use:formEnhance={() => {
+								return async ({ result, update }) => {
+									if (result.type === 'success') {
+										toast.success(m.tag_assigned());
+										await update();
+									}
+								};
+							}} class="inline-flex">
+								<select
+									name="tagId"
+									class="border-input bg-background h-7 rounded-md border px-2 text-xs"
+									onchange={(e) => {
+										if (e.currentTarget.value) {
+											e.currentTarget.form?.requestSubmit();
+										}
+									}}
+								>
+									<option value="">+ {m.tag_assign()}</option>
+									{#each unassignedTags as t (t.id)}
+										<option value={t.id}>{t.name}</option>
+									{/each}
+								</select>
+							</form>
+						{/if}
+					{/if}
+				</div>
+			{/if}
+
 			{#if editing}
 				<!-- Edit Mode -->
 				<Card.Root>

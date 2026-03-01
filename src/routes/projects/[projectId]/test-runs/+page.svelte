@@ -2,7 +2,6 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import * as Table from '$lib/components/ui/table/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as m from '$lib/paraglide/messages.js';
@@ -47,11 +46,11 @@
 	const statuses = ['', 'CREATED', 'IN_PROGRESS', 'COMPLETED'];
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	<div class="flex items-center justify-between">
 		<h2 class="text-lg font-semibold">{m.tr_title()}</h2>
 		{#if data.userRole !== 'VIEWER'}
-			<Button href="{basePath}/new">{m.tr_new()}</Button>
+			<Button href="{basePath}/new" size="sm">{m.tr_new()}</Button>
 		{/if}
 	</div>
 
@@ -60,6 +59,7 @@
 			<Button
 				variant={data.statusFilter === s ? 'default' : 'outline'}
 				size="sm"
+				class="h-7 px-2 text-xs"
 				onclick={() => setStatus(s)}
 			>
 				{s || m.common_all()}
@@ -101,70 +101,72 @@
 			{/if}
 		</div>
 	{:else}
-		<Card.Root>
+		<div class="border rounded-md overflow-hidden">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head>{m.common_name()}</Table.Head>
-						<Table.Head class="w-28">{m.common_environment()}</Table.Head>
-						<Table.Head class="w-32">{m.common_status()}</Table.Head>
-						<Table.Head class="w-40">{m.tr_progress()}</Table.Head>
-						<Table.Head class="w-32">{m.tr_created_by()}</Table.Head>
-						<Table.Head class="w-36">{m.tr_created_at()}</Table.Head>
+						<Table.Head class="py-1 px-2 text-xs">{m.common_name()}</Table.Head>
+						<Table.Head class="w-20 py-1 px-2 text-xs">{m.common_environment()}</Table.Head>
+						<Table.Head class="w-24 py-1 px-2 text-xs">{m.common_status()}</Table.Head>
+						<Table.Head class="w-36 py-1 px-2 text-xs">{m.tr_progress()}</Table.Head>
+						<Table.Head class="w-24 py-1 px-2 text-xs">{m.tr_created_by()}</Table.Head>
+						<Table.Head class="w-28 py-1 px-2 text-xs">{m.tr_created_at()}</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
 					{#each data.runs as run (run.id)}
 						{@const pct = progressPercent(run.passedCount, run.totalCount)}
-						<Table.Row class="cursor-pointer" onclick={() => goto(`${basePath}/${run.id}`)}>
-							<Table.Cell class="font-medium">{run.name}</Table.Cell>
-							<Table.Cell>
-								<Badge variant="outline">{run.environment}</Badge>
+						<Table.Row class="cursor-pointer hover:bg-muted/50" onclick={() => goto(`${basePath}/${run.id}`)}>
+							<Table.Cell class="py-1 px-2 text-xs font-medium">{run.name}</Table.Cell>
+							<Table.Cell class="py-1 px-2">
+								<Badge variant="outline" class="text-[10px] px-1.5 py-0">{run.environment}</Badge>
 							</Table.Cell>
-							<Table.Cell>
-								<Badge variant={statusVariant(run.status)}>
+							<Table.Cell class="py-1 px-2">
+								<Badge variant={statusVariant(run.status)} class="text-[10px] px-1.5 py-0">
 									{run.status.replace('_', ' ')}
 								</Badge>
 							</Table.Cell>
-							<Table.Cell>
-								<div class="flex items-center gap-2">
-									<div class="bg-secondary h-2 w-full rounded-full">
+							<Table.Cell class="py-1 px-2">
+								<div class="flex items-center gap-1">
+									<div class="bg-secondary h-1.5 w-full rounded-full">
 										<div
-											class="bg-primary h-2 rounded-full transition-all"
+											class="bg-primary h-1.5 rounded-full transition-all"
 											style="width: {pct}%"
 										></div>
 									</div>
-									<span class="text-muted-foreground w-12 text-right text-xs">
+									<span class="text-muted-foreground w-10 text-right text-[10px]">
 										{run.passedCount}/{run.totalCount}
 									</span>
 								</div>
 							</Table.Cell>
-							<Table.Cell class="text-muted-foreground">{run.createdBy}</Table.Cell>
-							<Table.Cell class="text-muted-foreground text-sm">
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs">{run.createdBy}</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs">
 								{new Date(run.createdAt).toLocaleDateString()}
 							</Table.Cell>
 						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
-		</Card.Root>
+		</div>
 
 		{#if data.meta.totalPages > 1}
 			<div class="flex items-center justify-center gap-2">
 				<Button
 					variant="outline"
 					size="sm"
+					class="h-7 px-2 text-xs"
 					disabled={data.meta.page <= 1}
 					onclick={() => goToPage(data.meta.page - 1)}
 				>
 					{m.common_previous()}
 				</Button>
-				<span class="text-muted-foreground text-sm">
+				<span class="text-muted-foreground text-xs">
 					Page {data.meta.page} of {data.meta.totalPages}
 				</span>
 				<Button
 					variant="outline"
 					size="sm"
+					class="h-7 px-2 text-xs"
 					disabled={data.meta.page >= data.meta.totalPages}
 					onclick={() => goToPage(data.meta.page + 1)}
 				>

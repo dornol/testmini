@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testCase, testCaseVersion, testRun, testExecution } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, testRun, testExecution, tag, testCaseTag } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { createTestRunSchema, type CreateTestRunInput } from '$lib/schemas/test-run.schema';
@@ -27,7 +27,50 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		.where(eq(testCase.projectId, projectId))
 		.orderBy(testCase.id);
 
-	return { testCases };
+	// Batch load tags for all test cases in this project
+	const tcIdSet = new Set(testCases.map((tc) => tc.id));
+	const tagsByTestCase: Record<number, { id: number; name: string; color: string }[]> = {};
+
+	if (tcIdSet.size > 0) {
+		const tcTags = await db
+			.select({
+				testCaseId: testCaseTag.testCaseId,
+				tagId: tag.id,
+				tagName: tag.name,
+				tagColor: tag.color
+			})
+			.from(testCaseTag)
+			.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
+			.where(eq(tag.projectId, projectId))
+			.orderBy(tag.name);
+
+		for (const row of tcTags) {
+			if (!tcIdSet.has(row.testCaseId)) continue;
+			if (!tagsByTestCase[row.testCaseId]) {
+				tagsByTestCase[row.testCaseId] = [];
+			}
+			tagsByTestCase[row.testCaseId].push({
+				id: row.tagId,
+				name: row.tagName,
+				color: row.tagColor
+			});
+		}
+	}
+
+	// Load project tags for filter UI
+	const projectTags = await db
+		.select({ id: tag.id, name: tag.name, color: tag.color })
+		.from(tag)
+		.where(eq(tag.projectId, projectId))
+		.orderBy(tag.name);
+
+	return {
+		testCases: testCases.map((tc) => ({
+			...tc,
+			tags: tagsByTestCase[tc.id] ?? []
+		})),
+		projectTags
+	};
 };
 
 export const actions: Actions = {

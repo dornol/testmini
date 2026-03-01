@@ -62,7 +62,9 @@ export const project = pgTable('project', {
 export const projectRelations = relations(project, ({ many }) => ({
 	members: many(projectMember),
 	testCases: many(testCase),
-	testRuns: many(testRun)
+	testRuns: many(testRun),
+	tags: many(tag),
+	groups: many(testCaseGroup)
 }));
 
 // ── ProjectMember ──────────────────────────────────────
@@ -97,6 +99,37 @@ export const projectMemberRelations = relations(projectMember, ({ one }) => ({
 	})
 }));
 
+// ── TestCaseGroup ─────────────────────────────────────
+
+export const testCaseGroup = pgTable(
+	'test_case_group',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		sortOrder: integer('sort_order').notNull().default(0),
+		color: text('color'),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		unique('test_case_group_project_name_unique').on(table.projectId, table.name),
+		index('test_case_group_project_idx').on(table.projectId)
+	]
+);
+
+export const testCaseGroupRelations = relations(testCaseGroup, ({ one, many }) => ({
+	project: one(project, {
+		fields: [testCaseGroup.projectId],
+		references: [project.id]
+	}),
+	testCases: many(testCase)
+}));
+
 // ── TestCase ───────────────────────────────────────────
 
 export const testCase = pgTable(
@@ -108,6 +141,8 @@ export const testCase = pgTable(
 			.references(() => project.id, { onDelete: 'cascade' }),
 		key: text('key').notNull(),
 		latestVersionId: integer('latest_version_id'),
+		groupId: integer('group_id').references(() => testCaseGroup.id, { onDelete: 'set null' }),
+		sortOrder: integer('sort_order').notNull().default(0),
 		createdBy: text('created_by')
 			.notNull()
 			.references(() => user.id),
@@ -115,7 +150,8 @@ export const testCase = pgTable(
 	},
 	(table) => [
 		index('test_case_project_idx').on(table.projectId),
-		unique('test_case_key_unique').on(table.projectId, table.key)
+		unique('test_case_key_unique').on(table.projectId, table.key),
+		index('test_case_group_sort_idx').on(table.projectId, table.groupId, table.sortOrder)
 	]
 );
 
@@ -124,12 +160,17 @@ export const testCaseRelations = relations(testCase, ({ one, many }) => ({
 		fields: [testCase.projectId],
 		references: [project.id]
 	}),
+	group: one(testCaseGroup, {
+		fields: [testCase.groupId],
+		references: [testCaseGroup.id]
+	}),
 	versions: many(testCaseVersion),
 	latestVersion: one(testCaseVersion, {
 		fields: [testCase.latestVersionId],
 		references: [testCaseVersion.id],
 		relationName: 'latestVersion'
-	})
+	}),
+	tags: many(testCaseTag)
 }));
 
 // ── TestCaseVersion ────────────────────────────────────
@@ -284,5 +325,67 @@ export const attachmentRelations = relations(attachment, ({ one }) => ({
 	uploader: one(user, {
 		fields: [attachment.uploadedBy],
 		references: [user.id]
+	})
+}));
+
+// ── Tag ───────────────────────────────────────────────
+
+export const tag = pgTable(
+	'tag',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		color: text('color').notNull(),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		unique('tag_project_name_unique').on(table.projectId, table.name),
+		index('tag_project_idx').on(table.projectId)
+	]
+);
+
+export const tagRelations = relations(tag, ({ one, many }) => ({
+	project: one(project, {
+		fields: [tag.projectId],
+		references: [project.id]
+	}),
+	testCaseTags: many(testCaseTag)
+}));
+
+// ── TestCaseTag (join) ────────────────────────────────
+
+export const testCaseTag = pgTable(
+	'test_case_tag',
+	{
+		id: serial('id').primaryKey(),
+		testCaseId: integer('test_case_id')
+			.notNull()
+			.references(() => testCase.id, { onDelete: 'cascade' }),
+		tagId: integer('tag_id')
+			.notNull()
+			.references(() => tag.id, { onDelete: 'cascade' }),
+		assignedAt: timestamp('assigned_at').defaultNow().notNull()
+	},
+	(table) => [
+		unique('test_case_tag_unique').on(table.testCaseId, table.tagId),
+		index('test_case_tag_case_idx').on(table.testCaseId),
+		index('test_case_tag_tag_idx').on(table.tagId)
+	]
+);
+
+export const testCaseTagRelations = relations(testCaseTag, ({ one }) => ({
+	testCase: one(testCase, {
+		fields: [testCaseTag.testCaseId],
+		references: [testCase.id]
+	}),
+	tag: one(tag, {
+		fields: [testCaseTag.tagId],
+		references: [tag.id]
 	})
 }));

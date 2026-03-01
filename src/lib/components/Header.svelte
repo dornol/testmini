@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { locales, localizeHref, getLocale } from '$lib/paraglide/runtime';
+	import { locales, getLocale, setLocale } from '$lib/paraglide/runtime';
 	import * as m from '$lib/paraglide/messages.js';
 	import ThemeToggle from './ThemeToggle.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -42,10 +42,8 @@
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content align="end">
 				{#each locales as loc}
-					<DropdownMenu.Item>
-						<a href={localizeHref(page.url.pathname, { locale: loc })} class="w-full">
-							{loc === 'ko' ? '한국어' : 'English'}
-						</a>
+					<DropdownMenu.Item onclick={() => setLocale(loc)}>
+						{loc === 'ko' ? '한국어' : 'English'}
 					</DropdownMenu.Item>
 				{/each}
 			</DropdownMenu.Content>

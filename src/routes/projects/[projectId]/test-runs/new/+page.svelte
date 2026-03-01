@@ -7,6 +7,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import TagBadge from '$lib/components/TagBadge.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
@@ -15,6 +16,7 @@
 	let selectedIds = $state<Set<number>>(new Set());
 	let searchFilter = $state('');
 	let priorityFilter = $state('');
+	let tagFilter = $state('');
 
 	const filteredCases = $derived(
 		data.testCases.filter((tc) => {
@@ -23,7 +25,8 @@
 				tc.title.toLowerCase().includes(searchFilter.toLowerCase()) ||
 				tc.key.toLowerCase().includes(searchFilter.toLowerCase());
 			const matchPriority = !priorityFilter || tc.priority === priorityFilter;
-			return matchSearch && matchPriority;
+			const matchTag = !tagFilter || tc.tags.some((t) => t.id === Number(tagFilter));
+			return matchSearch && matchPriority && matchTag;
 		})
 	);
 
@@ -134,6 +137,29 @@
 								</Button>
 							{/each}
 						</div>
+						{#if data.projectTags.length > 0}
+							<div class="flex gap-1">
+								<Button
+									type="button"
+									variant={!tagFilter ? 'default' : 'outline'}
+									size="sm"
+									onclick={() => (tagFilter = '')}
+								>
+									{m.common_all()}
+								</Button>
+								{#each data.projectTags as t (t.id)}
+									<Button
+										type="button"
+										variant={tagFilter === String(t.id) ? 'default' : 'outline'}
+										size="sm"
+										onclick={() => (tagFilter = String(t.id))}
+									>
+										<span class="mr-1.5 inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
+										{t.name}
+									</Button>
+								{/each}
+							</div>
+						{/if}
 					</div>
 
 					{#if data.testCases.length === 0}

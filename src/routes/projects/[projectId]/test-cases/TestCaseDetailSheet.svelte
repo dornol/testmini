@@ -9,6 +9,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import TagBadge from '$lib/components/TagBadge.svelte';
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
+	import VersionDiffDialog from './VersionDiffDialog.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
 
@@ -33,6 +34,45 @@
 	let detailEditing = $state(false);
 	let detailDeleteOpen = $state(false);
 	let showVersions = $state(false);
+
+	let compareSelectedVersions = $state<number[]>([]);
+	let diffDialogOpen = $state(false);
+	let diffV1: any = $state(null);
+	let diffV2: any = $state(null);
+	let diffLoading = $state(false);
+
+	function toggleVersionSelect(versionNo: number) {
+		if (compareSelectedVersions.includes(versionNo)) {
+			compareSelectedVersions = compareSelectedVersions.filter((v) => v !== versionNo);
+		} else if (compareSelectedVersions.length < 2) {
+			compareSelectedVersions = [...compareSelectedVersions, versionNo];
+		} else {
+			compareSelectedVersions = [compareSelectedVersions[1], versionNo];
+		}
+	}
+
+	async function compareVersions() {
+		if (compareSelectedVersions.length !== 2 || !selectedTcId) return;
+		diffLoading = true;
+		const [a, b] = compareSelectedVersions.sort((x, y) => x - y);
+		try {
+			const res = await fetch(
+				`/api/projects/${projectId}/test-cases/${selectedTcId}/versions?v1=${a}&v2=${b}`
+			);
+			if (res.ok) {
+				const data = await res.json();
+				diffV1 = data.v1;
+				diffV2 = data.v2;
+				diffDialogOpen = true;
+			} else {
+				toast.error(m.error_operation_failed());
+			}
+		} catch {
+			toast.error(m.error_operation_failed());
+		} finally {
+			diffLoading = false;
+		}
+	}
 
 	let editTitle = $state('');
 	let editPriority = $state('MEDIUM');
@@ -62,6 +102,7 @@
 		detailEditing = false;
 		showVersions = false;
 		sheetLockHolder = null;
+		compareSelectedVersions = [];
 		sheetOpen = true;
 
 		try {
@@ -593,18 +634,38 @@
 				<!-- Version History (collapsible) -->
 				{#if showVersions}
 					<div class="border-t pt-4">
-						<div class="flex items-center gap-1.5 mb-3">
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
-							<h4 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{m.tc_detail_version_history()}</h4>
+						<div class="flex items-center justify-between mb-3">
+							<div class="flex items-center gap-1.5">
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+								<h4 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{m.tc_detail_version_history()}</h4>
+							</div>
+							{#if detailData.versions.length >= 2}
+								<div class="flex items-center gap-2">
+									{#if compareSelectedVersions.length < 2}
+										<span class="text-[10px] text-muted-foreground">{m.tc_version_select_hint()}</span>
+									{/if}
+									<Button size="sm" class="h-6 text-[10px] px-2" disabled={compareSelectedVersions.length !== 2 || diffLoading} onclick={compareVersions}>
+										{diffLoading ? m.common_saving() : m.tc_version_compare_btn()}
+									</Button>
+								</div>
+							{/if}
 						</div>
 						{#if detailData.versions.length === 0}
 							<p class="text-muted-foreground text-sm">{m.tc_detail_no_versions()}</p>
 						{:else}
 							<div class="space-y-1.5">
 								{#each detailData.versions as v (v.id)}
-									<div class="rounded-lg border p-3 transition-colors {v.id === version?.id ? 'border-primary/50 bg-primary/5' : 'hover:bg-muted/30'}">
+									{@const isSelected = compareSelectedVersions.includes(v.versionNo)}
+									<button
+										type="button"
+										class="w-full text-left rounded-lg border p-3 transition-colors cursor-pointer {isSelected ? 'border-blue-400 bg-blue-50 dark:bg-blue-950/30' : v.id === version?.id ? 'border-primary/50 bg-primary/5' : 'hover:bg-muted/30'}"
+										onclick={() => toggleVersionSelect(v.versionNo)}
+									>
 										<div class="flex items-center justify-between">
 											<div class="flex items-center gap-2">
+												{#if detailData.versions.length >= 2}
+													<input type="checkbox" checked={isSelected} class="h-3 w-3 rounded border-gray-300" onclick={(e) => e.stopPropagation()} onchange={() => toggleVersionSelect(v.versionNo)} />
+												{/if}
 												<span class="text-xs font-semibold {v.id === version?.id ? 'text-primary' : ''}">v{v.versionNo}</span>
 												{#if v.id === version?.id}
 													<span class="text-[10px] bg-primary/10 text-primary rounded px-1.5 py-0.5">latest</span>
@@ -616,7 +677,7 @@
 										<div class="text-muted-foreground mt-1 text-xs">
 											{v.updatedBy} &middot; {new Date(v.createdAt).toLocaleDateString()}
 										</div>
-									</div>
+									</button>
 								{/each}
 							</div>
 						{/if}
@@ -626,3 +687,5 @@
 		{/if}
 	</Sheet.Content>
 </Sheet.Root>
+
+<VersionDiffDialog bind:open={diffDialogOpen} v1={diffV1} v2={diffV2} />

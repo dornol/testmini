@@ -7,11 +7,43 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import * as m from '$lib/paraglide/messages.js';
+	import { setLocale } from '$lib/paraglide/runtime';
+	import { setMode } from 'mode-watcher';
 
 	let { data } = $props();
 
 	let displayName = $state(data.userData.name);
+	let prefLocale = $state(data.preferences.locale ?? '');
+	let prefTheme = $state(data.preferences.theme ?? 'system');
+	let prefSaving = $state(false);
+
+	async function savePreferences() {
+		prefSaving = true;
+		try {
+			const res = await fetch('/api/users/me/preferences', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					locale: prefLocale || null,
+					theme: prefTheme || null
+				})
+			});
+			if (res.ok) {
+				if (prefLocale) setLocale(prefLocale as 'ko' | 'en');
+				if (prefTheme) setMode(prefTheme as 'light' | 'dark' | 'system');
+				toast.success(m.profile_preferences_saved());
+				await invalidateAll();
+			} else {
+				toast.error(m.error_operation_failed());
+			}
+		} catch {
+			toast.error(m.error_operation_failed());
+		} finally {
+			prefSaving = false;
+		}
+	}
 	let currentPassword = $state('');
 	let newPassword = $state('');
 	let confirmPassword = $state('');
@@ -139,6 +171,52 @@
 			</Card.Content>
 		</Card.Root>
 	{/if}
+
+	<!-- Preferences -->
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>{m.profile_preferences()}</Card.Title>
+			<Card.Description>{m.profile_preferences_desc()}</Card.Description>
+		</Card.Header>
+		<Card.Content class="space-y-4">
+			<div class="space-y-2">
+				<Label>{m.profile_language()}</Label>
+				<Select.Root
+					type="single"
+					value={prefLocale}
+					onValueChange={(v: string) => { prefLocale = v; }}
+				>
+					<Select.Trigger class="w-full">
+						{prefLocale === 'ko' ? '한국어' : prefLocale === 'en' ? 'English' : m.profile_theme_system()}
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="en" label="English" />
+						<Select.Item value="ko" label="한국어" />
+					</Select.Content>
+				</Select.Root>
+			</div>
+			<div class="space-y-2">
+				<Label>{m.profile_theme()}</Label>
+				<Select.Root
+					type="single"
+					value={prefTheme}
+					onValueChange={(v: string) => { prefTheme = v; }}
+				>
+					<Select.Trigger class="w-full">
+						{prefTheme === 'light' ? m.profile_theme_light() : prefTheme === 'dark' ? m.profile_theme_dark() : m.profile_theme_system()}
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="system" label={m.profile_theme_system()} />
+						<Select.Item value="light" label={m.profile_theme_light()} />
+						<Select.Item value="dark" label={m.profile_theme_dark()} />
+					</Select.Content>
+				</Select.Root>
+			</div>
+			<Button onclick={savePreferences} disabled={prefSaving}>
+				{prefSaving ? m.common_saving() : m.common_save_changes()}
+			</Button>
+		</Card.Content>
+	</Card.Root>
 
 	<!-- Connected Accounts -->
 	<Card.Root>

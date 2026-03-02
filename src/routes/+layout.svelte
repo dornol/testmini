@@ -3,16 +3,30 @@
 	import { navigating } from '$app/stores';
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import { ModeWatcher } from 'mode-watcher';
+	import { ModeWatcher, setMode } from 'mode-watcher';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import Header from '$lib/components/Header.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
+	import { setLocale } from '$lib/paraglide/runtime';
 
 	let { children, data } = $props();
 
 	let sidebarOpen = $state(false);
+	let prefsApplied = false;
 
 	const isAuthPage = $derived(page.url.pathname.startsWith('/auth'));
+
+	$effect(() => {
+		if (data.preferences && !prefsApplied) {
+			prefsApplied = true;
+			if (data.preferences.locale) {
+				setLocale(data.preferences.locale as 'ko' | 'en');
+			}
+			if (data.preferences.theme) {
+				setMode(data.preferences.theme as 'light' | 'dark' | 'system');
+			}
+		}
+	});
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>

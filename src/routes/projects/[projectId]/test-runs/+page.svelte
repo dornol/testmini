@@ -37,6 +37,31 @@
 	let deleteRunId = $state<number | null>(null);
 	let deleteRunSaving = $state(false);
 
+	// Compare state
+	let compareSelectedIds = $state(new Set<number>());
+
+	function toggleCompareRun(id: number) {
+		const next = new Set(compareSelectedIds);
+		if (next.has(id)) {
+			next.delete(id);
+		} else if (next.size < 2) {
+			next.add(id);
+		} else {
+			// Replace oldest selection
+			const arr = Array.from(next);
+			next.delete(arr[0]);
+			next.add(id);
+		}
+		compareSelectedIds = next;
+	}
+
+	function goToCompare() {
+		const ids = Array.from(compareSelectedIds);
+		if (ids.length === 2) {
+			goto(`${basePath}/compare?runA=${ids[0]}&runB=${ids[1]}`);
+		}
+	}
+
 	const environments = ['DEV', 'QA', 'STAGE', 'PROD'];
 
 	function openEdit(run: typeof data.runs[0]) {
@@ -159,9 +184,16 @@
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
 		<h2 class="text-lg font-semibold">{m.tr_title()}</h2>
-		{#if data.userRole !== 'VIEWER'}
-			<Button href="{basePath}/new" size="sm">{m.tr_new()}</Button>
-		{/if}
+		<div class="flex items-center gap-2">
+			{#if compareSelectedIds.size === 2}
+				<Button variant="outline" size="sm" onclick={goToCompare}>{m.tr_compare()}</Button>
+			{:else if compareSelectedIds.size > 0}
+				<span class="text-muted-foreground text-xs">{m.tr_compare_select_hint()}</span>
+			{/if}
+			{#if data.userRole !== 'VIEWER'}
+				<Button href="{basePath}/new" size="sm">{m.tr_new()}</Button>
+			{/if}
+		</div>
 	</div>
 
 	<div class="flex gap-1">
@@ -215,6 +247,7 @@
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
+						<Table.Head class="w-8 py-1 px-2"></Table.Head>
 						<Table.Head class="py-1 px-2 text-xs">{m.common_name()}</Table.Head>
 						<Table.Head class="w-20 py-1 px-2 text-xs">{m.common_environment()}</Table.Head>
 						<Table.Head class="w-24 py-1 px-2 text-xs">{m.common_status()}</Table.Head>
@@ -230,6 +263,14 @@
 					{#each data.runs as run (run.id)}
 						{@const pct = progressPercent(run.passedCount, run.totalCount)}
 						<Table.Row class="cursor-pointer hover:bg-muted/50" onclick={() => goto(`${basePath}/${run.id}`)}>
+							<Table.Cell class="py-1 px-2" onclick={(e: MouseEvent) => e.stopPropagation()}>
+								<input
+									type="checkbox"
+									checked={compareSelectedIds.has(run.id)}
+									onchange={() => toggleCompareRun(run.id)}
+									class="h-3.5 w-3.5 rounded border-gray-300"
+								/>
+							</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs font-medium">{run.name}</Table.Cell>
 							<Table.Cell class="py-1 px-2">
 								<Badge variant="outline" class="text-[10px] px-1.5 py-0">{run.environment}</Badge>

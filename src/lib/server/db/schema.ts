@@ -520,6 +520,27 @@ export const testSuiteItemRelations = relations(testSuiteItem, ({ one }) => ({
 	})
 }));
 
+// ── UserPreference ────────────────────────────────────
+
+export const userPreference = pgTable('user_preference', {
+	userId: text('user_id')
+		.primaryKey()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	locale: text('locale'),
+	theme: text('theme'),
+	updatedAt: timestamp('updated_at')
+		.defaultNow()
+		.$onUpdate(() => new Date())
+		.notNull()
+});
+
+export const userPreferenceRelations = relations(userPreference, ({ one }) => ({
+	user: one(user, {
+		fields: [userPreference.userId],
+		references: [user.id]
+	})
+}));
+
 // ── OIDC Account ──────────────────────────────────────
 
 export const oidcAccount = pgTable(

@@ -3,6 +3,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import Chart from '$lib/components/Chart.svelte';
 	import type { ChartConfiguration } from 'chart.js';
 
@@ -11,6 +12,31 @@
 	const envStats = $derived(data.envStats);
 	const recentRuns = $derived(data.recentRuns);
 	const priorityStats = $derived(data.priorityStats);
+
+	let selectedRunIds = $state(new Set<number>());
+
+	function toggleRun(id: number) {
+		const next = new Set(selectedRunIds);
+		if (next.has(id)) {
+			next.delete(id);
+		} else {
+			next.add(id);
+		}
+		selectedRunIds = next;
+	}
+
+	function toggleAll() {
+		if (selectedRunIds.size === recentRuns.length) {
+			selectedRunIds = new Set();
+		} else {
+			selectedRunIds = new Set(recentRuns.map((r) => r.id));
+		}
+	}
+
+	function exportSelected() {
+		const ids = Array.from(selectedRunIds).join(',');
+		window.location.href = `/api/projects/${data.project.id}/reports/export?runs=${ids}`;
+	}
 
 	const trendBarConfig = $derived<ChartConfiguration>({
 		type: 'bar',
@@ -182,13 +208,27 @@
 	<!-- Recent Completed Runs Table -->
 	{#if recentRuns.length > 0}
 		<Card.Root>
-			<Card.Header>
+			<Card.Header class="flex flex-row items-center justify-between">
 				<Card.Title class="text-sm font-medium">{m.reports_recent_completed()}</Card.Title>
+				{#if selectedRunIds.size > 0}
+					<Button size="sm" class="h-7 text-xs" onclick={exportSelected}>
+						{m.reports_export_selected({ count: selectedRunIds.size })}
+					</Button>
+				{/if}
 			</Card.Header>
 			<Card.Content class="p-0">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
+							<Table.Head class="w-10 px-2">
+								<input
+									type="checkbox"
+									checked={recentRuns.length > 0 && selectedRunIds.size === recentRuns.length}
+									onchange={toggleAll}
+									aria-label={m.reports_select_all()}
+									class="h-4 w-4 rounded border-gray-300"
+								/>
+							</Table.Head>
 							<Table.Head>{m.common_name()}</Table.Head>
 							<Table.Head class="w-24">{m.dashboard_env()}</Table.Head>
 							<Table.Head class="w-20">{m.reports_pass()}</Table.Head>
@@ -206,6 +246,14 @@
 								class="cursor-pointer"
 								onclick={() => { window.location.href = `/projects/${data.project.id}/test-runs/${run.id}`; }}
 							>
+								<Table.Cell class="px-2" onclick={(e: MouseEvent) => e.stopPropagation()}>
+									<input
+										type="checkbox"
+										checked={selectedRunIds.has(run.id)}
+										onchange={() => toggleRun(run.id)}
+										class="h-4 w-4 rounded border-gray-300"
+									/>
+								</Table.Cell>
 								<Table.Cell class="font-medium">{run.name}</Table.Cell>
 								<Table.Cell>
 									<Badge variant="outline">{run.environment}</Badge>

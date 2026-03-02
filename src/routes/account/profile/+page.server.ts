@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { oidcProvider, oidcAccount } from '$lib/server/db/schema';
+import { oidcProvider, oidcAccount, userPreference } from '$lib/server/db/schema';
 import { account, user } from '$lib/server/db/auth.schema';
 import { eq, and, asc, count } from 'drizzle-orm';
 import { requireAuth } from '$lib/server/auth-utils';
@@ -59,7 +59,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const linkedProviderSlugs = new Set(linkedAccounts.map((a) => a.providerSlug));
 	const availableProviders = allActiveProviders.filter((p) => !linkedProviderSlugs.has(p.slug));
 
-	return { userData, hasPassword, linkedAccounts, availableProviders };
+	let pref: { locale: string | null; theme: string | null } | undefined;
+	try {
+		pref = await db.query.userPreference.findFirst({
+			where: eq(userPreference.userId, authUser.id)
+		});
+	} catch {
+		// table may not exist yet
+	}
+
+	return {
+		userData,
+		hasPassword,
+		linkedAccounts,
+		availableProviders,
+		preferences: pref ?? { locale: null, theme: null }
+	};
 };
 
 export const actions: Actions = {

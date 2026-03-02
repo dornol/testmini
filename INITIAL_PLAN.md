@@ -41,17 +41,17 @@ Automation integration will be introduced in Phase 2.
 - better-auth (email/password + OIDC)
 - DB-based session (better-auth default)
 
-### Cache / Lock / PubSub (Phase 2+)
+### Cache / Lock / PubSub
 
-- Redis (Soft Lock, Pub/Sub)
+- Redis (Soft Lock, SSE Pub/Sub) ✅
 
-### File Storage (Phase 1+)
+### File Storage
 
-- S3-compatible storage (MinIO)
+- 로컬 파일 시스템 (S3 전환 가능 구조) ✅
 
-### Real-time (Phase 2+)
+### Real-time
 
-- WebSocket (Run screen synchronization)
+- SSE (Server-Sent Events) + Redis Pub/Sub ✅
 
 ### Testing
 
@@ -83,8 +83,7 @@ PostgreSQL  Redis(P2)  MinIO
 | Service    | Phase   | Description                  |
 | ---------- | ------- | ---------------------------- |
 | PostgreSQL | Phase 1 | Primary database             |
-| Redis      | Phase 2 | Soft Lock, Pub/Sub           |
-| MinIO      | Phase 1 | S3-compatible file storage   |
+| Redis      | Phase 2 | Soft Lock, SSE Pub/Sub       |
 
 ---
 
@@ -101,8 +100,8 @@ Already configured with:
 
 ### Login Types
 
-- Local account (email / password) — Phase 1
-- OIDC providers — Phase 1+ (better-auth plugin)
+- Local account (email / password) ✅
+- OIDC/OAuth2 providers — 커스텀 OAuth/PKCE 핸들러 (런타임 IdP 관리) ✅
 
 ### Session Strategy
 
@@ -139,10 +138,10 @@ Tables managed by better-auth:
 
 ### Project Role
 
-- PROJECT_ADMIN — project settings, member management
-- QA — create/edit test cases, execute runs
-- DEV — view test cases, execute runs
-- VIEWER — read-only access
+- PROJECT_ADMIN — 프로젝트 설정, 멤버 관리, 삭제 권한 포함 모든 기능
+- QA — 테스트 케이스/런 생성·편집·실행, Import, Test Suite 관리
+- DEV — 테스트 케이스/런 생성·편집·실행 (Import/Suite 제외)
+- VIEWER — 읽기 전용 (조회, Export, SSE 구독만 가능)
 
 ### ProjectMember
 
@@ -268,15 +267,15 @@ optimistic locking within the same version.
 
 **Upload flow:**
 
-1. Client requests presigned URL from API
-2. Client uploads file directly to MinIO via presigned URL
-3. Client confirms upload, API saves metadata to `attachment` table
+1. Client uploads file via multipart form to API
+2. API saves file to local storage and metadata to `attachment` table
+3. Download via API endpoint with streaming response
 
 ---
 
 ## 7. Concurrency Strategy
 
-### TestCase Editing (Phase 2 — requires Redis)
+### TestCase Editing ✅
 
 **Soft Lock (Redis):**
 
@@ -291,7 +290,7 @@ Flow:
 3. Release on save / cancel
 4. Auto-expire by TTL
 
-**Optimistic Lock (Phase 1 — no Redis needed):**
+**Optimistic Lock ✅:**
 
 ```sql
 UPDATE test_case_version
@@ -301,30 +300,23 @@ WHERE id = ? AND revision = ?
 
 If 0 rows affected → conflict detected → notify user.
 
-### TestRun Execution Screen (Phase 2)
+### TestRun Execution Screen ✅
 
 1. Save execution result
-2. Broadcast WebSocket event via Redis Pub/Sub
+2. Broadcast SSE event via Redis Pub/Sub
 3. Update only modified row on other clients
 4. Use optimistic lock for integrity
 
 ---
 
-## 8. WebSocket Design (Phase 2)
+## 8. Real-time Design (SSE) ✅
 
-Endpoint: `/ws/run/{runId}`
+Endpoint: `/api/projects/[projectId]/test-runs/[runId]/events`
 
-Event Types:
+SSE (Server-Sent Events) + Redis Pub/Sub 기반 실시간 동기화.
+클라이언트 래퍼: `src/lib/sse.svelte.ts`
 
-```typescript
-type WsEvent =
-  | { type: 'EXECUTION_UPDATED'; executionId: number; status: string; updatedBy: string; updatedAt: string }
-  | { type: 'RUN_STATUS_CHANGED'; runId: number; status: string }
-  | { type: 'USER_JOINED'; userId: string }
-  | { type: 'USER_LEFT'; userId: string };
-```
-
-Redis Pub/Sub used for multi-instance scalability.
+Redis Pub/Sub로 멀티 인스턴스 확장 가능.
 
 ---
 
@@ -352,7 +344,10 @@ Redis Pub/Sub used for multi-instance scalability.
 - **Test case detail** — version history, edit with lock indicator
 - **Test run creation** — select test cases, set environment
 - **Run execution screen** — bulk pass, fail modal, real-time stats (Phase 2: WebSocket)
-- **Dashboard** — pass rate, failure rate, execution metrics
+- **Dashboard** — pass rate, failure rate, execution metrics, Chart.js charts
+- **Reports** — 환경별/우선순위별 통계, CSV export
+- **Admin panel** — 사용자 관리, 프로젝트 관리, OIDC Provider 관리
+- **Account settings** — 프로필 편집, OIDC 계정 연동/해제
 
 ---
 
@@ -392,45 +387,50 @@ Redis Pub/Sub used for multi-instance scalability.
 
 ## 13. Development Phases
 
-### Phase 1 (MVP)
+### Phase 1 (MVP) ✅
 
 - [x] Project scaffolding (SvelteKit, Drizzle, TailwindCSS, Paraglide)
 - [x] Auth setup (better-auth, email/password)
-- [ ] Auth schema generation and OIDC provider
-- [ ] Project CRUD + member management
-- [ ] TestCase + TestCaseVersion (optimistic lock only)
-- [ ] TestRun + TestExecution
-- [ ] TestFailureDetail
-- [ ] Attachment (MinIO presigned upload)
-- [ ] i18n for all UI (ko / en)
+- [x] Auth schema generation
+- [x] Project CRUD + member management
+- [x] TestCase + TestCaseVersion (optimistic lock)
+- [x] TestRun + TestExecution
+- [x] TestFailureDetail
+- [x] Attachment (로컬 파일 스토리지)
+- [x] i18n for all UI (ko / en)
 
-### Phase 2
+### Phase 2 ✅
 
-- [ ] Redis integration (Docker Compose)
-- [ ] Soft Lock for test case editing
-- [ ] WebSocket real-time sync for run screen
-- [ ] Basic dashboard (pass rate, metrics)
+- [x] Redis integration (Docker Compose)
+- [x] Soft Lock for test case editing
+- [x] SSE real-time sync for run screen
+- [x] Dashboard (pass rate, metrics, Chart.js)
+- [x] CSV Export
+- [x] Global Admin panel (users, projects)
 
-### Phase 3
+### Phase 3 ✅
 
-- [ ] Advanced search (full-text, filters)
-- [ ] Performance optimization (virtual scrolling, query tuning)
-- [ ] Bulk operations (import/export test cases)
+- [x] Dynamic OIDC/OAuth management (런타임 IdP 등록, PKCE)
+- [x] Full-text search for test cases
+- [x] Virtual scrolling for execution screen
+- [x] Query optimization & index tuning
+- [x] Bulk import/export (CSV/JSON)
 
-### Phase 4 (Automation)
+### Phase 4 (Automation) — 미구현
 
 - [ ] `automation_key` field on TestCase
 - [ ] Automation result ingestion API
-- [ ] CI integration (webhook / polling)
+- [ ] CI integration (GitHub Actions, GitLab CI webhook)
 
 ---
 
 ## 14. Future Extensions
 
-- CI/CD integration (GitHub Actions, GitLab CI)
+- CI/CD integration (GitHub Actions, GitLab CI) — Phase 4 예정
 - Failure trend analytics
 - Slack / webhook notifications
 - Flaky test detection
 - Project templates
-- Test case tagging and categorization
+- Team/Organization management
 - Audit log
+- S3/MinIO 파일 스토리지 전환

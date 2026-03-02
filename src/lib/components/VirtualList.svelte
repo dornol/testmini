@@ -38,22 +38,43 @@
 		viewportHeight = target.clientHeight;
 	}
 
-	function updateWindowScroll() {
+	function getScrollParent(el: HTMLElement): HTMLElement | null {
+		let parent = el.parentElement;
+		while (parent) {
+			const { overflow, overflowY } = getComputedStyle(parent);
+			if (/(auto|scroll)/.test(overflow + overflowY)) {
+				return parent;
+			}
+			parent = parent.parentElement;
+		}
+		return null;
+	}
+
+	function updateExternalScroll(scrollParent: HTMLElement | null) {
 		if (!container) return;
-		const rect = container.getBoundingClientRect();
-		viewportHeight = window.innerHeight;
-		scrollTop = Math.max(0, -rect.top);
+		const containerRect = container.getBoundingClientRect();
+		if (scrollParent) {
+			const parentRect = scrollParent.getBoundingClientRect();
+			viewportHeight = scrollParent.clientHeight;
+			scrollTop = Math.max(0, parentRect.top - containerRect.top);
+		} else {
+			viewportHeight = window.innerHeight;
+			scrollTop = Math.max(0, -containerRect.top);
+		}
 	}
 
 	$effect(() => {
 		if (!container) return;
 		if (useWindowScroll) {
-			updateWindowScroll();
-			window.addEventListener('scroll', updateWindowScroll, { passive: true });
-			window.addEventListener('resize', updateWindowScroll, { passive: true });
+			const scrollParent = getScrollParent(container);
+			const target: HTMLElement | Window = scrollParent ?? window;
+			const handler = () => updateExternalScroll(scrollParent);
+			handler();
+			target.addEventListener('scroll', handler, { passive: true });
+			window.addEventListener('resize', handler, { passive: true });
 			return () => {
-				window.removeEventListener('scroll', updateWindowScroll);
-				window.removeEventListener('resize', updateWindowScroll);
+				target.removeEventListener('scroll', handler);
+				window.removeEventListener('resize', handler);
 			};
 		} else {
 			viewportHeight = container.clientHeight;

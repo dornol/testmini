@@ -262,7 +262,12 @@ export const testExecution = pgTable(
 		executedBy: text('executed_by').references(() => user.id),
 		executedAt: timestamp('executed_at')
 	},
-	(table) => [index('test_execution_run_status_idx').on(table.testRunId, table.status)]
+	(table) => [
+		index('test_execution_run_status_idx').on(table.testRunId, table.status),
+		index('test_execution_case_version_idx').on(table.testCaseVersionId),
+		index('test_execution_executed_by_idx').on(table.executedBy),
+		index('test_execution_executed_at_idx').on(table.executedAt)
+	]
 );
 
 export const testExecutionRelations = relations(testExecution, ({ one, many }) => ({
@@ -279,21 +284,25 @@ export const testExecutionRelations = relations(testExecution, ({ one, many }) =
 
 // ── TestFailureDetail ──────────────────────────────────
 
-export const testFailureDetail = pgTable('test_failure_detail', {
-	id: serial('id').primaryKey(),
-	testExecutionId: integer('test_execution_id')
-		.notNull()
-		.references(() => testExecution.id, { onDelete: 'cascade' }),
-	failureEnvironment: text('failure_environment'),
-	testMethod: text('test_method'),
-	errorMessage: text('error_message'),
-	stackTrace: text('stack_trace'),
-	comment: text('comment'),
-	createdBy: text('created_by')
-		.notNull()
-		.references(() => user.id),
-	createdAt: timestamp('created_at').defaultNow().notNull()
-});
+export const testFailureDetail = pgTable(
+	'test_failure_detail',
+	{
+		id: serial('id').primaryKey(),
+		testExecutionId: integer('test_execution_id')
+			.notNull()
+			.references(() => testExecution.id, { onDelete: 'cascade' }),
+		failureEnvironment: text('failure_environment'),
+		testMethod: text('test_method'),
+		errorMessage: text('error_message'),
+		stackTrace: text('stack_trace'),
+		comment: text('comment'),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [index('test_failure_detail_execution_idx').on(table.testExecutionId)]
+);
 
 export const testFailureDetailRelations = relations(testFailureDetail, ({ one }) => ({
 	testExecution: one(testExecution, {

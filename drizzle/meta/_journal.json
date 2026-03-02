@@ -15,6 +15,13 @@
       "when": 1772415823886,
       "tag": "0001_aromatic_black_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772453350914,
+      "tag": "0002_overconfident_plazm",
+      "breakpoints": true
     }
   ]
 }

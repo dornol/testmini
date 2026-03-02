@@ -9,7 +9,7 @@ import {
 	testFailureDetail,
 	user
 } from '$lib/server/db/schema';
-import { eq, and, inArray, count } from 'drizzle-orm';
+import { eq, and, inArray, count, sql } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { createFailureSchema, type CreateFailureInput } from '$lib/schemas/failure.schema';
 import { publish } from '$lib/server/redis';
@@ -456,23 +456,15 @@ export const actions: Actions = {
 };
 
 async function autoUpdateRunStatus(runId: number) {
-	const executions = await db
-		.select({ status: testExecution.status })
-		.from(testExecution)
-		.where(eq(testExecution.testRunId, runId));
-
-	const anyExecuted = executions.some((e) => e.status !== 'PENDING');
-
-	const run = await db.query.testRun.findFirst({
-		where: eq(testRun.id, runId)
-	});
-
-	if (!run) return;
-
-	if (anyExecuted && run.status === 'CREATED') {
-		await db
-			.update(testRun)
-			.set({ status: 'IN_PROGRESS', startedAt: new Date() })
-			.where(eq(testRun.id, runId));
-	}
+	// Only transition CREATED → IN_PROGRESS on first execution
+	await db
+		.update(testRun)
+		.set({ status: 'IN_PROGRESS', startedAt: new Date() })
+		.where(
+			and(
+				eq(testRun.id, runId),
+				eq(testRun.status, 'CREATED'),
+				sql`exists (select 1 from test_execution where test_run_id = ${runId} and status != 'PENDING' limit 1)`
+			)
+		);
 }

@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testExecution, testRun } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
 import { publish } from '$lib/server/redis';
 import type { RunEvent } from '$lib/types/events';
@@ -72,23 +72,15 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 };
 
 async function autoUpdateRunStatus(runId: number) {
-	const executions = await db
-		.select({ status: testExecution.status })
-		.from(testExecution)
-		.where(eq(testExecution.testRunId, runId));
-
-	const anyExecuted = executions.some((e) => e.status !== 'PENDING');
-
-	const run = await db.query.testRun.findFirst({
-		where: eq(testRun.id, runId)
-	});
-
-	if (!run) return;
-
-	if (anyExecuted && run.status === 'CREATED') {
-		await db
-			.update(testRun)
-			.set({ status: 'IN_PROGRESS', startedAt: new Date() })
-			.where(eq(testRun.id, runId));
-	}
+	// Only transition CREATED → IN_PROGRESS on first execution
+	await db
+		.update(testRun)
+		.set({ status: 'IN_PROGRESS', startedAt: new Date() })
+		.where(
+			and(
+				eq(testRun.id, runId),
+				eq(testRun.status, 'CREATED'),
+				sql`exists (select 1 from test_execution where test_run_id = ${runId} and status != 'PENDING' limit 1)`
+			)
+		);
 }

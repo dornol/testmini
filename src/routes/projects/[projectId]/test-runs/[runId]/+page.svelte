@@ -2,9 +2,9 @@
 	import { enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
+	import { tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
@@ -33,8 +33,11 @@
 		if (!event) return;
 
 		clearTimeout(debounceTimer);
-		debounceTimer = setTimeout(() => {
-			invalidateAll();
+		debounceTimer = setTimeout(async () => {
+			const savedScroll = scrollContainer?.scrollTop ?? 0;
+			await invalidateAll();
+			await tick();
+			if (scrollContainer) scrollContainer.scrollTop = savedScroll;
 		}, 300);
 	});
 
@@ -91,9 +94,81 @@
 		stats.total > 0 ? Math.round(((stats.total - stats.pending) / stats.total) * 100) : 0
 	);
 
-	const currentPage = $derived(data.currentPage);
-	const totalPages = $derived(data.totalPages);
 	const statusFilter = $derived(data.statusFilter);
+
+	// Virtual scroll constants & state
+	const ROW_HEIGHT = 44;
+	const OVERSCAN = 10;
+
+	let scrollContainer: HTMLDivElement;
+	let scrollTop = $state(0);
+	let viewportHeight = $state(0);
+	let expandedHeights = $state<Map<number, number>>(new Map());
+
+	// Cumulative offset array for variable-height rows
+	const rowOffsets = $derived.by(() => {
+		const offsets = [0];
+		for (let i = 0; i < data.executions.length; i++) {
+			const exec = data.executions[i];
+			let h = ROW_HEIGHT;
+			if (exec.status === 'FAIL' && viewFailuresExecId === exec.id) {
+				h += (expandedHeights.get(exec.id) ?? 300);
+			}
+			offsets.push(offsets[i] + h);
+		}
+		return offsets;
+	});
+
+	const totalHeight = $derived(rowOffsets[data.executions.length] ?? 0);
+
+	// Binary search to find first row at or after a given offset
+	function findIndex(offsets: number[], target: number): number {
+		let lo = 0;
+		let hi = offsets.length - 1;
+		while (lo < hi) {
+			const mid = (lo + hi) >>> 1;
+			if (offsets[mid] < target) lo = mid + 1;
+			else hi = mid;
+		}
+		return lo;
+	}
+
+	const startIndex = $derived(Math.max(0, findIndex(rowOffsets, scrollTop) - OVERSCAN));
+	const endIndex = $derived(
+		Math.min(data.executions.length, findIndex(rowOffsets, scrollTop + viewportHeight) + OVERSCAN)
+	);
+	const visibleExecutions = $derived(data.executions.slice(startIndex, endIndex));
+	const topSpacerHeight = $derived(rowOffsets[startIndex] ?? 0);
+	const bottomSpacerHeight = $derived(totalHeight - (rowOffsets[endIndex] ?? totalHeight));
+
+	function handleScroll(e: Event) {
+		const target = e.currentTarget as HTMLDivElement;
+		scrollTop = target.scrollTop;
+		viewportHeight = target.clientHeight;
+	}
+
+	// Measure initial viewport height and track resizes
+	$effect(() => {
+		if (!scrollContainer) return;
+		const ro = new ResizeObserver((entries) => {
+			viewportHeight = entries[0].contentRect.height;
+		});
+		ro.observe(scrollContainer);
+		return () => ro.disconnect();
+	});
+
+	// Measure expanded failure detail height
+	function measureHeight(node: HTMLElement, params: { execId: number }) {
+		const observer = new ResizeObserver((entries) => {
+			const h = entries[0].contentRect.height;
+			if (h > 0 && expandedHeights.get(params.execId) !== h) {
+				expandedHeights.set(params.execId, h);
+				expandedHeights = new Map(expandedHeights);
+			}
+		});
+		observer.observe(node);
+		return { destroy() { observer.disconnect(); } };
+	}
 
 	const statusTabs = $derived([
 		{ key: '', label: m.run_status_filter_all(), count: stats.total },
@@ -111,17 +186,7 @@
 		} else {
 			params.delete('status');
 		}
-		params.delete('page');
-		goto(`?${params.toString()}`, { keepFocus: true });
-	}
-
-	function goToPage(p: number) {
-		const params = new URLSearchParams(page.url.searchParams);
-		if (p > 1) {
-			params.set('page', String(p));
-		} else {
-			params.delete('page');
-		}
+		if (scrollContainer) scrollContainer.scrollTop = 0;
 		goto(`?${params.toString()}`, { keepFocus: true });
 	}
 
@@ -230,7 +295,10 @@
 		}) => {
 			if (result.type === 'success') {
 				selectedPending = new Set();
+				const savedScroll = scrollContainer?.scrollTop ?? 0;
 				await invalidateAll();
+				await tick();
+				if (scrollContainer) scrollContainer.scrollTop = savedScroll;
 			} else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Operation failed');
 				await update();
@@ -249,7 +317,10 @@
 			if (result.type === 'success') {
 				failDialogOpen = false;
 				toast.success(m.fail_marked());
+				const savedScroll = scrollContainer?.scrollTop ?? 0;
 				await invalidateAll();
+				await tick();
+				if (scrollContainer) scrollContainer.scrollTop = savedScroll;
 			} else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Failed to save');
 				await update();
@@ -268,7 +339,10 @@
 			if (result.type === 'success') {
 				editFailureDialogOpen = false;
 				toast.success(m.fail_updated());
+				const savedScroll = scrollContainer?.scrollTop ?? 0;
 				await invalidateAll();
+				await tick();
+				if (scrollContainer) scrollContainer.scrollTop = savedScroll;
 			} else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Failed to update');
 				await update();
@@ -287,7 +361,10 @@
 			if (result.type === 'success') {
 				deleteDialogOpen = false;
 				toast.success(m.fail_deleted());
+				const savedScroll = scrollContainer?.scrollTop ?? 0;
 				await invalidateAll();
+				await tick();
+				if (scrollContainer) scrollContainer.scrollTop = savedScroll;
 			} else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Failed to delete');
 				await update();
@@ -489,7 +566,7 @@
 	</Card.Root>
 
 	<!-- Status Filter Tabs -->
-	<div class="flex flex-wrap gap-1">
+	<div class="flex flex-wrap items-center gap-1">
 		{#each statusTabs as tab (tab.key)}
 			<Button
 				variant={statusFilter === tab.key ? 'default' : 'outline'}
@@ -501,6 +578,9 @@
 				<span class="ml-1 opacity-70">({tab.count})</span>
 			</Button>
 		{/each}
+		<span class="text-muted-foreground ml-auto text-sm">
+			{m.run_showing_count({ count: data.executions.length })}
+		</span>
 	</div>
 
 	<!-- Bulk Actions -->
@@ -516,81 +596,92 @@
 		</div>
 	{/if}
 
-	<!-- Executions Table -->
+	<!-- Executions Table with Virtual Scroll -->
 	<Card.Root>
-		<Table.Root>
-			<Table.Header>
-				<Table.Row>
-					{#if canExecute && pendingExecutions.length > 0}
-						<Table.Head class="w-10">
-							<input
-								type="checkbox"
-								checked={allPendingSelected}
-								onchange={togglePendingAll}
-								class="rounded"
-							/>
-						</Table.Head>
-					{/if}
-					<Table.Head class="w-28">{m.common_key()}</Table.Head>
-					<Table.Head>{m.common_title()}</Table.Head>
-					<Table.Head class="w-24">{m.common_priority()}</Table.Head>
-					<Table.Head class="w-28">{m.common_status()}</Table.Head>
-					{#if canExecute}
-						<Table.Head class="w-52">{m.common_actions()}</Table.Head>
-					{/if}
-					<Table.Head class="w-32">{m.run_executed_by()}</Table.Head>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each data.executions as exec (exec.id)}
-					{@const execFailures = getFailures(exec.id)}
-					<Table.Row>
+		<div
+			bind:this={scrollContainer}
+			class="overflow-y-auto"
+			style="max-height: calc(100vh - 340px);"
+			onscroll={handleScroll}
+		>
+			<table class="w-full caption-bottom text-sm">
+				<thead class="sticky top-0 z-10 bg-background [&_tr]:border-b">
+					<tr>
 						{#if canExecute && pendingExecutions.length > 0}
-							<Table.Cell>
-								{#if exec.status === 'PENDING'}
-									<input
-										type="checkbox"
-										checked={selectedPending.has(exec.id)}
-										onchange={() => togglePending(exec.id)}
-										class="rounded"
-									/>
-								{/if}
-							</Table.Cell>
+							<th class="text-foreground h-10 w-10 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">
+								<input
+									type="checkbox"
+									checked={allPendingSelected}
+									onchange={togglePendingAll}
+									class="rounded"
+								/>
+							</th>
 						{/if}
-						<Table.Cell class="font-mono text-sm">{exec.testCaseKey}</Table.Cell>
-						<Table.Cell class="font-medium">
-							{exec.testCaseTitle}
-							<span class="text-muted-foreground text-xs"> (v{exec.versionNo})</span>
-						</Table.Cell>
-						<Table.Cell>
-							<Badge variant={priorityVariant(exec.testCasePriority)}>
-								{exec.testCasePriority}
-							</Badge>
-						</Table.Cell>
-						<Table.Cell>
-							<button
-								type="button"
-								class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium {statusColor(
-									exec.status
-								)}"
-								onclick={() => {
-									if (exec.status === 'FAIL') {
-										viewFailuresExecId =
-											viewFailuresExecId === exec.id ? null : exec.id;
-									}
-								}}
-								class:cursor-pointer={exec.status === 'FAIL'}
-								class:underline={exec.status === 'FAIL' && execFailures.length > 0}
-							>
-								{exec.status}
-								{#if exec.status === 'FAIL' && execFailures.length > 0}
-									({execFailures.length})
-								{/if}
-							</button>
-						</Table.Cell>
+						<th class="text-foreground h-10 w-28 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.common_key()}</th>
+						<th class="text-foreground h-10 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.common_title()}</th>
+						<th class="text-foreground h-10 w-24 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.common_priority()}</th>
+						<th class="text-foreground h-10 w-28 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.common_status()}</th>
 						{#if canExecute}
-							<Table.Cell>
-								{#if exec.status === 'PENDING' || run.status !== 'COMPLETED'}
+							<th class="text-foreground h-10 w-52 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.common_actions()}</th>
+						{/if}
+						<th class="text-foreground h-10 w-32 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.run_executed_by()}</th>
+					</tr>
+				</thead>
+				<tbody class="[&_tr:last-child]:border-0">
+					<tr style="height: {topSpacerHeight}px"><td colspan="99"></td></tr>
+					{#each visibleExecutions as exec (exec.id)}
+						{@const execFailures = getFailures(exec.id)}
+						<tr class="hover:bg-muted/50 border-b transition-colors">
+							{#if canExecute && pendingExecutions.length > 0}
+								<td class="bg-clip-padding p-2 align-middle whitespace-nowrap">
+									{#if exec.status === 'PENDING'}
+										<input
+											type="checkbox"
+											checked={selectedPending.has(exec.id)}
+											onchange={() => togglePending(exec.id)}
+											class="rounded"
+										/>
+									{/if}
+								</td>
+							{/if}
+							<td class="bg-clip-padding p-2 align-middle whitespace-nowrap font-mono text-sm">{exec.testCaseKey}</td>
+							<td class="bg-clip-padding p-2 align-middle whitespace-nowrap font-medium">
+								{exec.testCaseTitle}
+								<span class="text-muted-foreground text-xs"> (v{exec.versionNo})</span>
+							</td>
+							<td class="bg-clip-padding p-2 align-middle whitespace-nowrap">
+								<Badge variant={priorityVariant(exec.testCasePriority)}>
+									{exec.testCasePriority}
+								</Badge>
+							</td>
+							<td class="bg-clip-padding p-2 align-middle whitespace-nowrap">
+								<button
+									type="button"
+									class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium {statusColor(
+										exec.status
+									)}"
+									onclick={() => {
+										if (exec.status === 'FAIL') {
+											if (viewFailuresExecId === exec.id) {
+												expandedHeights.delete(exec.id);
+												expandedHeights = new Map(expandedHeights);
+												viewFailuresExecId = null;
+											} else {
+												viewFailuresExecId = exec.id;
+											}
+										}
+									}}
+									class:cursor-pointer={exec.status === 'FAIL'}
+									class:underline={exec.status === 'FAIL' && execFailures.length > 0}
+								>
+									{exec.status}
+									{#if exec.status === 'FAIL' && execFailures.length > 0}
+										({execFailures.length})
+									{/if}
+								</button>
+							</td>
+							{#if canExecute}
+								<td class="bg-clip-padding p-2 align-middle whitespace-nowrap">
 									<div class="flex gap-1">
 										{#each ['PASS', 'BLOCKED', 'SKIPPED'] as s (s)}
 											{#if exec.status !== s}
@@ -629,172 +720,128 @@
 											</Button>
 										{/if}
 									</div>
-								{/if}
-							</Table.Cell>
-						{/if}
-						<Table.Cell class="text-muted-foreground text-sm">
-							{exec.executedBy ?? '-'}
-						</Table.Cell>
-					</Table.Row>
-					<!-- Inline failure details -->
-					{#if exec.status === 'FAIL' && viewFailuresExecId === exec.id}
-						<Table.Row>
-							<Table.Cell
-								colspan={canExecute ? (pendingExecutions.length > 0 ? 8 : 7) : (pendingExecutions.length > 0 ? 7 : 6)}
-							>
-								<div class="bg-red-50 dark:bg-red-950/30 space-y-3 rounded-md p-4">
-									<div class="flex items-center justify-between">
-										<h4 class="text-sm font-medium text-red-800 dark:text-red-300">
-											{m.fail_details()}
-										</h4>
-										{#if canExecute}
-											<Button
-												type="button"
-												variant="outline"
-												size="sm"
-												onclick={() => openFailDialog(exec.id, exec.testCaseKey)}
-											>
-												{m.fail_add_detail()}
-											</Button>
-										{/if}
-									</div>
-									<div class="mb-3 border-b pb-3">
-										<AttachmentManager
-											referenceType="EXECUTION"
-											referenceId={exec.id}
-											editable={canExecute}
-										/>
-									</div>
-									{#if execFailures.length === 0}
-										<p class="text-muted-foreground text-sm">
-											{m.fail_no_details()}
-										</p>
-									{:else}
-										{#each execFailures as f (f.id)}
-											<div class="rounded border bg-white p-3 dark:bg-gray-900">
-												<div class="flex items-start justify-between">
-													<div class="space-y-1 text-sm">
-														{#if f.errorMessage}
-															<div>
-																<span class="font-medium">{m.fail_error()}:</span>
-																{f.errorMessage}
-															</div>
-														{/if}
-														{#if f.testMethod}
-															<div>
-																<span class="font-medium">{m.fail_method()}:</span>
-																{f.testMethod}
-															</div>
-														{/if}
-														{#if f.failureEnvironment}
-															<div>
-																<span class="font-medium">{m.common_environment()}:</span>
-																{f.failureEnvironment}
-															</div>
-														{/if}
-														{#if f.stackTrace}
-															<details class="mt-2">
-																<summary
-																	class="text-muted-foreground cursor-pointer text-xs"
-																	>{m.fail_stack_trace()}</summary
+								</td>
+							{/if}
+							<td class="text-muted-foreground bg-clip-padding p-2 align-middle whitespace-nowrap text-sm">
+								{exec.executedBy ?? '-'}
+							</td>
+						</tr>
+						<!-- Inline failure details -->
+						{#if exec.status === 'FAIL' && viewFailuresExecId === exec.id}
+							<tr>
+								<td colspan="99">
+									<div use:measureHeight={{ execId: exec.id }} class="bg-red-50 dark:bg-red-950/30 space-y-3 rounded-md p-4">
+										<div class="flex items-center justify-between">
+											<h4 class="text-sm font-medium text-red-800 dark:text-red-300">
+												{m.fail_details()}
+											</h4>
+											{#if canExecute}
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onclick={() => openFailDialog(exec.id, exec.testCaseKey)}
+												>
+													{m.fail_add_detail()}
+												</Button>
+											{/if}
+										</div>
+										<div class="mb-3 border-b pb-3">
+											<AttachmentManager
+												referenceType="EXECUTION"
+												referenceId={exec.id}
+												editable={canExecute}
+											/>
+										</div>
+										{#if execFailures.length === 0}
+											<p class="text-muted-foreground text-sm">
+												{m.fail_no_details()}
+											</p>
+										{:else}
+											{#each execFailures as f (f.id)}
+												<div class="rounded border bg-white p-3 dark:bg-gray-900">
+													<div class="flex items-start justify-between">
+														<div class="space-y-1 text-sm">
+															{#if f.errorMessage}
+																<div>
+																	<span class="font-medium">{m.fail_error()}:</span>
+																	{f.errorMessage}
+																</div>
+															{/if}
+															{#if f.testMethod}
+																<div>
+																	<span class="font-medium">{m.fail_method()}:</span>
+																	{f.testMethod}
+																</div>
+															{/if}
+															{#if f.failureEnvironment}
+																<div>
+																	<span class="font-medium">{m.common_environment()}:</span>
+																	{f.failureEnvironment}
+																</div>
+															{/if}
+															{#if f.stackTrace}
+																<details class="mt-2">
+																	<summary
+																		class="text-muted-foreground cursor-pointer text-xs"
+																		>{m.fail_stack_trace()}</summary
+																	>
+																	<pre
+																		class="bg-muted mt-1 overflow-x-auto rounded p-2 text-xs">{f.stackTrace}</pre>
+																</details>
+															{/if}
+															{#if f.comment}
+																<div class="text-muted-foreground mt-1">
+																	{f.comment}
+																</div>
+															{/if}
+														</div>
+														{#if canExecute}
+															<div class="flex gap-1">
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	class="h-7 px-2 text-xs"
+																	onclick={() => openEditFailure(f)}
 																>
-																<pre
-																	class="bg-muted mt-1 overflow-x-auto rounded p-2 text-xs">{f.stackTrace}</pre>
-															</details>
-														{/if}
-														{#if f.comment}
-															<div class="text-muted-foreground mt-1">
-																{f.comment}
+																	{m.common_edit()}
+																</Button>
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	class="text-destructive hover:text-destructive h-7 px-2 text-xs"
+																	onclick={() => openDeleteFailure(f.id)}
+																>
+																	{m.common_delete()}
+																</Button>
 															</div>
 														{/if}
 													</div>
-													{#if canExecute}
-														<div class="flex gap-1">
-															<Button
-																type="button"
-																variant="ghost"
-																size="sm"
-																class="h-7 px-2 text-xs"
-																onclick={() => openEditFailure(f)}
-															>
-																{m.common_edit()}
-															</Button>
-															<Button
-																type="button"
-																variant="ghost"
-																size="sm"
-																class="text-destructive hover:text-destructive h-7 px-2 text-xs"
-																onclick={() => openDeleteFailure(f.id)}
-															>
-																{m.common_delete()}
-															</Button>
-														</div>
-													{/if}
+													<div class="text-muted-foreground mt-2 text-xs">
+														{f.createdBy} &middot; {new Date(f.createdAt).toLocaleString()}
+													</div>
+													<div class="mt-3 border-t pt-3">
+														<AttachmentManager
+															referenceType="FAILURE"
+															referenceId={f.id}
+															editable={canExecute}
+														/>
+													</div>
 												</div>
-												<div class="text-muted-foreground mt-2 text-xs">
-													{f.createdBy} &middot; {new Date(f.createdAt).toLocaleString()}
-												</div>
-												<div class="mt-3 border-t pt-3">
-													<AttachmentManager
-														referenceType="FAILURE"
-														referenceId={f.id}
-														editable={canExecute}
-													/>
-												</div>
-											</div>
-										{/each}
-									{/if}
-								</div>
-							</Table.Cell>
-						</Table.Row>
-					{/if}
-				{/each}
-			</Table.Body>
-		</Table.Root>
-	</Card.Root>
-
-	<!-- Pagination -->
-	{#if totalPages > 1}
-		<div class="flex items-center justify-between">
-			<span class="text-muted-foreground text-sm">
-				{m.run_page_info({ page: currentPage, total: totalPages })}
-			</span>
-			<div class="flex gap-1">
-				<Button
-					variant="outline"
-					size="sm"
-					class="h-7 px-3 text-xs"
-					disabled={currentPage <= 1}
-					onclick={() => goToPage(currentPage - 1)}
-				>
-					{m.run_prev_page()}
-				</Button>
-				{#each Array.from({ length: totalPages }, (_, i) => i + 1) as p (p)}
-					{#if p === 1 || p === totalPages || (p >= currentPage - 2 && p <= currentPage + 2)}
-						<Button
-							variant={p === currentPage ? 'default' : 'outline'}
-							size="sm"
-							class="h-7 w-7 px-0 text-xs"
-							onclick={() => goToPage(p)}
-						>
-							{p}
-						</Button>
-					{:else if p === currentPage - 3 || p === currentPage + 3}
-						<span class="text-muted-foreground flex h-7 items-center px-1 text-xs">...</span>
-					{/if}
-				{/each}
-				<Button
-					variant="outline"
-					size="sm"
-					class="h-7 px-3 text-xs"
-					disabled={currentPage >= totalPages}
-					onclick={() => goToPage(currentPage + 1)}
-				>
-					{m.run_next_page()}
-				</Button>
-			</div>
+											{/each}
+										{/if}
+									</div>
+								</td>
+							</tr>
+						{/if}
+					{/each}
+					<tr style="height: {bottomSpacerHeight}px"><td colspan="99"></td></tr>
+				</tbody>
+			</table>
 		</div>
-	{/if}
+	</Card.Root>
 </div>
 
 <!-- FAIL with Detail Dialog -->

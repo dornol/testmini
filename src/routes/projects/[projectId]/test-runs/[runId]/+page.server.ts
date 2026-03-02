@@ -9,7 +9,7 @@ import {
 	testFailureDetail,
 	user
 } from '$lib/server/db/schema';
-import { eq, and, inArray, sql, count } from 'drizzle-orm';
+import { eq, and, inArray, count } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { createFailureSchema, type CreateFailureInput } from '$lib/schemas/failure.schema';
 import { publish } from '$lib/server/redis';
@@ -32,10 +32,8 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		error(404, 'Test run not found');
 	}
 
-	// Pagination + status filter params
+	// Status filter
 	const statusFilter = url.searchParams.get('status') ?? '';
-	const currentPage = Math.max(1, Number(url.searchParams.get('page') ?? '1'));
-	const pageSize = 50;
 
 	// Stats are always based on full data
 	const allStatuses = await db
@@ -50,17 +48,12 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		stats.total += Number(row.cnt);
 	}
 
-	// Filter + paginated executions
+	// Filter executions (no pagination — virtual scroll on client)
 	const execConditions = [eq(testExecution.testRunId, runId)];
 	const validStatuses = ['PENDING', 'PASS', 'FAIL', 'BLOCKED', 'SKIPPED'] as const;
 	if (statusFilter && validStatuses.includes(statusFilter as typeof validStatuses[number])) {
 		execConditions.push(eq(testExecution.status, statusFilter as typeof validStatuses[number]));
 	}
-
-	const filteredCount = statusFilter && validStatuses.includes(statusFilter as typeof validStatuses[number])
-		? (stats[statusFilter.toLowerCase()] ?? 0)
-		: stats.total;
-	const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
 
 	const executions = await db
 		.select({
@@ -79,11 +72,9 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
 		.leftJoin(user, eq(testExecution.executedBy, user.id))
 		.where(and(...execConditions))
-		.orderBy(testCase.key)
-		.limit(pageSize)
-		.offset((currentPage - 1) * pageSize);
+		.orderBy(testCase.key);
 
-	// Get failure details for all FAIL executions on this page
+	// Get failure details for all FAIL executions
 	const failExecutionIds = executions.filter((e) => e.status === 'FAIL').map((e) => e.id);
 	let failures: {
 		id: number;
@@ -121,9 +112,6 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		executions,
 		failures,
 		stats,
-		currentPage,
-		totalPages,
-		pageSize,
 		statusFilter
 	};
 };

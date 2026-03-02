@@ -13,11 +13,8 @@ import {
 	testExecution,
 	projectMember
 } from '$lib/server/db/schema';
-import { eq, and, ilike, or, desc, asc, exists, sql, inArray, isNull, count as countFn } from 'drizzle-orm';
+import { eq, and, ilike, or, desc, asc, exists, sql, inArray, isNull } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
-
-const PAGINATION_THRESHOLD = 200;
-const PAGE_SIZE = 50;
 
 export const load: PageServerLoad = async ({ params, url, parent, cookies }) => {
 	await parent();
@@ -127,20 +124,6 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		.where(eq(testCaseGroup.projectId, projectId))
 		.orderBy(asc(testCaseGroup.sortOrder));
 
-	// Count total filtered results for pagination decision
-	const [{ total: totalCount }] = await db
-		.select({ total: countFn() })
-		.from(testCase)
-		.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
-		.where(where);
-
-	const total = Number(totalCount);
-	const usePagination = total > PAGINATION_THRESHOLD;
-	const currentPage = usePagination
-		? Math.max(1, Number(url.searchParams.get('page') ?? '1'))
-		: 1;
-	const totalPages = usePagination ? Math.ceil(total / PAGE_SIZE) : 1;
-
 	const baseQuery = db
 		.select({
 			id: testCase.id,
@@ -156,9 +139,7 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		.innerJoin(user, eq(testCaseVersion.updatedBy, user.id))
 		.where(where);
 
-	const testCases = usePagination
-		? await baseQuery.orderBy(asc(testCase.sortOrder)).limit(PAGE_SIZE).offset((currentPage - 1) * PAGE_SIZE)
-		: await baseQuery.orderBy(asc(testCase.sortOrder));
+	const testCases = await baseQuery.orderBy(asc(testCase.sortOrder));
 
 	// Batch load tags for test cases in this project, then filter to current page
 	const tcIdSet = new Set(testCases.map((tc) => tc.id));
@@ -291,7 +272,6 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 			tags: tagsByTestCase[tc.id] ?? [],
 			assignees: assigneesByTestCase[tc.id] ?? []
 		})),
-		total,
 		search,
 		priority,
 		tagIds,
@@ -303,11 +283,7 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		projectMembers,
 		projectRuns,
 		selectedRunIds,
-		executionMap,
-		usePagination,
-		currentPage,
-		totalPages,
-		totalCount: total
+		executionMap
 	};
 };
 

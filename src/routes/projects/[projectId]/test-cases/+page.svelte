@@ -14,6 +14,7 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import ImportDialog from '$lib/components/ImportDialog.svelte';
+	import VirtualList from '$lib/components/VirtualList.svelte';
 	import TestCaseDetailSheet from './TestCaseDetailSheet.svelte';
 	import FailureDetailsSheet from './FailureDetailsSheet.svelte';
 	import FailWithDetailDialog from './FailWithDetailDialog.svelte';
@@ -117,16 +118,6 @@
 	const selectedRuns = $derived(
 		data.projectRuns.filter((r) => data.selectedRunIds.includes(r.id))
 	);
-
-	function goToTcPage(p: number) {
-		const params = new URLSearchParams(page.url.searchParams);
-		if (p > 1) {
-			params.set('page', String(p));
-		} else {
-			params.delete('page');
-		}
-		goto(`${basePath}?${params.toString()}`);
-	}
 
 	function handleSearch() {
 		clearTimeout(searchTimeout);
@@ -354,7 +345,41 @@
 
 	const canEdit = $derived(data.userRole !== 'VIEWER');
 	const canDelete = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
-	const dndDisabled = $derived(hasActiveFilters || !canEdit || data.usePagination);
+
+	const VIRTUAL_SCROLL_THRESHOLD = 200;
+	const useVirtualScroll = $derived(data.testCases.length > VIRTUAL_SCROLL_THRESHOLD);
+	const dndDisabled = $derived(hasActiveFilters || !canEdit || useVirtualScroll);
+
+	type FlatItem =
+		| { _type: 'group-header'; group: GroupItem }
+		| { _type: 'tc'; tc: TcItem }
+		| { _type: 'quick-create'; groupKey: number }
+		| { _type: 'uncat-header' };
+
+	const flatItems: FlatItem[] = $derived.by(() => {
+		const items: FlatItem[] = [];
+		for (const group of dndGroups) {
+			items.push({ _type: 'group-header', group });
+			if (!collapsedGroups.has(group.id)) {
+				for (const tc of group.items) {
+					items.push({ _type: 'tc', tc });
+				}
+				if (canEdit) {
+					items.push({ _type: 'quick-create', groupKey: group.id });
+				}
+			}
+		}
+		items.push({ _type: 'uncat-header' });
+		if (!collapsedGroups.has(-1)) {
+			for (const tc of dndUncategorized) {
+				items.push({ _type: 'tc', tc });
+			}
+			if (canEdit) {
+				items.push({ _type: 'quick-create', groupKey: -1 });
+			}
+		}
+		return items;
+	});
 
 	// --- Inline editing (pencil icon click for key/title) ---
 	function startInlineEdit(tcId: number, field: 'key' | 'title', currentValue: string, e: Event) {
@@ -1075,12 +1100,6 @@
 		</div>
 	{/if}
 
-	{#if data.usePagination}
-		<div class="bg-muted rounded-md p-3 text-sm">
-			{m.tc_pagination_notice({ count: data.total })}
-		</div>
-	{/if}
-
 	{#if data.testCases.length === 0 && !hasActiveFilters}
 		<div
 			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
@@ -1350,173 +1369,273 @@
 				{/each}
 			</div>
 
-			<!-- Groups DnD zone -->
-			<div
-				use:dragHandleZone={{
-					items: dndGroups,
-					flipDurationMs,
-					type: 'groups',
-					dragDisabled: dndDisabled
-				}}
-				onconsider={(e) => handleGroupDndConsider(e)}
-				onfinalize={(e) => handleGroupDndFinalize(e)}
-			>
-				{#each dndGroups as group (group.id)}
-					<div animate:flip={{ duration: flipDurationMs }}>
-						<!-- Group separator row -->
-						<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 text-sm font-semibold">
-							{#if !dndDisabled}
-								<span use:dragHandle data-drag-handle-group class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 flex justify-center" title="Drag to reorder">
-									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
-								</span>
-							{/if}
-							<button
-								type="button"
-								class="text-muted-foreground hover:text-foreground transition-colors"
-								onclick={() => toggleGroupCollapse(group.id)}
-							>
-								{#if collapsedGroups.has(group.id)}
-									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-								{:else}
-									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-								{/if}
-							</button>
-							{#if group.color}
-								<span class="h-2.5 w-2.5 rounded-full shrink-0" style="background-color: {group.color}"></span>
-							{/if}
-							{#if editingGroupId === group.id}
-								<!-- svelte-ignore a11y_autofocus -->
-								<input
-									type="text"
-									class="border-primary bg-background h-6 rounded border px-1.5 text-xs font-semibold outline-none ring-1 ring-primary/30 flex-1"
-									bind:value={editingGroupName}
-									onblur={commitGroupNameEdit}
-									onkeydown={handleGroupNameKeydown}
-									autofocus
-								/>
-							{:else}
+			{#if useVirtualScroll}
+				<!-- Virtual scroll mode -->
+				<VirtualList items={flatItems} rowHeight={32} height="calc(100vh - 300px)">
+					{#snippet children({ item })}
+						{@const row = item as FlatItem}
+						{#if row._type === 'group-header'}
+							{@const group = row.group}
+							<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 text-sm font-semibold">
 								<button
 									type="button"
-									class="text-sm font-semibold hover:underline text-left"
-									ondblclick={() => { if (canEdit) startEditGroupName(group.id, group.name); }}
+									class="text-muted-foreground hover:text-foreground transition-colors"
+									onclick={() => toggleGroupCollapse(group.id)}
 								>
-									{group.name}
+									{#if collapsedGroups.has(group.id)}
+										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+									{:else}
+										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+									{/if}
 								</button>
-							{/if}
-							<span class="text-xs text-muted-foreground font-normal">({group.items.length})</span>
-							<div class="ml-auto flex items-center gap-1">
-								{#if canEdit}
+								{#if group.color}
+									<span class="h-2.5 w-2.5 rounded-full shrink-0" style="background-color: {group.color}"></span>
+								{/if}
+								{#if editingGroupId === group.id}
+									<!-- svelte-ignore a11y_autofocus -->
+									<input
+										type="text"
+										class="border-primary bg-background h-6 rounded border px-1.5 text-xs font-semibold outline-none ring-1 ring-primary/30 flex-1"
+										bind:value={editingGroupName}
+										onblur={commitGroupNameEdit}
+										onkeydown={handleGroupNameKeydown}
+										autofocus
+									/>
+								{:else}
 									<button
 										type="button"
-										class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"
-										title="Edit name"
-										onclick={() => startEditGroupName(group.id, group.name)}
+										class="text-sm font-semibold hover:underline text-left"
+										ondblclick={() => { if (canEdit) startEditGroupName(group.id, group.name); }}
 									>
-										<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+										{group.name}
 									</button>
 								{/if}
-								{#if canDelete}
-									<button
-										type="button"
-										class="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted transition-colors"
-										title="Delete group"
-										onclick={() => { deleteGroupId = group.id; deleteGroupOpen = true; }}
-									>
-										<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-									</button>
-								{/if}
-							</div>
-						</div>
-
-						<!-- Group content (TC list) -->
-						{#if !collapsedGroups.has(group.id)}
-							<div
-								use:dragHandleZone={{
-									items: group.items,
-									flipDurationMs,
-									type: 'testcases',
-									dragDisabled: dndDisabled
-								}}
-								onconsider={(e) => handleTcDndConsider(group.id, e)}
-								onfinalize={(e) => handleTcDndFinalize(group.id, e)}
-								class="min-h-[32px]"
-							>
-								{#each group.items as tc (tc.id)}
-									<div
-										animate:flip={{ duration: flipDurationMs }}
-										class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 cursor-pointer group/row text-xs"
-										onclick={() => detailSheet.open(tc.id)}
-										role="button"
-										tabindex="0"
-										onkeydown={(e) => { if (e.key === 'Enter') detailSheet.open(tc.id); }}
-									>
-										{@render tcRow(tc)}
-									</div>
-								{/each}
-							</div>
-
-							{#if canEdit}
-								<div class="border-b bg-muted/10 text-xs">
-									{@render quickCreateRow(group.id)}
+								<span class="text-xs text-muted-foreground font-normal">({group.items.length})</span>
+								<div class="ml-auto flex items-center gap-1">
+									{#if canEdit}
+										<button
+											type="button"
+											class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"
+											title="Edit name"
+											onclick={() => startEditGroupName(group.id, group.name)}
+										>
+											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+										</button>
+									{/if}
+									{#if canDelete}
+										<button
+											type="button"
+											class="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted transition-colors"
+											title="Delete group"
+											onclick={() => { deleteGroupId = group.id; deleteGroupOpen = true; }}
+										>
+											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+										</button>
+									{/if}
 								</div>
-							{/if}
-						{/if}
-					</div>
-				{/each}
-			</div>
-
-			<!-- Uncategorized section -->
-			<div>
-				<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/20 text-sm font-semibold">
-					{#if !dndDisabled}<span class="w-6 shrink-0"></span>{/if}
-					<button
-						type="button"
-						class="text-muted-foreground hover:text-foreground transition-colors"
-						onclick={() => toggleGroupCollapse(-1)}
-					>
-						{#if collapsedGroups.has(-1)}
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-						{:else}
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-						{/if}
-					</button>
-					<span class="text-muted-foreground">{m.group_uncategorized()}</span>
-					<span class="text-xs text-muted-foreground font-normal">({dndUncategorized.length})</span>
-				</div>
-
-				{#if !collapsedGroups.has(-1)}
-					<div
-						use:dragHandleZone={{
-							items: dndUncategorized,
-							flipDurationMs,
-							type: 'testcases',
-							dragDisabled: dndDisabled
-						}}
-						onconsider={(e) => handleTcDndConsider(null, e)}
-						onfinalize={(e) => handleTcDndFinalize(null, e)}
-						class="min-h-[32px]"
-					>
-						{#each dndUncategorized as tc (tc.id)}
+							</div>
+						{:else if row._type === 'tc'}
 							<div
-								animate:flip={{ duration: flipDurationMs }}
 								class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 cursor-pointer group/row text-xs"
-								onclick={() => detailSheet.open(tc.id)}
+								onclick={() => detailSheet.open(row.tc.id)}
 								role="button"
 								tabindex="0"
-								onkeydown={(e) => { if (e.key === 'Enter') detailSheet.open(tc.id); }}
+								onkeydown={(e) => { if (e.key === 'Enter') detailSheet.open(row.tc.id); }}
 							>
-								{@render tcRow(tc)}
+								{@render tcRow(row.tc)}
 							</div>
-						{/each}
+						{:else if row._type === 'quick-create'}
+							<div class="border-b bg-muted/10 text-xs">
+								{@render quickCreateRow(row.groupKey)}
+							</div>
+						{:else}
+							<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/20 text-sm font-semibold">
+								<button
+									type="button"
+									class="text-muted-foreground hover:text-foreground transition-colors"
+									onclick={() => toggleGroupCollapse(-1)}
+								>
+									{#if collapsedGroups.has(-1)}
+										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+									{:else}
+										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+									{/if}
+								</button>
+								<span class="text-muted-foreground">{m.group_uncategorized()}</span>
+								<span class="text-xs text-muted-foreground font-normal">({dndUncategorized.length})</span>
+							</div>
+						{/if}
+					{/snippet}
+				</VirtualList>
+			{:else}
+				<!-- Normal DnD grouped view -->
+				<div
+					use:dragHandleZone={{
+						items: dndGroups,
+						flipDurationMs,
+						type: 'groups',
+						dragDisabled: dndDisabled
+					}}
+					onconsider={(e) => handleGroupDndConsider(e)}
+					onfinalize={(e) => handleGroupDndFinalize(e)}
+				>
+					{#each dndGroups as group (group.id)}
+						<div animate:flip={{ duration: flipDurationMs }}>
+							<!-- Group separator row -->
+							<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 text-sm font-semibold">
+								{#if !dndDisabled}
+									<span use:dragHandle data-drag-handle-group class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 flex justify-center" title="Drag to reorder">
+										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+									</span>
+								{/if}
+								<button
+									type="button"
+									class="text-muted-foreground hover:text-foreground transition-colors"
+									onclick={() => toggleGroupCollapse(group.id)}
+								>
+									{#if collapsedGroups.has(group.id)}
+										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+									{:else}
+										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+									{/if}
+								</button>
+								{#if group.color}
+									<span class="h-2.5 w-2.5 rounded-full shrink-0" style="background-color: {group.color}"></span>
+								{/if}
+								{#if editingGroupId === group.id}
+									<!-- svelte-ignore a11y_autofocus -->
+									<input
+										type="text"
+										class="border-primary bg-background h-6 rounded border px-1.5 text-xs font-semibold outline-none ring-1 ring-primary/30 flex-1"
+										bind:value={editingGroupName}
+										onblur={commitGroupNameEdit}
+										onkeydown={handleGroupNameKeydown}
+										autofocus
+									/>
+								{:else}
+									<button
+										type="button"
+										class="text-sm font-semibold hover:underline text-left"
+										ondblclick={() => { if (canEdit) startEditGroupName(group.id, group.name); }}
+									>
+										{group.name}
+									</button>
+								{/if}
+								<span class="text-xs text-muted-foreground font-normal">({group.items.length})</span>
+								<div class="ml-auto flex items-center gap-1">
+									{#if canEdit}
+										<button
+											type="button"
+											class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"
+											title="Edit name"
+											onclick={() => startEditGroupName(group.id, group.name)}
+										>
+											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+										</button>
+									{/if}
+									{#if canDelete}
+										<button
+											type="button"
+											class="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted transition-colors"
+											title="Delete group"
+											onclick={() => { deleteGroupId = group.id; deleteGroupOpen = true; }}
+										>
+											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+										</button>
+									{/if}
+								</div>
+							</div>
+
+							<!-- Group content (TC list) -->
+							{#if !collapsedGroups.has(group.id)}
+								<div
+									use:dragHandleZone={{
+										items: group.items,
+										flipDurationMs,
+										type: 'testcases',
+										dragDisabled: dndDisabled
+									}}
+									onconsider={(e) => handleTcDndConsider(group.id, e)}
+									onfinalize={(e) => handleTcDndFinalize(group.id, e)}
+									class="min-h-[32px]"
+								>
+									{#each group.items as tc (tc.id)}
+										<div
+											animate:flip={{ duration: flipDurationMs }}
+											class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 cursor-pointer group/row text-xs"
+											onclick={() => detailSheet.open(tc.id)}
+											role="button"
+											tabindex="0"
+											onkeydown={(e) => { if (e.key === 'Enter') detailSheet.open(tc.id); }}
+										>
+											{@render tcRow(tc)}
+										</div>
+									{/each}
+								</div>
+
+								{#if canEdit}
+									<div class="border-b bg-muted/10 text-xs">
+										{@render quickCreateRow(group.id)}
+									</div>
+								{/if}
+							{/if}
+						</div>
+					{/each}
+				</div>
+
+				<!-- Uncategorized section -->
+				<div>
+					<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/20 text-sm font-semibold">
+						{#if !dndDisabled}<span class="w-6 shrink-0"></span>{/if}
+						<button
+							type="button"
+							class="text-muted-foreground hover:text-foreground transition-colors"
+							onclick={() => toggleGroupCollapse(-1)}
+						>
+							{#if collapsedGroups.has(-1)}
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+							{:else}
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+							{/if}
+						</button>
+						<span class="text-muted-foreground">{m.group_uncategorized()}</span>
+						<span class="text-xs text-muted-foreground font-normal">({dndUncategorized.length})</span>
 					</div>
 
-					{#if canEdit}
-						<div class="bg-muted/10 text-xs">
-							{@render quickCreateRow(-1)}
+					{#if !collapsedGroups.has(-1)}
+						<div
+							use:dragHandleZone={{
+								items: dndUncategorized,
+								flipDurationMs,
+								type: 'testcases',
+								dragDisabled: dndDisabled
+							}}
+							onconsider={(e) => handleTcDndConsider(null, e)}
+							onfinalize={(e) => handleTcDndFinalize(null, e)}
+							class="min-h-[32px]"
+						>
+							{#each dndUncategorized as tc (tc.id)}
+								<div
+									animate:flip={{ duration: flipDurationMs }}
+									class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 cursor-pointer group/row text-xs"
+									onclick={() => detailSheet.open(tc.id)}
+									role="button"
+									tabindex="0"
+									onkeydown={(e) => { if (e.key === 'Enter') detailSheet.open(tc.id); }}
+								>
+									{@render tcRow(tc)}
+								</div>
+							{/each}
 						</div>
+
+						{#if canEdit}
+							<div class="bg-muted/10 text-xs">
+								{@render quickCreateRow(-1)}
+							</div>
+						{/if}
 					{/if}
-				{/if}
-			</div>
+				</div>
+			{/if}
 		</div>
 
 		{#if data.testCases.length === 0 && hasActiveFilters}
@@ -1615,35 +1734,10 @@
 		</div>
 	{/if}
 
-	{#if data.usePagination && data.totalPages > 1}
-		<div class="flex items-center justify-between">
-			<span class="text-muted-foreground text-xs">
-				{m.common_total_count({ count: data.totalCount })}
-			</span>
-			<div class="flex items-center gap-2">
-				<Button
-					variant="outline"
-					size="sm"
-					class="h-7 px-2 text-xs"
-					disabled={data.currentPage <= 1}
-					onclick={() => goToTcPage(data.currentPage - 1)}
-				>
-					{m.common_previous()}
-				</Button>
-				<span class="text-muted-foreground text-xs">
-					{m.common_page_of({ page: data.currentPage, totalPages: data.totalPages })}
-				</span>
-				<Button
-					variant="outline"
-					size="sm"
-					class="h-7 px-2 text-xs"
-					disabled={data.currentPage >= data.totalPages}
-					onclick={() => goToTcPage(data.currentPage + 1)}
-				>
-					{m.common_next()}
-				</Button>
-			</div>
-		</div>
+	{#if data.testCases.length > 0}
+		<span class="text-muted-foreground text-xs">
+			{m.common_total_count({ count: data.testCases.length })}
+		</span>
 	{/if}
 </div>
 

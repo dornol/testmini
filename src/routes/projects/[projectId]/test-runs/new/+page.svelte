@@ -14,11 +14,25 @@
 	let { data } = $props();
 	const actionData = $derived(page.form as Record<string, unknown> | null);
 
-	let selectedIds = $state<Set<number>>(new Set());
+	let selectedIds = $state<Set<number>>(new Set(data.preselectedIds ?? []));
 	let searchFilter = $state('');
 	let priorityFilter = $state('');
 	let tagFilter = $state('');
 	let selectedEnv = $state('DEV');
+
+	function loadFromSuite(suiteId: string) {
+		if (!suiteId) return;
+		// Fetch suite items and merge into selection
+		fetch(`/api/projects/${data.project.id}/test-suites/${suiteId}`)
+			.then((r) => r.json())
+			.then((suiteData) => {
+				const newSet = new Set(selectedIds);
+				for (const item of suiteData.items ?? []) {
+					newSet.add(item.testCaseId);
+				}
+				selectedIds = newSet;
+			});
+	}
 
 	const filteredCases = $derived(
 		data.testCases.filter((tc) => {
@@ -125,6 +139,25 @@
 					<div class="flex items-center justify-between">
 						<Label>{m.tr_select_cases({ count: selectedIds.size })}</Label>
 					</div>
+
+					{#if data.suites.length > 0}
+						<div class="flex items-center gap-2">
+							<Label class="text-sm whitespace-nowrap">{m.tr_load_suite()}:</Label>
+							<Select.Root
+								type="single"
+								onValueChange={(v: string) => { loadFromSuite(v); }}
+							>
+								<Select.Trigger class="w-60">
+									{m.tr_load_suite()}
+								</Select.Trigger>
+								<Select.Content>
+									{#each data.suites as suite}
+										<Select.Item value={String(suite.id)} label="{suite.name} ({suite.itemCount})" />
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</div>
+					{/if}
 
 					<div class="flex flex-wrap items-center gap-2">
 						<Input

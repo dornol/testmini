@@ -459,6 +459,67 @@ export const oidcProviderRelations = relations(oidcProvider, ({ many }) => ({
 	accounts: many(oidcAccount)
 }));
 
+// ── TestSuite ─────────────────────────────────────────
+
+export const testSuite = pgTable(
+	'test_suite',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		description: text('description'),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		unique('test_suite_project_name_unique').on(table.projectId, table.name),
+		index('test_suite_project_idx').on(table.projectId)
+	]
+);
+
+export const testSuiteRelations = relations(testSuite, ({ one, many }) => ({
+	project: one(project, {
+		fields: [testSuite.projectId],
+		references: [project.id]
+	}),
+	items: many(testSuiteItem)
+}));
+
+// ── TestSuiteItem ─────────────────────────────────────
+
+export const testSuiteItem = pgTable(
+	'test_suite_item',
+	{
+		id: serial('id').primaryKey(),
+		suiteId: integer('suite_id')
+			.notNull()
+			.references(() => testSuite.id, { onDelete: 'cascade' }),
+		testCaseId: integer('test_case_id')
+			.notNull()
+			.references(() => testCase.id, { onDelete: 'cascade' }),
+		addedAt: timestamp('added_at').defaultNow().notNull()
+	},
+	(table) => [
+		unique('test_suite_item_unique').on(table.suiteId, table.testCaseId),
+		index('test_suite_item_suite_idx').on(table.suiteId)
+	]
+);
+
+export const testSuiteItemRelations = relations(testSuiteItem, ({ one }) => ({
+	suite: one(testSuite, {
+		fields: [testSuiteItem.suiteId],
+		references: [testSuite.id]
+	}),
+	testCase: one(testCase, {
+		fields: [testSuiteItem.testCaseId],
+		references: [testCase.id]
+	})
+}));
+
 // ── OIDC Account ──────────────────────────────────────
 
 export const oidcAccount = pgTable(

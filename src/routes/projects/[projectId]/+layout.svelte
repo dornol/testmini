@@ -8,6 +8,7 @@
 	const tabs = $derived([
 		{ href: `/projects/${data.project.id}`, label: m.nav_dashboard(), exact: true },
 		{ href: `/projects/${data.project.id}/test-cases`, label: m.nav_test_cases() },
+		{ href: `/projects/${data.project.id}/test-suites`, label: m.nav_test_suites() },
 		{ href: `/projects/${data.project.id}/test-runs`, label: m.nav_test_runs() },
 		{ href: `/projects/${data.project.id}/reports`, label: m.nav_reports() },
 		...(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN'

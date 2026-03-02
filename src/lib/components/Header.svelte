@@ -64,6 +64,10 @@
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Label>{user.email}</DropdownMenu.Label>
 					<DropdownMenu.Separator />
+					<DropdownMenu.Item onclick={() => goto('/account/profile')}>
+						{m.nav_profile()}
+					</DropdownMenu.Item>
+					<DropdownMenu.Separator />
 					<DropdownMenu.Item onclick={handleLogout}>
 						{m.common_logout()}
 					</DropdownMenu.Item>

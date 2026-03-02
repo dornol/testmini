@@ -7,6 +7,7 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -65,9 +66,25 @@
 	let deleteFailureId = $state<number | null>(null);
 	let deleteDialogOpen = $state(false);
 
+	// Edit run dialog state
+	let editRunDialogOpen = $state(false);
+	let editRunName = $state('');
+	let editRunEnv = $state('');
+	let editRunSaving = $state(false);
+
+	// Clone run dialog state
+	let cloneDialogOpen = $state(false);
+	let cloneRunName = $state('');
+	let cloneRunSaving = $state(false);
+
+	// Delete run dialog state
+	let deleteRunDialogOpen = $state(false);
+	let deleteRunSaving = $state(false);
+
 	const run = $derived(data.run);
 	const stats = $derived(data.stats);
 	const canExecute = $derived(data.userRole !== 'VIEWER');
+	const isAdmin = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
 	const basePath = $derived(`/projects/${data.project.id}/test-runs`);
 
 	const completedPct = $derived(
@@ -277,6 +294,79 @@
 			}
 		};
 	}
+
+	function openEditRun() {
+		editRunName = run.name;
+		editRunEnv = run.environment;
+		editRunDialogOpen = true;
+	}
+
+	async function handleEditRun() {
+		editRunSaving = true;
+		try {
+			const res = await fetch(`/api/projects/${data.project.id}/test-runs/${run.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ name: editRunName, environment: editRunEnv })
+			});
+			if (!res.ok) {
+				const err = await res.json();
+				toast.error(err.error ?? 'Failed to update');
+				return;
+			}
+			editRunDialogOpen = false;
+			toast.success(m.tr_updated());
+			await invalidateAll();
+		} finally {
+			editRunSaving = false;
+		}
+	}
+
+	function openCloneRun() {
+		cloneRunName = `Copy of ${run.name}`;
+		cloneDialogOpen = true;
+	}
+
+	async function handleCloneRun() {
+		cloneRunSaving = true;
+		try {
+			const res = await fetch(`/api/projects/${data.project.id}/test-runs/${run.id}/clone`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ name: cloneRunName })
+			});
+			if (!res.ok) {
+				toast.error('Failed to clone');
+				return;
+			}
+			const { id } = await res.json();
+			cloneDialogOpen = false;
+			toast.success(m.tr_cloned());
+			goto(`${basePath}/${id}`);
+		} finally {
+			cloneRunSaving = false;
+		}
+	}
+
+	async function handleDeleteRun() {
+		deleteRunSaving = true;
+		try {
+			const res = await fetch(`/api/projects/${data.project.id}/test-runs/${run.id}`, {
+				method: 'DELETE'
+			});
+			if (!res.ok) {
+				toast.error('Failed to delete');
+				return;
+			}
+			deleteRunDialogOpen = false;
+			toast.success(m.tr_deleted());
+			goto(basePath);
+		} finally {
+			deleteRunSaving = false;
+		}
+	}
+
+	const environments = ['DEV', 'QA', 'STAGE', 'PROD'];
 </script>
 
 <div class="space-y-6">
@@ -306,6 +396,21 @@
 			>
 				{m.run_export_csv()}
 			</Button>
+			{#if canExecute && run.status === 'CREATED'}
+				<Button variant="outline" size="sm" onclick={openEditRun}>
+					{m.tr_edit()}
+				</Button>
+			{/if}
+			{#if canExecute}
+				<Button variant="outline" size="sm" onclick={openCloneRun}>
+					{m.tr_clone()}
+				</Button>
+			{/if}
+			{#if isAdmin}
+				<Button variant="outline" size="sm" class="text-destructive hover:text-destructive" onclick={() => (deleteRunDialogOpen = true)}>
+					{m.tr_delete()}
+				</Button>
+			{/if}
 			{#if canExecute && run.status !== 'COMPLETED'}
 				{#if run.status === 'CREATED'}
 					<form method="POST" action="?/updateRunStatus" use:enhance={handleResult}>
@@ -857,6 +962,96 @@
 					<input type="hidden" name="failureId" value={deleteFailureId} />
 					<Button type="submit" variant="destructive">{m.common_delete()}</Button>
 				</form>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Portal>
+</AlertDialog.Root>
+
+<!-- Edit Run Dialog -->
+<Dialog.Root bind:open={editRunDialogOpen}>
+	<Dialog.Portal>
+		<Dialog.Overlay />
+		<Dialog.Content class="sm:max-w-md">
+			<Dialog.Header>
+				<Dialog.Title>{m.tr_edit_title()}</Dialog.Title>
+			</Dialog.Header>
+			<div class="space-y-4 py-4">
+				<div class="space-y-2">
+					<Label for="editRunName">{m.tr_run_name()}</Label>
+					<Input id="editRunName" bind:value={editRunName} />
+				</div>
+				<div class="space-y-2">
+					<Label for="editRunEnv">{m.common_environment()}</Label>
+					<Select.Root
+						type="single"
+						value={editRunEnv}
+						onValueChange={(v: string) => { editRunEnv = v; }}
+					>
+						<Select.Trigger class="w-full">
+							{editRunEnv}
+						</Select.Trigger>
+						<Select.Content>
+							{#each environments as env}
+								<Select.Item value={env} label={env} />
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+			</div>
+			<Dialog.Footer>
+				<Button variant="outline" onclick={() => (editRunDialogOpen = false)}>
+					{m.common_cancel()}
+				</Button>
+				<Button onclick={handleEditRun} disabled={editRunSaving || !editRunName.trim()}>
+					{editRunSaving ? m.common_saving() : m.common_save_changes()}
+				</Button>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>
+
+<!-- Clone Run Dialog -->
+<Dialog.Root bind:open={cloneDialogOpen}>
+	<Dialog.Portal>
+		<Dialog.Overlay />
+		<Dialog.Content class="sm:max-w-md">
+			<Dialog.Header>
+				<Dialog.Title>{m.tr_clone_title()}</Dialog.Title>
+			</Dialog.Header>
+			<div class="space-y-4 py-4">
+				<div class="space-y-2">
+					<Label for="cloneRunName">{m.tr_clone_name_label()}</Label>
+					<Input id="cloneRunName" bind:value={cloneRunName} />
+				</div>
+			</div>
+			<Dialog.Footer>
+				<Button variant="outline" onclick={() => (cloneDialogOpen = false)}>
+					{m.common_cancel()}
+				</Button>
+				<Button onclick={handleCloneRun} disabled={cloneRunSaving || !cloneRunName.trim()}>
+					{cloneRunSaving ? m.common_creating() : m.tr_clone()}
+				</Button>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>
+
+<!-- Delete Run Dialog -->
+<AlertDialog.Root bind:open={deleteRunDialogOpen}>
+	<AlertDialog.Portal>
+		<AlertDialog.Overlay />
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>{m.tr_delete_title()}</AlertDialog.Title>
+				<AlertDialog.Description>
+					{m.tr_delete_confirm()}
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+				<Button variant="destructive" onclick={handleDeleteRun} disabled={deleteRunSaving}>
+					{deleteRunSaving ? m.common_saving() : m.common_delete()}
+				</Button>
 			</AlertDialog.Footer>
 		</AlertDialog.Content>
 	</AlertDialog.Portal>

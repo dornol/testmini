@@ -140,6 +140,16 @@
 		data.projectRuns.filter((r) => data.selectedRunIds.includes(r.id))
 	);
 
+	function goToTcPage(p: number) {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (p > 1) {
+			params.set('page', String(p));
+		} else {
+			params.delete('page');
+		}
+		goto(`${basePath}?${params.toString()}`);
+	}
+
 	function handleSearch() {
 		clearTimeout(searchTimeout);
 		searchTimeout = setTimeout(() => {
@@ -149,6 +159,7 @@
 			} else {
 				params.delete('search');
 			}
+			params.delete('page');
 			goto(`${basePath}?${params.toString()}`, { keepFocus: true });
 		}, 300);
 	}
@@ -356,7 +367,7 @@
 
 	const canEdit = $derived(data.userRole !== 'VIEWER');
 	const canDelete = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
-	const dndDisabled = $derived(hasActiveFilters || !canEdit);
+	const dndDisabled = $derived(hasActiveFilters || !canEdit || data.usePagination);
 
 	// --- Inline editing (pencil icon click for key/title) ---
 	function startInlineEdit(tcId: number, field: 'key' | 'title', currentValue: string, e: Event) {
@@ -1277,6 +1288,12 @@
 		</div>
 	{/if}
 
+	{#if data.usePagination}
+		<div class="bg-muted rounded-md p-3 text-sm">
+			{m.tc_pagination_notice({ count: data.total })}
+		</div>
+	{/if}
+
 	{#if data.testCases.length === 0 && !hasActiveFilters}
 		<div
 			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center"
@@ -1743,6 +1760,32 @@
 					{/if}
 				</button>
 			{/each}
+		</div>
+	{/if}
+
+	{#if data.usePagination && data.totalPages > 1}
+		<div class="flex items-center justify-center gap-2">
+			<Button
+				variant="outline"
+				size="sm"
+				class="h-7 px-2 text-xs"
+				disabled={data.currentPage <= 1}
+				onclick={() => goToTcPage(data.currentPage - 1)}
+			>
+				{m.common_previous()}
+			</Button>
+			<span class="text-muted-foreground text-xs">
+				{m.common_page_of({ page: data.currentPage, totalPages: data.totalPages })}
+			</span>
+			<Button
+				variant="outline"
+				size="sm"
+				class="h-7 px-2 text-xs"
+				disabled={data.currentPage >= data.totalPages}
+				onclick={() => goToTcPage(data.currentPage + 1)}
+			>
+				{m.common_next()}
+			</Button>
 		</div>
 	{/if}
 </div>

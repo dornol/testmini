@@ -1,12 +1,12 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testCase, testCaseVersion, testRun, testExecution, tag, testCaseTag } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { testCase, testCaseVersion, testRun, testExecution, tag, testCaseTag, testSuite, testSuiteItem } from '$lib/server/db/schema';
+import { eq, and, sql } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { createTestRunSchema, type CreateTestRunInput } from '$lib/schemas/test-run.schema';
 
-export const load: PageServerLoad = async ({ params, parent }) => {
+export const load: PageServerLoad = async ({ params, parent, url }) => {
 	const { userRole } = await parent();
 	if (userRole === 'VIEWER') {
 		redirect(303, '../test-runs');
@@ -64,12 +64,37 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		.where(eq(tag.projectId, projectId))
 		.orderBy(tag.name);
 
+	// Load suites for "Load from Suite" dropdown
+	const suites = await db
+		.select({
+			id: testSuite.id,
+			name: testSuite.name,
+			itemCount: sql<number>`(select count(*) from test_suite_item where suite_id = ${testSuite.id})`.as('item_count')
+		})
+		.from(testSuite)
+		.where(eq(testSuite.projectId, projectId))
+		.orderBy(testSuite.name);
+
+	// If suiteId is provided, preload suite items
+	const suiteIdParam = Number(url.searchParams.get('suiteId'));
+	let preselectedIds: number[] = [];
+	if (suiteIdParam && !isNaN(suiteIdParam)) {
+		const suiteItems = await db
+			.select({ testCaseId: testSuiteItem.testCaseId })
+			.from(testSuiteItem)
+			.innerJoin(testSuite, eq(testSuiteItem.suiteId, testSuite.id))
+			.where(and(eq(testSuiteItem.suiteId, suiteIdParam), eq(testSuite.projectId, projectId)));
+		preselectedIds = suiteItems.map((si) => si.testCaseId);
+	}
+
 	return {
 		testCases: testCases.map((tc) => ({
 			...tc,
 			tags: tagsByTestCase[tc.id] ?? []
 		})),
-		projectTags
+		projectTags,
+		suites,
+		preselectedIds
 	};
 };
 

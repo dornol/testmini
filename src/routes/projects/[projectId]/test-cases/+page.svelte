@@ -758,7 +758,12 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="space-y-4" onclick={handleClickOutside} onkeydown={(e) => { if (e.key === 'Escape') { openDropdown = null; editingCell = null; priorityPopover = null; assigneePopover = null; } }}>
 	<div class="flex items-center justify-between">
-		<h2 class="text-lg font-semibold">{m.tc_title()}</h2>
+		<div class="flex items-center gap-2">
+			<h2 class="text-lg font-semibold">{m.tc_title()}</h2>
+			{#if data.testCases.length > 0}
+				<span class="text-muted-foreground text-xs">{m.common_total_count({ count: data.testCases.length })}</span>
+			{/if}
+		</div>
 		<div class="flex items-center gap-2">
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger>
@@ -1364,9 +1369,9 @@
 			</form>
 		{/snippet}
 
-		<div class="rounded-lg border bg-card overflow-clip">
+		<div class="rounded-lg border bg-card">
 			<!-- Column header -->
-			<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/50 sticky top-0 z-10 text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+			<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-card sticky top-0 z-10 rounded-t-lg text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
 				{#if canEdit}
 					<input
 						type="checkbox"
@@ -1754,11 +1759,6 @@
 		</div>
 	{/if}
 
-	{#if data.testCases.length > 0}
-		<span class="text-muted-foreground text-xs">
-			{m.common_total_count({ count: data.testCases.length })}
-		</span>
-	{/if}
 </div>
 
 <!-- Group delete confirmation -->

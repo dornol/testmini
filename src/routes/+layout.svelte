@@ -47,8 +47,10 @@
 		<Header user={data.user} onToggleSidebar={() => (sidebarOpen = !sidebarOpen)} />
 		<div class="flex flex-1 overflow-hidden">
 			<Sidebar bind:open={sidebarOpen} />
-			<main class="flex-1 overflow-y-auto p-4">
-				{@render children()}
+			<main class="flex-1 overflow-y-auto px-4 pb-4">
+				<div class="pt-4">
+					{@render children()}
+				</div>
 			</main>
 		</div>
 	</div>

@@ -1370,8 +1370,8 @@
 		{/snippet}
 
 		<div>
-			<!-- Sticky Column header (outside card for flush sticky positioning) -->
-			<div class="flex items-center gap-2 px-3 py-1.5 border bg-card sticky top-0 z-10 rounded-t-lg text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+			<!-- Sticky Column header -->
+			<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-card sticky top-0 z-10 rounded-t-lg border-x border-t text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
 				{#if canEdit}
 					<input
 						type="checkbox"

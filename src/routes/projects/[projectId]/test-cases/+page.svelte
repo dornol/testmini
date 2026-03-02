@@ -37,6 +37,9 @@
 	// Priority popover state (fixed position like status dropdown)
 	let priorityPopover: { tcId: number; currentValue: string; x: number; y: number } | null = $state(null);
 
+	// Assignee popover state (fixed position like priority popover)
+	let assigneePopover: { tcId: number; x: number; y: number } | null = $state(null);
+
 	// Component references
 	let detailSheet: TestCaseDetailSheet;
 	let failureSheet: FailureDetailsSheet;
@@ -334,6 +337,9 @@
 		if (priorityPopover && !target.closest('[data-priority-popover]')) {
 			priorityPopover = null;
 		}
+		if (assigneePopover && !target.closest('[data-assignee-popover]')) {
+			assigneePopover = null;
+		}
 		if (editingCell && !target.closest('[data-inline-edit]')) {
 			commitInlineEdit();
 		}
@@ -432,6 +438,40 @@
 	}
 
 	const priorityOptions = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+
+	// --- Assignee popover ---
+	function openAssigneePopover(tcId: number, event: MouseEvent) {
+		event.stopPropagation();
+		if (assigneePopover?.tcId === tcId) {
+			assigneePopover = null;
+		} else {
+			const el = event.currentTarget as HTMLElement;
+			const rect = el.getBoundingClientRect();
+			assigneePopover = { tcId, x: rect.left + rect.width / 2, y: rect.bottom + 4 };
+		}
+	}
+
+	async function toggleAssignee(tcId: number, userId: string) {
+		const tc = data.testCases.find((t) => t.id === tcId);
+		if (!tc) return;
+		const isAssigned = tc.assignees?.some((a) => a.userId === userId);
+		const action = isAssigned ? 'removeAssignee' : 'assignAssignee';
+		const formData = new FormData();
+		formData.set('userId', userId);
+		try {
+			const res = await fetch(
+				`/projects/${data.project.id}/test-cases/${tcId}?/${action}`,
+				{ method: 'POST', body: formData }
+			);
+			if (res.ok) {
+				await invalidateAll();
+			} else {
+				toast.error(m.error_operation_failed());
+			}
+		} catch {
+			toast.error(m.error_operation_failed());
+		}
+	}
 
 
 	// --- Checkbox selection helpers ---
@@ -671,7 +711,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="space-y-4" onclick={handleClickOutside} onkeydown={(e) => { if (e.key === 'Escape') { openDropdown = null; editingCell = null; priorityPopover = null; } }}>
+<div class="space-y-4" onclick={handleClickOutside} onkeydown={(e) => { if (e.key === 'Escape') { openDropdown = null; editingCell = null; priorityPopover = null; assigneePopover = null; } }}>
 	<div class="flex items-center justify-between">
 		<h2 class="text-lg font-semibold">{m.tc_title()}</h2>
 		<div class="flex items-center gap-2">
@@ -1171,16 +1211,36 @@
 				</div>
 			{/if}
 			<!-- Assignees -->
-			<div class="w-24 shrink-0 flex gap-0.5 overflow-hidden">
-				{#if tc.assignees && tc.assignees.length > 0}
-					{#each tc.assignees.slice(0, 2) as a (a.userId)}
-						<Badge variant="outline" class="text-[10px] px-1.5 py-0 truncate">{a.userName}</Badge>
-					{/each}
-					{#if tc.assignees.length > 2}
-						<span class="text-[10px] text-muted-foreground">+{tc.assignees.length - 2}</span>
+			{#if canEdit}
+				<button
+					type="button"
+					data-assignee-popover
+					class="w-24 shrink-0 flex gap-0.5 overflow-hidden items-center cursor-pointer rounded hover:bg-muted/50 transition-colors px-0.5 -mx-0.5"
+					onclick={(e) => { e.stopPropagation(); openAssigneePopover(tc.id, e); }}
+				>
+					{#if tc.assignees && tc.assignees.length > 0}
+						{#each tc.assignees.slice(0, 2) as a (a.userId)}
+							<Badge variant="outline" class="text-[10px] px-1.5 py-0 truncate">{a.userName}</Badge>
+						{/each}
+						{#if tc.assignees.length > 2}
+							<span class="text-[10px] text-muted-foreground">+{tc.assignees.length - 2}</span>
+						{/if}
+					{:else}
+						<span class="text-[10px] text-muted-foreground/50 hover:text-primary transition-colors">+</span>
 					{/if}
-				{/if}
-			</div>
+				</button>
+			{:else}
+				<div class="w-24 shrink-0 flex gap-0.5 overflow-hidden">
+					{#if tc.assignees && tc.assignees.length > 0}
+						{#each tc.assignees.slice(0, 2) as a (a.userId)}
+							<Badge variant="outline" class="text-[10px] px-1.5 py-0 truncate">{a.userName}</Badge>
+						{/each}
+						{#if tc.assignees.length > 2}
+							<span class="text-[10px] text-muted-foreground">+{tc.assignees.length - 2}</span>
+						{/if}
+					{/if}
+				</div>
+			{/if}
 			<span class="text-muted-foreground w-20 shrink-0 text-right truncate">{tc.updatedBy}</span>
 			<!-- Test Run columns -->
 			{#each selectedRuns as run (run.id)}
@@ -1504,6 +1564,33 @@
 				{/if}
 			</div>
 		{/if}
+	{/if}
+
+	<!-- Fixed-position assignee popover -->
+	{#if assigneePopover}
+		{@const tcForPopover = data.testCases.find((tc) => tc.id === assigneePopover!.tcId)}
+		<div
+			data-assignee-popover
+			class="fixed z-[9999] bg-popover border rounded-md shadow-lg py-1 min-w-[150px] max-h-[240px] overflow-y-auto"
+			style="left: {assigneePopover.x}px; top: {assigneePopover.y}px; transform: translateX(-50%);"
+		>
+			{#each data.projectMembers as member (member.userId)}
+				{@const isAssigned = tcForPopover?.assignees?.some((a) => a.userId === member.userId) ?? false}
+				<button
+					type="button"
+					class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted transition-colors {isAssigned ? 'font-bold bg-muted/50' : ''}"
+					onclick={() => toggleAssignee(assigneePopover!.tcId, member.userId)}
+				>
+					<span class="truncate flex-1">{member.userName}</span>
+					{#if isAssigned}
+						<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-primary shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+					{/if}
+				</button>
+			{/each}
+			{#if data.projectMembers.length === 0}
+				<div class="px-3 py-1.5 text-xs text-muted-foreground">-</div>
+			{/if}
+		</div>
 	{/if}
 
 	<!-- Fixed-position priority popover -->

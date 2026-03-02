@@ -444,9 +444,57 @@
 	}
 
 	const environments = ['DEV', 'QA', 'STAGE', 'PROD'];
+
+	// Status dropdown state
+	let statusDropdown: { execId: number; currentStatus: string; x: number; y: number; tcKey: string } | null = $state(null);
+	const allStatuses = ['PENDING', 'PASS', 'FAIL', 'BLOCKED', 'SKIPPED'];
+
+	function toggleStatusDropdown(exec: { id: number; status: string; testCaseKey: string }, event: MouseEvent) {
+		event.stopPropagation();
+		if (statusDropdown?.execId === exec.id) {
+			statusDropdown = null;
+		} else {
+			const el = event.currentTarget as HTMLElement;
+			const rect = el.getBoundingClientRect();
+			statusDropdown = { execId: exec.id, currentStatus: exec.status, x: rect.left + rect.width / 2, y: rect.bottom + 4, tcKey: exec.testCaseKey };
+		}
+	}
+
+	async function changeExecutionStatus(execId: number, newStatus: string, tcKey: string) {
+		if (newStatus === 'FAIL') {
+			statusDropdown = null;
+			openFailDialog(execId, tcKey);
+			return;
+		}
+		statusDropdown = null;
+		const formData = new FormData();
+		formData.set('executionId', String(execId));
+		formData.set('status', newStatus);
+		try {
+			const res = await fetch(`?/updateStatus`, { method: 'POST', body: formData });
+			if (res.ok) {
+				const savedScroll = scrollContainer?.scrollTop ?? 0;
+				await invalidateAll();
+				await tick();
+				if (scrollContainer) scrollContainer.scrollTop = savedScroll;
+			} else {
+				toast.error(m.error_operation_failed());
+			}
+		} catch {
+			toast.error(m.error_operation_failed());
+		}
+	}
+
+	function handleClickOutside(event: MouseEvent) {
+		const target = event.target as HTMLElement;
+		if (statusDropdown && !target.closest('[data-status-dropdown]')) {
+			statusDropdown = null;
+		}
+	}
 </script>
 
-<div class="space-y-6">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="space-y-6" onclick={handleClickOutside} onkeydown={(e) => { if (e.key === 'Escape') statusDropdown = null; }}>
 	<!-- Header -->
 	<div class="flex items-center justify-between">
 		<div>
@@ -621,9 +669,6 @@
 						<th class="text-foreground h-10 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.common_title()}</th>
 						<th class="text-foreground h-10 w-24 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.common_priority()}</th>
 						<th class="text-foreground h-10 w-28 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.common_status()}</th>
-						{#if canExecute}
-							<th class="text-foreground h-10 w-52 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.common_actions()}</th>
-						{/if}
 						<th class="text-foreground h-10 w-32 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.run_executed_by()}</th>
 					</tr>
 				</thead>
@@ -655,73 +700,44 @@
 								</Badge>
 							</td>
 							<td class="bg-clip-padding p-2 align-middle whitespace-nowrap">
-								<button
-									type="button"
-									class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium {statusColor(
-										exec.status
-									)}"
-									onclick={() => {
-										if (exec.status === 'FAIL') {
-											if (viewFailuresExecId === exec.id) {
-												expandedHeights.delete(exec.id);
-												expandedHeights = new Map(expandedHeights);
-												viewFailuresExecId = null;
-											} else {
-												viewFailuresExecId = exec.id;
-											}
-										}
-									}}
-									class:cursor-pointer={exec.status === 'FAIL'}
-									class:underline={exec.status === 'FAIL' && execFailures.length > 0}
-								>
-									{exec.status}
-									{#if exec.status === 'FAIL' && execFailures.length > 0}
-										({execFailures.length})
-									{/if}
-								</button>
-							</td>
-							{#if canExecute}
-								<td class="bg-clip-padding p-2 align-middle whitespace-nowrap">
-									<div class="flex gap-1">
-										{#each ['PASS', 'BLOCKED', 'SKIPPED'] as s (s)}
-											{#if exec.status !== s}
-												<form
-													method="POST"
-													action="?/updateStatus"
-													use:enhance={handleResult}
-													class="inline"
-												>
-													<input type="hidden" name="executionId" value={exec.id} />
-													<input type="hidden" name="status" value={s} />
-													<Button
-														type="submit"
-														variant="ghost"
-														size="sm"
-														class="h-7 px-2 text-xs {s === 'PASS'
-															? 'text-green-600 hover:text-green-700'
-															: s === 'BLOCKED'
-																? 'text-orange-600 hover:text-orange-700'
-																: 'text-gray-600 hover:text-gray-700'}"
-													>
-														{s}
-													</Button>
-												</form>
-											{/if}
-										{/each}
-										{#if exec.status !== 'FAIL'}
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												class="h-7 px-2 text-xs text-red-600 hover:text-red-700"
-												onclick={() => openFailDialog(exec.id, exec.testCaseKey)}
-											>
-												FAIL
-											</Button>
+								{#if canExecute}
+									<button
+										type="button"
+										data-status-dropdown
+										class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:ring-1 hover:ring-ring/30 transition-all {statusColor(exec.status)}"
+										class:underline={exec.status === 'FAIL' && execFailures.length > 0}
+										onclick={(e) => toggleStatusDropdown(exec, e)}
+									>
+										{exec.status}
+										{#if exec.status === 'FAIL' && execFailures.length > 0}
+											({execFailures.length})
 										{/if}
-									</div>
-								</td>
-							{/if}
+									</button>
+								{:else}
+									<button
+										type="button"
+										class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium {statusColor(exec.status)}"
+										onclick={() => {
+											if (exec.status === 'FAIL') {
+												if (viewFailuresExecId === exec.id) {
+													expandedHeights.delete(exec.id);
+													expandedHeights = new Map(expandedHeights);
+													viewFailuresExecId = null;
+												} else {
+													viewFailuresExecId = exec.id;
+												}
+											}
+										}}
+										class:cursor-pointer={exec.status === 'FAIL'}
+										class:underline={exec.status === 'FAIL' && execFailures.length > 0}
+									>
+										{exec.status}
+										{#if exec.status === 'FAIL' && execFailures.length > 0}
+											({execFailures.length})
+										{/if}
+									</button>
+								{/if}
+							</td>
 							<td class="text-muted-foreground bg-clip-padding p-2 align-middle whitespace-nowrap text-sm">
 								{exec.executedBy ?? '-'}
 							</td>
@@ -843,6 +859,42 @@
 		</div>
 	</Card.Root>
 </div>
+
+<!-- Fixed-position status dropdown -->
+{#if statusDropdown}
+	<div
+		data-status-dropdown
+		class="fixed z-[9999] bg-popover border rounded-md shadow-lg py-1 min-w-[120px]"
+		style="left: {statusDropdown.x}px; top: {statusDropdown.y}px; transform: translateX(-50%);"
+	>
+		{#each allStatuses as s}
+			<button
+				type="button"
+				class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted {statusColor(s)} {s === statusDropdown.currentStatus ? 'font-bold bg-muted/50' : ''}"
+				onclick={() => changeExecutionStatus(statusDropdown!.execId, s, statusDropdown!.tcKey)}
+			>
+				{s}
+				{#if s === statusDropdown.currentStatus}
+					<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="inline ml-1"><polyline points="20 6 9 17 4 12"/></svg>
+				{/if}
+			</button>
+		{/each}
+		{#if statusDropdown.currentStatus === 'FAIL'}
+			<div class="border-t my-1"></div>
+			<button
+				type="button"
+				class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted text-muted-foreground"
+				onclick={() => {
+					const execId = statusDropdown!.execId;
+					viewFailuresExecId = viewFailuresExecId === execId ? null : execId;
+					statusDropdown = null;
+				}}
+			>
+				{m.fail_details()}
+			</button>
+		{/if}
+	</div>
+{/if}
 
 <!-- FAIL with Detail Dialog -->
 <Dialog.Root bind:open={failDialogOpen}>

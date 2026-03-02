@@ -44,9 +44,9 @@
 
 ## 배포 / 인프라
 
-- [ ] 프로덕션 Dockerfile (multi-stage build)
-- [ ] `compose.prod.yaml` — 프로덕션용 Docker Compose
-- [ ] CI/CD 파이프라인 설정
+- [x] 프로덕션 Dockerfile (multi-stage build)
+- [x] `compose.prod.yaml` — 프로덕션용 Docker Compose
+- [x] CI/CD 파이프라인 설정 — Gitea Actions (check, test, build)
 
 ---
 

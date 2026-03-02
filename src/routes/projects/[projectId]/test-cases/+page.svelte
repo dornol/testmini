@@ -1369,9 +1369,9 @@
 			</form>
 		{/snippet}
 
-		<div class="rounded-lg border bg-card">
-			<!-- Column header -->
-			<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-card sticky top-0 z-10 rounded-t-lg text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+		<div>
+			<!-- Sticky Column header (outside card for flush sticky positioning) -->
+			<div class="flex items-center gap-2 px-3 py-1.5 border bg-card sticky top-0 z-10 rounded-t-lg text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
 				{#if canEdit}
 					<input
 						type="checkbox"
@@ -1394,6 +1394,7 @@
 				{/each}
 			</div>
 
+			<div class="rounded-b-lg border-x border-b bg-card">
 			{#if useVirtualScroll}
 				<!-- Virtual scroll mode -->
 				<VirtualList items={flatItems} rowHeight={32} useWindowScroll>
@@ -1666,6 +1667,7 @@
 		{#if data.testCases.length === 0 && hasActiveFilters}
 			<p class="text-center text-xs text-muted-foreground py-4">{m.tc_empty_search()}</p>
 		{/if}
+		</div>
 	{/if}
 
 	<!-- Fixed-position status dropdown -->

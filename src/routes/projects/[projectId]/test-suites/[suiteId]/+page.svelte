@@ -10,6 +10,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import VirtualList from '$lib/components/VirtualList.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
@@ -293,7 +294,7 @@
 					placeholder={m.tr_filter_placeholder()}
 					bind:value={addCasesSearch}
 				/>
-				<div class="flex-1 overflow-auto border rounded-md">
+				<div class="flex-1 border rounded-md">
 					<Table.Root>
 						<Table.Header>
 							<Table.Row>
@@ -303,27 +304,32 @@
 								<Table.Head class="w-28">{m.common_priority()}</Table.Head>
 							</Table.Row>
 						</Table.Header>
-						<Table.Body>
-							{#each availableCases as tc (tc.id)}
-								<Table.Row class="cursor-pointer" onclick={() => toggleAddCase(tc.id)}>
-									<Table.Cell>
-										<input
-											type="checkbox"
-											checked={addCasesSelected.has(tc.id)}
-											onchange={() => toggleAddCase(tc.id)}
-											onclick={(e) => e.stopPropagation()}
-											class="rounded"
-										/>
-									</Table.Cell>
-									<Table.Cell class="font-mono text-sm">{tc.key}</Table.Cell>
-									<Table.Cell class="font-medium">{tc.title}</Table.Cell>
-									<Table.Cell>
-										<Badge variant={priorityVariant(tc.priority)}>{tc.priority}</Badge>
-									</Table.Cell>
-								</Table.Row>
-							{/each}
-						</Table.Body>
 					</Table.Root>
+					<VirtualList items={availableCases} rowHeight={44} height="360px">
+						{#snippet children({ item })}
+							{@const tc = item as typeof availableCases[0]}
+							<Table.Root>
+								<Table.Body>
+									<Table.Row class="cursor-pointer" onclick={() => toggleAddCase(tc.id)}>
+										<Table.Cell class="w-10">
+											<input
+												type="checkbox"
+												checked={addCasesSelected.has(tc.id)}
+												onchange={() => toggleAddCase(tc.id)}
+												onclick={(e: MouseEvent) => e.stopPropagation()}
+												class="rounded"
+											/>
+										</Table.Cell>
+										<Table.Cell class="w-28 font-mono text-sm">{tc.key}</Table.Cell>
+										<Table.Cell class="font-medium">{tc.title}</Table.Cell>
+										<Table.Cell class="w-28">
+											<Badge variant={priorityVariant(tc.priority)}>{tc.priority}</Badge>
+										</Table.Cell>
+									</Table.Row>
+								</Table.Body>
+							</Table.Root>
+						{/snippet}
+					</VirtualList>
 				</div>
 			</div>
 			<Dialog.Footer>

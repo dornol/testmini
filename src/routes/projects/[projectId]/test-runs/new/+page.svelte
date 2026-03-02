@@ -8,6 +8,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import TagBadge from '$lib/components/TagBadge.svelte';
+	import VirtualList from '$lib/components/VirtualList.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as m from '$lib/paraglide/messages.js';
 
@@ -224,30 +225,35 @@
 										<Table.Head class="w-28">{m.common_priority()}</Table.Head>
 									</Table.Row>
 								</Table.Header>
-								<Table.Body>
-									{#each filteredCases as tc (tc.id)}
-										<Table.Row
-											class="cursor-pointer"
-											onclick={() => toggleCase(tc.id)}
-										>
-											<Table.Cell>
-												<input
-													type="checkbox"
-													checked={selectedIds.has(tc.id)}
-													onchange={() => toggleCase(tc.id)}
-													onclick={(e) => e.stopPropagation()}
-													class="rounded"
-												/>
-											</Table.Cell>
-											<Table.Cell class="font-mono text-sm">{tc.key}</Table.Cell>
-											<Table.Cell class="font-medium">{tc.title}</Table.Cell>
-											<Table.Cell>
-												<Badge variant={priorityVariant(tc.priority)}>{tc.priority}</Badge>
-											</Table.Cell>
-										</Table.Row>
-									{/each}
-								</Table.Body>
 							</Table.Root>
+							<VirtualList items={filteredCases} rowHeight={44} height="420px">
+								{#snippet children({ item })}
+									{@const tc = item as typeof filteredCases[0]}
+									<Table.Root>
+										<Table.Body>
+											<Table.Row
+												class="cursor-pointer"
+												onclick={() => toggleCase(tc.id)}
+											>
+												<Table.Cell class="w-10">
+													<input
+														type="checkbox"
+														checked={selectedIds.has(tc.id)}
+														onchange={() => toggleCase(tc.id)}
+														onclick={(e: MouseEvent) => e.stopPropagation()}
+														class="rounded"
+													/>
+												</Table.Cell>
+												<Table.Cell class="w-28 font-mono text-sm">{tc.key}</Table.Cell>
+												<Table.Cell class="font-medium">{tc.title}</Table.Cell>
+												<Table.Cell class="w-28">
+													<Badge variant={priorityVariant(tc.priority)}>{tc.priority}</Badge>
+												</Table.Cell>
+											</Table.Row>
+										</Table.Body>
+									</Table.Root>
+								{/snippet}
+							</VirtualList>
 						</Card.Root>
 					{/if}
 

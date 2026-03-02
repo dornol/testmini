@@ -382,5 +382,21 @@
 	"oidc_accounts_count": "{count}개 계정",
 	"oidc_enabled": "활성",
 	"oidc_type": "타입",
-	"oidc_slug": "슬러그"
+	"oidc_slug": "슬러그",
+
+	"tc_export": "내보내기",
+	"tc_export_csv": "CSV로 내보내기",
+	"tc_export_json": "JSON으로 내보내기",
+	"tc_import": "가져오기",
+	"tc_import_title": "테스트 케이스 가져오기",
+	"tc_import_desc": "CSV 또는 JSON 파일을 업로드하세요",
+	"tc_import_select_file": "파일 선택",
+	"tc_import_preview": "미리보기",
+	"tc_import_success": "{count}개의 테스트 케이스를 가져왔습니다",
+	"tc_import_error": "가져오기 실패",
+	"tc_import_no_file": "파일을 선택해주세요",
+	"run_status_filter_all": "전체",
+	"run_page_info": "{total} 페이지 중 {page}",
+	"run_prev_page": "이전",
+	"run_next_page": "다음"
 }

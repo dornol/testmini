@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
@@ -72,6 +73,40 @@
 	const completedPct = $derived(
 		stats.total > 0 ? Math.round(((stats.total - stats.pending) / stats.total) * 100) : 0
 	);
+
+	const currentPage = $derived(data.currentPage);
+	const totalPages = $derived(data.totalPages);
+	const statusFilter = $derived(data.statusFilter);
+
+	const statusTabs = $derived([
+		{ key: '', label: m.run_status_filter_all(), count: stats.total },
+		{ key: 'PENDING', label: m.dashboard_pending(), count: stats.pending },
+		{ key: 'PASS', label: m.dashboard_pass(), count: stats.pass },
+		{ key: 'FAIL', label: m.dashboard_fail(), count: stats.fail },
+		{ key: 'BLOCKED', label: m.dashboard_blocked(), count: stats.blocked },
+		{ key: 'SKIPPED', label: m.dashboard_skipped(), count: stats.skipped }
+	]);
+
+	function setStatusFilter(status: string) {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (status) {
+			params.set('status', status);
+		} else {
+			params.delete('status');
+		}
+		params.delete('page');
+		goto(`?${params.toString()}`, { keepFocus: true });
+	}
+
+	function goToPage(p: number) {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (p > 1) {
+			params.set('page', String(p));
+		} else {
+			params.delete('page');
+		}
+		goto(`?${params.toString()}`, { keepFocus: true });
+	}
 
 	const pendingExecutions = $derived(data.executions.filter((e) => e.status === 'PENDING'));
 
@@ -348,6 +383,21 @@
 		</Card.Content>
 	</Card.Root>
 
+	<!-- Status Filter Tabs -->
+	<div class="flex flex-wrap gap-1">
+		{#each statusTabs as tab (tab.key)}
+			<Button
+				variant={statusFilter === tab.key ? 'default' : 'outline'}
+				size="sm"
+				class="h-7 px-3 text-xs"
+				onclick={() => setStatusFilter(tab.key)}
+			>
+				{tab.label}
+				<span class="ml-1 opacity-70">({tab.count})</span>
+			</Button>
+		{/each}
+	</div>
+
 	<!-- Bulk Actions -->
 	{#if canExecute && selectedPending.size > 0}
 		<div class="bg-muted flex items-center gap-3 rounded-lg p-3">
@@ -597,6 +647,49 @@
 			</Table.Body>
 		</Table.Root>
 	</Card.Root>
+
+	<!-- Pagination -->
+	{#if totalPages > 1}
+		<div class="flex items-center justify-between">
+			<span class="text-muted-foreground text-sm">
+				{m.run_page_info({ page: currentPage, total: totalPages })}
+			</span>
+			<div class="flex gap-1">
+				<Button
+					variant="outline"
+					size="sm"
+					class="h-7 px-3 text-xs"
+					disabled={currentPage <= 1}
+					onclick={() => goToPage(currentPage - 1)}
+				>
+					{m.run_prev_page()}
+				</Button>
+				{#each Array.from({ length: totalPages }, (_, i) => i + 1) as p (p)}
+					{#if p === 1 || p === totalPages || (p >= currentPage - 2 && p <= currentPage + 2)}
+						<Button
+							variant={p === currentPage ? 'default' : 'outline'}
+							size="sm"
+							class="h-7 w-7 px-0 text-xs"
+							onclick={() => goToPage(p)}
+						>
+							{p}
+						</Button>
+					{:else if p === currentPage - 3 || p === currentPage + 3}
+						<span class="text-muted-foreground flex h-7 items-center px-1 text-xs">...</span>
+					{/if}
+				{/each}
+				<Button
+					variant="outline"
+					size="sm"
+					class="h-7 px-3 text-xs"
+					disabled={currentPage >= totalPages}
+					onclick={() => goToPage(currentPage + 1)}
+				>
+					{m.run_next_page()}
+				</Button>
+			</div>
+		</div>
+	{/if}
 </div>
 
 <!-- FAIL with Detail Dialog -->

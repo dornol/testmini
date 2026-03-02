@@ -9,13 +9,13 @@ import {
 	testFailureDetail,
 	user
 } from '$lib/server/db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, sql, count } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { createFailureSchema, type CreateFailureInput } from '$lib/schemas/failure.schema';
 import { publish } from '$lib/server/redis';
 import type { RunEvent } from '$lib/types/events';
 
-export const load: PageServerLoad = async ({ params, parent }) => {
+export const load: PageServerLoad = async ({ params, parent, url }) => {
 	await parent();
 	const projectId = Number(params.projectId);
 	const runId = Number(params.runId);
@@ -32,7 +32,36 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		error(404, 'Test run not found');
 	}
 
-	// Get executions with test case info
+	// Pagination + status filter params
+	const statusFilter = url.searchParams.get('status') ?? '';
+	const currentPage = Math.max(1, Number(url.searchParams.get('page') ?? '1'));
+	const pageSize = 50;
+
+	// Stats are always based on full data
+	const allStatuses = await db
+		.select({ status: testExecution.status, cnt: count() })
+		.from(testExecution)
+		.where(eq(testExecution.testRunId, runId))
+		.groupBy(testExecution.status);
+
+	const stats: Record<string, number> = { total: 0, pending: 0, pass: 0, fail: 0, blocked: 0, skipped: 0 };
+	for (const row of allStatuses) {
+		stats[row.status.toLowerCase()] = Number(row.cnt);
+		stats.total += Number(row.cnt);
+	}
+
+	// Filter + paginated executions
+	const execConditions = [eq(testExecution.testRunId, runId)];
+	const validStatuses = ['PENDING', 'PASS', 'FAIL', 'BLOCKED', 'SKIPPED'] as const;
+	if (statusFilter && validStatuses.includes(statusFilter as typeof validStatuses[number])) {
+		execConditions.push(eq(testExecution.status, statusFilter as typeof validStatuses[number]));
+	}
+
+	const filteredCount = statusFilter && validStatuses.includes(statusFilter as typeof validStatuses[number])
+		? (stats[statusFilter.toLowerCase()] ?? 0)
+		: stats.total;
+	const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
+
 	const executions = await db
 		.select({
 			id: testExecution.id,
@@ -49,10 +78,12 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 		.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
 		.leftJoin(user, eq(testExecution.executedBy, user.id))
-		.where(eq(testExecution.testRunId, runId))
-		.orderBy(testCase.key);
+		.where(and(...execConditions))
+		.orderBy(testCase.key)
+		.limit(pageSize)
+		.offset((currentPage - 1) * pageSize);
 
-	// Get failure details for all FAIL executions
+	// Get failure details for all FAIL executions on this page
 	const failExecutionIds = executions.filter((e) => e.status === 'FAIL').map((e) => e.id);
 	let failures: {
 		id: number;
@@ -85,17 +116,16 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 			.orderBy(testFailureDetail.createdAt);
 	}
 
-	// Compute progress stats
-	const stats = {
-		total: executions.length,
-		pending: executions.filter((e) => e.status === 'PENDING').length,
-		pass: executions.filter((e) => e.status === 'PASS').length,
-		fail: executions.filter((e) => e.status === 'FAIL').length,
-		blocked: executions.filter((e) => e.status === 'BLOCKED').length,
-		skipped: executions.filter((e) => e.status === 'SKIPPED').length
+	return {
+		run,
+		executions,
+		failures,
+		stats,
+		currentPage,
+		totalPages,
+		pageSize,
+		statusFilter
 	};
-
-	return { run, executions, failures, stats };
 };
 
 export const actions: Actions = {

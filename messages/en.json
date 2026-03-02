@@ -382,5 +382,21 @@
 	"oidc_accounts_count": "{count} accounts",
 	"oidc_enabled": "Enabled",
 	"oidc_type": "Type",
-	"oidc_slug": "Slug"
+	"oidc_slug": "Slug",
+
+	"tc_export": "Export",
+	"tc_export_csv": "Export as CSV",
+	"tc_export_json": "Export as JSON",
+	"tc_import": "Import",
+	"tc_import_title": "Import Test Cases",
+	"tc_import_desc": "Upload a CSV or JSON file",
+	"tc_import_select_file": "Select File",
+	"tc_import_preview": "Preview",
+	"tc_import_success": "{count} test cases imported",
+	"tc_import_error": "Import failed",
+	"tc_import_no_file": "Please select a file",
+	"run_status_filter_all": "All",
+	"run_page_info": "Page {page} of {total}",
+	"run_prev_page": "Previous",
+	"run_next_page": "Next"
 }

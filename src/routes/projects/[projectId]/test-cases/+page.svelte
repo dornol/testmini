@@ -17,8 +17,11 @@
 	import { flip } from 'svelte/animate';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import ImportDialog from '$lib/components/ImportDialog.svelte';
 
 	let { data } = $props();
+
+	let importDialogOpen = $state(false);
 
 	let searchInput = $state('');
 	let searchTimeout: ReturnType<typeof setTimeout>;
@@ -915,7 +918,25 @@
 	<div class="flex items-center justify-between">
 		<h2 class="text-lg font-semibold">{m.tc_title()}</h2>
 		<div class="flex items-center gap-2">
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger>
+					<Button variant="outline" size="sm">{m.tc_export()}</Button>
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="end">
+					<DropdownMenu.Item
+						onclick={() => { window.location.href = `/api/projects/${data.project.id}/test-cases/export?format=csv`; }}
+					>
+						{m.tc_export_csv()}
+					</DropdownMenu.Item>
+					<DropdownMenu.Item
+						onclick={() => { window.location.href = `/api/projects/${data.project.id}/test-cases/export?format=json`; }}
+					>
+						{m.tc_export_json()}
+					</DropdownMenu.Item>
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
 			{#if data.userRole !== 'VIEWER'}
+				<Button variant="outline" size="sm" onclick={() => (importDialogOpen = true)}>{m.tc_import()}</Button>
 				<Button href="{basePath}/new" size="sm">{m.tc_new()}</Button>
 			{/if}
 		</div>
@@ -2077,3 +2098,9 @@
 		{/if}
 	</Sheet.Content>
 </Sheet.Root>
+
+<ImportDialog
+	bind:open={importDialogOpen}
+	projectId={data.project.id}
+	onimported={() => invalidateAll()}
+/>

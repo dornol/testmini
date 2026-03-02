@@ -40,10 +40,12 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 	const conditions = [eq(testCase.projectId, projectId)];
 
 	if (search) {
-		const searchPattern = `%${search}%`;
-		conditions.push(
-			or(ilike(testCaseVersion.title, searchPattern), ilike(testCase.key, searchPattern))!
-		);
+		// key uses pattern matching (TC-0001 etc.)
+		const keyCondition = ilike(testCase.key, `%${search}%`);
+		// Other fields use full-text search via tsvector
+		const query = search.trim().split(/\s+/).join(' & ');
+		const ftsCondition = sql`test_case_version.search_vector @@ to_tsquery('english', ${query})`;
+		conditions.push(or(keyCondition, ftsCondition)!);
 	}
 
 	if (priority && ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) {

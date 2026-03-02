@@ -170,7 +170,8 @@ export const testCaseRelations = relations(testCase, ({ one, many }) => ({
 		references: [testCaseVersion.id],
 		relationName: 'latestVersion'
 	}),
-	tags: many(testCaseTag)
+	tags: many(testCaseTag),
+	assignees: many(testCaseAssignee)
 }));
 
 // ── TestCaseVersion ────────────────────────────────────
@@ -387,5 +388,112 @@ export const testCaseTagRelations = relations(testCaseTag, ({ one }) => ({
 	tag: one(tag, {
 		fields: [testCaseTag.tagId],
 		references: [tag.id]
+	})
+}));
+
+// ── TestCaseAssignee (join) ───────────────────────────
+
+export const testCaseAssignee = pgTable(
+	'test_case_assignee',
+	{
+		id: serial('id').primaryKey(),
+		testCaseId: integer('test_case_id')
+			.notNull()
+			.references(() => testCase.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		assignedAt: timestamp('assigned_at').defaultNow().notNull()
+	},
+	(table) => [
+		unique('test_case_assignee_unique').on(table.testCaseId, table.userId),
+		index('test_case_assignee_case_idx').on(table.testCaseId),
+		index('test_case_assignee_user_idx').on(table.userId)
+	]
+);
+
+export const testCaseAssigneeRelations = relations(testCaseAssignee, ({ one }) => ({
+	testCase: one(testCase, {
+		fields: [testCaseAssignee.testCaseId],
+		references: [testCase.id]
+	}),
+	user: one(user, {
+		fields: [testCaseAssignee.userId],
+		references: [user.id]
+	})
+}));
+
+// ── OIDC Provider ─────────────────────────────────────
+
+export const oidcProvider = pgTable(
+	'oidc_provider',
+	{
+		id: serial('id').primaryKey(),
+		name: text('name').notNull(),
+		slug: text('slug').notNull().unique(),
+		providerType: text('provider_type').notNull().default('OIDC'),
+		clientId: text('client_id').notNull(),
+		clientSecretEncrypted: text('client_secret_encrypted').notNull(),
+		issuerUrl: text('issuer_url'),
+		authorizationUrl: text('authorization_url').notNull(),
+		tokenUrl: text('token_url').notNull(),
+		userinfoUrl: text('userinfo_url'),
+		scopes: text('scopes').notNull().default('openid profile email'),
+		enabled: boolean('enabled').notNull().default(true),
+		autoRegister: boolean('auto_register').notNull().default(true),
+		iconUrl: text('icon_url'),
+		displayOrder: integer('display_order').notNull().default(0),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at')
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		index('oidc_provider_slug_idx').on(table.slug),
+		index('oidc_provider_enabled_idx').on(table.enabled)
+	]
+);
+
+export const oidcProviderRelations = relations(oidcProvider, ({ many }) => ({
+	accounts: many(oidcAccount)
+}));
+
+// ── OIDC Account ──────────────────────────────────────
+
+export const oidcAccount = pgTable(
+	'oidc_account',
+	{
+		id: serial('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		providerId: integer('provider_id')
+			.notNull()
+			.references(() => oidcProvider.id, { onDelete: 'cascade' }),
+		externalId: text('external_id').notNull(),
+		email: text('email'),
+		name: text('name'),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at')
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		unique('oidc_account_provider_external_unique').on(table.providerId, table.externalId),
+		index('oidc_account_user_idx').on(table.userId),
+		index('oidc_account_provider_idx').on(table.providerId)
+	]
+);
+
+export const oidcAccountRelations = relations(oidcAccount, ({ one }) => ({
+	user: one(user, {
+		fields: [oidcAccount.userId],
+		references: [user.id]
+	}),
+	provider: one(oidcProvider, {
+		fields: [oidcAccount.providerId],
+		references: [oidcProvider.id]
 	})
 }));

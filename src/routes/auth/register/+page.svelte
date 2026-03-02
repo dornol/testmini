@@ -5,8 +5,11 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as m from '$lib/paraglide/messages.js';
+
+	let { data } = $props();
 
 	let name = $state('');
 	let email = $state('');
@@ -88,6 +91,28 @@
 			</Button>
 		</form>
 	</Card.Content>
+	{#if data.providers && data.providers.length > 0}
+		<Card.Content class="pt-0">
+			<div class="relative my-2">
+				<div class="absolute inset-0 flex items-center">
+					<Separator />
+				</div>
+				<div class="relative flex justify-center text-xs uppercase">
+					<span class="bg-card text-muted-foreground px-2">{m.oidc_or_separator()}</span>
+				</div>
+			</div>
+			<div class="mt-4 space-y-2">
+				{#each data.providers as provider (provider.slug)}
+					<Button variant="outline" class="w-full" href="/auth/oidc/{provider.slug}">
+						{#if provider.iconUrl}
+							<img src={provider.iconUrl} alt="" class="mr-2 h-4 w-4" />
+						{/if}
+						{m.oidc_login_with({ name: provider.name })}
+					</Button>
+				{/each}
+			</div>
+		</Card.Content>
+	{/if}
 	<Card.Footer class="justify-center">
 		<p class="text-sm text-muted-foreground">
 			{m.auth_have_account()}

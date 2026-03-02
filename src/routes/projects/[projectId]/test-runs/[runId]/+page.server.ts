@@ -123,6 +123,13 @@ export const actions: Actions = {
 		const runId = Number(params.runId);
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
+		const run = await db.query.testRun.findFirst({
+			where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
+		});
+		if (run?.status === 'COMPLETED') {
+			return fail(403, { error: 'Cannot modify executions in a completed run' });
+		}
+
 		const formData = await request.formData();
 		const executionId = Number(formData.get('executionId'));
 		const status = formData.get('status') as string;
@@ -168,6 +175,13 @@ export const actions: Actions = {
 		const projectId = Number(params.projectId);
 		const runId = Number(params.runId);
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+
+		const run = await db.query.testRun.findFirst({
+			where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
+		});
+		if (run?.status === 'COMPLETED') {
+			return fail(403, { error: 'Cannot modify executions in a completed run' });
+		}
 
 		const formData = await request.formData();
 		const executionId = Number(formData.get('executionId'));
@@ -358,6 +372,13 @@ export const actions: Actions = {
 		const runId = Number(params.runId);
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
+		const run = await db.query.testRun.findFirst({
+			where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
+		});
+		if (run?.status === 'COMPLETED') {
+			return fail(403, { error: 'Cannot modify executions in a completed run' });
+		}
+
 		const formData = await request.formData();
 		const executionIds = formData
 			.getAll('executionIds')
@@ -440,7 +461,6 @@ async function autoUpdateRunStatus(runId: number) {
 		.from(testExecution)
 		.where(eq(testExecution.testRunId, runId));
 
-	const allDone = executions.every((e) => e.status !== 'PENDING');
 	const anyExecuted = executions.some((e) => e.status !== 'PENDING');
 
 	const run = await db.query.testRun.findFirst({
@@ -449,12 +469,7 @@ async function autoUpdateRunStatus(runId: number) {
 
 	if (!run) return;
 
-	if (allDone && run.status !== 'COMPLETED') {
-		await db
-			.update(testRun)
-			.set({ status: 'COMPLETED', finishedAt: new Date() })
-			.where(eq(testRun.id, runId));
-	} else if (anyExecuted && run.status === 'CREATED') {
+	if (anyExecuted && run.status === 'CREATED') {
 		await db
 			.update(testRun)
 			.set({ status: 'IN_PROGRESS', startedAt: new Date() })

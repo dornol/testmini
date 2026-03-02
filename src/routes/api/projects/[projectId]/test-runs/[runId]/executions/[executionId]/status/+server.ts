@@ -35,6 +35,10 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		error(404, 'Test run not found');
 	}
 
+	if (run.status === 'COMPLETED') {
+		error(403, 'Cannot modify executions in a completed run');
+	}
+
 	// Verify execution belongs to run
 	const execution = await db.query.testExecution.findFirst({
 		where: and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId))
@@ -73,7 +77,6 @@ async function autoUpdateRunStatus(runId: number) {
 		.from(testExecution)
 		.where(eq(testExecution.testRunId, runId));
 
-	const allDone = executions.every((e) => e.status !== 'PENDING');
 	const anyExecuted = executions.some((e) => e.status !== 'PENDING');
 
 	const run = await db.query.testRun.findFirst({
@@ -82,12 +85,7 @@ async function autoUpdateRunStatus(runId: number) {
 
 	if (!run) return;
 
-	if (allDone && run.status !== 'COMPLETED') {
-		await db
-			.update(testRun)
-			.set({ status: 'COMPLETED', finishedAt: new Date() })
-			.where(eq(testRun.id, runId));
-	} else if (anyExecuted && run.status === 'CREATED') {
+	if (anyExecuted && run.status === 'CREATED') {
 		await db
 			.update(testRun)
 			.set({ status: 'IN_PROGRESS', startedAt: new Date() })

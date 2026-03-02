@@ -34,3 +34,8 @@ data/uploads/
 
 # MCP
 .mcp.json
+
+# Playwright
+e2e/.auth-storage.json
+e2e/test-results/
+e2e/playwright-report/

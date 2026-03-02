@@ -4,37 +4,49 @@ import { db } from '$lib/server/db';
 import { oidcProvider, oidcAccount } from '$lib/server/db/schema';
 import { user, session } from '$lib/server/db/auth.schema';
 import { and, eq } from 'drizzle-orm';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHmac } from 'crypto';
 import { decrypt } from '$lib/server/crypto';
 import { env } from '$env/dynamic/private';
 
+/** Sign a cookie value using HMAC-SHA256, matching better-auth's format: `value.base64signature` */
+function signSessionCookie(value: string, secret: string): string {
+	const signature = createHmac('sha256', secret).update(value).digest('base64');
+	return `${value}.${signature}`;
+}
+
 export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
+	console.log('[OIDC Callback] Start for slug:', params.slug);
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');
 	const errorParam = url.searchParams.get('error');
 
 	if (errorParam) {
+		console.error('[OIDC Callback] IdP returned error:', errorParam, url.searchParams.get('error_description'));
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
 	if (!code || !state) {
+		console.error('[OIDC Callback] Missing code or state');
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
 	// Restore cookie state
 	const cookieValue = cookies.get(`oidc_${params.slug}`);
 	if (!cookieValue) {
+		console.error('[OIDC Callback] Cookie not found: oidc_' + params.slug);
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
 	let cookieData: { codeVerifier: string; state: string; link?: boolean };
 	try {
 		cookieData = JSON.parse(decrypt(cookieValue));
-	} catch {
+	} catch (e) {
+		console.error('[OIDC Callback] Cookie decrypt failed:', e);
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
 	if (cookieData.state !== state) {
+		console.error('[OIDC Callback] State mismatch');
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
@@ -67,10 +79,13 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 	});
 
 	if (!tokenRes.ok) {
+		const errorBody = await tokenRes.text();
+		console.error('[OIDC Callback] Token exchange failed:', tokenRes.status, errorBody);
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
 	const tokenData = await tokenRes.json();
+	console.log('[OIDC Callback] Token exchange success, has id_token:', !!tokenData.id_token);
 	const accessToken = tokenData.access_token;
 
 	// Extract user info from ID token or userinfo endpoint
@@ -109,7 +124,10 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 		}
 	}
 
+	console.log('[OIDC Callback] User info - sub:', sub, 'email:', email, 'name:', name);
+
 	if (!sub) {
+		console.error('[OIDC Callback] No sub claim found');
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
@@ -208,8 +226,14 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 		updatedAt: new Date()
 	});
 
-	// Set session cookie (same name as better-auth)
-	cookies.set('better-auth.session_token', sessionToken, {
+	console.log('[OIDC Callback] Session created for userId:', userId, '→ redirecting to /projects');
+
+	// Set session cookie with HMAC signature (matching better-auth's signed cookie format)
+	const secret = env.BETTER_AUTH_SECRET;
+	if (!secret) error(500, 'BETTER_AUTH_SECRET not configured');
+
+	const signedToken = signSessionCookie(sessionToken, secret);
+	cookies.set('better-auth.session_token', signedToken, {
 		path: '/',
 		httpOnly: true,
 		secure: env.ORIGIN?.startsWith('https') ?? false,

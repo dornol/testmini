@@ -8,12 +8,18 @@ import { encrypt } from '$lib/server/crypto';
 import { env } from '$env/dynamic/private';
 
 export const GET: RequestHandler = async ({ params, cookies, url }) => {
+	console.log('[OIDC] Authorization start for slug:', params.slug);
+
 	const [provider] = await db
 		.select()
 		.from(oidcProvider)
 		.where(and(eq(oidcProvider.slug, params.slug), eq(oidcProvider.enabled, true)));
 
-	if (!provider) error(404, 'Provider not found');
+	if (!provider) {
+		console.error('[OIDC] Provider not found:', params.slug);
+		error(404, 'Provider not found');
+	}
+	console.log('[OIDC] Provider found:', provider.name, '→ redirecting to:', provider.authorizationUrl);
 
 	const codeVerifier = randomBytes(32).toString('base64url');
 	const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');

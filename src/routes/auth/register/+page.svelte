@@ -103,7 +103,7 @@
 			</div>
 			<div class="mt-4 space-y-2">
 				{#each data.providers as provider (provider.slug)}
-					<Button variant="outline" class="w-full" href="/auth/oidc/{provider.slug}">
+					<Button variant="outline" class="w-full" href="/auth/oidc/{provider.slug}" data-sveltekit-reload>
 						{#if provider.iconUrl}
 							<img src={provider.iconUrl} alt="" class="mr-2 h-4 w-4" />
 						{/if}

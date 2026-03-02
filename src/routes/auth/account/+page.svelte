@@ -66,7 +66,7 @@
 			<div class="space-y-2 pt-2">
 				<p class="text-sm font-medium">{m.oidc_link_account()}</p>
 				{#each data.availableProviders as provider (provider.slug)}
-					<Button variant="outline" class="w-full" href="/auth/oidc/{provider.slug}?link=true">
+					<Button variant="outline" class="w-full" href="/auth/oidc/{provider.slug}?link=true" data-sveltekit-reload>
 						{#if provider.iconUrl}
 							<img src={provider.iconUrl} alt="" class="mr-2 h-4 w-4" />
 						{/if}

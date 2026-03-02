@@ -240,6 +240,7 @@
 	"admin_ban": "Ban",
 	"admin_you": "You",
 	"admin_no_users": "No users found.",
+	"admin_no_users_hint": "Try a different search query.",
 	"admin_users_total": "{count} users total",
 	"admin_ban_title": "Ban User",
 	"admin_ban_confirm": "Are you sure you want to ban \"{name}\"? They will not be able to log in.",
@@ -254,6 +255,7 @@
 	"admin_projects_deactivate": "Deactivate",
 	"admin_projects_activate": "Activate",
 	"admin_projects_no_results": "No projects found.",
+	"admin_projects_no_results_hint": "Try a different search query.",
 	"admin_projects_total": "{count} projects total",
 
 	"attachments_title": "Attachments",
@@ -367,6 +369,7 @@
 	"oidc_provider_enabled": "Provider enabled",
 	"oidc_provider_disabled": "Provider disabled",
 	"oidc_no_providers": "No identity providers configured.",
+	"oidc_no_providers_hint": "Add a provider to enable SSO login.",
 	"oidc_delete_confirm": "Are you sure you want to delete \"{name}\"?",
 	"oidc_has_accounts_warning": "This provider has linked accounts. It will be disabled instead of deleted.",
 	"oidc_login_with": "Sign in with {name}",
@@ -454,5 +457,12 @@
 
 	"tc_pagination_notice": "Showing paginated view ({count} total test cases). Drag-and-drop reordering is disabled in this mode.",
 
-	"tc_failure_loading": "Loading..."
+	"tc_failure_loading": "Loading...",
+
+	"error_delete_failed": "Failed to delete",
+	"error_remove_failed": "Failed to remove",
+	"error_clone_failed": "Failed to clone",
+	"error_update_failed": "Failed to update",
+	"error_add_failed": "Failed to add",
+	"error_operation_failed": "Operation failed"
 }

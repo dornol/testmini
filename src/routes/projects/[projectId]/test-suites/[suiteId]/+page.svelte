@@ -62,7 +62,7 @@
 			});
 			if (!res.ok) {
 				const err = await res.json();
-				toast.error(err.error ?? 'Failed to update');
+				toast.error(err.error ?? m.error_update_failed());
 				return;
 			}
 			editDialogOpen = false;
@@ -80,7 +80,7 @@
 				method: 'DELETE'
 			});
 			if (!res.ok) {
-				toast.error('Failed to delete');
+				toast.error(m.error_delete_failed());
 				return;
 			}
 			toast.success(m.suite_deleted());
@@ -116,7 +116,7 @@
 				body: JSON.stringify({ testCaseIds: [...addCasesSelected] })
 			});
 			if (!res.ok) {
-				toast.error('Failed to add cases');
+				toast.error(m.error_add_failed());
 				return;
 			}
 			addCasesDialogOpen = false;
@@ -134,7 +134,7 @@
 			body: JSON.stringify({ testCaseIds: [testCaseId] })
 		});
 		if (!res.ok) {
-			toast.error('Failed to remove');
+			toast.error(m.error_remove_failed());
 			return;
 		}
 		toast.success(m.suite_updated());

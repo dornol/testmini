@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { navigating } from '$app/stores';
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import { ModeWatcher } from 'mode-watcher';
@@ -18,6 +19,12 @@
 
 <ModeWatcher />
 <Toaster />
+
+{#if $navigating}
+	<div class="bg-primary fixed top-0 right-0 left-0 z-50 h-0.5 overflow-hidden">
+		<div class="bg-primary-foreground/30 h-full w-1/3 animate-[shimmer_1s_ease-in-out_infinite]"></div>
+	</div>
+{/if}
 
 {#if isAuthPage}
 	{@render children()}

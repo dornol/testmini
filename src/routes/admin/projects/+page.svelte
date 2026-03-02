@@ -42,7 +42,7 @@
 				toast.success(m.admin_updated());
 				await invalidateAll();
 			} else if (result.type === 'failure') {
-				toast.error((result.data?.error as string) ?? 'Operation failed');
+				toast.error((result.data?.error as string) ?? m.error_operation_failed());
 				await update();
 			}
 		};
@@ -53,7 +53,7 @@
 	<!-- Search & Filters -->
 	<div class="flex flex-wrap items-center gap-2">
 		<form onsubmit={(e) => { e.preventDefault(); doSearch(); }} class="flex gap-2">
-			<Input placeholder={m.admin_projects_search()} class="max-w-sm" bind:value={searchInput} />
+			<Input placeholder={m.admin_projects_search()} class="max-w-sm" bind:value={searchInput} aria-label={m.admin_projects_search()} />
 			<Button type="submit" variant="outline">{m.common_search()}</Button>
 		</form>
 		<Button
@@ -117,8 +117,14 @@
 				{/each}
 				{#if data.projects.length === 0}
 					<Table.Row>
-						<Table.Cell colspan={6} class="text-muted-foreground text-center">
-							{m.admin_projects_no_results()}
+						<Table.Cell colspan={6} class="py-12 text-center">
+							<div class="flex flex-col items-center gap-2">
+								<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground">
+									<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+								</svg>
+								<p class="text-muted-foreground font-medium">{m.admin_projects_no_results()}</p>
+								<p class="text-muted-foreground text-sm">{m.admin_projects_no_results_hint()}</p>
+							</div>
 						</Table.Cell>
 					</Table.Row>
 				{/if}

@@ -61,10 +61,10 @@
 				goto(`${basePath}/${result.newTestCaseId}`);
 			} else {
 				const err = await res.json();
-				toast.error(err.error || 'Failed to clone');
+				toast.error(err.error || m.error_clone_failed());
 			}
 		} catch {
-			toast.error('Failed to clone');
+			toast.error(m.error_clone_failed());
 		}
 	}
 
@@ -197,7 +197,7 @@
 												toast.success(m.tc_deleted());
 												goto(basePath);
 											} else {
-												toast.error('Failed to delete test case');
+												toast.error(m.error_delete_failed());
 											}
 										};
 									}}

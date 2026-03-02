@@ -300,7 +300,7 @@
 				await tick();
 				if (scrollContainer) scrollContainer.scrollTop = savedScroll;
 			} else if (result.type === 'failure') {
-				toast.error((result.data?.error as string) ?? 'Operation failed');
+				toast.error((result.data?.error as string) ?? m.error_operation_failed());
 				await update();
 			}
 		};
@@ -413,7 +413,7 @@
 				body: JSON.stringify({ name: cloneRunName })
 			});
 			if (!res.ok) {
-				toast.error('Failed to clone');
+				toast.error(m.error_clone_failed());
 				return;
 			}
 			const { id } = await res.json();
@@ -432,7 +432,7 @@
 				method: 'DELETE'
 			});
 			if (!res.ok) {
-				toast.error('Failed to delete');
+				toast.error(m.error_delete_failed());
 				return;
 			}
 			deleteRunDialogOpen = false;

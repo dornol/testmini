@@ -60,6 +60,7 @@
 			class="max-w-sm"
 			bind:value={searchInput}
 			oninput={handleSearch}
+			aria-label={m.projects_search_placeholder()}
 		/>
 		<Button variant={data.active ? 'outline' : 'secondary'} size="sm" onclick={toggleActive}>
 			{data.active ? m.projects_show_inactive() : m.projects_show_active()}

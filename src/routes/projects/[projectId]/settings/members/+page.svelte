@@ -110,8 +110,9 @@
 							</div>
 						{:else}
 							<div class="space-y-2">
-								<Label>{m.members_search_user()}</Label>
+								<Label for="member-search">{m.members_search_user()}</Label>
 								<Input
+									id="member-search"
 									placeholder={m.members_search_placeholder()}
 									bind:value={searchQuery}
 									oninput={handleSearch}
@@ -136,13 +137,13 @@
 						{/if}
 
 						<div class="space-y-2">
-							<Label>{m.common_role()}</Label>
+							<Label id="role-label">{m.common_role()}</Label>
 							<Select.Root
 								type="single"
 								value={selectedRole}
 								onValueChange={(v: string) => { selectedRole = v; }}
 							>
-								<Select.Trigger class="w-full">
+								<Select.Trigger class="w-full" aria-labelledby="role-label">
 									{selectedRole.replace('_', ' ')}
 								</Select.Trigger>
 								<Select.Content>
@@ -167,7 +168,7 @@
 											resetAddDialog();
 											await invalidateAll();
 										} else {
-											toast.error('Failed to add member');
+											toast.error(m.error_add_failed());
 											await update();
 										}
 									};
@@ -209,7 +210,7 @@
 											toast.success(m.members_role_updated());
 											await invalidateAll();
 										} else if (result.type === 'failure') {
-											toast.error(result.data?.error as string ?? 'Failed to update role');
+											toast.error(result.data?.error as string ?? m.error_update_failed());
 											await update();
 										}
 									};
@@ -280,7 +281,7 @@
 									removeDialogOpen = false;
 									await invalidateAll();
 								} else if (result.type === 'failure') {
-									toast.error(result.data?.error as string ?? 'Failed to remove member');
+									toast.error(result.data?.error as string ?? m.error_remove_failed());
 									await update();
 								}
 							};

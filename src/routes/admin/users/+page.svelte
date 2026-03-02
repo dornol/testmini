@@ -46,7 +46,7 @@
 				toast.success(m.admin_updated());
 				await invalidateAll();
 			} else if (result.type === 'failure') {
-				toast.error((result.data?.error as string) ?? 'Operation failed');
+				toast.error((result.data?.error as string) ?? m.error_operation_failed());
 				await update();
 			}
 		};
@@ -65,7 +65,7 @@
 				toast.success(m.admin_user_banned());
 				await invalidateAll();
 			} else if (result.type === 'failure') {
-				toast.error((result.data?.error as string) ?? 'Failed to ban user');
+				toast.error((result.data?.error as string) ?? m.error_operation_failed());
 				await update();
 			}
 		};
@@ -77,7 +77,7 @@
 <div class="space-y-4">
 	<!-- Search -->
 	<form onsubmit={(e) => { e.preventDefault(); doSearch(); }} class="flex gap-2">
-		<Input placeholder={m.admin_search_placeholder()} class="max-w-sm" bind:value={searchInput} />
+		<Input placeholder={m.admin_search_placeholder()} class="max-w-sm" bind:value={searchInput} aria-label={m.admin_search_placeholder()} />
 		<Button type="submit" variant="outline">{m.common_search()}</Button>
 	</form>
 
@@ -161,8 +161,17 @@
 				{/each}
 				{#if data.users.length === 0}
 					<Table.Row>
-						<Table.Cell colspan={6} class="text-muted-foreground text-center">
-							{m.admin_no_users()}
+						<Table.Cell colspan={6} class="py-12 text-center">
+							<div class="flex flex-col items-center gap-2">
+								<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground">
+									<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+									<circle cx="9" cy="7" r="4" />
+									<path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+									<path d="M16 3.13a4 4 0 0 1 0 7.75" />
+								</svg>
+								<p class="text-muted-foreground font-medium">{m.admin_no_users()}</p>
+								<p class="text-muted-foreground text-sm">{m.admin_no_users_hint()}</p>
+							</div>
 						</Table.Cell>
 					</Table.Row>
 				{/if}
@@ -213,7 +222,7 @@
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<div class="py-3">
-			<Input placeholder={m.admin_ban_reason_placeholder()} bind:value={banReason} />
+			<Input placeholder={m.admin_ban_reason_placeholder()} bind:value={banReason} aria-label={m.admin_ban_reason_placeholder()} />
 		</div>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>

@@ -40,7 +40,7 @@
 				deleteDialogOpen = false;
 				await invalidateAll();
 			} else if (result.type === 'failure') {
-				toast.error((result.data?.error as string) ?? 'Operation failed');
+				toast.error((result.data?.error as string) ?? m.error_operation_failed());
 				await update();
 			}
 		};
@@ -114,8 +114,16 @@
 				{/each}
 				{#if data.providers.length === 0}
 					<Table.Row>
-						<Table.Cell colspan={6} class="text-muted-foreground text-center">
-							{m.oidc_no_providers()}
+						<Table.Cell colspan={6} class="py-12 text-center">
+							<div class="flex flex-col items-center gap-2">
+								<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground">
+									<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
+									<path d="m9 12 2 2 4-4" />
+								</svg>
+								<p class="text-muted-foreground font-medium">{m.oidc_no_providers()}</p>
+								<p class="text-muted-foreground text-sm">{m.oidc_no_providers_hint()}</p>
+								<Button href="/admin/oidc-providers/new" size="sm" class="mt-2">{m.oidc_add_provider()}</Button>
+							</div>
 						</Table.Cell>
 					</Table.Row>
 				{/if}

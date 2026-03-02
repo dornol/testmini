@@ -101,7 +101,7 @@
 				method: 'DELETE'
 			});
 			if (!res.ok) {
-				toast.error('Failed to delete');
+				toast.error(m.error_delete_failed());
 				return;
 			}
 			deleteDialogOpen = false;

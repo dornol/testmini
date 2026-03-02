@@ -20,7 +20,7 @@
 				toast.success(m.oidc_account_unlinked());
 				await invalidateAll();
 			} else if (result.type === 'failure') {
-				toast.error((result.data?.error as string) ?? 'Operation failed');
+				toast.error((result.data?.error as string) ?? m.error_operation_failed());
 				await update();
 			}
 		};

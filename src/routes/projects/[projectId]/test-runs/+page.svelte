@@ -89,7 +89,7 @@
 				body: JSON.stringify({ name: cloneRunName })
 			});
 			if (!res.ok) {
-				toast.error('Failed to clone');
+				toast.error(m.error_clone_failed());
 				return;
 			}
 			const { id } = await res.json();
@@ -109,7 +109,7 @@
 				method: 'DELETE'
 			});
 			if (!res.ok) {
-				toast.error('Failed to delete');
+				toast.error(m.error_delete_failed());
 				return;
 			}
 			deleteDialogOpen = false;

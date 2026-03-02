@@ -240,6 +240,7 @@
 	"admin_ban": "차단",
 	"admin_you": "본인",
 	"admin_no_users": "사용자를 찾을 수 없습니다.",
+	"admin_no_users_hint": "다른 검색어를 시도하세요.",
 	"admin_users_total": "{count}명의 사용자",
 	"admin_ban_title": "사용자 차단",
 	"admin_ban_confirm": "\"{name}\"을(를) 차단하시겠습니까? 로그인할 수 없게 됩니다.",
@@ -254,6 +255,7 @@
 	"admin_projects_deactivate": "비활성화",
 	"admin_projects_activate": "활성화",
 	"admin_projects_no_results": "프로젝트를 찾을 수 없습니다.",
+	"admin_projects_no_results_hint": "다른 검색어를 시도하세요.",
 	"admin_projects_total": "{count}개의 프로젝트",
 
 	"attachments_title": "첨부파일",
@@ -367,6 +369,7 @@
 	"oidc_provider_enabled": "제공자가 활성화되었습니다",
 	"oidc_provider_disabled": "제공자가 비활성화되었습니다",
 	"oidc_no_providers": "설정된 ID 제공자가 없습니다.",
+	"oidc_no_providers_hint": "SSO 로그인을 활성화하려면 제공자를 추가하세요.",
 	"oidc_delete_confirm": "\"{name}\"을(를) 삭제하시겠습니까?",
 	"oidc_has_accounts_warning": "이 제공자에 연결된 계정이 있습니다. 삭제 대신 비활성화됩니다.",
 	"oidc_login_with": "{name}으로 로그인",
@@ -454,5 +457,12 @@
 
 	"tc_pagination_notice": "페이지네이션 보기 (총 {count}개 테스트 케이스). 이 모드에서는 드래그 앤 드롭 정렬이 비활성화됩니다.",
 
-	"tc_failure_loading": "불러오는 중..."
+	"tc_failure_loading": "불러오는 중...",
+
+	"error_delete_failed": "삭제에 실패했습니다",
+	"error_remove_failed": "제거에 실패했습니다",
+	"error_clone_failed": "복제에 실패했습니다",
+	"error_update_failed": "수정에 실패했습니다",
+	"error_add_failed": "추가에 실패했습니다",
+	"error_operation_failed": "작업에 실패했습니다"
 }

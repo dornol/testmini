@@ -533,7 +533,7 @@
 				toast.error(err.error || 'Failed to update');
 			}
 		} catch {
-			toast.error('Failed to update');
+			toast.error(m.error_update_failed());
 		}
 	}
 
@@ -575,7 +575,7 @@
 				toast.error(err.error || 'Failed to update');
 			}
 		} catch {
-			toast.error('Failed to update');
+			toast.error(m.error_update_failed());
 		}
 	}
 
@@ -595,7 +595,7 @@
 			if (res.ok) {
 				detailData = await res.json();
 			} else {
-				toast.error('Failed to load test case');
+				toast.error(m.error_operation_failed());
 				sheetOpen = false;
 			}
 			// Check lock status
@@ -605,7 +605,7 @@
 				if (lockData.locked) sheetLockHolder = lockData.holder;
 			}
 		} catch {
-			toast.error('Failed to load test case');
+			toast.error(m.error_operation_failed());
 			sheetOpen = false;
 		} finally {
 			detailLoading = false;
@@ -690,7 +690,7 @@
 				toast.error(err.error || 'Failed to update');
 			}
 		} catch {
-			toast.error('Failed to update');
+			toast.error(m.error_update_failed());
 		} finally {
 			editSaving = false;
 		}
@@ -711,10 +711,10 @@
 				detailDeleteOpen = false;
 				await invalidateAll();
 			} else {
-				toast.error('Failed to delete');
+				toast.error(m.error_delete_failed());
 			}
 		} catch {
-			toast.error('Failed to delete');
+			toast.error(m.error_delete_failed());
 		}
 	}
 
@@ -733,7 +733,7 @@
 				await openDetail(selectedTcId);
 			}
 		} catch {
-			toast.error('Failed to assign tag');
+			toast.error(m.error_operation_failed());
 		}
 	}
 
@@ -752,7 +752,7 @@
 				await openDetail(selectedTcId);
 			}
 		} catch {
-			toast.error('Failed to remove tag');
+			toast.error(m.error_remove_failed());
 		}
 	}
 
@@ -772,7 +772,7 @@
 				await openDetail(selectedTcId);
 			}
 		} catch {
-			toast.error('Failed to assign assignee');
+			toast.error(m.error_operation_failed());
 		}
 	}
 
@@ -791,7 +791,7 @@
 				await openDetail(selectedTcId);
 			}
 		} catch {
-			toast.error('Failed to remove assignee');
+			toast.error(m.error_remove_failed());
 		}
 	}
 
@@ -847,7 +847,7 @@
 				toast.error(err.error || 'Bulk operation failed');
 			}
 		} catch {
-			toast.error('Bulk operation failed');
+			toast.error(m.error_operation_failed());
 		} finally {
 			bulkLoading = false;
 			bulkDeleteOpen = false;
@@ -872,7 +872,7 @@
 				toast.error(err.error || 'Failed to clone');
 			}
 		} catch {
-			toast.error('Failed to clone');
+			toast.error(m.error_clone_failed());
 		}
 	}
 
@@ -905,7 +905,7 @@
 				toast.error(err.error || 'Failed to create group');
 			}
 		} catch {
-			toast.error('Failed to create group');
+			toast.error(m.error_operation_failed());
 		} finally {
 			creatingGroup = false;
 		}
@@ -941,7 +941,7 @@
 				toast.error(err.error || 'Failed to update group');
 			}
 		} catch {
-			toast.error('Failed to update group');
+			toast.error(m.error_update_failed());
 		}
 	}
 
@@ -966,10 +966,10 @@
 				deleteGroupId = null;
 				await invalidateAll();
 			} else {
-				toast.error('Failed to delete group');
+				toast.error(m.error_delete_failed());
 			}
 		} catch {
-			toast.error('Failed to delete group');
+			toast.error(m.error_delete_failed());
 		}
 	}
 
@@ -989,11 +989,11 @@
 				body: JSON.stringify({ groups: reorderPayload })
 			});
 			if (!res.ok) {
-				toast.error('Failed to reorder groups');
+				toast.error(m.error_operation_failed());
 				await invalidateAll();
 			}
 		} catch {
-			toast.error('Failed to reorder groups');
+			toast.error(m.error_operation_failed());
 			await invalidateAll();
 		}
 	}
@@ -1043,11 +1043,11 @@
 				body: JSON.stringify({ items })
 			});
 			if (!res.ok) {
-				toast.error('Failed to reorder');
+				toast.error(m.error_operation_failed());
 				await invalidateAll();
 			}
 		} catch {
-			toast.error('Failed to reorder');
+			toast.error(m.error_operation_failed());
 			await invalidateAll();
 		}
 	}
@@ -1088,6 +1088,7 @@
 			class="h-7 max-w-xs text-xs"
 			bind:value={searchInput}
 			oninput={handleSearch}
+			aria-label={m.tc_search_placeholder()}
 		/>
 		<div class="flex gap-1">
 			{#each priorities as p (p)}

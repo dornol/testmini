@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testSuite, testSuiteItem, user } from '$lib/server/db/schema';
 import { eq, sql } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, requireProjectAccess } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, requireProjectAccess, parseJsonBody } from '$lib/server/auth-utils';
 import { createTestSuiteSchema } from '$lib/schemas/test-suite.schema';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
@@ -33,7 +33,7 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	const projectId = Number(params.projectId);
 	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA']);
 
-	const body = await request.json();
+	const body = await parseJsonBody(request);
 	const parsed = createTestSuiteSchema.safeParse(body);
 	if (!parsed.success) {
 		return json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 });

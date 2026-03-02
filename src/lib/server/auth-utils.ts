@@ -58,3 +58,11 @@ export async function requireProjectRole(
 
 	return { role: member.role };
 }
+
+export async function parseJsonBody(request: Request): Promise<unknown> {
+	try {
+		return await request.json();
+	} catch {
+		error(400, 'Invalid request body');
+	}
+}

@@ -4,7 +4,7 @@ import { db } from '$lib/server/db';
 import { testFailureDetail, testExecution, testRun } from '$lib/server/db/schema';
 import { user } from '$lib/server/db/auth.schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
 import { createFailureSchema } from '$lib/schemas/failure.schema';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
@@ -90,7 +90,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		error(404, 'Execution not found');
 	}
 
-	const body = await request.json();
+	const body = await parseJsonBody(request);
 	const parsed = createFailureSchema.safeParse(body);
 	if (!parsed.success) {
 		return json({ error: 'Invalid failure detail data' }, { status: 400 });

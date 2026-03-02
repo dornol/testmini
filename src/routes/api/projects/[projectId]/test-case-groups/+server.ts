@@ -3,7 +3,7 @@ import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCaseGroup, testCase } from '$lib/server/db/schema';
 import { eq, sql, count, asc } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	requireAuth(locals);
@@ -31,7 +31,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	const projectId = Number(params.projectId);
 	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
-	const body = await request.json();
+	const body = await parseJsonBody(request);
 	const { name, color } = body as { name: string; color?: string };
 
 	if (!name || !name.trim()) {

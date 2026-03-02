@@ -3,14 +3,14 @@ import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCase } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	const authUser = requireAuth(locals);
 	const projectId = Number(params.projectId);
 	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
-	const body = await request.json();
+	const body = await parseJsonBody(request);
 	const { items } = body as {
 		items: { id: number; groupId: number | null; sortOrder: number }[];
 	};

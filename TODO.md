@@ -4,13 +4,13 @@
 
 ---
 
-## Quick Wins (빠르게 처리 가능)
+## Quick Wins ✅
 
-- [ ] `/api/health` 헬스체크 엔드포인트 추가 — 로드밸런서/오케스트레이터용
-- [ ] 환경변수 검증 — 서버 시작 시 `BETTER_AUTH_SECRET`, `DATABASE_URL`, `ORIGIN` 누락 시 명확한 에러 메시지
-- [ ] API 라우트 `request.json()` try-catch 누락 수정 — 잘못된 JSON 요청 시 400 응답 반환
-- [ ] Redis 연결 실패 시 경고 로깅 — 현재 silent failure, 기능 저하 안내 필요
-- [ ] 프로덕션 SvelteKit adapter 명시 설정 — `adapter-auto` → `adapter-node` 등 고정
+- [x] `/api/health` 헬스체크 엔드포인트 추가 — DB 연결 확인 포함
+- [x] 환경변수 검증 — `BETTER_AUTH_SECRET`, `ORIGIN` 서버 시작 시 체크 (`DATABASE_URL`은 기존 체크 있음)
+- [x] API 라우트 `request.json()` → `parseJsonBody()` 유틸로 통일 (16개 파일, 18개소)
+- [x] Redis 연결 실패 시 경고 로깅 — connect/error 이벤트 + 초기 실패 메시지
+- [x] 프로덕션 SvelteKit adapter — `adapter-auto` → `adapter-node` 변경
 
 ---
 

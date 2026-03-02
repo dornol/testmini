@@ -8,8 +8,16 @@ export const redis = new Redis(url, {
 	lazyConnect: true
 });
 
-redis.connect().catch(() => {
-	// Silently handle initial connection failure; ioredis will auto-reconnect
+redis.on('error', (err) => {
+	console.warn('[Redis] Connection error:', err.message);
+});
+
+redis.on('connect', () => {
+	console.log('[Redis] Connected');
+});
+
+redis.connect().catch((err) => {
+	console.warn('[Redis] Initial connection failed:', err.message, '— features like soft lock and SSE will be degraded');
 });
 
 export function createSubscriber(): Redis {

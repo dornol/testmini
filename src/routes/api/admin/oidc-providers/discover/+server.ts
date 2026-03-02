@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
-import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
+import { requireAuth, isGlobalAdmin, parseJsonBody } from '$lib/server/auth-utils';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const user = requireAuth(locals);
@@ -8,7 +8,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		error(403, 'Admin access required');
 	}
 
-	const body = await request.json();
+	const body = await parseJsonBody(request) as Record<string, unknown>;
 	const issuerUrl = (body.issuerUrl as string)?.trim()?.replace(/\/+$/, '');
 
 	if (!issuerUrl) {

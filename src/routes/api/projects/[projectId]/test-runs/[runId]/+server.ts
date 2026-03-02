@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testRun } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
 import { updateTestRunSchema } from '$lib/schemas/test-run.schema';
 
 export const PATCH: RequestHandler = async ({ request, locals, params }) => {
@@ -24,7 +24,7 @@ export const PATCH: RequestHandler = async ({ request, locals, params }) => {
 		return json({ error: 'Only CREATED runs can be edited' }, { status: 409 });
 	}
 
-	const body = await request.json();
+	const body = await parseJsonBody(request);
 	const parsed = updateTestRunSchema.safeParse(body);
 	if (!parsed.success) {
 		return json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 });

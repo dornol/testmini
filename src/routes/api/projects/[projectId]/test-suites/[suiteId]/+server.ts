@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testSuite, testSuiteItem, testCase, testCaseVersion, user } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, requireProjectAccess } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, requireProjectAccess, parseJsonBody } from '$lib/server/auth-utils';
 import { updateTestSuiteSchema } from '$lib/schemas/test-suite.schema';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
@@ -51,7 +51,7 @@ export const PATCH: RequestHandler = async ({ request, locals, params }) => {
 		error(404, 'Suite not found');
 	}
 
-	const body = await request.json();
+	const body = await parseJsonBody(request);
 	const parsed = updateTestSuiteSchema.safeParse(body);
 	if (!parsed.success) {
 		return json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 });

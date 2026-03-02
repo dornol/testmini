@@ -3,13 +3,13 @@ import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, testCaseTag, testCaseAssignee, tag, projectMember } from '$lib/server/db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
 	const authUser = requireAuth(locals);
 	const projectId = Number(params.projectId);
 
-	const body = await request.json();
+	const body = await parseJsonBody(request);
 	const { action, testCaseIds, tagId, priority, groupId, userId } = body as {
 		action: 'addTag' | 'removeTag' | 'setPriority' | 'moveToGroup' | 'delete' | 'clone' | 'addAssignee' | 'removeAssignee';
 		testCaseIds: number[];

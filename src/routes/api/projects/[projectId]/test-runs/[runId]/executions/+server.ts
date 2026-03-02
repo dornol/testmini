@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, testExecution, testRun } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
 	try {
@@ -17,7 +17,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 		await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
-		const body = await request.json();
+		const body = await parseJsonBody(request);
 		const { testCaseId } = body as { testCaseId: number };
 
 		if (!testCaseId || isNaN(testCaseId)) {

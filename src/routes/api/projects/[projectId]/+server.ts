@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { project, projectMember } from '$lib/server/db/schema';
-import { requireAuth, requireProjectAccess, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectAccess, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
 import { updateProjectSchema } from '$lib/schemas/project.schema';
 import { eq, count, sql } from 'drizzle-orm';
 
@@ -48,7 +48,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 	await requireProjectRole(user, projectId, ['PROJECT_ADMIN']);
 
-	const body = await request.json();
+	const body = await parseJsonBody(request);
 	const result = updateProjectSchema.safeParse(body);
 
 	if (!result.success) {

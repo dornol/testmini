@@ -396,9 +396,7 @@
 	"tc_import_error": "가져오기 실패",
 	"tc_import_no_file": "파일을 선택해주세요",
 	"run_status_filter_all": "전체",
-	"run_page_info": "{total} 페이지 중 {page}",
-	"run_prev_page": "이전",
-	"run_next_page": "다음",
+	"run_showing_count": "{count}개의 실행 표시 중",
 
 	"nav_profile": "프로필",
 	"nav_test_suites": "스위트",
@@ -454,5 +452,7 @@
 	"suite_create_run": "스위트로 런 만들기",
 	"suite_no_cases": "이 스위트에 테스트 케이스가 없습니다.",
 
-	"tc_pagination_notice": "페이지네이션 보기 (총 {count}개 테스트 케이스). 이 모드에서는 드래그 앤 드롭 정렬이 비활성화됩니다."
+	"tc_pagination_notice": "페이지네이션 보기 (총 {count}개 테스트 케이스). 이 모드에서는 드래그 앤 드롭 정렬이 비활성화됩니다.",
+
+	"tc_failure_loading": "불러오는 중..."
 }

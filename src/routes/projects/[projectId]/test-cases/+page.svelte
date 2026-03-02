@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -37,6 +38,37 @@
 
 	// Priority popover state (fixed position like status dropdown)
 	let priorityPopover: { tcId: number; currentValue: string; x: number; y: number } | null = $state(null);
+
+	// Failure details sheet state
+	let failureSheetOpen = $state(false);
+	let failureSheetData: {
+		executionId: number;
+		runId: number;
+		failures: Array<{
+			id: number;
+			errorMessage: string | null;
+			testMethod: string | null;
+			failureEnvironment: string | null;
+			stackTrace: string | null;
+			comment: string | null;
+			createdBy: string;
+			createdAt: string;
+			createdByName: string | null;
+		}>;
+		loading: boolean;
+	} | null = $state(null);
+
+	// Fail-with-detail dialog state
+	let failDialogOpen = $state(false);
+	let failDialogRunId = $state<number>(0);
+	let failDialogExecutionId = $state<number>(0);
+	let failDialogKey = $state('');
+	let failErrorMessage = $state('');
+	let failEnvironment = $state('');
+	let failTestMethod = $state('');
+	let failStackTrace = $state('');
+	let failComment = $state('');
+	let failSubmitting = $state(false);
 
 	// Sheet detail panel state
 	let sheetOpen = $state(false);
@@ -283,8 +315,22 @@
 	async function updateExecutionStatus(
 		runId: number,
 		executionId: number,
-		newStatus: string
+		newStatus: string,
+		tcKey?: string
 	) {
+		if (newStatus === 'FAIL') {
+			openDropdown = null;
+			failDialogRunId = runId;
+			failDialogExecutionId = executionId;
+			failDialogKey = tcKey ?? '';
+			failErrorMessage = '';
+			failEnvironment = '';
+			failTestMethod = '';
+			failStackTrace = '';
+			failComment = '';
+			failDialogOpen = true;
+			return;
+		}
 		openDropdown = null;
 		try {
 			const res = await fetch(
@@ -300,6 +346,46 @@
 			}
 		} catch {
 			// silently fail
+		}
+	}
+
+	async function submitFailWithDetail() {
+		failSubmitting = true;
+		try {
+			const res = await fetch(
+				`/api/projects/${data.project.id}/test-runs/${failDialogRunId}/executions/${failDialogExecutionId}/failures`,
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						errorMessage: failErrorMessage,
+						failureEnvironment: failEnvironment,
+						testMethod: failTestMethod,
+						stackTrace: failStackTrace,
+						comment: failComment
+					})
+				}
+			);
+			if (res.ok) {
+				failDialogOpen = false;
+				toast.success(m.fail_marked());
+				await invalidateAll();
+				// Refresh failure sheet if it's open for the same execution
+				if (failureSheetOpen && failureSheetData && failureSheetData.executionId === failDialogExecutionId) {
+					fetchFailures(failureSheetData.runId, failureSheetData.executionId);
+				}
+			} else {
+				let msg = `Error ${res.status}`;
+				try {
+					const err = await res.json();
+					msg = err.error || err.message || msg;
+				} catch { /* non-JSON response */ }
+				toast.error(msg);
+			}
+		} catch (e) {
+			toast.error('Network error: ' + String(e));
+		} finally {
+			failSubmitting = false;
 		}
 	}
 
@@ -342,6 +428,49 @@
 			const btn = event.currentTarget as HTMLElement;
 			const rect = btn.getBoundingClientRect();
 			openDropdown = { tcId, runId, x: rect.left + rect.width / 2, y: rect.bottom + 2 };
+		}
+	}
+
+	function openFailureSheet(runId: number, executionId: number) {
+		openDropdown = null;
+		failureSheetData = { executionId, runId, failures: [], loading: true };
+		failureSheetOpen = true;
+		fetchFailures(runId, executionId);
+	}
+
+	function openAddFailureDialog(runId: number, executionId: number, tcKey: string) {
+		openDropdown = null;
+		failDialogRunId = runId;
+		failDialogExecutionId = executionId;
+		failDialogKey = tcKey;
+		failErrorMessage = '';
+		failEnvironment = '';
+		failTestMethod = '';
+		failStackTrace = '';
+		failComment = '';
+		failDialogOpen = true;
+	}
+
+	async function fetchFailures(runId: number, executionId: number) {
+		try {
+			const res = await fetch(
+				`/api/projects/${data.project.id}/test-runs/${runId}/executions/${executionId}/failures`
+			);
+			if (res.ok) {
+				const json = await res.json();
+				if (failureSheetData && failureSheetData.executionId === executionId) {
+					failureSheetData.failures = json.failures;
+					failureSheetData.loading = false;
+				}
+			} else {
+				if (failureSheetData && failureSheetData.executionId === executionId) {
+					failureSheetData.loading = false;
+				}
+			}
+		} catch {
+			if (failureSheetData && failureSheetData.executionId === executionId) {
+				failureSheetData.loading = false;
+			}
 		}
 	}
 
@@ -1722,6 +1851,7 @@
 		{@const tcId = openDropdown.tcId}
 		{@const runId = openDropdown.runId}
 		{@const exec = data.executionMap[tcId]?.[runId]}
+		{@const tcKey = data.testCases.find((tc) => tc.id === tcId)?.key ?? ''}
 		{#if exec}
 			<div
 				data-status-dropdown
@@ -1732,11 +1862,28 @@
 					<button
 						type="button"
 						class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted {statusColor(s)} {s === exec.status ? 'font-bold' : ''}"
-						onclick={() => updateExecutionStatus(runId, exec.executionId, s)}
+						onclick={() => updateExecutionStatus(runId, exec.executionId, s, tcKey)}
 					>
 						{s}
 					</button>
 				{/each}
+				{#if exec.status === 'FAIL'}
+					<div class="border-t my-1"></div>
+					<button
+						type="button"
+						class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted text-muted-foreground"
+						onclick={() => openFailureSheet(runId, exec.executionId)}
+					>
+						{m.fail_details()}
+					</button>
+					<button
+						type="button"
+						class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted text-muted-foreground"
+						onclick={() => openAddFailureDialog(runId, exec.executionId, tcKey)}
+					>
+						{m.fail_add_detail()}
+					</button>
+				{/if}
 			</div>
 		{/if}
 	{/if}
@@ -2141,6 +2288,143 @@
 		{/if}
 	</Sheet.Content>
 </Sheet.Root>
+
+<Sheet.Root bind:open={failureSheetOpen} onOpenChange={(open) => { if (!open) { failureSheetData = null; } }}>
+	<Sheet.Content side="right" class="sm:max-w-xl w-full overflow-y-auto p-0">
+		<Sheet.Header class="px-6 py-4 border-b flex flex-row items-center justify-between">
+			<Sheet.Title>{m.fail_details()}</Sheet.Title>
+			{#if failureSheetData && !failureSheetData.loading}
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={() => {
+						if (failureSheetData) {
+							openAddFailureDialog(failureSheetData.runId, failureSheetData.executionId, '');
+						}
+					}}
+				>
+					{m.fail_add_detail()}
+				</Button>
+			{/if}
+		</Sheet.Header>
+		<div class="px-6 py-4">
+			{#if failureSheetData?.loading}
+				<div class="text-center text-sm text-muted-foreground py-8">{m.tc_failure_loading()}</div>
+			{:else if failureSheetData && failureSheetData.failures.length === 0}
+				<div class="text-center text-sm text-muted-foreground py-8">{m.fail_no_details()}</div>
+			{:else if failureSheetData}
+				<div class="space-y-4">
+					{#each failureSheetData.failures as f (f.id)}
+						<div class="border rounded-lg p-4 space-y-2">
+							{#if f.errorMessage}
+								<div>
+									<div class="text-xs font-medium text-muted-foreground mb-1">{m.fail_error()}</div>
+									<div class="text-sm text-red-600 dark:text-red-400">{f.errorMessage}</div>
+								</div>
+							{/if}
+							{#if f.testMethod}
+								<div>
+									<div class="text-xs font-medium text-muted-foreground mb-1">{m.fail_method()}</div>
+									<div class="text-sm">{f.testMethod}</div>
+								</div>
+							{/if}
+							{#if f.failureEnvironment}
+								<div>
+									<div class="text-xs font-medium text-muted-foreground mb-1">{m.common_environment()}</div>
+									<div class="text-sm">{f.failureEnvironment}</div>
+								</div>
+							{/if}
+							{#if f.stackTrace}
+								<div>
+									<div class="text-xs font-medium text-muted-foreground mb-1">{m.fail_stack_trace()}</div>
+									<pre class="text-xs bg-muted p-3 rounded-md overflow-x-auto whitespace-pre-wrap break-all max-h-60 overflow-y-auto">{f.stackTrace}</pre>
+								</div>
+							{/if}
+							{#if f.comment}
+								<div>
+									<div class="text-xs font-medium text-muted-foreground mb-1">{m.common_comment()}</div>
+									<div class="text-sm">{f.comment}</div>
+								</div>
+							{/if}
+							<div class="text-xs text-muted-foreground pt-1 border-t">
+								{f.createdByName ?? f.createdBy} &middot; {new Date(f.createdAt).toLocaleString()}
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	</Sheet.Content>
+</Sheet.Root>
+
+<!-- FAIL with Detail Dialog -->
+<Dialog.Root bind:open={failDialogOpen}>
+	<Dialog.Portal>
+		<Dialog.Overlay />
+		<Dialog.Content class="sm:max-w-lg">
+			<Dialog.Header>
+				<Dialog.Title>{m.fail_mark_title({ key: failDialogKey })}</Dialog.Title>
+				<Dialog.Description>{m.fail_mark_desc()}</Dialog.Description>
+			</Dialog.Header>
+			<div class="space-y-4 py-4">
+				<div class="space-y-2">
+					<Label for="failErrorMessage">{m.fail_error_message()}</Label>
+					<Textarea
+						id="failErrorMessage"
+						bind:value={failErrorMessage}
+						placeholder={m.fail_error_placeholder()}
+						rows={2}
+					/>
+				</div>
+				<div class="grid gap-4 sm:grid-cols-2">
+					<div class="space-y-2">
+						<Label for="failEnvironment">{m.common_environment()}</Label>
+						<Input
+							id="failEnvironment"
+							bind:value={failEnvironment}
+							placeholder={m.fail_env_placeholder()}
+						/>
+					</div>
+					<div class="space-y-2">
+						<Label for="failTestMethod">{m.fail_method_label()}</Label>
+						<Input
+							id="failTestMethod"
+							bind:value={failTestMethod}
+							placeholder={m.fail_method_placeholder()}
+						/>
+					</div>
+				</div>
+				<div class="space-y-2">
+					<Label for="failStackTrace">{m.fail_stack_trace()}</Label>
+					<Textarea
+						id="failStackTrace"
+						bind:value={failStackTrace}
+						placeholder={m.fail_stack_placeholder()}
+						rows={4}
+						class="font-mono text-xs"
+					/>
+				</div>
+				<div class="space-y-2">
+					<Label for="failCommentInput">{m.common_comment()}</Label>
+					<Textarea
+						id="failCommentInput"
+						bind:value={failComment}
+						placeholder={m.fail_comment_placeholder()}
+						rows={2}
+					/>
+				</div>
+			</div>
+			<Dialog.Footer>
+				<Button type="button" variant="outline" onclick={() => (failDialogOpen = false)}>
+					{m.common_cancel()}
+				</Button>
+				<Button variant="destructive" disabled={failSubmitting} onclick={submitFailWithDetail}>
+					{failSubmitting ? m.common_saving() : m.fail_mark_submit()}
+				</Button>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>
 
 <ImportDialog
 	bind:open={importDialogOpen}

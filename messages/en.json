@@ -396,9 +396,7 @@
 	"tc_import_error": "Import failed",
 	"tc_import_no_file": "Please select a file",
 	"run_status_filter_all": "All",
-	"run_page_info": "Page {page} of {total}",
-	"run_prev_page": "Previous",
-	"run_next_page": "Next",
+	"run_showing_count": "Showing {count} executions",
 
 	"nav_profile": "Profile",
 	"nav_test_suites": "Suites",
@@ -454,5 +452,7 @@
 	"suite_create_run": "Create Run from Suite",
 	"suite_no_cases": "No test cases in this suite.",
 
-	"tc_pagination_notice": "Showing paginated view ({count} total test cases). Drag-and-drop reordering is disabled in this mode."
+	"tc_pagination_notice": "Showing paginated view ({count} total test cases). Drag-and-drop reordering is disabled in this mode.",
+
+	"tc_failure_loading": "Loading..."
 }

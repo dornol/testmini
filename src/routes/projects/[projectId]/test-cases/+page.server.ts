@@ -8,10 +8,12 @@ import {
 	user,
 	tag,
 	testCaseTag,
+	testCaseAssignee,
 	testRun,
-	testExecution
+	testExecution,
+	projectMember
 } from '$lib/server/db/schema';
-import { eq, and, ilike, or, desc, asc, exists, sql, inArray } from 'drizzle-orm';
+import { eq, and, ilike, or, desc, asc, exists, sql, inArray, isNull } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 
 export const load: PageServerLoad = async ({ params, url, parent, cookies }) => {
@@ -20,7 +22,10 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 
 	const search = url.searchParams.get('search') ?? '';
 	const priority = url.searchParams.get('priority') ?? '';
-	const tagId = url.searchParams.get('tagId') ?? '';
+	const tagIds = url.searchParams.get('tagIds') ?? '';
+	const groupId = url.searchParams.get('groupId') ?? '';
+	const createdBy = url.searchParams.get('createdBy') ?? '';
+	const assigneeId = url.searchParams.get('assigneeId') ?? '';
 
 	// Parse selected run IDs: URL param takes priority, otherwise fall back to cookie
 	const cookieKey = `tc_runIds_${projectId}`;
@@ -50,9 +55,12 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		);
 	}
 
-	if (tagId) {
-		const tagIdNum = Number(tagId);
-		if (!isNaN(tagIdNum)) {
+	if (tagIds) {
+		const tagIdNums = tagIds
+			.split(',')
+			.map(Number)
+			.filter((id) => !isNaN(id) && id > 0);
+		for (const tagIdNum of tagIdNums) {
 			conditions.push(
 				exists(
 					db
@@ -67,6 +75,37 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 				)
 			);
 		}
+	}
+
+	if (groupId) {
+		if (groupId === 'uncategorized') {
+			conditions.push(isNull(testCase.groupId));
+		} else {
+			const groupIdNum = Number(groupId);
+			if (!isNaN(groupIdNum)) {
+				conditions.push(eq(testCase.groupId, groupIdNum));
+			}
+		}
+	}
+
+	if (createdBy) {
+		conditions.push(eq(testCase.createdBy, createdBy));
+	}
+
+	if (assigneeId) {
+		conditions.push(
+			exists(
+				db
+					.select({ one: sql`1` })
+					.from(testCaseAssignee)
+					.where(
+						and(
+							eq(testCaseAssignee.testCaseId, testCase.id),
+							eq(testCaseAssignee.userId, assigneeId)
+						)
+					)
+			)
+		);
 	}
 
 	const where = and(...conditions);
@@ -131,12 +170,49 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		}
 	}
 
+	// Batch load assignees for test cases
+	const assigneesByTestCase: Record<number, { userId: string; userName: string }[]> = {};
+
+	if (tcIdSet.size > 0) {
+		const tcAssignees = await db
+			.select({
+				testCaseId: testCaseAssignee.testCaseId,
+				userId: testCaseAssignee.userId,
+				userName: user.name
+			})
+			.from(testCaseAssignee)
+			.innerJoin(user, eq(testCaseAssignee.userId, user.id))
+			.orderBy(user.name);
+
+		for (const row of tcAssignees) {
+			if (!tcIdSet.has(row.testCaseId)) continue;
+			if (!assigneesByTestCase[row.testCaseId]) {
+				assigneesByTestCase[row.testCaseId] = [];
+			}
+			assigneesByTestCase[row.testCaseId].push({
+				userId: row.userId,
+				userName: row.userName
+			});
+		}
+	}
+
 	// Load project tags for filter UI
 	const projectTags = await db
 		.select({ id: tag.id, name: tag.name, color: tag.color })
 		.from(tag)
 		.where(eq(tag.projectId, projectId))
 		.orderBy(tag.name);
+
+	// Load project members for createdBy filter UI
+	const projectMembers = await db
+		.select({
+			userId: projectMember.userId,
+			userName: user.name
+		})
+		.from(projectMember)
+		.innerJoin(user, eq(projectMember.userId, user.id))
+		.where(eq(projectMember.projectId, projectId))
+		.orderBy(user.name);
 
 	// Load all project runs for the run selector dropdown
 	const projectRuns = await db
@@ -192,14 +268,19 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 	return {
 		testCases: testCases.map((tc) => ({
 			...tc,
-			tags: tagsByTestCase[tc.id] ?? []
+			tags: tagsByTestCase[tc.id] ?? [],
+			assignees: assigneesByTestCase[tc.id] ?? []
 		})),
 		total,
 		search,
 		priority,
-		tagId,
+		tagIds,
+		groupId,
+		createdBy,
+		assigneeId,
 		groups,
 		projectTags,
+		projectMembers,
 		projectRuns,
 		selectedRunIds,
 		executionMap

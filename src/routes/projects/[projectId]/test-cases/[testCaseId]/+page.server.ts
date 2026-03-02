@@ -4,7 +4,7 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { updateTestCaseSchema, type UpdateTestCaseInput } from '$lib/schemas/test-case.schema';
 import { db } from '$lib/server/db';
-import { testCase, testCaseVersion, user, tag, testCaseTag } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, user, tag, testCaseTag, testCaseAssignee, projectMember } from '$lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 
@@ -61,8 +61,8 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 
 	const projectId = Number(params.projectId);
 
-	// Load project tags and assigned tags
-	const [projectTags, assignedTags] = await Promise.all([
+	// Load project tags, assigned tags, assignees, and project members
+	const [projectTags, assignedTags, assignedAssignees, projectMembers] = await Promise.all([
 		db
 			.select({ id: tag.id, name: tag.name, color: tag.color })
 			.from(tag)
@@ -73,7 +73,27 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 			.from(testCaseTag)
 			.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
 			.where(eq(testCaseTag.testCaseId, testCaseId))
-			.orderBy(tag.name)
+			.orderBy(tag.name),
+		db
+			.select({
+				userId: testCaseAssignee.userId,
+				userName: user.name,
+				userImage: user.image
+			})
+			.from(testCaseAssignee)
+			.innerJoin(user, eq(testCaseAssignee.userId, user.id))
+			.where(eq(testCaseAssignee.testCaseId, testCaseId))
+			.orderBy(user.name),
+		db
+			.select({
+				userId: projectMember.userId,
+				userName: user.name,
+				userImage: user.image
+			})
+			.from(projectMember)
+			.innerJoin(user, eq(projectMember.userId, user.id))
+			.where(eq(projectMember.projectId, projectId))
+			.orderBy(user.name)
 	]);
 
 	return {
@@ -86,7 +106,9 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		versions,
 		form,
 		projectTags,
-		assignedTags
+		assignedTags,
+		assignedAssignees,
+		projectMembers
 	};
 };
 
@@ -211,6 +233,60 @@ export const actions: Actions = {
 			.where(and(eq(testCaseTag.testCaseId, testCaseId), eq(testCaseTag.tagId, tagId)));
 
 		return { tagRemoved: true };
+	},
+
+	assignAssignee: async ({ request, locals, params }) => {
+		const authUser = requireAuth(locals);
+		const projectId = Number(params.projectId);
+		const testCaseId = Number(params.testCaseId);
+		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+
+		const formData = await request.formData();
+		const userId = formData.get('userId') as string;
+
+		if (!userId) {
+			return fail(400, { error: 'Missing userId' });
+		}
+
+		// Verify user is a project member
+		const member = await db.query.projectMember.findFirst({
+			where: and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userId))
+		});
+
+		if (!member) {
+			return fail(404, { error: 'User is not a project member' });
+		}
+
+		// Check not already assigned
+		const existing = await db.query.testCaseAssignee.findFirst({
+			where: and(eq(testCaseAssignee.testCaseId, testCaseId), eq(testCaseAssignee.userId, userId))
+		});
+
+		if (!existing) {
+			await db.insert(testCaseAssignee).values({ testCaseId, userId });
+		}
+
+		return { assigneeAssigned: true };
+	},
+
+	removeAssignee: async ({ request, locals, params }) => {
+		const authUser = requireAuth(locals);
+		const projectId = Number(params.projectId);
+		const testCaseId = Number(params.testCaseId);
+		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+
+		const formData = await request.formData();
+		const userId = formData.get('userId') as string;
+
+		if (!userId) {
+			return fail(400, { error: 'Missing userId' });
+		}
+
+		await db
+			.delete(testCaseAssignee)
+			.where(and(eq(testCaseAssignee.testCaseId, testCaseId), eq(testCaseAssignee.userId, userId)));
+
+		return { assigneeRemoved: true };
 	},
 
 	delete: async ({ locals, params }) => {

@@ -43,6 +43,8 @@
 		versions: any[];
 		assignedTags: { id: number; name: string; color: string }[];
 		projectTags: { id: number; name: string; color: string }[];
+		assignedAssignees: { userId: string; userName: string; userImage: string | null }[];
+		projectMembers: { userId: string; userName: string; userImage: string | null }[];
 	} | null = $state(null);
 	let detailLoading = $state(false);
 	let detailEditing = $state(false);
@@ -84,6 +86,7 @@
 		groupId: number | null;
 		sortOrder: number;
 		tags: { id: number; name: string; color: string }[];
+		assignees: { userId: string; userName: string }[];
 		[SHADOW_ITEM_MARKER_PROPERTY_NAME]?: boolean;
 	};
 	type GroupItem = {
@@ -121,7 +124,7 @@
 			.map(Number)
 			.filter((id) => !isNaN(id) && id > 0)
 	);
-	const hasActiveFilters = $derived(!!data.search || !!data.priority || selectedTagIds.length > 0 || !!data.groupId || !!data.createdBy);
+	const hasActiveFilters = $derived(!!data.search || !!data.priority || selectedTagIds.length > 0 || !!data.groupId || !!data.createdBy || !!data.assigneeId);
 	const flipDurationMs = 150;
 
 	$effect(() => {
@@ -195,6 +198,16 @@
 			params.set('createdBy', userId);
 		} else {
 			params.delete('createdBy');
+		}
+		goto(`${basePath}?${params.toString()}`);
+	}
+
+	function setAssigneeFilter(userId: string) {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (userId) {
+			params.set('assigneeId', userId);
+		} else {
+			params.delete('assigneeId');
 		}
 		goto(`${basePath}?${params.toString()}`);
 	}
@@ -600,6 +613,45 @@
 		}
 	}
 
+	// --- Assignee helpers for sheet detail ---
+	async function assignAssignee(userId: string) {
+		if (!selectedTcId) return;
+		const formData = new FormData();
+		formData.set('userId', userId);
+		try {
+			const res = await fetch(
+				`/projects/${data.project.id}/test-cases/${selectedTcId}?/assignAssignee`,
+				{ method: 'POST', body: formData }
+			);
+			if (res.ok) {
+				toast.success(m.assignee_assigned());
+				await invalidateAll();
+				await openDetail(selectedTcId);
+			}
+		} catch {
+			toast.error('Failed to assign assignee');
+		}
+	}
+
+	async function removeAssignee(userId: string) {
+		if (!selectedTcId) return;
+		const formData = new FormData();
+		formData.set('userId', userId);
+		try {
+			const res = await fetch(
+				`/projects/${data.project.id}/test-cases/${selectedTcId}?/removeAssignee`,
+				{ method: 'POST', body: formData }
+			);
+			if (res.ok) {
+				toast.success(m.assignee_removed());
+				await invalidateAll();
+				await openDetail(selectedTcId);
+			}
+		} catch {
+			toast.error('Failed to remove assignee');
+		}
+	}
+
 	// --- Checkbox selection helpers ---
 	function toggleTcSelection(tcId: number) {
 		const next = new Set(selectedTcIds);
@@ -961,6 +1013,29 @@
 			</Select.Root>
 		{/if}
 
+		<!-- Assignee filter -->
+		{#if data.projectMembers.length > 0}
+			<Select.Root
+				type="single"
+				value={data.assigneeId ?? ''}
+				onValueChange={(v: string) => setAssigneeFilter(v === '__all__' ? '' : v)}
+			>
+				<Select.Trigger size="sm" class="h-7 px-2 text-xs">
+					{#if data.assigneeId}
+						{data.projectMembers.find((mb) => mb.userId === data.assigneeId)?.userName ?? data.assigneeId}
+					{:else}
+						{m.tc_filter_assignee()}: {m.common_all()}
+					{/if}
+				</Select.Trigger>
+				<Select.Content>
+					<Select.Item value="__all__" label="{m.tc_filter_assignee()}: {m.common_all()}" />
+					{#each data.projectMembers as member}
+						<Select.Item value={member.userId} label={member.userName} />
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		{/if}
+
 		<!-- Clear all filters -->
 		{#if hasActiveFilters}
 			<Button
@@ -1067,6 +1142,40 @@
 							<DropdownMenu.Item onclick={() => bulkAction('removeTag', { tagId: t.id })} class="text-xs">
 								<span class="mr-1.5 inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
 								{t.name}
+							</DropdownMenu.Item>
+						{/each}
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+			{/if}
+
+			<!-- Bulk Add Assignee -->
+			{#if data.projectMembers.length > 0}
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						{#snippet child({ props })}
+							<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.tc_bulk_add_assignee()}</Button>
+						{/snippet}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="start" class="min-w-[140px]">
+						{#each data.projectMembers as member}
+							<DropdownMenu.Item onclick={() => bulkAction('addAssignee', { userId: member.userId })} class="text-xs">
+								{member.userName}
+							</DropdownMenu.Item>
+						{/each}
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+
+				<!-- Bulk Remove Assignee -->
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						{#snippet child({ props })}
+							<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.tc_bulk_remove_assignee()}</Button>
+						{/snippet}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="start" class="min-w-[140px]">
+						{#each data.projectMembers as member}
+							<DropdownMenu.Item onclick={() => bulkAction('removeAssignee', { userId: member.userId })} class="text-xs">
+								{member.userName}
 							</DropdownMenu.Item>
 						{/each}
 					</DropdownMenu.Content>
@@ -1276,6 +1385,17 @@
 					{/if}
 				</div>
 			{/if}
+			<!-- Assignees -->
+			<div class="w-24 shrink-0 flex gap-0.5 overflow-hidden">
+				{#if tc.assignees && tc.assignees.length > 0}
+					{#each tc.assignees.slice(0, 2) as a (a.userId)}
+						<Badge variant="outline" class="text-[10px] px-1.5 py-0 truncate">{a.userName}</Badge>
+					{/each}
+					{#if tc.assignees.length > 2}
+						<span class="text-[10px] text-muted-foreground">+{tc.assignees.length - 2}</span>
+					{/if}
+				{/if}
+			</div>
 			<span class="text-muted-foreground w-20 shrink-0 text-right truncate">{tc.updatedBy}</span>
 			<!-- Test Run columns -->
 			{#each selectedRuns as run (run.id)}
@@ -1378,6 +1498,7 @@
 				{#if data.projectTags.length > 0}
 					<span class="w-24 shrink-0">{m.tag_title()}</span>
 				{/if}
+				<span class="w-24 shrink-0">{m.assignee_title()}</span>
 				<span class="w-20 shrink-0 text-right">{m.tc_updated_by()}</span>
 				{#each selectedRuns as run (run.id)}
 					<span class="w-16 shrink-0 text-center truncate" title={run.name}>{run.name}</span>
@@ -1753,6 +1874,46 @@
 											<DropdownMenu.Item onclick={() => assignTag(t.id)} class="text-xs">
 												<span class="mr-1.5 inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
 												{t.name}
+											</DropdownMenu.Item>
+										{/each}
+									</DropdownMenu.Content>
+								</DropdownMenu.Root>
+							{/if}
+						{/if}
+					</div>
+				{/if}
+
+				<!-- Assignees section -->
+				{#if !detailEditing && detailData.assignedAssignees}
+					<div class="flex flex-wrap items-center gap-1.5">
+						<span class="text-xs font-medium text-muted-foreground mr-1">{m.assignee_title()}:</span>
+						{#each detailData.assignedAssignees as a (a.userId)}
+							{#if canEdit}
+								<span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium hover:bg-muted/50 transition-colors">
+									{a.userName}
+									<button type="button" class="text-muted-foreground hover:text-destructive ml-0.5 transition-colors" onclick={() => removeAssignee(a.userId)}>&times;</button>
+								</span>
+							{:else}
+								<Badge variant="outline" class="text-xs">{a.userName}</Badge>
+							{/if}
+						{/each}
+						{#if canEdit && detailData.projectMembers}
+							{@const unassignedMembers = detailData.projectMembers.filter(
+								(pm) => !detailData!.assignedAssignees.some((a) => a.userId === pm.userId)
+							)}
+							{#if unassignedMembers.length > 0}
+								<DropdownMenu.Root>
+									<DropdownMenu.Trigger>
+										{#snippet child({ props })}
+											<button type="button" class="border-input bg-background h-6 rounded-md border px-2 text-xs hover:bg-muted/50 transition-colors cursor-pointer" {...props}>
+												+ {m.assignee_assign()}
+											</button>
+										{/snippet}
+									</DropdownMenu.Trigger>
+									<DropdownMenu.Content align="start" class="min-w-[140px]">
+										{#each unassignedMembers as member (member.userId)}
+											<DropdownMenu.Item onclick={() => assignAssignee(member.userId)} class="text-xs">
+												{member.userName}
 											</DropdownMenu.Item>
 										{/each}
 									</DropdownMenu.Content>

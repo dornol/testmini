@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testCase, testCaseVersion, user, tag, testCaseTag } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, user, tag, testCaseTag, testCaseAssignee, projectMember } from '$lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 
@@ -33,7 +33,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		.where(eq(testCaseVersion.testCaseId, testCaseId))
 		.orderBy(desc(testCaseVersion.versionNo));
 
-	const [assignedTags, projectTags] = await Promise.all([
+	const [assignedTags, projectTags, assignedAssignees, projectMembers] = await Promise.all([
 		db
 			.select({ id: tag.id, name: tag.name, color: tag.color })
 			.from(testCaseTag)
@@ -44,7 +44,27 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			.select({ id: tag.id, name: tag.name, color: tag.color })
 			.from(tag)
 			.where(eq(tag.projectId, projectId))
-			.orderBy(tag.name)
+			.orderBy(tag.name),
+		db
+			.select({
+				userId: testCaseAssignee.userId,
+				userName: user.name,
+				userImage: user.image
+			})
+			.from(testCaseAssignee)
+			.innerJoin(user, eq(testCaseAssignee.userId, user.id))
+			.where(eq(testCaseAssignee.testCaseId, testCaseId))
+			.orderBy(user.name),
+		db
+			.select({
+				userId: projectMember.userId,
+				userName: user.name,
+				userImage: user.image
+			})
+			.from(projectMember)
+			.innerJoin(user, eq(projectMember.userId, user.id))
+			.where(eq(projectMember.projectId, projectId))
+			.orderBy(user.name)
 	]);
 
 	return json({
@@ -56,7 +76,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		},
 		versions,
 		assignedTags,
-		projectTags
+		projectTags,
+		assignedAssignees,
+		projectMembers
 	});
 };
 

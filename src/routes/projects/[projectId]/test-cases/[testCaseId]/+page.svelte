@@ -279,6 +279,70 @@
 						{/if}
 					{/if}
 				</div>
+
+				<!-- Assignees Section -->
+				<div class="mb-4 flex flex-wrap items-center gap-2">
+					<span class="text-xs font-medium text-muted-foreground mr-1">{m.assignee_title()}:</span>
+					{#each data.assignedAssignees as a (a.userId)}
+						{#if canEdit}
+							<form method="POST" action="?/removeAssignee" use:formEnhance={() => {
+								return async ({ result, update }) => {
+									if (result.type === 'success') {
+										toast.success(m.assignee_removed());
+										await update();
+									}
+								};
+							}} class="inline-flex">
+								<input type="hidden" name="userId" value={a.userId} />
+								<span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium">
+									{a.userName}
+									<button type="submit" class="text-muted-foreground hover:text-foreground ml-0.5">&times;</button>
+								</span>
+							</form>
+						{:else}
+							<Badge variant="outline" class="text-xs">{a.userName}</Badge>
+						{/if}
+					{/each}
+					{#if canEdit}
+						{@const unassignedMembers = data.projectMembers.filter(
+							(pm) => !data.assignedAssignees.some((a) => a.userId === pm.userId)
+						)}
+						{#if unassignedMembers.length > 0}
+							<form method="POST" action="?/assignAssignee" use:formEnhance={() => {
+								return async ({ result, update }) => {
+									if (result.type === 'success') {
+										toast.success(m.assignee_assigned());
+										await update();
+									}
+								};
+							}} class="inline-flex">
+								<input type="hidden" name="userId" value="" />
+								<Select.Root
+									type="single"
+									value=""
+									onValueChange={(v: string) => {
+										if (!v) return;
+										const form = document.querySelector<HTMLFormElement>('form[action="?/assignAssignee"]');
+										if (form) {
+											const hidden = form.querySelector<HTMLInputElement>('input[name="userId"]');
+											if (hidden) hidden.value = v;
+											form.requestSubmit();
+										}
+									}}
+								>
+									<Select.Trigger size="sm" class="h-7 px-2 text-xs">
+										+ {m.assignee_assign()}
+									</Select.Trigger>
+									<Select.Content>
+										{#each unassignedMembers as member (member.userId)}
+											<Select.Item value={member.userId} label={member.userName} />
+										{/each}
+									</Select.Content>
+								</Select.Root>
+							</form>
+						{/if}
+					{/if}
+				</div>
 			{/if}
 
 			{#if editing}

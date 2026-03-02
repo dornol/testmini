@@ -16,8 +16,8 @@
 
 ## 보안
 
-- [ ] 파일 스토리지 path traversal 방어 — `storage.ts`에서 `objectKey`에 `..` 포함 시 차단
-- [ ] `.env.example` 프로덕션 가이드 추가 — 강력한 시크릿 생성 안내
+- [x] 파일 스토리지 path traversal 방어 — `storage.ts`에서 `objectKey`에 `..` 포함 시 차단
+- [x] `.env.example` 프로덕션 가이드 추가 — 강력한 시크릿 생성 안내
 
 ---
 

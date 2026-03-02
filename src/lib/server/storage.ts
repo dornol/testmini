@@ -1,8 +1,16 @@
 import { mkdir, writeFile, readFile, unlink, stat } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
-const UPLOAD_DIR = join(process.cwd(), 'data', 'uploads');
+const UPLOAD_DIR = resolve(process.cwd(), 'data', 'uploads');
+
+function safePath(objectKey: string): string {
+	const filePath = resolve(UPLOAD_DIR, objectKey);
+	if (!filePath.startsWith(UPLOAD_DIR + '/')) {
+		throw new Error('Invalid object key');
+	}
+	return filePath;
+}
 
 function sanitizeFileName(name: string): string {
 	return name.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -19,20 +27,18 @@ export function generateObjectKey(
 }
 
 export async function saveFile(objectKey: string, data: Buffer): Promise<void> {
-	const filePath = join(UPLOAD_DIR, objectKey);
+	const filePath = safePath(objectKey);
 	await mkdir(dirname(filePath), { recursive: true });
 	await writeFile(filePath, data);
 }
 
 export async function getFile(objectKey: string): Promise<Buffer> {
-	const filePath = join(UPLOAD_DIR, objectKey);
-	return readFile(filePath);
+	return readFile(safePath(objectKey));
 }
 
 export async function deleteFile(objectKey: string): Promise<void> {
-	const filePath = join(UPLOAD_DIR, objectKey);
 	try {
-		await unlink(filePath);
+		await unlink(safePath(objectKey));
 	} catch {
 		// File already deleted or doesn't exist
 	}
@@ -40,7 +46,7 @@ export async function deleteFile(objectKey: string): Promise<void> {
 
 export async function fileExists(objectKey: string): Promise<boolean> {
 	try {
-		await stat(join(UPLOAD_DIR, objectKey));
+		await stat(safePath(objectKey));
 		return true;
 	} catch {
 		return false;

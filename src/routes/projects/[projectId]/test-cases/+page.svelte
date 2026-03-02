@@ -354,24 +354,44 @@
 		| { _type: 'group-header'; group: GroupItem }
 		| { _type: 'tc'; tc: TcItem }
 		| { _type: 'quick-create'; groupKey: number }
-		| { _type: 'uncat-header' };
+		| { _type: 'uncat-header'; itemCount: number };
 
-	const flatItems: FlatItem[] = $derived.by(() => {
+	const flatItems = $derived.by(() => {
+		if (!useVirtualScroll) return [] as FlatItem[];
+		const tcs = data.testCases as TcItem[];
 		const items: FlatItem[] = [];
-		for (const group of dndGroups) {
-			items.push({ _type: 'group-header', group });
-			if (!collapsedGroups.has(group.id)) {
-				for (const tc of group.items) {
+
+		// Build group → TC map (O(n) instead of O(n * groups))
+		const groupMap = new Map<number | null, TcItem[]>();
+		for (const tc of tcs) {
+			const key = tc.groupId;
+			if (!groupMap.has(key)) groupMap.set(key, []);
+			groupMap.get(key)!.push(tc);
+		}
+		for (const arr of groupMap.values()) {
+			arr.sort((a, b) => a.sortOrder - b.sortOrder);
+		}
+
+		for (const g of data.groups) {
+			const groupTcs = groupMap.get(g.id) ?? [];
+			items.push({
+				_type: 'group-header',
+				group: { id: g.id, name: g.name, sortOrder: g.sortOrder, color: g.color, items: groupTcs }
+			});
+			if (!collapsedGroups.has(g.id)) {
+				for (const tc of groupTcs) {
 					items.push({ _type: 'tc', tc });
 				}
 				if (canEdit) {
-					items.push({ _type: 'quick-create', groupKey: group.id });
+					items.push({ _type: 'quick-create', groupKey: g.id });
 				}
 			}
 		}
-		items.push({ _type: 'uncat-header' });
+
+		const uncatTcs = groupMap.get(null) ?? [];
+		items.push({ _type: 'uncat-header', itemCount: uncatTcs.length });
 		if (!collapsedGroups.has(-1)) {
-			for (const tc of dndUncategorized) {
+			for (const tc of uncatTcs) {
 				items.push({ _type: 'tc', tc });
 			}
 			if (canEdit) {
@@ -1344,7 +1364,7 @@
 			</form>
 		{/snippet}
 
-		<div class="rounded-lg border bg-card overflow-hidden">
+		<div class="rounded-lg border bg-card overflow-clip">
 			<!-- Column header -->
 			<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/50 sticky top-0 z-10 text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
 				{#if canEdit}
@@ -1371,7 +1391,7 @@
 
 			{#if useVirtualScroll}
 				<!-- Virtual scroll mode -->
-				<VirtualList items={flatItems} rowHeight={32} height="calc(100vh - 300px)">
+				<VirtualList items={flatItems} rowHeight={32} useWindowScroll>
 					{#snippet children({ item })}
 						{@const row = item as FlatItem}
 						{#if row._type === 'group-header'}
@@ -1462,7 +1482,7 @@
 									{/if}
 								</button>
 								<span class="text-muted-foreground">{m.group_uncategorized()}</span>
-								<span class="text-xs text-muted-foreground font-normal">({dndUncategorized.length})</span>
+								<span class="text-xs text-muted-foreground font-normal">({(row as { itemCount: number }).itemCount})</span>
 							</div>
 						{/if}
 					{/snippet}

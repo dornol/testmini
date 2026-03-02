@@ -6,6 +6,7 @@
 		rowHeight?: number;
 		overscan?: number;
 		height?: string;
+		useWindowScroll?: boolean;
 		children: Snippet<[{ item: unknown; index: number }]>;
 	}
 
@@ -14,9 +15,11 @@
 		rowHeight = 44,
 		overscan = 10,
 		height = '420px',
+		useWindowScroll = false,
 		children
 	}: Props = $props();
 
+	let container: HTMLDivElement | undefined = $state();
 	let scrollTop = $state(0);
 	let viewportHeight = $state(0);
 
@@ -34,12 +37,35 @@
 		scrollTop = target.scrollTop;
 		viewportHeight = target.clientHeight;
 	}
+
+	function updateWindowScroll() {
+		if (!container) return;
+		const rect = container.getBoundingClientRect();
+		viewportHeight = window.innerHeight;
+		scrollTop = Math.max(0, -rect.top);
+	}
+
+	$effect(() => {
+		if (!container) return;
+		if (useWindowScroll) {
+			updateWindowScroll();
+			window.addEventListener('scroll', updateWindowScroll, { passive: true });
+			window.addEventListener('resize', updateWindowScroll, { passive: true });
+			return () => {
+				window.removeEventListener('scroll', updateWindowScroll);
+				window.removeEventListener('resize', updateWindowScroll);
+			};
+		} else {
+			viewportHeight = container.clientHeight;
+		}
+	});
 </script>
 
 <div
-	class="overflow-auto"
-	style="height: {height};"
-	onscroll={handleScroll}
+	bind:this={container}
+	class={useWindowScroll ? '' : 'overflow-auto'}
+	style={useWindowScroll ? '' : `height: ${height};`}
+	onscroll={useWindowScroll ? undefined : handleScroll}
 >
 	<div style="height: {topSpacer}px;"></div>
 	{#each visibleItems as item, i (startIndex + i)}

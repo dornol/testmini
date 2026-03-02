@@ -12,6 +12,11 @@
 	const envStats = $derived(data.envStats);
 	const recentRuns = $derived(data.recentRuns);
 	const priorityStats = $derived(data.priorityStats);
+	const creatorStats = $derived(data.creatorStats);
+	const assigneeStats = $derived(data.assigneeStats);
+	const dailyResults = $derived(data.dailyResults);
+	const executorStats = $derived(data.executorStats);
+	const topFailingCases = $derived(data.topFailingCases);
 
 	let selectedRunIds = $state(new Set<number>());
 
@@ -63,6 +68,43 @@
 				{
 					label: m.dashboard_skipped(),
 					data: recentRuns.map((r) => r.skippedCount),
+					backgroundColor: '#9ca3af'
+				}
+			]
+		},
+		options: {
+			responsive: true,
+			plugins: { legend: { position: 'bottom' } },
+			scales: {
+				x: { stacked: true },
+				y: { stacked: true, beginAtZero: true }
+			}
+		}
+	});
+
+	const dailyBarConfig = $derived<ChartConfiguration>({
+		type: 'bar',
+		data: {
+			labels: dailyResults.map((d) => d.date),
+			datasets: [
+				{
+					label: m.reports_pass(),
+					data: dailyResults.map((d) => d.passCount),
+					backgroundColor: '#22c55e'
+				},
+				{
+					label: m.reports_fail(),
+					data: dailyResults.map((d) => d.failCount),
+					backgroundColor: '#ef4444'
+				},
+				{
+					label: m.dashboard_blocked(),
+					data: dailyResults.map((d) => d.blockedCount),
+					backgroundColor: '#f97316'
+				},
+				{
+					label: m.dashboard_skipped(),
+					data: dailyResults.map((d) => d.skippedCount),
 					backgroundColor: '#9ca3af'
 				}
 			]
@@ -156,6 +198,18 @@
 		</Card.Root>
 	{/if}
 
+	<!-- Daily Test Run Results (stacked bar chart) -->
+	{#if dailyResults.length > 0}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="text-sm font-medium">{m.reports_daily_results()}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<Chart config={dailyBarConfig} />
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
 	<!-- Priority Breakdown -->
 	{#if priorityStats.length > 0}
 		<Card.Root>
@@ -186,6 +240,191 @@
 								<Table.Cell>{total}</Table.Cell>
 								<Table.Cell class="text-green-600">{pass}</Table.Cell>
 								<Table.Cell class="text-red-600">{fail}</Table.Cell>
+								<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
+								<Table.Cell>
+									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
+										{#if pass > 0}
+											<div class="bg-green-500" style="width: {barWidth(pass, total)}"></div>
+										{/if}
+										{#if fail > 0}
+											<div class="bg-red-500" style="width: {barWidth(fail, total)}"></div>
+										{/if}
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
+	<!-- Test Cases by Creator -->
+	{#if creatorStats.length > 0}
+		{@const maxCreatorCount = Math.max(...creatorStats.map((c) => c.caseCount))}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="text-sm font-medium">{m.reports_by_creator()}</Card.Title>
+			</Card.Header>
+			<Card.Content class="p-0">
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>{m.reports_creator()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_case_count()}</Table.Head>
+							<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each creatorStats as cs (cs.userId)}
+							<Table.Row>
+								<Table.Cell class="font-medium">{cs.userName}</Table.Cell>
+								<Table.Cell>{cs.caseCount}</Table.Cell>
+								<Table.Cell>
+									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
+										<div class="bg-blue-500" style="width: {barWidth(cs.caseCount, maxCreatorCount)}"></div>
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
+	<!-- Pass/Fail Rate by Assignee -->
+	{#if assigneeStats.length > 0}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="text-sm font-medium">{m.reports_by_assignee()}</Card.Title>
+			</Card.Header>
+			<Card.Content class="p-0">
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>{m.reports_assignee()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_assigned()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_fail()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass_rate()}</Table.Head>
+							<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each assigneeStats as as_ (as_.userId)}
+							{@const total = as_.totalExecs}
+							{@const pass = as_.passCount}
+							{@const fail = as_.failCount}
+							<Table.Row>
+								<Table.Cell class="font-medium">{as_.userName}</Table.Cell>
+								<Table.Cell>{as_.assignedCount}</Table.Cell>
+								<Table.Cell class="text-green-600">{pass}</Table.Cell>
+								<Table.Cell class="text-red-600">{fail}</Table.Cell>
+								<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
+								<Table.Cell>
+									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
+										{#if pass > 0}
+											<div class="bg-green-500" style="width: {barWidth(pass, total)}"></div>
+										{/if}
+										{#if fail > 0}
+											<div class="bg-red-500" style="width: {barWidth(fail, total)}"></div>
+										{/if}
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
+	<!-- Activity by Executor -->
+	{#if executorStats.length > 0}
+		{@const maxExecCount = Math.max(...executorStats.map((e) => e.execCount))}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="text-sm font-medium">{m.reports_by_executor()}</Card.Title>
+			</Card.Header>
+			<Card.Content class="p-0">
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>{m.reports_executor()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_executions()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_fail()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass_rate()}</Table.Head>
+							<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each executorStats as es (es.userId)}
+							{@const total = es.execCount}
+							{@const pass = es.passCount}
+							{@const fail = es.failCount}
+							<Table.Row>
+								<Table.Cell class="font-medium">{es.userName}</Table.Cell>
+								<Table.Cell>{total}</Table.Cell>
+								<Table.Cell class="text-green-600">{pass}</Table.Cell>
+								<Table.Cell class="text-red-600">{fail}</Table.Cell>
+								<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
+								<Table.Cell>
+									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
+										{#if pass > 0}
+											<div class="bg-green-500" style="width: {barWidth(pass, total)}"></div>
+										{/if}
+										{#if fail > 0}
+											<div class="bg-red-500" style="width: {barWidth(fail, total)}"></div>
+										{/if}
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
+	<!-- Top Failing Test Cases -->
+	{#if topFailingCases.length > 0}
+		{@const maxFailCount = Math.max(...topFailingCases.map((t) => t.failCount))}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="text-sm font-medium">{m.reports_top_failing()}</Card.Title>
+			</Card.Header>
+			<Card.Content class="p-0">
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>{m.reports_test_case()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_total()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_fail_count()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass_rate()}</Table.Head>
+							<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each topFailingCases as tc (tc.testCaseId)}
+							{@const total = tc.totalExecs}
+							{@const fail = tc.failCount}
+							{@const pass = tc.passCount}
+							<Table.Row
+								class="cursor-pointer"
+								onclick={() => { window.location.href = `/projects/${data.project.id}/test-cases/${tc.testCaseId}`; }}
+							>
+								<Table.Cell>
+									<div>
+										<span class="text-muted-foreground text-xs">{tc.testCaseKey}</span>
+										<span class="ml-1 font-medium">{tc.title}</span>
+									</div>
+								</Table.Cell>
+								<Table.Cell>{total}</Table.Cell>
+								<Table.Cell class="text-red-600 font-medium">{fail}</Table.Cell>
+								<Table.Cell class="text-green-600">{pass}</Table.Cell>
 								<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
 								<Table.Cell>
 									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">

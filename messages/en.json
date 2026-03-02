@@ -476,6 +476,24 @@
 	"reports_export_selected": "Export Selected ({count})",
 	"reports_select_all": "Select All",
 
+	"reports_by_creator": "Test Cases by Creator",
+	"reports_creator": "Creator",
+	"reports_case_count": "Cases",
+
+	"reports_by_assignee": "Pass/Fail Rate by Assignee",
+	"reports_assignee": "Assignee",
+	"reports_assigned": "Assigned",
+
+	"reports_daily_results": "Daily Test Run Results",
+
+	"reports_by_executor": "Activity by Executor",
+	"reports_executor": "Executor",
+	"reports_executions": "Executions",
+
+	"reports_top_failing": "Top Failing Test Cases",
+	"reports_test_case": "Test Case",
+	"reports_fail_count": "Fails",
+
 	"tc_version_compare": "Compare Versions",
 	"tc_version_diff_title": "Version Diff",
 	"tc_version_select_hint": "Select 2 versions to compare",

@@ -22,7 +22,7 @@
 </script>
 
 <div class="mx-auto max-w-2xl">
-	<div class="mb-6">
+	<div class="mb-4">
 		<a
 			href="/projects/{data.project.id}/test-cases"
 			class="text-muted-foreground hover:text-foreground text-sm">&larr; {m.common_back_to({ target: m.tc_title() })}</a
@@ -31,11 +31,11 @@
 
 	<Card.Root>
 		<Card.Header>
-			<Card.Title class="text-2xl">{m.tc_new_title()}</Card.Title>
+			<Card.Title class="text-xl">{m.tc_new_title()}</Card.Title>
 			<Card.Description>{m.tc_new_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			<form method="POST" use:enhance class="space-y-6">
+			<form method="POST" use:enhance class="space-y-4">
 				<div class="space-y-2">
 					<Label for="title">{m.tc_title_label()}</Label>
 					<Input id="title" name="title" bind:value={$form.title} placeholder={m.tc_title_placeholder()} />

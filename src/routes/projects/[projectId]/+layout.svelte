@@ -22,21 +22,21 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	<div>
 		<div class="mb-1">
 			<a href="/projects" class="text-muted-foreground hover:text-foreground text-sm">&larr; {m.projects_all()}</a>
 		</div>
-		<h1 class="text-2xl font-bold">{data.project.name}</h1>
+		<h1 class="text-xl font-bold">{data.project.name}</h1>
 	</div>
 
 	<nav class="border-b">
-		<div class="flex gap-4">
+		<div class="flex gap-2">
 			{#each tabs as tab (tab.href)}
 				<a
 					href={tab.href}
 					class={cn(
-						'-mb-px border-b-2 px-1 py-2 text-sm font-medium transition-colors',
+						'-mb-px border-b-2 px-1 py-1.5 text-sm font-medium transition-colors',
 						isActive(tab.href, tab.exact)
 							? 'border-primary text-foreground'
 							: 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'

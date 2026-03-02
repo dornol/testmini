@@ -27,7 +27,7 @@
 	let deactivateOpen = $state(false);
 </script>
 
-<div class="space-y-8">
+<div class="space-y-4">
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>{m.settings_general()}</Card.Title>

@@ -17,13 +17,13 @@
 </script>
 
 <div class="mx-auto max-w-lg">
-	<div class="mb-6">
+	<div class="mb-4">
 		<a href="/projects" class="text-muted-foreground hover:text-foreground text-sm">&larr; {m.common_back_to({ target: m.nav_projects() })}</a>
 	</div>
 
 	<Card.Root>
 		<Card.Header>
-			<Card.Title class="text-2xl">{m.project_new_title()}</Card.Title>
+			<Card.Title class="text-xl">{m.project_new_title()}</Card.Title>
 			<Card.Description>{m.project_new_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content>

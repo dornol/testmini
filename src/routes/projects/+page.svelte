@@ -48,13 +48,13 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	<div class="flex items-center justify-between">
-		<h1 class="text-2xl font-bold">{m.projects_title()}</h1>
+		<h1 class="text-xl font-bold">{m.projects_title()}</h1>
 		<Button href="/projects/new">{m.projects_new()}</Button>
 	</div>
 
-	<div class="flex items-center gap-3">
+	<div class="flex items-center gap-2">
 		<Input
 			placeholder={m.projects_search_placeholder()}
 			class="max-w-sm"
@@ -67,7 +67,7 @@
 	</div>
 
 	{#if data.projects.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
+		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
 			<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground mb-4">
 				<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
 			</svg>

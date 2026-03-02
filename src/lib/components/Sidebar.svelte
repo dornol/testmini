@@ -30,16 +30,16 @@
 
 <aside
 	class={cn(
-		'fixed left-0 top-14 z-40 flex h-[calc(100dvh-3.5rem)] w-60 flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0',
+		'fixed left-0 top-11 z-40 flex h-[calc(100dvh-2.75rem)] w-52 flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0',
 		open ? 'translate-x-0' : '-translate-x-full'
 	)}
 >
-	<nav class="flex-1 space-y-1 p-3">
+	<nav class="flex-1 space-y-0.5 p-2">
 		{#each navItems as item}
 			<a
 				href={item.href}
 				class={cn(
-					'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+					'flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors',
 					isActive(item.href)
 						? 'bg-sidebar-accent text-sidebar-accent-foreground'
 						: 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -56,11 +56,11 @@
 	</nav>
 
 	{#if isAdmin}
-		<div class="border-t border-sidebar-border p-3">
+		<div class="border-t border-sidebar-border p-2">
 			<a
 				href="/admin"
 				class={cn(
-					'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+					'flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors',
 					isActive('/admin')
 						? 'bg-sidebar-accent text-sidebar-accent-foreground'
 						: 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'

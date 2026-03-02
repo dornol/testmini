@@ -177,12 +177,12 @@
 
 <!-- Execution Breakdown -->
 {#if stats.execCounts.total > 0}
-	<Card.Root class="mt-6">
+	<Card.Root class="mt-4">
 		<Card.Header>
 			<Card.Title class="text-sm font-medium">{m.dashboard_exec_summary()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
-			<div class="space-y-3">
+			<div class="space-y-2">
 				<div class="bg-secondary flex h-3 overflow-hidden rounded-full">
 					{#if stats.execCounts.pass > 0}
 						<div
@@ -238,7 +238,7 @@
 
 <!-- Charts Row -->
 {#if stats.execCounts.total > 0 || trendRuns.length > 0}
-	<div class="mt-6 grid gap-6 lg:grid-cols-2">
+	<div class="mt-4 grid gap-4 lg:grid-cols-2">
 		<!-- Pass Rate Trend -->
 		{#if trendRuns.length > 0}
 			<Card.Root>
@@ -269,12 +269,12 @@
 
 <!-- Activity Log -->
 {#if activityLog.length > 0}
-	<Card.Root class="mt-6">
+	<Card.Root class="mt-4">
 		<Card.Header>
 			<Card.Title class="text-sm font-medium">{m.dashboard_activity()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
-			<div class="space-y-3">
+			<div class="space-y-2">
 				{#each activityLog as activity (activity.id)}
 					<div class="flex items-center gap-3 text-sm">
 						<span class="inline-block h-2 w-2 rounded-full {activity.status === 'PASS' ? 'bg-green-500' : activity.status === 'FAIL' ? 'bg-red-500' : activity.status === 'BLOCKED' ? 'bg-orange-500' : 'bg-gray-400'}"></span>
@@ -294,7 +294,7 @@
 
 <!-- Recent Test Runs -->
 {#if recentRuns.length > 0}
-	<Card.Root class="mt-6">
+	<Card.Root class="mt-4">
 		<Card.Header>
 			<div class="flex items-center justify-between">
 				<Card.Title class="text-sm font-medium">{m.dashboard_recent_runs()}</Card.Title>
@@ -365,7 +365,7 @@
 
 <!-- Description -->
 {#if proj.description}
-	<Card.Root class="mt-6">
+	<Card.Root class="mt-4">
 		<Card.Header>
 			<Card.Title class="text-sm font-medium">{m.common_description()}</Card.Title>
 		</Card.Header>

@@ -77,7 +77,7 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	<!-- Environment Breakdown -->
 	<Card.Root>
 		<Card.Header>

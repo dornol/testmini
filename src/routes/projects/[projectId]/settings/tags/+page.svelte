@@ -39,7 +39,7 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	<div>
 		<h3 class="text-lg font-semibold">{m.tag_title()}</h3>
 		<p class="text-muted-foreground text-sm">{m.tag_desc()}</p>
@@ -100,7 +100,7 @@
 	{/if}
 
 	{#if data.tags.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
+		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
 			<p class="text-muted-foreground text-sm">{m.tag_empty()}</p>
 		</div>
 	{:else}

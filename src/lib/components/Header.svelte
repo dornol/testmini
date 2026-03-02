@@ -17,7 +17,7 @@
 	}
 </script>
 
-<header class="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background px-4">
+<header class="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-background px-3">
 	<Button variant="ghost" size="icon" onclick={onToggleSidebar} aria-label="Toggle sidebar" class="lg:hidden">
 		<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 			<line x1="4" x2="20" y1="12" y2="12" />
@@ -27,7 +27,7 @@
 	</Button>
 
 	<a href="/" class="flex items-center gap-2 font-semibold">
-		<span class="text-lg">{m.app_name()}</span>
+		<span class="text-base">{m.app_name()}</span>
 	</a>
 
 	<div class="ml-auto flex items-center gap-1">

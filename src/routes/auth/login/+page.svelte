@@ -36,7 +36,7 @@
 
 <Card.Root>
 	<Card.Header>
-		<Card.Title class="text-2xl">{m.auth_login_title()}</Card.Title>
+		<Card.Title class="text-xl">{m.auth_login_title()}</Card.Title>
 		<Card.Description>{m.auth_login_desc()}</Card.Description>
 	</Card.Header>
 	<Card.Content>

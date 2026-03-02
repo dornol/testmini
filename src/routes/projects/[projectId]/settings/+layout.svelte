@@ -19,8 +19,8 @@
 	}
 </script>
 
-<div class="flex gap-8">
-	<nav class="w-48 shrink-0">
+<div class="flex gap-6">
+	<nav class="w-44 shrink-0">
 		<ul class="space-y-1">
 			{#each subNav as item}
 				<li>

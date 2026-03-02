@@ -92,7 +92,7 @@
 </script>
 
 <div class="mx-auto max-w-3xl">
-	<div class="mb-6">
+	<div class="mb-4">
 		<a
 			href="/projects/{data.project.id}/test-runs"
 			class="text-muted-foreground hover:text-foreground text-sm">&larr; {m.common_back_to({ target: m.tr_title() })}</a
@@ -101,11 +101,11 @@
 
 	<Card.Root>
 		<Card.Header>
-			<Card.Title class="text-2xl">{m.tr_new_title()}</Card.Title>
+			<Card.Title class="text-xl">{m.tr_new_title()}</Card.Title>
 			<Card.Description>{m.tr_new_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			<form method="POST" use:enhance class="space-y-6">
+			<form method="POST" use:enhance class="space-y-4">
 				<div class="grid gap-4 sm:grid-cols-2">
 					<div class="space-y-2">
 						<Label for="name">{m.tr_run_name()}</Label>

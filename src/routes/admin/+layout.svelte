@@ -12,19 +12,19 @@
 	];
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	<div>
-		<h1 class="text-2xl font-bold">{m.admin_title()}</h1>
+		<h1 class="text-xl font-bold">{m.admin_title()}</h1>
 		<p class="text-muted-foreground text-sm">{m.admin_desc()}</p>
 	</div>
 
 	<div class="border-b">
-		<nav class="flex gap-4">
+		<nav class="flex gap-2">
 			{#each tabs as tab (tab.href)}
 				<a
 					href={tab.href}
 					class={cn(
-						'-mb-px border-b-2 px-1 pb-3 text-sm font-medium transition-colors',
+						'-mb-px border-b-2 px-1 pb-2 text-sm font-medium transition-colors',
 						page.url.pathname.startsWith(tab.href)
 							? 'border-primary text-foreground'
 							: 'border-transparent text-muted-foreground hover:text-foreground'

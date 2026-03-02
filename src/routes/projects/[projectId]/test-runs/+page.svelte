@@ -179,7 +179,7 @@
 
 	{#if data.runs.length === 0}
 		<div
-			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center"
+			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
 		>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"

@@ -76,7 +76,7 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	<div class="flex items-center justify-between">
 		<div>
 			<h2 class="text-lg font-semibold">{m.members_title()}</h2>

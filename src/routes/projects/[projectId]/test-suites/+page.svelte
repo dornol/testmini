@@ -122,7 +122,7 @@
 	</div>
 
 	{#if data.suites.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
+		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
 			<h3 class="text-lg font-semibold">{m.suite_empty()}</h3>
 			<p class="text-muted-foreground mt-1 text-sm">{m.suite_empty_desc()}</p>
 			{#if canManage}

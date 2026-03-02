@@ -141,7 +141,7 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	<div class="flex items-center justify-between">
 		<div>
 			<a href={basePath} class="text-muted-foreground hover:text-foreground text-sm"
@@ -212,7 +212,7 @@
 		</div>
 	</div>
 
-	<div class="grid gap-6 {showVersions ? 'lg:grid-cols-[1fr_300px]' : ''}">
+	<div class="grid gap-4 {showVersions ? 'lg:grid-cols-[1fr_300px]' : ''}">
 		<!-- Main Content -->
 		<div>
 			<!-- Tags Section -->
@@ -352,7 +352,7 @@
 						<Card.Title>{m.tc_detail_edit()}</Card.Title>
 					</Card.Header>
 					<Card.Content>
-						<form method="POST" action="?/update" use:enhance class="space-y-6">
+						<form method="POST" action="?/update" use:enhance class="space-y-4">
 							<div class="space-y-2">
 								<Label for="title">{m.tc_title_label()}</Label>
 								<Input id="title" name="title" bind:value={$form.title} />
@@ -435,7 +435,7 @@
 							).toLocaleDateString()}
 						</Card.Description>
 					</Card.Header>
-					<Card.Content class="space-y-6">
+					<Card.Content class="space-y-4">
 						{#if version?.precondition}
 							<div>
 								<h4 class="text-sm font-medium">{m.tc_precondition()}</h4>

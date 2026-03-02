@@ -151,7 +151,7 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	<!-- Header -->
 	<div class="flex items-center justify-between">
 		<div>
@@ -186,7 +186,7 @@
 
 	<!-- Items Table -->
 	{#if data.items.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
+		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
 			<h3 class="text-lg font-semibold">{m.suite_no_cases()}</h3>
 			{#if canManage}
 				<Button class="mt-4" onclick={openAddCases}>{m.suite_add_cases()}</Button>

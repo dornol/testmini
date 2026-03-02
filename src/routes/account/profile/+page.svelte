@@ -81,8 +81,8 @@
 	}
 </script>
 
-<div class="mx-auto max-w-2xl space-y-6">
-	<h1 class="text-2xl font-bold">{m.profile_title()}</h1>
+<div class="mx-auto max-w-2xl space-y-4">
+	<h1 class="text-xl font-bold">{m.profile_title()}</h1>
 
 	<!-- Account Information -->
 	<Card.Root>

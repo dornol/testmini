@@ -1,24 +1,22 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
-	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import TagBadge from '$lib/components/TagBadge.svelte';
-	import StepsEditor from '$lib/components/StepsEditor.svelte';
-	import * as m from '$lib/paraglide/messages.js';
 	import { enhance } from '$app/forms';
+	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
 	import { dragHandleZone, dragHandle, TRIGGERS, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import ImportDialog from '$lib/components/ImportDialog.svelte';
+	import TestCaseDetailSheet from './TestCaseDetailSheet.svelte';
+	import FailureDetailsSheet from './FailureDetailsSheet.svelte';
+	import FailWithDetailDialog from './FailWithDetailDialog.svelte';
 
 	let { data } = $props();
 
@@ -39,65 +37,10 @@
 	// Priority popover state (fixed position like status dropdown)
 	let priorityPopover: { tcId: number; currentValue: string; x: number; y: number } | null = $state(null);
 
-	// Failure details sheet state
-	let failureSheetOpen = $state(false);
-	let failureSheetData: {
-		executionId: number;
-		runId: number;
-		failures: Array<{
-			id: number;
-			errorMessage: string | null;
-			testMethod: string | null;
-			failureEnvironment: string | null;
-			stackTrace: string | null;
-			comment: string | null;
-			createdBy: string;
-			createdAt: string;
-			createdByName: string | null;
-		}>;
-		loading: boolean;
-	} | null = $state(null);
-
-	// Fail-with-detail dialog state
-	let failDialogOpen = $state(false);
-	let failDialogRunId = $state<number>(0);
-	let failDialogExecutionId = $state<number>(0);
-	let failDialogKey = $state('');
-	let failErrorMessage = $state('');
-	let failEnvironment = $state('');
-	let failTestMethod = $state('');
-	let failStackTrace = $state('');
-	let failComment = $state('');
-	let failSubmitting = $state(false);
-
-	// Sheet detail panel state
-	let sheetOpen = $state(false);
-	let selectedTcId: number | null = $state(null);
-	let detailData: {
-		testCase: { id: number; key: string; createdAt: string; latestVersion: any };
-		versions: any[];
-		assignedTags: { id: number; name: string; color: string }[];
-		projectTags: { id: number; name: string; color: string }[];
-		assignedAssignees: { userId: string; userName: string; userImage: string | null }[];
-		projectMembers: { userId: string; userName: string; userImage: string | null }[];
-	} | null = $state(null);
-	let detailLoading = $state(false);
-	let detailEditing = $state(false);
-	let detailDeleteOpen = $state(false);
-	let showVersions = $state(false);
-
-	// Detail edit form state
-	let editTitle = $state('');
-	let editPriority = $state('MEDIUM');
-	let editPrecondition = $state('');
-	let editSteps: { action: string; expected: string }[] = $state([]);
-	let editExpectedResult = $state('');
-	let editRevision = $state(1);
-	let editSaving = $state(false);
-
-	// Lock state for sheet detail
-	let sheetLockHolder = $state<{ userName: string } | null>(null);
-	let sheetHeartbeatInterval: ReturnType<typeof setInterval> | undefined;
+	// Component references
+	let detailSheet: TestCaseDetailSheet;
+	let failureSheet: FailureDetailsSheet;
+	let failDialog: FailWithDetailDialog;
 
 	// --- Group view state ---
 	let collapsedGroups: Set<number> = $state(new Set());
@@ -320,15 +263,7 @@
 	) {
 		if (newStatus === 'FAIL') {
 			openDropdown = null;
-			failDialogRunId = runId;
-			failDialogExecutionId = executionId;
-			failDialogKey = tcKey ?? '';
-			failErrorMessage = '';
-			failEnvironment = '';
-			failTestMethod = '';
-			failStackTrace = '';
-			failComment = '';
-			failDialogOpen = true;
+			failDialog.open(runId, executionId, tcKey ?? '');
 			return;
 		}
 		openDropdown = null;
@@ -346,46 +281,6 @@
 			}
 		} catch {
 			// silently fail
-		}
-	}
-
-	async function submitFailWithDetail() {
-		failSubmitting = true;
-		try {
-			const res = await fetch(
-				`/api/projects/${data.project.id}/test-runs/${failDialogRunId}/executions/${failDialogExecutionId}/failures`,
-				{
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						errorMessage: failErrorMessage,
-						failureEnvironment: failEnvironment,
-						testMethod: failTestMethod,
-						stackTrace: failStackTrace,
-						comment: failComment
-					})
-				}
-			);
-			if (res.ok) {
-				failDialogOpen = false;
-				toast.success(m.fail_marked());
-				await invalidateAll();
-				// Refresh failure sheet if it's open for the same execution
-				if (failureSheetOpen && failureSheetData && failureSheetData.executionId === failDialogExecutionId) {
-					fetchFailures(failureSheetData.runId, failureSheetData.executionId);
-				}
-			} else {
-				let msg = `Error ${res.status}`;
-				try {
-					const err = await res.json();
-					msg = err.error || err.message || msg;
-				} catch { /* non-JSON response */ }
-				toast.error(msg);
-			}
-		} catch (e) {
-			toast.error('Network error: ' + String(e));
-		} finally {
-			failSubmitting = false;
 		}
 	}
 
@@ -428,49 +323,6 @@
 			const btn = event.currentTarget as HTMLElement;
 			const rect = btn.getBoundingClientRect();
 			openDropdown = { tcId, runId, x: rect.left + rect.width / 2, y: rect.bottom + 2 };
-		}
-	}
-
-	function openFailureSheet(runId: number, executionId: number) {
-		openDropdown = null;
-		failureSheetData = { executionId, runId, failures: [], loading: true };
-		failureSheetOpen = true;
-		fetchFailures(runId, executionId);
-	}
-
-	function openAddFailureDialog(runId: number, executionId: number, tcKey: string) {
-		openDropdown = null;
-		failDialogRunId = runId;
-		failDialogExecutionId = executionId;
-		failDialogKey = tcKey;
-		failErrorMessage = '';
-		failEnvironment = '';
-		failTestMethod = '';
-		failStackTrace = '';
-		failComment = '';
-		failDialogOpen = true;
-	}
-
-	async function fetchFailures(runId: number, executionId: number) {
-		try {
-			const res = await fetch(
-				`/api/projects/${data.project.id}/test-runs/${runId}/executions/${executionId}/failures`
-			);
-			if (res.ok) {
-				const json = await res.json();
-				if (failureSheetData && failureSheetData.executionId === executionId) {
-					failureSheetData.failures = json.failures;
-					failureSheetData.loading = false;
-				}
-			} else {
-				if (failureSheetData && failureSheetData.executionId === executionId) {
-					failureSheetData.loading = false;
-				}
-			}
-		} catch {
-			if (failureSheetData && failureSheetData.executionId === executionId) {
-				failureSheetData.loading = false;
-			}
 		}
 	}
 
@@ -581,219 +433,6 @@
 
 	const priorityOptions = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
-	// --- Sheet detail panel ---
-	async function openDetail(tcId: number) {
-		selectedTcId = tcId;
-		detailLoading = true;
-		detailEditing = false;
-		showVersions = false;
-		sheetLockHolder = null;
-		sheetOpen = true;
-
-		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-cases/${tcId}`);
-			if (res.ok) {
-				detailData = await res.json();
-			} else {
-				toast.error(m.error_operation_failed());
-				sheetOpen = false;
-			}
-			// Check lock status
-			const lockRes = await fetch(`/api/projects/${data.project.id}/test-cases/${tcId}/lock`);
-			if (lockRes.ok) {
-				const lockData = await lockRes.json();
-				if (lockData.locked) sheetLockHolder = lockData.holder;
-			}
-		} catch {
-			toast.error(m.error_operation_failed());
-			sheetOpen = false;
-		} finally {
-			detailLoading = false;
-		}
-	}
-
-	async function startDetailEdit() {
-		if (!detailData?.testCase.latestVersion || !selectedTcId) return;
-
-		const lockUrl = `/api/projects/${data.project.id}/test-cases/${selectedTcId}/lock`;
-		const res = await fetch(lockUrl, { method: 'POST' });
-		const result = await res.json();
-		if (!res.ok) {
-			toast.error(m.lock_conflict({ name: result.holder?.userName ?? '?' }));
-			sheetLockHolder = result.holder;
-			return;
-		}
-		sheetLockHolder = null;
-
-		// Start heartbeat
-		clearInterval(sheetHeartbeatInterval);
-		sheetHeartbeatInterval = setInterval(() => {
-			fetch(lockUrl, { method: 'PUT' }).catch(() => {});
-		}, 60_000);
-
-		const v = detailData.testCase.latestVersion;
-		editTitle = v.title ?? '';
-		editPriority = v.priority ?? 'MEDIUM';
-		editPrecondition = v.precondition ?? '';
-		editSteps = (v.steps ?? []).map((s: { action: string; expected: string }) => ({
-			action: s.action,
-			expected: s.expected
-		}));
-		editExpectedResult = v.expectedResult ?? '';
-		editRevision = v.revision ?? 1;
-		detailEditing = true;
-	}
-
-	function cancelDetailEdit() {
-		detailEditing = false;
-		releaseSheetLock();
-	}
-
-	function releaseSheetLock() {
-		clearInterval(sheetHeartbeatInterval);
-		if (selectedTcId) {
-			fetch(`/api/projects/${data.project.id}/test-cases/${selectedTcId}/lock`, {
-				method: 'DELETE'
-			}).catch(() => {});
-		}
-		sheetLockHolder = null;
-	}
-
-	async function saveDetailEdit() {
-		if (!selectedTcId) return;
-		editSaving = true;
-
-		try {
-			const res = await fetch(
-				`/api/projects/${data.project.id}/test-cases/${selectedTcId}`,
-				{
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						title: editTitle,
-						precondition: editPrecondition,
-						steps: editSteps,
-						expectedResult: editExpectedResult,
-						priority: editPriority,
-						revision: editRevision
-					})
-				}
-			);
-			if (res.ok) {
-				toast.success('Test case updated');
-				detailEditing = false;
-				releaseSheetLock();
-				await invalidateAll();
-				await openDetail(selectedTcId);
-			} else {
-				const err = await res.json();
-				toast.error(err.error || 'Failed to update');
-			}
-		} catch {
-			toast.error(m.error_update_failed());
-		} finally {
-			editSaving = false;
-		}
-	}
-
-	async function deleteFromSheet() {
-		if (!selectedTcId) return;
-		try {
-			const res = await fetch(
-				`/api/projects/${data.project.id}/test-cases/${selectedTcId}`,
-				{ method: 'DELETE' }
-			);
-			if (res.ok) {
-				toast.success(m.tc_deleted());
-				sheetOpen = false;
-				detailData = null;
-				selectedTcId = null;
-				detailDeleteOpen = false;
-				await invalidateAll();
-			} else {
-				toast.error(m.error_delete_failed());
-			}
-		} catch {
-			toast.error(m.error_delete_failed());
-		}
-	}
-
-	async function assignTag(tagId: number) {
-		if (!selectedTcId) return;
-		const formData = new FormData();
-		formData.set('tagId', String(tagId));
-		try {
-			const res = await fetch(
-				`/projects/${data.project.id}/test-cases/${selectedTcId}?/assignTag`,
-				{ method: 'POST', body: formData }
-			);
-			if (res.ok) {
-				toast.success(m.tag_assigned());
-				await invalidateAll();
-				await openDetail(selectedTcId);
-			}
-		} catch {
-			toast.error(m.error_operation_failed());
-		}
-	}
-
-	async function removeTag(tagId: number) {
-		if (!selectedTcId) return;
-		const formData = new FormData();
-		formData.set('tagId', String(tagId));
-		try {
-			const res = await fetch(
-				`/projects/${data.project.id}/test-cases/${selectedTcId}?/removeTag`,
-				{ method: 'POST', body: formData }
-			);
-			if (res.ok) {
-				toast.success(m.tag_removed());
-				await invalidateAll();
-				await openDetail(selectedTcId);
-			}
-		} catch {
-			toast.error(m.error_remove_failed());
-		}
-	}
-
-	// --- Assignee helpers for sheet detail ---
-	async function assignAssignee(userId: string) {
-		if (!selectedTcId) return;
-		const formData = new FormData();
-		formData.set('userId', userId);
-		try {
-			const res = await fetch(
-				`/projects/${data.project.id}/test-cases/${selectedTcId}?/assignAssignee`,
-				{ method: 'POST', body: formData }
-			);
-			if (res.ok) {
-				toast.success(m.assignee_assigned());
-				await invalidateAll();
-				await openDetail(selectedTcId);
-			}
-		} catch {
-			toast.error(m.error_operation_failed());
-		}
-	}
-
-	async function removeAssignee(userId: string) {
-		if (!selectedTcId) return;
-		const formData = new FormData();
-		formData.set('userId', userId);
-		try {
-			const res = await fetch(
-				`/projects/${data.project.id}/test-cases/${selectedTcId}?/removeAssignee`,
-				{ method: 'POST', body: formData }
-			);
-			if (res.ok) {
-				toast.success(m.assignee_removed());
-				await invalidateAll();
-				await openDetail(selectedTcId);
-			}
-		} catch {
-			toast.error(m.error_remove_failed());
-		}
-	}
 
 	// --- Checkbox selection helpers ---
 	function toggleTcSelection(tcId: number) {
@@ -851,28 +490,6 @@
 		} finally {
 			bulkLoading = false;
 			bulkDeleteOpen = false;
-		}
-	}
-
-	// --- Clone from sheet ---
-	async function cloneFromSheet() {
-		if (!selectedTcId) return;
-		try {
-			const res = await fetch(
-				`/api/projects/${data.project.id}/test-cases/${selectedTcId}/clone`,
-				{ method: 'POST' }
-			);
-			if (res.ok) {
-				const result = await res.json();
-				toast.success(m.tc_cloned());
-				await invalidateAll();
-				await openDetail(result.newTestCaseId);
-			} else {
-				const err = await res.json();
-				toast.error(err.error || 'Failed to clone');
-			}
-		} catch {
-			toast.error(m.error_clone_failed());
 		}
 	}
 
@@ -1768,10 +1385,10 @@
 									<div
 										animate:flip={{ duration: flipDurationMs }}
 										class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 cursor-pointer group/row text-xs"
-										onclick={() => openDetail(tc.id)}
+										onclick={() => detailSheet.open(tc.id)}
 										role="button"
 										tabindex="0"
-										onkeydown={(e) => { if (e.key === 'Enter') openDetail(tc.id); }}
+										onkeydown={(e) => { if (e.key === 'Enter') detailSheet.open(tc.id); }}
 									>
 										{@render tcRow(tc)}
 									</div>
@@ -1823,10 +1440,10 @@
 							<div
 								animate:flip={{ duration: flipDurationMs }}
 								class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 cursor-pointer group/row text-xs"
-								onclick={() => openDetail(tc.id)}
+								onclick={() => detailSheet.open(tc.id)}
 								role="button"
 								tabindex="0"
-								onkeydown={(e) => { if (e.key === 'Enter') openDetail(tc.id); }}
+								onkeydown={(e) => { if (e.key === 'Enter') detailSheet.open(tc.id); }}
 							>
 								{@render tcRow(tc)}
 							</div>
@@ -1873,14 +1490,14 @@
 					<button
 						type="button"
 						class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted text-muted-foreground"
-						onclick={() => openFailureSheet(runId, exec.executionId)}
+						onclick={() => { openDropdown = null; failureSheet.open(runId, exec.executionId); }}
 					>
 						{m.fail_details()}
 					</button>
 					<button
 						type="button"
 						class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted text-muted-foreground"
-						onclick={() => openAddFailureDialog(runId, exec.executionId, tcKey)}
+						onclick={() => { openDropdown = null; failDialog.open(runId, exec.executionId, tcKey); }}
 					>
 						{m.fail_add_detail()}
 					</button>
@@ -1912,28 +1529,33 @@
 	{/if}
 
 	{#if data.usePagination && data.totalPages > 1}
-		<div class="flex items-center justify-center gap-2">
-			<Button
-				variant="outline"
-				size="sm"
-				class="h-7 px-2 text-xs"
-				disabled={data.currentPage <= 1}
-				onclick={() => goToTcPage(data.currentPage - 1)}
-			>
-				{m.common_previous()}
-			</Button>
+		<div class="flex items-center justify-between">
 			<span class="text-muted-foreground text-xs">
-				{m.common_page_of({ page: data.currentPage, totalPages: data.totalPages })}
+				{m.common_total_count({ count: data.totalCount })}
 			</span>
-			<Button
-				variant="outline"
-				size="sm"
-				class="h-7 px-2 text-xs"
-				disabled={data.currentPage >= data.totalPages}
-				onclick={() => goToTcPage(data.currentPage + 1)}
-			>
-				{m.common_next()}
-			</Button>
+			<div class="flex items-center gap-2">
+				<Button
+					variant="outline"
+					size="sm"
+					class="h-7 px-2 text-xs"
+					disabled={data.currentPage <= 1}
+					onclick={() => goToTcPage(data.currentPage - 1)}
+				>
+					{m.common_previous()}
+				</Button>
+				<span class="text-muted-foreground text-xs">
+					{m.common_page_of({ page: data.currentPage, totalPages: data.totalPages })}
+				</span>
+				<Button
+					variant="outline"
+					size="sm"
+					class="h-7 px-2 text-xs"
+					disabled={data.currentPage >= data.totalPages}
+					onclick={() => goToTcPage(data.currentPage + 1)}
+				>
+					{m.common_next()}
+				</Button>
+			</div>
 		</div>
 	{/if}
 </div>
@@ -1957,475 +1579,28 @@
 	</AlertDialog.Portal>
 </AlertDialog.Root>
 
-<!-- Detail Sheet Panel -->
-<Sheet.Root bind:open={sheetOpen} onOpenChange={(open) => { if (!open) { if (detailEditing) releaseSheetLock(); detailEditing = false; detailData = null; selectedTcId = null; } }}>
-	<Sheet.Content side="right" class="sm:max-w-2xl w-full overflow-y-auto p-0 data-[state=open]:duration-300 data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-end data-[state=closed]:slide-out-to-end">
-		{#if detailLoading}
-			<!-- Loading skeleton -->
-			<div class="p-6 space-y-6">
-				<div class="space-y-2">
-					<div class="h-5 w-24 bg-muted animate-pulse rounded"></div>
-					<div class="h-4 w-48 bg-muted animate-pulse rounded"></div>
-				</div>
-				<div class="h-8 w-full bg-muted animate-pulse rounded"></div>
-				<div class="space-y-2">
-					<div class="h-4 w-32 bg-muted animate-pulse rounded"></div>
-					<div class="h-20 w-full bg-muted animate-pulse rounded"></div>
-				</div>
-				<div class="space-y-2">
-					<div class="h-4 w-32 bg-muted animate-pulse rounded"></div>
-					<div class="h-20 w-full bg-muted animate-pulse rounded"></div>
-				</div>
-			</div>
-		{:else if detailData}
-			{@const tc = detailData.testCase}
-			{@const version = tc.latestVersion}
+<TestCaseDetailSheet
+	bind:this={detailSheet}
+	projectId={data.project.id}
+	{canEdit}
+	{canDelete}
+	onchange={() => invalidateAll()}
+/>
 
-			<!-- Header area -->
-			<div class="border-b bg-muted/30 px-6 pt-6 pb-4">
-				<div class="flex items-start justify-between gap-4 pr-8">
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-2.5">
-							<span class="bg-muted font-mono text-xs font-semibold px-2 py-0.5 rounded">{tc.key}</span>
-							{#if version}
-								<Badge variant={priorityVariant(version.priority)} class="text-xs">{version.priority}</Badge>
-							{/if}
-							<span class="text-muted-foreground text-xs">v{version?.versionNo ?? 0}</span>
-						</div>
-						<h3 class="text-lg font-semibold leading-tight">{version?.title ?? ''}</h3>
-						<p class="text-muted-foreground text-xs">
-							Created {new Date(tc.createdAt).toLocaleDateString()}
-						</p>
-					</div>
-				</div>
+<FailureDetailsSheet
+	bind:this={failureSheet}
+	projectId={data.project.id}
+	onaddfailure={(runId, executionId, tcKey) => failDialog.open(runId, executionId, tcKey)}
+/>
 
-				<!-- Lock indicator + Action buttons -->
-				{#if sheetLockHolder && !detailEditing}
-					<div class="mt-3 text-xs text-orange-600">
-						{m.lock_editing_by({ name: sheetLockHolder.userName })}
-					</div>
-				{/if}
-				<div class="flex items-center gap-2 mt-4">
-					{#if canEdit && !detailEditing}
-						<Button size="sm" class="h-7 text-xs" onclick={startDetailEdit}>
-							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-							{m.common_edit()}
-						</Button>
-					{/if}
-					{#if canEdit && !detailEditing}
-						<Button variant="outline" size="sm" class="h-7 text-xs" onclick={cloneFromSheet}>
-							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-							{m.tc_clone()}
-						</Button>
-					{/if}
-					<Button variant="outline" size="sm" class="h-7 text-xs" onclick={() => (showVersions = !showVersions)}>
-						<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
-						{showVersions ? m.tc_detail_hide_history() : m.tc_detail_version_history()}
-					</Button>
-					{#if canDelete && !detailEditing}
-						<AlertDialog.Root bind:open={detailDeleteOpen}>
-							<AlertDialog.Trigger>
-								{#snippet child({ props })}
-									<Button variant="ghost" size="sm" class="h-7 text-xs text-destructive hover:text-destructive" {...props}>
-										<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-										{m.common_delete()}
-									</Button>
-								{/snippet}
-							</AlertDialog.Trigger>
-							<AlertDialog.Portal>
-								<AlertDialog.Overlay />
-								<AlertDialog.Content>
-									<AlertDialog.Header>
-										<AlertDialog.Title>{m.tc_detail_delete_title()}</AlertDialog.Title>
-										<AlertDialog.Description>
-											{m.tc_detail_delete_confirm({ key: tc.key })}
-										</AlertDialog.Description>
-									</AlertDialog.Header>
-									<AlertDialog.Footer>
-										<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-										<Button variant="destructive" onclick={deleteFromSheet}>{m.common_delete()}</Button>
-									</AlertDialog.Footer>
-								</AlertDialog.Content>
-							</AlertDialog.Portal>
-						</AlertDialog.Root>
-					{/if}
-				</div>
-			</div>
-
-			<!-- Content area -->
-			<div class="px-6 py-5 space-y-5">
-				<!-- Tags section -->
-				{#if !detailEditing && (detailData.assignedTags.length > 0 || canEdit)}
-					<div class="flex flex-wrap items-center gap-1.5">
-						{#each detailData.assignedTags as t (t.id)}
-							{#if canEdit}
-								<span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium hover:bg-muted/50 transition-colors">
-									<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {t.color}"></span>
-									{t.name}
-									<button type="button" class="text-muted-foreground hover:text-destructive ml-0.5 transition-colors" onclick={() => removeTag(t.id)}>&times;</button>
-								</span>
-							{:else}
-								<TagBadge name={t.name} color={t.color} />
-							{/if}
-						{/each}
-						{#if canEdit}
-							{@const unassignedTags = detailData.projectTags.filter(
-								(pt) => !detailData!.assignedTags.some((at) => at.id === pt.id)
-							)}
-							{#if unassignedTags.length > 0}
-								<DropdownMenu.Root>
-									<DropdownMenu.Trigger>
-										{#snippet child({ props })}
-											<button type="button" class="border-input bg-background h-6 rounded-md border px-2 text-xs hover:bg-muted/50 transition-colors cursor-pointer" {...props}>
-												+ {m.tag_assign()}
-											</button>
-										{/snippet}
-									</DropdownMenu.Trigger>
-									<DropdownMenu.Content align="start" class="min-w-[140px]">
-										{#each unassignedTags as t (t.id)}
-											<DropdownMenu.Item onclick={() => assignTag(t.id)} class="text-xs">
-												<span class="mr-1.5 inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
-												{t.name}
-											</DropdownMenu.Item>
-										{/each}
-									</DropdownMenu.Content>
-								</DropdownMenu.Root>
-							{/if}
-						{/if}
-					</div>
-				{/if}
-
-				<!-- Assignees section -->
-				{#if !detailEditing && detailData.assignedAssignees}
-					<div class="flex flex-wrap items-center gap-1.5">
-						<span class="text-xs font-medium text-muted-foreground mr-1">{m.assignee_title()}:</span>
-						{#each detailData.assignedAssignees as a (a.userId)}
-							{#if canEdit}
-								<span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium hover:bg-muted/50 transition-colors">
-									{a.userName}
-									<button type="button" class="text-muted-foreground hover:text-destructive ml-0.5 transition-colors" onclick={() => removeAssignee(a.userId)}>&times;</button>
-								</span>
-							{:else}
-								<Badge variant="outline" class="text-xs">{a.userName}</Badge>
-							{/if}
-						{/each}
-						{#if canEdit && detailData.projectMembers}
-							{@const unassignedMembers = detailData.projectMembers.filter(
-								(pm) => !detailData!.assignedAssignees.some((a) => a.userId === pm.userId)
-							)}
-							{#if unassignedMembers.length > 0}
-								<DropdownMenu.Root>
-									<DropdownMenu.Trigger>
-										{#snippet child({ props })}
-											<button type="button" class="border-input bg-background h-6 rounded-md border px-2 text-xs hover:bg-muted/50 transition-colors cursor-pointer" {...props}>
-												+ {m.assignee_assign()}
-											</button>
-										{/snippet}
-									</DropdownMenu.Trigger>
-									<DropdownMenu.Content align="start" class="min-w-[140px]">
-										{#each unassignedMembers as member (member.userId)}
-											<DropdownMenu.Item onclick={() => assignAssignee(member.userId)} class="text-xs">
-												{member.userName}
-											</DropdownMenu.Item>
-										{/each}
-									</DropdownMenu.Content>
-								</DropdownMenu.Root>
-							{/if}
-						{/if}
-					</div>
-				{/if}
-
-				{#if detailEditing}
-					<!-- Edit Mode -->
-					<div class="space-y-5">
-						<div class="space-y-1.5">
-							<Label for="detail-title" class="text-xs font-medium text-muted-foreground">{m.tc_title_label()}</Label>
-							<Input id="detail-title" bind:value={editTitle} class="h-9" />
-						</div>
-
-						<div class="space-y-1.5">
-							<Label class="text-xs font-medium text-muted-foreground">{m.common_priority()}</Label>
-							<DropdownMenu.Root>
-								<DropdownMenu.Trigger>
-									{#snippet child({ props })}
-										<Button variant="outline" class="h-9 w-full justify-between text-sm font-normal" {...props}>
-											<span class="flex items-center gap-2">
-												<Badge variant={priorityVariant(editPriority)} class="text-[10px] px-1.5 py-0 pointer-events-none">{editPriority}</Badge>
-											</span>
-											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><polyline points="6 9 12 15 18 9"/></svg>
-										</Button>
-									{/snippet}
-								</DropdownMenu.Trigger>
-								<DropdownMenu.Content class="min-w-[160px]">
-									{#each priorityOptions as p}
-										<DropdownMenu.Item onclick={() => { editPriority = p; }} class="text-sm">
-											<Badge variant={priorityVariant(p)} class="text-[10px] px-1.5 py-0 pointer-events-none mr-2">{p}</Badge>
-											{p === 'LOW' ? m.priority_low() : p === 'MEDIUM' ? m.priority_medium() : p === 'HIGH' ? m.priority_high() : m.priority_critical()}
-										</DropdownMenu.Item>
-									{/each}
-								</DropdownMenu.Content>
-							</DropdownMenu.Root>
-						</div>
-
-						<div class="space-y-1.5">
-							<Label for="detail-precondition" class="text-xs font-medium text-muted-foreground">{m.tc_precondition()}</Label>
-							<Textarea id="detail-precondition" bind:value={editPrecondition} rows={3} class="text-sm" />
-						</div>
-
-						<StepsEditor
-							value={editSteps}
-							onchange={(s) => { editSteps = s; }}
-						/>
-
-						<div class="space-y-1.5">
-							<Label for="detail-expected" class="text-xs font-medium text-muted-foreground">{m.tc_expected_result()}</Label>
-							<Textarea id="detail-expected" bind:value={editExpectedResult} rows={3} class="text-sm" />
-						</div>
-
-						<div class="flex gap-2 pt-2 border-t">
-							<Button size="sm" onclick={saveDetailEdit} disabled={editSaving}>
-								{editSaving ? m.common_saving() : m.common_save_changes()}
-							</Button>
-							<Button variant="outline" size="sm" onclick={cancelDetailEdit}>{m.common_cancel()}</Button>
-						</div>
-					</div>
-				{:else if version}
-					<!-- View Mode -->
-					<div class="space-y-5">
-						{#if version.precondition}
-							<div class="space-y-1.5">
-								<div class="flex items-center gap-1.5">
-									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
-									<h4 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{m.tc_precondition()}</h4>
-								</div>
-								<div class="bg-muted/40 rounded-lg p-3">
-									<p class="whitespace-pre-wrap text-sm leading-relaxed">{version.precondition}</p>
-								</div>
-							</div>
-						{/if}
-
-						{#if version.steps && version.steps.length > 0}
-							<div class="space-y-2">
-								<div class="flex items-center gap-1.5">
-									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/></svg>
-									<h4 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{m.tc_detail_steps()}</h4>
-								</div>
-								<div class="space-y-2">
-									{#each version.steps as step (step.order)}
-										<div class="rounded-lg border p-3 hover:bg-muted/20 transition-colors">
-											<div class="flex items-center gap-2 mb-1.5">
-												<span class="bg-primary/10 text-primary text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center shrink-0">{step.order}</span>
-												<span class="text-xs font-medium text-muted-foreground">{m.tc_detail_action()}</span>
-											</div>
-											<p class="text-sm pl-7">{step.action}</p>
-											{#if step.expected}
-												<div class="mt-2 pl-7 border-l-2 border-muted ml-2.5">
-													<span class="text-xs text-muted-foreground">{m.tc_detail_expected()}</span>
-													<p class="text-sm">{step.expected}</p>
-												</div>
-											{/if}
-										</div>
-									{/each}
-								</div>
-							</div>
-						{/if}
-
-						{#if version.expectedResult}
-							<div class="space-y-1.5">
-								<div class="flex items-center gap-1.5">
-									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-									<h4 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{m.tc_expected_result()}</h4>
-								</div>
-								<div class="bg-green-50 dark:bg-green-950/20 rounded-lg p-3 border border-green-200/50 dark:border-green-800/30">
-									<p class="whitespace-pre-wrap text-sm leading-relaxed">{version.expectedResult}</p>
-								</div>
-							</div>
-						{/if}
-
-						{#if !version.precondition && (!version.steps || version.steps.length === 0) && !version.expectedResult}
-							<div class="text-center py-8">
-								<p class="text-muted-foreground text-sm">{m.common_no_results()}</p>
-								{#if canEdit}
-									<Button variant="outline" size="sm" class="mt-3" onclick={startDetailEdit}>{m.common_edit()}</Button>
-								{/if}
-							</div>
-						{/if}
-					</div>
-				{/if}
-
-				<!-- Version History (collapsible) -->
-				{#if showVersions}
-					<div class="border-t pt-4">
-						<div class="flex items-center gap-1.5 mb-3">
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
-							<h4 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{m.tc_detail_version_history()}</h4>
-						</div>
-						{#if detailData.versions.length === 0}
-							<p class="text-muted-foreground text-sm">{m.tc_detail_no_versions()}</p>
-						{:else}
-							<div class="space-y-1.5">
-								{#each detailData.versions as v (v.id)}
-									<div class="rounded-lg border p-3 transition-colors {v.id === version?.id ? 'border-primary/50 bg-primary/5' : 'hover:bg-muted/30'}">
-										<div class="flex items-center justify-between">
-											<div class="flex items-center gap-2">
-												<span class="text-xs font-semibold {v.id === version?.id ? 'text-primary' : ''}">v{v.versionNo}</span>
-												{#if v.id === version?.id}
-													<span class="text-[10px] bg-primary/10 text-primary rounded px-1.5 py-0.5">latest</span>
-												{/if}
-											</div>
-											<Badge variant={priorityVariant(v.priority)} class="text-[10px]">{v.priority}</Badge>
-										</div>
-										<p class="mt-1 text-sm truncate">{v.title}</p>
-										<div class="text-muted-foreground mt-1 text-xs">
-											{v.updatedBy} &middot; {new Date(v.createdAt).toLocaleDateString()}
-										</div>
-									</div>
-								{/each}
-							</div>
-						{/if}
-					</div>
-				{/if}
-			</div>
-		{/if}
-	</Sheet.Content>
-</Sheet.Root>
-
-<Sheet.Root bind:open={failureSheetOpen} onOpenChange={(open) => { if (!open) { failureSheetData = null; } }}>
-	<Sheet.Content side="right" class="sm:max-w-xl w-full overflow-y-auto p-0">
-		<Sheet.Header class="px-6 py-4 border-b flex flex-row items-center justify-between">
-			<Sheet.Title>{m.fail_details()}</Sheet.Title>
-			{#if failureSheetData && !failureSheetData.loading}
-				<Button
-					variant="outline"
-					size="sm"
-					onclick={() => {
-						if (failureSheetData) {
-							openAddFailureDialog(failureSheetData.runId, failureSheetData.executionId, '');
-						}
-					}}
-				>
-					{m.fail_add_detail()}
-				</Button>
-			{/if}
-		</Sheet.Header>
-		<div class="px-6 py-4">
-			{#if failureSheetData?.loading}
-				<div class="text-center text-sm text-muted-foreground py-8">{m.tc_failure_loading()}</div>
-			{:else if failureSheetData && failureSheetData.failures.length === 0}
-				<div class="text-center text-sm text-muted-foreground py-8">{m.fail_no_details()}</div>
-			{:else if failureSheetData}
-				<div class="space-y-4">
-					{#each failureSheetData.failures as f (f.id)}
-						<div class="border rounded-lg p-4 space-y-2">
-							{#if f.errorMessage}
-								<div>
-									<div class="text-xs font-medium text-muted-foreground mb-1">{m.fail_error()}</div>
-									<div class="text-sm text-red-600 dark:text-red-400">{f.errorMessage}</div>
-								</div>
-							{/if}
-							{#if f.testMethod}
-								<div>
-									<div class="text-xs font-medium text-muted-foreground mb-1">{m.fail_method()}</div>
-									<div class="text-sm">{f.testMethod}</div>
-								</div>
-							{/if}
-							{#if f.failureEnvironment}
-								<div>
-									<div class="text-xs font-medium text-muted-foreground mb-1">{m.common_environment()}</div>
-									<div class="text-sm">{f.failureEnvironment}</div>
-								</div>
-							{/if}
-							{#if f.stackTrace}
-								<div>
-									<div class="text-xs font-medium text-muted-foreground mb-1">{m.fail_stack_trace()}</div>
-									<pre class="text-xs bg-muted p-3 rounded-md overflow-x-auto whitespace-pre-wrap break-all max-h-60 overflow-y-auto">{f.stackTrace}</pre>
-								</div>
-							{/if}
-							{#if f.comment}
-								<div>
-									<div class="text-xs font-medium text-muted-foreground mb-1">{m.common_comment()}</div>
-									<div class="text-sm">{f.comment}</div>
-								</div>
-							{/if}
-							<div class="text-xs text-muted-foreground pt-1 border-t">
-								{f.createdByName ?? f.createdBy} &middot; {new Date(f.createdAt).toLocaleString()}
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
-	</Sheet.Content>
-</Sheet.Root>
-
-<!-- FAIL with Detail Dialog -->
-<Dialog.Root bind:open={failDialogOpen}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-lg">
-			<Dialog.Header>
-				<Dialog.Title>{m.fail_mark_title({ key: failDialogKey })}</Dialog.Title>
-				<Dialog.Description>{m.fail_mark_desc()}</Dialog.Description>
-			</Dialog.Header>
-			<div class="space-y-4 py-4">
-				<div class="space-y-2">
-					<Label for="failErrorMessage">{m.fail_error_message()}</Label>
-					<Textarea
-						id="failErrorMessage"
-						bind:value={failErrorMessage}
-						placeholder={m.fail_error_placeholder()}
-						rows={2}
-					/>
-				</div>
-				<div class="grid gap-4 sm:grid-cols-2">
-					<div class="space-y-2">
-						<Label for="failEnvironment">{m.common_environment()}</Label>
-						<Input
-							id="failEnvironment"
-							bind:value={failEnvironment}
-							placeholder={m.fail_env_placeholder()}
-						/>
-					</div>
-					<div class="space-y-2">
-						<Label for="failTestMethod">{m.fail_method_label()}</Label>
-						<Input
-							id="failTestMethod"
-							bind:value={failTestMethod}
-							placeholder={m.fail_method_placeholder()}
-						/>
-					</div>
-				</div>
-				<div class="space-y-2">
-					<Label for="failStackTrace">{m.fail_stack_trace()}</Label>
-					<Textarea
-						id="failStackTrace"
-						bind:value={failStackTrace}
-						placeholder={m.fail_stack_placeholder()}
-						rows={4}
-						class="font-mono text-xs"
-					/>
-				</div>
-				<div class="space-y-2">
-					<Label for="failCommentInput">{m.common_comment()}</Label>
-					<Textarea
-						id="failCommentInput"
-						bind:value={failComment}
-						placeholder={m.fail_comment_placeholder()}
-						rows={2}
-					/>
-				</div>
-			</div>
-			<Dialog.Footer>
-				<Button type="button" variant="outline" onclick={() => (failDialogOpen = false)}>
-					{m.common_cancel()}
-				</Button>
-				<Button variant="destructive" disabled={failSubmitting} onclick={submitFailWithDetail}>
-					{failSubmitting ? m.common_saving() : m.fail_mark_submit()}
-				</Button>
-			</Dialog.Footer>
-		</Dialog.Content>
-	</Dialog.Portal>
-</Dialog.Root>
+<FailWithDetailDialog
+	bind:this={failDialog}
+	projectId={data.project.id}
+	onsubmitted={(runId, executionId) => {
+		invalidateAll();
+		failureSheet.refreshIfMatch(runId, executionId);
+	}}
+/>
 
 <ImportDialog
 	bind:open={importDialogOpen}

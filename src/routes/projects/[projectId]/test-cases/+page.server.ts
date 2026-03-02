@@ -306,7 +306,8 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		executionMap,
 		usePagination,
 		currentPage,
-		totalPages
+		totalPages,
+		totalCount: total
 	};
 };
 

@@ -16,6 +16,7 @@
 
 	"common_search": "검색",
 	"common_cancel": "취소",
+	"common_close": "닫기",
 	"common_delete": "삭제",
 	"common_edit": "수정",
 	"common_save_changes": "변경사항 저장",
@@ -42,6 +43,7 @@
 	"common_back_to": "{target}(으)로 돌아가기",
 	"common_no_results": "결과가 없습니다.",
 	"common_page_of": "{page} / {totalPages}",
+	"common_total_count": "총 {count}건",
 	"common_logout": "로그아웃",
 	"common_login": "로그인",
 
@@ -398,6 +400,9 @@
 	"tc_import_success": "{count}개의 테스트 케이스를 가져왔습니다",
 	"tc_import_error": "가져오기 실패",
 	"tc_import_no_file": "파일을 선택해주세요",
+	"tc_import_results": "가져오기 결과",
+	"tc_import_summary": "{imported}건 성공, {skipped}건 건너뜀, {errors}건 오류",
+	"tc_import_new_import": "새로 가져오기",
 	"run_status_filter_all": "전체",
 	"run_showing_count": "{count}개의 실행 표시 중",
 

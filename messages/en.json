@@ -16,6 +16,7 @@
 
 	"common_search": "Search",
 	"common_cancel": "Cancel",
+	"common_close": "Close",
 	"common_delete": "Delete",
 	"common_edit": "Edit",
 	"common_save_changes": "Save Changes",
@@ -42,6 +43,7 @@
 	"common_back_to": "Back to {target}",
 	"common_no_results": "No results found.",
 	"common_page_of": "{page} / {totalPages}",
+	"common_total_count": "{count} items total",
 	"common_logout": "Logout",
 	"common_login": "Login",
 
@@ -398,6 +400,9 @@
 	"tc_import_success": "{count} test cases imported",
 	"tc_import_error": "Import failed",
 	"tc_import_no_file": "Please select a file",
+	"tc_import_results": "Import Results",
+	"tc_import_summary": "{imported} imported, {skipped} skipped, {errors} errors",
+	"tc_import_new_import": "New Import",
 	"run_status_filter_all": "All",
 	"run_showing_count": "Showing {count} executions",
 

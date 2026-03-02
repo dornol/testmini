@@ -158,17 +158,23 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		}
 	}
 
-	// Validate
-	importRows = importRows.filter((row, idx) => {
+	// Validate and track per-row results
+	type RowResult = { row: number; status: 'success' | 'skipped' | 'error'; title?: string; key?: string; error?: string };
+	const rowResults: RowResult[] = [];
+	const validRows: { row: ImportRow; originalIndex: number }[] = [];
+
+	for (let idx = 0; idx < importRows.length; idx++) {
+		const row = importRows[idx];
 		if (!row.title.trim()) {
 			errors.push(`Row ${idx + 1}: Missing title, skipped`);
-			return false;
+			rowResults.push({ row: idx + 1, status: 'skipped', title: '', error: 'Missing title' });
+		} else {
+			validRows.push({ row, originalIndex: idx });
 		}
-		return true;
-	});
+	}
 
-	if (importRows.length === 0) {
-		return json({ imported: 0, errors: ['No valid rows to import', ...errors] }, { status: 400 });
+	if (validRows.length === 0) {
+		return json({ imported: 0, errors: ['No valid rows to import', ...errors], rows: rowResults }, { status: 400 });
 	}
 
 	// Load project tags and groups for matching
@@ -210,59 +216,69 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 			.where(eq(testCase.projectId, projectId));
 		let sortOrder = (maxSortResult?.maxOrder ?? 0) + 1000;
 
-		for (const row of importRows) {
+		for (const { row, originalIndex } of validRows) {
 			const key = `TC-${String(nextNum).padStart(4, '0')}`;
 			nextNum++;
 
-			const groupId = row.group
-				? (groupNameMap.get(row.group.toLowerCase()) ?? null)
-				: null;
+			try {
+				const groupId = row.group
+					? (groupNameMap.get(row.group.toLowerCase()) ?? null)
+					: null;
 
-			const [created] = await tx
-				.insert(testCase)
-				.values({
-					projectId,
-					key,
-					groupId,
-					sortOrder,
-					createdBy: authUser.id
-				})
-				.returning();
+				const [created] = await tx
+					.insert(testCase)
+					.values({
+						projectId,
+						key,
+						groupId,
+						sortOrder,
+						createdBy: authUser.id
+					})
+					.returning();
 
-			const [version] = await tx
-				.insert(testCaseVersion)
-				.values({
-					testCaseId: created.id,
-					versionNo: 1,
-					title: row.title,
-					precondition: row.precondition || null,
-					steps: row.steps,
-					expectedResult: row.expectedResult || null,
-					priority: row.priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
-					updatedBy: authUser.id
-				})
-				.returning();
-
-			await tx
-				.update(testCase)
-				.set({ latestVersionId: version.id })
-				.where(eq(testCase.id, created.id));
-
-			// Link tags
-			for (const tagName of row.tags) {
-				const tagId = tagNameMap.get(tagName.toLowerCase());
-				if (tagId) {
-					await tx.insert(testCaseTag).values({
+				const [version] = await tx
+					.insert(testCaseVersion)
+					.values({
 						testCaseId: created.id,
-						tagId
-					}).onConflictDoNothing();
-				}
-			}
+						versionNo: 1,
+						title: row.title,
+						precondition: row.precondition || null,
+						steps: row.steps,
+						expectedResult: row.expectedResult || null,
+						priority: row.priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+						updatedBy: authUser.id
+					})
+					.returning();
 
-			sortOrder += 1000;
-			imported++;
+				await tx
+					.update(testCase)
+					.set({ latestVersionId: version.id })
+					.where(eq(testCase.id, created.id));
+
+				// Link tags
+				for (const tagName of row.tags) {
+					const tagId = tagNameMap.get(tagName.toLowerCase());
+					if (tagId) {
+						await tx.insert(testCaseTag).values({
+							testCaseId: created.id,
+							tagId
+						}).onConflictDoNothing();
+					}
+				}
+
+				sortOrder += 1000;
+				imported++;
+				rowResults.push({ row: originalIndex + 1, status: 'success', title: row.title, key });
+			} catch (e) {
+				const msg = e instanceof Error ? e.message : String(e);
+				errors.push(`Row ${originalIndex + 1}: ${msg}`);
+				rowResults.push({ row: originalIndex + 1, status: 'error', title: row.title, error: msg });
+			}
 		}
 	});
 
-	return json({ imported, errors });
+	// Sort rowResults by row number for consistent display
+	rowResults.sort((a, b) => a.row - b.row);
+
+	return json({ imported, errors, rows: rowResults });
 };

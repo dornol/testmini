@@ -33,12 +33,12 @@
 
 ## 성능 / 리팩토링
 
-- [ ] 테스트 케이스 페이지 컴포넌트 분리 — 86KB 단일 컴포넌트를 서브컴포넌트로 분할
-  - Failure details sheet
-  - Status dropdown logic
-  - Edit dialogs
-- [ ] 테스트 케이스 목록 페이지네이션 정보 표시 — "Page X of Y", 전체 건수
-- [ ] Import 실패 시 per-row 상태 반환 — 어떤 행이 성공/실패했는지 상세 결과
+- [x] 테스트 케이스 페이지 컴포넌트 분리 — 2434줄 → 1604줄 (34% 감소)
+  - TestCaseDetailSheet (628줄) — 상세 패널, 편집, 태그/담당자, 버전 히스토리
+  - FailureDetailsSheet (137줄) — 실패 상세 시트
+  - FailWithDetailDialog (141줄) — FAIL 상세 입력 다이얼로그
+- [x] 테스트 케이스 목록 페이지네이션 정보 표시 — "Page X of Y", 전체 건수
+- [x] Import 실패 시 per-row 상태 반환 — 어떤 행이 성공/실패했는지 상세 결과
 
 ---
 

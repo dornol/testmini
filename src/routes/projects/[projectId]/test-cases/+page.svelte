@@ -11,6 +11,7 @@
 	import { toast } from 'svelte-sonner';
 	import { dragHandleZone, dragHandle, TRIGGERS, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
+	import { untrack } from 'svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import ImportDialog from '$lib/components/ImportDialog.svelte';
@@ -84,20 +85,33 @@
 	let dndUncategorized: TcItem[] = $state([]);
 
 	// Sync dndGroups/dndUncategorized from server data when it changes
+	// Use untrack for deep iteration to avoid creating thousands of reactive subscriptions
 	$effect(() => {
-		const tcs = data.testCases as TcItem[];
-		dndGroups = data.groups.map((g) => ({
-			id: g.id,
-			name: g.name,
-			sortOrder: g.sortOrder,
-			color: g.color,
-			items: tcs
-				.filter((tc) => tc.groupId === g.id)
-				.sort((a, b) => a.sortOrder - b.sortOrder)
-		}));
-		dndUncategorized = tcs
-			.filter((tc) => tc.groupId === null)
-			.sort((a, b) => a.sortOrder - b.sortOrder);
+		// Track only top-level references so effect re-runs on navigation/invalidation
+		const tcs = data.testCases;
+		const groups = data.groups;
+
+		untrack(() => {
+			const tcArr = tcs as TcItem[];
+			// Skip heavy computation when virtual scroll is active (dndGroups not rendered)
+			if (tcArr.length > VIRTUAL_SCROLL_THRESHOLD) {
+				dndGroups = [];
+				dndUncategorized = [];
+				return;
+			}
+			dndGroups = (groups as typeof data.groups).map((g) => ({
+				id: g.id,
+				name: g.name,
+				sortOrder: g.sortOrder,
+				color: g.color,
+				items: tcArr
+					.filter((tc) => tc.groupId === g.id)
+					.sort((a, b) => a.sortOrder - b.sortOrder)
+			}));
+			dndUncategorized = tcArr
+				.filter((tc) => tc.groupId === null)
+				.sort((a, b) => a.sortOrder - b.sortOrder);
+		});
 	});
 
 	const selectedTagIds = $derived(
@@ -358,47 +372,56 @@
 
 	const flatItems = $derived.by(() => {
 		if (!useVirtualScroll) return [] as FlatItem[];
-		const tcs = data.testCases as TcItem[];
-		const items: FlatItem[] = [];
+		// Track top-level references and lightweight reactive state
+		const tcs = data.testCases;
+		const groups = data.groups;
+		const collapsedSnapshot = new Set(collapsedGroups);
+		const editable = canEdit;
 
-		// Build group → TC map (O(n) instead of O(n * groups))
-		const groupMap = new Map<number | null, TcItem[]>();
-		for (const tc of tcs) {
-			const key = tc.groupId;
-			if (!groupMap.has(key)) groupMap.set(key, []);
-			groupMap.get(key)!.push(tc);
-		}
-		for (const arr of groupMap.values()) {
-			arr.sort((a, b) => a.sortOrder - b.sortOrder);
-		}
+		// Heavy iteration inside untrack to avoid 5000+ reactive subscriptions
+		return untrack(() => {
+			const tcArr = tcs as TcItem[];
+			const items: FlatItem[] = [];
 
-		for (const g of data.groups) {
-			const groupTcs = groupMap.get(g.id) ?? [];
-			items.push({
-				_type: 'group-header',
-				group: { id: g.id, name: g.name, sortOrder: g.sortOrder, color: g.color, items: groupTcs }
-			});
-			if (!collapsedGroups.has(g.id)) {
-				for (const tc of groupTcs) {
+			// Build group → TC map (O(n) instead of O(n * groups))
+			const groupMap = new Map<number | null, TcItem[]>();
+			for (const tc of tcArr) {
+				const key = tc.groupId;
+				if (!groupMap.has(key)) groupMap.set(key, []);
+				groupMap.get(key)!.push(tc);
+			}
+			for (const arr of groupMap.values()) {
+				arr.sort((a, b) => a.sortOrder - b.sortOrder);
+			}
+
+			for (const g of (groups as typeof data.groups)) {
+				const groupTcs = groupMap.get(g.id) ?? [];
+				items.push({
+					_type: 'group-header',
+					group: { id: g.id, name: g.name, sortOrder: g.sortOrder, color: g.color, items: groupTcs }
+				});
+				if (!collapsedSnapshot.has(g.id)) {
+					for (const tc of groupTcs) {
+						items.push({ _type: 'tc', tc });
+					}
+					if (editable) {
+						items.push({ _type: 'quick-create', groupKey: g.id });
+					}
+				}
+			}
+
+			const uncatTcs = groupMap.get(null) ?? [];
+			items.push({ _type: 'uncat-header', itemCount: uncatTcs.length });
+			if (!collapsedSnapshot.has(-1)) {
+				for (const tc of uncatTcs) {
 					items.push({ _type: 'tc', tc });
 				}
-				if (canEdit) {
-					items.push({ _type: 'quick-create', groupKey: g.id });
+				if (editable) {
+					items.push({ _type: 'quick-create', groupKey: -1 });
 				}
 			}
-		}
-
-		const uncatTcs = groupMap.get(null) ?? [];
-		items.push({ _type: 'uncat-header', itemCount: uncatTcs.length });
-		if (!collapsedGroups.has(-1)) {
-			for (const tc of uncatTcs) {
-				items.push({ _type: 'tc', tc });
-			}
-			if (canEdit) {
-				items.push({ _type: 'quick-create', groupKey: -1 });
-			}
-		}
-		return items;
+			return items;
+		});
 	});
 
 	// --- Inline editing (pencil icon click for key/title) ---
@@ -767,7 +790,9 @@
 		<div class="flex items-center gap-2">
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger>
-					<Button variant="outline" size="sm">{m.tc_export()}</Button>
+					{#snippet child({ props })}
+						<Button variant="outline" size="sm" {...props}>{m.tc_export()}</Button>
+					{/snippet}
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item

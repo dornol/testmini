@@ -4,6 +4,7 @@
 > 전체 재분석 및 1~3단계 구현 (2026-03-05)
 > 4단계 구현 (2026-03-05)
 > 새 기능 8개 구현 (2026-03-05)
+> 테스트 4개 항목 구현 (2026-03-05)
 
 ---
 
@@ -108,10 +109,10 @@
 - [x] API route 통합 테스트 — 핵심 API 계약 검증 (projects, test-cases, test-runs, import)
 - [x] E2E 테스트 — 핵심 워크플로우 (프로젝트 생성 → TC 생성 → 런 실행 → 결과 확인)
 - [x] 신규 API 가드 테스트 — bulk 배치 제한, export 건수 제한, reorder 검증, 그룹 색상 검증, 첨부파일 MIME 등
-- [ ] Svelte 컴포넌트 테스트 — 클라이언트 사이드 테스트 전무, 주요 컴포넌트 (StepsEditor, AttachmentManager, VirtualList 등) 테스트 추가
-- [ ] API PATCH/DELETE 테스트 — 현재 GET/POST 위주, 수정/삭제 작업 테스트 보강
-- [ ] 동시성 테스트 — 소프트 락, 동시 상태 변경, 낙관적 동시성 제어 (revision conflict) 검증
-- [ ] E2E 커버리지 확대 — 관리자 기능, 프로젝트 설정, 리포트 내보내기, OIDC 로그인 플로우
+- [x] Svelte 컴포넌트 테스트 — PasswordStrengthMeter (8), ShortcutHintPanel (9), shortcuts.ts (23) 테스트 추가
+- [x] API PATCH/DELETE 테스트 — 프로젝트 (10), TC (15), 런 (11), 그룹 (13) PATCH/DELETE 테스트 추가
+- [x] 동시성 테스트 — soft lock 유닛 (14), lock API (17), revision 낙관적 동시성 (9) 테스트 추가
+- [x] E2E 커버리지 확대 — admin (11), project-settings (9), reports (11) E2E 테스트 추가
 
 ---
 

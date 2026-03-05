@@ -31,7 +31,7 @@
 	</div>
 
 	<nav class="border-b">
-		<div class="flex gap-2">
+		<div class="flex gap-2" role="tablist">
 			{#each tabs as tab (tab.href)}
 				<a
 					href={tab.href}
@@ -41,6 +41,7 @@
 							? 'border-primary text-foreground'
 							: 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
 					)}
+					aria-current={isActive(tab.href, tab.exact) ? 'page' : undefined}
 				>
 					{tab.label}
 				</a>

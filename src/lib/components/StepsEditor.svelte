@@ -4,7 +4,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 
-	type Step = { action: string; expected: string };
+	type Step = { id?: string; action: string; expected: string };
 
 	let {
 		value = [],
@@ -16,8 +16,12 @@
 		disabled?: boolean;
 	} = $props();
 
+	function ensureId(step: Step): Step & { id: string } {
+		return { ...step, id: step.id ?? crypto.randomUUID() };
+	}
+
 	function addStep() {
-		onchange([...value, { action: '', expected: '' }]);
+		onchange([...value, { id: crypto.randomUUID(), action: '', expected: '' }]);
 	}
 
 	function removeStep(index: number) {
@@ -50,7 +54,7 @@
 		<p class="text-muted-foreground text-sm">{m.common_no_results()}</p>
 	{:else}
 		<div class="space-y-3">
-			{#each value as step, i (i)}
+			{#each value.map(ensureId) as step, i (step.id)}
 				<div class="rounded-md border p-3">
 					<div class="mb-2 flex items-center justify-between">
 						<span class="text-muted-foreground text-sm font-medium">{m.steps_editor_step_n({ n: i + 1 })}</span>

@@ -31,6 +31,10 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		error(400, 'No valid run IDs provided');
 	}
 
+	if (runIds.length > 20) {
+		error(400, 'Cannot export more than 20 runs at once');
+	}
+
 	// Verify all runs belong to this project
 	const runs = await db
 		.select({ id: testRun.id, name: testRun.name, environment: testRun.environment })

@@ -1,13 +1,48 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { attachment } from '$lib/server/db/schema';
+import { attachment, testCase, testExecution, testFailureDetail } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { requireAuth } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectAccess } from '$lib/server/auth-utils';
 import { getFile, deleteFile } from '$lib/server/storage';
 
+async function getProjectIdForAttachment(record: { referenceType: string; referenceId: number }): Promise<number> {
+	if (record.referenceType === 'TESTCASE') {
+		const tc = await db.query.testCase.findFirst({
+			where: eq(testCase.id, record.referenceId),
+			columns: { projectId: true }
+		});
+		if (!tc) error(404, 'Referenced test case not found');
+		return tc.projectId;
+	}
+
+	if (record.referenceType === 'EXECUTION') {
+		const exec = await db.query.testExecution.findFirst({
+			where: eq(testExecution.id, record.referenceId),
+			with: { testRun: { columns: { projectId: true } } }
+		});
+		if (!exec) error(404, 'Referenced execution not found');
+		return exec.testRun.projectId;
+	}
+
+	if (record.referenceType === 'FAILURE') {
+		const failure = await db.query.testFailureDetail.findFirst({
+			where: eq(testFailureDetail.id, record.referenceId),
+			with: {
+				testExecution: {
+					with: { testRun: { columns: { projectId: true } } }
+				}
+			}
+		});
+		if (!failure) error(404, 'Referenced failure detail not found');
+		return failure.testExecution.testRun.projectId;
+	}
+
+	error(400, 'Unknown reference type');
+}
+
 export const GET: RequestHandler = async ({ params, locals }) => {
-	requireAuth(locals);
+	const user = requireAuth(locals);
 
 	const attachmentId = Number(params.attachmentId);
 	if (isNaN(attachmentId)) {
@@ -21,6 +56,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!record) {
 		error(404, 'Attachment not found');
 	}
+
+	const projectId = await getProjectIdForAttachment(record);
+	await requireProjectAccess(user, projectId);
 
 	const fileBuffer = await getFile(record.objectKey);
 	const body = new Uint8Array(fileBuffer);

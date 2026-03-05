@@ -1,6 +1,7 @@
 # TODO — 개선 및 추가 작업 목록
 
 > 코드베이스 분석 기반 (2026-03-02)
+> 전체 재분석 및 1~3단계 구현 (2026-03-05)
 
 ---
 
@@ -18,6 +19,14 @@
 
 - [x] 파일 스토리지 path traversal 방어 — `storage.ts`에서 `objectKey`에 `..` 포함 시 차단
 - [x] `.env.example` 프로덕션 가이드 추가 — 강력한 시크릿 생성 안내
+- [x] 보안 응답 헤더 추가 — `hooks.server.ts`에서 X-Frame-Options, X-Content-Type-Options, Referrer-Policy, X-XSS-Protection 설정
+- [x] 첨부파일 접근제어 — `/api/attachments/[id]` GET에서 참조 엔티티 프로젝트 접근 권한 검증
+- [x] 첨부파일 MIME 타입 화이트리스트 — 허용 파일 형식 제한 (이미지, PDF, 문서, 동영상 등 20종)
+- [x] Redis 인증 설정 — 프로덕션 compose에 `requirepass` 추가
+- [x] 암호화 키 파생 강화 — `crypto.ts` SHA-256 → PBKDF2 전환 (반복 횟수 100,000)
+- [ ] 인증 엔드포인트 Rate Limiting — 로그인/회원가입 brute force 방어 (Redis 기반 IP별 제한)
+- [ ] API Rate Limiting — 파일 업로드, 벌크 작업 등 남용 방지
+- [ ] OIDC 토큰 검증 강화 — ID 토큰 서명 검증, discovery 엔드포인트 SSRF 방어
 
 ---
 
@@ -28,17 +37,27 @@
 - [x] 폼 라벨 접근성 — `<Label for={id}>` 및 `aria-label` 누락 수정
 - [x] 모달/다이얼로그 포커스 트랩 — bits-ui가 이미 처리 (추가 작업 불필요)
 - [x] 삭제 작업 성공/실패 토스트 피드백 보강 — 하드코딩 에러 메시지 i18n 전환
+- [x] 비동기 작업 로딩 상태 — 프로젝트 검색 스켈레톤 + 다이얼로그 액션 스피너 추가
+- [x] 대시보드 차트 접근성 — Canvas 차트에 `aria-label` + `role="img"` 추가
+- [x] 프로젝트 레이아웃 탭 ARIA — `role="tablist"`, `aria-current="page"` 적용
+- [x] VirtualList 접근성 — `role="list"` / `role="listitem"` 시맨틱 속성 추가
+- [x] 색상 의존 상태 표시 개선 — PASS/FAIL 진행률에 텍스트 라벨 병행 (색맹 대응)
+- [ ] 회원가입 비밀번호 강도 표시기 — 현재 `minlength=8`만 있고 시각적 안내 없음
 
 ---
 
 ## 성능 / 리팩토링
 
 - [x] 테스트 케이스 페이지 컴포넌트 분리 — 2434줄 → 1604줄 (34% 감소)
-  - TestCaseDetailSheet (628줄) — 상세 패널, 편집, 태그/담당자, 버전 히스토리
-  - FailureDetailsSheet (137줄) — 실패 상세 시트
-  - FailWithDetailDialog (141줄) — FAIL 상세 입력 다이얼로그
 - [x] 테스트 케이스 목록 페이지네이션 정보 표시 — "Page X of Y", 전체 건수
 - [x] Import 실패 시 per-row 상태 반환 — 어떤 행이 성공/실패했는지 상세 결과
+- [x] 사이드바 N+1 쿼리 최적화 — `+layout.server.ts`에서 3회 쿼리 → 1회 JOIN으로 통합
+- [x] 벌크 작업 배치 크기 제한 — bulk API에 최대 200건 제한 추가
+- [x] StepsEditor 고유 ID 사용 — 배열 인덱스 → `crypto.randomUUID()` 키로 변경
+- [ ] 테스트 런 상세 페이지 컴포넌트 분리 — `test-runs/[runId]/+page.svelte` 1,157줄, 서브 컴포넌트로 분리 필요
+- [ ] Export 엔드포인트 스트리밍 — 대량 데이터 내보내기 시 메모리 문제 (현재 전체 로딩 후 응답)
+- [ ] 대시보드 차트 지연 로딩 — fold 아래 차트 lazy-load로 초기 로딩 속도 개선
+- [ ] 리포트 페이지 날짜 범위 필터 — 전체 데이터를 한 번에 조회하는 대신 기간 필터 추가
 
 ---
 
@@ -47,15 +66,38 @@
 - [x] 프로덕션 Dockerfile (multi-stage build)
 - [x] `compose.prod.yaml` — 프로덕션용 Docker Compose
 - [x] CI/CD 파이프라인 설정 — Gitea Actions (check, test, build)
+- [x] Docker 네트워크 격리 — 프로덕션 compose에서 frontend/backend 네트워크 분리
+- [x] lint/format 스크립트 — `package.json`에 eslint, prettier, format:check 스크립트 추가
+- [ ] 모니터링/로깅 — 구조화된 로깅 (pino 등), 에러 트래킹 (Sentry 등) 설정
+- [ ] DB 백업 전략 — PostgreSQL 자동 백업 스크립트 (pg_dump cron 또는 WAL archiving)
+- [ ] 배포 문서화 — 프로덕션 배포 절차, 환경변수 가이드, 롤백 방법 문서
 
 ---
 
-## 새 기능 ✅
+## 새 기능
 
 - [x] 테스트 런 비교 뷰 — 두 런 결과를 나란히 비교 (필터: 전체/차이/회귀)
 - [x] 테스트 케이스 버전 diff 뷰 — 단어 수준 LCS diff, 필드별 변경 시각화
 - [x] 복수 테스트 런 통합 Export — 리포트 페이지에서 체크박스 선택 후 CSV 내보내기
 - [x] 사용자 환경설정 페이지 — 언어/테마 DB 영속화, 기기 간 동기화
+- [ ] 감사 로그 (Audit Log) — 주요 작업(로그인, 프로젝트 변경, TC 수정, 삭제 등) 이력 기록 및 조회 페이지
+- [ ] 알림 시스템 — 테스트 런 완료, FAIL 발생, 멤버 추가 시 인앱/이메일 알림
+- [ ] 대시보드 위젯 커스터마이징 — 사용자별 대시보드 레이아웃 구성
+- [ ] 테스트 케이스 템플릿 — 반복 사용되는 TC 구조를 템플릿으로 저장/적용
+- [ ] 벌크 Import 진행률 표시 — 대량 임포트 시 실시간 진행 상황 표시 (현재 완료까지 무응답)
+- [ ] 첨부파일 드래그 앤 드롭 업로드 — ImportDialog에 파일 D&D 지원 추가
+- [ ] 키보드 단축키 — 주요 작업(저장, 다음 TC, 상태 변경 등)에 단축키 바인딩 + 힌트 패널
+- [ ] 테스트 케이스 코멘트/토론 — TC별 댓글 스레드 (리뷰 협업)
+
+---
+
+## DB / 스키마
+
+- [x] 복합 인덱스 추가 — `testExecution(testRunId, status, executedBy)` 커버링 인덱스 (마이그레이션 0006)
+- [x] test_execution CHECK 제약 — `PENDING`일 때 `executedBy`/`executedAt` NULL 강제 (마이그레이션 0006)
+- [x] 그룹 색상 값 검증 — API에서 HEX 형식 regex 검증 추가
+- [x] sortOrder 값 검증 — reorder API에서 음수/비정수 방지
+- [ ] 첨부파일 참조 무결성 — 폴리모픽 `referenceType+referenceId` DB 레벨 검증 (트리거 또는 CHECK)
 
 ---
 
@@ -63,6 +105,11 @@
 
 - [x] API route 통합 테스트 — 핵심 API 계약 검증 (projects, test-cases, test-runs, import)
 - [x] E2E 테스트 — 핵심 워크플로우 (프로젝트 생성 → TC 생성 → 런 실행 → 결과 확인)
+- [x] 신규 API 가드 테스트 — bulk 배치 제한, export 건수 제한, reorder 검증, 그룹 색상 검증, 첨부파일 MIME 등
+- [ ] Svelte 컴포넌트 테스트 — 클라이언트 사이드 테스트 전무, 주요 컴포넌트 (StepsEditor, AttachmentManager, VirtualList 등) 테스트 추가
+- [ ] API PATCH/DELETE 테스트 — 현재 GET/POST 위주, 수정/삭제 작업 테스트 보강
+- [ ] 동시성 테스트 — 소프트 락, 동시 상태 변경, 낙관적 동시성 제어 (revision conflict) 검증
+- [ ] E2E 커버리지 확대 — 관리자 기능, 프로젝트 설정, 리포트 내보내기, OIDC 로그인 플로우
 
 ---
 
@@ -71,3 +118,14 @@
 - [ ] TestCase에 `automation_key` 필드 추가
 - [ ] 자동화 결과 수집 API (`/api/automation/results`)
 - [ ] CI webhook 연동 (GitHub Actions, GitLab CI)
+
+---
+
+## API 개선
+
+- [x] 테스트 스위트 아이템 프로젝트 소속 검증 — POST 시 TC 프로젝트 소속 확인
+- [x] reorder API 소속 검증 — TC/그룹 reorder 시 해당 프로젝트 소속 확인
+- [x] Export 건수 제한 — `/reports/export`에서 최대 20개 run 제한
+- [x] 사용자 검색 페이지네이션 — `/api/users/search`에 offset 파라미터 추가
+- [x] API 응답 일관성 — PATCH 엔드포인트 `{success: true}` → 업데이트된 엔티티 반환으로 통일
+- [x] OIDC discovery 캐싱 — 5분 TTL 메모리 캐시 + 10초 fetch 타임아웃 추가

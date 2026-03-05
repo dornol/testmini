@@ -8,7 +8,7 @@ services:
       DATABASE_URL: "postgres://testmini:${POSTGRES_PASSWORD}@db:5432/testmini"
       ORIGIN: "${ORIGIN}"
       BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET}"
-      REDIS_URL: "redis://redis:6379"
+      REDIS_URL: "redis://:${REDIS_PASSWORD:-changeme}@redis:6379"
       NODE_ENV: production
     volumes:
       - uploads:/app/data/uploads
@@ -23,6 +23,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    networks:
+      - frontend
+      - backend
 
   db:
     image: postgres:17-alpine
@@ -38,19 +41,30 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - backend
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-changeme}
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-changeme}"
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - backend
 
 volumes:
   pgdata:
   redisdata:
   uploads:
+
+networks:
+  frontend:
+  backend:

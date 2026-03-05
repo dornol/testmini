@@ -41,6 +41,9 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	}
 
 	if (color !== undefined) {
+		if (color !== null && !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) {
+			return json({ error: 'Invalid HEX color format' }, { status: 400 });
+		}
 		updates.color = color;
 	}
 
@@ -51,7 +54,11 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 			.where(eq(testCaseGroup.id, groupId));
 	}
 
-	return json({ success: true });
+	const updated = await db.query.testCaseGroup.findFirst({
+		where: and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId))
+	});
+
+	return json(updated);
 };
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {

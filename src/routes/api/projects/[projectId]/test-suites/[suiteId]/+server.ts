@@ -70,7 +70,11 @@ export const PATCH: RequestHandler = async ({ request, locals, params }) => {
 		.set(updates)
 		.where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)));
 
-	return json({ success: true });
+	const updated = await db.query.testSuite.findFirst({
+		where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
+	});
+
+	return json(updated);
 };
 
 export const DELETE: RequestHandler = async ({ locals, params }) => {

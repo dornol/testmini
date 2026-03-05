@@ -281,15 +281,15 @@
 								</Badge>
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2">
-								<div class="flex items-center gap-1">
+								<div class="flex items-center gap-1" title="{m.dashboard_pass()}: {run.passedCount} / {m.common_all()}: {run.totalCount} ({pct}%)">
 									<div class="bg-secondary h-1.5 w-full rounded-full">
 										<div
 											class="bg-primary h-1.5 rounded-full transition-all"
 											style="width: {pct}%"
 										></div>
 									</div>
-									<span class="text-muted-foreground w-10 text-right text-[10px]">
-										{run.passedCount}/{run.totalCount}
+									<span class="text-muted-foreground w-16 text-right text-[10px]">
+										{pct}% ({run.passedCount}/{run.totalCount})
 									</span>
 								</div>
 							</Table.Cell>
@@ -392,11 +392,16 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (editDialogOpen = false)}>
+				<Button variant="outline" onclick={() => (editDialogOpen = false)} disabled={editRunSaving}>
 					{m.common_cancel()}
 				</Button>
 				<Button onclick={handleEdit} disabled={editRunSaving || !editRunName.trim()}>
-					{editRunSaving ? m.common_saving() : m.common_save_changes()}
+					{#if editRunSaving}
+						<svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+						{m.common_saving()}
+					{:else}
+						{m.common_save_changes()}
+					{/if}
 				</Button>
 			</Dialog.Footer>
 		</Dialog.Content>
@@ -418,11 +423,16 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (cloneDialogOpen = false)}>
+				<Button variant="outline" onclick={() => (cloneDialogOpen = false)} disabled={cloneRunSaving}>
 					{m.common_cancel()}
 				</Button>
 				<Button onclick={handleClone} disabled={cloneRunSaving || !cloneRunName.trim()}>
-					{cloneRunSaving ? m.common_creating() : m.tr_clone()}
+					{#if cloneRunSaving}
+						<svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+						{m.common_creating()}
+					{:else}
+						{m.tr_clone()}
+					{/if}
 				</Button>
 			</Dialog.Footer>
 		</Dialog.Content>
@@ -441,9 +451,14 @@
 				</AlertDialog.Description>
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+				<AlertDialog.Cancel disabled={deleteRunSaving}>{m.common_cancel()}</AlertDialog.Cancel>
 				<Button variant="destructive" onclick={handleDelete} disabled={deleteRunSaving}>
-					{deleteRunSaving ? m.common_saving() : m.common_delete()}
+					{#if deleteRunSaving}
+						<svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+						{m.common_saving()}
+					{:else}
+						{m.common_delete()}
+					{/if}
 				</Button>
 			</AlertDialog.Footer>
 		</AlertDialog.Content>

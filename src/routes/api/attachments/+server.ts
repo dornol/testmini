@@ -8,6 +8,16 @@ import { generateObjectKey, saveFile } from '$lib/server/storage';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_REFERENCE_TYPES = ['TESTCASE', 'EXECUTION', 'FAILURE'] as const;
+const ALLOWED_MIME_TYPES = [
+	'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+	'application/pdf',
+	'text/plain', 'text/csv', 'text/html',
+	'application/json',
+	'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+	'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+	'application/zip',
+	'video/mp4', 'video/webm',
+];
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	requireAuth(locals);
@@ -64,6 +74,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	if (file.size > MAX_FILE_SIZE) {
 		error(400, 'File size exceeds 10MB limit');
+	}
+
+	if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+		error(400, 'File type not allowed');
 	}
 
 	const objectKey = generateObjectKey(referenceType, referenceId, file.name);

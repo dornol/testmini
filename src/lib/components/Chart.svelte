@@ -3,7 +3,7 @@
 
 	Chart.register(...registerables);
 
-	let { config }: { config: ChartConfiguration } = $props();
+	let { config, 'aria-label': ariaLabel }: { config: ChartConfiguration; 'aria-label'?: string } = $props();
 
 	let canvas: HTMLCanvasElement;
 	let chart: Chart | undefined;
@@ -22,4 +22,4 @@
 	});
 </script>
 
-<canvas bind:this={canvas}></canvas>
+<canvas bind:this={canvas} aria-label={ariaLabel} role={ariaLabel ? 'img' : undefined}></canvas>

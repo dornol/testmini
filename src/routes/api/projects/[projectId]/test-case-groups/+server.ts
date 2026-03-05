@@ -38,6 +38,10 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		return json({ error: 'Name is required' }, { status: 400 });
 	}
 
+	if (color !== undefined && color !== null && !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) {
+		return json({ error: 'Invalid HEX color format' }, { status: 400 });
+	}
+
 	// Check uniqueness
 	const existing = await db.query.testCaseGroup.findFirst({
 		where: (g, { and, eq }) => and(eq(g.projectId, projectId), eq(g.name, name.trim()))

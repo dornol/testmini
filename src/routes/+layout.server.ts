@@ -1,7 +1,7 @@
 import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { project, projectMember, testCaseGroup, userPreference } from '$lib/server/db/schema';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	let preferences: { locale: string | null; theme: string | null } | null = null;
@@ -20,45 +20,35 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		}
 
 		try {
-			const memberships = await db
-				.select({ projectId: projectMember.projectId })
+			// Single JOIN query: projectMember -> project -> testCaseGroup (left join)
+			const rows = await db
+				.select({
+					projectId: project.id,
+					projectName: project.name,
+					groupId: testCaseGroup.id,
+					groupName: testCaseGroup.name,
+					groupColor: testCaseGroup.color
+				})
 				.from(projectMember)
+				.innerJoin(project, and(eq(project.id, projectMember.projectId), eq(project.active, true)))
+				.leftJoin(testCaseGroup, eq(testCaseGroup.projectId, project.id))
 				.where(eq(projectMember.userId, locals.user.id));
 
-			const projectIds = memberships.map((m) => m.projectId);
+			// Assemble into the expected nested structure
+			const projectMap = new Map<number, { id: number; name: string; groups: { id: number; name: string; color: string | null }[] }>();
 
-			if (projectIds.length > 0) {
-				const projects = await db
-					.select({ id: project.id, name: project.name })
-					.from(project)
-					.where(and(inArray(project.id, projectIds), eq(project.active, true)));
-
-				const groups =
-					projectIds.length > 0
-						? await db
-								.select({
-									id: testCaseGroup.id,
-									name: testCaseGroup.name,
-									color: testCaseGroup.color,
-									projectId: testCaseGroup.projectId
-								})
-								.from(testCaseGroup)
-								.where(inArray(testCaseGroup.projectId, projectIds))
-						: [];
-
-				const groupsByProject = new Map<number, { id: number; name: string; color: string | null }[]>();
-				for (const g of groups) {
-					const list = groupsByProject.get(g.projectId) ?? [];
-					list.push({ id: g.id, name: g.name, color: g.color });
-					groupsByProject.set(g.projectId, list);
+			for (const row of rows) {
+				let entry = projectMap.get(row.projectId);
+				if (!entry) {
+					entry = { id: row.projectId, name: row.projectName, groups: [] };
+					projectMap.set(row.projectId, entry);
 				}
-
-				sidebarProjects = projects.map((p) => ({
-					id: p.id,
-					name: p.name,
-					groups: groupsByProject.get(p.id) ?? []
-				}));
+				if (row.groupId != null) {
+					entry.groups.push({ id: row.groupId, name: row.groupName!, color: row.groupColor });
+				}
 			}
+
+			sidebarProjects = Array.from(projectMap.values());
 		} catch {
 			// tables may not exist yet
 		}

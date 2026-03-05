@@ -10,6 +10,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 	const q = url.searchParams.get('q') ?? '';
 	const excludeProjectId = url.searchParams.get('excludeProjectId');
+	const offset = Number(url.searchParams.get('offset') ?? '0');
 
 	if (!q || q.length < 2) {
 		return json({ data: [] });
@@ -36,7 +37,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		})
 		.from(user)
 		.where(and(...conditions))
-		.limit(10);
+		.limit(10)
+		.offset(offset);
 
 	return json({ data: users });
 };

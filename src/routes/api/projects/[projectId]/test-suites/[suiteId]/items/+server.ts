@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { testSuite, testSuiteItem } from '$lib/server/db/schema';
+import { testSuite, testSuiteItem, testCase } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
 import { suiteItemsSchema } from '$lib/schemas/test-suite.schema';
@@ -24,6 +24,15 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	const parsed = suiteItemsSchema.safeParse(body);
 	if (!parsed.success) {
 		return json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 });
+	}
+
+	// Validate all test cases belong to the same project
+	const validTestCases = await db
+		.select({ id: testCase.id })
+		.from(testCase)
+		.where(and(inArray(testCase.id, parsed.data.testCaseIds), eq(testCase.projectId, projectId)));
+	if (validTestCases.length !== parsed.data.testCaseIds.length) {
+		return json({ error: 'Some test cases do not belong to this project' }, { status: 400 });
 	}
 
 	const values = parsed.data.testCaseIds.map((tcId) => ({

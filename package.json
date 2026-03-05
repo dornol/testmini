@@ -18,7 +18,10 @@
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
-		"auth:schema": "better-auth generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes"
+		"auth:schema": "better-auth generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes",
+		"lint": "eslint src/",
+		"format": "prettier --write 'src/**/*.{ts,svelte,js,css,html}'",
+		"format:check": "prettier --check 'src/**/*.{ts,svelte,js,css,html}'"
 	},
 	"devDependencies": {
 		"@better-auth/cli": "^1.4.18",

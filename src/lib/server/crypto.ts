@@ -1,10 +1,15 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
+import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes } from 'crypto';
 import { env } from '$env/dynamic/private';
+
+const PBKDF2_SALT = 'testmini-encryption-salt';
+const PBKDF2_ITERATIONS = 100_000;
+const PBKDF2_KEY_LENGTH = 32;
+const PBKDF2_DIGEST = 'sha256';
 
 function deriveKey(): Buffer {
 	const secret = env.BETTER_AUTH_SECRET;
 	if (!secret) throw new Error('BETTER_AUTH_SECRET is not set');
-	return createHash('sha256').update(secret).digest();
+	return pbkdf2Sync(secret, PBKDF2_SALT, PBKDF2_ITERATIONS, PBKDF2_KEY_LENGTH, PBKDF2_DIGEST);
 }
 
 /**

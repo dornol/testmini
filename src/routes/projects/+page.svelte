@@ -1,16 +1,23 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { navigating } from '$app/stores';
 	import { page } from '$app/state';
 	import * as m from '$lib/paraglide/messages.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 
 	let { data } = $props();
 
 	let searchInput = $state(data.search);
 	let searchTimeout: ReturnType<typeof setTimeout>;
+
+	// Show loading skeleton when navigating due to search/filter changes on this page
+	const isSearching = $derived(
+		$navigating !== null && $navigating.to?.url.pathname === '/projects'
+	);
 
 	$effect(() => {
 		searchInput = data.search;
@@ -67,7 +74,21 @@
 		</Button>
 	</div>
 
-	{#if data.projects.length === 0}
+	{#if isSearching}
+		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+			{#each Array(6) as _}
+				<Card.Root>
+					<Card.Header>
+						<Skeleton class="h-5 w-3/4" />
+						<Skeleton class="mt-2 h-4 w-full" />
+					</Card.Header>
+					<Card.Footer>
+						<Skeleton class="h-4 w-1/2" />
+					</Card.Footer>
+				</Card.Root>
+			{/each}
+		</div>
+	{:else if data.projects.length === 0}
 		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
 			<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground mb-4">
 				<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />

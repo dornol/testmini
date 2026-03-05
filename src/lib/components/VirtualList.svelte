@@ -84,13 +84,16 @@
 
 <div
 	bind:this={container}
+	role="list"
 	class={useWindowScroll ? '' : 'overflow-auto'}
 	style={useWindowScroll ? '' : `height: ${height};`}
 	onscroll={useWindowScroll ? undefined : handleScroll}
 >
 	<div style="height: {topSpacer}px;"></div>
 	{#each visibleItems as item, i (startIndex + i)}
-		{@render children({ item, index: startIndex + i })}
+		<div role="listitem">
+			{@render children({ item, index: startIndex + i })}
+		</div>
 	{/each}
 	<div style="height: {bottomSpacer}px;"></div>
 </div>

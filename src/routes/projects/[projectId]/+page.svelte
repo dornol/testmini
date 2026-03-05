@@ -246,7 +246,7 @@
 					<Card.Title class="text-sm font-medium">{m.dashboard_pass_rate_trend()}</Card.Title>
 				</Card.Header>
 				<Card.Content>
-					<Chart config={trendConfig} />
+					<Chart config={trendConfig} aria-label="Pass rate trend chart" />
 				</Card.Content>
 			</Card.Root>
 		{/if}
@@ -259,7 +259,7 @@
 				</Card.Header>
 				<Card.Content class="flex justify-center">
 					<div class="w-64">
-						<Chart config={doughnutConfig} />
+						<Chart config={doughnutConfig} aria-label="Execution status distribution chart" />
 					</div>
 				</Card.Content>
 			</Card.Root>
@@ -335,7 +335,7 @@
 							</Table.Cell>
 							<Table.Cell>
 								<div class="flex items-center gap-2">
-									<div class="bg-secondary flex h-2 w-20 overflow-hidden rounded-full">
+									<div class="bg-secondary flex h-2 w-20 overflow-hidden rounded-full" title="{m.dashboard_pass()}: {run.passCount}, {m.dashboard_fail()}: {run.failCount}">
 										{#if run.passCount > 0}
 											<div
 												class="bg-green-500"
@@ -349,7 +349,7 @@
 											></div>
 										{/if}
 									</div>
-									<span class="text-muted-foreground text-xs">{runPassRate}%</span>
+									<span class="text-muted-foreground text-xs">{runPassRate}% ({run.passCount}P / {run.failCount}F)</span>
 								</div>
 							</Table.Cell>
 							<Table.Cell class="text-muted-foreground text-xs">

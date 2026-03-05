@@ -23,6 +23,10 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		return json({ error: 'No test cases specified' }, { status: 400 });
 	}
 
+	if (testCaseIds.length > 200) {
+		return json({ error: 'Batch size cannot exceed 200 items' }, { status: 400 });
+	}
+
 	// delete requires PROJECT_ADMIN, others require QA/DEV+
 	if (action === 'delete') {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);

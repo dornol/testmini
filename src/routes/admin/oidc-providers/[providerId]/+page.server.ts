@@ -18,6 +18,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			providerType: oidcProvider.providerType,
 			clientId: oidcProvider.clientId,
 			issuerUrl: oidcProvider.issuerUrl,
+			jwksUri: oidcProvider.jwksUri,
 			authorizationUrl: oidcProvider.authorizationUrl,
 			tokenUrl: oidcProvider.tokenUrl,
 			userinfoUrl: oidcProvider.userinfoUrl,
@@ -55,6 +56,7 @@ export const actions: Actions = {
 		const clientId = (formData.get('clientId') as string)?.trim();
 		const clientSecret = (formData.get('clientSecret') as string)?.trim();
 		const issuerUrl = (formData.get('issuerUrl') as string)?.trim() || null;
+		const jwksUri = (formData.get('jwksUri') as string)?.trim() || null;
 		const authorizationUrl = (formData.get('authorizationUrl') as string)?.trim();
 		const tokenUrl = (formData.get('tokenUrl') as string)?.trim();
 		const userinfoUrl = (formData.get('userinfoUrl') as string)?.trim() || null;
@@ -86,6 +88,7 @@ export const actions: Actions = {
 			providerType,
 			clientId,
 			issuerUrl,
+			jwksUri,
 			authorizationUrl,
 			tokenUrl,
 			userinfoUrl,

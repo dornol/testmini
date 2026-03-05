@@ -1,27 +1,25 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import { goto, invalidateAll } from '$app/navigation';
-	import { page } from '$app/state';
+	import { invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
-	import { toast } from 'svelte-sonner';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import * as Select from '$lib/components/ui/select/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
-	import { Textarea } from '$lib/components/ui/textarea/index.js';
-	import { Badge } from '$lib/components/ui/badge/index.js';
-	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { createRunEventSource } from '$lib/sse.svelte';
 	import * as m from '$lib/paraglide/messages.js';
+	import RunHeader from './components/RunHeader.svelte';
+	import ExecutionFilters from './components/ExecutionFilters.svelte';
+	import ExecutionTable from './components/ExecutionTable.svelte';
+	import BulkActionBar from './components/BulkActionBar.svelte';
+	import FailureDetailDialog from './components/FailureDetailDialog.svelte';
 
 	let { data } = $props();
 
-	// SSE real-time sync
-	const sse = createRunEventSource(data.project.id, data.run.id);
+	// Extract stable IDs for SSE (project/run IDs are fixed for the lifetime of this page)
+	const projectId = $derived(data.project.id);
+	const runId = $derived(data.run.id);
+
+	// SSE real-time sync — created once since IDs are route params and never change
+	const sse = $derived(createRunEventSource(projectId, runId));
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+	let scrollContainer: HTMLDivElement | undefined;
 
 	$effect(() => {
 		sse.connect();
@@ -41,134 +39,33 @@
 		}, 300);
 	});
 
-	let selectedPending = $state<Set<number>>(new Set());
+	// Selection state for bulk operations
+	let selectedPending = new SvelteSet<number>();
 
-	// Failure modal state
+	// Failure dialog state
 	let failDialogOpen = $state(false);
 	let failExecutionId = $state<number | null>(null);
 	let failExecutionKey = $state('');
-	let failureEnvironment = $state('');
-	let testMethod = $state('');
-	let errorMessage = $state('');
-	let stackTrace = $state('');
-	let failComment = $state('');
 
-	// Edit failure state
+	// Edit failure dialog state
 	let editFailureDialogOpen = $state(false);
-	let editFailureId = $state<number | null>(null);
-	let editFailureEnvironment = $state('');
-	let editTestMethod = $state('');
-	let editErrorMessage = $state('');
-	let editStackTrace = $state('');
-	let editComment = $state('');
+	let editFailureRecord = $state<(typeof data.failures)[0] | null>(null);
 
-	// View failures state
-	let viewFailuresExecId = $state<number | null>(null);
-
-	// Delete failure state
-	let deleteFailureId = $state<number | null>(null);
+	// Delete failure dialog state
 	let deleteDialogOpen = $state(false);
-
-	// Edit run dialog state
-	let editRunDialogOpen = $state(false);
-	let editRunName = $state('');
-	let editRunEnv = $state('');
-	let editRunSaving = $state(false);
-
-	// Clone run dialog state
-	let cloneDialogOpen = $state(false);
-	let cloneRunName = $state('');
-	let cloneRunSaving = $state(false);
-
-	// Delete run dialog state
-	let deleteRunDialogOpen = $state(false);
-	let deleteRunSaving = $state(false);
+	let deleteFailureId = $state<number | null>(null);
 
 	const run = $derived(data.run);
 	const stats = $derived(data.stats);
 	const canExecute = $derived(data.userRole !== 'VIEWER');
 	const isAdmin = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
-	const basePath = $derived(`/projects/${data.project.id}/test-runs`);
+	const basePath = $derived(`/projects/${projectId}/test-runs`);
 
 	const completedPct = $derived(
 		stats.total > 0 ? Math.round(((stats.total - stats.pending) / stats.total) * 100) : 0
 	);
 
 	const statusFilter = $derived(data.statusFilter);
-
-	// Virtual scroll constants & state
-	const ROW_HEIGHT = 44;
-	const OVERSCAN = 10;
-
-	let scrollContainer: HTMLDivElement;
-	let scrollTop = $state(0);
-	let viewportHeight = $state(0);
-	let expandedHeights = $state<Map<number, number>>(new Map());
-
-	// Cumulative offset array for variable-height rows
-	const rowOffsets = $derived.by(() => {
-		const offsets = [0];
-		for (let i = 0; i < data.executions.length; i++) {
-			const exec = data.executions[i];
-			let h = ROW_HEIGHT;
-			if (exec.status === 'FAIL' && viewFailuresExecId === exec.id) {
-				h += (expandedHeights.get(exec.id) ?? 300);
-			}
-			offsets.push(offsets[i] + h);
-		}
-		return offsets;
-	});
-
-	const totalHeight = $derived(rowOffsets[data.executions.length] ?? 0);
-
-	// Binary search to find first row at or after a given offset
-	function findIndex(offsets: number[], target: number): number {
-		let lo = 0;
-		let hi = offsets.length - 1;
-		while (lo < hi) {
-			const mid = (lo + hi) >>> 1;
-			if (offsets[mid] < target) lo = mid + 1;
-			else hi = mid;
-		}
-		return lo;
-	}
-
-	const startIndex = $derived(Math.max(0, findIndex(rowOffsets, scrollTop) - OVERSCAN));
-	const endIndex = $derived(
-		Math.min(data.executions.length, findIndex(rowOffsets, scrollTop + viewportHeight) + OVERSCAN)
-	);
-	const visibleExecutions = $derived(data.executions.slice(startIndex, endIndex));
-	const topSpacerHeight = $derived(rowOffsets[startIndex] ?? 0);
-	const bottomSpacerHeight = $derived(totalHeight - (rowOffsets[endIndex] ?? totalHeight));
-
-	function handleScroll(e: Event) {
-		const target = e.currentTarget as HTMLDivElement;
-		scrollTop = target.scrollTop;
-		viewportHeight = target.clientHeight;
-	}
-
-	// Measure initial viewport height and track resizes
-	$effect(() => {
-		if (!scrollContainer) return;
-		const ro = new ResizeObserver((entries) => {
-			viewportHeight = entries[0].contentRect.height;
-		});
-		ro.observe(scrollContainer);
-		return () => ro.disconnect();
-	});
-
-	// Measure expanded failure detail height
-	function measureHeight(node: HTMLElement, params: { execId: number }) {
-		const observer = new ResizeObserver((entries) => {
-			const h = entries[0].contentRect.height;
-			if (h > 0 && expandedHeights.get(params.execId) !== h) {
-				expandedHeights.set(params.execId, h);
-				expandedHeights = new Map(expandedHeights);
-			}
-		});
-		observer.observe(node);
-		return { destroy() { observer.disconnect(); } };
-	}
 
 	const statusTabs = $derived([
 		{ key: '', label: m.run_status_filter_all(), count: stats.total },
@@ -179,63 +76,39 @@
 		{ key: 'SKIPPED', label: m.dashboard_skipped(), count: stats.skipped }
 	]);
 
-	function setStatusFilter(status: string) {
-		const params = new URLSearchParams(page.url.searchParams);
-		if (status) {
-			params.set('status', status);
-		} else {
-			params.delete('status');
-		}
-		if (scrollContainer) scrollContainer.scrollTop = 0;
-		goto(`?${params.toString()}`, { keepFocus: true });
-	}
-
 	const pendingExecutions = $derived(data.executions.filter((e) => e.status === 'PENDING'));
 
 	const allPendingSelected = $derived(
 		pendingExecutions.length > 0 && pendingExecutions.every((e) => selectedPending.has(e.id))
 	);
 
-	function getFailures(executionId: number) {
-		return data.failures.filter((f) => f.testExecutionId === executionId);
-	}
-
 	function togglePendingAll() {
 		if (allPendingSelected) {
-			selectedPending = new Set();
+			selectedPending.clear();
 		} else {
-			selectedPending = new Set(pendingExecutions.map((e) => e.id));
+			selectedPending.clear();
+			for (const e of pendingExecutions) {
+				selectedPending.add(e.id);
+			}
 		}
 	}
 
 	function togglePending(id: number) {
-		const newSet = new Set(selectedPending);
-		if (newSet.has(id)) {
-			newSet.delete(id);
+		if (selectedPending.has(id)) {
+			selectedPending.delete(id);
 		} else {
-			newSet.add(id);
+			selectedPending.add(id);
 		}
-		selectedPending = newSet;
 	}
 
 	function openFailDialog(execId: number, key: string) {
 		failExecutionId = execId;
 		failExecutionKey = key;
-		failureEnvironment = '';
-		testMethod = '';
-		errorMessage = '';
-		stackTrace = '';
-		failComment = '';
 		failDialogOpen = true;
 	}
 
-	function openEditFailure(f: typeof data.failures[0]) {
-		editFailureId = f.id;
-		editFailureEnvironment = f.failureEnvironment ?? '';
-		editTestMethod = f.testMethod ?? '';
-		editErrorMessage = f.errorMessage ?? '';
-		editStackTrace = f.stackTrace ?? '';
-		editComment = f.comment ?? '';
+	function openEditFailure(f: (typeof data.failures)[0]) {
+		editFailureRecord = f;
 		editFailureDialogOpen = true;
 	}
 
@@ -244,914 +117,72 @@
 		deleteDialogOpen = true;
 	}
 
-	function statusColor(s: string): string {
-		switch (s) {
-			case 'PASS':
-				return 'text-green-600 bg-green-50 dark:bg-green-950 dark:text-green-400';
-			case 'FAIL':
-				return 'text-red-600 bg-red-50 dark:bg-red-950 dark:text-red-400';
-			case 'BLOCKED':
-				return 'text-orange-600 bg-orange-50 dark:bg-orange-950 dark:text-orange-400';
-			case 'SKIPPED':
-				return 'text-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-gray-400';
-			default:
-				return 'text-muted-foreground';
-		}
-	}
-
-	function statusVariant(s: string): 'default' | 'secondary' | 'outline' | 'destructive' {
-		switch (s) {
-			case 'COMPLETED':
-				return 'default';
-			case 'IN_PROGRESS':
-				return 'secondary';
-			default:
-				return 'outline';
-		}
-	}
-
-	function priorityVariant(
-		p: string
-	): 'default' | 'secondary' | 'outline' | 'destructive' {
-		switch (p) {
-			case 'CRITICAL':
-				return 'destructive';
-			case 'HIGH':
-				return 'default';
-			case 'MEDIUM':
-				return 'secondary';
-			default:
-				return 'outline';
-		}
-	}
-
-	function handleResult() {
-		return async ({
-			result,
-			update
-		}: {
-			result: { type: string; data?: Record<string, unknown> };
-			update: () => Promise<void>;
-		}) => {
-			if (result.type === 'success') {
-				selectedPending = new Set();
-				const savedScroll = scrollContainer?.scrollTop ?? 0;
-				await invalidateAll();
-				await tick();
-				if (scrollContainer) scrollContainer.scrollTop = savedScroll;
-			} else if (result.type === 'failure') {
-				toast.error((result.data?.error as string) ?? m.error_operation_failed());
-				await update();
-			}
-		};
-	}
-
-	function handleFailResult() {
-		return async ({
-			result,
-			update
-		}: {
-			result: { type: string; data?: Record<string, unknown> };
-			update: () => Promise<void>;
-		}) => {
-			if (result.type === 'success') {
-				failDialogOpen = false;
-				toast.success(m.fail_marked());
-				const savedScroll = scrollContainer?.scrollTop ?? 0;
-				await invalidateAll();
-				await tick();
-				if (scrollContainer) scrollContainer.scrollTop = savedScroll;
-			} else if (result.type === 'failure') {
-				toast.error((result.data?.error as string) ?? 'Failed to save');
-				await update();
-			}
-		};
-	}
-
-	function handleEditFailResult() {
-		return async ({
-			result,
-			update
-		}: {
-			result: { type: string; data?: Record<string, unknown> };
-			update: () => Promise<void>;
-		}) => {
-			if (result.type === 'success') {
-				editFailureDialogOpen = false;
-				toast.success(m.fail_updated());
-				const savedScroll = scrollContainer?.scrollTop ?? 0;
-				await invalidateAll();
-				await tick();
-				if (scrollContainer) scrollContainer.scrollTop = savedScroll;
-			} else if (result.type === 'failure') {
-				toast.error((result.data?.error as string) ?? 'Failed to update');
-				await update();
-			}
-		};
-	}
-
-	function handleDeleteFailResult() {
-		return async ({
-			result,
-			update
-		}: {
-			result: { type: string; data?: Record<string, unknown> };
-			update: () => Promise<void>;
-		}) => {
-			if (result.type === 'success') {
-				deleteDialogOpen = false;
-				toast.success(m.fail_deleted());
-				const savedScroll = scrollContainer?.scrollTop ?? 0;
-				await invalidateAll();
-				await tick();
-				if (scrollContainer) scrollContainer.scrollTop = savedScroll;
-			} else if (result.type === 'failure') {
-				toast.error((result.data?.error as string) ?? 'Failed to delete');
-				await update();
-			}
-		};
-	}
-
-	function openEditRun() {
-		editRunName = run.name;
-		editRunEnv = run.environment;
-		editRunDialogOpen = true;
-	}
-
-	async function handleEditRun() {
-		editRunSaving = true;
-		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-runs/${run.id}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: editRunName, environment: editRunEnv })
-			});
-			if (!res.ok) {
-				const err = await res.json();
-				toast.error(err.error ?? 'Failed to update');
-				return;
-			}
-			editRunDialogOpen = false;
-			toast.success(m.tr_updated());
-			await invalidateAll();
-		} finally {
-			editRunSaving = false;
-		}
-	}
-
-	function openCloneRun() {
-		cloneRunName = `Copy of ${run.name}`;
-		cloneDialogOpen = true;
-	}
-
-	async function handleCloneRun() {
-		cloneRunSaving = true;
-		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-runs/${run.id}/clone`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: cloneRunName })
-			});
-			if (!res.ok) {
-				toast.error(m.error_clone_failed());
-				return;
-			}
-			const { id } = await res.json();
-			cloneDialogOpen = false;
-			toast.success(m.tr_cloned());
-			goto(`${basePath}/${id}`);
-		} finally {
-			cloneRunSaving = false;
-		}
-	}
-
-	async function handleDeleteRun() {
-		deleteRunSaving = true;
-		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-runs/${run.id}`, {
-				method: 'DELETE'
-			});
-			if (!res.ok) {
-				toast.error(m.error_delete_failed());
-				return;
-			}
-			deleteRunDialogOpen = false;
-			toast.success(m.tr_deleted());
-			goto(basePath);
-		} finally {
-			deleteRunSaving = false;
-		}
-	}
-
-	const environments = ['DEV', 'QA', 'STAGE', 'PROD'];
-
-	// Status dropdown state
-	let statusDropdown: { execId: number; currentStatus: string; x: number; y: number; tcKey: string } | null = $state(null);
-	const allStatuses = ['PENDING', 'PASS', 'FAIL', 'BLOCKED', 'SKIPPED'];
-
-	function toggleStatusDropdown(exec: { id: number; status: string; testCaseKey: string }, event: MouseEvent) {
-		event.stopPropagation();
-		if (statusDropdown?.execId === exec.id) {
-			statusDropdown = null;
-		} else {
-			const el = event.currentTarget as HTMLElement;
-			const rect = el.getBoundingClientRect();
-			statusDropdown = { execId: exec.id, currentStatus: exec.status, x: rect.left + rect.width / 2, y: rect.bottom + 4, tcKey: exec.testCaseKey };
-		}
-	}
-
-	async function changeExecutionStatus(execId: number, newStatus: string, tcKey: string) {
-		if (newStatus === 'FAIL') {
-			statusDropdown = null;
-			openFailDialog(execId, tcKey);
-			return;
-		}
-		statusDropdown = null;
-		const formData = new FormData();
-		formData.set('executionId', String(execId));
-		formData.set('status', newStatus);
-		try {
-			const res = await fetch(`?/updateStatus`, { method: 'POST', body: formData });
-			if (res.ok) {
-				const savedScroll = scrollContainer?.scrollTop ?? 0;
-				await invalidateAll();
-				await tick();
-				if (scrollContainer) scrollContainer.scrollTop = savedScroll;
-			} else {
-				toast.error(m.error_operation_failed());
-			}
-		} catch {
-			toast.error(m.error_operation_failed());
-		}
-	}
-
-	function handleClickOutside(event: MouseEvent) {
-		const target = event.target as HTMLElement;
-		if (statusDropdown && !target.closest('[data-status-dropdown]')) {
-			statusDropdown = null;
-		}
+	async function handleMutationSuccess() {
+		selectedPending.clear();
+		const savedScroll = scrollContainer?.scrollTop ?? 0;
+		await invalidateAll();
+		await tick();
+		if (scrollContainer) scrollContainer.scrollTop = savedScroll;
 	}
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="space-y-6" onclick={handleClickOutside} onkeydown={(e) => { if (e.key === 'Escape') statusDropdown = null; }}>
-	<!-- Header -->
-	<div class="flex items-center justify-between">
-		<div>
-			<a href={basePath} class="text-muted-foreground hover:text-foreground text-sm"
-				>&larr; {m.common_back_to({ target: m.tr_title() })}</a
-			>
-			<div class="mt-1 flex items-center gap-3">
-				<h2 class="text-xl font-bold">{run.name}</h2>
-				<Badge variant="outline">{run.environment}</Badge>
-				<Badge variant={statusVariant(run.status)}>{run.status.replace('_', ' ')}</Badge>
-				{#if sse.connected}
-					<span class="flex items-center gap-1 text-xs text-green-600">
-						<span class="inline-block h-2 w-2 animate-pulse rounded-full bg-green-500"></span>
-						{m.sse_connected()}
-					</span>
-				{/if}
-			</div>
-		</div>
-		<div class="flex gap-2">
-			<Button
-				variant="outline"
-				size="sm"
-				href="/api/projects/{data.project.id}/test-runs/{run.id}/export"
-			>
-				{m.run_export_csv()}
-			</Button>
-			{#if canExecute && run.status === 'CREATED'}
-				<Button variant="outline" size="sm" onclick={openEditRun}>
-					{m.tr_edit()}
-				</Button>
-			{/if}
-			{#if canExecute}
-				<Button variant="outline" size="sm" onclick={openCloneRun}>
-					{m.tr_clone()}
-				</Button>
-			{/if}
-			{#if isAdmin}
-				<Button variant="outline" size="sm" class="text-destructive hover:text-destructive" onclick={() => (deleteRunDialogOpen = true)}>
-					{m.tr_delete()}
-				</Button>
-			{/if}
-			{#if canExecute && run.status !== 'COMPLETED'}
-				{#if run.status === 'CREATED'}
-					<form method="POST" action="?/updateRunStatus" use:enhance={handleResult}>
-						<input type="hidden" name="status" value="IN_PROGRESS" />
-						<Button type="submit" size="sm">{m.run_start()}</Button>
-					</form>
-				{/if}
-				{#if run.status === 'IN_PROGRESS'}
-					<form method="POST" action="?/updateRunStatus" use:enhance={handleResult}>
-						<input type="hidden" name="status" value="COMPLETED" />
-						<Button type="submit" variant="outline" size="sm">{m.run_complete()}</Button>
-					</form>
-				{/if}
-			{/if}
-		</div>
-	</div>
+<div class="space-y-6">
+	<RunHeader
+		{run}
+		{stats}
+		{projectId}
+		{basePath}
+		{canExecute}
+		{isAdmin}
+		sseConnected={sse.connected}
+		{completedPct}
+		onresult={() => {}}
+	/>
 
-	<!-- Progress Stats -->
-	<Card.Root>
-		<Card.Content class="pt-6">
-			<div class="space-y-3">
-				<div class="flex items-center justify-between text-sm">
-					<span class="font-medium">{m.run_progress()}</span>
-					<span class="text-muted-foreground">{m.run_pct_complete({ pct: completedPct })}</span>
-				</div>
-				<div class="bg-secondary flex h-3 overflow-hidden rounded-full">
-					{#if stats.pass > 0}
-						<div
-							class="bg-green-500 transition-all"
-							style="width: {(stats.pass / stats.total) * 100}%"
-						></div>
-					{/if}
-					{#if stats.fail > 0}
-						<div
-							class="bg-red-500 transition-all"
-							style="width: {(stats.fail / stats.total) * 100}%"
-						></div>
-					{/if}
-					{#if stats.blocked > 0}
-						<div
-							class="bg-orange-500 transition-all"
-							style="width: {(stats.blocked / stats.total) * 100}%"
-						></div>
-					{/if}
-					{#if stats.skipped > 0}
-						<div
-							class="bg-gray-400 transition-all"
-							style="width: {(stats.skipped / stats.total) * 100}%"
-						></div>
-					{/if}
-				</div>
-				<div class="flex flex-wrap gap-4 text-sm">
-					<span class="flex items-center gap-1">
-						<span class="inline-block h-3 w-3 rounded-full bg-green-500"></span>
-						{m.dashboard_pass()}: {stats.pass}
-					</span>
-					<span class="flex items-center gap-1">
-						<span class="inline-block h-3 w-3 rounded-full bg-red-500"></span>
-						{m.dashboard_fail()}: {stats.fail}
-					</span>
-					<span class="flex items-center gap-1">
-						<span class="inline-block h-3 w-3 rounded-full bg-orange-500"></span>
-						{m.dashboard_blocked()}: {stats.blocked}
-					</span>
-					<span class="flex items-center gap-1">
-						<span class="inline-block h-3 w-3 rounded-full bg-gray-400"></span>
-						{m.dashboard_skipped()}: {stats.skipped}
-					</span>
-					<span class="flex items-center gap-1">
-						<span class="bg-secondary inline-block h-3 w-3 rounded-full"></span>
-						{m.dashboard_pending()}: {stats.pending}
-					</span>
-				</div>
-			</div>
-		</Card.Content>
-	</Card.Root>
+	<ExecutionFilters
+		{statusTabs}
+		{statusFilter}
+		executionCount={data.executions.length}
+	/>
 
-	<!-- Status Filter Tabs -->
-	<div class="flex flex-wrap items-center gap-1">
-		{#each statusTabs as tab (tab.key)}
-			<Button
-				variant={statusFilter === tab.key ? 'default' : 'outline'}
-				size="sm"
-				class="h-7 px-3 text-xs"
-				onclick={() => setStatusFilter(tab.key)}
-			>
-				{tab.label}
-				<span class="ml-1 opacity-70">({tab.count})</span>
-			</Button>
-		{/each}
-		<span class="text-muted-foreground ml-auto text-sm">
-			{m.run_showing_count({ count: data.executions.length })}
-		</span>
-	</div>
-
-	<!-- Bulk Actions -->
 	{#if canExecute && selectedPending.size > 0}
-		<div class="bg-muted flex items-center gap-3 rounded-lg p-3">
-			<span class="text-sm font-medium">{m.run_pending_selected({ count: selectedPending.size })}</span>
-			<form method="POST" action="?/bulkPass" use:enhance={handleResult}>
-				{#each [...selectedPending] as id (id)}
-					<input type="hidden" name="executionIds" value={id} />
-				{/each}
-				<Button type="submit" size="sm" variant="outline">{m.run_bulk_pass()}</Button>
-			</form>
-		</div>
+		<BulkActionBar {selectedPending} onresult={handleMutationSuccess} />
 	{/if}
 
-	<!-- Executions Table with Virtual Scroll -->
-	<Card.Root>
-		<div
-			bind:this={scrollContainer}
-			class="overflow-y-auto"
-			style="max-height: calc(100vh - 340px);"
-			onscroll={handleScroll}
-		>
-			<table class="w-full caption-bottom text-sm">
-				<thead class="sticky top-0 z-10 bg-background [&_tr]:border-b">
-					<tr>
-						{#if canExecute && pendingExecutions.length > 0}
-							<th class="text-foreground h-10 w-10 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">
-								<input
-									type="checkbox"
-									checked={allPendingSelected}
-									onchange={togglePendingAll}
-									class="rounded"
-								/>
-							</th>
-						{/if}
-						<th class="text-foreground h-10 w-28 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.common_key()}</th>
-						<th class="text-foreground h-10 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.common_title()}</th>
-						<th class="text-foreground h-10 w-24 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.common_priority()}</th>
-						<th class="text-foreground h-10 w-28 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.common_status()}</th>
-						<th class="text-foreground h-10 w-32 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap">{m.run_executed_by()}</th>
-					</tr>
-				</thead>
-				<tbody class="[&_tr:last-child]:border-0">
-					<tr style="height: {topSpacerHeight}px"><td colspan="99"></td></tr>
-					{#each visibleExecutions as exec (exec.id)}
-						{@const execFailures = getFailures(exec.id)}
-						<tr class="hover:bg-muted/50 border-b transition-colors">
-							{#if canExecute && pendingExecutions.length > 0}
-								<td class="bg-clip-padding p-2 align-middle whitespace-nowrap">
-									{#if exec.status === 'PENDING'}
-										<input
-											type="checkbox"
-											checked={selectedPending.has(exec.id)}
-											onchange={() => togglePending(exec.id)}
-											class="rounded"
-										/>
-									{/if}
-								</td>
-							{/if}
-							<td class="bg-clip-padding p-2 align-middle whitespace-nowrap font-mono text-sm">{exec.testCaseKey}</td>
-							<td class="bg-clip-padding p-2 align-middle whitespace-nowrap font-medium">
-								{exec.testCaseTitle}
-								<span class="text-muted-foreground text-xs"> (v{exec.versionNo})</span>
-							</td>
-							<td class="bg-clip-padding p-2 align-middle whitespace-nowrap">
-								<Badge variant={priorityVariant(exec.testCasePriority)}>
-									{exec.testCasePriority}
-								</Badge>
-							</td>
-							<td class="bg-clip-padding p-2 align-middle whitespace-nowrap">
-								{#if canExecute}
-									<button
-										type="button"
-										data-status-dropdown
-										class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:ring-1 hover:ring-ring/30 transition-all {statusColor(exec.status)}"
-										class:underline={exec.status === 'FAIL' && execFailures.length > 0}
-										onclick={(e) => toggleStatusDropdown(exec, e)}
-									>
-										{exec.status}
-										{#if exec.status === 'FAIL' && execFailures.length > 0}
-											({execFailures.length})
-										{/if}
-									</button>
-								{:else}
-									<button
-										type="button"
-										class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium {statusColor(exec.status)}"
-										onclick={() => {
-											if (exec.status === 'FAIL') {
-												if (viewFailuresExecId === exec.id) {
-													expandedHeights.delete(exec.id);
-													expandedHeights = new Map(expandedHeights);
-													viewFailuresExecId = null;
-												} else {
-													viewFailuresExecId = exec.id;
-												}
-											}
-										}}
-										class:cursor-pointer={exec.status === 'FAIL'}
-										class:underline={exec.status === 'FAIL' && execFailures.length > 0}
-									>
-										{exec.status}
-										{#if exec.status === 'FAIL' && execFailures.length > 0}
-											({execFailures.length})
-										{/if}
-									</button>
-								{/if}
-							</td>
-							<td class="text-muted-foreground bg-clip-padding p-2 align-middle whitespace-nowrap text-sm">
-								{exec.executedBy ?? '-'}
-							</td>
-						</tr>
-						<!-- Inline failure details -->
-						{#if exec.status === 'FAIL' && viewFailuresExecId === exec.id}
-							<tr>
-								<td colspan="99">
-									<div use:measureHeight={{ execId: exec.id }} class="bg-red-50 dark:bg-red-950/30 space-y-3 rounded-md p-4">
-										<div class="flex items-center justify-between">
-											<h4 class="text-sm font-medium text-red-800 dark:text-red-300">
-												{m.fail_details()}
-											</h4>
-											{#if canExecute}
-												<Button
-													type="button"
-													variant="outline"
-													size="sm"
-													onclick={() => openFailDialog(exec.id, exec.testCaseKey)}
-												>
-													{m.fail_add_detail()}
-												</Button>
-											{/if}
-										</div>
-										<div class="mb-3 border-b pb-3">
-											<AttachmentManager
-												referenceType="EXECUTION"
-												referenceId={exec.id}
-												editable={canExecute}
-											/>
-										</div>
-										{#if execFailures.length === 0}
-											<p class="text-muted-foreground text-sm">
-												{m.fail_no_details()}
-											</p>
-										{:else}
-											{#each execFailures as f (f.id)}
-												<div class="rounded border bg-white p-3 dark:bg-gray-900">
-													<div class="flex items-start justify-between">
-														<div class="space-y-1 text-sm">
-															{#if f.errorMessage}
-																<div>
-																	<span class="font-medium">{m.fail_error()}:</span>
-																	{f.errorMessage}
-																</div>
-															{/if}
-															{#if f.testMethod}
-																<div>
-																	<span class="font-medium">{m.fail_method()}:</span>
-																	{f.testMethod}
-																</div>
-															{/if}
-															{#if f.failureEnvironment}
-																<div>
-																	<span class="font-medium">{m.common_environment()}:</span>
-																	{f.failureEnvironment}
-																</div>
-															{/if}
-															{#if f.stackTrace}
-																<details class="mt-2">
-																	<summary
-																		class="text-muted-foreground cursor-pointer text-xs"
-																		>{m.fail_stack_trace()}</summary
-																	>
-																	<pre
-																		class="bg-muted mt-1 overflow-x-auto rounded p-2 text-xs">{f.stackTrace}</pre>
-																</details>
-															{/if}
-															{#if f.comment}
-																<div class="text-muted-foreground mt-1">
-																	{f.comment}
-																</div>
-															{/if}
-														</div>
-														{#if canExecute}
-															<div class="flex gap-1">
-																<Button
-																	type="button"
-																	variant="ghost"
-																	size="sm"
-																	class="h-7 px-2 text-xs"
-																	onclick={() => openEditFailure(f)}
-																>
-																	{m.common_edit()}
-																</Button>
-																<Button
-																	type="button"
-																	variant="ghost"
-																	size="sm"
-																	class="text-destructive hover:text-destructive h-7 px-2 text-xs"
-																	onclick={() => openDeleteFailure(f.id)}
-																>
-																	{m.common_delete()}
-																</Button>
-															</div>
-														{/if}
-													</div>
-													<div class="text-muted-foreground mt-2 text-xs">
-														{f.createdBy} &middot; {new Date(f.createdAt).toLocaleString()}
-													</div>
-													<div class="mt-3 border-t pt-3">
-														<AttachmentManager
-															referenceType="FAILURE"
-															referenceId={f.id}
-															editable={canExecute}
-														/>
-													</div>
-												</div>
-											{/each}
-										{/if}
-									</div>
-								</td>
-							</tr>
-						{/if}
-					{/each}
-					<tr style="height: {bottomSpacerHeight}px"><td colspan="99"></td></tr>
-				</tbody>
-			</table>
-		</div>
-	</Card.Root>
+	<ExecutionTable
+		executions={data.executions}
+		failures={data.failures}
+		{canExecute}
+		{selectedPending}
+		{allPendingSelected}
+		{pendingExecutions}
+		onTogglePendingAll={togglePendingAll}
+		onTogglePending={togglePending}
+		onOpenFailDialog={openFailDialog}
+		onOpenEditFailure={openEditFailure}
+		onOpenDeleteFailure={openDeleteFailure}
+		onScrollContainerBind={(el) => {
+			scrollContainer = el;
+		}}
+	/>
 </div>
 
-<!-- Fixed-position status dropdown -->
-{#if statusDropdown}
-	<div
-		data-status-dropdown
-		class="fixed z-[9999] bg-popover border rounded-md shadow-lg py-1 min-w-[120px]"
-		style="left: {statusDropdown.x}px; top: {statusDropdown.y}px; transform: translateX(-50%);"
-	>
-		{#each allStatuses as s}
-			<button
-				type="button"
-				class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted {statusColor(s)} {s === statusDropdown.currentStatus ? 'font-bold bg-muted/50' : ''}"
-				onclick={() => changeExecutionStatus(statusDropdown!.execId, s, statusDropdown!.tcKey)}
-			>
-				{s}
-				{#if s === statusDropdown.currentStatus}
-					<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="inline ml-1"><polyline points="20 6 9 17 4 12"/></svg>
-				{/if}
-			</button>
-		{/each}
-		{#if statusDropdown.currentStatus === 'FAIL'}
-			<div class="border-t my-1"></div>
-			<button
-				type="button"
-				class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted text-muted-foreground"
-				onclick={() => {
-					const execId = statusDropdown!.execId;
-					viewFailuresExecId = viewFailuresExecId === execId ? null : execId;
-					statusDropdown = null;
-				}}
-			>
-				{m.fail_details()}
-			</button>
-		{/if}
-	</div>
-{/if}
-
-<!-- FAIL with Detail Dialog -->
-<Dialog.Root bind:open={failDialogOpen}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-lg">
-			<Dialog.Header>
-				<Dialog.Title>{m.fail_mark_title({ key: failExecutionKey })}</Dialog.Title>
-				<Dialog.Description>{m.fail_mark_desc()}</Dialog.Description>
-			</Dialog.Header>
-			<form method="POST" action="?/failWithDetail" use:enhance={handleFailResult}>
-				<input type="hidden" name="executionId" value={failExecutionId} />
-				<div class="space-y-4 py-4">
-					<div class="space-y-2">
-						<Label for="errorMessage">{m.fail_error_message()}</Label>
-						<Textarea
-							id="errorMessage"
-							name="errorMessage"
-							bind:value={errorMessage}
-							placeholder={m.fail_error_placeholder()}
-							rows={2}
-						/>
-					</div>
-					<div class="grid gap-4 sm:grid-cols-2">
-						<div class="space-y-2">
-							<Label for="failureEnvironment">{m.common_environment()}</Label>
-							<Input
-								id="failureEnvironment"
-								name="failureEnvironment"
-								bind:value={failureEnvironment}
-								placeholder={m.fail_env_placeholder()}
-							/>
-						</div>
-						<div class="space-y-2">
-							<Label for="testMethod">{m.fail_method_label()}</Label>
-							<Input
-								id="testMethod"
-								name="testMethod"
-								bind:value={testMethod}
-								placeholder={m.fail_method_placeholder()}
-							/>
-						</div>
-					</div>
-					<div class="space-y-2">
-						<Label for="stackTrace">{m.fail_stack_trace()}</Label>
-						<Textarea
-							id="stackTrace"
-							name="stackTrace"
-							bind:value={stackTrace}
-							placeholder={m.fail_stack_placeholder()}
-							rows={4}
-							class="font-mono text-xs"
-						/>
-					</div>
-					<div class="space-y-2">
-						<Label for="failComment">{m.common_comment()}</Label>
-						<Textarea
-							id="failComment"
-							name="comment"
-							bind:value={failComment}
-							placeholder={m.fail_comment_placeholder()}
-							rows={2}
-						/>
-					</div>
-				</div>
-				<Dialog.Footer>
-					<Button type="button" variant="outline" onclick={() => (failDialogOpen = false)}>
-						{m.common_cancel()}
-					</Button>
-					<Button type="submit" variant="destructive">{m.fail_mark_submit()}</Button>
-				</Dialog.Footer>
-			</form>
-		</Dialog.Content>
-	</Dialog.Portal>
-</Dialog.Root>
-
-<!-- Edit Failure Dialog -->
-<Dialog.Root bind:open={editFailureDialogOpen}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-lg">
-			<Dialog.Header>
-				<Dialog.Title>{m.fail_edit_title()}</Dialog.Title>
-			</Dialog.Header>
-			<form method="POST" action="?/updateFailure" use:enhance={handleEditFailResult}>
-				<input type="hidden" name="failureId" value={editFailureId} />
-				<div class="space-y-4 py-4">
-					<div class="space-y-2">
-						<Label for="editErrorMessage">{m.fail_error_message()}</Label>
-						<Textarea
-							id="editErrorMessage"
-							name="errorMessage"
-							bind:value={editErrorMessage}
-							rows={2}
-						/>
-					</div>
-					<div class="grid gap-4 sm:grid-cols-2">
-						<div class="space-y-2">
-							<Label for="editFailureEnvironment">{m.common_environment()}</Label>
-							<Input
-								id="editFailureEnvironment"
-								name="failureEnvironment"
-								bind:value={editFailureEnvironment}
-							/>
-						</div>
-						<div class="space-y-2">
-							<Label for="editTestMethod">{m.fail_method_label()}</Label>
-							<Input
-								id="editTestMethod"
-								name="testMethod"
-								bind:value={editTestMethod}
-							/>
-						</div>
-					</div>
-					<div class="space-y-2">
-						<Label for="editStackTrace">{m.fail_stack_trace()}</Label>
-						<Textarea
-							id="editStackTrace"
-							name="stackTrace"
-							bind:value={editStackTrace}
-							rows={4}
-							class="font-mono text-xs"
-						/>
-					</div>
-					<div class="space-y-2">
-						<Label for="editComment">{m.common_comment()}</Label>
-						<Textarea
-							id="editComment"
-							name="comment"
-							bind:value={editComment}
-							rows={2}
-						/>
-					</div>
-				</div>
-				<Dialog.Footer>
-					<Button
-						type="button"
-						variant="outline"
-						onclick={() => (editFailureDialogOpen = false)}
-					>
-						{m.common_cancel()}
-					</Button>
-					<Button type="submit">{m.common_save_changes()}</Button>
-				</Dialog.Footer>
-			</form>
-		</Dialog.Content>
-	</Dialog.Portal>
-</Dialog.Root>
-
-<!-- Delete Failure Dialog -->
-<AlertDialog.Root bind:open={deleteDialogOpen}>
-	<AlertDialog.Portal>
-		<AlertDialog.Overlay />
-		<AlertDialog.Content>
-			<AlertDialog.Header>
-				<AlertDialog.Title>{m.fail_delete_title()}</AlertDialog.Title>
-				<AlertDialog.Description>
-					{m.fail_delete_confirm()}
-				</AlertDialog.Description>
-			</AlertDialog.Header>
-			<AlertDialog.Footer>
-				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-				<form method="POST" action="?/deleteFailure" use:enhance={handleDeleteFailResult}>
-					<input type="hidden" name="failureId" value={deleteFailureId} />
-					<Button type="submit" variant="destructive">{m.common_delete()}</Button>
-				</form>
-			</AlertDialog.Footer>
-		</AlertDialog.Content>
-	</AlertDialog.Portal>
-</AlertDialog.Root>
-
-<!-- Edit Run Dialog -->
-<Dialog.Root bind:open={editRunDialogOpen}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-md">
-			<Dialog.Header>
-				<Dialog.Title>{m.tr_edit_title()}</Dialog.Title>
-			</Dialog.Header>
-			<div class="space-y-4 py-4">
-				<div class="space-y-2">
-					<Label for="editRunName">{m.tr_run_name()}</Label>
-					<Input id="editRunName" bind:value={editRunName} />
-				</div>
-				<div class="space-y-2">
-					<Label for="editRunEnv">{m.common_environment()}</Label>
-					<Select.Root
-						type="single"
-						value={editRunEnv}
-						onValueChange={(v: string) => { editRunEnv = v; }}
-					>
-						<Select.Trigger class="w-full">
-							{editRunEnv}
-						</Select.Trigger>
-						<Select.Content>
-							{#each environments as env}
-								<Select.Item value={env} label={env} />
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-			</div>
-			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (editRunDialogOpen = false)}>
-					{m.common_cancel()}
-				</Button>
-				<Button onclick={handleEditRun} disabled={editRunSaving || !editRunName.trim()}>
-					{editRunSaving ? m.common_saving() : m.common_save_changes()}
-				</Button>
-			</Dialog.Footer>
-		</Dialog.Content>
-	</Dialog.Portal>
-</Dialog.Root>
-
-<!-- Clone Run Dialog -->
-<Dialog.Root bind:open={cloneDialogOpen}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-md">
-			<Dialog.Header>
-				<Dialog.Title>{m.tr_clone_title()}</Dialog.Title>
-			</Dialog.Header>
-			<div class="space-y-4 py-4">
-				<div class="space-y-2">
-					<Label for="cloneRunName">{m.tr_clone_name_label()}</Label>
-					<Input id="cloneRunName" bind:value={cloneRunName} />
-				</div>
-			</div>
-			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (cloneDialogOpen = false)}>
-					{m.common_cancel()}
-				</Button>
-				<Button onclick={handleCloneRun} disabled={cloneRunSaving || !cloneRunName.trim()}>
-					{cloneRunSaving ? m.common_creating() : m.tr_clone()}
-				</Button>
-			</Dialog.Footer>
-		</Dialog.Content>
-	</Dialog.Portal>
-</Dialog.Root>
-
-<!-- Delete Run Dialog -->
-<AlertDialog.Root bind:open={deleteRunDialogOpen}>
-	<AlertDialog.Portal>
-		<AlertDialog.Overlay />
-		<AlertDialog.Content>
-			<AlertDialog.Header>
-				<AlertDialog.Title>{m.tr_delete_title()}</AlertDialog.Title>
-				<AlertDialog.Description>
-					{m.tr_delete_confirm()}
-				</AlertDialog.Description>
-			</AlertDialog.Header>
-			<AlertDialog.Footer>
-				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-				<Button variant="destructive" onclick={handleDeleteRun} disabled={deleteRunSaving}>
-					{deleteRunSaving ? m.common_saving() : m.common_delete()}
-				</Button>
-			</AlertDialog.Footer>
-		</AlertDialog.Content>
-	</AlertDialog.Portal>
-</AlertDialog.Root>
+<FailureDetailDialog
+	{failDialogOpen}
+	{failExecutionId}
+	{failExecutionKey}
+	{editFailureDialogOpen}
+	{editFailureRecord}
+	{deleteDialogOpen}
+	{deleteFailureId}
+	onfailDialogOpenChange={(open) => {
+		failDialogOpen = open;
+	}}
+	oneditFailureDialogOpenChange={(open) => {
+		editFailureDialogOpen = open;
+	}}
+	ondeleteDialogOpenChange={(open) => {
+		deleteDialogOpen = open;
+	}}
+	onsuccess={handleMutationSuccess}
+/>

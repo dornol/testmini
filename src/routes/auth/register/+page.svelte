@@ -8,6 +8,7 @@
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as m from '$lib/paraglide/messages.js';
+	import PasswordStrengthMeter from '$lib/components/PasswordStrengthMeter.svelte';
 
 	let { data } = $props();
 
@@ -66,6 +67,9 @@
 			<div class="space-y-2">
 				<Label for="password">{m.auth_password()}</Label>
 				<Input id="password" type="password" bind:value={password} required minlength={8} />
+				{#if password.length > 0}
+					<PasswordStrengthMeter {password} />
+				{/if}
 			</div>
 
 			<div class="space-y-2">

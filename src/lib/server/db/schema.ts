@@ -444,6 +444,7 @@ export const oidcProvider = pgTable(
 		clientId: text('client_id').notNull(),
 		clientSecretEncrypted: text('client_secret_encrypted').notNull(),
 		issuerUrl: text('issuer_url'),
+		jwksUri: text('jwks_uri'),
 		authorizationUrl: text('authorization_url').notNull(),
 		tokenUrl: text('token_url').notNull(),
 		userinfoUrl: text('userinfo_url'),

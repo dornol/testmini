@@ -9,8 +9,14 @@ import {
 	testFailureDetail,
 	user
 } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, gt, inArray } from 'drizzle-orm';
 import { requireAuth, requireProjectAccess } from '$lib/server/auth-utils';
+
+const BATCH_SIZE = 100;
+
+function formatCsvRow(cells: (string | null | undefined)[]): string {
+	return cells.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',');
+}
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const authUser = requireAuth(locals);
@@ -30,40 +36,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		error(404, 'Test run not found');
 	}
 
-	const executions = await db
-		.select({
-			id: testExecution.id,
-			testCaseKey: testCase.key,
-			testCaseTitle: testCaseVersion.title,
-			priority: testCaseVersion.priority,
-			versionNo: testCaseVersion.versionNo,
-			status: testExecution.status,
-			comment: testExecution.comment,
-			executedBy: user.name,
-			executedAt: testExecution.executedAt
-		})
-		.from(testExecution)
-		.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
-		.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
-		.leftJoin(user, eq(testExecution.executedBy, user.id))
-		.where(eq(testExecution.testRunId, runId))
-		.orderBy(testCase.key);
-
-	const failures = await db
-		.select({
-			testExecutionId: testFailureDetail.testExecutionId,
-			errorMessage: testFailureDetail.errorMessage
-		})
-		.from(testFailureDetail)
-		.innerJoin(testExecution, eq(testFailureDetail.testExecutionId, testExecution.id))
-		.where(eq(testExecution.testRunId, runId));
-
-	const failuresByExec = new Map<number, string[]>();
-	for (const f of failures) {
-		const arr = failuresByExec.get(f.testExecutionId) ?? [];
-		if (f.errorMessage) arr.push(f.errorMessage);
-		failuresByExec.set(f.testExecutionId, arr);
-	}
+	const fileName = `${run.name.replace(/[^a-zA-Z0-9_-]/g, '_')}_${run.environment}.csv`;
 
 	const headers = [
 		'Test Case Key',
@@ -77,25 +50,90 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		'Error Message'
 	];
 
-	const rows = executions.map((e) => [
-		e.testCaseKey,
-		e.testCaseTitle,
-		e.priority,
-		`v${e.versionNo}`,
-		e.status,
-		e.executedBy ?? '',
-		e.executedAt ? new Date(e.executedAt).toISOString() : '',
-		e.comment ?? '',
-		failuresByExec.get(e.id)?.join('; ') ?? ''
-	]);
+	const encoder = new TextEncoder();
 
-	const csvContent = [headers, ...rows]
-		.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-		.join('\n');
+	const stream = new ReadableStream({
+		async start(controller) {
+			try {
+				// BOM + header row
+				controller.enqueue(encoder.encode('\uFEFF' + formatCsvRow(headers) + '\n'));
 
-	const fileName = `${run.name.replace(/[^a-zA-Z0-9_-]/g, '_')}_${run.environment}.csv`;
+				let lastId = 0;
+				let hasMore = true;
 
-	return new Response(csvContent, {
+				while (hasMore) {
+					const batch = await db
+						.select({
+							id: testExecution.id,
+							testCaseKey: testCase.key,
+							testCaseTitle: testCaseVersion.title,
+							priority: testCaseVersion.priority,
+							versionNo: testCaseVersion.versionNo,
+							status: testExecution.status,
+							comment: testExecution.comment,
+							executedBy: user.name,
+							executedAt: testExecution.executedAt
+						})
+						.from(testExecution)
+						.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
+						.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
+						.leftJoin(user, eq(testExecution.executedBy, user.id))
+						.where(and(eq(testExecution.testRunId, runId), gt(testExecution.id, lastId)))
+						.orderBy(testExecution.id)
+						.limit(BATCH_SIZE);
+
+					if (batch.length === 0) {
+						hasMore = false;
+						break;
+					}
+
+					const batchIds = batch.map((e) => e.id);
+
+					const failures = await db
+						.select({
+							testExecutionId: testFailureDetail.testExecutionId,
+							errorMessage: testFailureDetail.errorMessage
+						})
+						.from(testFailureDetail)
+						.where(inArray(testFailureDetail.testExecutionId, batchIds));
+
+					const failuresByExec = new Map<number, string[]>();
+					for (const f of failures) {
+						const arr = failuresByExec.get(f.testExecutionId) ?? [];
+						if (f.errorMessage) arr.push(f.errorMessage);
+						failuresByExec.set(f.testExecutionId, arr);
+					}
+
+					const csvChunk = batch
+						.map((e) =>
+							formatCsvRow([
+								e.testCaseKey,
+								e.testCaseTitle,
+								e.priority,
+								`v${e.versionNo}`,
+								e.status,
+								e.executedBy,
+								e.executedAt ? new Date(e.executedAt).toISOString() : '',
+								e.comment,
+								failuresByExec.get(e.id)?.join('; ')
+							])
+						)
+						.join('\n');
+
+					controller.enqueue(encoder.encode(csvChunk + '\n'));
+
+					lastId = batch[batch.length - 1].id;
+					hasMore = batch.length === BATCH_SIZE;
+				}
+
+				controller.close();
+			} catch {
+				controller.close();
+			}
+		}
+	});
+
+	return new Response(stream, {
 		headers: {
 			'Content-Type': 'text/csv; charset=utf-8',
 			'Content-Disposition': `attachment; filename="${fileName}"`

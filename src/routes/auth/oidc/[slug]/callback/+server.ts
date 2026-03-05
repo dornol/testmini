@@ -6,6 +6,7 @@ import { user, session } from '$lib/server/db/auth.schema';
 import { and, eq } from 'drizzle-orm';
 import { randomUUID, createHmac } from 'crypto';
 import { decrypt } from '$lib/server/crypto';
+import { verifyIdToken, parseIdTokenPayload } from '$lib/server/oidc-jwt';
 import { env } from '$env/dynamic/private';
 
 /** Sign a cookie value using HMAC-SHA256, matching better-auth's format: `value.base64signature` */
@@ -93,17 +94,46 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 	let email: string | undefined;
 	let name: string | undefined;
 
-	// Try parsing ID token payload (base64url-encoded JWT)
+	// Verify the ID token signature and claims when possible.
+	// We need the provider's JWKS URI, which comes from its discovery document.
+	// The issuerUrl column is optional; fall back gracefully when absent.
 	if (tokenData.id_token) {
-		try {
-			const payload = JSON.parse(
-				Buffer.from(tokenData.id_token.split('.')[1], 'base64url').toString()
+		const jwksUri = provider.jwksUri ?? null;
+		const issuerUrl = provider.issuerUrl ?? null;
+
+		if (jwksUri && issuerUrl) {
+			// Full cryptographic verification path
+			const result = await verifyIdToken({
+				idToken: tokenData.id_token,
+				jwksUri,
+				issuer: issuerUrl,
+				audience: provider.clientId
+			});
+
+			if (result.verified && result.claims) {
+				console.log('[OIDC Callback] ID token signature and claims verified');
+				sub = result.claims.sub;
+				email = result.claims.email;
+				name = result.claims.name;
+			} else {
+				// Verification failed — log a warning and fall through to userinfo endpoint.
+				// We intentionally do NOT use unverified payload claims for identity (sub).
+				console.warn('[OIDC Callback] ID token verification failed:', result.warning);
+			}
+		} else {
+			// No JWKS URI configured — parse payload without signature verification.
+			// This is the legacy behaviour; a warning is emitted to guide administrators.
+			console.warn(
+				'[OIDC Callback] Provider "%s" has no jwksUri configured — ' +
+				'ID token signature is NOT verified. Set jwksUri via the discovery endpoint.',
+				params.slug
 			);
-			sub = payload.sub;
-			email = payload.email;
-			name = payload.name;
-		} catch {
-			// Fall through to userinfo
+			const payload = parseIdTokenPayload(tokenData.id_token);
+			if (payload) {
+				sub = payload.sub;
+				email = payload.email;
+				name = payload.name;
+			}
 		}
 	}
 

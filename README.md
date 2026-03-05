@@ -8,10 +8,11 @@
 - **테스트 케이스** — 버전 관리, 그룹/태그 분류, DnD 정렬, 벌크 액션, Import/Export (CSV/JSON)
 - **테스트 런** — 환경별 실행, 인라인 상태 변경, Bulk Pass, 진행률 표시
 - **실패 상세** — 실패 환경, 에러 메시지, 스택 트레이스 기록
-- **파일 첨부** — 테스트 케이스/실행/실패에 파일 업로드
+- **파일 첨부** — 테스트 케이스/실행/실패에 파일 업로드 (MIME 화이트리스트, 접근 제어)
 - **실시간 동기화** — SSE + Redis Pub/Sub 기반 테스트 런 실시간 업데이트
-- **대시보드/리포트** — 통과율, 환경별/우선순위별 통계, Chart.js 차트, CSV 내보내기
-- **OIDC 연동** — 관리자가 런타임에 외부 IdP(Keycloak, Google 등) 추가 가능
+- **대시보드/리포트** — 통과율, 환경별/우선순위별 통계, Chart.js 차트 (지연 로딩), 날짜 범위 필터, CSV 스트리밍 내보내기
+- **OIDC 연동** — 관리자가 런타임에 외부 IdP(Keycloak, Google 등) 추가 가능, JWKS 서명 검증
+- **보안** — Rate Limiting (Redis), 보안 헤더, PBKDF2 키 파생, SSRF 방어, path traversal 차단
 - **다국어** — 한국어/영어 (Paraglide)
 - **다크 모드** — 시스템 설정 감지 + 수동 전환
 
@@ -40,9 +41,11 @@
 
 ### 사전 요구사항
 
-- Node.js 20+
+- Node.js 24+
 - pnpm
 - Docker & Docker Compose
+
+> 상세 배포 가이드는 [DEPLOY.md](./DEPLOY.md) 참조.
 
 ### 설치
 
@@ -80,6 +83,9 @@ pnpm build            # 프로덕션 빌드
 pnpm preview          # 빌드 미리보기
 pnpm check            # 타입 체크
 pnpm test             # 테스트 실행
+pnpm lint             # ESLint 실행
+pnpm format           # Prettier 포맷팅
+pnpm format:check     # 포맷팅 검사
 pnpm db:push          # DB 스키마 반영
 pnpm db:generate      # 마이그레이션 생성
 pnpm db:migrate       # 마이그레이션 실행
@@ -96,8 +102,9 @@ pnpm auth:schema      # better-auth 스키마 생성
 - **이메일/비밀번호** — better-auth 기본 인증
 - **OIDC/OAuth2** — 관리자가 Admin 패널에서 외부 IdP를 런타임에 등록/관리
   - PKCE (S256) 지원
-  - OIDC Discovery 자동 설정
-  - 클라이언트 시크릿 AES-256-GCM 암호화 저장
+  - OIDC Discovery 자동 설정 (SSRF 방어: 사설 IP 차단, HTTPS 강제)
+  - JWKS 기반 ID 토큰 서명 검증 (RS256/384/512)
+  - 클라이언트 시크릿 AES-256-GCM 암호화 저장 (PBKDF2 키 파생)
   - 이메일 기반 자동 계정 매칭
   - 계정 연동/해제 관리
 
@@ -205,7 +212,7 @@ src/
 │   ├── paraglide/         # i18n 생성 파일
 │   └── auth-client.ts     # better-auth 클라이언트
 ├── app.d.ts
-└── hooks.server.ts        # SvelteKit hooks (auth, i18n)
+└── hooks.server.ts        # SvelteKit hooks (auth, i18n, security headers, rate limiting)
 ```
 
 ---
@@ -217,4 +224,4 @@ src/
 - [x] **Phase 3** — 동적 OIDC/OAuth 관리, 전문 검색, 가상 스크롤링, Import/Export
 - [ ] **Phase 4** — CI 연동 (`automation_key`, 자동화 결과 수집 API, CI webhook)
 
-자세한 구현 계획은 [PLAN.md](./PLAN.md) 참조.
+자세한 구현 계획은 [PLAN.md](./PLAN.md), 개선 작업 목록은 [TODO.md](./TODO.md) 참조.

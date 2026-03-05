@@ -8,11 +8,64 @@ import {
 	testCaseAssignee,
 	user
 } from '$lib/server/db/schema';
-import { eq, and, sql, desc, count, isNotNull } from 'drizzle-orm';
+import { eq, and, sql, desc, count, isNotNull, gte, lte } from 'drizzle-orm';
 
-export const load: PageServerLoad = async ({ params, parent }) => {
+function toDateString(date: Date): string {
+	return date.toISOString().slice(0, 10);
+}
+
+function parseDate(value: string | null): Date | null {
+	if (!value) return null;
+	const d = new Date(value);
+	return isNaN(d.getTime()) ? null : d;
+}
+
+export const load: PageServerLoad = async ({ params, parent, url }) => {
 	await parent();
 	const projectId = Number(params.projectId);
+
+	// Parse date range from URL params, default to last 30 days
+	const today = new Date();
+	today.setHours(23, 59, 59, 999);
+
+	const defaultFrom = new Date();
+	defaultFrom.setDate(defaultFrom.getDate() - 30);
+	defaultFrom.setHours(0, 0, 0, 0);
+
+	const fromParam = url.searchParams.get('from');
+	const toParam = url.searchParams.get('to');
+
+	// "all" preset skips date filtering entirely
+	const allTime = url.searchParams.get('preset') === 'all';
+
+	let fromDate: Date | null = parseDate(fromParam) ?? defaultFrom;
+	let toDate: Date | null = parseDate(toParam) ?? today;
+
+	if (allTime) {
+		fromDate = null;
+		toDate = null;
+	} else {
+		// Normalise: from = start of day, to = end of day
+		if (fromDate) fromDate.setHours(0, 0, 0, 0);
+		if (toDate) toDate.setHours(23, 59, 59, 999);
+	}
+
+	// Build the base WHERE condition for testRun rows that belong to this project
+	// and fall within the requested date range (filtering on testRun.createdAt).
+	function runDateCondition() {
+		const conditions = [eq(testRun.projectId, projectId)];
+		if (fromDate) conditions.push(gte(testRun.createdAt, fromDate!));
+		if (toDate) conditions.push(lte(testRun.createdAt, toDate!));
+		return and(...conditions);
+	}
+
+	// For queries that filter via testExecution → testRun join
+	function execRunDateCondition() {
+		const conditions = [eq(testRun.projectId, projectId)];
+		if (fromDate) conditions.push(gte(testRun.createdAt, fromDate!));
+		if (toDate) conditions.push(lte(testRun.createdAt, toDate!));
+		return and(...conditions);
+	}
 
 	const [
 		envStats,
@@ -39,10 +92,10 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 			})
 			.from(testRun)
 			.leftJoin(testExecution, eq(testRun.id, testExecution.testRunId))
-			.where(eq(testRun.projectId, projectId))
+			.where(runDateCondition())
 			.groupBy(testRun.environment),
 
-		// Recent 10 completed runs with pass rate (for trend)
+		// Recent completed runs with pass rate (for trend)
 		db
 			.select({
 				id: testRun.id,
@@ -67,10 +120,10 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 			})
 			.from(testRun)
 			.leftJoin(testExecution, eq(testRun.id, testExecution.testRunId))
-			.where(and(eq(testRun.projectId, projectId), eq(testRun.status, 'COMPLETED')))
+			.where(and(runDateCondition(), eq(testRun.status, 'COMPLETED')))
 			.groupBy(testRun.id)
 			.orderBy(desc(testRun.finishedAt))
-			.limit(10),
+			.limit(50),
 
 		// Priority breakdown across all executions
 		db
@@ -87,10 +140,10 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 			.from(testExecution)
 			.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
-			.where(eq(testRun.projectId, projectId))
+			.where(execRunDateCondition())
 			.groupBy(testCaseVersion.priority),
 
-		// Test cases by creator
+		// Test cases by creator (not date-filtered — this is a static stat)
 		db
 			.select({
 				userId: user.id,
@@ -146,7 +199,7 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 			})
 			.from(testExecution)
 			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
-			.where(and(eq(testRun.projectId, projectId), isNotNull(testExecution.executedAt)))
+			.where(and(execRunDateCondition(), isNotNull(testExecution.executedAt)))
 			.groupBy(sql`to_char(${testExecution.executedAt}, 'YYYY-MM-DD')`)
 			.orderBy(sql`to_char(${testExecution.executedAt}, 'YYYY-MM-DD')`),
 
@@ -166,7 +219,7 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 			.from(testExecution)
 			.innerJoin(user, eq(testExecution.executedBy, user.id))
 			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
-			.where(eq(testRun.projectId, projectId))
+			.where(execRunDateCondition())
 			.groupBy(user.id, user.name)
 			.orderBy(desc(count(testExecution.id))),
 
@@ -188,7 +241,7 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 			.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 			.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
 			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
-			.where(eq(testRun.projectId, projectId))
+			.where(execRunDateCondition())
 			.groupBy(testCase.id, testCase.key, testCaseVersion.title)
 			.having(
 				sql`count(case when ${testExecution.status} = 'FAIL' then 1 end) > 0`
@@ -205,6 +258,11 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		assigneeStats,
 		dailyResults,
 		executorStats,
-		topFailingCases
+		topFailingCases,
+		dateRange: {
+			from: fromDate ? toDateString(fromDate) : null,
+			to: toDate ? toDateString(toDate) : null,
+			allTime
+		}
 	};
 };

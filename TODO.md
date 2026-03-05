@@ -2,6 +2,7 @@
 
 > 코드베이스 분석 기반 (2026-03-02)
 > 전체 재분석 및 1~3단계 구현 (2026-03-05)
+> 4단계 구현 (2026-03-05)
 
 ---
 
@@ -24,9 +25,9 @@
 - [x] 첨부파일 MIME 타입 화이트리스트 — 허용 파일 형식 제한 (이미지, PDF, 문서, 동영상 등 20종)
 - [x] Redis 인증 설정 — 프로덕션 compose에 `requirepass` 추가
 - [x] 암호화 키 파생 강화 — `crypto.ts` SHA-256 → PBKDF2 전환 (반복 횟수 100,000)
-- [ ] 인증 엔드포인트 Rate Limiting — 로그인/회원가입 brute force 방어 (Redis 기반 IP별 제한)
-- [ ] API Rate Limiting — 파일 업로드, 벌크 작업 등 남용 방지
-- [ ] OIDC 토큰 검증 강화 — ID 토큰 서명 검증, discovery 엔드포인트 SSRF 방어
+- [x] 인증 엔드포인트 Rate Limiting — Redis 슬라이딩 윈도우 기반 IP별 제한 (로그인/회원가입 10req/min)
+- [x] API Rate Limiting — 파일 업로드 30req/min, 벌크 20req/min, 일반 API 100req/min (hooks.server.ts)
+- [x] OIDC 토큰 검증 강화 — JWKS 기반 RS256/384/512 서명 검증 + discovery SSRF 방어 (사설IP 차단)
 
 ---
 
@@ -42,7 +43,7 @@
 - [x] 프로젝트 레이아웃 탭 ARIA — `role="tablist"`, `aria-current="page"` 적용
 - [x] VirtualList 접근성 — `role="list"` / `role="listitem"` 시맨틱 속성 추가
 - [x] 색상 의존 상태 표시 개선 — PASS/FAIL 진행률에 텍스트 라벨 병행 (색맹 대응)
-- [ ] 회원가입 비밀번호 강도 표시기 — 현재 `minlength=8`만 있고 시각적 안내 없음
+- [x] 회원가입 비밀번호 강도 표시기 — PasswordStrengthMeter 컴포넌트 (5단계 색상 바 + 텍스트 라벨)
 
 ---
 
@@ -54,10 +55,10 @@
 - [x] 사이드바 N+1 쿼리 최적화 — `+layout.server.ts`에서 3회 쿼리 → 1회 JOIN으로 통합
 - [x] 벌크 작업 배치 크기 제한 — bulk API에 최대 200건 제한 추가
 - [x] StepsEditor 고유 ID 사용 — 배열 인덱스 → `crypto.randomUUID()` 키로 변경
-- [ ] 테스트 런 상세 페이지 컴포넌트 분리 — `test-runs/[runId]/+page.svelte` 1,157줄, 서브 컴포넌트로 분리 필요
-- [ ] Export 엔드포인트 스트리밍 — 대량 데이터 내보내기 시 메모리 문제 (현재 전체 로딩 후 응답)
-- [ ] 대시보드 차트 지연 로딩 — fold 아래 차트 lazy-load로 초기 로딩 속도 개선
-- [ ] 리포트 페이지 날짜 범위 필터 — 전체 데이터를 한 번에 조회하는 대신 기간 필터 추가
+- [x] 테스트 런 상세 페이지 컴포넌트 분리 — 1,157줄 → 188줄 + 6개 서브 컴포넌트 (RunHeader, ExecutionFilters, BulkActionBar, ExecutionTable, ExecutionRow, FailureDetailDialog)
+- [x] Export 엔드포인트 스트리밍 — ReadableStream + 커서 기반 페이지네이션 (배치 100건), BOM 포함
+- [x] 대시보드 차트 지연 로딩 — LazyChart 컴포넌트 (IntersectionObserver + 스켈레톤 플레이스홀더)
+- [x] 리포트 페이지 날짜 범위 필터 — 프리셋 버튼 (7/30/90일, 전체) + 커스텀 날짜 입력, URL 파라미터 기반
 
 ---
 
@@ -70,7 +71,7 @@
 - [x] lint/format 스크립트 — `package.json`에 eslint, prettier, format:check 스크립트 추가
 - [ ] 모니터링/로깅 — 구조화된 로깅 (pino 등), 에러 트래킹 (Sentry 등) 설정
 - [ ] DB 백업 전략 — PostgreSQL 자동 백업 스크립트 (pg_dump cron 또는 WAL archiving)
-- [ ] 배포 문서화 — 프로덕션 배포 절차, 환경변수 가이드, 롤백 방법 문서
+- [x] 배포 문서화 — DEPLOY.md 작성 (Docker Compose, 수동 배포, SSL/리버스 프록시, DB 백업, 트러블슈팅)
 
 ---
 
@@ -97,7 +98,7 @@
 - [x] test_execution CHECK 제약 — `PENDING`일 때 `executedBy`/`executedAt` NULL 강제 (마이그레이션 0006)
 - [x] 그룹 색상 값 검증 — API에서 HEX 형식 regex 검증 추가
 - [x] sortOrder 값 검증 — reorder API에서 음수/비정수 방지
-- [ ] 첨부파일 참조 무결성 — 폴리모픽 `referenceType+referenceId` DB 레벨 검증 (트리거 또는 CHECK)
+- [x] 첨부파일 참조 무결성 — INSERT/UPDATE 검증 트리거 + 부모 삭제 시 CASCADE 정리 트리거 (마이그레이션 0007)
 
 ---
 

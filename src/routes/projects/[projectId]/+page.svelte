@@ -4,6 +4,7 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import Chart from '$lib/components/Chart.svelte';
+	import LazyChart from '$lib/components/LazyChart.svelte';
 	import type { ChartConfiguration } from 'chart.js';
 
 	let { data } = $props();
@@ -259,7 +260,7 @@
 				</Card.Header>
 				<Card.Content class="flex justify-center">
 					<div class="w-64">
-						<Chart config={doughnutConfig} aria-label="Execution status distribution chart" />
+						<LazyChart config={doughnutConfig} aria-label="Execution status distribution chart" height="h-64" />
 					</div>
 				</Card.Content>
 			</Card.Root>

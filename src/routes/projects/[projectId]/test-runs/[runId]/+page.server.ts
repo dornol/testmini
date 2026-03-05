@@ -42,7 +42,7 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		.where(eq(testExecution.testRunId, runId))
 		.groupBy(testExecution.status);
 
-	const stats: Record<string, number> = { total: 0, pending: 0, pass: 0, fail: 0, blocked: 0, skipped: 0 };
+	const stats = { total: 0, pending: 0, pass: 0, fail: 0, blocked: 0, skipped: 0 } as { total: number; pending: number; pass: number; fail: number; blocked: number; skipped: number; [key: string]: number };
 	for (const row of allStatuses) {
 		stats[row.status.toLowerCase()] = Number(row.cnt);
 		stats.total += Number(row.cnt);

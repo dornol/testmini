@@ -28,6 +28,7 @@
 	let generatedKey = $state<string | null>(null);
 	let generatedKeyName = $state('');
 	let revoking = $state(false);
+	let keyCopied = $state(false);
 
 	const projectId = $derived(data.project.id);
 
@@ -60,6 +61,7 @@
 				const result = await res.json();
 				generatedKey = result.key;
 				generatedKeyName = result.name;
+				keyCopied = false;
 				generateOpen = false;
 				newKeyName = '';
 				await loadKeys();
@@ -96,10 +98,19 @@
 	async function copyKey(key: string) {
 		try {
 			await navigator.clipboard.writeText(key);
+			keyCopied = true;
 			toast.success(m.api_key_copied());
 		} catch {
 			toast.error(m.error_operation_failed());
 		}
+	}
+
+	function tryCloseGeneratedKey(open: boolean) {
+		if (open || !generatedKey) return;
+		if (!keyCopied) {
+			if (!confirm(m.api_key_close_without_copy())) return;
+		}
+		generatedKey = null;
 	}
 
 	function formatDate(dateStr: string | null): string {
@@ -123,7 +134,7 @@
 		</Card.Header>
 		<Card.Content>
 			{#if loading}
-				<p class="text-muted-foreground text-sm">{m.common_saving()}</p>
+				<p class="text-muted-foreground text-sm">{m.common_loading()}</p>
 			{:else if apiKeys.length === 0}
 				<p class="text-muted-foreground text-sm">{m.api_keys_empty()}</p>
 			{:else}
@@ -211,7 +222,7 @@
 </Dialog.Root>
 
 <!-- Show Generated Key Dialog (one-time display) -->
-<Dialog.Root open={!!generatedKey} onOpenChange={(open) => { if (!open) generatedKey = null; }}>
+<Dialog.Root open={!!generatedKey} onOpenChange={tryCloseGeneratedKey}>
 	<Dialog.Portal>
 		<Dialog.Overlay />
 		<Dialog.Content>
@@ -220,21 +231,26 @@
 				<Dialog.Description>{m.api_key_created_desc()}</Dialog.Description>
 			</Dialog.Header>
 			<div class="space-y-4 py-2">
+				<div class="rounded-md border border-amber-500/50 bg-amber-50 p-3 dark:bg-amber-950/30">
+					<p class="text-sm font-medium text-amber-800 dark:text-amber-200">{m.api_key_copy_warning()}</p>
+				</div>
 				<div class="space-y-2">
 					<Label>{m.api_key_name_label()}: {generatedKeyName}</Label>
 					<div class="flex items-center gap-2">
 						<code class="bg-muted flex-1 overflow-x-auto rounded p-2 font-mono text-sm break-all">
 							{generatedKey}
 						</code>
-						<Button variant="outline" size="sm" onclick={() => copyKey(generatedKey!)}>
+						<Button variant={keyCopied ? 'outline' : 'default'} size="sm" onclick={() => copyKey(generatedKey!)}>
+							{#if keyCopied}
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M20 6 9 17l-5-5"/></svg>
+							{/if}
 							{m.api_key_copy()}
 						</Button>
 					</div>
-					<p class="text-muted-foreground text-xs">{m.api_key_copy_warning()}</p>
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button onclick={() => { generatedKey = null; }}>{m.common_close()}</Button>
+				<Button onclick={() => tryCloseGeneratedKey(false)}>{m.common_close()}</Button>
 			</Dialog.Footer>
 		</Dialog.Content>
 	</Dialog.Portal>

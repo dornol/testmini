@@ -9,13 +9,14 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { toast } from 'svelte-sonner';
+	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
 	// @ts-ignore zod 3.24 type mismatch with superforms adapter
 	const validators = zodClient(updateProjectSchema);
-	const { form, errors, enhance, submitting } = superForm(data.form, {
+	const { form, errors, enhance, submitting, tainted } = superForm(data.form, {
 		validators,
 		onUpdated({ form }) {
 			if (form.message) {
@@ -26,6 +27,8 @@
 
 	let deactivateOpen = $state(false);
 </script>
+
+<UnsavedChangesGuard dirty={!!$tainted && !$submitting} />
 
 <div class="space-y-4">
 	<Card.Root>

@@ -563,5 +563,11 @@
 	"api_key_copied": "API key copied to clipboard",
 	"api_key_last_used": "Last used",
 	"api_key_created_title": "API Key Created",
-	"api_key_created_desc": "Copy and store this key securely. It will not be shown again after you close this dialog."
+	"api_key_created_desc": "Copy and store this key securely. It will not be shown again after you close this dialog.",
+	"api_key_close_without_copy": "You haven't copied the key yet. You won't be able to see it again after closing this dialog. Are you sure?",
+	"unsaved_changes_title": "Unsaved Changes",
+	"unsaved_changes_desc": "You have unsaved changes. If you leave this page, your changes will be lost.",
+	"unsaved_changes_leave": "Leave Page",
+	"unsaved_changes_stay": "Keep Editing",
+	"common_loading": "Loading..."
 }

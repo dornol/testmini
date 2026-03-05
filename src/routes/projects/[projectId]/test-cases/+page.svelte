@@ -425,24 +425,15 @@
 	});
 
 	// --- Inline editing (pencil icon click for key/title) ---
-	function startInlineEdit(tcId: number, field: 'key' | 'title', currentValue: string, e: Event) {
-		e.stopPropagation();
-		editingCell = { tcId, field, value: currentValue };
-	}
-
-	async function commitInlineEdit() {
+	async function flushInlineEdit() {
 		if (!editingCell) return;
 		const { tcId, field, value } = editingCell;
 		const original = data.testCases.find((tc) => tc.id === tcId);
-		if (!original) { editingCell = null; return; }
+		if (!original) return;
 
 		const originalValue = field === 'key' ? original.key : original.title;
-		if (value.trim() === originalValue) {
-			editingCell = null;
-			return;
-		}
+		if (value.trim() === originalValue) return;
 
-		editingCell = null;
 		try {
 			const res = await fetch(
 				`/api/projects/${data.project.id}/test-cases/${tcId}`,
@@ -461,6 +452,21 @@
 		} catch {
 			toast.error(m.error_update_failed());
 		}
+	}
+
+	function startInlineEdit(tcId: number, field: 'key' | 'title', currentValue: string, e: Event) {
+		e.stopPropagation();
+		// Commit any pending edit before starting a new one
+		if (editingCell && (editingCell.tcId !== tcId || editingCell.field !== field)) {
+			flushInlineEdit();
+		}
+		editingCell = { tcId, field, value: currentValue };
+	}
+
+	async function commitInlineEdit() {
+		if (!editingCell) return;
+		await flushInlineEdit();
+		editingCell = null;
 	}
 
 	function handleInlineKeydown(e: KeyboardEvent) {

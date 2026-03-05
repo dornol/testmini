@@ -6,6 +6,7 @@
 > 새 기능 8개 구현 (2026-03-05)
 > 테스트 4개 항목 구현 (2026-03-05)
 > Phase 4 CI 연동 구현 (2026-03-05)
+> UX 개선 — 데이터 유실 방지 (2026-03-05)
 
 ---
 
@@ -135,3 +136,12 @@
 - [x] 사용자 검색 페이지네이션 — `/api/users/search`에 offset 파라미터 추가
 - [x] API 응답 일관성 — PATCH 엔드포인트 `{success: true}` → 업데이트된 엔티티 반환으로 통일
 - [x] OIDC discovery 캐싱 — 5분 TTL 메모리 캐시 + 10초 fetch 타임아웃 추가
+
+---
+
+## UX 개선 — 데이터 유실 방지
+
+- [x] 폼 이탈 시 미저장 경고 — UnsavedChangesGuard 컴포넌트 (beforeNavigate + beforeunload), TC 생성/편집/설정 페이지 적용
+- [x] 인라인 편집 변경사항 유실 방지 — flushInlineEdit()로 새 편집 시작 시 이전 편집 자동 커밋, race condition 해결
+- [x] API 키 모달 경고 강화 — 복사 여부 추적, 미복사 시 닫기 확인, amber 경고 배너, 로딩 텍스트 수정
+- [x] 유틸리티 함수 테스트 — unsaved-guard.ts (isFormDirty, isInlineEditDirty, shouldWarnOnApiKeyClose) 18개 테스트

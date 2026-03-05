@@ -10,15 +10,24 @@
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import TemplateSelector from '../TemplateSelector.svelte';
+	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
+	let formDirty = $state(false);
 
 	// @ts-ignore zod 3.24 type mismatch with superforms adapter
 	const validators = zodClient(createTestCaseSchema);
-	const { form, errors, enhance, submitting } = superForm(data.form, {
+	const { form, errors, enhance, submitting, tainted } = superForm(data.form, {
 		validators,
-		dataType: 'json'
+		dataType: 'json',
+		onUpdated() {
+			formDirty = false;
+		}
+	});
+
+	$effect(() => {
+		formDirty = !!$tainted;
 	});
 
 	interface Template {
@@ -36,6 +45,8 @@
 		$form.priority = template.priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 	}
 </script>
+
+<UnsavedChangesGuard dirty={formDirty && !$submitting} />
 
 <div class="mx-auto max-w-2xl">
 	<div class="mb-4">

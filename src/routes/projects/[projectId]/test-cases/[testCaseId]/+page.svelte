@@ -18,6 +18,7 @@
 	import CommentSection from '$lib/components/CommentSection.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import SaveAsTemplateDialog from '../SaveAsTemplateDialog.svelte';
+	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
@@ -30,7 +31,7 @@
 
 	// @ts-ignore zod 3.24 type mismatch with superforms adapter
 	const validators = zodClient(updateTestCaseSchema);
-	const { form, errors, enhance, submitting, reset } = superForm(data.form, {
+	const { form, errors, enhance, submitting, reset, tainted } = superForm(data.form, {
 		validators,
 		dataType: 'json',
 		onUpdated({ form }) {
@@ -45,6 +46,8 @@
 			}
 		}
 	});
+
+	const editDirty = $derived(editing && !!$tainted);
 
 	const tc = $derived(data.testCaseDetail);
 	const version = $derived(tc.latestVersion);
@@ -143,6 +146,8 @@
 		}
 	}
 </script>
+
+<UnsavedChangesGuard dirty={editDirty && !$submitting} />
 
 <div class="space-y-4">
 	<div class="flex items-center justify-between">

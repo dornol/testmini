@@ -18,6 +18,7 @@
 - **TC 템플릿** — 반복 사용 TC 구조를 템플릿으로 저장/적용
 - **TC 코멘트** — TC별 댓글 스레드 (1레벨 답글, 수정/삭제)
 - **키보드 단축키** — Mod+S 저장, Mod+K 검색, ? 힌트 패널
+- **데이터 유실 방지** — 폼 이탈 경고 (beforeNavigate/beforeunload), 인라인 편집 자동 커밋, API 키 복사 확인
 - **다국어** — 한국어/영어 (Paraglide)
 - **다크 모드** — 시스템 설정 감지 + 수동 전환
 
@@ -38,7 +39,7 @@
 | 차트 | **Chart.js** |
 | i18n | **Paraglide** (ko, en) |
 | 로깅 | **pino** (구조화된 로깅, 요청 ID 추적) |
-| 테스트 | **Vitest** (444 unit/component), **Playwright** (5 E2E suites) |
+| 테스트 | **Vitest** (462 unit/component), **Playwright** (5 E2E suites) |
 | 패키지 매니저 | **pnpm** |
 
 ---

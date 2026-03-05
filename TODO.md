@@ -157,3 +157,8 @@
 - [x] 감사 로그 날짜 범위 검증 — 시작일/종료일 min/max 속성으로 역전 방지
 - [x] 멤버 역할 변경 확인 — AlertDialog 확인 다이얼로그 추가 (즉시 제출 → 확인 후 제출)
 - [x] 네비게이션/검증 유틸리티 테스트 — navigation.ts (loadCollapsedGroups, saveCollapsedGroups, isDateRangeValid) 16개 테스트
+- [x] 상태 드롭다운 키보드 접근성 — role="menu"/menuitem, Arrow 키, Escape, 자동 포커스 (ExecutionTable)
+- [x] 알림 패널 Escape 키 닫기 — NotificationBell에 onkeydown 핸들러 추가
+- [x] 비교 페이지 색맹 대응 — 회귀(▼)/개선(▲)/변경(◆) 아이콘 색상 병행 표시
+- [x] 알림 폴링 백오프 — 비활성 탭 시 30초 → 5분 간격, visibilitychange 이벤트 기반
+- [x] 비교 결과 CSV 내보내기 — 클라이언트 사이드 CSV 생성 (BOM 포함, 필터 반영)

@@ -230,6 +230,38 @@
 		}
 	}
 
+	function handleDropdownKeydown(event: KeyboardEvent) {
+		if (!statusDropdown) return;
+		const items = Array.from(
+			document.querySelectorAll<HTMLButtonElement>('[data-status-dropdown] button')
+		);
+		const current = document.activeElement as HTMLElement;
+		const idx = items.indexOf(current as HTMLButtonElement);
+
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			statusDropdown = null;
+		} else if (event.key === 'ArrowDown') {
+			event.preventDefault();
+			const next = idx < items.length - 1 ? idx + 1 : 0;
+			items[next]?.focus();
+		} else if (event.key === 'ArrowUp') {
+			event.preventDefault();
+			const prev = idx > 0 ? idx - 1 : items.length - 1;
+			items[prev]?.focus();
+		}
+	}
+
+	// Auto-focus first item when dropdown opens
+	$effect(() => {
+		if (statusDropdown) {
+			tick().then(() => {
+				const first = document.querySelector<HTMLButtonElement>('[data-status-dropdown] button');
+				first?.focus();
+			});
+		}
+	});
+
 	export function closeStatusDropdown() {
 		statusDropdown = null;
 	}
@@ -312,14 +344,19 @@
 
 <!-- Fixed-position status dropdown -->
 {#if statusDropdown}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		data-status-dropdown
+		role="menu"
+		aria-label="Status options"
 		class="fixed z-[9999] bg-popover border rounded-md shadow-lg py-1 min-w-[120px]"
 		style="left: {statusDropdown.x}px; top: {statusDropdown.y}px; transform: translateX(-50%);"
+		onkeydown={handleDropdownKeydown}
 	>
 		{#each allStatuses as s (s)}
 			<button
 				type="button"
+				role="menuitem"
 				class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted {statusColor(s)} {s === statusDropdown.currentStatus ? 'font-bold bg-muted/50' : ''}"
 				onclick={() => changeExecutionStatus(statusDropdown!.execId, s, statusDropdown!.tcKey)}
 			>

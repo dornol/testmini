@@ -9,6 +9,26 @@
 
 	let filter = $state<'all' | 'diff' | 'regression'>('all');
 
+	function exportCsv() {
+		const BOM = '\uFEFF';
+		const headers = ['Key', 'Title', 'Priority', 'Run A Status', 'Run B Status'];
+		const rows = filteredRows.map((r) => [
+			r.key,
+			`"${(r.title ?? '').replace(/"/g, '""')}"`,
+			r.priority,
+			r.statusA ?? '-',
+			r.statusB ?? '-'
+		]);
+		const csv = BOM + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+		const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `compare-${data.runA.name}-vs-${data.runB.name}.csv`;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
 	const filteredRows = $derived.by(() => {
 		if (filter === 'all') return data.rows;
 		if (filter === 'regression') {
@@ -80,19 +100,19 @@
 		</Card.Root>
 		<Card.Root>
 			<Card.Content class="p-3 text-center">
-				<div class="text-xl font-bold text-red-600">{data.summary.regression}</div>
+				<div class="text-xl font-bold text-red-600">&#x25BC; {data.summary.regression}</div>
 				<div class="text-[10px] text-muted-foreground">{m.tr_compare_regression()}</div>
 			</Card.Content>
 		</Card.Root>
 		<Card.Root>
 			<Card.Content class="p-3 text-center">
-				<div class="text-xl font-bold text-green-600">{data.summary.improvement}</div>
+				<div class="text-xl font-bold text-green-600">&#x25B2; {data.summary.improvement}</div>
 				<div class="text-[10px] text-muted-foreground">{m.tr_compare_improvement()}</div>
 			</Card.Content>
 		</Card.Root>
 		<Card.Root>
 			<Card.Content class="p-3 text-center">
-				<div class="text-xl font-bold text-yellow-600">{data.summary.changed}</div>
+				<div class="text-xl font-bold text-yellow-600">&#x25C6; {data.summary.changed}</div>
 				<div class="text-[10px] text-muted-foreground">{m.tr_compare_changed()}</div>
 			</Card.Content>
 		</Card.Root>
@@ -111,7 +131,7 @@
 	</div>
 
 	<!-- Filter tabs -->
-	<div class="flex gap-1">
+	<div class="flex items-center gap-1">
 		<Button variant={filter === 'all' ? 'default' : 'outline'} size="sm" class="h-7 px-2 text-xs" onclick={() => (filter = 'all')}>
 			{m.tr_compare_filter_all()} ({data.rows.length})
 		</Button>
@@ -121,6 +141,11 @@
 		<Button variant={filter === 'regression' ? 'default' : 'outline'} size="sm" class="h-7 px-2 text-xs" onclick={() => (filter = 'regression')}>
 			{m.tr_compare_filter_regression()} ({data.summary.regression})
 		</Button>
+		<div class="ml-auto">
+			<Button variant="outline" size="sm" class="h-7 px-2 text-xs" onclick={exportCsv}>
+				{m.run_export_csv()}
+			</Button>
+		</div>
 	</div>
 
 	<!-- Comparison table -->

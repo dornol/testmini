@@ -148,16 +148,39 @@
 		}
 	}
 
-	// Poll every 30 s: reload visible list when open, otherwise just refresh the badge count
+	// Poll with visibility-based backoff: 30s active, 5m when tab hidden
 	$effect(() => {
-		const interval = setInterval(() => {
-			if (open) {
-				loadNotifications(true);
-			} else {
+		let intervalId: ReturnType<typeof setInterval>;
+		const ACTIVE_INTERVAL = 30_000;
+		const HIDDEN_INTERVAL = 300_000;
+
+		function startPolling() {
+			clearInterval(intervalId);
+			const interval = document.hidden ? HIDDEN_INTERVAL : ACTIVE_INTERVAL;
+			intervalId = setInterval(() => {
+				if (open) {
+					loadNotifications(true);
+				} else {
+					refreshUnreadCount();
+				}
+			}, interval);
+		}
+
+		function handleVisibilityChange() {
+			startPolling();
+			// Refresh immediately when tab becomes visible
+			if (!document.hidden) {
 				refreshUnreadCount();
 			}
-		}, 30_000);
-		return () => clearInterval(interval);
+		}
+
+		startPolling();
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+
+		return () => {
+			clearInterval(intervalId);
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		};
 	});
 
 	// Outside-click to close — only registered while panel is open
@@ -166,6 +189,14 @@
 		document.addEventListener('click', handleOutsideClick);
 		return () => document.removeEventListener('click', handleOutsideClick);
 	});
+
+	// Escape key to close panel
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape' && open) {
+			event.preventDefault();
+			open = false;
+		}
+	}
 </script>
 
 <div class="relative" data-notification-bell>
@@ -208,11 +239,13 @@
 
 	<!-- Dropdown panel -->
 	{#if open}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			transition:fly={{ y: -8, duration: 150 }}
 			class="border-border bg-popover text-popover-foreground absolute right-0 z-50 mt-1 w-80 rounded-md border shadow-lg sm:w-96"
 			role="dialog"
 			aria-label="Notifications panel"
+			onkeydown={handleKeydown}
 		>
 			<!-- Header -->
 			<div class="flex items-center justify-between border-b border-border px-4 py-3">

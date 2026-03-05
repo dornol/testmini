@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages.js';
+	import { toast } from 'svelte-sonner';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -17,6 +18,9 @@
 	const recentRuns = $derived(data.recentRuns);
 	const trendRuns = $derived(data.trendRuns);
 	const activityLog = $derived(data.activityLog);
+	const ACTIVITY_LIMIT = 20;
+	let showAllActivity = $state(false);
+	const visibleActivities = $derived(showAllActivity ? activityLog : activityLog.slice(0, ACTIVITY_LIMIT));
 
 	// ── Layout state ──────────────────────────────────────
 	// Read data.initialLayout once via untrack() so the $state initializer does not
@@ -44,13 +48,16 @@
 
 	async function saveLayout() {
 		try {
-			await fetch(`/api/projects/${proj.id}/dashboard-layout`, {
+			const res = await fetch(`/api/projects/${proj.id}/dashboard-layout`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ layout: $state.snapshot(layout) })
 			});
+			if (!res.ok) {
+				toast.error(m.dashboard_save_error());
+			}
 		} catch {
-			// silently ignore network errors
+			toast.error(m.dashboard_save_error());
 		}
 	}
 
@@ -541,25 +548,27 @@
 
 			<!-- pass_rate_trend -->
 			{:else if widget.id === 'pass_rate_trend'}
-				{#if trendRuns.length > 0}
-					<Card.Root class="h-full">
-						<Card.Header>
-							<Card.Title class="text-sm font-medium">{m.dashboard_pass_rate_trend()}</Card.Title>
-						</Card.Header>
-						<Card.Content>
+				<Card.Root class="h-full">
+					<Card.Header>
+						<Card.Title class="text-sm font-medium">{m.dashboard_pass_rate_trend()}</Card.Title>
+					</Card.Header>
+					<Card.Content>
+						{#if trendRuns.length > 0}
 							<Chart config={trendConfig} aria-label="Pass rate trend chart" />
-						</Card.Content>
-					</Card.Root>
-				{/if}
+						{:else}
+							<p class="text-muted-foreground text-sm text-center py-8">{m.dashboard_no_chart_data()}</p>
+						{/if}
+					</Card.Content>
+				</Card.Root>
 
 			<!-- status_distribution -->
 			{:else if widget.id === 'status_distribution'}
-				{#if stats.execCounts.total > 0}
-					<Card.Root class="h-full">
-						<Card.Header>
-							<Card.Title class="text-sm font-medium">{m.dashboard_exec_chart()}</Card.Title>
-						</Card.Header>
-						<Card.Content class="flex justify-center">
+				<Card.Root class="h-full">
+					<Card.Header>
+						<Card.Title class="text-sm font-medium">{m.dashboard_exec_chart()}</Card.Title>
+					</Card.Header>
+					<Card.Content class="flex justify-center">
+						{#if stats.execCounts.total > 0}
 							<div class="w-64">
 								<LazyChart
 									config={doughnutConfig}
@@ -567,9 +576,11 @@
 									height="h-64"
 								/>
 							</div>
-						</Card.Content>
-					</Card.Root>
-				{/if}
+						{:else}
+							<p class="text-muted-foreground text-sm text-center py-8">{m.dashboard_no_chart_data()}</p>
+						{/if}
+					</Card.Content>
+				</Card.Root>
 
 			<!-- recent_runs -->
 			{:else if widget.id === 'recent_runs'}
@@ -725,7 +736,7 @@
 		</Card.Header>
 		<Card.Content>
 			<div class="space-y-2">
-				{#each activityLog as activity (activity.id)}
+				{#each visibleActivities as activity (activity.id)}
 					<div class="flex items-center gap-3 text-sm">
 						<span
 							class="inline-block h-2 w-2 rounded-full {activity.status === 'PASS'
@@ -746,6 +757,15 @@
 					</div>
 				{/each}
 			</div>
+			{#if activityLog.length > ACTIVITY_LIMIT && !showAllActivity}
+				<button
+					type="button"
+					class="mt-3 w-full text-center text-xs text-primary hover:underline"
+					onclick={() => { showAllActivity = true; }}
+				>
+					{m.dashboard_activity_show_more()} ({activityLog.length - ACTIVITY_LIMIT})
+				</button>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 {/if}

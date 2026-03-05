@@ -80,6 +80,7 @@
 	const allStatuses = ['PENDING', 'PASS', 'FAIL', 'BLOCKED', 'SKIPPED'];
 
 	let viewFailuresExecId = $state<number | null>(null);
+	let updatingExecId = $state<number | null>(null);
 
 	// Pass scroll container ref to parent via callback
 	function setupScrollContainer(node: HTMLDivElement) {
@@ -199,6 +200,7 @@
 			return;
 		}
 		statusDropdown = null;
+		updatingExecId = execId;
 		const formData = new FormData();
 		formData.set('executionId', String(execId));
 		formData.set('status', newStatus);
@@ -214,6 +216,8 @@
 			}
 		} catch {
 			toast.error(m.error_operation_failed());
+		} finally {
+			updatingExecId = null;
 		}
 	}
 
@@ -289,6 +293,7 @@
 						{canExecute}
 						showCheckbox={canExecute && pendingExecutions.length > 0}
 						isSelected={selectedPending.has(exec.id)}
+						isUpdating={updatingExecId === exec.id}
 						{viewFailuresExecId}
 						onToggleSelect={onTogglePending}
 						onToggleStatusDropdown={toggleStatusDropdown}

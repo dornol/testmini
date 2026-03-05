@@ -145,3 +145,7 @@
 - [x] 인라인 편집 변경사항 유실 방지 — flushInlineEdit()로 새 편집 시작 시 이전 편집 자동 커밋, race condition 해결
 - [x] API 키 모달 경고 강화 — 복사 여부 추적, 미복사 시 닫기 확인, amber 경고 배너, 로딩 텍스트 수정
 - [x] 유틸리티 함수 테스트 — unsaved-guard.ts (isFormDirty, isInlineEditDirty, shouldWarnOnApiKeyClose) 18개 테스트
+- [x] 인라인 상태 변경 로딩 표시 — 우선순위/담당자/실행 상태 변경 시 스피너 + 중복 요청 방지 (test-cases, ExecutionTable, ExecutionRow)
+- [x] 벌크 작업 피드백 — BulkActionBar에 성공/실패 토스트 + 로딩 스피너, 대시보드 레이아웃 저장 에러 토스트
+- [x] 빈 상태(Empty State) 개선 — TC 검색 빈 결과에 필터 초기화 링크, 대시보드 차트 빈 상태 메시지, 테스트 런 필터 빈 상태에 초기화 버튼
+- [x] 활동 로그 제한 — 대시보드 활동 로그 20건 제한 + "더보기" 버튼

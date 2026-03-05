@@ -569,5 +569,12 @@
 	"unsaved_changes_desc": "You have unsaved changes. If you leave this page, your changes will be lost.",
 	"unsaved_changes_leave": "Leave Page",
 	"unsaved_changes_stay": "Keep Editing",
-	"common_loading": "Loading..."
+	"common_loading": "Loading...",
+	"common_clear_filters": "Clear Filters",
+	"bulk_pass_success": "{count} items marked as Pass",
+	"bulk_pass_error": "Bulk operation failed",
+	"dashboard_save_error": "Failed to save dashboard layout",
+	"dashboard_no_chart_data": "No data to display",
+	"dashboard_activity_show_more": "Show More",
+	"tr_clear_filter": "Clear Filter"
 }

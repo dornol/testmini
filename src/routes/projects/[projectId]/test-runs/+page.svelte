@@ -238,7 +238,9 @@
 					{m.tr_empty_create()}
 				{/if}
 			</p>
-			{#if !data.statusFilter && data.userRole !== 'VIEWER'}
+			{#if data.statusFilter}
+				<Button variant="outline" size="sm" class="mt-4" onclick={() => setStatus('')}>{m.tr_clear_filter()}</Button>
+			{:else if data.userRole !== 'VIEWER'}
 				<Button href="{basePath}/new" class="mt-4">{m.tr_create()}</Button>
 			{/if}
 		</div>

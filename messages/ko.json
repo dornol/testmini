@@ -569,5 +569,12 @@
 	"unsaved_changes_desc": "저장하지 않은 변경사항이 있습니다. 페이지를 떠나면 변경사항이 사라집니다.",
 	"unsaved_changes_leave": "페이지 떠나기",
 	"unsaved_changes_stay": "계속 작업하기",
-	"common_loading": "로딩 중..."
+	"common_loading": "로딩 중...",
+	"common_clear_filters": "필터 초기화",
+	"bulk_pass_success": "{count}개 항목이 Pass로 변경되었습니다",
+	"bulk_pass_error": "벌크 작업에 실패했습니다",
+	"dashboard_save_error": "대시보드 레이아웃 저장에 실패했습니다",
+	"dashboard_no_chart_data": "표시할 데이터가 없습니다",
+	"dashboard_activity_show_more": "더보기",
+	"tr_clear_filter": "필터 초기화"
 }

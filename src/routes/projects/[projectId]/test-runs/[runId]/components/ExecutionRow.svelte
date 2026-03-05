@@ -32,6 +32,7 @@
 		canExecute: boolean;
 		showCheckbox: boolean;
 		isSelected: boolean;
+		isUpdating?: boolean;
 		viewFailuresExecId: number | null;
 		onToggleSelect: (id: number) => void;
 		onToggleStatusDropdown: (exec: Execution, event: MouseEvent) => void;
@@ -48,6 +49,7 @@
 		canExecute,
 		showCheckbox,
 		isSelected,
+		isUpdating = false,
 		viewFailuresExecId,
 		onToggleSelect,
 		onToggleStatusDropdown,
@@ -121,10 +123,15 @@
 			<button
 				type="button"
 				data-status-dropdown
-				class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:ring-1 hover:ring-ring/30 transition-all {statusColor(exec.status)}"
+				class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:ring-1 hover:ring-ring/30 transition-all {statusColor(exec.status)}"
 				class:underline={exec.status === 'FAIL' && failures.length > 0}
+				class:opacity-50={isUpdating}
+				disabled={isUpdating}
 				onclick={(e) => onToggleStatusDropdown(exec, e)}
 			>
+				{#if isUpdating}
+					<svg class="h-3 w-3 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+				{/if}
 				{exec.status}
 				{#if exec.status === 'FAIL' && failures.length > 0}
 					({failures.length})

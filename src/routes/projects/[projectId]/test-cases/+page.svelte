@@ -263,6 +263,8 @@
 		}
 	}
 
+	let updatingExecIds = $state(new Set<number>());
+
 	async function updateExecutionStatus(
 		runId: number,
 		executionId: number,
@@ -275,6 +277,8 @@
 			return;
 		}
 		openDropdown = null;
+		updatingExecIds.add(executionId);
+		updatingExecIds = new Set(updatingExecIds);
 		try {
 			const res = await fetch(
 				`/api/projects/${data.project.id}/test-runs/${runId}/executions/${executionId}/status`,
@@ -286,9 +290,14 @@
 			);
 			if (res.ok) {
 				await invalidateAll();
+			} else {
+				toast.error(m.error_operation_failed());
 			}
 		} catch {
-			// silently fail
+			toast.error(m.error_operation_failed());
+		} finally {
+			updatingExecIds.delete(executionId);
+			updatingExecIds = new Set(updatingExecIds);
 		}
 	}
 
@@ -489,8 +498,12 @@
 		}
 	}
 
+	let updatingTcIds = $state(new Set<number>());
+
 	async function selectPriority(tcId: number, newPriority: string) {
 		priorityPopover = null;
+		updatingTcIds.add(tcId);
+		updatingTcIds = new Set(updatingTcIds);
 		try {
 			const res = await fetch(
 				`/api/projects/${data.project.id}/test-cases/${tcId}`,
@@ -508,6 +521,9 @@
 			}
 		} catch {
 			toast.error(m.error_update_failed());
+		} finally {
+			updatingTcIds.delete(tcId);
+			updatingTcIds = new Set(updatingTcIds);
 		}
 	}
 
@@ -527,11 +543,13 @@
 
 	async function toggleAssignee(tcId: number, userId: string) {
 		const tc = data.testCases.find((t) => t.id === tcId);
-		if (!tc) return;
+		if (!tc || updatingTcIds.has(tcId)) return;
 		const isAssigned = tc.assignees?.some((a) => a.userId === userId);
 		const action = isAssigned ? 'removeAssignee' : 'assignAssignee';
 		const formData = new FormData();
 		formData.set('userId', userId);
+		updatingTcIds.add(tcId);
+		updatingTcIds = new Set(updatingTcIds);
 		try {
 			const res = await fetch(
 				`/projects/${data.project.id}/test-cases/${tcId}?/${action}`,
@@ -544,6 +562,9 @@
 			}
 		} catch {
 			toast.error(m.error_operation_failed());
+		} finally {
+			updatingTcIds.delete(tcId);
+			updatingTcIds = new Set(updatingTcIds);
 		}
 	}
 
@@ -1696,7 +1717,10 @@
 		</div>
 
 		{#if data.testCases.length === 0 && hasActiveFilters}
-			<p class="text-center text-xs text-muted-foreground py-4">{m.tc_empty_search()}</p>
+			<div class="flex flex-col items-center gap-2 py-6">
+				<p class="text-center text-xs text-muted-foreground">{m.tc_empty_search()}</p>
+				<a href={basePath} class="text-xs text-primary hover:underline">{m.common_clear_filters()}</a>
+			</div>
 		{/if}
 		</div>
 	{/if}

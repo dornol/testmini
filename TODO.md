@@ -113,6 +113,7 @@
 - [x] API PATCH/DELETE 테스트 — 프로젝트 (10), TC (15), 런 (11), 그룹 (13) PATCH/DELETE 테스트 추가
 - [x] 동시성 테스트 — soft lock 유닛 (14), lock API (17), revision 낙관적 동시성 (9) 테스트 추가
 - [x] E2E 커버리지 확대 — admin (11), project-settings (9), reports (11) E2E 테스트 추가
+- [x] 미커버 API 테스트 보강 — health (2), attachments (5), preferences (5), clone (8), versions (6), export (8), executions (3), status (5), failures (5), suites (22), audit/notifications 유틸 (10)
 
 ---
 

@@ -37,7 +37,8 @@
 | 파일 스토리지 | 로컬 파일 시스템 (S3 전환 가능) |
 | 차트 | **Chart.js** |
 | i18n | **Paraglide** (ko, en) |
-| 테스트 | **Vitest** (unit/component), **Playwright** |
+| 로깅 | **pino** (구조화된 로깅, 요청 ID 추적) |
+| 테스트 | **Vitest** (444 unit/component), **Playwright** (5 E2E suites) |
 | 패키지 매니저 | **pnpm** |
 
 ---

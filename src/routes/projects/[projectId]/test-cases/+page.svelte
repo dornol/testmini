@@ -47,8 +47,16 @@
 	let failureSheet: FailureDetailsSheet;
 	let failDialog: FailWithDetailDialog;
 
-	// --- Group view state ---
-	let collapsedGroups: Set<number> = $state(new Set());
+	// --- Group view state (persisted in localStorage) ---
+	const collapsedStorageKey = $derived(`tc-collapsed-${data.project.id}`);
+	function loadCollapsedGroups(): Set<number> {
+		try {
+			const stored = localStorage.getItem(`tc-collapsed-${data.project.id}`);
+			if (stored) return new Set(JSON.parse(stored));
+		} catch { /* ignore */ }
+		return new Set();
+	}
+	let collapsedGroups: Set<number> = $state(loadCollapsedGroups());
 	let newGroupName = $state('');
 	let creatingGroup = $state(false);
 	let editingGroupId: number | null = $state(null);
@@ -637,6 +645,9 @@
 			next.add(groupId);
 		}
 		collapsedGroups = next;
+		try {
+			localStorage.setItem(collapsedStorageKey, JSON.stringify([...next]));
+		} catch { /* ignore */ }
 	}
 
 	async function createGroup() {

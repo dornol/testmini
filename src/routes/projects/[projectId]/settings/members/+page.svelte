@@ -31,6 +31,30 @@
 	let removeMemberName = $state('');
 	let removeDialogOpen = $state(false);
 
+	// Role change confirmation dialog
+	let roleChangeDialogOpen = $state(false);
+	let roleChangeMemberId = $state<number | null>(null);
+	let roleChangeMemberName = $state('');
+	let roleChangeNewRole = $state('');
+
+	function confirmRoleChange(memberId: number, memberName: string, newRole: string) {
+		roleChangeMemberId = memberId;
+		roleChangeMemberName = memberName;
+		roleChangeNewRole = newRole;
+		roleChangeDialogOpen = true;
+	}
+
+	function executeRoleChange() {
+		if (!roleChangeMemberId) return;
+		const form = document.querySelector<HTMLFormElement>(`[data-role-form="${roleChangeMemberId}"]`);
+		if (form) {
+			const hidden = form.querySelector<HTMLInputElement>('input[name="role"]');
+			if (hidden) hidden.value = roleChangeNewRole;
+			form.requestSubmit();
+		}
+		roleChangeDialogOpen = false;
+	}
+
 	function handleSearch() {
 		clearTimeout(searchTimeout);
 		if (searchQuery.length < 2) {
@@ -204,6 +228,7 @@
 							<form
 								method="POST"
 								action="?/updateRole"
+								data-role-form={member.id}
 								use:enhance={() => {
 									return async ({ result, update }) => {
 										if (result.type === 'success') {
@@ -222,13 +247,8 @@
 									type="single"
 									value={member.role}
 									onValueChange={(v: string) => {
-										const trigger = document.querySelector(`[data-member-role="${member.id}"]`);
-										const form = trigger?.closest('form');
-										if (form) {
-											const hidden = form.querySelector<HTMLInputElement>('input[name="role"]');
-											if (hidden) hidden.value = v;
-											form.requestSubmit();
-										}
+										if (v === member.role) return;
+										confirmRoleChange(member.id, member.userName, v);
 									}}
 								>
 									<Select.Trigger size="sm" class="h-8" data-member-role={member.id}>
@@ -257,6 +277,25 @@
 			</Table.Body>
 		</Table.Root>
 	</Card.Root>
+
+	<!-- Role Change Confirmation Dialog -->
+	<AlertDialog.Root bind:open={roleChangeDialogOpen}>
+		<AlertDialog.Portal>
+			<AlertDialog.Overlay />
+			<AlertDialog.Content>
+				<AlertDialog.Header>
+					<AlertDialog.Title>{m.members_role_change_title()}</AlertDialog.Title>
+					<AlertDialog.Description>
+						{m.members_role_change_confirm({ name: roleChangeMemberName, role: roleChangeNewRole.replace('_', ' ') })}
+					</AlertDialog.Description>
+				</AlertDialog.Header>
+				<AlertDialog.Footer>
+					<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+					<Button onclick={executeRoleChange}>{m.members_role_change_action()}</Button>
+				</AlertDialog.Footer>
+			</AlertDialog.Content>
+		</AlertDialog.Portal>
+	</AlertDialog.Root>
 
 	<!-- Remove Member Dialog -->
 	<AlertDialog.Root bind:open={removeDialogOpen}>

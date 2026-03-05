@@ -576,5 +576,14 @@
 	"dashboard_save_error": "대시보드 레이아웃 저장에 실패했습니다",
 	"dashboard_no_chart_data": "표시할 데이터가 없습니다",
 	"dashboard_activity_show_more": "더보기",
-	"tr_clear_filter": "필터 초기화"
+	"tr_clear_filter": "필터 초기화",
+	"sse_disconnected": "연결 끊김",
+	"sse_reconnecting": "재연결 중...",
+	"lock_retry": "재시도",
+	"lock_retry_success": "편집 잠금을 획득했습니다",
+	"breadcrumb_home": "프로젝트",
+	"members_role_change_title": "역할 변경 확인",
+	"members_role_change_confirm": "{name}의 역할을 {role}(으)로 변경하시겠습니까?",
+	"members_role_change_action": "역할 변경",
+	"date_range_invalid": "시작일이 종료일보다 늦을 수 없습니다"
 }

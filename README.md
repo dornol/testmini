@@ -39,7 +39,7 @@
 | 차트 | **Chart.js** |
 | i18n | **Paraglide** (ko, en) |
 | 로깅 | **pino** (구조화된 로깅, 요청 ID 추적) |
-| 테스트 | **Vitest** (462 unit/component), **Playwright** (5 E2E suites) |
+| 테스트 | **Vitest** (478 unit/component), **Playwright** (5 E2E suites) |
 | 패키지 매니저 | **pnpm** |
 
 ---

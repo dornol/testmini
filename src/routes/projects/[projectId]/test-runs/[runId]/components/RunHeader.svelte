@@ -182,6 +182,11 @@
 					<span class="inline-block h-2 w-2 animate-pulse rounded-full bg-green-500"></span>
 					{m.sse_connected()}
 				</span>
+			{:else}
+				<span class="flex items-center gap-1 text-xs text-orange-600">
+					<span class="inline-block h-2 w-2 rounded-full bg-orange-500"></span>
+					{m.sse_disconnected()}
+				</span>
 			{/if}
 		</div>
 	</div>

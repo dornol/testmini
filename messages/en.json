@@ -576,5 +576,14 @@
 	"dashboard_save_error": "Failed to save dashboard layout",
 	"dashboard_no_chart_data": "No data to display",
 	"dashboard_activity_show_more": "Show More",
-	"tr_clear_filter": "Clear Filter"
+	"tr_clear_filter": "Clear Filter",
+	"sse_disconnected": "Disconnected",
+	"sse_reconnecting": "Reconnecting...",
+	"lock_retry": "Retry",
+	"lock_retry_success": "Edit lock acquired",
+	"breadcrumb_home": "Projects",
+	"members_role_change_title": "Confirm Role Change",
+	"members_role_change_confirm": "Change {name}'s role to {role}?",
+	"members_role_change_action": "Change Role",
+	"date_range_invalid": "Start date cannot be after end date"
 }

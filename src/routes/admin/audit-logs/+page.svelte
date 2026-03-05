@@ -92,8 +92,8 @@
 					{/each}
 				</Select.Content>
 			</Select.Root>
-			<Input type="date" bind:value={from} aria-label={m.audit_logs_filter_from()} />
-			<Input type="date" bind:value={to} aria-label={m.audit_logs_filter_to()} />
+			<Input type="date" bind:value={from} max={to || undefined} aria-label={m.audit_logs_filter_from()} />
+			<Input type="date" bind:value={to} min={from || undefined} aria-label={m.audit_logs_filter_to()} />
 		</div>
 		<div class="mt-3 flex gap-2">
 			<Button size="sm" onclick={applyFilters}>{m.common_search()}</Button>

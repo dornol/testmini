@@ -152,9 +152,15 @@
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
 		<div>
-			<a href={basePath} class="text-muted-foreground hover:text-foreground text-sm"
-				>&larr; {m.common_back_to({ target: m.tc_title() })}</a
-			>
+			<nav class="flex items-center gap-1 text-sm text-muted-foreground" aria-label="Breadcrumb">
+				<a href="/projects" class="hover:text-foreground">{m.breadcrumb_home()}</a>
+				<span>/</span>
+				<a href={`/projects/${data.project.id}`} class="hover:text-foreground">{data.project.name}</a>
+				<span>/</span>
+				<a href={basePath} class="hover:text-foreground">{m.tc_title()}</a>
+				<span>/</span>
+				<span class="text-foreground font-medium">{tc.key}</span>
+			</nav>
 			<div class="mt-1 flex items-center gap-3">
 				<h2 class="text-xl font-bold">{tc.key}</h2>
 				{#if version}
@@ -164,8 +170,13 @@
 		</div>
 		<div class="flex items-center gap-2">
 			{#if lockHolder && !editing}
-				<span class="text-xs text-orange-600">
+				<span class="flex items-center gap-1 text-xs text-orange-600">
 					{m.lock_editing_by({ name: lockHolder.userName })}
+					{#if canEdit}
+						<Button variant="ghost" size="sm" class="h-5 px-1 text-xs" onclick={startEdit}>
+							{m.lock_retry()}
+						</Button>
+					{/if}
 				</span>
 			{/if}
 			<Button variant="outline" size="sm" onclick={() => (showVersions = !showVersions)}>

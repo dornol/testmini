@@ -90,7 +90,7 @@
 				<p class="text-sm text-destructive">{error}</p>
 			{/if}
 
-			<Button type="submit" class="w-full" disabled={loading}>
+			<Button type="submit" class="w-full" disabled={loading || passwordMismatch}>
 				{loading ? m.auth_creating_account() : m.auth_create_account()}
 			</Button>
 		</form>

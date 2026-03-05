@@ -7,6 +7,7 @@
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import Header from '$lib/components/Header.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
+	import KeyboardShortcuts from '$lib/components/KeyboardShortcuts.svelte';
 	import { setLocale } from '$lib/paraglide/runtime';
 
 	let { children, data } = $props();
@@ -33,6 +34,7 @@
 
 <ModeWatcher />
 <Toaster />
+<KeyboardShortcuts />
 
 {#if $navigating}
 	<div class="bg-primary fixed top-0 right-0 left-0 z-50 h-0.5 overflow-hidden">
@@ -44,7 +46,11 @@
 	{@render children()}
 {:else}
 	<div class="flex h-dvh flex-col">
-		<Header user={data.user} onToggleSidebar={() => (sidebarOpen = !sidebarOpen)} />
+		<Header
+			user={data.user}
+			onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
+			unreadNotificationCount={data.unreadNotificationCount}
+		/>
 		<div class="flex flex-1 overflow-hidden">
 			<Sidebar bind:open={sidebarOpen} />
 			<main class="flex-1 overflow-y-auto px-4 pb-4">

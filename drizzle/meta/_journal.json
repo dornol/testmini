@@ -29,6 +29,41 @@
       "when": 1741132800000,
       "tag": "0007_attachment_referential_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1741219200000,
+      "tag": "0008_audit_log",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1741305600000,
+      "tag": "0011_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1741392000000,
+      "tag": "0012_dashboard_layout",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1741478400000,
+      "tag": "0009_test_case_templates",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1741564800000,
+      "tag": "0010_test_case_comments",
+      "breakpoints": true
     }
   ]
 }

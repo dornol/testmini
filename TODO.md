@@ -3,6 +3,7 @@
 > 코드베이스 분석 기반 (2026-03-02)
 > 전체 재분석 및 1~3단계 구현 (2026-03-05)
 > 4단계 구현 (2026-03-05)
+> 새 기능 8개 구현 (2026-03-05)
 
 ---
 
@@ -81,14 +82,14 @@
 - [x] 테스트 케이스 버전 diff 뷰 — 단어 수준 LCS diff, 필드별 변경 시각화
 - [x] 복수 테스트 런 통합 Export — 리포트 페이지에서 체크박스 선택 후 CSV 내보내기
 - [x] 사용자 환경설정 페이지 — 언어/테마 DB 영속화, 기기 간 동기화
-- [ ] 감사 로그 (Audit Log) — 주요 작업(로그인, 프로젝트 변경, TC 수정, 삭제 등) 이력 기록 및 조회 페이지
-- [ ] 알림 시스템 — 테스트 런 완료, FAIL 발생, 멤버 추가 시 인앱/이메일 알림
-- [ ] 대시보드 위젯 커스터마이징 — 사용자별 대시보드 레이아웃 구성
-- [ ] 테스트 케이스 템플릿 — 반복 사용되는 TC 구조를 템플릿으로 저장/적용
-- [ ] 벌크 Import 진행률 표시 — 대량 임포트 시 실시간 진행 상황 표시 (현재 완료까지 무응답)
-- [ ] 첨부파일 드래그 앤 드롭 업로드 — ImportDialog에 파일 D&D 지원 추가
-- [ ] 키보드 단축키 — 주요 작업(저장, 다음 TC, 상태 변경 등)에 단축키 바인딩 + 힌트 패널
-- [ ] 테스트 케이스 코멘트/토론 — TC별 댓글 스레드 (리뷰 협업)
+- [x] 감사 로그 (Audit Log) — auditLog 테이블 + Admin 조회 페이지 (필터, 페이지네이션) + 주요 액션 로깅
+- [x] 알림 시스템 — notification 테이블 + NotificationBell 컴포넌트 (30초 폴링, 읽음 처리, 커서 페이지네이션)
+- [x] 대시보드 위젯 커스터마이징 — dashboardLayout 테이블 + 위젯 표시/숨김, 순서 드래그, 크기 조절 (sm/md/lg)
+- [x] 테스트 케이스 템플릿 — testCaseTemplate 테이블 + "Save as Template" / "Create from Template" UI
+- [x] 벌크 Import 진행률 표시 — ImportDialog 상태 머신 (idle→uploading→processing→complete/error) + 결과 요약 카드
+- [x] 첨부파일 드래그 앤 드롭 업로드 — AttachmentManager에 D&D 지원 (드래그 시각 피드백, MIME 검증, 멀티 파일)
+- [x] 키보드 단축키 — ShortcutManager + KeyboardShortcuts 컴포넌트 (Mod+S 저장, Mod+K 검색, ? 힌트 패널)
+- [x] 테스트 케이스 코멘트/토론 — testCaseComment 테이블 + CommentSection 컴포넌트 (스레드 1레벨, 수정/삭제)
 
 ---
 

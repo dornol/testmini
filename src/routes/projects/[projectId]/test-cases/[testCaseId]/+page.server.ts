@@ -8,8 +8,9 @@ import { testCase, testCaseVersion, user, tag, testCaseTag, testCaseAssignee, pr
 import { eq, and, desc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 
-export const load: PageServerLoad = async ({ params, parent }) => {
+export const load: PageServerLoad = async ({ params, parent, locals }) => {
 	await parent();
+	const authUser = requireAuth(locals);
 	const testCaseId = Number(params.testCaseId);
 
 	if (isNaN(testCaseId)) {
@@ -108,7 +109,8 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		projectTags,
 		assignedTags,
 		assignedAssignees,
-		projectMembers
+		projectMembers,
+		currentUserId: authUser.id
 	};
 };
 

@@ -9,6 +9,7 @@
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import TemplateSelector from '../TemplateSelector.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
@@ -19,6 +20,21 @@
 		validators,
 		dataType: 'json'
 	});
+
+	interface Template {
+		id: number;
+		name: string;
+		precondition: string | null;
+		steps: { order: number; action: string; expected: string }[];
+		priority: string;
+	}
+
+	function applyTemplate(template: Template) {
+		$form.precondition = template.precondition ?? '';
+		// @ts-ignore zod 3.24 type mismatch
+		$form.steps = template.steps.map((s) => ({ action: s.action, expected: s.expected }));
+		$form.priority = template.priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+	}
 </script>
 
 <div class="mx-auto max-w-2xl">
@@ -31,8 +47,13 @@
 
 	<Card.Root>
 		<Card.Header>
-			<Card.Title class="text-xl">{m.tc_new_title()}</Card.Title>
-			<Card.Description>{m.tc_new_desc()}</Card.Description>
+			<div class="flex items-start justify-between">
+				<div>
+					<Card.Title class="text-xl">{m.tc_new_title()}</Card.Title>
+					<Card.Description>{m.tc_new_desc()}</Card.Description>
+				</div>
+				<TemplateSelector projectId={data.project.id} onApply={applyTemplate} />
+			</div>
 		</Card.Header>
 		<Card.Content>
 			<form method="POST" use:enhance class="space-y-4">

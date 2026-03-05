@@ -8,7 +8,8 @@
 	const tabs = [
 		{ href: '/admin/users', label: m.nav_users() },
 		{ href: '/admin/projects', label: m.nav_projects() },
-		{ href: '/admin/oidc-providers', label: m.oidc_providers_title() }
+		{ href: '/admin/oidc-providers', label: m.oidc_providers_title() },
+		{ href: '/admin/audit-logs', label: m.nav_audit_logs() }
 	];
 </script>
 

@@ -15,7 +15,9 @@
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
 	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
 	import TagBadge from '$lib/components/TagBadge.svelte';
+	import CommentSection from '$lib/components/CommentSection.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import SaveAsTemplateDialog from '../SaveAsTemplateDialog.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
@@ -24,6 +26,7 @@
 	let deleteDialogOpen = $state(false);
 	let showVersions = $state(false);
 	let lockHolder = $state<{ userName: string } | null>(null);
+	let saveAsTemplateOpen = $state(false);
 
 	// @ts-ignore zod 3.24 type mismatch with superforms adapter
 	const validators = zodClient(updateTestCaseSchema);
@@ -167,6 +170,9 @@
 				<Button variant="outline" size="sm" onclick={cloneTestCase}>
 					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
 					{m.tc_clone()}
+				</Button>
+				<Button variant="outline" size="sm" onclick={() => { saveAsTemplateOpen = true; }}>
+					{m.template_save_as()}
 				</Button>
 				<Button size="sm" onclick={startEdit}>{m.common_edit()}</Button>
 			{/if}
@@ -494,6 +500,14 @@
 					/>
 				</Card.Content>
 			</Card.Root>
+
+			<!-- Comments -->
+			<CommentSection
+				testCaseId={tc.id}
+				projectId={data.project.id}
+				currentUserId={data.currentUserId}
+				userRole={data.userRole}
+			/>
 		</div>
 
 		<!-- Version History Sidebar -->
@@ -532,3 +546,12 @@
 		{/if}
 	</div>
 </div>
+
+<SaveAsTemplateDialog
+	bind:open={saveAsTemplateOpen}
+	projectId={data.project.id}
+	defaultName={version ? version.title + ' Template' : ''}
+	precondition={version?.precondition ?? ''}
+	steps={(version?.steps ?? []).map((s: { action: string; expected: string }) => ({ action: s.action, expected: s.expected }))}
+	priority={version?.priority ?? 'MEDIUM'}
+/>

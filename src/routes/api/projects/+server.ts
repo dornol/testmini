@@ -5,6 +5,7 @@ import { project, projectMember } from '$lib/server/db/schema';
 import { requireAuth, isGlobalAdmin, parseJsonBody } from '$lib/server/auth-utils';
 import { createProjectSchema } from '$lib/schemas/project.schema';
 import { and, eq, ilike, count, inArray, sql } from 'drizzle-orm';
+import { logAudit } from '$lib/server/audit';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	const user = requireAuth(locals);
@@ -96,6 +97,16 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		});
 
 		return created;
+	});
+
+	// Fire-and-forget audit log — do NOT await
+	logAudit({
+		userId: user.id,
+		action: 'CREATE_PROJECT',
+		entityType: 'PROJECT',
+		entityId: String(newProject.id),
+		projectId: newProject.id,
+		metadata: { name: newProject.name }
 	});
 
 	return json({ data: newProject }, { status: 201 });

@@ -7,6 +7,7 @@ import { db } from '$lib/server/db';
 import { projectMember, user } from '$lib/server/db/schema';
 import { eq, and, count } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { logAudit } from '$lib/server/audit';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = Number(params.projectId);
@@ -64,6 +65,16 @@ export const actions: Actions = {
 			role
 		});
 
+		// Fire-and-forget audit log
+		logAudit({
+			userId: authUser.id,
+			action: 'ADD_MEMBER',
+			entityType: 'MEMBER',
+			entityId: userId,
+			projectId,
+			metadata: { role, targetUserId: userId }
+		});
+
 		return message(form, 'Member added successfully');
 	},
 
@@ -106,6 +117,16 @@ export const actions: Actions = {
 			.set({ role: role as 'PROJECT_ADMIN' | 'QA' | 'DEV' | 'VIEWER' })
 			.where(eq(projectMember.id, memberId));
 
+		// Fire-and-forget audit log
+		logAudit({
+			userId: authUser.id,
+			action: 'CHANGE_ROLE',
+			entityType: 'MEMBER',
+			entityId: member.userId,
+			projectId,
+			metadata: { memberId, oldRole: member.role, newRole: role }
+		});
+
 		return { success: true };
 	},
 
@@ -143,6 +164,16 @@ export const actions: Actions = {
 		}
 
 		await db.delete(projectMember).where(eq(projectMember.id, memberId));
+
+		// Fire-and-forget audit log
+		logAudit({
+			userId: authUser.id,
+			action: 'REMOVE_MEMBER',
+			entityType: 'MEMBER',
+			entityId: member.userId,
+			projectId,
+			metadata: { memberId, removedRole: member.role, targetUserId: member.userId }
+		});
 
 		return { success: true };
 	}

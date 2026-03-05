@@ -589,3 +589,192 @@ export const oidcAccountRelations = relations(oidcAccount, ({ one }) => ({
 		references: [oidcProvider.id]
 	})
 }));
+
+// ── TestCaseTemplate ──────────────────────────────────
+
+export const testCaseTemplate = pgTable(
+	'test_case_template',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		description: text('description'),
+		precondition: text('precondition'),
+		steps: jsonb('steps').$type<TestStep[]>().default([]).notNull(),
+		priority: priorityEnum('priority').default('MEDIUM').notNull(),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at')
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		index('test_case_template_project_idx').on(table.projectId)
+	]
+);
+
+export const testCaseTemplateRelations = relations(testCaseTemplate, ({ one }) => ({
+	project: one(project, {
+		fields: [testCaseTemplate.projectId],
+		references: [project.id]
+	}),
+	creator: one(user, {
+		fields: [testCaseTemplate.createdBy],
+		references: [user.id]
+	})
+}));
+
+// ── AuditLog ──────────────────────────────────────────
+
+export const auditLog = pgTable(
+	'audit_log',
+	{
+		id: serial('id').primaryKey(),
+		userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
+		action: text('action').notNull(),
+		entityType: text('entity_type'),
+		entityId: text('entity_id'),
+		projectId: integer('project_id').references(() => project.id, { onDelete: 'set null' }),
+		metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+		ipAddress: text('ip_address'),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		index('audit_log_user_created_idx').on(table.userId, table.createdAt),
+		index('audit_log_project_created_idx').on(table.projectId, table.createdAt)
+	]
+);
+
+export const auditLogRelations = relations(auditLog, ({ one }) => ({
+	user: one(user, {
+		fields: [auditLog.userId],
+		references: [user.id]
+	}),
+	project: one(project, {
+		fields: [auditLog.projectId],
+		references: [project.id]
+	})
+}));
+
+// ── Notification ───────────────────────────────────────
+
+export const notification = pgTable(
+	'notification',
+	{
+		id: serial('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		type: text('type').notNull(),
+		title: text('title').notNull(),
+		message: text('message').notNull(),
+		link: text('link'),
+		projectId: integer('project_id').references(() => project.id, { onDelete: 'set null' }),
+		isRead: boolean('is_read').default(false).notNull(),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		index('notification_user_read_created_idx').on(table.userId, table.isRead, table.createdAt)
+	]
+);
+
+export const notificationRelations = relations(notification, ({ one }) => ({
+	user: one(user, {
+		fields: [notification.userId],
+		references: [user.id]
+	}),
+	project: one(project, {
+		fields: [notification.projectId],
+		references: [project.id]
+	})
+}));
+
+// ── DashboardLayout ───────────────────────────────────
+
+export type WidgetSize = 'sm' | 'md' | 'lg';
+
+export interface WidgetConfig {
+	id: string;
+	visible: boolean;
+	order: number;
+	size: WidgetSize;
+}
+
+export const dashboardLayout = pgTable(
+	'dashboard_layout',
+	{
+		id: serial('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		layout: jsonb('layout').$type<WidgetConfig[]>().notNull(),
+		updatedAt: timestamp('updated_at').defaultNow()
+	},
+	(table) => [
+		unique('dashboard_layout_user_project_unique').on(table.userId, table.projectId),
+		index('dashboard_layout_user_idx').on(table.userId),
+		index('dashboard_layout_project_idx').on(table.projectId)
+	]
+);
+
+export const dashboardLayoutRelations = relations(dashboardLayout, ({ one }) => ({
+	user: one(user, {
+		fields: [dashboardLayout.userId],
+		references: [user.id]
+	}),
+	project: one(project, {
+		fields: [dashboardLayout.projectId],
+		references: [project.id]
+	})
+}));
+
+// ── TestCaseComment ───────────────────────────────────
+
+export const testCaseComment = pgTable(
+	'test_case_comment',
+	{
+		id: serial('id').primaryKey(),
+		testCaseId: integer('test_case_id')
+			.notNull()
+			.references(() => testCase.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id),
+		content: text('content').notNull(),
+		parentId: integer('parent_id'),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at')
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		index('test_case_comment_case_created_idx').on(table.testCaseId, table.createdAt),
+		index('test_case_comment_parent_idx').on(table.parentId)
+	]
+);
+
+export const testCaseCommentRelations = relations(testCaseComment, ({ one, many }) => ({
+	testCase: one(testCase, {
+		fields: [testCaseComment.testCaseId],
+		references: [testCase.id]
+	}),
+	user: one(user, {
+		fields: [testCaseComment.userId],
+		references: [user.id]
+	}),
+	parent: one(testCaseComment, {
+		fields: [testCaseComment.parentId],
+		references: [testCaseComment.id],
+		relationName: 'replies'
+	}),
+	replies: many(testCaseComment, { relationName: 'replies' })
+}));

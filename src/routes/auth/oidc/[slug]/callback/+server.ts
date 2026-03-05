@@ -9,6 +9,7 @@ import { decrypt } from '$lib/server/crypto';
 import { verifyIdToken, parseIdTokenPayload } from '$lib/server/oidc-jwt';
 import { env } from '$env/dynamic/private';
 import { childLogger } from '$lib/server/logger';
+import { logAudit } from '$lib/server/audit';
 
 const log = childLogger('oidc-callback');
 
@@ -219,6 +220,7 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 	}
 
 	// 3. Auto-register if no match
+	let isNewUser = false;
 	if (!userId) {
 		if (!provider.autoRegister) {
 			redirect(302, '/auth/login?error=oidc_no_auto_register');
@@ -239,6 +241,8 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 			email: email || null,
 			name: name || null
 		});
+
+		isNewUser = true;
 	}
 
 	// Check if user is banned
@@ -266,6 +270,15 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 	});
 
 	callbackLog.info({ userId }, 'Session created, redirecting to /projects');
+
+	// Fire-and-forget audit log for login / registration
+	logAudit({
+		userId,
+		action: isNewUser ? 'REGISTER' : 'LOGIN',
+		entityType: 'USER',
+		entityId: userId,
+		metadata: { provider: provider.slug, method: 'OIDC' }
+	});
 
 	// Set session cookie with HMAC signature (matching better-auth's signed cookie format)
 	const secret = env.BETTER_AUTH_SECRET;

@@ -1,10 +1,12 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { testCase, testRun, testExecution, user } from '$lib/server/db/schema';
+import { testCase, testRun, testExecution, user, dashboardLayout } from '$lib/server/db/schema';
 import { eq, and, sql, desc, count } from 'drizzle-orm';
+import { DEFAULT_LAYOUT } from '$lib/dashboard-widgets';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
 	const projectId = Number(params.projectId);
+	const currentUser = locals.user;
 
 	// Test case count
 	const [caseCount] = await db
@@ -116,6 +118,20 @@ export const load: PageServerLoad = async ({ params }) => {
 		.orderBy(desc(testExecution.executedAt))
 		.limit(20);
 
+	// Dashboard layout for current user
+	let initialLayout = DEFAULT_LAYOUT;
+	if (currentUser) {
+		const layoutRow = await db.query.dashboardLayout.findFirst({
+			where: and(
+				eq(dashboardLayout.userId, currentUser.id),
+				eq(dashboardLayout.projectId, projectId)
+			)
+		});
+		if (layoutRow) {
+			initialLayout = layoutRow.layout;
+		}
+	}
+
 	return {
 		stats: {
 			testCaseCount: caseCount.count,
@@ -124,6 +140,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		},
 		recentRuns,
 		trendRuns: trendRuns.reverse(),
-		activityLog
+		activityLog,
+		initialLayout
 	};
 };

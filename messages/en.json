@@ -1,6 +1,5 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-
 	"app_name": "TMS",
 	"nav_projects": "Projects",
 	"nav_admin": "Admin",
@@ -13,7 +12,6 @@
 	"nav_members": "Members",
 	"nav_users": "Users",
 	"nav_tags": "Tags",
-
 	"common_search": "Search",
 	"common_cancel": "Cancel",
 	"common_close": "Close",
@@ -46,12 +44,10 @@
 	"common_total_count": "{count} items total",
 	"common_logout": "Logout",
 	"common_login": "Login",
-
 	"priority_low": "Low",
 	"priority_medium": "Medium",
 	"priority_high": "High",
 	"priority_critical": "Critical",
-
 	"auth_login_title": "Login",
 	"auth_login_desc": "Enter your credentials to sign in",
 	"auth_email_placeholder": "you@example.com",
@@ -70,7 +66,6 @@
 	"auth_have_account": "Already have an account?",
 	"auth_welcome_back": "Welcome back!",
 	"auth_account_created": "Account created successfully!",
-
 	"projects_title": "Projects",
 	"projects_new": "New Project",
 	"projects_search_placeholder": "Search projects...",
@@ -82,13 +77,11 @@
 	"projects_create": "Create Project",
 	"projects_members_count": "{count} members",
 	"projects_all": "All Projects",
-
 	"project_new_title": "New Project",
 	"project_new_desc": "Create a new project to organize your test cases",
 	"project_name_label": "Project Name",
 	"project_name_placeholder": "My Project",
 	"project_desc_placeholder": "Describe what this project is about...",
-
 	"dashboard_test_cases": "Test Cases",
 	"dashboard_test_runs": "Test Runs",
 	"dashboard_pass_rate": "Pass Rate",
@@ -106,7 +99,6 @@
 	"dashboard_pending": "Pending",
 	"dashboard_result": "Result",
 	"dashboard_env": "Env",
-
 	"settings_general": "General Settings",
 	"settings_general_desc": "Update your project details",
 	"settings_danger_zone": "Danger Zone",
@@ -114,7 +106,6 @@
 	"settings_deactivate": "Deactivate Project",
 	"settings_deactivate_title": "Deactivate Project",
 	"settings_deactivate_confirm": "Are you sure you want to deactivate \"{name}\"? The project will be hidden from the project list.",
-
 	"members_title": "Members",
 	"members_desc": "Manage project team members and their roles",
 	"members_add": "Add Member",
@@ -130,7 +121,6 @@
 	"members_added": "Member added successfully",
 	"members_role_updated": "Role updated",
 	"members_removed": "Member removed",
-
 	"tc_title": "Test Cases",
 	"tc_new": "New Test Case",
 	"tc_search_placeholder": "Search by title or key...",
@@ -143,7 +133,6 @@
 	"tc_quick_create_placeholder": "Enter test case title...",
 	"tc_add_run_column": "Add Test Run",
 	"tc_no_execution": "-",
-
 	"tc_new_title": "New Test Case",
 	"tc_new_desc": "Create a new test case with steps and expected results",
 	"tc_title_label": "Title",
@@ -152,7 +141,6 @@
 	"tc_precondition_placeholder": "Prerequisites or initial conditions...",
 	"tc_expected_result": "Overall Expected Result",
 	"tc_expected_result_placeholder": "The overall expected outcome...",
-
 	"tc_detail_edit": "Edit Test Case",
 	"tc_detail_version_history": "Version History",
 	"tc_detail_hide_history": "Hide History",
@@ -166,7 +154,6 @@
 	"tc_detail_action": "Action",
 	"tc_detail_expected": "Expected",
 	"tc_deleted": "Test case deleted",
-
 	"tr_title": "Test Runs",
 	"tr_new": "New Test Run",
 	"tr_empty_title": "No test runs found",
@@ -176,7 +163,6 @@
 	"tr_progress": "Progress",
 	"tr_created_by": "Created By",
 	"tr_created_at": "Created At",
-
 	"tr_new_title": "New Test Run",
 	"tr_new_desc": "Configure a test run and select test cases to execute",
 	"tr_run_name": "Run Name",
@@ -185,7 +171,6 @@
 	"tr_filter_placeholder": "Filter by title or key...",
 	"tr_no_cases": "No test cases in this project. Create test cases first.",
 	"tr_create_run": "Create Test Run ({count} cases)",
-
 	"run_export_csv": "Export CSV",
 	"run_start": "Start Run",
 	"run_complete": "Complete Run",
@@ -194,7 +179,6 @@
 	"run_pending_selected": "{count} pending selected",
 	"run_bulk_pass": "Bulk Pass",
 	"run_executed_by": "Executed By",
-
 	"fail_details": "Failure Details",
 	"fail_add_detail": "Add Detail",
 	"fail_no_details": "No failure details recorded.",
@@ -217,7 +201,6 @@
 	"fail_marked": "Marked as FAIL with details",
 	"fail_updated": "Failure detail updated",
 	"fail_deleted": "Failure detail deleted",
-
 	"reports_env_pass_rate": "Pass Rate by Environment",
 	"reports_no_runs": "No test runs yet.",
 	"reports_trend_title": "Pass Rate Trend (Last 10 Completed Runs)",
@@ -231,7 +214,6 @@
 	"reports_finished": "Finished",
 	"reports_runs_count": "{count} runs",
 	"reports_pass_fail": "{pass} pass / {fail} fail",
-
 	"admin_title": "Admin",
 	"admin_desc": "System administration",
 	"admin_search_placeholder": "Search by name or email...",
@@ -249,7 +231,6 @@
 	"admin_ban_reason_placeholder": "Ban reason (optional)",
 	"admin_user_banned": "User banned",
 	"admin_updated": "Updated successfully",
-
 	"admin_projects_search": "Search projects...",
 	"admin_projects_show_inactive": "Show Inactive",
 	"admin_projects_showing_all": "Showing All",
@@ -259,14 +240,12 @@
 	"admin_projects_no_results": "No projects found.",
 	"admin_projects_no_results_hint": "Try a different search query.",
 	"admin_projects_total": "{count} projects total",
-
 	"attachments_title": "Attachments",
 	"attachments_upload": "Upload",
 	"attachments_uploading": "Uploading...",
 	"attachments_none": "No attachments",
 	"attachments_delete_title": "Delete Attachment",
 	"attachments_delete_confirm": "Are you sure you want to delete \"{name}\"? This cannot be undone.",
-
 	"tag_title": "Tags",
 	"tag_desc": "Manage project tags",
 	"tag_new": "Add Tag",
@@ -286,7 +265,6 @@
 	"tag_removed": "Tag removed",
 	"tag_filter": "Tag Filter",
 	"tag_no_tags": "No tags",
-
 	"group_title": "Group",
 	"group_new": "New Group",
 	"group_created": "Group created",
@@ -298,7 +276,6 @@
 	"group_name_placeholder": "Enter group name...",
 	"tc_view_flat": "List",
 	"tc_view_grouped": "Group",
-
 	"steps_editor_title": "Steps",
 	"steps_editor_add": "Add Step",
 	"steps_editor_step_n": "Step {n}",
@@ -306,21 +283,16 @@
 	"steps_editor_action_placeholder": "Describe the action to perform",
 	"steps_editor_expected": "Expected Result",
 	"steps_editor_expected_placeholder": "Describe the expected outcome",
-
 	"dashboard_pass_rate_trend": "Pass Rate Trend",
 	"dashboard_exec_chart": "Execution Status",
 	"dashboard_activity": "Recent Activity",
-
 	"lock_editing_by": "Editing by {name}",
 	"lock_conflict": "{name} is currently editing this test case",
-
 	"sse_connected": "Live",
-
 	"tc_filter_group": "Group",
 	"tc_filter_created_by": "Created By",
 	"tc_filter_clear": "Clear Filters",
 	"tc_filter_uncategorized": "Uncategorized",
-
 	"tc_bulk_selected": "{count} selected",
 	"tc_bulk_add_tag": "Add Tag",
 	"tc_bulk_remove_tag": "Remove Tag",
@@ -331,12 +303,10 @@
 	"tc_bulk_delete_confirm": "Are you sure you want to delete {count} test cases? This cannot be undone.",
 	"tc_bulk_success": "Updated {count} test cases",
 	"tc_bulk_deleted": "Deleted {count} test cases",
-
 	"tc_clone": "Clone",
 	"tc_cloned": "Test case cloned",
 	"tc_bulk_clone": "Clone Selected",
 	"tc_bulk_cloned": "Cloned {count} test cases",
-
 	"assignee_title": "Assignees",
 	"assignee_assign": "Add Assignee",
 	"assignee_assigned": "Assignee added",
@@ -344,7 +314,6 @@
 	"tc_bulk_add_assignee": "Add Assignee",
 	"tc_bulk_remove_assignee": "Remove Assignee",
 	"tc_filter_assignee": "Assignee",
-
 	"oidc_providers_title": "Identity Providers",
 	"oidc_providers_desc": "Manage external identity providers",
 	"oidc_add_provider": "Add Provider",
@@ -388,7 +357,6 @@
 	"oidc_enabled": "Enabled",
 	"oidc_type": "Type",
 	"oidc_slug": "Slug",
-
 	"tc_export": "Export",
 	"tc_export_csv": "Export as CSV",
 	"tc_export_json": "Export as JSON",
@@ -403,12 +371,19 @@
 	"tc_import_results": "Import Results",
 	"tc_import_summary": "{imported} imported, {skipped} skipped, {errors} errors",
 	"tc_import_new_import": "New Import",
+	"tc_import_processing": "Processing import...",
+	"tc_import_uploading": "Uploading file...",
+	"tc_import_rows_total": "{total} rows",
+	"tc_import_rows_success": "{count} succeeded",
+	"tc_import_rows_failed": "{count} failed",
+	"tc_import_rows_skipped": "{count} skipped",
+	"tc_import_failed_rows": "Failed Rows",
+	"tc_import_all_success": "All rows imported successfully",
+	"tc_import_partial_success": "Import complete with some errors",
 	"run_status_filter_all": "All",
 	"run_showing_count": "Showing {count} executions",
-
 	"nav_profile": "Profile",
 	"nav_test_suites": "Suites",
-
 	"profile_title": "Profile",
 	"profile_account_info": "Account Information",
 	"profile_display_name": "Display Name",
@@ -423,7 +398,6 @@
 	"profile_password_mismatch": "New passwords do not match",
 	"profile_password_wrong": "Current password is incorrect",
 	"profile_connected_accounts": "Connected Accounts",
-
 	"tr_edit": "Edit",
 	"tr_edit_title": "Edit Test Run",
 	"tr_delete": "Delete",
@@ -438,7 +412,6 @@
 	"tr_edit_created_only": "Only CREATED runs can be edited",
 	"tr_load_suite": "Load from Suite",
 	"tr_suite_applied": "Suite test cases loaded",
-
 	"suite_title": "Test Suites",
 	"suite_desc": "Reusable collections of test cases",
 	"suite_new": "New Suite",
@@ -459,11 +432,8 @@
 	"suite_remove_case": "Remove",
 	"suite_create_run": "Create Run from Suite",
 	"suite_no_cases": "No test cases in this suite.",
-
 	"tc_pagination_notice": "Showing paginated view ({count} total test cases). Drag-and-drop reordering is disabled in this mode.",
-
 	"tc_failure_loading": "Loading...",
-
 	"profile_preferences": "Preferences",
 	"profile_preferences_desc": "Language and theme settings are synced across devices",
 	"profile_language": "Language",
@@ -472,28 +442,21 @@
 	"profile_theme_dark": "Dark",
 	"profile_theme_system": "System",
 	"profile_preferences_saved": "Preferences saved",
-
 	"reports_export_selected": "Export Selected ({count})",
 	"reports_select_all": "Select All",
-
 	"reports_by_creator": "Test Cases by Creator",
 	"reports_creator": "Creator",
 	"reports_case_count": "Cases",
-
 	"reports_by_assignee": "Pass/Fail Rate by Assignee",
 	"reports_assignee": "Assignee",
 	"reports_assigned": "Assigned",
-
 	"reports_daily_results": "Daily Test Run Results",
-
 	"reports_by_executor": "Activity by Executor",
 	"reports_executor": "Executor",
 	"reports_executions": "Executions",
-
 	"reports_top_failing": "Top Failing Test Cases",
 	"reports_test_case": "Test Case",
 	"reports_fail_count": "Fails",
-
 	"tc_version_compare": "Compare Versions",
 	"tc_version_diff_title": "Version Diff",
 	"tc_version_select_hint": "Select 2 versions to compare",
@@ -502,7 +465,6 @@
 	"tc_version_diff_steps": "Steps",
 	"tc_version_diff_added": "Added",
 	"tc_version_diff_removed": "Removed",
-
 	"tr_compare": "Compare",
 	"tr_compare_title": "Run Comparison",
 	"tr_compare_select_hint": "Select exactly 2 runs to compare",
@@ -516,11 +478,66 @@
 	"tr_compare_filter_diff": "Differences",
 	"tr_compare_filter_regression": "Regressions",
 	"tr_compare_no_diff": "No differences found",
-
 	"error_delete_failed": "Failed to delete",
 	"error_remove_failed": "Failed to remove",
 	"error_clone_failed": "Failed to clone",
 	"error_update_failed": "Failed to update",
 	"error_add_failed": "Failed to add",
-	"error_operation_failed": "Operation failed"
+	"error_operation_failed": "Operation failed",
+	"nav_audit_logs": "Audit Logs",
+	"audit_logs_title": "Audit Logs",
+	"audit_logs_desc": "Track system and user activity",
+	"audit_logs_col_date": "Date",
+	"audit_logs_col_user": "User",
+	"audit_logs_col_action": "Action",
+	"audit_logs_col_entity": "Entity",
+	"audit_logs_col_project": "Project",
+	"audit_logs_col_ip": "IP Address",
+	"audit_logs_filter_user": "Filter by user...",
+	"audit_logs_filter_action": "All Actions",
+	"audit_logs_filter_from": "From",
+	"audit_logs_filter_to": "To",
+	"audit_logs_total": "{count} entries total",
+	"audit_logs_no_results": "No audit log entries found.",
+	"audit_logs_no_results_hint": "Try adjusting your filters.",
+	"audit_logs_system": "System",
+	"audit_logs_all_actions": "All Actions",
+	"comment_title": "Comments",
+	"comment_count": "{count} comment(s)",
+	"comment_empty": "No comments yet. Start the discussion!",
+	"comment_placeholder": "Write a comment...",
+	"comment_reply_placeholder": "Write a reply...",
+	"comment_submit": "Comment",
+	"comment_reply": "Reply",
+	"comment_reply_to": "Replying to {name}",
+	"comment_cancel_reply": "Cancel",
+	"comment_edit": "Edit",
+	"comment_delete": "Delete",
+	"comment_save": "Save",
+	"comment_cancel": "Cancel",
+	"comment_deleted": "Comment deleted",
+	"comment_updated": "Comment updated",
+	"comment_added": "Comment added",
+	"comment_delete_confirm_title": "Delete Comment",
+	"comment_delete_confirm": "Are you sure you want to delete this comment?",
+	"comment_edited": "edited",
+	"comment_show": "Show {count} comment(s)",
+	"comment_hide": "Hide comments",
+
+	"template_title": "Templates",
+	"template_new": "New Template",
+	"template_save_as": "Save as Template",
+	"template_create_from": "Create from Template",
+	"template_select_placeholder": "Select a template...",
+	"template_none": "No templates yet",
+	"template_name_label": "Template Name",
+	"template_name_placeholder": "e.g., Login Flow Template",
+	"template_saved": "Template saved",
+	"template_save_failed": "Failed to save template",
+	"template_load_failed": "Failed to load templates",
+	"template_delete_title": "Delete Template",
+	"template_delete_confirm": "Are you sure you want to delete \"{name}\"? This cannot be undone.",
+	"template_deleted": "Template deleted",
+	"template_applied": "Template applied",
+	"template_saving": "Saving..."
 }

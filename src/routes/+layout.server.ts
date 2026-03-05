@@ -1,11 +1,12 @@
 import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { project, projectMember, testCaseGroup, userPreference } from '$lib/server/db/schema';
-import { and, eq } from 'drizzle-orm';
+import { project, projectMember, testCaseGroup, userPreference, notification } from '$lib/server/db/schema';
+import { and, eq, count } from 'drizzle-orm';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	let preferences: { locale: string | null; theme: string | null } | null = null;
 	let sidebarProjects: { id: number; name: string; groups: { id: number; name: string; color: string | null }[] }[] = [];
+	let unreadNotificationCount = 0;
 
 	if (locals.user) {
 		try {
@@ -52,12 +53,23 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		} catch {
 			// tables may not exist yet
 		}
+
+		try {
+			const [row] = await db
+				.select({ value: count() })
+				.from(notification)
+				.where(and(eq(notification.userId, locals.user.id), eq(notification.isRead, false)));
+			unreadNotificationCount = row?.value ?? 0;
+		} catch {
+			// notification table may not exist yet
+		}
 	}
 
 	return {
 		user: locals.user ?? null,
 		session: locals.session ?? null,
 		preferences,
-		sidebarProjects
+		sidebarProjects,
+		unreadNotificationCount
 	};
 };

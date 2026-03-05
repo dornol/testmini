@@ -3,12 +3,17 @@
 	import { locales, getLocale, setLocale } from '$lib/paraglide/runtime';
 	import * as m from '$lib/paraglide/messages.js';
 	import ThemeToggle from './ThemeToggle.svelte';
+	import NotificationBell from './NotificationBell.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { authClient } from '$lib/auth-client';
 	import { goto, invalidateAll } from '$app/navigation';
 
-	let { user, onToggleSidebar }: { user: any; onToggleSidebar: () => void } = $props();
+	let {
+		user,
+		onToggleSidebar,
+		unreadNotificationCount = 0
+	}: { user: any; onToggleSidebar: () => void; unreadNotificationCount?: number } = $props();
 
 	async function handleLogout() {
 		await authClient.signOut();
@@ -31,6 +36,11 @@
 	</a>
 
 	<div class="ml-auto flex items-center gap-1">
+		<!-- Notification bell (only for authenticated users) -->
+		{#if user}
+			<NotificationBell initialUnreadCount={unreadNotificationCount} />
+		{/if}
+
 		<!-- Language switcher -->
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>

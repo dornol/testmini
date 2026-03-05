@@ -2,10 +2,11 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { building } from '$app/environment';
 import { auth } from '$lib/server/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
-import type { Handle } from '@sveltejs/kit';
+import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { getTextDirection } from '$lib/paraglide/runtime';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { checkRateLimit } from '$lib/server/rate-limit';
+import { logger } from '$lib/server/logger';
 
 const handleParaglide: Handle = ({ event, resolve }) => paraglideMiddleware(event.request, ({ request, locale }) => {
 	event.request = request;
@@ -116,4 +117,66 @@ const handleSecurityHeaders: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
-export const handle: Handle = sequence(handleParaglide, handleRateLimit, handleBetterAuth, handleSecurityHeaders);
+/** Paths that are excluded from request logging (static assets, health checks). */
+const SKIP_LOGGING_PREFIXES = ['/_app/', '/favicon', '/robots.txt', '/health'];
+
+const handleRequestLogging: Handle = async ({ event, resolve }) => {
+	const { pathname } = new URL(event.request.url);
+
+	// Assign a unique request ID and expose it on locals for downstream use.
+	const requestId = crypto.randomUUID();
+	event.locals.requestId = requestId;
+
+	// Skip logging for static assets and health-check endpoints.
+	if (SKIP_LOGGING_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+		return resolve(event);
+	}
+
+	const start = Date.now();
+	const method = event.request.method.toUpperCase();
+
+	const response = await resolve(event);
+
+	const durationMs = Date.now() - start;
+	const status = response.status;
+
+	const meta = { requestId, method, path: pathname, status, durationMs };
+
+	if (status >= 500) {
+		logger.error(meta, 'Request completed');
+	} else if (status >= 400) {
+		logger.warn(meta, 'Request completed');
+	} else {
+		logger.info(meta, 'Request completed');
+	}
+
+	return response;
+};
+
+export const handle: Handle = sequence(
+	handleRequestLogging,
+	handleParaglide,
+	handleRateLimit,
+	handleBetterAuth,
+	handleSecurityHeaders
+);
+
+export const handleError: HandleServerError = ({ error, event, status, message }) => {
+	const requestId = event.locals?.requestId;
+
+	logger.error(
+		{
+			requestId,
+			method: event.request.method.toUpperCase(),
+			path: new URL(event.request.url).pathname,
+			status,
+			err: error instanceof Error
+				? { message: error.message, stack: error.stack, name: error.name }
+				: error
+		},
+		message ?? 'Unexpected server error'
+	);
+
+	// Return a safe error object that SvelteKit can serialise to the client.
+	return { message: 'An unexpected error occurred.' };
+};

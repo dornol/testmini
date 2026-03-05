@@ -43,5 +43,5 @@ e2e/playwright-report/
 # Claude
 .claude/
 
-# Scripts
-scripts/
+# Scripts (seed data, local helpers)
+scripts/seed-*.ts

@@ -6,6 +6,9 @@
  */
 
 import { createVerify } from 'crypto';
+import { childLogger } from './logger';
+
+const log = childLogger('oidc-jwt');
 
 // ---------------------------------------------------------------------------
 // Types
@@ -269,7 +272,7 @@ export async function verifyIdToken(opts: VerifyIdTokenOptions): Promise<VerifyR
 		keys = await fetchJwks(opts.jwksUri);
 	} catch (e) {
 		const msg = e instanceof Error ? e.message : String(e);
-		console.warn('[oidc-jwt] JWKS fetch error:', msg);
+		log.warn({ err: { message: msg }, jwksUri: opts.jwksUri }, 'JWKS fetch error');
 		return {
 			verified: false,
 			claims: payload,
@@ -300,7 +303,7 @@ export async function verifyIdToken(opts: VerifyIdTokenOptions): Promise<VerifyR
 		try {
 			pem = jwkToPem(jwk);
 		} catch (e) {
-			console.warn('[oidc-jwt] JWK→PEM conversion failed:', e);
+			log.warn({ err: e instanceof Error ? { message: e.message } : e, kid: jwk.kid }, 'JWK to PEM conversion failed');
 			continue;
 		}
 
@@ -310,7 +313,7 @@ export async function verifyIdToken(opts: VerifyIdTokenOptions): Promise<VerifyR
 			const valid = verifier.verify(pem, signature);
 			if (!valid) continue;
 		} catch (e) {
-			console.warn('[oidc-jwt] Signature verification error:', e);
+			log.warn({ err: e instanceof Error ? { message: e.message } : e, kid: jwk.kid }, 'Signature verification error');
 			continue;
 		}
 

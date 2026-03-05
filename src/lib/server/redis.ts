@@ -1,5 +1,8 @@
 import Redis from 'ioredis';
 import { env } from '$env/dynamic/private';
+import { childLogger } from './logger';
+
+const log = childLogger('redis');
 
 const url = env.REDIS_URL || 'redis://localhost:6379';
 
@@ -9,15 +12,18 @@ export const redis = new Redis(url, {
 });
 
 redis.on('error', (err) => {
-	console.warn('[Redis] Connection error:', err.message);
+	log.warn({ err: { message: err.message, code: (err as NodeJS.ErrnoException).code } }, 'Connection error');
 });
 
 redis.on('connect', () => {
-	console.log('[Redis] Connected');
+	log.info('Connected');
 });
 
 redis.connect().catch((err) => {
-	console.warn('[Redis] Initial connection failed:', err.message, '— features like soft lock and SSE will be degraded');
+	log.warn(
+		{ err: { message: err.message } },
+		'Initial connection failed — features like soft lock and SSE will be degraded'
+	);
 });
 
 export function createSubscriber(): Redis {

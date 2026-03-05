@@ -34,7 +34,8 @@ export function createMockEvent(opts: MockEventOptions = {}) {
 
 	const locals: App.Locals = {
 		user: user ?? undefined,
-		session: user ? ({ id: 'session-1' } as App.Locals['session']) : undefined
+		session: user ? ({ id: 'session-1' } as App.Locals['session']) : undefined,
+		requestId: 'test-request-id'
 	};
 
 	return {

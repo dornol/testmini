@@ -8,6 +8,9 @@ import { randomUUID, createHmac } from 'crypto';
 import { decrypt } from '$lib/server/crypto';
 import { verifyIdToken, parseIdTokenPayload } from '$lib/server/oidc-jwt';
 import { env } from '$env/dynamic/private';
+import { childLogger } from '$lib/server/logger';
+
+const log = childLogger('oidc-callback');
 
 /** Sign a cookie value using HMAC-SHA256, matching better-auth's format: `value.base64signature` */
 function signSessionCookie(value: string, secret: string): string {
@@ -16,25 +19,33 @@ function signSessionCookie(value: string, secret: string): string {
 }
 
 export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
-	console.log('[OIDC Callback] Start for slug:', params.slug);
+	const slug = params.slug;
+	const requestId = locals.requestId;
+	const callbackLog = log.child({ slug, requestId });
+
+	callbackLog.info('Callback started');
+
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');
 	const errorParam = url.searchParams.get('error');
 
 	if (errorParam) {
-		console.error('[OIDC Callback] IdP returned error:', errorParam, url.searchParams.get('error_description'));
+		callbackLog.warn(
+			{ oidcError: errorParam, oidcErrorDescription: url.searchParams.get('error_description') },
+			'IdP returned error'
+		);
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
 	if (!code || !state) {
-		console.error('[OIDC Callback] Missing code or state');
+		callbackLog.warn('Missing code or state in callback');
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
 	// Restore cookie state
-	const cookieValue = cookies.get(`oidc_${params.slug}`);
+	const cookieValue = cookies.get(`oidc_${slug}`);
 	if (!cookieValue) {
-		console.error('[OIDC Callback] Cookie not found: oidc_' + params.slug);
+		callbackLog.warn({ cookieName: `oidc_${slug}` }, 'Cookie not found');
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
@@ -42,12 +53,12 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 	try {
 		cookieData = JSON.parse(decrypt(cookieValue));
 	} catch (e) {
-		console.error('[OIDC Callback] Cookie decrypt failed:', e);
+		callbackLog.warn({ err: e instanceof Error ? { message: e.message } : e }, 'Cookie decrypt failed');
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
 	if (cookieData.state !== state) {
-		console.error('[OIDC Callback] State mismatch');
+		callbackLog.warn('State mismatch');
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
@@ -81,12 +92,12 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 
 	if (!tokenRes.ok) {
 		const errorBody = await tokenRes.text();
-		console.error('[OIDC Callback] Token exchange failed:', tokenRes.status, errorBody);
+		callbackLog.warn({ status: tokenRes.status, body: errorBody }, 'Token exchange failed');
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
 	const tokenData = await tokenRes.json();
-	console.log('[OIDC Callback] Token exchange success, has id_token:', !!tokenData.id_token);
+	callbackLog.info({ hasIdToken: !!tokenData.id_token }, 'Token exchange succeeded');
 	const accessToken = tokenData.access_token;
 
 	// Extract user info from ID token or userinfo endpoint
@@ -111,22 +122,20 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 			});
 
 			if (result.verified && result.claims) {
-				console.log('[OIDC Callback] ID token signature and claims verified');
+				callbackLog.info('ID token signature and claims verified');
 				sub = result.claims.sub;
 				email = result.claims.email;
 				name = result.claims.name;
 			} else {
 				// Verification failed — log a warning and fall through to userinfo endpoint.
 				// We intentionally do NOT use unverified payload claims for identity (sub).
-				console.warn('[OIDC Callback] ID token verification failed:', result.warning);
+				callbackLog.warn({ warning: result.warning }, 'ID token verification failed');
 			}
 		} else {
 			// No JWKS URI configured — parse payload without signature verification.
 			// This is the legacy behaviour; a warning is emitted to guide administrators.
-			console.warn(
-				'[OIDC Callback] Provider "%s" has no jwksUri configured — ' +
-				'ID token signature is NOT verified. Set jwksUri via the discovery endpoint.',
-				params.slug
+			callbackLog.warn(
+				'Provider has no jwksUri configured — ID token signature is NOT verified. Set jwksUri via the discovery endpoint.'
 			);
 			const payload = parseIdTokenPayload(tokenData.id_token);
 			if (payload) {
@@ -154,10 +163,10 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 		}
 	}
 
-	console.log('[OIDC Callback] User info - sub:', sub, 'email:', email, 'name:', name);
+	callbackLog.info({ hasSub: !!sub, hasEmail: !!email, hasName: !!name }, 'User info resolved');
 
 	if (!sub) {
-		console.error('[OIDC Callback] No sub claim found');
+		callbackLog.warn('No sub claim found in token or userinfo response');
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
@@ -256,7 +265,7 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 		updatedAt: new Date()
 	});
 
-	console.log('[OIDC Callback] Session created for userId:', userId, '→ redirecting to /projects');
+	callbackLog.info({ userId }, 'Session created, redirecting to /projects');
 
 	// Set session cookie with HMAC signature (matching better-auth's signed cookie format)
 	const secret = env.BETTER_AUTH_SECRET;

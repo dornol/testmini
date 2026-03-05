@@ -69,8 +69,8 @@
 - [x] CI/CD 파이프라인 설정 — Gitea Actions (check, test, build)
 - [x] Docker 네트워크 격리 — 프로덕션 compose에서 frontend/backend 네트워크 분리
 - [x] lint/format 스크립트 — `package.json`에 eslint, prettier, format:check 스크립트 추가
-- [ ] 모니터링/로깅 — 구조화된 로깅 (pino 등), 에러 트래킹 (Sentry 등) 설정
-- [ ] DB 백업 전략 — PostgreSQL 자동 백업 스크립트 (pg_dump cron 또는 WAL archiving)
+- [x] 모니터링/로깅 — pino 구조화 로깅, 요청 ID 추적, 에러 핸들링 훅, console.* → 구조화 로그 전환
+- [x] DB 백업 전략 — pg_dump 자동 백업/복원 스크립트 + Docker Compose cron 서비스 (매일 02시, 30일 보관)
 - [x] 배포 문서화 — DEPLOY.md 작성 (Docker Compose, 수동 배포, SSL/리버스 프록시, DB 백업, 트러블슈팅)
 
 ---

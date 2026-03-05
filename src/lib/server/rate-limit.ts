@@ -1,4 +1,7 @@
 import { redis } from './redis';
+import { childLogger } from './logger';
+
+const log = childLogger('rate-limit');
 
 export interface RateLimitResult {
 	allowed: boolean;
@@ -51,7 +54,7 @@ export async function checkRateLimit(
 		const [cardErr, count] = results[2] as [Error | null, number];
 
 		if (cardErr) {
-			console.warn('[RateLimit] Redis ZCARD error:', cardErr.message);
+			log.warn({ err: { message: cardErr.message }, key }, 'Redis ZCARD error');
 			return { allowed: true, remaining: limit };
 		}
 
@@ -78,7 +81,7 @@ export async function checkRateLimit(
 		return { allowed: true, remaining: Math.max(0, limit - currentCount) };
 	} catch (err) {
 		// Graceful degradation: if Redis is down, allow the request
-		console.warn('[RateLimit] Redis error, allowing request:', (err as Error).message);
+		log.warn({ err: { message: (err as Error).message }, key }, 'Redis error, allowing request');
 		return { allowed: true, remaining: limit };
 	}
 }

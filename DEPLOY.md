@@ -13,10 +13,15 @@
    - [Docker Compose (권장)](#41-docker-compose-권장)
    - [수동 배포](#42-수동-배포)
 5. [데이터베이스](#5-데이터베이스)
-6. [SSL / 리버스 프록시](#6-ssl--리버스-프록시)
-7. [모니터링](#7-모니터링)
-8. [트러블슈팅](#8-트러블슈팅)
-9. [롤백](#9-롤백)
+6. [백업 및 복원](#6-백업-및-복원)
+   - [수동 백업](#61-수동-백업)
+   - [백업에서 복원](#62-백업에서-복원)
+   - [자동 백업 (Docker Compose)](#63-자동-백업-docker-compose)
+   - [백업 무결성 검증](#64-백업-무결성-검증)
+7. [SSL / 리버스 프록시](#7-ssl--리버스-프록시)
+8. [모니터링](#8-모니터링)
+9. [트러블슈팅](#9-트러블슈팅)
+10. [롤백](#10-롤백)
 
 ---
 
@@ -353,41 +358,215 @@ drizzle/
 └── 0007_attachment_referential_integrity.sql
 ```
 
-### 백업
+---
+
+## 6. 백업 및 복원
+
+백업 스크립트는 `scripts/backup/` 디렉토리에 있습니다. Docker exec 모드(Compose 스택과 함께 실행)와 직접 연결 모드를 모두 지원합니다.
+
+### 6.1 수동 백업
+
+#### 스크립트 사용 (권장)
 
 ```bash
-# Docker 환경에서 pg_dump로 백업
+# Docker Compose 환경에서 백업 (기본값: ./backups 디렉토리, 30개 보관)
+./scripts/backup/pg-backup.sh
+
+# 백업 디렉토리 및 보관 수 지정
+./scripts/backup/pg-backup.sh --backup-dir /opt/backups --retain 14
+
+# 직접 연결 모드 (Docker 없이)
+./scripts/backup/pg-backup.sh \
+  --mode direct \
+  --host localhost \
+  --port 5432 \
+  --user testmini \
+  --password "$POSTGRES_PASSWORD" \
+  --dbname testmini
+
+# 환경 변수로 설정 가능
+POSTGRES_PASSWORD=secret BACKUP_DIR=/opt/backups ./scripts/backup/pg-backup.sh
+```
+
+#### 원라이너 (Docker Compose 환경)
+
+```bash
 docker compose -f compose.prod.yaml exec db \
-  pg_dump -U testmini testmini | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
-
-# 호스트에서 직접 백업 (수동 배포)
-pg_dump -U testmini -h localhost testmini | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
+  env PGPASSWORD="$POSTGRES_PASSWORD" \
+  pg_dump -U testmini testmini \
+  | gzip > backup_$(date +%Y-%m-%d_%H%M%S).sql.gz
 ```
 
-### 복원
+#### 원라이너 (직접 연결)
 
 ```bash
-# Docker 환경에서 복원
-gunzip -c backup_20260305_120000.sql.gz | \
+PGPASSWORD="$POSTGRES_PASSWORD" pg_dump \
+  -h localhost -p 5432 -U testmini testmini \
+  | gzip > backup_$(date +%Y-%m-%d_%H%M%S).sql.gz
+```
+
+#### 스크립트 옵션 전체 목록
+
+| 옵션 | 설명 | 기본값 |
+|------|------|--------|
+| `-d`, `--backup-dir` | 백업 저장 디렉토리 | `./backups` |
+| `-r`, `--retain` | 보관할 최대 백업 수 | `30` |
+| `-m`, `--mode` | `docker` 또는 `direct` | `docker` |
+| `-c`, `--compose-file` | Compose 파일 경로 | `compose.prod.yaml` |
+| `-s`, `--service` | DB 서비스 이름 | `db` |
+| `-h`, `--host` | DB 호스트 (direct 모드) | `localhost` |
+| `-p`, `--port` | DB 포트 (direct 모드) | `5432` |
+| `-U`, `--user` | DB 사용자 | `testmini` |
+| `-P`, `--password` | DB 비밀번호 | `$POSTGRES_PASSWORD` |
+| `-n`, `--dbname` | DB 이름 | `testmini` |
+
+### 6.2 백업에서 복원
+
+#### 스크립트 사용 (권장)
+
+```bash
+# 복원 전 확인 프롬프트 표시 (기본값)
+./scripts/backup/pg-restore.sh ./backups/backup_2026-03-05_020000.sql.gz
+
+# 확인 생략 (자동화 스크립트 등에서 사용)
+./scripts/backup/pg-restore.sh --force ./backups/backup_2026-03-05_020000.sql.gz
+
+# 직접 연결 모드
+./scripts/backup/pg-restore.sh \
+  --mode direct \
+  --host localhost \
+  --user testmini \
+  --password "$POSTGRES_PASSWORD" \
+  --dbname testmini \
+  ./backups/backup_2026-03-05_020000.sql.gz
+```
+
+복원 스크립트는 다음 순서로 동작합니다.
+
+1. 요약 및 확인 프롬프트 표시 (`--force` 생략 가능)
+2. 기존 DB의 활성 연결 종료 (`pg_terminate_backend`)
+3. 데이터베이스 DROP 및 재생성
+4. gzip 압축 해제 후 SQL 복원 (`ON_ERROR_STOP=1`)
+5. `information_schema.tables` 기준으로 테이블 수 검증
+
+#### 원라이너 (Docker Compose 환경)
+
+```bash
+# 경고: 기존 데이터가 모두 삭제됩니다
+gunzip -c backup_2026-03-05_020000.sql.gz | \
   docker compose -f compose.prod.yaml exec -T db \
+  env PGPASSWORD="$POSTGRES_PASSWORD" \
   psql -U testmini testmini
-
-# 호스트에서 직접 복원
-gunzip -c backup_20260305_120000.sql.gz | psql -U testmini -h localhost testmini
 ```
 
-### 자동 백업 (cron 예시)
+### 6.3 자동 백업 (Docker Compose)
+
+`compose.prod.yaml`의 `backup` 서비스가 자동 백업을 담당합니다. 스택 시작 시 초기 백업을 1회 실행하고, 이후 cron 스케줄에 따라 반복 실행합니다.
+
+#### 백업 서비스 환경 변수
+
+| 변수 | 설명 | 기본값 |
+|------|------|--------|
+| `BACKUP_SCHEDULE` | cron 표현식 | `0 2 * * *` (매일 02:00) |
+| `BACKUP_RETAIN` | 보관할 최대 백업 수 | `30` |
+
+`.env` 파일 또는 쉘에서 설정합니다.
+
+```dotenv
+BACKUP_SCHEDULE=0 2 * * *
+BACKUP_RETAIN=30
+```
+
+#### 백업 파일 위치
+
+백업은 `backups` Docker 볼륨(`/backups`)에 저장됩니다. 호스트에서 접근하려면:
 
 ```bash
-# /etc/cron.d/testmini-backup
-0 3 * * * root docker compose -f /opt/testmini/compose.prod.yaml exec -T db \
-  pg_dump -U testmini testmini | gzip > /backups/testmini_$(date +\%Y\%m\%d).sql.gz \
-  && find /backups -name "testmini_*.sql.gz" -mtime +30 -delete
+# 볼륨 마운트 위치 확인
+docker volume inspect testmini_backups
+
+# 백업 목록 조회
+docker compose -f compose.prod.yaml exec backup ls -lh /backups/
+
+# 백업 파일을 호스트로 복사
+docker compose -f compose.prod.yaml \
+  cp backup:/backups/backup_2026-03-05_020000.sql.gz ./
+```
+
+#### 백업 서비스 로그 확인
+
+```bash
+docker compose -f compose.prod.yaml logs -f backup
+```
+
+#### 수동으로 즉시 백업 트리거
+
+```bash
+docker compose -f compose.prod.yaml exec backup \
+  /usr/local/bin/run-backup.sh
+```
+
+#### cron 스케줄 예시
+
+| 표현식 | 설명 |
+|--------|------|
+| `0 2 * * *` | 매일 02:00 (기본값) |
+| `0 */6 * * *` | 6시간마다 |
+| `0 2 * * 0` | 매주 일요일 02:00 |
+| `30 1 1 * *` | 매월 1일 01:30 |
+
+### 6.4 백업 무결성 검증
+
+#### gzip 파일 유효성 검사
+
+```bash
+# gzip 무결성 확인 (손상 파일 감지)
+gzip -t backup_2026-03-05_020000.sql.gz && echo "OK" || echo "CORRUPTED"
+
+# 파일 내용 미리보기 (처음 20줄)
+gunzip -c backup_2026-03-05_020000.sql.gz | head -20
+```
+
+#### 테스트 DB에서 복원 검증
+
+```bash
+# 1. 검증용 임시 DB 생성
+docker compose -f compose.prod.yaml exec db \
+  env PGPASSWORD="$POSTGRES_PASSWORD" \
+  psql -U testmini -c "CREATE DATABASE testmini_verify;"
+
+# 2. 백업 복원
+gunzip -c backup_2026-03-05_020000.sql.gz | \
+  docker compose -f compose.prod.yaml exec -T db \
+  env PGPASSWORD="$POSTGRES_PASSWORD" \
+  psql -U testmini testmini_verify
+
+# 3. 테이블 수 확인
+docker compose -f compose.prod.yaml exec db \
+  env PGPASSWORD="$POSTGRES_PASSWORD" \
+  psql -U testmini testmini_verify \
+  -c "SELECT count(*) AS table_count FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';"
+
+# 4. 임시 DB 삭제
+docker compose -f compose.prod.yaml exec db \
+  env PGPASSWORD="$POSTGRES_PASSWORD" \
+  psql -U testmini -c "DROP DATABASE testmini_verify;"
+```
+
+#### 백업 파일 목록 및 크기 확인
+
+```bash
+# Docker 볼륨 내 백업 목록 (최신순)
+docker compose -f compose.prod.yaml exec backup \
+  ls -lht /backups/backup_*.sql.gz
+
+# 전체 백업 볼륨 사용량
+docker system df -v | grep backups
 ```
 
 ---
 
-## 6. SSL / 리버스 프록시
+## 7. SSL / 리버스 프록시
 
 앱은 포트 3000에서 HTTP로 동작합니다. 외부에는 반드시 리버스 프록시를 통해 HTTPS로 노출하세요.
 
@@ -472,7 +651,7 @@ sudo systemctl start caddy
 
 ---
 
-## 7. 모니터링
+## 8. 모니터링
 
 ### 헬스체크 엔드포인트
 
@@ -525,7 +704,7 @@ du -sh /opt/testmini/data/uploads
 
 ---
 
-## 8. 트러블슈팅
+## 9. 트러블슈팅
 
 ### 앱이 시작되지 않음
 
@@ -656,7 +835,7 @@ docker stats
 
 ---
 
-## 9. 롤백
+## 10. 롤백
 
 ### Docker Compose 환경에서 롤백
 
@@ -682,10 +861,8 @@ curl -s http://localhost:3000/api/health
 Drizzle ORM은 자동 롤백을 지원하지 않습니다. 마이그레이션 롤백이 필요한 경우:
 
 ```bash
-# 방법 1: 배포 전 백업에서 복원
-gunzip -c backup_before_deploy.sql.gz | \
-  docker compose -f compose.prod.yaml exec -T db \
-  psql -U testmini testmini
+# 방법 1: 배포 전 백업에서 복원 (스크립트 사용)
+./scripts/backup/pg-restore.sh --force backup_before_deploy.sql.gz
 
 # 방법 2: 수동으로 역방향 SQL 실행
 # drizzle/ 디렉토리의 마이그레이션 파일을 참고하여

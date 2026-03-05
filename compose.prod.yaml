@@ -60,10 +60,77 @@ services:
     networks:
       - backend
 
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: testmini
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: testmini
+      # Cron schedule for pg_dump (default: daily at 02:00)
+      BACKUP_SCHEDULE: "${BACKUP_SCHEDULE:-0 2 * * *}"
+      # Number of backup files to retain
+      BACKUP_RETAIN: "${BACKUP_RETAIN:-30}"
+    volumes:
+      - backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    entrypoint: >
+      sh -c '
+        set -e
+        echo "[backup] Installing crond..."
+        apk add --no-cache dcron
+
+        mkdir -p /backups
+
+        cat > /usr/local/bin/run-backup.sh << '"'"'SCRIPT'"'"'
+      #!/usr/bin/env sh
+      set -e
+      TIMESTAMP=$(date +%Y-%m-%d_%H%M%S)
+      BACKUP_FILE="/backups/backup_${TIMESTAMP}.sql.gz"
+      RETAIN="${BACKUP_RETAIN:-30}"
+      echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Starting backup -> ${BACKUP_FILE}"
+      PGPASSWORD="${POSTGRES_PASSWORD}" pg_dump \
+        -h db \
+        -U "${POSTGRES_USER}" \
+        "${POSTGRES_DB}" \
+        | gzip > "${BACKUP_FILE}"
+      if [ ! -s "${BACKUP_FILE}" ]; then
+        echo "[$(date +%Y-%m-%d\ %H:%M:%S)] ERROR: Backup file is empty." >&2
+        rm -f "${BACKUP_FILE}"
+        exit 1
+      fi
+      SIZE=$(du -sh "${BACKUP_FILE}" | cut -f1)
+      echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Backup complete: ${BACKUP_FILE} (${SIZE})"
+      echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Applying retention (keep last ${RETAIN})..."
+      ls -1t /backups/backup_*.sql.gz 2>/dev/null \
+        | tail -n "+$((RETAIN + 1))" \
+        | xargs -r rm -f
+      echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Done."
+      SCRIPT
+
+        chmod +x /usr/local/bin/run-backup.sh
+
+        echo "${BACKUP_SCHEDULE} /usr/local/bin/run-backup.sh >> /proc/1/fd/1 2>&1" \
+          > /etc/crontabs/root
+
+        echo "[backup] Cron schedule: ${BACKUP_SCHEDULE}"
+        echo "[backup] Retention    : ${BACKUP_RETAIN:-30} backups"
+        echo "[backup] Running initial backup on startup..."
+        /usr/local/bin/run-backup.sh || echo "[backup] Initial backup failed (non-fatal)."
+
+        echo "[backup] Starting crond..."
+        exec crond -f -l 8
+      '
+
 volumes:
   pgdata:
   redisdata:
   uploads:
+  backups:
 
 networks:
   frontend:

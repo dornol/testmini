@@ -8,11 +8,16 @@
 - **테스트 케이스** — 버전 관리, 그룹/태그 분류, DnD 정렬, 벌크 액션, Import/Export (CSV/JSON)
 - **테스트 런** — 환경별 실행, 인라인 상태 변경, Bulk Pass, 진행률 표시
 - **실패 상세** — 실패 환경, 에러 메시지, 스택 트레이스 기록
-- **파일 첨부** — 테스트 케이스/실행/실패에 파일 업로드 (MIME 화이트리스트, 접근 제어)
+- **파일 첨부** — 테스트 케이스/실행/실패에 파일 업로드 (MIME 화이트리스트, 접근 제어, 드래그 앤 드롭)
 - **실시간 동기화** — SSE + Redis Pub/Sub 기반 테스트 런 실시간 업데이트
-- **대시보드/리포트** — 통과율, 환경별/우선순위별 통계, Chart.js 차트 (지연 로딩), 날짜 범위 필터, CSV 스트리밍 내보내기
+- **대시보드/리포트** — 통과율, 환경별/우선순위별 통계, Chart.js 차트 (지연 로딩), 날짜 범위 필터, CSV 스트리밍 내보내기, 위젯 커스터마이징
 - **OIDC 연동** — 관리자가 런타임에 외부 IdP(Keycloak, Google 등) 추가 가능, JWKS 서명 검증
 - **보안** — Rate Limiting (Redis), 보안 헤더, PBKDF2 키 파생, SSRF 방어, path traversal 차단
+- **감사 로그** — 주요 작업 이력 기록, Admin 조회 페이지 (필터, 페이지네이션)
+- **알림 시스템** — 인앱 알림 벨, 30초 폴링, 읽음 처리
+- **TC 템플릿** — 반복 사용 TC 구조를 템플릿으로 저장/적용
+- **TC 코멘트** — TC별 댓글 스레드 (1레벨 답글, 수정/삭제)
+- **키보드 단축키** — Mod+S 저장, Mod+K 검색, ? 힌트 패널
 - **다국어** — 한국어/영어 (Paraglide)
 - **다크 모드** — 시스템 설정 감지 + 수동 전환
 
@@ -151,6 +156,7 @@ URL: `/admin` (Global ADMIN 전용)
 | Users | `/admin/users` | 사용자 목록, 역할 변경, 밴/언밴 |
 | Projects | `/admin/projects` | 전체 프로젝트 관리 |
 | OIDC Providers | `/admin/oidc-providers` | IdP 등록/수정/삭제/토글 |
+| Audit Logs | `/admin/audit-logs` | 감사 로그 조회 (사용자, 액션, 날짜 필터) |
 
 ---
 
@@ -208,7 +214,7 @@ src/
 │   ├── components/        # Svelte 컴포넌트
 │   │   └── ui/            # shadcn-svelte 컴포넌트
 │   ├── schemas/           # zod 검증 스키마
-│   ├── server/            # 서버 전용 (auth, db, redis, lock, crypto, storage)
+│   ├── server/            # 서버 전용 (auth, db, redis, lock, crypto, storage, audit, notifications)
 │   ├── paraglide/         # i18n 생성 파일
 │   └── auth-client.ts     # better-auth 클라이언트
 ├── app.d.ts

@@ -7,10 +7,13 @@
 
 	const projectId = $derived(data.project.id);
 
+	const isAdmin = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
+
 	const subNav = $derived([
 		{ href: `/projects/${projectId}/settings`, label: m.nav_general(), exact: true },
 		{ href: `/projects/${projectId}/settings/members`, label: m.nav_members() },
-		{ href: `/projects/${projectId}/settings/tags`, label: m.nav_tags() }
+		{ href: `/projects/${projectId}/settings/tags`, label: m.nav_tags() },
+		...(isAdmin ? [{ href: `/projects/${projectId}/settings/api-keys`, label: m.nav_api_keys() }] : [])
 	]);
 
 	function isActive(href: string, exact?: boolean): boolean {

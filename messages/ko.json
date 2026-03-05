@@ -539,5 +539,29 @@
 	"template_delete_confirm": "\"{name}\" 템플릿을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
 	"template_deleted": "템플릿이 삭제되었습니다",
 	"template_applied": "템플릿이 적용되었습니다",
-	"template_saving": "저장 중..."
+	"template_saving": "저장 중...",
+
+	"tc_automation_key_label": "자동화 키",
+	"tc_automation_key_placeholder": "예: test_login_success",
+
+	"nav_api_keys": "API 키",
+	"api_keys_title": "API 키",
+	"api_keys_desc": "CI/CD 자동화 연동을 위한 API 키 관리",
+	"api_keys_empty": "아직 API 키가 없습니다. CI 연동을 시작하려면 키를 생성하세요.",
+	"api_key_generate": "API 키 생성",
+	"api_key_generate_title": "새 API 키 생성",
+	"api_key_generate_desc": "이 키에 설명적인 이름을 지정하세요 (예: GitHub Actions, GitLab CI)",
+	"api_key_generating": "생성 중...",
+	"api_key_name_label": "키 이름",
+	"api_key_name_placeholder": "예: GitHub Actions",
+	"api_key_revoke": "폐기",
+	"api_key_revoke_title": "API 키 폐기",
+	"api_key_revoke_confirm": "\"{name}\" 키를 폐기하시겠습니까? 이 키를 사용하는 CI 파이프라인이 작동을 멈춥니다.",
+	"api_key_revoked": "API 키가 폐기되었습니다",
+	"api_key_copy": "복사",
+	"api_key_copy_warning": "이 키를 안전하게 보관하세요. 다시 표시되지 않습니다.",
+	"api_key_copied": "API 키가 클립보드에 복사되었습니다",
+	"api_key_last_used": "마지막 사용",
+	"api_key_created_title": "API 키가 생성되었습니다",
+	"api_key_created_desc": "이 키를 복사하여 안전하게 보관하세요. 이 다이얼로그를 닫으면 다시 표시되지 않습니다."
 }

@@ -32,8 +32,21 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		const { title, precondition, steps, expectedResult, priority } =
+		const { title, precondition, steps, expectedResult, priority, automationKey } =
 			form.data as CreateTestCaseInput;
+
+		// Validate automationKey uniqueness before transaction
+		if (automationKey) {
+			const existingAk = await db.query.testCase.findFirst({
+				where: and(
+					eq(testCase.projectId, projectId),
+					eq(testCase.automationKey, automationKey)
+				)
+			});
+			if (existingAk) {
+				return fail(409, { form });
+			}
+		}
 
 		const newTestCase = await db.transaction(async (tx) => {
 			// Generate key: TC-0001 format
@@ -59,6 +72,7 @@ export const actions: Actions = {
 				.values({
 					projectId,
 					key,
+					automationKey: automationKey || null,
 					createdBy: user.id
 				})
 				.returning();

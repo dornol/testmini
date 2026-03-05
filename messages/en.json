@@ -539,5 +539,29 @@
 	"template_delete_confirm": "Are you sure you want to delete \"{name}\"? This cannot be undone.",
 	"template_deleted": "Template deleted",
 	"template_applied": "Template applied",
-	"template_saving": "Saving..."
+	"template_saving": "Saving...",
+
+	"tc_automation_key_label": "Automation Key",
+	"tc_automation_key_placeholder": "e.g., test_login_success",
+
+	"nav_api_keys": "API Keys",
+	"api_keys_title": "API Keys",
+	"api_keys_desc": "Manage API keys for CI/CD automation integration",
+	"api_keys_empty": "No API keys yet. Generate one to start using CI integration.",
+	"api_key_generate": "Generate API Key",
+	"api_key_generate_title": "Generate New API Key",
+	"api_key_generate_desc": "Give this key a descriptive name (e.g., GitHub Actions, GitLab CI)",
+	"api_key_generating": "Generating...",
+	"api_key_name_label": "Key Name",
+	"api_key_name_placeholder": "e.g., GitHub Actions",
+	"api_key_revoke": "Revoke",
+	"api_key_revoke_title": "Revoke API Key",
+	"api_key_revoke_confirm": "Are you sure you want to revoke \"{name}\"? Any CI pipelines using this key will stop working.",
+	"api_key_revoked": "API key revoked",
+	"api_key_copy": "Copy",
+	"api_key_copy_warning": "Store this key securely. It will not be shown again.",
+	"api_key_copied": "API key copied to clipboard",
+	"api_key_last_used": "Last used",
+	"api_key_created_title": "API Key Created",
+	"api_key_created_desc": "Copy and store this key securely. It will not be shown again after you close this dialog."
 }

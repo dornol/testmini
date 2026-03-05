@@ -54,7 +54,8 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 			steps: (latest?.steps ?? []).map((s: { action: string; expected: string }) => ({ action: s.action, expected: s.expected })),
 			expectedResult: latest?.expectedResult ?? '',
 			priority: latest?.priority ?? 'MEDIUM',
-			revision: latest?.revision ?? 1
+			revision: latest?.revision ?? 1,
+			automationKey: tc.automationKey ?? ''
 		},
 		// @ts-ignore zod 3.24 type mismatch with superforms adapter
 		zod(updateTestCaseSchema)
@@ -101,6 +102,7 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 		testCaseDetail: {
 			id: tc.id,
 			key: tc.key,
+			automationKey: tc.automationKey ?? null,
 			createdAt: tc.createdAt,
 			latestVersion: latest
 		},
@@ -128,7 +130,7 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		const { title, precondition, steps, expectedResult, priority, revision } =
+		const { title, precondition, steps, expectedResult, priority, revision, automationKey } =
 			form.data as UpdateTestCaseInput;
 
 		// Optimistic lock check
@@ -157,6 +159,26 @@ export const actions: Actions = {
 			action: s.action,
 			expected: s.expected
 		}));
+
+		// Validate automationKey uniqueness within project if changed
+		if (automationKey !== undefined) {
+			const trimmedAk = automationKey?.trim() || null;
+			if (trimmedAk) {
+				const existingAk = await db.query.testCase.findFirst({
+					where: and(
+						eq(testCase.projectId, projectId),
+						eq(testCase.automationKey, trimmedAk)
+					)
+				});
+				if (existingAk && existingAk.id !== testCaseId) {
+					return message(form, 'Automation key already exists in this project', { status: 409 });
+				}
+			}
+			await db
+				.update(testCase)
+				.set({ automationKey: trimmedAk })
+				.where(eq(testCase.id, testCaseId));
+		}
 
 		await db.transaction(async (tx) => {
 			const [version] = await tx

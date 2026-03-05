@@ -71,6 +71,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		testCase: {
 			id: tc.id,
 			key: tc.key,
+			automationKey: tc.automationKey ?? null,
 			createdAt: tc.createdAt,
 			latestVersion: tc.latestVersion
 		},
@@ -89,10 +90,11 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 	const body = await parseJsonBody(request);
-	const { key, title, priority } = body as {
+	const { key, title, priority, automationKey } = body as {
 		key?: string;
 		title?: string;
 		priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+		automationKey?: string | null;
 	};
 
 	const tc = await db.query.testCase.findFirst({
@@ -118,6 +120,20 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 			return json({ error: 'Key already exists in this project' }, { status: 409 });
 		}
 		await db.update(testCase).set({ key: trimmed }).where(eq(testCase.id, testCaseId));
+	}
+
+	// Automation key update
+	if (automationKey !== undefined) {
+		const trimmedAk = typeof automationKey === 'string' ? automationKey.trim() || null : null;
+		if (trimmedAk) {
+			const existingAk = await db.query.testCase.findFirst({
+				where: and(eq(testCase.projectId, projectId), eq(testCase.automationKey, trimmedAk))
+			});
+			if (existingAk && existingAk.id !== testCaseId) {
+				return json({ error: 'Automation key already exists in this project' }, { status: 409 });
+			}
+		}
+		await db.update(testCase).set({ automationKey: trimmedAk }).where(eq(testCase.id, testCaseId));
 	}
 
 	// Title or priority update: create a new version to preserve history

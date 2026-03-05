@@ -229,6 +229,6 @@ src/
 - [x] **Phase 1** — 인증, 프로젝트 CRUD, 멤버 관리, 테스트 케이스/런/실행, 실패 상세, 파일 첨부, i18n
 - [x] **Phase 2** — Redis 통합, SSE 실시간 동기화, 대시보드/리포트, Admin 패널
 - [x] **Phase 3** — 동적 OIDC/OAuth 관리, 전문 검색, 가상 스크롤링, Import/Export
-- [ ] **Phase 4** — CI 연동 (`automation_key`, 자동화 결과 수집 API, CI webhook)
+- [x] **Phase 4** — CI 연동 (`automation_key`, 프로젝트 API 키, 자동화 결과 수집 API, CI webhook)
 
 자세한 구현 계획은 [PLAN.md](./PLAN.md), 개선 작업 목록은 [TODO.md](./TODO.md) 참조.

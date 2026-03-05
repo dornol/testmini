@@ -64,6 +64,20 @@
       "when": 1741564800000,
       "tag": "0010_test_case_comments",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1741651200000,
+      "tag": "0013_automation_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1741737600000,
+      "tag": "0014_project_api_key",
+      "breakpoints": true
     }
   ]
 }

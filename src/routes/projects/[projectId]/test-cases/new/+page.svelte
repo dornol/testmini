@@ -121,6 +121,19 @@
 					/>
 				</div>
 
+				<div class="space-y-2">
+					<Label for="automationKey">{m.tc_automation_key_label()}</Label>
+					<Input
+						id="automationKey"
+						name="automationKey"
+						bind:value={$form.automationKey}
+						placeholder={m.tc_automation_key_placeholder()}
+					/>
+					{#if $errors.automationKey}
+						<p class="text-destructive text-sm">{$errors.automationKey}</p>
+					{/if}
+				</div>
+
 				<div class="flex gap-3 pt-2">
 					<Button type="submit" disabled={$submitting}>
 						{$submitting ? m.common_creating() : m.tc_create()}

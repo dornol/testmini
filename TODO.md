@@ -5,6 +5,7 @@
 > 4단계 구현 (2026-03-05)
 > 새 기능 8개 구현 (2026-03-05)
 > 테스트 4개 항목 구현 (2026-03-05)
+> Phase 4 CI 연동 구현 (2026-03-05)
 
 ---
 
@@ -119,9 +120,10 @@
 
 ## Phase 4: CI 연동 (PLAN.md)
 
-- [ ] TestCase에 `automation_key` 필드 추가
-- [ ] 자동화 결과 수집 API (`/api/automation/results`)
-- [ ] CI webhook 연동 (GitHub Actions, GitLab CI)
+- [x] TestCase에 `automation_key` 필드 추가 — DB 스키마 + 복합 유니크 인덱스 + TC 생성/편집 UI + API
+- [x] 자동화 결과 수집 API — `/api/automation/results` POST (API 키 인증, TC 매칭, 런 자동 생성, 실패 상세)
+- [x] CI webhook 연동 — `/api/automation/webhook` POST (GitHub Actions / GitLab CI 이벤트 수신)
+- [x] 프로젝트 API 키 관리 — `projectApiKey` 테이블 + 생성/조회/폐기 API + 설정 UI
 
 ---
 

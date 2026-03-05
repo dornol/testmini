@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockDb } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 
-const mockDb = createMockDb();
+const mockDb = createMockDb() as ReturnType<typeof createMockDb> & { execute: ReturnType<typeof vi.fn> };
 
 vi.mock('$lib/server/db', () => ({ db: mockDb }));
 vi.mock('drizzle-orm', () => ({

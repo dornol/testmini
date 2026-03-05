@@ -421,6 +421,19 @@
 								/>
 							</div>
 
+							<div class="space-y-2">
+								<Label for="automationKey">{m.tc_automation_key_label()}</Label>
+								<Input
+									id="automationKey"
+									name="automationKey"
+									bind:value={$form.automationKey}
+									placeholder={m.tc_automation_key_placeholder()}
+								/>
+								{#if $errors.automationKey}
+									<p class="text-destructive text-sm">{$errors.automationKey}</p>
+								{/if}
+							</div>
+
 							<div class="flex gap-3">
 								<Button type="submit" disabled={$submitting}>
 									{$submitting ? m.common_saving() : m.common_save_changes()}
@@ -483,6 +496,15 @@
 								<h4 class="text-sm font-medium">{m.tc_expected_result()}</h4>
 								<p class="text-muted-foreground mt-1 whitespace-pre-wrap text-sm">
 									{version.expectedResult}
+								</p>
+							</div>
+						{/if}
+
+						{#if tc.automationKey}
+							<div>
+								<h4 class="text-sm font-medium">{m.tc_automation_key_label()}</h4>
+								<p class="text-muted-foreground mt-1 font-mono text-sm">
+									{tc.automationKey}
 								</p>
 							</div>
 						{/if}

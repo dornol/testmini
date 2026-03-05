@@ -64,7 +64,8 @@ export const projectRelations = relations(project, ({ many }) => ({
 	testCases: many(testCase),
 	testRuns: many(testRun),
 	tags: many(tag),
-	groups: many(testCaseGroup)
+	groups: many(testCaseGroup),
+	apiKeys: many(projectApiKey)
 }));
 
 // ── ProjectMember ──────────────────────────────────────
@@ -140,6 +141,7 @@ export const testCase = pgTable(
 			.notNull()
 			.references(() => project.id, { onDelete: 'cascade' }),
 		key: text('key').notNull(),
+		automationKey: text('automation_key'),
 		latestVersionId: integer('latest_version_id'),
 		groupId: integer('group_id').references(() => testCaseGroup.id, { onDelete: 'set null' }),
 		sortOrder: integer('sort_order').notNull().default(0),
@@ -151,7 +153,8 @@ export const testCase = pgTable(
 	(table) => [
 		index('test_case_project_idx').on(table.projectId),
 		unique('test_case_key_unique').on(table.projectId, table.key),
-		index('test_case_group_sort_idx').on(table.projectId, table.groupId, table.sortOrder)
+		index('test_case_group_sort_idx').on(table.projectId, table.groupId, table.sortOrder),
+		index('test_case_automation_key_idx').on(table.projectId, table.automationKey)
 	]
 );
 
@@ -777,4 +780,40 @@ export const testCaseCommentRelations = relations(testCaseComment, ({ one, many 
 		relationName: 'replies'
 	}),
 	replies: many(testCaseComment, { relationName: 'replies' })
+}));
+
+// ── ProjectApiKey ──────────────────────────────────────
+
+export const projectApiKey = pgTable(
+	'project_api_key',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		keyHash: text('key_hash').notNull(),
+		prefix: text('prefix').notNull(),
+		lastUsedAt: timestamp('last_used_at'),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		unique('project_api_key_hash_unique').on(table.keyHash),
+		index('project_api_key_project_idx').on(table.projectId),
+		index('project_api_key_hash_idx').on(table.keyHash)
+	]
+);
+
+export const projectApiKeyRelations = relations(projectApiKey, ({ one }) => ({
+	project: one(project, {
+		fields: [projectApiKey.projectId],
+		references: [project.id]
+	}),
+	creator: one(user, {
+		fields: [projectApiKey.createdBy],
+		references: [user.id]
+	})
 }));

@@ -286,15 +286,14 @@ export async function verifyIdToken(opts: VerifyIdTokenOptions): Promise<VerifyR
 
 	if (candidates.length === 0) {
 		// kid not found — try all RSA keys (some providers omit kid)
-		const fallback = keys.length > 0 ? keys : [];
-		if (fallback.length === 0) {
+		if (keys.length === 0) {
 			return {
 				verified: false,
 				claims: payload,
 				warning: `No RSA keys found in JWKS${kid ? ` for kid="${kid}"` : ''}`
 			};
 		}
-		candidates.push(...fallback);
+		candidates.push(...keys);
 	}
 
 	// Try each candidate key

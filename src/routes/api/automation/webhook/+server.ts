@@ -1,6 +1,9 @@
-import type { RequestHandler } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 import { authenticateApiKey } from '$lib/server/api-key-auth';
+import { childLogger } from '$lib/server/logger';
+
+const log = childLogger('webhook');
 
 interface GitHubWorkflowPayload {
 	action: string;
@@ -109,8 +112,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 	}
 
-	// Log webhook metadata (audit trail via console for now — can be extended to DB)
-	console.info('[webhook]', {
+	// Log webhook metadata (audit trail — can be extended to DB)
+	log.info({
 		platform,
 		projectId,
 		repo,
@@ -120,7 +123,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		buildUrl,
 		isCompleted,
 		receivedAt: new Date().toISOString()
-	});
+	}, 'Webhook received');
 
 	return json({
 		received: true,

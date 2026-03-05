@@ -4,6 +4,9 @@ import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, testExecution, testRun } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
+import { childLogger } from '$lib/server/logger';
+
+const log = childLogger('executions');
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
 	try {
@@ -68,7 +71,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 		return json({ executionId: execution.id, status: 'PENDING' });
 	} catch (err: unknown) {
-		console.error('[POST executions] error:', err);
+		log.error({ err }, 'POST executions failed');
 		// Re-throw SvelteKit HttpError (from requireAuth/requireProjectRole)
 		if (err && typeof err === 'object' && 'status' in err) {
 			const httpErr = err as { status: number; body?: { message?: string } };

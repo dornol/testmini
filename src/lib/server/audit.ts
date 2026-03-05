@@ -1,5 +1,8 @@
 import { db } from '$lib/server/db';
 import { auditLog } from '$lib/server/db/schema';
+import { childLogger } from './logger';
+
+const log = childLogger('audit');
 
 export interface LogAuditParams {
 	userId?: string;
@@ -28,6 +31,6 @@ export async function logAudit(params: LogAuditParams): Promise<void> {
 		});
 	} catch (err) {
 		// Silently ignore audit logging failures — they must not break the main flow
-		console.error('[audit] Failed to write audit log:', err);
+		log.error({ err }, 'Failed to write audit log');
 	}
 }

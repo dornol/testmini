@@ -9,11 +9,11 @@
 	let chart: Chart | undefined;
 
 	$effect(() => {
-		const cloned = structuredClone(config);
+		const cfg = config;
 		if (chart) {
 			chart.destroy();
 		}
-		chart = new Chart(canvas, cloned);
+		chart = new Chart(canvas, cfg);
 
 		return () => {
 			chart?.destroy();

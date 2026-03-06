@@ -7,6 +7,14 @@ import { getTextDirection } from '$lib/paraglide/runtime';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { checkRateLimit } from '$lib/server/rate-limit';
 import { logger } from '$lib/server/logger';
+import { runMigrations } from '$lib/server/db/migrate';
+
+if (!building) {
+	runMigrations().catch((err) => {
+		logger.fatal({ err }, 'Migration failed — server cannot start safely');
+		process.exit(1);
+	});
+}
 
 const handleParaglide: Handle = ({ event, resolve }) => paraglideMiddleware(event.request, ({ request, locale }) => {
 	event.request = request;
@@ -24,7 +32,12 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 		event.locals.user = session.user;
 	}
 
-	return svelteKitHandler({ event, resolve, auth, building });
+	// Only let better-auth handle its own API routes
+	if (event.url.pathname.startsWith('/api/auth')) {
+		return svelteKitHandler({ event, resolve, auth, building });
+	}
+
+	return resolve(event);
 };
 
 /**

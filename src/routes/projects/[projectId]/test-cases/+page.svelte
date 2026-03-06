@@ -14,8 +14,11 @@
 	import { untrack } from 'svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import * as Popover from '$lib/components/ui/popover/index.js';
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import ImportDialog from '$lib/components/ImportDialog.svelte';
 	import VirtualList from '$lib/components/VirtualList.svelte';
+	import AddCircleButton from '$lib/components/AddCircleButton.svelte';
 	import TestCaseDetailSheet from './TestCaseDetailSheet.svelte';
 	import FailureDetailsSheet from './FailureDetailsSheet.svelte';
 	import FailWithDetailDialog from './FailWithDetailDialog.svelte';
@@ -122,13 +125,23 @@
 		});
 	});
 
+	function parseMulti(val: string): string[] {
+		return val ? val.split(',').filter(Boolean) : [];
+	}
+
 	const selectedTagIds = $derived(
 		(data.tagIds ?? '')
 			.split(',')
 			.map(Number)
 			.filter((id) => !isNaN(id) && id > 0)
 	);
-	const hasActiveFilters = $derived(!!data.search || !!data.priority || selectedTagIds.length > 0 || !!data.groupId || !!data.createdBy || !!data.assigneeId);
+	const selectedPriorities = $derived(parseMulti(data.priority));
+	const selectedSuiteIds = $derived(parseMulti(data.suiteId));
+	const selectedExecStatuses = $derived(parseMulti(data.execStatus));
+	const selectedCreatedByIds = $derived(parseMulti(data.createdBy));
+	const selectedAssigneeIds = $derived(parseMulti(data.assigneeId));
+	const selectedGroupId = $derived(data.groupId || '');
+	const hasActiveFilters = $derived(!!data.search || !!data.priority || selectedTagIds.length > 0 || !!data.groupId || !!data.createdBy || !!data.assigneeId || !!data.suiteId || !!data.execStatus);
 	const flipDurationMs = 150;
 
 	$effect(() => {
@@ -155,64 +168,30 @@
 		}, 300);
 	}
 
-	function setPriority(p: string) {
+	function toggleFilter(paramName: string, value: string) {
 		const params = new URLSearchParams(page.url.searchParams);
-		if (p) {
-			params.set('priority', p);
+		const current = parseMulti(params.get(paramName) ?? '');
+		const idx = current.indexOf(value);
+		if (idx >= 0) {
+			current.splice(idx, 1);
 		} else {
-			params.delete('priority');
+			current.push(value);
+		}
+		if (current.length > 0) {
+			params.set(paramName, current.join(','));
+		} else {
+			params.delete(paramName);
 		}
 		goto(`${basePath}?${params.toString()}`);
 	}
 
-	function toggleTag(id: number) {
+	function setSingleFilter(paramName: string, value: string) {
 		const params = new URLSearchParams(page.url.searchParams);
-		const current = new Set(selectedTagIds);
-		if (current.has(id)) {
-			current.delete(id);
+		const current = params.get(paramName) ?? '';
+		if (current === value) {
+			params.delete(paramName);
 		} else {
-			current.add(id);
-		}
-		if (current.size > 0) {
-			params.set('tagIds', [...current].join(','));
-		} else {
-			params.delete('tagIds');
-		}
-		goto(`${basePath}?${params.toString()}`);
-	}
-
-	function clearAllTags() {
-		const params = new URLSearchParams(page.url.searchParams);
-		params.delete('tagIds');
-		goto(`${basePath}?${params.toString()}`);
-	}
-
-	function setGroupFilter(gId: string) {
-		const params = new URLSearchParams(page.url.searchParams);
-		if (gId) {
-			params.set('groupId', gId);
-		} else {
-			params.delete('groupId');
-		}
-		goto(`${basePath}?${params.toString()}`);
-	}
-
-	function setCreatedByFilter(userId: string) {
-		const params = new URLSearchParams(page.url.searchParams);
-		if (userId) {
-			params.set('createdBy', userId);
-		} else {
-			params.delete('createdBy');
-		}
-		goto(`${basePath}?${params.toString()}`);
-	}
-
-	function setAssigneeFilter(userId: string) {
-		const params = new URLSearchParams(page.url.searchParams);
-		if (userId) {
-			params.set('assigneeId', userId);
-		} else {
-			params.delete('assigneeId');
+			params.set(paramName, value);
 		}
 		goto(`${basePath}?${params.toString()}`);
 	}
@@ -309,6 +288,28 @@
 		}
 	}
 
+	async function deleteExecution(runId: number, executionId: number) {
+		openDropdown = null;
+		updatingExecIds.add(executionId);
+		updatingExecIds = new Set(updatingExecIds);
+		try {
+			const res = await fetch(
+				`/api/projects/${data.project.id}/test-runs/${runId}/executions/${executionId}`,
+				{ method: 'DELETE' }
+			);
+			if (res.ok) {
+				await invalidateAll();
+			} else {
+				toast.error(m.error_operation_failed());
+			}
+		} catch {
+			toast.error(m.error_operation_failed());
+		} finally {
+			updatingExecIds.delete(executionId);
+			updatingExecIds = new Set(updatingExecIds);
+		}
+	}
+
 	async function addExecution(tcId: number, runId: number, event: MouseEvent) {
 		// Capture position before async operations (element may unmount after invalidateAll)
 		const btn = event.currentTarget as HTMLElement;
@@ -367,8 +368,9 @@
 		}
 	}
 
-	const priorities = ['', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 	const allStatuses = ['PENDING', 'PASS', 'FAIL', 'BLOCKED', 'SKIPPED'];
+	const priorityOptions = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+	const execStatusOptions = ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING', 'NOT_EXECUTED'];
 
 	const availableRuns = $derived(
 		data.projectRuns.filter((r) => !data.selectedRunIds.includes(r.id))
@@ -394,6 +396,7 @@
 		const groups = data.groups;
 		const collapsedSnapshot = new Set(collapsedGroups);
 		const editable = canEdit;
+		const filtered = hasActiveFilters;
 
 		// Heavy iteration inside untrack to avoid 5000+ reactive subscriptions
 		return untrack(() => {
@@ -413,6 +416,7 @@
 
 			for (const g of (groups as typeof data.groups)) {
 				const groupTcs = groupMap.get(g.id) ?? [];
+				if (filtered && groupTcs.length === 0) continue;
 				items.push({
 					_type: 'group-header',
 					group: { id: g.id, name: g.name, sortOrder: g.sortOrder, color: g.color, items: groupTcs }
@@ -428,18 +432,21 @@
 			}
 
 			const uncatTcs = groupMap.get(null) ?? [];
-			items.push({ _type: 'uncat-header', itemCount: uncatTcs.length });
-			if (!collapsedSnapshot.has(-1)) {
-				for (const tc of uncatTcs) {
-					items.push({ _type: 'tc', tc });
-				}
-				if (editable) {
-					items.push({ _type: 'quick-create', groupKey: -1 });
+			if (!filtered || uncatTcs.length > 0) {
+				items.push({ _type: 'uncat-header', itemCount: uncatTcs.length });
+				if (!collapsedSnapshot.has(-1)) {
+					for (const tc of uncatTcs) {
+						items.push({ _type: 'tc', tc });
+					}
+					if (editable) {
+						items.push({ _type: 'quick-create', groupKey: -1 });
+					}
 				}
 			}
 			return items;
 		});
 	});
+
 
 	// --- Inline editing (pencil icon click for key/title) ---
 	async function flushInlineEdit() {
@@ -535,8 +542,6 @@
 		}
 	}
 
-	const priorityOptions = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-
 	// --- Assignee popover ---
 	function openAssigneePopover(tcId: number, event: MouseEvent) {
 		event.stopPropagation();
@@ -558,6 +563,8 @@
 		formData.set('userId', userId);
 		updatingTcIds.add(tcId);
 		updatingTcIds = new Set(updatingTcIds);
+		// Save popover state before invalidation
+		const savedPopover = assigneePopover ? { ...assigneePopover } : null;
 		try {
 			const res = await fetch(
 				`/projects/${data.project.id}/test-cases/${tcId}?/${action}`,
@@ -565,6 +572,8 @@
 			);
 			if (res.ok) {
 				await invalidateAll();
+				// Restore popover after data refresh
+				if (savedPopover) assigneePopover = savedPopover;
 			} else {
 				toast.error(m.error_operation_failed());
 			}
@@ -633,6 +642,29 @@
 		} finally {
 			bulkLoading = false;
 			bulkDeleteOpen = false;
+		}
+	}
+
+	async function bulkAddToSuite(suiteId: number) {
+		if (selectedTcIds.size === 0 || bulkLoading) return;
+		bulkLoading = true;
+		try {
+			const res = await fetch(`/api/projects/${data.project.id}/test-suites/${suiteId}/items`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ testCaseIds: [...selectedTcIds] })
+			});
+			if (res.ok) {
+				toast.success(m.suite_updated());
+				selectedTcIds = new Set();
+			} else {
+				const err = await res.json();
+				toast.error(err.error || m.error_operation_failed());
+			}
+		} catch {
+			toast.error(m.error_operation_failed());
+		} finally {
+			bulkLoading = false;
 		}
 	}
 
@@ -860,112 +892,174 @@
 			oninput={handleSearch}
 			aria-label={m.tc_search_placeholder()}
 		/>
-		<div class="flex gap-1">
-			{#each priorities as p (p)}
-				<Button
-					variant={data.priority === p ? 'default' : 'outline'}
-					size="sm"
-					class="h-7 px-2 text-xs"
-					onclick={() => setPriority(p)}
-				>
-					{p || m.common_all()}
-				</Button>
-			{/each}
-		</div>
-		{#if data.projectTags.length > 0}
-			<div class="flex gap-1">
-				<Button
-					variant={selectedTagIds.length === 0 ? 'default' : 'outline'}
-					size="sm"
-					class="h-7 px-2 text-xs"
-					onclick={clearAllTags}
-				>
-					{m.common_all()}
-				</Button>
-				{#each data.projectTags as t (t.id)}
-					<Button
-						variant={selectedTagIds.includes(t.id) ? 'default' : 'outline'}
-						size="sm"
-						class="h-7 px-2 text-xs"
-						onclick={() => toggleTag(t.id)}
-					>
-						<span class="mr-1 inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
-						{t.name}
+
+		<!-- Priority filter -->
+		<Popover.Root>
+			<Popover.Trigger>
+				{#snippet child({ props })}
+					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+						{m.common_priority()}{selectedPriorities.length > 0 ? ` (${selectedPriorities.length})` : ''}
 					</Button>
+				{/snippet}
+			</Popover.Trigger>
+			<Popover.Content class="w-40 p-2" align="start">
+				{#each priorityOptions as p}
+					<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
+						<Checkbox checked={selectedPriorities.includes(p)} onCheckedChange={() => toggleFilter('priority', p)} />
+						<Badge variant={priorityVariant(p)} class="text-[10px] px-1.5 py-0 pointer-events-none">{p}</Badge>
+					</label>
 				{/each}
-			</div>
+			</Popover.Content>
+		</Popover.Root>
+
+		<!-- Suite filter -->
+		{#if data.projectSuites.length > 0}
+			<Popover.Root>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+							{m.tc_filter_suite()}{selectedSuiteIds.length > 0 ? ` (${selectedSuiteIds.length})` : ''}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content class="w-48 p-2" align="start">
+					{#each data.projectSuites as s (s.id)}
+						<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
+							<Checkbox checked={selectedSuiteIds.includes(String(s.id))} onCheckedChange={() => toggleFilter('suiteId', String(s.id))} />
+							{s.name}
+						</label>
+					{/each}
+				</Popover.Content>
+			</Popover.Root>
 		{/if}
 
-		<!-- Group filter -->
-		{#if data.groups.length > 0}
-			<Select.Root
-				type="single"
-				value={data.groupId ?? ''}
-				onValueChange={(v: string) => setGroupFilter(v === '__all__' ? '' : v)}
-			>
-				<Select.Trigger size="sm" class="h-7 px-2 text-xs">
-					{#if data.groupId === 'uncategorized'}
-						{m.tc_filter_uncategorized()}
-					{:else if data.groupId}
-						{data.groups.find((g) => String(g.id) === data.groupId)?.name ?? data.groupId}
-					{:else}
-						{m.tc_filter_group()}: {m.common_all()}
-					{/if}
-				</Select.Trigger>
-				<Select.Content>
-					<Select.Item value="__all__" label="{m.tc_filter_group()}: {m.common_all()}" />
-					<Select.Item value="uncategorized" label={m.tc_filter_uncategorized()} />
-					{#each data.groups as g (g.id)}
-						<Select.Item value={String(g.id)} label={g.name} />
+		<!-- Execution status filter (only when runs are selected) -->
+		{#if data.selectedRunIds.length > 0}
+			<Popover.Root>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+							{m.tc_filter_exec_status()}{selectedExecStatuses.length > 0 ? ` (${selectedExecStatuses.length})` : ''}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content class="w-44 p-2" align="start">
+					{#each execStatusOptions as st}
+						<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
+							<Checkbox checked={selectedExecStatuses.includes(st)} onCheckedChange={() => toggleFilter('execStatus', st)} />
+							<span class={statusColor(st)}>{st}</span>
+						</label>
 					{/each}
-				</Select.Content>
-			</Select.Root>
+				</Popover.Content>
+			</Popover.Root>
+		{/if}
+
+		<!-- Group filter (single-select) -->
+		{#if data.groups.length > 0}
+			{@const selectedGroupName = selectedGroupId === 'uncategorized' ? m.tc_filter_uncategorized() : data.groups.find((g) => String(g.id) === selectedGroupId)?.name}
+			<Popover.Root>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" size="sm" class="h-7 px-2 text-xs gap-1" {...props}>
+							{selectedGroupName ?? m.tc_filter_group()}
+							{#if selectedGroupId}
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<span
+									class="ml-0.5 -mr-1 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
+									onclick={(e) => { e.stopPropagation(); setSingleFilter('groupId', selectedGroupId); }}
+									role="button"
+									tabindex="-1"
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+								</span>
+							{/if}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content class="w-48 p-1" align="start">
+					<button
+						type="button"
+						class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer {selectedGroupId === 'uncategorized' ? 'bg-muted font-medium' : ''}"
+						onclick={() => setSingleFilter('groupId', 'uncategorized')}
+					>
+						{m.tc_filter_uncategorized()}
+					</button>
+					{#each data.groups as g (g.id)}
+						<button
+							type="button"
+							class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer {selectedGroupId === String(g.id) ? 'bg-muted font-medium' : ''}"
+							onclick={() => setSingleFilter('groupId', String(g.id))}
+						>
+							{#if g.color}
+								<span class="inline-block h-2 w-2 shrink-0 rounded-full" style="background-color: {g.color}"></span>
+							{/if}
+							{g.name}
+						</button>
+					{/each}
+				</Popover.Content>
+			</Popover.Root>
+		{/if}
+
+		<!-- Tag filter -->
+		{#if data.projectTags.length > 0}
+			<Popover.Root>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+							{m.nav_tags()}{selectedTagIds.length > 0 ? ` (${selectedTagIds.length})` : ''}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content class="w-48 p-2" align="start">
+					{#each data.projectTags as t (t.id)}
+						<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
+							<Checkbox checked={selectedTagIds.includes(t.id)} onCheckedChange={() => toggleFilter('tagIds', String(t.id))} />
+							<span class="inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
+							{t.name}
+						</label>
+					{/each}
+				</Popover.Content>
+			</Popover.Root>
 		{/if}
 
 		<!-- CreatedBy filter -->
 		{#if data.projectMembers.length > 0}
-			<Select.Root
-				type="single"
-				value={data.createdBy ?? ''}
-				onValueChange={(v: string) => setCreatedByFilter(v === '__all__' ? '' : v)}
-			>
-				<Select.Trigger size="sm" class="h-7 px-2 text-xs">
-					{#if data.createdBy}
-						{data.projectMembers.find((mb) => mb.userId === data.createdBy)?.userName ?? data.createdBy}
-					{:else}
-						{m.tc_filter_created_by()}: {m.common_all()}
-					{/if}
-				</Select.Trigger>
-				<Select.Content>
-					<Select.Item value="__all__" label="{m.tc_filter_created_by()}: {m.common_all()}" />
+			<Popover.Root>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+							{m.tc_filter_created_by()}{selectedCreatedByIds.length > 0 ? ` (${selectedCreatedByIds.length})` : ''}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content class="w-48 p-2" align="start">
 					{#each data.projectMembers as member}
-						<Select.Item value={member.userId} label={member.userName} />
+						<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
+							<Checkbox checked={selectedCreatedByIds.includes(member.userId)} onCheckedChange={() => toggleFilter('createdBy', member.userId)} />
+							{member.userName}
+						</label>
 					{/each}
-				</Select.Content>
-			</Select.Root>
-		{/if}
+				</Popover.Content>
+			</Popover.Root>
 
-		<!-- Assignee filter -->
-		{#if data.projectMembers.length > 0}
-			<Select.Root
-				type="single"
-				value={data.assigneeId ?? ''}
-				onValueChange={(v: string) => setAssigneeFilter(v === '__all__' ? '' : v)}
-			>
-				<Select.Trigger size="sm" class="h-7 px-2 text-xs">
-					{#if data.assigneeId}
-						{data.projectMembers.find((mb) => mb.userId === data.assigneeId)?.userName ?? data.assigneeId}
-					{:else}
-						{m.tc_filter_assignee()}: {m.common_all()}
-					{/if}
-				</Select.Trigger>
-				<Select.Content>
-					<Select.Item value="__all__" label="{m.tc_filter_assignee()}: {m.common_all()}" />
+			<!-- Assignee filter -->
+			<Popover.Root>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+							{m.tc_filter_assignee()}{selectedAssigneeIds.length > 0 ? ` (${selectedAssigneeIds.length})` : ''}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content class="w-48 p-2" align="start">
 					{#each data.projectMembers as member}
-						<Select.Item value={member.userId} label={member.userName} />
+						<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
+							<Checkbox checked={selectedAssigneeIds.includes(member.userId)} onCheckedChange={() => toggleFilter('assigneeId', member.userId)} />
+							{member.userName}
+						</label>
 					{/each}
-				</Select.Content>
-			</Select.Root>
+				</Popover.Content>
+			</Popover.Root>
 		{/if}
 
 		<!-- Clear all filters -->
@@ -1151,6 +1245,24 @@
 				</DropdownMenu.Root>
 			{/if}
 
+			<!-- Bulk Add to Suite -->
+			{#if data.projectSuites.length > 0}
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						{#snippet child({ props })}
+							<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.suite_add_cases()}</Button>
+						{/snippet}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="start" class="min-w-[140px]">
+						{#each data.projectSuites as s (s.id)}
+							<DropdownMenu.Item onclick={() => bulkAddToSuite(s.id)} class="text-xs">
+								{s.name}
+							</DropdownMenu.Item>
+						{/each}
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+			{/if}
+
 			<!-- Bulk Clone -->
 			<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} onclick={() => bulkAction('clone')}>
 				{m.tc_bulk_clone()}
@@ -1222,6 +1334,26 @@
 			<p class="text-xs text-muted-foreground italic">Drag & drop is disabled while filters are active.</p>
 		{/if}
 
+		{#snippet avatarStack(assignees: { userId: string; userName: string }[])}
+			{#if assignees && assignees.length > 0}
+				<div class="flex -space-x-1.5">
+					{#each assignees.slice(0, 3) as a (a.userId)}
+						<span
+							class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted border-2 border-background text-[9px] font-medium uppercase leading-none"
+							title={a.userName}
+						>{a.userName.charAt(0)}</span>
+					{/each}
+					{#if assignees.length > 3}
+						<span
+							class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted border-2 border-background text-[9px] font-medium leading-none text-muted-foreground"
+						>+{assignees.length - 3}</span>
+					{/if}
+				</div>
+			{:else if canEdit}
+				<AddCircleButton size="sm" />
+			{/if}
+		{/snippet}
+
 		{#snippet tcRow(tc: TcItem)}
 			{#if canEdit}
 				<input
@@ -1279,7 +1411,7 @@
 						autofocus
 					/>
 				{:else}
-					<span class="truncate">{tc.title}</span>
+					<button type="button" class="truncate text-left hover:underline cursor-pointer" data-tip={tc.title} onclick={(e) => { e.stopPropagation(); detailSheet.open(tc.id); }}>{tc.title}</button>
 					{#if canEdit}
 						<button
 							type="button"
@@ -1309,11 +1441,18 @@
 			{/if}
 			<!-- Tags -->
 			{#if data.projectTags.length > 0}
-				<div class="w-24 shrink-0 flex gap-0.5 overflow-hidden">
+				<div class="w-28 shrink-0 flex gap-0.5 items-center overflow-hidden">
 					{#if tc.tags && tc.tags.length > 0}
-						{#each tc.tags as t (t.id)}
-							<TagBadge name={t.name} color={t.color} />
+						{#each tc.tags.slice(0, 3) as t (t.id)}
+							<span
+								class="rounded px-1 py-px text-[10px] leading-tight font-medium truncate max-w-[4rem]"
+								style="background-color: {t.color}20; color: {t.color}"
+								data-tip={t.name}
+							>{t.name}</span>
 						{/each}
+						{#if tc.tags.length > 3}
+							<span class="text-[10px] text-muted-foreground shrink-0">+{tc.tags.length - 3}</span>
+						{/if}
 					{/if}
 				</div>
 			{/if}
@@ -1322,33 +1461,17 @@
 				<button
 					type="button"
 					data-assignee-popover
-					class="w-24 shrink-0 flex gap-0.5 overflow-hidden items-center cursor-pointer rounded hover:bg-muted/50 transition-colors px-0.5 -mx-0.5"
+					class="w-16 shrink-0 flex items-center cursor-pointer rounded hover:bg-muted/50 transition-colors px-0.5 -mx-0.5"
 					onclick={(e) => { e.stopPropagation(); openAssigneePopover(tc.id, e); }}
 				>
-					{#if tc.assignees && tc.assignees.length > 0}
-						{#each tc.assignees.slice(0, 2) as a (a.userId)}
-							<Badge variant="outline" class="text-[10px] px-1.5 py-0 truncate">{a.userName}</Badge>
-						{/each}
-						{#if tc.assignees.length > 2}
-							<span class="text-[10px] text-muted-foreground">+{tc.assignees.length - 2}</span>
-						{/if}
-					{:else}
-						<span class="text-[10px] text-muted-foreground/50 hover:text-primary transition-colors">+</span>
-					{/if}
+					{@render avatarStack(tc.assignees)}
 				</button>
 			{:else}
-				<div class="w-24 shrink-0 flex gap-0.5 overflow-hidden">
-					{#if tc.assignees && tc.assignees.length > 0}
-						{#each tc.assignees.slice(0, 2) as a (a.userId)}
-							<Badge variant="outline" class="text-[10px] px-1.5 py-0 truncate">{a.userName}</Badge>
-						{/each}
-						{#if tc.assignees.length > 2}
-							<span class="text-[10px] text-muted-foreground">+{tc.assignees.length - 2}</span>
-						{/if}
-					{/if}
+				<div class="w-16 shrink-0 flex items-center">
+					{@render avatarStack(tc.assignees)}
 				</div>
 			{/if}
-			<span class="text-muted-foreground w-20 shrink-0 text-right truncate">{tc.updatedBy}</span>
+			<span class="text-muted-foreground w-20 shrink-0 text-right truncate" data-tip={tc.updatedBy}>{tc.updatedBy}</span>
 			<!-- Test Run columns -->
 			{#each selectedRuns as run (run.id)}
 				{@const exec = data.executionMap[tc.id]?.[run.id]}
@@ -1357,20 +1480,13 @@
 						<button
 							type="button"
 							data-status-dropdown
-							class="font-medium {statusColor(exec.status)} hover:underline"
+							class="font-medium cursor-pointer {statusColor(exec.status)} hover:underline"
 							onclick={(e) => toggleDropdown(tc.id, run.id, e)}
 						>
 							{exec.status}
 						</button>
 					{:else if canEdit}
-						<button
-							type="button"
-							class="text-muted-foreground/50 hover:text-primary hover:bg-primary/10 rounded-full h-5 w-5 inline-flex items-center justify-center transition-colors"
-							title="Add to run"
-							onclick={(e) => addExecution(tc.id, run.id, e)}
-						>
-							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
-						</button>
+						<AddCircleButton tip="Add to run" onclick={(e) => addExecution(tc.id, run.id, e)} />
 					{:else}
 						<span class="text-muted-foreground">-</span>
 					{/if}
@@ -1444,16 +1560,16 @@
 					/>
 				{/if}
 				{#if !dndDisabled}<span class="w-6 shrink-0"></span>{/if}
-				<span class="w-20 shrink-0">{m.common_key()}</span>
-				<span class="flex-1 min-w-0">{m.common_title()}</span>
+				<span class="w-20 shrink-0 text-center">{m.common_key()}</span>
+				<span class="flex-1 min-w-0 text-center">{m.common_title()}</span>
 				<span class="w-16 shrink-0 text-center">{m.common_priority()}</span>
 				{#if data.projectTags.length > 0}
-					<span class="w-24 shrink-0">{m.tag_title()}</span>
+					<span class="w-28 shrink-0 text-center">{m.tag_title()}</span>
 				{/if}
-				<span class="w-24 shrink-0">{m.assignee_title()}</span>
-				<span class="w-20 shrink-0 text-right">{m.tc_updated_by()}</span>
+				<span class="w-16 shrink-0 text-center">{m.assignee_title()}</span>
+				<span class="w-20 shrink-0 text-center">{m.tc_updated_by()}</span>
 				{#each selectedRuns as run (run.id)}
-					<span class="w-16 shrink-0 text-center truncate" title={run.name}>{run.name}</span>
+					<span class="w-16 shrink-0 text-center truncate" data-tip={run.name}>{run.name}</span>
 				{/each}
 			</div>
 
@@ -1525,11 +1641,7 @@
 							</div>
 						{:else if row._type === 'tc'}
 							<div
-								class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 cursor-pointer group/row text-xs"
-								onclick={() => detailSheet.open(row.tc.id)}
-								role="button"
-								tabindex="0"
-								onkeydown={(e) => { if (e.key === 'Enter') detailSheet.open(row.tc.id); }}
+								class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 group/row text-xs"
 							>
 								{@render tcRow(row.tc)}
 							</div>
@@ -1570,6 +1682,7 @@
 				>
 					{#each dndGroups as group (group.id)}
 						<div animate:flip={{ duration: flipDurationMs }}>
+						{#if !hasActiveFilters || group.items.length > 0}
 							<!-- Group separator row -->
 							<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 text-sm font-semibold">
 								{#if !dndDisabled}
@@ -1651,11 +1764,7 @@
 									{#each group.items as tc (tc.id)}
 										<div
 											animate:flip={{ duration: flipDurationMs }}
-											class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 cursor-pointer group/row text-xs"
-											onclick={() => detailSheet.open(tc.id)}
-											role="button"
-											tabindex="0"
-											onkeydown={(e) => { if (e.key === 'Enter') detailSheet.open(tc.id); }}
+											class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 group/row text-xs"
 										>
 											{@render tcRow(tc)}
 										</div>
@@ -1668,11 +1777,13 @@
 									</div>
 								{/if}
 							{/if}
-						</div>
+						{/if}
+					</div>
 					{/each}
 				</div>
 
 				<!-- Uncategorized section -->
+				{#if !hasActiveFilters || dndUncategorized.length > 0}
 				<div>
 					<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/20 text-sm font-semibold">
 						{#if !dndDisabled}<span class="w-6 shrink-0"></span>{/if}
@@ -1706,11 +1817,7 @@
 							{#each dndUncategorized as tc (tc.id)}
 								<div
 									animate:flip={{ duration: flipDurationMs }}
-									class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 cursor-pointer group/row text-xs"
-									onclick={() => detailSheet.open(tc.id)}
-									role="button"
-									tabindex="0"
-									onkeydown={(e) => { if (e.key === 'Enter') detailSheet.open(tc.id); }}
+									class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 group/row text-xs"
 								>
 									{@render tcRow(tc)}
 								</div>
@@ -1724,6 +1831,7 @@
 						{/if}
 					{/if}
 				</div>
+				{/if}
 			{/if}
 		</div>
 
@@ -1751,7 +1859,7 @@
 				{#each allStatuses as s}
 					<button
 						type="button"
-						class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted {statusColor(s)} {s === exec.status ? 'font-bold' : ''}"
+						class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted cursor-pointer {statusColor(s)} {s === exec.status ? 'font-bold' : ''}"
 						onclick={() => updateExecutionStatus(runId, exec.executionId, s, tcKey)}
 					>
 						{s}
@@ -1774,6 +1882,14 @@
 						{m.fail_add_detail()}
 					</button>
 				{/if}
+				<div class="border-t my-1"></div>
+				<button
+					type="button"
+					class="block w-full px-3 py-1.5 text-left text-xs hover:bg-destructive/10 cursor-pointer text-destructive"
+					onclick={() => deleteExecution(runId, exec.executionId)}
+				>
+					{m.common_delete()}
+				</button>
 			</div>
 		{/if}
 	{/if}
@@ -1781,10 +1897,12 @@
 	<!-- Fixed-position assignee popover -->
 	{#if assigneePopover}
 		{@const tcForPopover = data.testCases.find((tc) => tc.id === assigneePopover!.tcId)}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			data-assignee-popover
 			class="fixed z-[9999] bg-popover border rounded-md shadow-lg py-1 min-w-[150px] max-h-[240px] overflow-y-auto"
 			style="left: {assigneePopover.x}px; top: {assigneePopover.y}px; transform: translateX(-50%);"
+			onclick={(e) => e.stopPropagation()}
 		>
 			{#each data.projectMembers as member (member.userId)}
 				{@const isAssigned = tcForPopover?.assignees?.some((a) => a.userId === member.userId) ?? false}
@@ -1793,6 +1911,7 @@
 					class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted transition-colors {isAssigned ? 'font-bold bg-muted/50' : ''}"
 					onclick={() => toggleAssignee(assigneePopover!.tcId, member.userId)}
 				>
+					<span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[9px] font-medium uppercase shrink-0">{member.userName.charAt(0)}</span>
 					<span class="truncate flex-1">{member.userName}</span>
 					{#if isAssigned}
 						<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-primary shrink-0"><polyline points="20 6 9 17 4 12"/></svg>

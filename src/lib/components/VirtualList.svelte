@@ -22,6 +22,7 @@
 	let container: HTMLDivElement | undefined = $state();
 	let scrollTop = $state(0);
 	let viewportHeight = $state(0);
+	let _scrollParent: HTMLElement | null = null;
 
 	const totalHeight = $derived(items.length * rowHeight);
 	const startIndex = $derived(Math.max(0, Math.floor(scrollTop / rowHeight) - overscan));
@@ -63,10 +64,29 @@
 		}
 	}
 
+	export function scrollToIndex(index: number) {
+		if (!container) return;
+		const targetOffset = index * rowHeight;
+
+		if (useWindowScroll) {
+			const sp = _scrollParent ?? getScrollParent(container);
+			if (sp) {
+				// Calculate container's absolute position within the scroll parent
+				const containerRect = container.getBoundingClientRect();
+				const parentRect = sp.getBoundingClientRect();
+				const containerTopInParent = containerRect.top - parentRect.top + sp.scrollTop;
+				sp.scrollTo({ top: containerTopInParent + targetOffset, behavior: 'instant' });
+			}
+		} else {
+			container.scrollTo({ top: targetOffset, behavior: 'instant' });
+		}
+	}
+
 	$effect(() => {
 		if (!container) return;
 		if (useWindowScroll) {
 			const scrollParent = getScrollParent(container);
+			_scrollParent = scrollParent;
 			const target: HTMLElement | Window = scrollParent ?? window;
 			const handler = () => updateExternalScroll(scrollParent);
 			handler();

@@ -112,3 +112,24 @@
 	0% { transform: translateX(-100%); }
 	100% { transform: translateX(400%); }
 }
+
+/* data-tip tooltip element (managed by JS in +layout.svelte) */
+#tip-el {
+	position: fixed;
+	padding: 4px 8px;
+	border-radius: 6px;
+	font-size: 11px;
+	line-height: 1.4;
+	white-space: nowrap;
+	max-width: 320px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	background: var(--popover);
+	color: var(--popover-foreground);
+	border: 1px solid var(--border);
+	box-shadow: 0 2px 8px rgb(0 0 0 / .08);
+	pointer-events: none;
+	z-index: 9999;
+	opacity: 0;
+	transition: opacity 0.15s;
+}

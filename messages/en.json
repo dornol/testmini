@@ -314,6 +314,8 @@
 	"tc_bulk_add_assignee": "Add Assignee",
 	"tc_bulk_remove_assignee": "Remove Assignee",
 	"tc_filter_assignee": "Assignee",
+	"tc_filter_suite": "Suite",
+	"tc_filter_exec_status": "Run Result",
 	"oidc_providers_title": "Identity Providers",
 	"oidc_providers_desc": "Manage external identity providers",
 	"oidc_add_provider": "Add Provider",

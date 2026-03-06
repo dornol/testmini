@@ -58,6 +58,7 @@
 	function isProjectActive(projectId: number): boolean {
 		return page.url.pathname.startsWith(`/projects/${projectId}`);
 	}
+
 </script>
 
 {#if open}

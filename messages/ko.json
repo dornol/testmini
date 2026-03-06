@@ -314,6 +314,8 @@
 	"tc_bulk_add_assignee": "담당자 추가",
 	"tc_bulk_remove_assignee": "담당자 제거",
 	"tc_filter_assignee": "담당자",
+	"tc_filter_suite": "스위트",
+	"tc_filter_exec_status": "실행 결과",
 	"oidc_providers_title": "ID 제공자 관리",
 	"oidc_providers_desc": "외부 ID 제공자를 관리합니다",
 	"oidc_add_provider": "제공자 추가",

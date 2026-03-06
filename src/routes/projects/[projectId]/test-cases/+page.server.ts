@@ -11,7 +11,9 @@ import {
 	testCaseAssignee,
 	testRun,
 	testExecution,
-	projectMember
+	projectMember,
+	testSuite,
+	testSuiteItem
 } from '$lib/server/db/schema';
 import { eq, and, ilike, or, desc, asc, exists, sql, inArray, isNull } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
@@ -26,6 +28,8 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 	const groupId = url.searchParams.get('groupId') ?? '';
 	const createdBy = url.searchParams.get('createdBy') ?? '';
 	const assigneeId = url.searchParams.get('assigneeId') ?? '';
+	const suiteId = url.searchParams.get('suiteId') ?? '';
+	const execStatus = url.searchParams.get('execStatus') ?? '';
 
 	// Parse selected run IDs: URL param takes priority, otherwise fall back to cookie
 	const cookieKey = `tc_runIds_${projectId}`;
@@ -48,13 +52,12 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		conditions.push(or(keyCondition, ftsCondition)!);
 	}
 
-	if (priority && ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) {
-		conditions.push(
-			eq(
-				testCaseVersion.priority,
-				priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
-			)
-		);
+	if (priority) {
+		const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
+		const priorities = priority.split(',').filter((p): p is typeof validPriorities[number] => validPriorities.includes(p as any));
+		if (priorities.length > 0) {
+			conditions.push(inArray(testCaseVersion.priority, priorities));
+		}
 	}
 
 	if (tagIds) {
@@ -83,31 +86,56 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		if (groupId === 'uncategorized') {
 			conditions.push(isNull(testCase.groupId));
 		} else {
-			const groupIdNum = Number(groupId);
-			if (!isNaN(groupIdNum)) {
-				conditions.push(eq(testCase.groupId, groupIdNum));
+			const gid = Number(groupId);
+			if (!isNaN(gid) && gid > 0) {
+				conditions.push(eq(testCase.groupId, gid));
 			}
 		}
 	}
 
 	if (createdBy) {
-		conditions.push(eq(testCase.createdBy, createdBy));
+		const createdByIds = createdBy.split(',').filter(Boolean);
+		if (createdByIds.length > 0) {
+			conditions.push(inArray(testCase.createdBy, createdByIds));
+		}
 	}
 
 	if (assigneeId) {
-		conditions.push(
-			exists(
-				db
-					.select({ one: sql`1` })
-					.from(testCaseAssignee)
-					.where(
-						and(
-							eq(testCaseAssignee.testCaseId, testCase.id),
-							eq(testCaseAssignee.userId, assigneeId)
+		const assigneeIds = assigneeId.split(',').filter(Boolean);
+		if (assigneeIds.length > 0) {
+			conditions.push(
+				exists(
+					db
+						.select({ one: sql`1` })
+						.from(testCaseAssignee)
+						.where(
+							and(
+								eq(testCaseAssignee.testCaseId, testCase.id),
+								inArray(testCaseAssignee.userId, assigneeIds)
+							)
 						)
-					)
-			)
-		);
+				)
+			);
+		}
+	}
+
+	if (suiteId) {
+		const suiteIdNums = suiteId.split(',').map(Number).filter((id) => !isNaN(id) && id > 0);
+		if (suiteIdNums.length > 0) {
+			conditions.push(
+				exists(
+					db
+						.select({ one: sql`1` })
+						.from(testSuiteItem)
+						.where(
+							and(
+								eq(testSuiteItem.testCaseId, testCase.id),
+								inArray(testSuiteItem.suiteId, suiteIdNums)
+							)
+						)
+				)
+			);
+		}
 	}
 
 	const where = and(...conditions);
@@ -215,6 +243,13 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		.where(eq(projectMember.projectId, projectId))
 		.orderBy(user.name);
 
+	// Load project suites for filter UI
+	const projectSuites = await db
+		.select({ id: testSuite.id, name: testSuite.name })
+		.from(testSuite)
+		.where(eq(testSuite.projectId, projectId))
+		.orderBy(asc(testSuite.name));
+
 	// Load all project runs for the run selector dropdown
 	const projectRuns = await db
 		.select({
@@ -266,8 +301,27 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		cookies.delete(cookieKey, { path: '/' });
 	}
 
+	// Post-filter by execution status (requires executionMap)
+	let filteredTestCases = testCases;
+	if (execStatus && selectedRunIds.length > 0) {
+		const execStatuses = execStatus.split(',').filter(Boolean);
+		if (execStatuses.length > 0) {
+			const hasNotExecuted = execStatuses.includes('NOT_EXECUTED');
+			const otherStatuses = execStatuses.filter((s) => s !== 'NOT_EXECUTED');
+			filteredTestCases = testCases.filter((tc) => {
+				const tcExecs = executionMap[tc.id];
+				const isNotExecuted = !tcExecs || selectedRunIds.every((rid) => !tcExecs[rid]);
+				if (hasNotExecuted && isNotExecuted) return true;
+				if (otherStatuses.length > 0 && tcExecs) {
+					return selectedRunIds.some((rid) => tcExecs[rid] && otherStatuses.includes(tcExecs[rid].status));
+				}
+				return false;
+			});
+		}
+	}
+
 	return {
-		testCases: testCases.map((tc) => ({
+		testCases: filteredTestCases.map((tc) => ({
 			...tc,
 			tags: tagsByTestCase[tc.id] ?? [],
 			assignees: assigneesByTestCase[tc.id] ?? []
@@ -278,9 +332,12 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		groupId,
 		createdBy,
 		assigneeId,
+		suiteId,
+		execStatus,
 		groups,
 		projectTags,
 		projectMembers,
+		projectSuites,
 		projectRuns,
 		selectedRunIds,
 		executionMap

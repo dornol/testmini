@@ -31,7 +31,7 @@ This document covers everything you need to start contributing to testmini — a
 
 ### Prerequisites
 
-- Node.js 20 or later
+- Node.js 24 or later
 - pnpm 9 or later (`npm install -g pnpm`)
 - Docker (for PostgreSQL and Redis)
 

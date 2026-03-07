@@ -43,15 +43,15 @@ Automation integration will be introduced in Phase 2.
 
 ### Cache / Lock / PubSub
 
-- Redis (Soft Lock, SSE Pub/Sub) ✅
+- Redis (Soft Lock, SSE Pub/Sub)
 
 ### File Storage
 
-- 로컬 파일 시스템 (S3 전환 가능 구조) ✅
+- Local file system (structured for future S3 migration)
 
 ### Real-time
 
-- SSE (Server-Sent Events) + Redis Pub/Sub ✅
+- SSE (Server-Sent Events) + Redis Pub/Sub
 
 ### Testing
 
@@ -100,8 +100,8 @@ Already configured with:
 
 ### Login Types
 
-- Local account (email / password) ✅
-- OIDC/OAuth2 providers — 커스텀 OAuth/PKCE 핸들러 (런타임 IdP 관리) ✅
+- Local account (email / password)
+- OIDC/OAuth2 providers -- Custom OAuth/PKCE handler (runtime IdP management)
 
 ### Session Strategy
 
@@ -119,10 +119,10 @@ pnpm auth:schema
 
 Tables managed by better-auth:
 
-- `user` — id, email, name, emailVerified, image, createdAt, updatedAt
-- `session` — id, userId, expiresAt, token, ipAddress, userAgent
-- `account` — id, userId, providerId, providerAccountId, ...
-- `verification` — id, identifier, value, expiresAt
+- `user` -- id, email, name, emailVerified, image, createdAt, updatedAt
+- `session` -- id, userId, expiresAt, token, ipAddress, userAgent
+- `account` -- id, userId, providerId, providerAccountId, ...
+- `verification` -- id, identifier, value, expiresAt
 
 > Custom auth tables (User, UserAuth) are NOT needed.
 > better-auth handles all auth-related schema automatically.
@@ -133,23 +133,23 @@ Tables managed by better-auth:
 
 ### Global Role
 
-- ADMIN — system-wide management
-- USER — default role
+- ADMIN -- system-wide management
+- USER -- default role
 
 ### Project Role
 
-- PROJECT_ADMIN — 프로젝트 설정, 멤버 관리, 삭제 권한 포함 모든 기능
-- QA — 테스트 케이스/런 생성·편집·실행, Import, Test Suite 관리
-- DEV — 테스트 케이스/런 생성·편집·실행 (Import/Suite 제외)
-- VIEWER — 읽기 전용 (조회, Export, SSE 구독만 가능)
+- PROJECT_ADMIN -- Full access including project settings, member management, and deletion
+- QA -- Create/edit/execute test cases and runs, Import, Test Suite management
+- DEV -- Create/edit/execute test cases and runs (excluding Import/Suite)
+- VIEWER -- Read-only access (view, Export, SSE subscription only)
 
 ### ProjectMember
 
 | Column     | Type      | Description       |
 | ---------- | --------- | ----------------- |
 | id         | serial    | PK                |
-| project_id | integer   | FK → Project      |
-| user_id    | text      | FK → user (better-auth) |
+| project_id | integer   | FK -> Project      |
+| user_id    | text      | FK -> user (better-auth) |
 | role       | enum      | Project Role      |
 | created_at | timestamp | Join date         |
 
@@ -165,7 +165,7 @@ Tables managed by better-auth:
 | name        | text      | Project name       |
 | description | text      | Optional           |
 | active      | boolean   | Soft delete flag   |
-| created_by  | text      | FK → user          |
+| created_by  | text      | FK -> user          |
 | created_at  | timestamp | Creation timestamp |
 
 ### TestCase
@@ -173,10 +173,10 @@ Tables managed by better-auth:
 | Column            | Type      | Description             |
 | ----------------- | --------- | ----------------------- |
 | id                | serial    | PK                      |
-| project_id        | integer   | FK → Project            |
+| project_id        | integer   | FK -> Project            |
 | key               | text      | Display key (TC-0001)   |
-| latest_version_id | integer   | FK → TestCaseVersion    |
-| created_by        | text      | FK → user               |
+| latest_version_id | integer   | FK -> TestCaseVersion    |
+| created_by        | text      | FK -> user               |
 | created_at        | timestamp | Creation timestamp      |
 
 ### TestCaseVersion
@@ -184,7 +184,7 @@ Tables managed by better-auth:
 | Column          | Type      | Description                |
 | --------------- | --------- | -------------------------- |
 | id              | serial    | PK                         |
-| test_case_id    | integer   | FK → TestCase              |
+| test_case_id    | integer   | FK -> TestCase              |
 | version_no      | integer   | Sequential version number  |
 | title           | text      | Test case title            |
 | precondition    | text      | Prerequisites              |
@@ -192,7 +192,7 @@ Tables managed by better-auth:
 | expected_result | text      | Overall expected result    |
 | priority        | enum      | LOW / MEDIUM / HIGH / CRITICAL |
 | revision        | integer   | Optimistic lock counter    |
-| updated_by      | text      | FK → user                  |
+| updated_by      | text      | FK -> user                  |
 | created_at      | timestamp | Version creation timestamp |
 
 **Steps JSONB Schema:**
@@ -214,24 +214,24 @@ optimistic locking within the same version.
 | Column      | Type      | Description                          |
 | ----------- | --------- | ------------------------------------ |
 | id          | serial    | PK                                   |
-| project_id  | integer   | FK → Project                         |
+| project_id  | integer   | FK -> Project                         |
 | name        | text      | Run name (e.g., v1.2.0 QA)          |
 | environment | enum      | DEV / QA / STAGE / PROD              |
 | status      | enum      | CREATED / IN_PROGRESS / COMPLETED    |
 | started_at  | timestamp | Execution start                      |
 | finished_at | timestamp | Execution end                        |
-| created_by  | text      | FK → user                            |
+| created_by  | text      | FK -> user                            |
 
 ### TestExecution
 
 | Column                 | Type      | Description                   |
 | ---------------------- | --------- | ----------------------------- |
 | id                     | serial    | PK                            |
-| test_run_id            | integer   | FK → TestRun                  |
-| test_case_version_id   | integer   | FK → TestCaseVersion          |
+| test_run_id            | integer   | FK -> TestRun                  |
+| test_case_version_id   | integer   | FK -> TestCaseVersion          |
 | status                 | enum      | PASS / FAIL / BLOCKED / SKIPPED / PENDING |
 | comment                | text      | Optional note (any status)    |
-| executed_by            | text      | FK → user                     |
+| executed_by            | text      | FK -> user                     |
 | executed_at            | timestamp | Execution timestamp           |
 
 ### TestFailureDetail
@@ -239,13 +239,13 @@ optimistic locking within the same version.
 | Column              | Type      | Description              |
 | ------------------- | --------- | ------------------------ |
 | id                  | serial    | PK                       |
-| test_execution_id   | integer   | FK → TestExecution       |
+| test_execution_id   | integer   | FK -> TestExecution       |
 | failure_environment | text      | Environment details      |
 | test_method         | text      | Method/approach used     |
 | error_message       | text      | Error message            |
 | stack_trace         | text      | Stack trace              |
 | comment             | text      | Additional notes         |
-| created_by          | text      | FK → user                |
+| created_by          | text      | FK -> user                |
 | created_at          | timestamp | Creation timestamp       |
 
 ### Attachment
@@ -259,10 +259,10 @@ optimistic locking within the same version.
 | content_type   | text      | MIME type                                |
 | object_key     | text      | S3 object key                            |
 | file_size      | integer   | File size in bytes                       |
-| uploaded_by    | text      | FK → user                                |
+| uploaded_by    | text      | FK -> user                                |
 | uploaded_at    | timestamp | Upload timestamp                         |
 
-> Polymorphic reference — FK constraint is not enforced at DB level.
+> Polymorphic reference -- FK constraint is not enforced at DB level.
 > Application-level validation ensures referential integrity.
 
 **Upload flow:**
@@ -275,7 +275,7 @@ optimistic locking within the same version.
 
 ## 7. Concurrency Strategy
 
-### TestCase Editing ✅
+### TestCase Editing
 
 **Soft Lock (Redis):**
 
@@ -290,7 +290,7 @@ Flow:
 3. Release on save / cancel
 4. Auto-expire by TTL
 
-**Optimistic Lock ✅:**
+**Optimistic Lock:**
 
 ```sql
 UPDATE test_case_version
@@ -298,9 +298,9 @@ SET ..., revision = revision + 1
 WHERE id = ? AND revision = ?
 ```
 
-If 0 rows affected → conflict detected → notify user.
+If 0 rows affected -> conflict detected -> notify user.
 
-### TestRun Execution Screen ✅
+### TestRun Execution Screen
 
 1. Save execution result
 2. Broadcast SSE event via Redis Pub/Sub
@@ -309,14 +309,14 @@ If 0 rows affected → conflict detected → notify user.
 
 ---
 
-## 8. Real-time Design (SSE) ✅
+## 8. Real-time Design (SSE)
 
 Endpoint: `/api/projects/[projectId]/test-runs/[runId]/events`
 
-SSE (Server-Sent Events) + Redis Pub/Sub 기반 실시간 동기화.
-클라이언트 래퍼: `src/lib/sse.svelte.ts`
+Real-time synchronization based on SSE (Server-Sent Events) + Redis Pub/Sub.
+Client wrapper: `src/lib/sse.svelte.ts`
 
-Redis Pub/Sub로 멀티 인스턴스 확장 가능.
+Scalable to multiple instances via Redis Pub/Sub.
 
 ---
 
@@ -339,15 +339,15 @@ Redis Pub/Sub로 멀티 인스턴스 확장 가능.
 
 ## 10. Key Screens
 
-- **Project list & management** — CRUD, member management
-- **Test case list** — filter + search + latest status, bulk actions
-- **Test case detail** — version history, edit with lock indicator
-- **Test run creation** — select test cases, set environment
-- **Run execution screen** — bulk pass, fail modal, real-time stats (Phase 2: WebSocket)
-- **Dashboard** — pass rate, failure rate, execution metrics, Chart.js charts
-- **Reports** — 환경별/우선순위별 통계, CSV export
-- **Admin panel** — 사용자 관리, 프로젝트 관리, OIDC Provider 관리
-- **Account settings** — 프로필 편집, OIDC 계정 연동/해제
+- **Project list & management** -- CRUD, member management
+- **Test case list** -- filter + search + latest status, bulk actions
+- **Test case detail** -- version history, edit with lock indicator
+- **Test run creation** -- select test cases, set environment
+- **Run execution screen** -- bulk pass, fail modal, real-time stats (Phase 2: WebSocket)
+- **Dashboard** -- pass rate, failure rate, execution metrics, Chart.js charts
+- **Reports** -- Per-environment / per-priority statistics, CSV export
+- **Admin panel** -- User management, project management, OIDC Provider management
+- **Account settings** -- Profile editing, OIDC account linking/unlinking
 
 ---
 
@@ -379,7 +379,7 @@ Redis Pub/Sub로 멀티 인스턴스 확장 가능.
 
 ### Configuration
 
-- `requireAssertions: true` — every test must have at least one assertion
+- `requireAssertions: true` -- every test must have at least one assertion
 - Server tests excluded from browser runner
 - Component tests excluded from server runner
 
@@ -387,7 +387,7 @@ Redis Pub/Sub로 멀티 인스턴스 확장 가능.
 
 ## 13. Development Phases
 
-### Phase 1 (MVP) ✅
+### Phase 1 (MVP)
 
 - [x] Project scaffolding (SvelteKit, Drizzle, TailwindCSS, Paraglide)
 - [x] Auth setup (better-auth, email/password)
@@ -396,10 +396,10 @@ Redis Pub/Sub로 멀티 인스턴스 확장 가능.
 - [x] TestCase + TestCaseVersion (optimistic lock)
 - [x] TestRun + TestExecution
 - [x] TestFailureDetail
-- [x] Attachment (로컬 파일 스토리지)
+- [x] Attachment (local file storage)
 - [x] i18n for all UI (ko / en)
 
-### Phase 2 ✅
+### Phase 2
 
 - [x] Redis integration (Docker Compose)
 - [x] Soft Lock for test case editing
@@ -408,29 +408,27 @@ Redis Pub/Sub로 멀티 인스턴스 확장 가능.
 - [x] CSV Export
 - [x] Global Admin panel (users, projects)
 
-### Phase 3 ✅
+### Phase 3
 
-- [x] Dynamic OIDC/OAuth management (런타임 IdP 등록, PKCE)
+- [x] Dynamic OIDC/OAuth management (runtime IdP registration, PKCE)
 - [x] Full-text search for test cases
 - [x] Virtual scrolling for execution screen
 - [x] Query optimization & index tuning
 - [x] Bulk import/export (CSV/JSON)
 
-### Phase 4 (Automation) — 미구현
+### Phase 4 (Automation)
 
-- [ ] `automation_key` field on TestCase
-- [ ] Automation result ingestion API
-- [ ] CI integration (GitHub Actions, GitLab CI webhook)
+- [x] `automation_key` field on TestCase
+- [x] Automation result ingestion API
+- [x] CI integration (GitHub Actions, GitLab CI webhook)
 
 ---
 
 ## 14. Future Extensions
 
-- CI/CD integration (GitHub Actions, GitLab CI) — Phase 4 예정
 - Failure trend analytics
 - Slack / webhook notifications
 - Flaky test detection
 - Project templates
 - Team/Organization management
-- Audit log
-- S3/MinIO 파일 스토리지 전환
+- S3/MinIO file storage migration

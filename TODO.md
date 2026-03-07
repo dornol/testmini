@@ -1,164 +1,164 @@
-# TODO — 개선 및 추가 작업 목록
+# TODO -- Improvement and Additional Tasks
 
-> 코드베이스 분석 기반 (2026-03-02)
-> 전체 재분석 및 1~3단계 구현 (2026-03-05)
-> 4단계 구현 (2026-03-05)
-> 새 기능 8개 구현 (2026-03-05)
-> 테스트 4개 항목 구현 (2026-03-05)
-> Phase 4 CI 연동 구현 (2026-03-05)
-> UX 개선 — 데이터 유실 방지 (2026-03-05)
+> Based on codebase analysis (2026-03-02)
+> Full re-analysis and Phases 1-3 implementation (2026-03-05)
+> Phase 4 implementation (2026-03-05)
+> 8 new features implemented (2026-03-05)
+> 4 testing items implemented (2026-03-05)
+> Phase 4 CI integration implemented (2026-03-05)
+> UX improvements -- Data loss prevention (2026-03-05)
 
 ---
 
 ## Quick Wins ✅
 
-- [x] `/api/health` 헬스체크 엔드포인트 추가 — DB 연결 확인 포함
-- [x] 환경변수 검증 — `BETTER_AUTH_SECRET`, `ORIGIN` 서버 시작 시 체크 (`DATABASE_URL`은 기존 체크 있음)
-- [x] API 라우트 `request.json()` → `parseJsonBody()` 유틸로 통일 (16개 파일, 18개소)
-- [x] Redis 연결 실패 시 경고 로깅 — connect/error 이벤트 + 초기 실패 메시지
-- [x] 프로덕션 SvelteKit adapter — `adapter-auto` → `adapter-node` 변경
+- [x] Add `/api/health` health check endpoint -- includes DB connection verification
+- [x] Environment variable validation -- check `BETTER_AUTH_SECRET`, `ORIGIN` at server startup (`DATABASE_URL` already has existing check)
+- [x] Unify API route `request.json()` to `parseJsonBody()` utility (16 files, 18 occurrences)
+- [x] Warning logging on Redis connection failure -- connect/error events + initial failure message
+- [x] Production SvelteKit adapter -- change `adapter-auto` to `adapter-node`
 
 ---
 
-## 보안
+## Security
 
-- [x] 파일 스토리지 path traversal 방어 — `storage.ts`에서 `objectKey`에 `..` 포함 시 차단
-- [x] `.env.example` 프로덕션 가이드 추가 — 강력한 시크릿 생성 안내
-- [x] 보안 응답 헤더 추가 — `hooks.server.ts`에서 X-Frame-Options, X-Content-Type-Options, Referrer-Policy, X-XSS-Protection 설정
-- [x] 첨부파일 접근제어 — `/api/attachments/[id]` GET에서 참조 엔티티 프로젝트 접근 권한 검증
-- [x] 첨부파일 MIME 타입 화이트리스트 — 허용 파일 형식 제한 (이미지, PDF, 문서, 동영상 등 20종)
-- [x] Redis 인증 설정 — 프로덕션 compose에 `requirepass` 추가
-- [x] 암호화 키 파생 강화 — `crypto.ts` SHA-256 → PBKDF2 전환 (반복 횟수 100,000)
-- [x] 인증 엔드포인트 Rate Limiting — Redis 슬라이딩 윈도우 기반 IP별 제한 (로그인/회원가입 10req/min)
-- [x] API Rate Limiting — 파일 업로드 30req/min, 벌크 20req/min, 일반 API 100req/min (hooks.server.ts)
-- [x] OIDC 토큰 검증 강화 — JWKS 기반 RS256/384/512 서명 검증 + discovery SSRF 방어 (사설IP 차단)
-
----
-
-## UX / 접근성
-
-- [x] 복잡한 페이지에 skeleton 로딩 추가 — 네비게이션 로딩 인디케이터 (shimmer bar)
-- [x] Admin 페이지 empty state 개선 — 빈 상태 아이콘/안내 추가
-- [x] 폼 라벨 접근성 — `<Label for={id}>` 및 `aria-label` 누락 수정
-- [x] 모달/다이얼로그 포커스 트랩 — bits-ui가 이미 처리 (추가 작업 불필요)
-- [x] 삭제 작업 성공/실패 토스트 피드백 보강 — 하드코딩 에러 메시지 i18n 전환
-- [x] 비동기 작업 로딩 상태 — 프로젝트 검색 스켈레톤 + 다이얼로그 액션 스피너 추가
-- [x] 대시보드 차트 접근성 — Canvas 차트에 `aria-label` + `role="img"` 추가
-- [x] 프로젝트 레이아웃 탭 ARIA — `role="tablist"`, `aria-current="page"` 적용
-- [x] VirtualList 접근성 — `role="list"` / `role="listitem"` 시맨틱 속성 추가
-- [x] 색상 의존 상태 표시 개선 — PASS/FAIL 진행률에 텍스트 라벨 병행 (색맹 대응)
-- [x] 회원가입 비밀번호 강도 표시기 — PasswordStrengthMeter 컴포넌트 (5단계 색상 바 + 텍스트 라벨)
+- [x] File storage path traversal protection -- block `objectKey` containing `..` in `storage.ts`
+- [x] Add production guide to `.env.example` -- instructions for generating strong secrets
+- [x] Add security response headers -- set X-Frame-Options, X-Content-Type-Options, Referrer-Policy, X-XSS-Protection in `hooks.server.ts`
+- [x] Attachment access control -- verify project access permission via referenced entity in `/api/attachments/[id]` GET
+- [x] Attachment MIME type whitelist -- restrict allowed file types (images, PDF, documents, videos, etc. ~20 types)
+- [x] Redis authentication setup -- add `requirepass` to production compose
+- [x] Strengthen encryption key derivation -- switch `crypto.ts` from SHA-256 to PBKDF2 (100,000 iterations)
+- [x] Auth endpoint rate limiting -- Redis sliding window per-IP limiting (login/signup 10req/min)
+- [x] API rate limiting -- file upload 30req/min, bulk 20req/min, general API 100req/min (hooks.server.ts)
+- [x] OIDC token verification hardening -- JWKS-based RS256/384/512 signature verification + discovery SSRF protection (private IP blocking)
 
 ---
 
-## 성능 / 리팩토링
+## UX / Accessibility
 
-- [x] 테스트 케이스 페이지 컴포넌트 분리 — 2434줄 → 1604줄 (34% 감소)
-- [x] 테스트 케이스 목록 페이지네이션 정보 표시 — "Page X of Y", 전체 건수
-- [x] Import 실패 시 per-row 상태 반환 — 어떤 행이 성공/실패했는지 상세 결과
-- [x] 사이드바 N+1 쿼리 최적화 — `+layout.server.ts`에서 3회 쿼리 → 1회 JOIN으로 통합
-- [x] 벌크 작업 배치 크기 제한 — bulk API에 최대 200건 제한 추가
-- [x] StepsEditor 고유 ID 사용 — 배열 인덱스 → `crypto.randomUUID()` 키로 변경
-- [x] 테스트 런 상세 페이지 컴포넌트 분리 — 1,157줄 → 188줄 + 6개 서브 컴포넌트 (RunHeader, ExecutionFilters, BulkActionBar, ExecutionTable, ExecutionRow, FailureDetailDialog)
-- [x] Export 엔드포인트 스트리밍 — ReadableStream + 커서 기반 페이지네이션 (배치 100건), BOM 포함
-- [x] 대시보드 차트 지연 로딩 — LazyChart 컴포넌트 (IntersectionObserver + 스켈레톤 플레이스홀더)
-- [x] 리포트 페이지 날짜 범위 필터 — 프리셋 버튼 (7/30/90일, 전체) + 커스텀 날짜 입력, URL 파라미터 기반
-
----
-
-## 배포 / 인프라
-
-- [x] 프로덕션 Dockerfile (multi-stage build)
-- [x] `compose.prod.yaml` — 프로덕션용 Docker Compose
-- [x] CI/CD 파이프라인 설정 — Gitea Actions (check, test, build)
-- [x] Docker 네트워크 격리 — 프로덕션 compose에서 frontend/backend 네트워크 분리
-- [x] lint/format 스크립트 — `package.json`에 eslint, prettier, format:check 스크립트 추가
-- [x] 모니터링/로깅 — pino 구조화 로깅, 요청 ID 추적, 에러 핸들링 훅, console.* → 구조화 로그 전환
-- [x] DB 백업 전략 — pg_dump 자동 백업/복원 스크립트 + Docker Compose cron 서비스 (매일 02시, 30일 보관)
-- [x] 배포 문서화 — DEPLOY.md 작성 (Docker Compose, 수동 배포, SSL/리버스 프록시, DB 백업, 트러블슈팅)
+- [x] Add skeleton loading for complex pages -- navigation loading indicator (shimmer bar)
+- [x] Improve Admin page empty state -- add empty state icons/guidance
+- [x] Form label accessibility -- fix missing `<Label for={id}>` and `aria-label`
+- [x] Modal/dialog focus trap -- already handled by bits-ui (no additional work needed)
+- [x] Enhance delete action success/failure toast feedback -- convert hardcoded error messages to i18n
+- [x] Async operation loading states -- project search skeleton + dialog action spinners
+- [x] Dashboard chart accessibility -- add `aria-label` + `role="img"` to Canvas charts
+- [x] Project layout tab ARIA -- apply `role="tablist"`, `aria-current="page"`
+- [x] VirtualList accessibility -- add `role="list"` / `role="listitem"` semantic attributes
+- [x] Improve color-dependent status indicators -- add text labels alongside PASS/FAIL progress bars (colorblind support)
+- [x] Signup password strength indicator -- PasswordStrengthMeter component (5-level color bar + text labels)
 
 ---
 
-## 새 기능
+## Performance / Refactoring
 
-- [x] 테스트 런 비교 뷰 — 두 런 결과를 나란히 비교 (필터: 전체/차이/회귀)
-- [x] 테스트 케이스 버전 diff 뷰 — 단어 수준 LCS diff, 필드별 변경 시각화
-- [x] 복수 테스트 런 통합 Export — 리포트 페이지에서 체크박스 선택 후 CSV 내보내기
-- [x] 사용자 환경설정 페이지 — 언어/테마 DB 영속화, 기기 간 동기화
-- [x] 감사 로그 (Audit Log) — auditLog 테이블 + Admin 조회 페이지 (필터, 페이지네이션) + 주요 액션 로깅
-- [x] 알림 시스템 — notification 테이블 + NotificationBell 컴포넌트 (30초 폴링, 읽음 처리, 커서 페이지네이션)
-- [x] 대시보드 위젯 커스터마이징 — dashboardLayout 테이블 + 위젯 표시/숨김, 순서 드래그, 크기 조절 (sm/md/lg)
-- [x] 테스트 케이스 템플릿 — testCaseTemplate 테이블 + "Save as Template" / "Create from Template" UI
-- [x] 벌크 Import 진행률 표시 — ImportDialog 상태 머신 (idle→uploading→processing→complete/error) + 결과 요약 카드
-- [x] 첨부파일 드래그 앤 드롭 업로드 — AttachmentManager에 D&D 지원 (드래그 시각 피드백, MIME 검증, 멀티 파일)
-- [x] 키보드 단축키 — ShortcutManager + KeyboardShortcuts 컴포넌트 (Mod+S 저장, Mod+K 검색, ? 힌트 패널)
-- [x] 테스트 케이스 코멘트/토론 — testCaseComment 테이블 + CommentSection 컴포넌트 (스레드 1레벨, 수정/삭제)
+- [x] Split test case page component -- 2,434 lines to 1,604 lines (34% reduction)
+- [x] Test case list pagination info display -- "Page X of Y", total count
+- [x] Per-row status on import failure -- detailed results showing which rows succeeded/failed
+- [x] Sidebar N+1 query optimization -- consolidate 3 queries to 1 JOIN in `+layout.server.ts`
+- [x] Bulk operation batch size limit -- add max 200 item limit to bulk API
+- [x] StepsEditor unique ID usage -- change from array index to `crypto.randomUUID()` key
+- [x] Split test run detail page component -- 1,157 lines to 188 lines + 6 sub-components (RunHeader, ExecutionFilters, BulkActionBar, ExecutionTable, ExecutionRow, FailureDetailDialog)
+- [x] Export endpoint streaming -- ReadableStream + cursor-based pagination (batch of 100), BOM included
+- [x] Dashboard chart lazy loading -- LazyChart component (IntersectionObserver + skeleton placeholder)
+- [x] Report page date range filter -- preset buttons (7/30/90 days, all) + custom date input, URL parameter based
 
 ---
 
-## DB / 스키마
+## Deployment / Infrastructure
 
-- [x] 복합 인덱스 추가 — `testExecution(testRunId, status, executedBy)` 커버링 인덱스 (마이그레이션 0006)
-- [x] test_execution CHECK 제약 — `PENDING`일 때 `executedBy`/`executedAt` NULL 강제 (마이그레이션 0006)
-- [x] 그룹 색상 값 검증 — API에서 HEX 형식 regex 검증 추가
-- [x] sortOrder 값 검증 — reorder API에서 음수/비정수 방지
-- [x] 첨부파일 참조 무결성 — INSERT/UPDATE 검증 트리거 + 부모 삭제 시 CASCADE 정리 트리거 (마이그레이션 0007)
-
----
-
-## 테스트
-
-- [x] API route 통합 테스트 — 핵심 API 계약 검증 (projects, test-cases, test-runs, import)
-- [x] E2E 테스트 — 핵심 워크플로우 (프로젝트 생성 → TC 생성 → 런 실행 → 결과 확인)
-- [x] 신규 API 가드 테스트 — bulk 배치 제한, export 건수 제한, reorder 검증, 그룹 색상 검증, 첨부파일 MIME 등
-- [x] Svelte 컴포넌트 테스트 — PasswordStrengthMeter (8), ShortcutHintPanel (9), shortcuts.ts (23) 테스트 추가
-- [x] API PATCH/DELETE 테스트 — 프로젝트 (10), TC (15), 런 (11), 그룹 (13) PATCH/DELETE 테스트 추가
-- [x] 동시성 테스트 — soft lock 유닛 (14), lock API (17), revision 낙관적 동시성 (9) 테스트 추가
-- [x] E2E 커버리지 확대 — admin (11), project-settings (9), reports (11) E2E 테스트 추가
-- [x] 미커버 API 테스트 보강 — health (2), attachments (5), preferences (5), clone (8), versions (6), export (8), executions (3), status (5), failures (5), suites (22), audit/notifications 유틸 (10)
+- [x] Production Dockerfile (multi-stage build)
+- [x] `compose.prod.yaml` -- production Docker Compose
+- [x] CI/CD pipeline setup -- Gitea Actions (check, test, build)
+- [x] Docker network isolation -- separate frontend/backend networks in production compose
+- [x] lint/format scripts -- add eslint, prettier, format:check scripts to `package.json`
+- [x] Monitoring/logging -- pino structured logging, request ID tracing, error handling hooks, console.* to structured log conversion
+- [x] DB backup strategy -- pg_dump automatic backup/restore scripts + Docker Compose cron service (daily at 02:00, 30-day retention)
+- [x] Deployment documentation -- write DEPLOY.md (Docker Compose, manual deployment, SSL/reverse proxy, DB backup, troubleshooting)
 
 ---
 
-## Phase 4: CI 연동 (PLAN.md)
+## New Features
 
-- [x] TestCase에 `automation_key` 필드 추가 — DB 스키마 + 복합 유니크 인덱스 + TC 생성/편집 UI + API
-- [x] 자동화 결과 수집 API — `/api/automation/results` POST (API 키 인증, TC 매칭, 런 자동 생성, 실패 상세)
-- [x] CI webhook 연동 — `/api/automation/webhook` POST (GitHub Actions / GitLab CI 이벤트 수신)
-- [x] 프로젝트 API 키 관리 — `projectApiKey` 테이블 + 생성/조회/폐기 API + 설정 UI
-
----
-
-## API 개선
-
-- [x] 테스트 스위트 아이템 프로젝트 소속 검증 — POST 시 TC 프로젝트 소속 확인
-- [x] reorder API 소속 검증 — TC/그룹 reorder 시 해당 프로젝트 소속 확인
-- [x] Export 건수 제한 — `/reports/export`에서 최대 20개 run 제한
-- [x] 사용자 검색 페이지네이션 — `/api/users/search`에 offset 파라미터 추가
-- [x] API 응답 일관성 — PATCH 엔드포인트 `{success: true}` → 업데이트된 엔티티 반환으로 통일
-- [x] OIDC discovery 캐싱 — 5분 TTL 메모리 캐시 + 10초 fetch 타임아웃 추가
+- [x] Test run comparison view -- side-by-side comparison of two runs (filters: all/diff/regression)
+- [x] Test case version diff view -- word-level LCS diff, per-field change visualization
+- [x] Multi test run consolidated export -- CSV export via checkbox selection on report page
+- [x] User preferences page -- language/theme DB persistence, cross-device sync
+- [x] Audit log -- auditLog table + Admin view page (filters, pagination) + major action logging
+- [x] Notification system -- notification table + NotificationBell component (30-second polling, mark as read, cursor pagination)
+- [x] Dashboard widget customization -- dashboardLayout table + widget show/hide, drag reorder, size adjustment (sm/md/lg)
+- [x] Test case templates -- testCaseTemplate table + "Save as Template" / "Create from Template" UI
+- [x] Bulk import progress indicator -- ImportDialog state machine (idle->uploading->processing->complete/error) + result summary card
+- [x] Attachment drag and drop upload -- D&D support in AttachmentManager (drag visual feedback, MIME validation, multi-file)
+- [x] Keyboard shortcuts -- ShortcutManager + KeyboardShortcuts component (Mod+S save, Mod+K search, ? hint panel)
+- [x] Test case comments/discussion -- testCaseComment table + CommentSection component (1-level threading, edit/delete)
 
 ---
 
-## UX 개선 — 데이터 유실 방지
+## DB / Schema
 
-- [x] 폼 이탈 시 미저장 경고 — UnsavedChangesGuard 컴포넌트 (beforeNavigate + beforeunload), TC 생성/편집/설정 페이지 적용
-- [x] 인라인 편집 변경사항 유실 방지 — flushInlineEdit()로 새 편집 시작 시 이전 편집 자동 커밋, race condition 해결
-- [x] API 키 모달 경고 강화 — 복사 여부 추적, 미복사 시 닫기 확인, amber 경고 배너, 로딩 텍스트 수정
-- [x] 유틸리티 함수 테스트 — unsaved-guard.ts (isFormDirty, isInlineEditDirty, shouldWarnOnApiKeyClose) 18개 테스트
-- [x] 인라인 상태 변경 로딩 표시 — 우선순위/담당자/실행 상태 변경 시 스피너 + 중복 요청 방지 (test-cases, ExecutionTable, ExecutionRow)
-- [x] 벌크 작업 피드백 — BulkActionBar에 성공/실패 토스트 + 로딩 스피너, 대시보드 레이아웃 저장 에러 토스트
-- [x] 빈 상태(Empty State) 개선 — TC 검색 빈 결과에 필터 초기화 링크, 대시보드 차트 빈 상태 메시지, 테스트 런 필터 빈 상태에 초기화 버튼
-- [x] 활동 로그 제한 — 대시보드 활동 로그 20건 제한 + "더보기" 버튼
-- [x] SSE 연결 상태 표시 — 끊김 시 주황색 "Disconnected" 인디케이터 표시 (RunHeader)
-- [x] 편집 락 재시도 — 다른 사용자 편집 중일 때 "재시도" 버튼 표시 (TC 상세 페이지)
-- [x] 브레드크럼 네비게이션 — TC 상세 페이지에 프로젝트 > 테스트 케이스 > TC-XXX 경로 표시
-- [x] 그룹 접기 상태 유지 — localStorage 기반 프로젝트별 접기/펼치기 상태 저장
-- [x] 회원가입 비밀번호 검증 — 비밀번호 불일치 시 제출 버튼 비활성화
-- [x] 감사 로그 날짜 범위 검증 — 시작일/종료일 min/max 속성으로 역전 방지
-- [x] 멤버 역할 변경 확인 — AlertDialog 확인 다이얼로그 추가 (즉시 제출 → 확인 후 제출)
-- [x] 네비게이션/검증 유틸리티 테스트 — navigation.ts (loadCollapsedGroups, saveCollapsedGroups, isDateRangeValid) 16개 테스트
-- [x] 상태 드롭다운 키보드 접근성 — role="menu"/menuitem, Arrow 키, Escape, 자동 포커스 (ExecutionTable)
-- [x] 알림 패널 Escape 키 닫기 — NotificationBell에 onkeydown 핸들러 추가
-- [x] 비교 페이지 색맹 대응 — 회귀(▼)/개선(▲)/변경(◆) 아이콘 색상 병행 표시
-- [x] 알림 폴링 백오프 — 비활성 탭 시 30초 → 5분 간격, visibilitychange 이벤트 기반
-- [x] 비교 결과 CSV 내보내기 — 클라이언트 사이드 CSV 생성 (BOM 포함, 필터 반영)
+- [x] Add composite index -- `testExecution(testRunId, status, executedBy)` covering index (migration 0006)
+- [x] test_execution CHECK constraint -- enforce `executedBy`/`executedAt` NULL when `PENDING` (migration 0006)
+- [x] Group color value validation -- add HEX format regex validation in API
+- [x] sortOrder value validation -- prevent negative/non-integer values in reorder API
+- [x] Attachment referential integrity -- INSERT/UPDATE validation trigger + CASCADE cleanup trigger on parent deletion (migration 0007)
+
+---
+
+## Testing
+
+- [x] API route integration tests -- core API contract verification (projects, test-cases, test-runs, import)
+- [x] E2E tests -- core workflow (project creation -> TC creation -> run execution -> result verification)
+- [x] New API guard tests -- bulk batch limit, export count limit, reorder validation, group color validation, attachment MIME, etc.
+- [x] Svelte component tests -- PasswordStrengthMeter (8), ShortcutHintPanel (9), shortcuts.ts (23) tests added
+- [x] API PATCH/DELETE tests -- project (10), TC (15), run (11), group (13) PATCH/DELETE tests added
+- [x] Concurrency tests -- soft lock unit (14), lock API (17), revision optimistic concurrency (9) tests added
+- [x] E2E coverage expansion -- admin (11), project-settings (9), reports (11) E2E tests added
+- [x] Uncovered API test reinforcement -- health (2), attachments (5), preferences (5), clone (8), versions (6), export (8), executions (3), status (5), failures (5), suites (22), audit/notifications utility (10)
+
+---
+
+## Phase 4: CI Integration (PLAN.md)
+
+- [x] Add `automation_key` field to TestCase -- DB schema + composite unique index + TC create/edit UI + API
+- [x] Automation result collection API -- `/api/automation/results` POST (API key auth, TC matching, auto run creation, failure details)
+- [x] CI webhook integration -- `/api/automation/webhook` POST (GitHub Actions / GitLab CI event ingestion)
+- [x] Project API key management -- `projectApiKey` table + create/list/revoke API + settings UI
+
+---
+
+## API Improvements
+
+- [x] Test suite item project membership validation -- verify TC project membership on POST
+- [x] Reorder API membership validation -- verify project membership on TC/group reorder
+- [x] Export count limit -- max 20 runs on `/reports/export`
+- [x] User search pagination -- add offset parameter to `/api/users/search`
+- [x] API response consistency -- unify PATCH endpoints from `{success: true}` to returning updated entity
+- [x] OIDC discovery caching -- 5-minute TTL memory cache + 10-second fetch timeout
+
+---
+
+## UX Improvements -- Data Loss Prevention
+
+- [x] Unsaved changes warning on form navigation -- UnsavedChangesGuard component (beforeNavigate + beforeunload), applied to TC create/edit/settings pages
+- [x] Inline edit change loss prevention -- flushInlineEdit() auto-commits previous edit when starting new edit, resolves race condition
+- [x] API key modal warning enhancement -- copy status tracking, close confirmation when not copied, amber warning banner, loading text fix
+- [x] Utility function tests -- unsaved-guard.ts (isFormDirty, isInlineEditDirty, shouldWarnOnApiKeyClose) 18 tests
+- [x] Inline state change loading indicator -- spinner + duplicate request prevention on priority/assignee/execution status change (test-cases, ExecutionTable, ExecutionRow)
+- [x] Bulk action feedback -- success/failure toast + loading spinner in BulkActionBar, dashboard layout save error toast
+- [x] Empty state improvements -- filter reset link for TC search empty results, dashboard chart empty state message, reset button for test run filter empty state
+- [x] Activity log limit -- dashboard activity log limited to 20 items + "Show more" button
+- [x] SSE connection status indicator -- orange "Disconnected" indicator on connection loss (RunHeader)
+- [x] Edit lock retry -- show "Retry" button when another user is editing (TC detail page)
+- [x] Breadcrumb navigation -- display Project > Test Cases > TC-XXX path on TC detail page
+- [x] Group collapse state persistence -- localStorage-based per-project collapse/expand state storage
+- [x] Signup password validation -- disable submit button on password mismatch
+- [x] Audit log date range validation -- prevent date inversion via min/max attributes on start/end date
+- [x] Member role change confirmation -- add AlertDialog confirmation dialog (immediate submit -> confirm then submit)
+- [x] Navigation/validation utility tests -- navigation.ts (loadCollapsedGroups, saveCollapsedGroups, isDateRangeValid) 16 tests
+- [x] Status dropdown keyboard accessibility -- role="menu"/menuitem, Arrow keys, Escape, auto-focus (ExecutionTable)
+- [x] Notification panel Escape key close -- add onkeydown handler to NotificationBell
+- [x] Comparison page colorblind support -- regression(▼)/improvement(▲)/change(◆) icons displayed alongside colors
+- [x] Notification polling backoff -- 30s to 5min interval on inactive tab, based on visibilitychange event
+- [x] Comparison result CSV export -- client-side CSV generation (BOM included, filter-aware)

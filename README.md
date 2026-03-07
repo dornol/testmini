@@ -1,235 +1,235 @@
-# TestMini — QA Management System
+# TestMini -- QA Management System
 
-내부 QA 관리 시스템. 프로젝트별 테스트 케이스 관리, 테스트 실행, 실패 추적, 실시간 동기화를 지원합니다.
+An internal QA management system. Supports per-project test case management, test execution, failure tracking, and real-time synchronization.
 
-## 주요 기능
+## Key Features
 
-- **프로젝트 관리** — 프로젝트 생성/수정/비활성화, 멤버 초대 및 역할 관리
-- **테스트 케이스** — 버전 관리, 그룹/태그 분류, DnD 정렬, 벌크 액션, Import/Export (CSV/JSON)
-- **테스트 런** — 환경별 실행, 인라인 상태 변경, Bulk Pass, 진행률 표시
-- **실패 상세** — 실패 환경, 에러 메시지, 스택 트레이스 기록
-- **파일 첨부** — 테스트 케이스/실행/실패에 파일 업로드 (MIME 화이트리스트, 접근 제어, 드래그 앤 드롭)
-- **실시간 동기화** — SSE + Redis Pub/Sub 기반 테스트 런 실시간 업데이트
-- **대시보드/리포트** — 통과율, 환경별/우선순위별 통계, Chart.js 차트 (지연 로딩), 날짜 범위 필터, CSV 스트리밍 내보내기, 위젯 커스터마이징
-- **OIDC 연동** — 관리자가 런타임에 외부 IdP(Keycloak, Google 등) 추가 가능, JWKS 서명 검증
-- **보안** — Rate Limiting (Redis), 보안 헤더, PBKDF2 키 파생, SSRF 방어, path traversal 차단
-- **감사 로그** — 주요 작업 이력 기록, Admin 조회 페이지 (필터, 페이지네이션)
-- **알림 시스템** — 인앱 알림 벨, 30초 폴링, 읽음 처리
-- **TC 템플릿** — 반복 사용 TC 구조를 템플릿으로 저장/적용
-- **TC 코멘트** — TC별 댓글 스레드 (1레벨 답글, 수정/삭제)
-- **키보드 단축키** — Mod+S 저장, Mod+K 검색, ? 힌트 패널
-- **데이터 유실 방지** — 폼 이탈 경고 (beforeNavigate/beforeunload), 인라인 편집 자동 커밋, API 키 복사 확인
-- **다국어** — 한국어/영어 (Paraglide)
-- **다크 모드** — 시스템 설정 감지 + 수동 전환
+- **Project Management** -- Create/edit/deactivate projects, invite members and manage roles
+- **Test Cases** -- Version control, group/tag classification, drag-and-drop sorting, bulk actions, Import/Export (CSV/JSON)
+- **Test Runs** -- Per-environment execution, inline status changes, Bulk Pass, progress indicators
+- **Failure Details** -- Record failure environment, error messages, and stack traces
+- **File Attachments** -- Upload files to test cases/executions/failures (MIME whitelist, access control, drag and drop)
+- **Real-time Sync** -- SSE + Redis Pub/Sub based live test run updates
+- **Dashboard/Reports** -- Pass rate, per-environment/priority statistics, Chart.js charts (lazy-loaded), date range filters, CSV streaming export, widget customization
+- **OIDC Integration** -- Admins can add external IdPs (Keycloak, Google, etc.) at runtime, JWKS signature verification
+- **Security** -- Rate Limiting (Redis), security headers, PBKDF2 key derivation, SSRF protection, path traversal prevention
+- **Audit Logs** -- Record key operation history, Admin view page (filters, pagination)
+- **Notification System** -- In-app notification bell, 30-second polling, mark as read
+- **TC Templates** -- Save/apply reusable TC structures as templates
+- **TC Comments** -- Per-TC comment threads (single-level replies, edit/delete)
+- **Keyboard Shortcuts** -- Mod+S save, Mod+K search, ? hint panel
+- **Data Loss Prevention** -- Form navigation warnings (beforeNavigate/beforeunload), inline edit auto-commit, API key copy confirmation
+- **Internationalization** -- Korean/English (Paraglide)
+- **Dark Mode** -- System preference detection + manual toggle
 
 ---
 
 ## Tech Stack
 
-| 영역 | 기술 |
-|------|------|
+| Area | Technology |
+|------|------------|
 | Frontend + Backend | **SvelteKit** (SSR + API), **Svelte 5** (runes), **TypeScript** |
 | UI | **shadcn-svelte** (Radix UI), **TailwindCSS v4** |
-| 폼 처리 | **sveltekit-superforms** + **zod** |
+| Form Handling | **sveltekit-superforms** + **zod** |
 | DB / ORM | **PostgreSQL**, **Drizzle ORM** (postgres.js) |
-| 인증 | **better-auth** (email/password + admin plugin) |
-| OIDC | 커스텀 OAuth/PKCE 핸들러 (런타임 IdP 관리) |
-| 캐시 / 실시간 | **Redis** (ioredis) — Soft Lock, SSE Pub/Sub |
-| 파일 스토리지 | 로컬 파일 시스템 (S3 전환 가능) |
-| 차트 | **Chart.js** |
+| Auth | **better-auth** (email/password + admin plugin) |
+| OIDC | Custom OAuth/PKCE handler (runtime IdP management) |
+| Cache / Real-time | **Redis** (ioredis) -- Soft Lock, SSE Pub/Sub |
+| File Storage | Local file system (S3-ready) |
+| Charts | **Chart.js** |
 | i18n | **Paraglide** (ko, en) |
-| 로깅 | **pino** (구조화된 로깅, 요청 ID 추적) |
-| 테스트 | **Vitest** (478 unit/component), **Playwright** (5 E2E suites) |
-| 패키지 매니저 | **pnpm** |
+| Logging | **pino** (structured logging, request ID tracing) |
+| Testing | **Vitest** (478 unit/component tests), **Playwright** (5 E2E suites) |
+| Package Manager | **pnpm** |
 
 ---
 
-## 시작하기
+## Getting Started
 
-### 사전 요구사항
+### Prerequisites
 
 - Node.js 24+
 - pnpm
 - Docker & Docker Compose
 
-> 상세 배포 가이드는 [DEPLOY.md](./DEPLOY.md) 참조.
+> For a detailed deployment guide, see [DEPLOY.md](./DEPLOY.md).
 
-### 설치
+### Installation
 
 ```bash
-# 의존성 설치
+# Install dependencies
 pnpm install
 
-# Docker 서비스 시작 (PostgreSQL, Redis)
+# Start Docker services (PostgreSQL, Redis)
 docker compose up -d
 
-# 환경 변수 설정
+# Set up environment variables
 cp .env.example .env
-# .env 파일에서 ORIGIN, BETTER_AUTH_SECRET 설정
+# Configure ORIGIN and BETTER_AUTH_SECRET in the .env file
 
-# DB 마이그레이션
+# Run DB migration
 pnpm db:push
 
-# 개발 서버 실행
+# Start the development server
 pnpm dev
 ```
 
-### 환경 변수
+### Environment Variables
 
-| 변수 | 설명 | 예시 |
-|------|------|------|
-| `DATABASE_URL` | PostgreSQL 연결 문자열 | `postgres://root:mysecretpassword@localhost:5432/local` |
-| `ORIGIN` | 앱 기본 URL | `http://localhost:5173` |
-| `BETTER_AUTH_SECRET` | 인증 시크릿 (32자 이상 권장) | 랜덤 문자열 |
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgres://root:mysecretpassword@localhost:5432/local` |
+| `ORIGIN` | Application base URL | `http://localhost:5173` |
+| `BETTER_AUTH_SECRET` | Auth secret (32+ characters recommended) | Random string |
 
-### 스크립트
+### Scripts
 
 ```bash
-pnpm dev              # 개발 서버
-pnpm build            # 프로덕션 빌드
-pnpm preview          # 빌드 미리보기
-pnpm check            # 타입 체크
-pnpm test             # 테스트 실행
-pnpm lint             # ESLint 실행
-pnpm format           # Prettier 포맷팅
-pnpm format:check     # 포맷팅 검사
-pnpm db:push          # DB 스키마 반영
-pnpm db:generate      # 마이그레이션 생성
-pnpm db:migrate       # 마이그레이션 실행
+pnpm dev              # Development server
+pnpm build            # Production build
+pnpm preview          # Preview build
+pnpm check            # Type check
+pnpm test             # Run tests
+pnpm lint             # Run ESLint
+pnpm format           # Prettier formatting
+pnpm format:check     # Check formatting
+pnpm db:push          # Push DB schema
+pnpm db:generate      # Generate migrations
+pnpm db:migrate       # Run migrations
 pnpm db:studio        # Drizzle Studio (DB GUI)
-pnpm auth:schema      # better-auth 스키마 생성
+pnpm auth:schema      # Generate better-auth schema
 ```
 
 ---
 
-## 인증 / 인가
+## Authentication / Authorization
 
-### 인증 방식
+### Auth Methods
 
-- **이메일/비밀번호** — better-auth 기본 인증
-- **OIDC/OAuth2** — 관리자가 Admin 패널에서 외부 IdP를 런타임에 등록/관리
-  - PKCE (S256) 지원
-  - OIDC Discovery 자동 설정 (SSRF 방어: 사설 IP 차단, HTTPS 강제)
-  - JWKS 기반 ID 토큰 서명 검증 (RS256/384/512)
-  - 클라이언트 시크릿 AES-256-GCM 암호화 저장 (PBKDF2 키 파생)
-  - 이메일 기반 자동 계정 매칭
-  - 계정 연동/해제 관리
+- **Email/Password** -- better-auth default authentication
+- **OIDC/OAuth2** -- Admins can register/manage external IdPs at runtime via the Admin panel
+  - PKCE (S256) support
+  - OIDC Discovery auto-configuration (SSRF protection: private IP blocking, HTTPS enforced)
+  - JWKS-based ID token signature verification (RS256/384/512)
+  - Client secret encrypted with AES-256-GCM (PBKDF2 key derivation)
+  - Email-based automatic account matching
+  - Account linking/unlinking management
 
 ### Global Role
 
-| 역할 | 설명 |
-|------|------|
-| **ADMIN** | 시스템 전체 관리 (Admin 패널 접근, 모든 프로젝트 접근) |
-| **USER** | 기본 역할, 소속된 프로젝트만 접근 가능 |
+| Role | Description |
+|------|-------------|
+| **ADMIN** | Full system management (Admin panel access, access to all projects) |
+| **USER** | Default role, access limited to assigned projects |
 
 ### Project Role
 
-| 기능 | PROJECT_ADMIN | QA | DEV | VIEWER |
-|------|:---:|:---:|:---:|:---:|
-| 프로젝트 조회 / 대시보드 / 리포트 | O | O | O | O |
-| 데이터 Export (CSV) | O | O | O | O |
-| SSE 실시간 이벤트 구독 | O | O | O | O |
-| 테스트 케이스 생성/편집 | O | O | O | |
-| 테스트 케이스 복제 / 정렬 / 잠금 | O | O | O | |
-| 테스트 런 생성 / 복제 | O | O | O | |
-| 테스트 실행 상태 변경 (PASS/FAIL 등) | O | O | O | |
-| 실패 상세 기록 | O | O | O | |
-| 그룹 생성/수정 | O | O | O | |
-| 태그 관리 | O | O | O | |
-| 테스트 케이스 Import | O | O | | |
-| Test Suite 생성/수정 | O | O | | |
-| 테스트 케이스 삭제 | O | | | |
-| 테스트 런 삭제 | O | | | |
-| 그룹 삭제 | O | | | |
-| 벌크 삭제 | O | | | |
-| 프로젝트 설정 수정 | O | | | |
-| 멤버 관리 (추가/역할변경/제거) | O | | | |
+| Feature | PROJECT_ADMIN | QA | DEV | VIEWER |
+|---------|:---:|:---:|:---:|:---:|
+| View project / dashboard / reports | O | O | O | O |
+| Data Export (CSV) | O | O | O | O |
+| SSE real-time event subscription | O | O | O | O |
+| Create/edit test cases | O | O | O | |
+| Clone / reorder / lock test cases | O | O | O | |
+| Create / clone test runs | O | O | O | |
+| Change execution status (PASS/FAIL, etc.) | O | O | O | |
+| Record failure details | O | O | O | |
+| Create/edit groups | O | O | O | |
+| Manage tags | O | O | O | |
+| Import test cases | O | O | | |
+| Create/edit Test Suites | O | O | | |
+| Delete test cases | O | | | |
+| Delete test runs | O | | | |
+| Delete groups | O | | | |
+| Bulk delete | O | | | |
+| Edit project settings | O | | | |
+| Manage members (add/change role/remove) | O | | | |
 
-> Global ADMIN은 모든 프로젝트에 PROJECT_ADMIN 권한으로 접근합니다.
-
----
-
-## Admin 패널
-
-URL: `/admin` (Global ADMIN 전용)
-
-| 탭 | 경로 | 기능 |
-|----|------|------|
-| Users | `/admin/users` | 사용자 목록, 역할 변경, 밴/언밴 |
-| Projects | `/admin/projects` | 전체 프로젝트 관리 |
-| OIDC Providers | `/admin/oidc-providers` | IdP 등록/수정/삭제/토글 |
-| Audit Logs | `/admin/audit-logs` | 감사 로그 조회 (사용자, 액션, 날짜 필터) |
+> Global ADMIN has PROJECT_ADMIN permissions across all projects.
 
 ---
 
-## 아키텍처
+## Admin Panel
+
+URL: `/admin` (Global ADMIN only)
+
+| Tab | Path | Features |
+|-----|------|----------|
+| Users | `/admin/users` | User list, role changes, ban/unban |
+| Projects | `/admin/projects` | Manage all projects |
+| OIDC Providers | `/admin/oidc-providers` | Register/edit/delete/toggle IdPs |
+| Audit Logs | `/admin/audit-logs` | View audit logs (user, action, date filters) |
+
+---
+
+## Architecture
 
 ```
 Browser
-  │
-  ├── SvelteKit (SSR + API)
-  │     ├── better-auth (인증/세션)
-  │     ├── Drizzle ORM (쿼리)
-  │     ├── SSE (실시간)
-  │     └── Paraglide (i18n)
-  │
-  ├── PostgreSQL (데이터)
-  ├── Redis (Lock, Pub/Sub)
-  └── Local Storage (파일 첨부)
+  |
+  +-- SvelteKit (SSR + API)
+  |     +-- better-auth (auth/session)
+  |     +-- Drizzle ORM (queries)
+  |     +-- SSE (real-time)
+  |     +-- Paraglide (i18n)
+  |
+  +-- PostgreSQL (data)
+  +-- Redis (Lock, Pub/Sub)
+  +-- Local Storage (file attachments)
 ```
 
-### Docker Compose 서비스
+### Docker Compose Services
 
-| 서비스 | 이미지 | 포트 | 용도 |
-|--------|--------|------|------|
-| db | postgres | 5432 | 메인 데이터베이스 |
+| Service | Image | Port | Purpose |
+|---------|-------|------|---------|
+| db | postgres | 5432 | Main database |
 | redis | redis:7-alpine | 6379 | Soft Lock, SSE Pub/Sub |
 
 ---
 
-## 동시성 관리
+## Concurrency Management
 
 ### Soft Lock (Redis)
 
-- 테스트 케이스 편집 시 Redis 기반 잠금
-- TTL: 10분, 자동 만료
-- UI에서 편집 중인 사용자 표시
+- Redis-based locking when editing test cases
+- TTL: 10 minutes, auto-expiry
+- UI displays the currently editing user
 
 ### Optimistic Lock
 
-- 저장 시 `revision` 필드 체크
-- 충돌 감지 시 사용자에게 알림
+- Checks the `revision` field on save
+- Notifies the user when a conflict is detected
 
 ---
 
-## 디렉토리 구조
+## Directory Structure
 
 ```
 src/
-├── routes/
-│   ├── auth/              # 인증 (로그인, 회원가입, OIDC, 계정 연동)
-│   ├── admin/             # Global Admin (사용자, 프로젝트, OIDC 관리)
-│   ├── projects/          # 프로젝트 (대시보드, TC, 런, 설정, 리포트)
-│   ├── account/           # 사용자 프로필/계정 설정
-│   └── api/               # REST API 엔드포인트
-├── lib/
-│   ├── components/        # Svelte 컴포넌트
-│   │   └── ui/            # shadcn-svelte 컴포넌트
-│   ├── schemas/           # zod 검증 스키마
-│   ├── server/            # 서버 전용 (auth, db, redis, lock, crypto, storage, audit, notifications)
-│   ├── paraglide/         # i18n 생성 파일
-│   └── auth-client.ts     # better-auth 클라이언트
-├── app.d.ts
-└── hooks.server.ts        # SvelteKit hooks (auth, i18n, security headers, rate limiting)
++-- routes/
+|   +-- auth/              # Auth (login, signup, OIDC, account linking)
+|   +-- admin/             # Global Admin (users, projects, OIDC management)
+|   +-- projects/          # Projects (dashboard, TC, runs, settings, reports)
+|   +-- account/           # User profile/account settings
+|   +-- api/               # REST API endpoints
++-- lib/
+|   +-- components/        # Svelte components
+|   |   +-- ui/            # shadcn-svelte components
+|   +-- schemas/           # zod validation schemas
+|   +-- server/            # Server-only (auth, db, redis, lock, crypto, storage, audit, notifications)
+|   +-- paraglide/         # i18n generated files
+|   +-- auth-client.ts     # better-auth client
++-- app.d.ts
++-- hooks.server.ts        # SvelteKit hooks (auth, i18n, security headers, rate limiting)
 ```
 
 ---
 
-## 구현 현황
+## Implementation Status
 
-- [x] **Phase 1** — 인증, 프로젝트 CRUD, 멤버 관리, 테스트 케이스/런/실행, 실패 상세, 파일 첨부, i18n
-- [x] **Phase 2** — Redis 통합, SSE 실시간 동기화, 대시보드/리포트, Admin 패널
-- [x] **Phase 3** — 동적 OIDC/OAuth 관리, 전문 검색, 가상 스크롤링, Import/Export
-- [x] **Phase 4** — CI 연동 (`automation_key`, 프로젝트 API 키, 자동화 결과 수집 API, CI webhook)
+- [x] **Phase 1** -- Auth, project CRUD, member management, test cases/runs/executions, failure details, file attachments, i18n
+- [x] **Phase 2** -- Redis integration, SSE real-time sync, dashboard/reports, Admin panel
+- [x] **Phase 3** -- Dynamic OIDC/OAuth management, full-text search, virtual scrolling, Import/Export
+- [x] **Phase 4** -- CI integration (`automation_key`, project API keys, automation result API, CI webhook)
 
-자세한 구현 계획은 [PLAN.md](./PLAN.md), 개선 작업 목록은 [TODO.md](./TODO.md) 참조.
+For the detailed implementation plan, see [PLAN.md](./PLAN.md). For the improvement task list, see [TODO.md](./TODO.md).

@@ -8,12 +8,15 @@ import { paraglideMiddleware } from '$lib/paraglide/server';
 import { checkRateLimit } from '$lib/server/rate-limit';
 import { logger } from '$lib/server/logger';
 import { runMigrations } from '$lib/server/db/migrate';
+import { seedAdminUser } from '$lib/server/db/seed';
 
 if (!building) {
-	runMigrations().catch((err) => {
-		logger.fatal({ err }, 'Migration failed — server cannot start safely');
-		process.exit(1);
-	});
+	runMigrations()
+		.then(() => seedAdminUser())
+		.catch((err) => {
+			logger.fatal({ err }, 'Startup failed — migration or seed error');
+			process.exit(1);
+		});
 }
 
 const handleParaglide: Handle = ({ event, resolve }) => paraglideMiddleware(event.request, ({ request, locale }) => {

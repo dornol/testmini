@@ -1,15 +1,12 @@
-import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCaseGroup } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectRole } from '$lib/server/api-handler';
 
-export const PATCH: RequestHandler = async ({ params, request, locals }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, projectId }) => {
 	const groupId = Number(params.groupId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 	const body = await parseJsonBody(request);
 	const { name, color } = body as { name?: string; color?: string | null };
@@ -59,13 +56,10 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	});
 
 	return json(updated);
-};
+});
 
-export const DELETE: RequestHandler = async ({ params, locals }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
 	const groupId = Number(params.groupId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
 
 	const group = await db.query.testCaseGroup.findFirst({
 		where: and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId))
@@ -79,4 +73,4 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	await db.delete(testCaseGroup).where(eq(testCaseGroup.id, groupId));
 
 	return json({ success: true });
-};
+});

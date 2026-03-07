@@ -1,5 +1,4 @@
 import { error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import {
 	testRun,
@@ -7,21 +6,15 @@ import {
 	testCaseVersion,
 	testCase,
 	testFailureDetail,
-	user
+	user as userTable
 } from '$lib/server/db/schema';
 import { eq, and, gt, inArray } from 'drizzle-orm';
-import { requireAuth, requireProjectAccess } from '$lib/server/auth-utils';
+import { formatCsvRow } from '$lib/server/csv-utils';
+import { withProjectAccess } from '$lib/server/api-handler';
 
 const BATCH_SIZE = 100;
 
-function formatCsvRow(cells: (string | null | undefined)[]): string {
-	return cells.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',');
-}
-
-export const GET: RequestHandler = async ({ params, locals, url }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
-	await requireProjectAccess(authUser, projectId);
+export const GET = withProjectAccess(async ({ url, projectId }) => {
 
 	const runsParam = url.searchParams.get('runs');
 	if (!runsParam) {
@@ -89,13 +82,13 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 								priority: testCaseVersion.priority,
 								status: testExecution.status,
 								comment: testExecution.comment,
-								executedBy: user.name,
+								executedBy: userTable.name,
 								executedAt: testExecution.executedAt
 							})
 							.from(testExecution)
 							.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 							.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
-							.leftJoin(user, eq(testExecution.executedBy, user.id))
+							.leftJoin(userTable, eq(testExecution.executedBy, userTable.id))
 							.where(and(eq(testExecution.testRunId, runId), gt(testExecution.id, lastId)))
 							.orderBy(testExecution.id)
 							.limit(BATCH_SIZE);
@@ -160,4 +153,4 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			'Content-Disposition': `attachment; filename="multi_run_export.csv"`
 		}
 	});
-};
+});

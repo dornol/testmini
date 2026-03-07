@@ -1,9 +1,8 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { attachment } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth } from '$lib/server/auth-utils';
+import { withAuth } from '$lib/server/api-handler';
 import { generateObjectKey, saveFile } from '$lib/server/storage';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -19,8 +18,7 @@ const ALLOWED_MIME_TYPES = [
 	'video/mp4', 'video/webm',
 ];
 
-export const GET: RequestHandler = async ({ url, locals }) => {
-	requireAuth(locals);
+export const GET = withAuth(async ({ url }) => {
 
 	const referenceType = url.searchParams.get('referenceType');
 	const referenceId = Number(url.searchParams.get('referenceId'));
@@ -47,10 +45,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		.orderBy(attachment.uploadedAt);
 
 	return json(attachments);
-};
+});
 
-export const POST: RequestHandler = async ({ request, locals }) => {
-	const user = requireAuth(locals);
+export const POST = withAuth(async ({ request, user }) => {
 
 	const formData = await request.formData();
 	const file = formData.get('file') as File | null;
@@ -99,4 +96,4 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		.returning();
 
 	return json(created, { status: 201 });
-};
+});

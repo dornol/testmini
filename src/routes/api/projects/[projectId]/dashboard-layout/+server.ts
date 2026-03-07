@@ -1,21 +1,12 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { dashboardLayout } from '$lib/server/db/schema';
 import type { WidgetConfig } from '$lib/server/db/schema';
 import { and, eq } from 'drizzle-orm';
-import { requireAuth, requireProjectAccess } from '$lib/server/auth-utils';
+import { withProjectAccess } from '$lib/server/api-handler';
 import { DEFAULT_LAYOUT, WIDGET_DEFINITIONS } from '$lib/dashboard-widgets';
 
-export const GET: RequestHandler = async ({ locals, params }) => {
-	const user = requireAuth(locals);
-	const projectId = Number(params.projectId);
-
-	if (isNaN(projectId)) {
-		error(400, 'Invalid project ID');
-	}
-
-	await requireProjectAccess(user, projectId);
+export const GET = withProjectAccess(async ({ user, projectId }) => {
 
 	const row = await db.query.dashboardLayout.findFirst({
 		where: and(eq(dashboardLayout.userId, user.id), eq(dashboardLayout.projectId, projectId))
@@ -44,19 +35,11 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	];
 
 	return json({ layout: reconciled });
-};
+});
 
 const VALID_SIZES = new Set<string>(['sm', 'md', 'lg']);
 
-export const PUT: RequestHandler = async ({ locals, params, request }) => {
-	const user = requireAuth(locals);
-	const projectId = Number(params.projectId);
-
-	if (isNaN(projectId)) {
-		error(400, 'Invalid project ID');
-	}
-
-	await requireProjectAccess(user, projectId);
+export const PUT = withProjectAccess(async ({ request, user, projectId }) => {
 
 	let body: unknown;
 	try {
@@ -108,4 +91,4 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 		});
 
 	return json({ layout: validatedLayout });
-};
+});

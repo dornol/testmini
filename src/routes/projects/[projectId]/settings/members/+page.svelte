@@ -12,6 +12,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as m from '$lib/paraglide/messages.js';
+	import { apiFetch } from '$lib/api-client';
 
 	let { data } = $props();
 
@@ -64,11 +65,13 @@
 		searchTimeout = setTimeout(async () => {
 			searching = true;
 			try {
-				const res = await fetch(
-					`/api/users/search?q=${encodeURIComponent(searchQuery)}&excludeProjectId=${data.project.id}`
+				const result = await apiFetch<{ data: { id: string; name: string; email: string }[] }>(
+					`/api/users/search?q=${encodeURIComponent(searchQuery)}&excludeProjectId=${data.project.id}`,
+					{ silent: true }
 				);
-				const json = await res.json();
-				searchResults = json.data;
+				searchResults = result.data;
+			} catch {
+				// silently ignore
 			} finally {
 				searching = false;
 			}

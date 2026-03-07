@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
+	import { apiPut } from '$lib/api-client';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -48,16 +49,9 @@
 
 	async function saveLayout() {
 		try {
-			const res = await fetch(`/api/projects/${proj.id}/dashboard-layout`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ layout: $state.snapshot(layout) })
-			});
-			if (!res.ok) {
-				toast.error(m.dashboard_save_error());
-			}
+			await apiPut(`/api/projects/${proj.id}/dashboard-layout`, { layout: $state.snapshot(layout) });
 		} catch {
-			toast.error(m.dashboard_save_error());
+			// error toast handled by apiPut
 		}
 	}
 

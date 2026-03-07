@@ -1,21 +1,12 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testExecution, testRun, testFailureDetail } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { withProjectRole } from '$lib/server/api-handler';
 
-export const DELETE: RequestHandler = async ({ params, locals }) => {
-	const user = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const DELETE = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, projectId }) => {
 	const runId = Number(params.runId);
 	const executionId = Number(params.executionId);
-
-	if (isNaN(projectId) || isNaN(runId) || isNaN(executionId)) {
-		error(400, 'Invalid parameters');
-	}
-
-	await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 	// Verify run belongs to project
 	const run = await db.query.testRun.findFirst({
@@ -44,4 +35,4 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	await db.delete(testExecution).where(eq(testExecution.id, executionId));
 
 	return json({ success: true });
-};
+});

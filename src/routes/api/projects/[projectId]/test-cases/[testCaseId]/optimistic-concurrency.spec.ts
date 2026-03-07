@@ -21,8 +21,9 @@ import {
 // ---------------------------------------------------------------------------
 
 const mockDb = createMockDb();
+const mockFindTC = vi.fn();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, findTestCaseWithLatestVersion: mockFindTC }));
 vi.mock('$lib/server/db/schema', () => ({
 	testCase: {
 		id: 'id',
@@ -130,7 +131,7 @@ describe('PUT /api/projects/[projectId]/test-cases/[testCaseId] — optimistic c
 	it('should succeed and return 200 when the supplied revision matches the stored revision', async () => {
 		// sampleTestCaseVersion.revision === 1
 		const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
-		mockDb.query.testCase.findFirst.mockResolvedValue(tc);
+		mockFindTC.mockResolvedValue(tc);
 
 		const newVersion = { ...sampleTestCaseVersion, id: 101, versionNo: 2, revision: 2 };
 		mockSuccessfulTransaction(newVersion);
@@ -154,7 +155,7 @@ describe('PUT /api/projects/[projectId]/test-cases/[testCaseId] — optimistic c
 		// revision 0, so we pass revision 0 (or any value — the code only checks
 		// when latestVersion is truthy).
 		const tc = { ...sampleTestCase, latestVersionId: null, latestVersion: null };
-		mockDb.query.testCase.findFirst.mockResolvedValue(tc);
+		mockFindTC.mockResolvedValue(tc);
 
 		const newVersion = { ...sampleTestCaseVersion, id: 101, versionNo: 1, revision: 1 };
 		mockSuccessfulTransaction(newVersion);
@@ -183,7 +184,7 @@ describe('PUT /api/projects/[projectId]/test-cases/[testCaseId] — optimistic c
 			...sampleTestCase,
 			latestVersion: { ...sampleTestCaseVersion, revision: 5 }
 		};
-		mockDb.query.testCase.findFirst.mockResolvedValue(tc);
+		mockFindTC.mockResolvedValue(tc);
 
 		const event = createMockEvent({
 			method: 'PUT',
@@ -205,7 +206,7 @@ describe('PUT /api/projects/[projectId]/test-cases/[testCaseId] — optimistic c
 			...sampleTestCase,
 			latestVersion: { ...sampleTestCaseVersion, revision: 3 }
 		};
-		mockDb.query.testCase.findFirst.mockResolvedValue(tc);
+		mockFindTC.mockResolvedValue(tc);
 
 		const event = createMockEvent({
 			method: 'PUT',
@@ -226,7 +227,7 @@ describe('PUT /api/projects/[projectId]/test-cases/[testCaseId] — optimistic c
 			...sampleTestCase,
 			latestVersion: { ...sampleTestCaseVersion, revision: 5 }
 		};
-		mockDb.query.testCase.findFirst.mockResolvedValue(tc);
+		mockFindTC.mockResolvedValue(tc);
 
 		const event = createMockEvent({
 			method: 'PUT',
@@ -254,7 +255,7 @@ describe('PUT /api/projects/[projectId]/test-cases/[testCaseId] — optimistic c
 			...sampleTestCase,
 			latestVersion: { ...sampleTestCaseVersion, revision: storedRevision + 1 }
 		};
-		mockDb.query.testCase.findFirst.mockResolvedValue(tcAfterUserA);
+		mockFindTC.mockResolvedValue(tcAfterUserA);
 
 		const eventUserB = createMockEvent({
 			method: 'PUT',
@@ -299,7 +300,7 @@ describe('PUT /api/projects/[projectId]/test-cases/[testCaseId] — optimistic c
 	});
 
 	it('should return 404 when the test case does not exist', async () => {
-		mockDb.query.testCase.findFirst.mockResolvedValue(null);
+		mockFindTC.mockResolvedValue(null);
 
 		const event = createMockEvent({
 			method: 'PUT',

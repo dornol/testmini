@@ -5,6 +5,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages.js';
+	import { apiPost } from '$lib/api-client';
 
 	interface Props {
 		open: boolean;
@@ -39,27 +40,17 @@
 		if (!templateName.trim()) return;
 		saving = true;
 		try {
-			const res = await fetch(`/api/projects/${projectId}/templates`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					name: templateName.trim(),
-					precondition,
-					steps,
-					priority
-				})
+			const data = await apiPost<{ id: number }>(`/api/projects/${projectId}/templates`, {
+				name: templateName.trim(),
+				precondition,
+				steps,
+				priority
 			});
-			if (res.ok) {
-				const data = await res.json();
-				toast.success(m.template_saved());
-				open = false;
-				onSaved?.(data.id);
-			} else {
-				const err = await res.json();
-				toast.error(err.error || m.template_save_failed());
-			}
+			toast.success(m.template_saved());
+			open = false;
+			onSaved?.(data.id);
 		} catch {
-			toast.error(m.template_save_failed());
+			// error toast handled by apiPost
 		} finally {
 			saving = false;
 		}

@@ -3,6 +3,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
+	import { apiPatch, apiPost, apiDelete } from '$lib/api-client';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
@@ -86,19 +87,12 @@
 	async function handleEditRun() {
 		editRunSaving = true;
 		try {
-			const res = await fetch(`/api/projects/${projectId}/test-runs/${run.id}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: editRunName, environment: editRunEnv })
-			});
-			if (!res.ok) {
-				const err = await res.json();
-				toast.error(err.error ?? 'Failed to update');
-				return;
-			}
+			await apiPatch(`/api/projects/${projectId}/test-runs/${run.id}`, { name: editRunName, environment: editRunEnv });
 			editRunDialogOpen = false;
 			toast.success(m.tr_updated());
 			await invalidateAll();
+		} catch {
+			// error toast handled by apiPatch
 		} finally {
 			editRunSaving = false;
 		}
@@ -112,19 +106,12 @@
 	async function handleCloneRun() {
 		cloneRunSaving = true;
 		try {
-			const res = await fetch(`/api/projects/${projectId}/test-runs/${run.id}/clone`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: cloneRunName })
-			});
-			if (!res.ok) {
-				toast.error(m.error_clone_failed());
-				return;
-			}
-			const { id } = await res.json();
+			const { id } = await apiPost<{ id: number }>(`/api/projects/${projectId}/test-runs/${run.id}/clone`, { name: cloneRunName });
 			cloneDialogOpen = false;
 			toast.success(m.tr_cloned());
 			goto(`${basePath}/${id}`);
+		} catch {
+			// error toast handled by apiPost
 		} finally {
 			cloneRunSaving = false;
 		}
@@ -133,16 +120,12 @@
 	async function handleDeleteRun() {
 		deleteRunSaving = true;
 		try {
-			const res = await fetch(`/api/projects/${projectId}/test-runs/${run.id}`, {
-				method: 'DELETE'
-			});
-			if (!res.ok) {
-				toast.error(m.error_delete_failed());
-				return;
-			}
+			await apiDelete(`/api/projects/${projectId}/test-runs/${run.id}`);
 			deleteRunDialogOpen = false;
 			toast.success(m.tr_deleted());
 			goto(basePath);
+		} catch {
+			// error toast handled by apiDelete
 		} finally {
 			deleteRunSaving = false;
 		}

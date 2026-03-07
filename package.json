@@ -26,7 +26,8 @@
 	"devDependencies": {
 		"@better-auth/cli": "^1.4.18",
 		"@inlang/paraglide-js": "^2.10.0",
-		"@lucide/svelte": "^0.575.0",
+		"@internationalized/date": "^3.11.0",
+		"@lucide/svelte": "^0.561.0",
 		"@playwright/test": "^1.58.2",
 		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/adapter-node": "^5.5.4",

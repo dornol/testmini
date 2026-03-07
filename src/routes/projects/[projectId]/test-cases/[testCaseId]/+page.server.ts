@@ -3,10 +3,11 @@ import { error, fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { updateTestCaseSchema, type UpdateTestCaseInput } from '$lib/schemas/test-case.schema';
-import { db } from '$lib/server/db';
+import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
 import { testCase, testCaseVersion, user, tag, testCaseTag, testCaseAssignee, projectMember } from '$lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { loadTestCaseMetadata } from '$lib/server/queries';
 
 export const load: PageServerLoad = async ({ params, parent, locals }) => {
 	await parent();
@@ -18,14 +19,9 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 	}
 
 	// Get test case with latest version
-	const tc = await db.query.testCase.findFirst({
-		where: eq(testCase.id, testCaseId),
-		with: {
-			latestVersion: true
-		}
-	});
+	const tc = await findTestCaseWithLatestVersion(testCaseId, Number(params.projectId));
 
-	if (!tc || tc.projectId !== Number(params.projectId)) {
+	if (!tc) {
 		error(404, 'Test case not found');
 	}
 
@@ -64,39 +60,8 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 	const projectId = Number(params.projectId);
 
 	// Load project tags, assigned tags, assignees, and project members
-	const [projectTags, assignedTags, assignedAssignees, projectMembers] = await Promise.all([
-		db
-			.select({ id: tag.id, name: tag.name, color: tag.color })
-			.from(tag)
-			.where(eq(tag.projectId, projectId))
-			.orderBy(tag.name),
-		db
-			.select({ id: tag.id, name: tag.name, color: tag.color })
-			.from(testCaseTag)
-			.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
-			.where(eq(testCaseTag.testCaseId, testCaseId))
-			.orderBy(tag.name),
-		db
-			.select({
-				userId: testCaseAssignee.userId,
-				userName: user.name,
-				userImage: user.image
-			})
-			.from(testCaseAssignee)
-			.innerJoin(user, eq(testCaseAssignee.userId, user.id))
-			.where(eq(testCaseAssignee.testCaseId, testCaseId))
-			.orderBy(user.name),
-		db
-			.select({
-				userId: projectMember.userId,
-				userName: user.name,
-				userImage: user.image
-			})
-			.from(projectMember)
-			.innerJoin(user, eq(projectMember.userId, user.id))
-			.where(eq(projectMember.projectId, projectId))
-			.orderBy(user.name)
-	]);
+	const { assignedTags, projectTags, assignedAssignees, projectMembers } =
+		await loadTestCaseMetadata(testCaseId, projectId);
 
 	return {
 		testCaseDetail: {
@@ -134,10 +99,7 @@ export const actions: Actions = {
 			form.data as UpdateTestCaseInput;
 
 		// Optimistic lock check
-		const tc = await db.query.testCase.findFirst({
-			where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)),
-			with: { latestVersion: true }
-		});
+		const tc = await findTestCaseWithLatestVersion(testCaseId, projectId);
 
 		if (!tc) {
 			error(404, 'Test case not found');

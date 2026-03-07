@@ -1,20 +1,12 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { project, projectMember } from '$lib/server/db/schema';
-import { requireAuth, requireProjectAccess, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { updateProjectSchema } from '$lib/schemas/project.schema';
 import { eq, count, sql } from 'drizzle-orm';
 
-export const GET: RequestHandler = async ({ locals, params }) => {
-	const user = requireAuth(locals);
-	const projectId = Number(params.projectId);
-
-	if (isNaN(projectId)) {
-		error(400, 'Invalid project ID');
-	}
-
-	await requireProjectAccess(user, projectId);
+export const GET = withProjectAccess(async ({ projectId }) => {
 
 	const result = await db
 		.select({
@@ -36,17 +28,9 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	}
 
 	return json({ data: result[0] });
-};
+});
 
-export const PATCH: RequestHandler = async ({ locals, params, request }) => {
-	const user = requireAuth(locals);
-	const projectId = Number(params.projectId);
-
-	if (isNaN(projectId)) {
-		error(400, 'Invalid project ID');
-	}
-
-	await requireProjectRole(user, projectId, ['PROJECT_ADMIN']);
+export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, projectId }) => {
 
 	const body = await parseJsonBody(request);
 	const result = updateProjectSchema.safeParse(body);
@@ -69,17 +53,9 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	}
 
 	return json({ data: updated });
-};
+});
 
-export const DELETE: RequestHandler = async ({ locals, params }) => {
-	const user = requireAuth(locals);
-	const projectId = Number(params.projectId);
-
-	if (isNaN(projectId)) {
-		error(400, 'Invalid project ID');
-	}
-
-	await requireProjectRole(user, projectId, ['PROJECT_ADMIN']);
+export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ projectId }) => {
 
 	const [deactivated] = await db
 		.update(project)
@@ -92,4 +68,4 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 	}
 
 	return json({ data: deactivated });
-};
+});

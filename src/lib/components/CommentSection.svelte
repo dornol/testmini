@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
+	import { apiFetch, apiPost, apiPatch, apiDelete } from '$lib/api-client';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
@@ -61,10 +62,8 @@
 	async function loadComments() {
 		loading = true;
 		try {
-			const res = await fetch(baseUrl);
-			if (res.ok) {
-				comments = await res.json();
-			}
+			comments = await apiFetch<Comment[]>(baseUrl);
+			// error toast handled by apiFetch
 		} finally {
 			loading = false;
 		}
@@ -80,20 +79,11 @@
 		if (!newContent.trim()) return;
 		submitting = true;
 		try {
-			const res = await fetch(baseUrl, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ content: newContent.trim() })
-			});
-			if (res.ok) {
-				const added = await res.json();
-				comments = [...comments, added];
-				newContent = '';
-				toast.success(m.comment_added());
-			} else {
-				const err = await res.json();
-				toast.error(err.error || m.error_operation_failed());
-			}
+			const added = await apiPost<Comment>(baseUrl, { content: newContent.trim() });
+			comments = [...comments, added];
+			newContent = '';
+			toast.success(m.comment_added());
+			// error toast handled by apiPost
 		} finally {
 			submitting = false;
 		}
@@ -103,21 +93,12 @@
 		if (!replyContent.trim()) return;
 		replySubmitting = true;
 		try {
-			const res = await fetch(baseUrl, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ content: replyContent.trim(), parentId })
-			});
-			if (res.ok) {
-				const added = await res.json();
-				comments = [...comments, added];
-				replyContent = '';
-				replyToId = null;
-				toast.success(m.comment_added());
-			} else {
-				const err = await res.json();
-				toast.error(err.error || m.error_operation_failed());
-			}
+			const added = await apiPost<Comment>(baseUrl, { content: replyContent.trim(), parentId });
+			comments = [...comments, added];
+			replyContent = '';
+			replyToId = null;
+			toast.success(m.comment_added());
+			// error toast handled by apiPost
 		} finally {
 			replySubmitting = false;
 		}
@@ -127,21 +108,12 @@
 		if (!editContent.trim()) return;
 		editSubmitting = true;
 		try {
-			const res = await fetch(`${baseUrl}/${commentId}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ content: editContent.trim() })
-			});
-			if (res.ok) {
-				const updated = await res.json();
-				comments = comments.map((c) => (c.id === commentId ? { ...c, ...updated } : c));
-				editingId = null;
-				editContent = '';
-				toast.success(m.comment_updated());
-			} else {
-				const err = await res.json();
-				toast.error(err.error || m.error_update_failed());
-			}
+			const updated = await apiPatch<Comment>(`${baseUrl}/${commentId}`, { content: editContent.trim() });
+			comments = comments.map((c) => (c.id === commentId ? { ...c, ...updated } : c));
+			editingId = null;
+			editContent = '';
+			toast.success(m.comment_updated());
+			// error toast handled by apiPatch
 		} finally {
 			editSubmitting = false;
 		}
@@ -151,14 +123,11 @@
 		if (!deleteTarget) return;
 		const id = deleteTarget.id;
 		try {
-			const res = await fetch(`${baseUrl}/${id}`, { method: 'DELETE' });
-			if (res.ok) {
-				// Remove comment and its replies
-				comments = comments.filter((c) => c.id !== id && c.parentId !== id);
-				toast.success(m.comment_deleted());
-			} else {
-				toast.error(m.error_delete_failed());
-			}
+			await apiDelete(`${baseUrl}/${id}`);
+			// Remove comment and its replies
+			comments = comments.filter((c) => c.id !== id && c.parentId !== id);
+			toast.success(m.comment_deleted());
+			// error toast handled by apiDelete
 		} finally {
 			deleteTarget = null;
 			deleteOpen = false;

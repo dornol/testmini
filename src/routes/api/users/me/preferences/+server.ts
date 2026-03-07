@@ -1,25 +1,21 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { userPreference } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { requireAuth } from '$lib/server/auth-utils';
+import { withAuth } from '$lib/server/api-handler';
 
-export const GET: RequestHandler = async ({ locals }) => {
-	const authUser = requireAuth(locals);
-
+export const GET = withAuth(async ({ user }) => {
 	const pref = await db.query.userPreference.findFirst({
-		where: eq(userPreference.userId, authUser.id)
+		where: eq(userPreference.userId, user.id)
 	});
 
-	return json(pref ?? { userId: authUser.id, locale: null, theme: null });
-};
+	return json(pref ?? { userId: user.id, locale: null, theme: null });
+});
 
 const VALID_LOCALES = ['ko', 'en'];
 const VALID_THEMES = ['light', 'dark', 'system'];
 
-export const PUT: RequestHandler = async ({ request, locals }) => {
-	const authUser = requireAuth(locals);
+export const PUT = withAuth(async ({ request, user }) => {
 
 	let body: unknown;
 	try {
@@ -38,7 +34,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const values: { userId: string; locale?: string | null; theme?: string | null; updatedAt: Date } = {
-		userId: authUser.id,
+		userId: user.id,
 		updatedAt: new Date()
 	};
 	if (locale !== undefined) values.locale = locale;
@@ -57,8 +53,8 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		});
 
 	const updated = await db.query.userPreference.findFirst({
-		where: eq(userPreference.userId, authUser.id)
+		where: eq(userPreference.userId, user.id)
 	});
 
 	return json(updated);
-};
+});

@@ -12,6 +12,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import VirtualList from '$lib/components/VirtualList.svelte';
 	import * as m from '$lib/paraglide/messages.js';
+	import { apiPatch, apiDelete, apiPost, apiFetch } from '$lib/api-client';
 
 	let { data } = $props();
 
@@ -56,19 +57,12 @@
 	async function handleEdit() {
 		editSaving = true;
 		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-suites/${data.suite.id}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: editName, description: editDesc || null })
-			});
-			if (!res.ok) {
-				const err = await res.json();
-				toast.error(err.error ?? m.error_update_failed());
-				return;
-			}
+			await apiPatch(`/api/projects/${data.project.id}/test-suites/${data.suite.id}`, { name: editName, description: editDesc || null });
 			editDialogOpen = false;
 			toast.success(m.suite_updated());
 			await invalidateAll();
+		} catch {
+			// error toast handled by apiPatch
 		} finally {
 			editSaving = false;
 		}
@@ -77,15 +71,11 @@
 	async function handleDelete() {
 		deleteSaving = true;
 		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-suites/${data.suite.id}`, {
-				method: 'DELETE'
-			});
-			if (!res.ok) {
-				toast.error(m.error_delete_failed());
-				return;
-			}
+			await apiDelete(`/api/projects/${data.project.id}/test-suites/${data.suite.id}`);
 			toast.success(m.suite_deleted());
 			goto(basePath);
+		} catch {
+			// error toast handled by apiDelete
 		} finally {
 			deleteSaving = false;
 		}
@@ -111,35 +101,29 @@
 		if (addCasesSelected.size === 0) return;
 		addCasesSaving = true;
 		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-suites/${data.suite.id}/items`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ testCaseIds: [...addCasesSelected] })
-			});
-			if (!res.ok) {
-				toast.error(m.error_add_failed());
-				return;
-			}
+			await apiPost(`/api/projects/${data.project.id}/test-suites/${data.suite.id}/items`, { testCaseIds: [...addCasesSelected] });
 			addCasesDialogOpen = false;
 			toast.success(m.suite_updated());
 			await invalidateAll();
+		} catch {
+			// error toast handled by apiPost
 		} finally {
 			addCasesSaving = false;
 		}
 	}
 
 	async function removeCase(testCaseId: number) {
-		const res = await fetch(`/api/projects/${data.project.id}/test-suites/${data.suite.id}/items`, {
-			method: 'DELETE',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ testCaseIds: [testCaseId] })
-		});
-		if (!res.ok) {
-			toast.error(m.error_remove_failed());
-			return;
+		try {
+			await apiFetch(`/api/projects/${data.project.id}/test-suites/${data.suite.id}/items`, {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ testCaseIds: [testCaseId] })
+			});
+			toast.success(m.suite_updated());
+			await invalidateAll();
+		} catch {
+			// error toast handled by apiFetch
 		}
-		toast.success(m.suite_updated());
-		await invalidateAll();
 	}
 
 	function priorityVariant(p: string): 'default' | 'secondary' | 'outline' | 'destructive' {

@@ -1,15 +1,11 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testCaseTemplate, user } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, requireProjectAccess, parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 
-export const GET: RequestHandler = async ({ locals, params }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
-	await requireProjectAccess(authUser, projectId);
-
+export const GET = withProjectAccess(async ({ projectId }) => {
 	const templates = await db
 		.select({
 			id: testCaseTemplate.id,
@@ -28,13 +24,9 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		.orderBy(testCaseTemplate.name);
 
 	return json(templates);
-};
+});
 
-export const POST: RequestHandler = async ({ request, locals, params }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
-
+export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, user, projectId }) => {
 	const body = await parseJsonBody(request);
 	const { name, description, precondition, steps, priority } = body as {
 		name: string;
@@ -71,9 +63,9 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 			precondition: precondition || null,
 			steps: numberedSteps,
 			priority: priority ?? 'MEDIUM',
-			createdBy: authUser.id
+			createdBy: user.id
 		})
 		.returning();
 
 	return json({ id: created.id }, { status: 201 });
-};
+});

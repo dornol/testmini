@@ -1,13 +1,11 @@
-import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testCase, testCaseComment, user } from '$lib/server/db/schema';
+import { testCase, testCaseComment, user as userTable } from '$lib/server/db/schema';
 import { eq, and, asc, isNull } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 
-export const GET: RequestHandler = async ({ params, locals }) => {
-	requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const testCaseId = Number(params.testCaseId);
 
 	if (isNaN(projectId) || isNaN(testCaseId)) {
@@ -32,29 +30,20 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			parentId: testCaseComment.parentId,
 			createdAt: testCaseComment.createdAt,
 			updatedAt: testCaseComment.updatedAt,
-			userName: user.name,
-			userEmail: user.email,
-			userImage: user.image
+			userName: userTable.name,
+			userEmail: userTable.email,
+			userImage: userTable.image
 		})
 		.from(testCaseComment)
-		.innerJoin(user, eq(testCaseComment.userId, user.id))
+		.innerJoin(userTable, eq(testCaseComment.userId, userTable.id))
 		.where(eq(testCaseComment.testCaseId, testCaseId))
 		.orderBy(asc(testCaseComment.createdAt));
 
 	return json(comments);
-};
+});
 
-export const POST: RequestHandler = async ({ params, request, locals }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, user, projectId }) => {
 	const testCaseId = Number(params.testCaseId);
-
-	if (isNaN(projectId) || isNaN(testCaseId)) {
-		error(400, 'Invalid parameters');
-	}
-
-	// Require non-VIEWER project membership
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 	// Verify test case belongs to project
 	const tc = await db.query.testCase.findFirst({
@@ -95,7 +84,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		.insert(testCaseComment)
 		.values({
 			testCaseId,
-			userId: authUser.id,
+			userId: user.id,
 			content: content.trim(),
 			parentId: parentId ?? null
 		})
@@ -103,7 +92,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 	// Return with user info
 	const userData = await db.query.user.findFirst({
-		where: eq(user.id, authUser.id)
+		where: eq(userTable.id, user.id)
 	});
 
 	return json(
@@ -115,4 +104,4 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		},
 		{ status: 201 }
 	);
-};
+});

@@ -20,6 +20,7 @@
 	import SaveAsTemplateDialog from '../SaveAsTemplateDialog.svelte';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import * as m from '$lib/paraglide/messages.js';
+	import { apiPost } from '$lib/api-client';
 
 	let { data } = $props();
 
@@ -57,20 +58,11 @@
 
 	async function cloneTestCase() {
 		try {
-			const res = await fetch(
-				`/api/projects/${data.project.id}/test-cases/${tc.id}/clone`,
-				{ method: 'POST' }
-			);
-			if (res.ok) {
-				const result = await res.json();
-				toast.success(m.tc_cloned());
-				goto(`${basePath}/${result.newTestCaseId}`);
-			} else {
-				const err = await res.json();
-				toast.error(err.error || m.error_clone_failed());
-			}
+			const result = await apiPost<{ newTestCaseId: number }>(`/api/projects/${data.project.id}/test-cases/${tc.id}/clone`, {});
+			toast.success(m.tc_cloned());
+			goto(`${basePath}/${result.newTestCaseId}`);
 		} catch {
-			toast.error(m.error_clone_failed());
+			// error toast handled by apiPost
 		}
 	}
 

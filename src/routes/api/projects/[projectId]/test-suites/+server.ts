@@ -1,15 +1,12 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testSuite, testSuiteItem, user } from '$lib/server/db/schema';
 import { eq, sql } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, requireProjectAccess, parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { createTestSuiteSchema } from '$lib/schemas/test-suite.schema';
 
-export const GET: RequestHandler = async ({ locals, params }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
-	await requireProjectAccess(authUser, projectId);
+export const GET = withProjectAccess(async ({ projectId }) => {
 
 	const suites = await db
 		.select({
@@ -26,12 +23,9 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		.orderBy(testSuite.name);
 
 	return json(suites);
-};
+});
 
-export const POST: RequestHandler = async ({ request, locals, params }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA']);
+export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, user, projectId }) => {
 
 	const body = await parseJsonBody(request);
 	const parsed = createTestSuiteSchema.safeParse(body);
@@ -48,7 +42,7 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 				projectId,
 				name,
 				description: description || null,
-				createdBy: authUser.id
+				createdBy: user.id
 			})
 			.returning();
 
@@ -65,4 +59,4 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	});
 
 	return json({ id: suite.id }, { status: 201 });
-};
+});

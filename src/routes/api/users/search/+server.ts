@@ -1,12 +1,10 @@
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { user, projectMember } from '$lib/server/db/schema';
-import { requireAuth } from '$lib/server/auth-utils';
+import { withAuth } from '$lib/server/api-handler';
 import { ilike, or, notInArray, and, eq } from 'drizzle-orm';
 
-export const GET: RequestHandler = async ({ locals, url }) => {
-	requireAuth(locals);
+export const GET = withAuth(async ({ url }) => {
 
 	const q = url.searchParams.get('q') ?? '';
 	const excludeProjectId = url.searchParams.get('excludeProjectId');
@@ -41,4 +39,4 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		.offset(offset);
 
 	return json({ data: users });
-};
+});

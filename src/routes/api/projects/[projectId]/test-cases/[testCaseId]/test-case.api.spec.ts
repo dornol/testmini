@@ -9,8 +9,9 @@ import {
 } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
+const mockFindTC = vi.fn();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, findTestCaseWithLatestVersion: mockFindTC }));
 vi.mock('$lib/server/db/schema', () => ({
 	testCase: { id: 'id', projectId: 'project_id', key: 'key', latestVersionId: 'latest_version_id' },
 	testCaseVersion: {
@@ -60,14 +61,14 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]', () => {
 		});
 
 		it('should return 404 when test case not found', async () => {
-			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+			mockFindTC.mockResolvedValue(null);
 			const event = createMockEvent({ params: PARAMS, user: testUser });
 			await expect(GET(event)).rejects.toThrow();
 		});
 
 		it('should return test case with versions and tags', async () => {
 			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
-			mockDb.query.testCase.findFirst.mockResolvedValue(tc);
+			mockFindTC.mockResolvedValue(tc);
 
 			// 4 parallel queries: assignedTags, projectTags, assignedAssignees, projectMembers
 			const selectChain = {
@@ -125,7 +126,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]', () => {
 		});
 
 		it('should return 404 when test case not found', async () => {
-			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+			mockFindTC.mockResolvedValue(null);
 			const event = createMockEvent({
 				method: 'PUT',
 				params: PARAMS,
@@ -140,7 +141,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]', () => {
 				...sampleTestCase,
 				latestVersion: { ...sampleTestCaseVersion, revision: 5 }
 			};
-			mockDb.query.testCase.findFirst.mockResolvedValue(tc);
+			mockFindTC.mockResolvedValue(tc);
 
 			const event = createMockEvent({
 				method: 'PUT',
@@ -160,7 +161,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]', () => {
 				...sampleTestCase,
 				latestVersion: sampleTestCaseVersion
 			};
-			mockDb.query.testCase.findFirst.mockResolvedValue(tc);
+			mockFindTC.mockResolvedValue(tc);
 			mockDb.transaction.mockImplementation(async (fn) => {
 				const newVersion = { ...sampleTestCaseVersion, id: 101, versionNo: 2 };
 				const txChain = {

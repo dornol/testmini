@@ -1,9 +1,9 @@
-import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCase, testCaseComment, projectMember } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, isGlobalAdmin, parseJsonBody } from '$lib/server/auth-utils';
+import { isGlobalAdmin, parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectAccess } from '$lib/server/api-handler';
 
 async function resolveComment(
 	testCaseId: number,
@@ -36,9 +36,7 @@ async function getMemberRole(userId: string, projectId: number): Promise<string 
 	return member?.role ?? null;
 }
 
-export const PATCH: RequestHandler = async ({ params, request, locals }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const PATCH = withProjectAccess(async ({ params, request, user, projectId }) => {
 	const testCaseId = Number(params.testCaseId);
 	const commentId = Number(params.commentId);
 
@@ -49,9 +47,9 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	const comment = await resolveComment(testCaseId, projectId, commentId);
 
 	// Only comment author or ADMIN can edit
-	const isAdmin = isGlobalAdmin(authUser);
-	const memberRole = isAdmin ? null : await getMemberRole(authUser.id, projectId);
-	const isAuthor = comment.userId === authUser.id;
+	const isAdmin = isGlobalAdmin(user);
+	const memberRole = isAdmin ? null : await getMemberRole(user.id, projectId);
+	const isAuthor = comment.userId === user.id;
 	const isProjectAdmin = memberRole === 'PROJECT_ADMIN';
 
 	if (!isAuthor && !isAdmin) {
@@ -76,11 +74,9 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		.returning();
 
 	return json(updated);
-};
+});
 
-export const DELETE: RequestHandler = async ({ params, locals }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const DELETE = withProjectAccess(async ({ params, user, projectId }) => {
 	const testCaseId = Number(params.testCaseId);
 	const commentId = Number(params.commentId);
 
@@ -91,11 +87,11 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	const comment = await resolveComment(testCaseId, projectId, commentId);
 
 	// Author, PROJECT_ADMIN, or global ADMIN can delete
-	const isAdmin = isGlobalAdmin(authUser);
-	const isAuthor = comment.userId === authUser.id;
+	const isAdmin = isGlobalAdmin(user);
+	const isAuthor = comment.userId === user.id;
 
 	if (!isAuthor && !isAdmin) {
-		const memberRole = await getMemberRole(authUser.id, projectId);
+		const memberRole = await getMemberRole(user.id, projectId);
 		if (memberRole !== 'PROJECT_ADMIN') {
 			error(403, 'You do not have permission to delete this comment');
 		}
@@ -104,4 +100,4 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	await db.delete(testCaseComment).where(eq(testCaseComment.id, commentId));
 
 	return json({ success: true });
-};
+});

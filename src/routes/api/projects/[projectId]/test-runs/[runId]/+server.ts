@@ -1,16 +1,13 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testRun } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectRole } from '$lib/server/api-handler';
 import { updateTestRunSchema } from '$lib/schemas/test-run.schema';
 
-export const PATCH: RequestHandler = async ({ request, locals, params }) => {
-	const user = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, projectId }) => {
 	const runId = Number(params.runId);
-	await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 	const run = await db.query.testRun.findFirst({
 		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
@@ -44,13 +41,10 @@ export const PATCH: RequestHandler = async ({ request, locals, params }) => {
 		.where(and(eq(testRun.id, runId), eq(testRun.projectId, projectId)));
 
 	return json({ success: true });
-};
+});
 
-export const DELETE: RequestHandler = async ({ locals, params }) => {
-	const user = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
 	const runId = Number(params.runId);
-	await requireProjectRole(user, projectId, ['PROJECT_ADMIN']);
 
 	const run = await db.query.testRun.findFirst({
 		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
@@ -64,4 +58,4 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 	await db.delete(testRun).where(and(eq(testRun.id, runId), eq(testRun.projectId, projectId)));
 
 	return json({ success: true });
-};
+});

@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
+	import { apiPost } from '$lib/api-client';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -31,22 +32,13 @@
 		if (!issuerUrl) return;
 		discovering = true;
 		try {
-			const res = await fetch('/api/admin/oidc-providers/discover', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ issuerUrl })
-			});
-			if (!res.ok) {
-				toast.error(m.oidc_discover_fail());
-				return;
-			}
-			const d = await res.json();
+			const d = await apiPost<{ authorizationUrl?: string; tokenUrl?: string; userinfoUrl?: string }>('/api/admin/oidc-providers/discover', { issuerUrl });
 			authorizationUrl = d.authorizationUrl || '';
 			tokenUrl = d.tokenUrl || '';
 			userinfoUrl = d.userinfoUrl || '';
 			toast.success(m.oidc_discover_success());
 		} catch {
-			toast.error(m.oidc_discover_fail());
+			// error toast handled by apiPost
 		} finally {
 			discovering = false;
 		}

@@ -1,28 +1,15 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testFailureDetail, testExecution, testRun } from '$lib/server/db/schema';
 import { user } from '$lib/server/db/auth.schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectRole } from '$lib/server/api-handler';
 import { createFailureSchema } from '$lib/schemas/failure.schema';
 
-export const GET: RequestHandler = async ({ locals, params }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'], async ({ params, projectId }) => {
 	const runId = Number(params.runId);
 	const executionId = Number(params.executionId);
-
-	if (isNaN(projectId) || isNaN(runId) || isNaN(executionId)) {
-		error(400, 'Invalid parameters');
-	}
-
-	await requireProjectRole(authUser, projectId, [
-		'PROJECT_ADMIN',
-		'QA',
-		'DEV',
-		'VIEWER'
-	]);
 
 	// Verify run belongs to project
 	const run = await db.query.testRun.findFirst({
@@ -60,19 +47,11 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		.orderBy(testFailureDetail.createdAt);
 
 	return json({ failures });
-};
+});
 
-export const POST: RequestHandler = async ({ locals, params, request }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, user, projectId }) => {
 	const runId = Number(params.runId);
 	const executionId = Number(params.executionId);
-
-	if (isNaN(projectId) || isNaN(runId) || isNaN(executionId)) {
-		error(400, 'Invalid parameters');
-	}
-
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 	const run = await db.query.testRun.findFirst({
 		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
@@ -101,7 +80,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			.update(testExecution)
 			.set({
 				status: 'FAIL',
-				executedBy: authUser.id,
+				executedBy: user.id,
 				executedAt: new Date()
 			})
 			.where(eq(testExecution.id, executionId));
@@ -113,9 +92,9 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			errorMessage: parsed.data.errorMessage || null,
 			stackTrace: parsed.data.stackTrace || null,
 			comment: parsed.data.comment || null,
-			createdBy: authUser.id
+			createdBy: user.id
 		});
 	});
 
 	return json({ success: true });
-};
+});

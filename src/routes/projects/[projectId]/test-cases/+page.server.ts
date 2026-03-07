@@ -17,6 +17,7 @@ import {
 } from '$lib/server/db/schema';
 import { eq, and, ilike, or, desc, asc, exists, sql, inArray, isNull } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { loadProjectTags } from '$lib/server/queries';
 
 export const load: PageServerLoad = async ({ params, url, parent, cookies }) => {
 	await parent();
@@ -226,11 +227,7 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 	}
 
 	// Load project tags for filter UI
-	const projectTags = await db
-		.select({ id: tag.id, name: tag.name, color: tag.color })
-		.from(tag)
-		.where(eq(tag.projectId, projectId))
-		.orderBy(tag.name);
+	const projectTags = await loadProjectTags(projectId);
 
 	// Load project members for createdBy filter UI
 	const projectMembers = await db

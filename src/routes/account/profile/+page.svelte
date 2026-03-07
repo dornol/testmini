@@ -11,6 +11,7 @@
 	import * as m from '$lib/paraglide/messages.js';
 	import { setLocale } from '$lib/paraglide/runtime';
 	import { setMode } from 'mode-watcher';
+	import { apiPut } from '$lib/api-client';
 
 	let { data } = $props();
 
@@ -22,24 +23,16 @@
 	async function savePreferences() {
 		prefSaving = true;
 		try {
-			const res = await fetch('/api/users/me/preferences', {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					locale: prefLocale || null,
-					theme: prefTheme || null
-				})
+			await apiPut('/api/users/me/preferences', {
+				locale: prefLocale || null,
+				theme: prefTheme || null
 			});
-			if (res.ok) {
-				if (prefLocale) setLocale(prefLocale as 'ko' | 'en');
-				if (prefTheme) setMode(prefTheme as 'light' | 'dark' | 'system');
-				toast.success(m.profile_preferences_saved());
-				await invalidateAll();
-			} else {
-				toast.error(m.error_operation_failed());
-			}
+			if (prefLocale) setLocale(prefLocale as 'ko' | 'en');
+			if (prefTheme) setMode(prefTheme as 'light' | 'dark' | 'system');
+			toast.success(m.profile_preferences_saved());
+			await invalidateAll();
 		} catch {
-			toast.error(m.error_operation_failed());
+			// error toast handled by apiPut
 		} finally {
 			prefSaving = false;
 		}

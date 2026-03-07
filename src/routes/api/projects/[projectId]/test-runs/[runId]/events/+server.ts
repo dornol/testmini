@@ -1,18 +1,9 @@
-import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { createSubscriber } from '$lib/server/redis';
+import { withProjectRole } from '$lib/server/api-handler';
 
-export const GET: RequestHandler = async ({ params, locals, request }) => {
-	const user = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'], async ({ params, request, projectId }) => {
 	const runId = Number(params.runId);
-
-	if (isNaN(projectId) || isNaN(runId)) {
-		error(400, 'Invalid parameters');
-	}
-
-	await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER']);
 
 	const channel = `run:${runId}:events`;
 	const subscriber = createSubscriber();
@@ -71,4 +62,4 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 			Connection: 'keep-alive'
 		}
 	});
-};
+});

@@ -1,5 +1,4 @@
 import { error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import {
 	testCase,
@@ -9,12 +8,10 @@ import {
 	testCaseTag
 } from '$lib/server/db/schema';
 import { eq, asc } from 'drizzle-orm';
-import { requireAuth, requireProjectAccess } from '$lib/server/auth-utils';
+import { csvResponse } from '$lib/server/csv-utils';
+import { withProjectAccess } from '$lib/server/api-handler';
 
-export const GET: RequestHandler = async ({ params, locals, url }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
-	await requireProjectAccess(authUser, projectId);
+export const GET = withProjectAccess(async ({ url, projectId }) => {
 
 	const format = url.searchParams.get('format') ?? 'csv';
 	if (!['csv', 'json'].includes(format)) {
@@ -96,16 +93,5 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		r.group
 	]);
 
-	const csvContent =
-		'\uFEFF' +
-		[csvHeaders, ...csvRows]
-			.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-			.join('\n');
-
-	return new Response(csvContent, {
-		headers: {
-			'Content-Type': 'text/csv; charset=utf-8',
-			'Content-Disposition': `attachment; filename="test-cases.csv"`
-		}
-	});
-};
+	return csvResponse(csvHeaders, csvRows, 'test-cases.csv');
+});

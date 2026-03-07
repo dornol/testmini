@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { fly } from 'svelte/transition';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { apiFetch, apiPost } from '$lib/api-client';
 
 	interface Notification {
 		id: number;
@@ -66,9 +67,10 @@
 			if (!reset && nextCursor) {
 				params.set('cursor', nextCursor);
 			}
-			const res = await fetch(`/api/notifications?${params}`);
-			if (!res.ok) return;
-			const data = await res.json();
+			const data = await apiFetch<{ items: Notification[]; nextCursor: string | null; hasMore: boolean }>(
+				`/api/notifications?${params}`,
+				{ silent: true }
+			);
 			if (reset) {
 				notifications = data.items;
 			} else {
@@ -76,9 +78,9 @@
 			}
 			nextCursor = data.nextCursor;
 			hasMore = data.hasMore;
-			unreadCount = (data.items as Notification[]).filter((n) => !n.isRead).length;
+			unreadCount = data.items.filter((n) => !n.isRead).length;
 		} catch {
-			// network error — silently ignore
+			// silently ignore
 		} finally {
 			loading = false;
 		}
@@ -86,10 +88,11 @@
 
 	async function refreshUnreadCount() {
 		try {
-			const res = await fetch('/api/notifications?limit=50');
-			if (!res.ok) return;
-			const data = await res.json();
-			unreadCount = (data.items as Notification[]).filter((n) => !n.isRead).length;
+			const data = await apiFetch<{ items: Notification[] }>(
+				'/api/notifications?limit=50',
+				{ silent: true }
+			);
+			unreadCount = data.items.filter((n) => !n.isRead).length;
 		} catch {
 			// silently ignore
 		}
@@ -98,11 +101,7 @@
 	async function markAsRead(ids: number[]) {
 		if (ids.length === 0) return;
 		try {
-			await fetch('/api/notifications/read', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ ids })
-			});
+			await apiPost('/api/notifications/read', { ids });
 			notifications = notifications.map((n) => (ids.includes(n.id) ? { ...n, isRead: true } : n));
 			unreadCount = Math.max(0, unreadCount - ids.length);
 		} catch {
@@ -112,11 +111,7 @@
 
 	async function markAllAsRead() {
 		try {
-			await fetch('/api/notifications/read', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ all: true })
-			});
+			await apiPost('/api/notifications/read', { all: true });
 			notifications = notifications.map((n) => ({ ...n, isRead: true }));
 			unreadCount = 0;
 		} catch {

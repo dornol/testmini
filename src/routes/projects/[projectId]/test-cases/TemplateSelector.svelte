@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages.js';
+	import { apiFetch } from '$lib/api-client';
 
 	interface Template {
 		id: number;
@@ -28,15 +29,10 @@
 		if (loaded) return;
 		loading = true;
 		try {
-			const res = await fetch(`/api/projects/${projectId}/templates`);
-			if (res.ok) {
-				templates = await res.json();
-				loaded = true;
-			} else {
-				toast.error(m.template_load_failed());
-			}
+			templates = await apiFetch<Template[]>(`/api/projects/${projectId}/templates`);
+			loaded = true;
 		} catch {
-			toast.error(m.template_load_failed());
+			// error toast handled by apiFetch
 		} finally {
 			loading = false;
 		}

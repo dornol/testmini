@@ -1,14 +1,11 @@
-import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCase } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectRole } from '$lib/server/api-handler';
 
-export const PUT: RequestHandler = async ({ params, request, locals }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, projectId }) => {
 
 	const body = await parseJsonBody(request);
 	const { items } = body as {
@@ -47,4 +44,4 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	});
 
 	return json({ success: true });
-};
+});

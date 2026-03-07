@@ -1,15 +1,11 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, user } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, requireProjectAccess } from '$lib/server/auth-utils';
+import { withProjectAccess } from '$lib/server/api-handler';
 
-export const GET: RequestHandler = async ({ params, locals, url }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const GET = withProjectAccess(async ({ params, url, projectId }) => {
 	const testCaseId = Number(params.testCaseId);
-	await requireProjectAccess(authUser, projectId);
 
 	const v1 = Number(url.searchParams.get('v1'));
 	const v2 = Number(url.searchParams.get('v2'));
@@ -65,4 +61,4 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 	}
 
 	return json({ v1: ver1Row, v2: ver2Row });
-};
+});

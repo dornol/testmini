@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, testRun, testExecution, tag, testCaseTag, testSuite, testSuiteItem } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { loadProjectTags } from '$lib/server/queries';
 import { createTestRunSchema, type CreateTestRunInput } from '$lib/schemas/test-run.schema';
 
 export const load: PageServerLoad = async ({ params, parent, url }) => {
@@ -58,11 +59,7 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 	}
 
 	// Load project tags for filter UI
-	const projectTags = await db
-		.select({ id: tag.id, name: tag.name, color: tag.color })
-		.from(tag)
-		.where(eq(tag.projectId, projectId))
-		.orderBy(tag.name);
+	const projectTags = await loadProjectTags(projectId);
 
 	// Load suites for "Load from Suite" dropdown
 	const suites = await db

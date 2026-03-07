@@ -9,6 +9,7 @@
 	import { enhance } from '$app/forms';
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
+	import { apiPut, apiPost, apiPatch, apiDelete } from '$lib/api-client';
 	import { dragHandleZone, dragHandle, TRIGGERS, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import { untrack } from 'svelte';
@@ -22,13 +23,13 @@
 	import TestCaseDetailSheet from './TestCaseDetailSheet.svelte';
 	import FailureDetailsSheet from './FailureDetailsSheet.svelte';
 	import FailWithDetailDialog from './FailWithDetailDialog.svelte';
+	import TestCaseFilterBar from './TestCaseFilterBar.svelte';
+	import TestCaseBulkActionBar from './TestCaseBulkActionBar.svelte';
 
 	let { data } = $props();
 
 	let importDialogOpen = $state(false);
 
-	let searchInput = $state('');
-	let searchTimeout: ReturnType<typeof setTimeout>;
 	let quickTitles: Record<number, string> = $state({});
 	let quickPriorities: Record<number, string> = $state({});
 	let quickSubmittings: Record<number, boolean> = $state({});
@@ -60,8 +61,6 @@
 		return new Set();
 	}
 	let collapsedGroups: Set<number> = $state(loadCollapsedGroups());
-	let newGroupName = $state('');
-	let creatingGroup = $state(false);
 	let editingGroupId: number | null = $state(null);
 	let editingGroupName = $state('');
 	let deleteGroupId: number | null = $state(null);
@@ -125,28 +124,9 @@
 		});
 	});
 
-	function parseMulti(val: string): string[] {
-		return val ? val.split(',').filter(Boolean) : [];
-	}
-
-	const selectedTagIds = $derived(
-		(data.tagIds ?? '')
-			.split(',')
-			.map(Number)
-			.filter((id) => !isNaN(id) && id > 0)
-	);
-	const selectedPriorities = $derived(parseMulti(data.priority));
-	const selectedSuiteIds = $derived(parseMulti(data.suiteId));
-	const selectedExecStatuses = $derived(parseMulti(data.execStatus));
-	const selectedCreatedByIds = $derived(parseMulti(data.createdBy));
-	const selectedAssigneeIds = $derived(parseMulti(data.assigneeId));
-	const selectedGroupId = $derived(data.groupId || '');
-	const hasActiveFilters = $derived(!!data.search || !!data.priority || selectedTagIds.length > 0 || !!data.groupId || !!data.createdBy || !!data.assigneeId || !!data.suiteId || !!data.execStatus);
+	const hasActiveFilters = $derived(!!data.search || !!data.priority || !!data.tagIds || !!data.groupId || !!data.createdBy || !!data.assigneeId || !!data.suiteId || !!data.execStatus);
 	const flipDurationMs = 150;
 
-	$effect(() => {
-		searchInput = data.search;
-	});
 
 	const basePath = $derived(`/projects/${data.project.id}/test-cases`);
 
@@ -154,51 +134,6 @@
 		data.projectRuns.filter((r) => data.selectedRunIds.includes(r.id))
 	);
 
-	function handleSearch() {
-		clearTimeout(searchTimeout);
-		searchTimeout = setTimeout(() => {
-			const params = new URLSearchParams(page.url.searchParams);
-			if (searchInput) {
-				params.set('search', searchInput);
-			} else {
-				params.delete('search');
-			}
-			params.delete('page');
-			goto(`${basePath}?${params.toString()}`, { keepFocus: true });
-		}, 300);
-	}
-
-	function toggleFilter(paramName: string, value: string) {
-		const params = new URLSearchParams(page.url.searchParams);
-		const current = parseMulti(params.get(paramName) ?? '');
-		const idx = current.indexOf(value);
-		if (idx >= 0) {
-			current.splice(idx, 1);
-		} else {
-			current.push(value);
-		}
-		if (current.length > 0) {
-			params.set(paramName, current.join(','));
-		} else {
-			params.delete(paramName);
-		}
-		goto(`${basePath}?${params.toString()}`);
-	}
-
-	function setSingleFilter(paramName: string, value: string) {
-		const params = new URLSearchParams(page.url.searchParams);
-		const current = params.get(paramName) ?? '';
-		if (current === value) {
-			params.delete(paramName);
-		} else {
-			params.set(paramName, value);
-		}
-		goto(`${basePath}?${params.toString()}`);
-	}
-
-	function clearAllFilters() {
-		goto(basePath);
-	}
 
 	function addRunColumn(runId: string) {
 		if (!runId) return;
@@ -267,21 +202,13 @@
 		updatingExecIds.add(executionId);
 		updatingExecIds = new Set(updatingExecIds);
 		try {
-			const res = await fetch(
+			await apiPut(
 				`/api/projects/${data.project.id}/test-runs/${runId}/executions/${executionId}/status`,
-				{
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ status: newStatus })
-				}
+				{ status: newStatus }
 			);
-			if (res.ok) {
-				await invalidateAll();
-			} else {
-				toast.error(m.error_operation_failed());
-			}
+			await invalidateAll();
 		} catch {
-			toast.error(m.error_operation_failed());
+			// error toast handled by apiPut
 		} finally {
 			updatingExecIds.delete(executionId);
 			updatingExecIds = new Set(updatingExecIds);
@@ -293,17 +220,12 @@
 		updatingExecIds.add(executionId);
 		updatingExecIds = new Set(updatingExecIds);
 		try {
-			const res = await fetch(
-				`/api/projects/${data.project.id}/test-runs/${runId}/executions/${executionId}`,
-				{ method: 'DELETE' }
+			await apiDelete(
+				`/api/projects/${data.project.id}/test-runs/${runId}/executions/${executionId}`
 			);
-			if (res.ok) {
-				await invalidateAll();
-			} else {
-				toast.error(m.error_operation_failed());
-			}
+			await invalidateAll();
 		} catch {
-			toast.error(m.error_operation_failed());
+			// error toast handled by apiDelete
 		} finally {
 			updatingExecIds.delete(executionId);
 			updatingExecIds = new Set(updatingExecIds);
@@ -317,28 +239,15 @@
 		const pos = { x: rect.left + rect.width / 2, y: rect.bottom + 2 };
 
 		try {
-			const res = await fetch(
+			await apiPost(
 				`/api/projects/${data.project.id}/test-runs/${runId}/executions`,
-				{
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ testCaseId: tcId })
-				}
+				{ testCaseId: tcId }
 			);
-			if (res.ok) {
-				await invalidateAll();
-				// Open status dropdown at the captured position
-				openDropdown = { tcId, runId, x: pos.x, y: pos.y };
-			} else {
-				let msg = `Error ${res.status}`;
-				try {
-					const err = await res.json();
-					msg = err.error || err.message || msg;
-				} catch { /* non-JSON response */ }
-				toast.error(msg);
-			}
-		} catch (e) {
-			toast.error('Network error: ' + String(e));
+			await invalidateAll();
+			// Open status dropdown at the captured position
+			openDropdown = { tcId, runId, x: pos.x, y: pos.y };
+		} catch {
+			// error toast handled by apiPost
 		}
 	}
 
@@ -459,22 +368,13 @@
 		if (value.trim() === originalValue) return;
 
 		try {
-			const res = await fetch(
+			await apiPatch(
 				`/api/projects/${data.project.id}/test-cases/${tcId}`,
-				{
-					method: 'PATCH',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ [field]: value.trim() })
-				}
+				{ [field]: value.trim() }
 			);
-			if (res.ok) {
-				await invalidateAll();
-			} else {
-				const err = await res.json();
-				toast.error(err.error || 'Failed to update');
-			}
+			await invalidateAll();
 		} catch {
-			toast.error(m.error_update_failed());
+			// error toast handled by apiPatch
 		}
 	}
 
@@ -520,22 +420,13 @@
 		updatingTcIds.add(tcId);
 		updatingTcIds = new Set(updatingTcIds);
 		try {
-			const res = await fetch(
+			await apiPatch(
 				`/api/projects/${data.project.id}/test-cases/${tcId}`,
-				{
-					method: 'PATCH',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ priority: newPriority })
-				}
+				{ priority: newPriority }
 			);
-			if (res.ok) {
-				await invalidateAll();
-			} else {
-				const err = await res.json();
-				toast.error(err.error || 'Failed to update');
-			}
+			await invalidateAll();
 		} catch {
-			toast.error(m.error_update_failed());
+			// error toast handled by apiPatch
 		} finally {
 			updatingTcIds.delete(tcId);
 			updatingTcIds = new Set(updatingTcIds);
@@ -605,69 +496,6 @@
 		}
 	}
 
-	// --- Bulk operations ---
-	let bulkLoading = $state(false);
-	let bulkDeleteOpen = $state(false);
-
-	async function bulkAction(action: string, extra: Record<string, unknown> = {}) {
-		if (selectedTcIds.size === 0 || bulkLoading) return;
-		bulkLoading = true;
-		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-cases/bulk`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					action,
-					testCaseIds: [...selectedTcIds],
-					...extra
-				})
-			});
-			if (res.ok) {
-				const result = await res.json();
-				if (action === 'delete') {
-					toast.success(m.tc_bulk_deleted({ count: result.affected }));
-				} else if (action === 'clone') {
-					toast.success(m.tc_bulk_cloned({ count: result.affected }));
-				} else {
-					toast.success(m.tc_bulk_success({ count: result.affected }));
-				}
-				selectedTcIds = new Set();
-				await invalidateAll();
-			} else {
-				const err = await res.json();
-				toast.error(err.error || 'Bulk operation failed');
-			}
-		} catch {
-			toast.error(m.error_operation_failed());
-		} finally {
-			bulkLoading = false;
-			bulkDeleteOpen = false;
-		}
-	}
-
-	async function bulkAddToSuite(suiteId: number) {
-		if (selectedTcIds.size === 0 || bulkLoading) return;
-		bulkLoading = true;
-		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-suites/${suiteId}/items`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ testCaseIds: [...selectedTcIds] })
-			});
-			if (res.ok) {
-				toast.success(m.suite_updated());
-				selectedTcIds = new Set();
-			} else {
-				const err = await res.json();
-				toast.error(err.error || m.error_operation_failed());
-			}
-		} catch {
-			toast.error(m.error_operation_failed());
-		} finally {
-			bulkLoading = false;
-		}
-	}
-
 	// --- Group management ---
 	function toggleGroupCollapse(groupId: number) {
 		const next = new Set(collapsedGroups);
@@ -680,30 +508,6 @@
 		try {
 			localStorage.setItem(collapsedStorageKey, JSON.stringify([...next]));
 		} catch { /* ignore */ }
-	}
-
-	async function createGroup() {
-		if (!newGroupName.trim() || creatingGroup) return;
-		creatingGroup = true;
-		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-case-groups`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: newGroupName.trim() })
-			});
-			if (res.ok) {
-				toast.success(m.group_created());
-				newGroupName = '';
-				await invalidateAll();
-			} else {
-				const err = await res.json();
-				toast.error(err.error || 'Failed to create group');
-			}
-		} catch {
-			toast.error(m.error_operation_failed());
-		} finally {
-			creatingGroup = false;
-		}
 	}
 
 	function startEditGroupName(groupId: number, currentName: string) {
@@ -723,20 +527,11 @@
 		if (group && group.name === newName) return;
 
 		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-case-groups/${gId}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: newName })
-			});
-			if (res.ok) {
-				toast.success(m.group_updated());
-				await invalidateAll();
-			} else {
-				const err = await res.json();
-				toast.error(err.error || 'Failed to update group');
-			}
+			await apiPatch(`/api/projects/${data.project.id}/test-case-groups/${gId}`, { name: newName });
+			toast.success(m.group_updated());
+			await invalidateAll();
 		} catch {
-			toast.error(m.error_update_failed());
+			// error toast handled by apiPatch
 		}
 	}
 
@@ -751,20 +546,15 @@
 	async function deleteGroup() {
 		if (deleteGroupId === null) return;
 		try {
-			const res = await fetch(
-				`/api/projects/${data.project.id}/test-case-groups/${deleteGroupId}`,
-				{ method: 'DELETE' }
+			await apiDelete(
+				`/api/projects/${data.project.id}/test-case-groups/${deleteGroupId}`
 			);
-			if (res.ok) {
-				toast.success(m.group_deleted());
-				deleteGroupOpen = false;
-				deleteGroupId = null;
-				await invalidateAll();
-			} else {
-				toast.error(m.error_delete_failed());
-			}
+			toast.success(m.group_deleted());
+			deleteGroupOpen = false;
+			deleteGroupId = null;
+			await invalidateAll();
 		} catch {
-			toast.error(m.error_delete_failed());
+			// error toast handled by apiDelete
 		}
 	}
 
@@ -778,17 +568,9 @@
 		// Persist new order
 		const reorderPayload = dndGroups.map((g, i) => ({ id: g.id, sortOrder: (i + 1) * 1000 }));
 		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-case-groups/reorder`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ groups: reorderPayload })
-			});
-			if (!res.ok) {
-				toast.error(m.error_operation_failed());
-				await invalidateAll();
-			}
+			await apiPut(`/api/projects/${data.project.id}/test-case-groups/reorder`, { groups: reorderPayload });
 		} catch {
-			toast.error(m.error_operation_failed());
+			// error toast handled by apiPut
 			await invalidateAll();
 		}
 	}
@@ -832,17 +614,9 @@
 		if (items.length === 0) return;
 
 		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-cases/reorder`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ items })
-			});
-			if (!res.ok) {
-				toast.error(m.error_operation_failed());
-				await invalidateAll();
-			}
+			await apiPut(`/api/projects/${data.project.id}/test-cases/reorder`, { items });
 		} catch {
-			toast.error(m.error_operation_failed());
+			// error toast handled by apiPut
 			await invalidateAll();
 		}
 	}
@@ -884,216 +658,25 @@
 		</div>
 	</div>
 
-	<div class="flex flex-wrap items-center gap-2">
-		<Input
-			placeholder={m.tc_search_placeholder()}
-			class="h-7 max-w-xs text-xs"
-			bind:value={searchInput}
-			oninput={handleSearch}
-			aria-label={m.tc_search_placeholder()}
-		/>
-
-		<!-- Priority filter -->
-		<Popover.Root>
-			<Popover.Trigger>
-				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
-						{m.common_priority()}{selectedPriorities.length > 0 ? ` (${selectedPriorities.length})` : ''}
-					</Button>
-				{/snippet}
-			</Popover.Trigger>
-			<Popover.Content class="w-40 p-2" align="start">
-				{#each priorityOptions as p}
-					<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
-						<Checkbox checked={selectedPriorities.includes(p)} onCheckedChange={() => toggleFilter('priority', p)} />
-						<Badge variant={priorityVariant(p)} class="text-[10px] px-1.5 py-0 pointer-events-none">{p}</Badge>
-					</label>
-				{/each}
-			</Popover.Content>
-		</Popover.Root>
-
-		<!-- Suite filter -->
-		{#if data.projectSuites.length > 0}
-			<Popover.Root>
-				<Popover.Trigger>
-					{#snippet child({ props })}
-						<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
-							{m.tc_filter_suite()}{selectedSuiteIds.length > 0 ? ` (${selectedSuiteIds.length})` : ''}
-						</Button>
-					{/snippet}
-				</Popover.Trigger>
-				<Popover.Content class="w-48 p-2" align="start">
-					{#each data.projectSuites as s (s.id)}
-						<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
-							<Checkbox checked={selectedSuiteIds.includes(String(s.id))} onCheckedChange={() => toggleFilter('suiteId', String(s.id))} />
-							{s.name}
-						</label>
-					{/each}
-				</Popover.Content>
-			</Popover.Root>
-		{/if}
-
-		<!-- Execution status filter (only when runs are selected) -->
-		{#if data.selectedRunIds.length > 0}
-			<Popover.Root>
-				<Popover.Trigger>
-					{#snippet child({ props })}
-						<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
-							{m.tc_filter_exec_status()}{selectedExecStatuses.length > 0 ? ` (${selectedExecStatuses.length})` : ''}
-						</Button>
-					{/snippet}
-				</Popover.Trigger>
-				<Popover.Content class="w-44 p-2" align="start">
-					{#each execStatusOptions as st}
-						<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
-							<Checkbox checked={selectedExecStatuses.includes(st)} onCheckedChange={() => toggleFilter('execStatus', st)} />
-							<span class={statusColor(st)}>{st}</span>
-						</label>
-					{/each}
-				</Popover.Content>
-			</Popover.Root>
-		{/if}
-
-		<!-- Group filter (single-select) -->
-		{#if data.groups.length > 0}
-			{@const selectedGroupName = selectedGroupId === 'uncategorized' ? m.tc_filter_uncategorized() : data.groups.find((g) => String(g.id) === selectedGroupId)?.name}
-			<Popover.Root>
-				<Popover.Trigger>
-					{#snippet child({ props })}
-						<Button variant="outline" size="sm" class="h-7 px-2 text-xs gap-1" {...props}>
-							{selectedGroupName ?? m.tc_filter_group()}
-							{#if selectedGroupId}
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<span
-									class="ml-0.5 -mr-1 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
-									onclick={(e) => { e.stopPropagation(); setSingleFilter('groupId', selectedGroupId); }}
-									role="button"
-									tabindex="-1"
-								>
-									<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-								</span>
-							{/if}
-						</Button>
-					{/snippet}
-				</Popover.Trigger>
-				<Popover.Content class="w-48 p-1" align="start">
-					<button
-						type="button"
-						class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer {selectedGroupId === 'uncategorized' ? 'bg-muted font-medium' : ''}"
-						onclick={() => setSingleFilter('groupId', 'uncategorized')}
-					>
-						{m.tc_filter_uncategorized()}
-					</button>
-					{#each data.groups as g (g.id)}
-						<button
-							type="button"
-							class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer {selectedGroupId === String(g.id) ? 'bg-muted font-medium' : ''}"
-							onclick={() => setSingleFilter('groupId', String(g.id))}
-						>
-							{#if g.color}
-								<span class="inline-block h-2 w-2 shrink-0 rounded-full" style="background-color: {g.color}"></span>
-							{/if}
-							{g.name}
-						</button>
-					{/each}
-				</Popover.Content>
-			</Popover.Root>
-		{/if}
-
-		<!-- Tag filter -->
-		{#if data.projectTags.length > 0}
-			<Popover.Root>
-				<Popover.Trigger>
-					{#snippet child({ props })}
-						<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
-							{m.nav_tags()}{selectedTagIds.length > 0 ? ` (${selectedTagIds.length})` : ''}
-						</Button>
-					{/snippet}
-				</Popover.Trigger>
-				<Popover.Content class="w-48 p-2" align="start">
-					{#each data.projectTags as t (t.id)}
-						<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
-							<Checkbox checked={selectedTagIds.includes(t.id)} onCheckedChange={() => toggleFilter('tagIds', String(t.id))} />
-							<span class="inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
-							{t.name}
-						</label>
-					{/each}
-				</Popover.Content>
-			</Popover.Root>
-		{/if}
-
-		<!-- CreatedBy filter -->
-		{#if data.projectMembers.length > 0}
-			<Popover.Root>
-				<Popover.Trigger>
-					{#snippet child({ props })}
-						<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
-							{m.tc_filter_created_by()}{selectedCreatedByIds.length > 0 ? ` (${selectedCreatedByIds.length})` : ''}
-						</Button>
-					{/snippet}
-				</Popover.Trigger>
-				<Popover.Content class="w-48 p-2" align="start">
-					{#each data.projectMembers as member}
-						<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
-							<Checkbox checked={selectedCreatedByIds.includes(member.userId)} onCheckedChange={() => toggleFilter('createdBy', member.userId)} />
-							{member.userName}
-						</label>
-					{/each}
-				</Popover.Content>
-			</Popover.Root>
-
-			<!-- Assignee filter -->
-			<Popover.Root>
-				<Popover.Trigger>
-					{#snippet child({ props })}
-						<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
-							{m.tc_filter_assignee()}{selectedAssigneeIds.length > 0 ? ` (${selectedAssigneeIds.length})` : ''}
-						</Button>
-					{/snippet}
-				</Popover.Trigger>
-				<Popover.Content class="w-48 p-2" align="start">
-					{#each data.projectMembers as member}
-						<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
-							<Checkbox checked={selectedAssigneeIds.includes(member.userId)} onCheckedChange={() => toggleFilter('assigneeId', member.userId)} />
-							{member.userName}
-						</label>
-					{/each}
-				</Popover.Content>
-			</Popover.Root>
-		{/if}
-
-		<!-- Clear all filters -->
-		{#if hasActiveFilters}
-			<Button
-				variant="ghost"
-				size="sm"
-				class="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-				onclick={clearAllFilters}
-			>
-				{m.tc_filter_clear()}
-			</Button>
-		{/if}
-
-		<!-- New group input -->
-		{#if canEdit}
-			<div class="flex items-center gap-1 ml-auto">
-				<Input
-					placeholder={m.group_name_placeholder()}
-					class="h-7 w-40 text-xs"
-					bind:value={newGroupName}
-					onkeydown={(e) => { if (e.key === 'Enter') createGroup(); }}
-				/>
-				<Button
-					size="sm"
-					class="h-7 px-2 text-xs"
-					disabled={!newGroupName.trim() || creatingGroup}
-					onclick={createGroup}
-				>
-					{m.group_new()}
-				</Button>
-			</div>
-		{/if}
-	</div>
+	<TestCaseFilterBar
+		{basePath}
+		projectId={data.project.id}
+		{canEdit}
+		{hasActiveFilters}
+		search={data.search}
+		priority={data.priority}
+		tagIds={data.tagIds}
+		groupId={data.groupId}
+		createdBy={data.createdBy}
+		assigneeId={data.assigneeId}
+		suiteId={data.suiteId}
+		execStatus={data.execStatus}
+		projectTags={data.projectTags}
+		groups={data.groups}
+		projectSuites={data.projectSuites}
+		projectMembers={data.projectMembers}
+		selectedRunIds={data.selectedRunIds}
+	/>
 
 	<!-- Run column selector -->
 	{#if data.projectRuns.length > 0}
@@ -1132,172 +715,18 @@
 		</div>
 	{/if}
 
-	<!-- Bulk Action Bar -->
 	{#if selectedTcIds.size > 0 && canEdit}
-		<div class="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 px-4 py-2">
-			<span class="text-sm font-medium">{m.tc_bulk_selected({ count: selectedTcIds.size })}</span>
-			<div class="h-4 w-px bg-border"></div>
-
-			<!-- Bulk Add Tag -->
-			{#if data.projectTags.length > 0}
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger>
-						{#snippet child({ props })}
-							<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.tc_bulk_add_tag()}</Button>
-						{/snippet}
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="start" class="min-w-[140px]">
-						{#each data.projectTags as t (t.id)}
-							<DropdownMenu.Item onclick={() => bulkAction('addTag', { tagId: t.id })} class="text-xs">
-								<span class="mr-1.5 inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
-								{t.name}
-							</DropdownMenu.Item>
-						{/each}
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
-
-				<!-- Bulk Remove Tag -->
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger>
-						{#snippet child({ props })}
-							<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.tc_bulk_remove_tag()}</Button>
-						{/snippet}
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="start" class="min-w-[140px]">
-						{#each data.projectTags as t (t.id)}
-							<DropdownMenu.Item onclick={() => bulkAction('removeTag', { tagId: t.id })} class="text-xs">
-								<span class="mr-1.5 inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
-								{t.name}
-							</DropdownMenu.Item>
-						{/each}
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
-			{/if}
-
-			<!-- Bulk Add Assignee -->
-			{#if data.projectMembers.length > 0}
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger>
-						{#snippet child({ props })}
-							<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.tc_bulk_add_assignee()}</Button>
-						{/snippet}
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="start" class="min-w-[140px]">
-						{#each data.projectMembers as member}
-							<DropdownMenu.Item onclick={() => bulkAction('addAssignee', { userId: member.userId })} class="text-xs">
-								{member.userName}
-							</DropdownMenu.Item>
-						{/each}
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
-
-				<!-- Bulk Remove Assignee -->
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger>
-						{#snippet child({ props })}
-							<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.tc_bulk_remove_assignee()}</Button>
-						{/snippet}
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="start" class="min-w-[140px]">
-						{#each data.projectMembers as member}
-							<DropdownMenu.Item onclick={() => bulkAction('removeAssignee', { userId: member.userId })} class="text-xs">
-								{member.userName}
-							</DropdownMenu.Item>
-						{/each}
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
-			{/if}
-
-			<!-- Bulk Set Priority -->
-			<DropdownMenu.Root>
-				<DropdownMenu.Trigger>
-					{#snippet child({ props })}
-						<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.tc_bulk_set_priority()}</Button>
-					{/snippet}
-				</DropdownMenu.Trigger>
-				<DropdownMenu.Content align="start" class="min-w-[120px]">
-					{#each priorityOptions as p}
-						<DropdownMenu.Item onclick={() => bulkAction('setPriority', { priority: p })} class="text-xs">
-							<Badge variant={priorityVariant(p)} class="text-[10px] px-1.5 py-0 pointer-events-none">{p}</Badge>
-						</DropdownMenu.Item>
-					{/each}
-				</DropdownMenu.Content>
-			</DropdownMenu.Root>
-
-			<!-- Bulk Move to Group -->
-			{#if data.groups.length > 0}
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger>
-						{#snippet child({ props })}
-							<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.tc_bulk_move_group()}</Button>
-						{/snippet}
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="start" class="min-w-[140px]">
-						<DropdownMenu.Item onclick={() => bulkAction('moveToGroup', { groupId: null })} class="text-xs">
-							{m.tc_filter_uncategorized()}
-						</DropdownMenu.Item>
-						{#each data.groups as g (g.id)}
-							<DropdownMenu.Item onclick={() => bulkAction('moveToGroup', { groupId: g.id })} class="text-xs">
-								{g.name}
-							</DropdownMenu.Item>
-						{/each}
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
-			{/if}
-
-			<!-- Bulk Add to Suite -->
-			{#if data.projectSuites.length > 0}
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger>
-						{#snippet child({ props })}
-							<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.suite_add_cases()}</Button>
-						{/snippet}
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="start" class="min-w-[140px]">
-						{#each data.projectSuites as s (s.id)}
-							<DropdownMenu.Item onclick={() => bulkAddToSuite(s.id)} class="text-xs">
-								{s.name}
-							</DropdownMenu.Item>
-						{/each}
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
-			{/if}
-
-			<!-- Bulk Clone -->
-			<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} onclick={() => bulkAction('clone')}>
-				{m.tc_bulk_clone()}
-			</Button>
-
-			<!-- Bulk Delete -->
-			{#if canDelete}
-				<AlertDialog.Root bind:open={bulkDeleteOpen}>
-					<AlertDialog.Trigger>
-						{#snippet child({ props })}
-							<Button variant="destructive" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}>{m.tc_bulk_delete()}</Button>
-						{/snippet}
-					</AlertDialog.Trigger>
-					<AlertDialog.Portal>
-						<AlertDialog.Overlay />
-						<AlertDialog.Content>
-							<AlertDialog.Header>
-								<AlertDialog.Title>{m.tc_bulk_delete_title()}</AlertDialog.Title>
-								<AlertDialog.Description>
-									{m.tc_bulk_delete_confirm({ count: selectedTcIds.size })}
-								</AlertDialog.Description>
-							</AlertDialog.Header>
-							<AlertDialog.Footer>
-								<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-								<Button variant="destructive" disabled={bulkLoading} onclick={() => bulkAction('delete')}>{m.common_delete()}</Button>
-							</AlertDialog.Footer>
-						</AlertDialog.Content>
-					</AlertDialog.Portal>
-				</AlertDialog.Root>
-			{/if}
-
-			<Button variant="ghost" size="sm" class="h-7 text-xs ml-auto" onclick={() => { selectedTcIds = new Set(); }}>
-				{m.common_cancel()}
-			</Button>
-		</div>
+		<TestCaseBulkActionBar
+			{selectedTcIds}
+			projectId={data.project.id}
+			projectTags={data.projectTags}
+			projectMembers={data.projectMembers}
+			groups={data.groups}
+			projectSuites={data.projectSuites}
+			{canDelete}
+			oncomplete={() => { selectedTcIds = new Set(); invalidateAll(); }}
+			onclear={() => { selectedTcIds = new Set(); }}
+		/>
 	{/if}
 
 	{#if data.testCases.length === 0 && !hasActiveFilters}

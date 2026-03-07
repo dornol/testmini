@@ -1,0 +1,346 @@
+<script lang="ts">
+	import { goto, invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
+	import * as Popover from '$lib/components/ui/popover/index.js';
+	import * as m from '$lib/paraglide/messages.js';
+	import { toast } from 'svelte-sonner';
+	import { apiPost } from '$lib/api-client';
+
+	interface Props {
+		basePath: string;
+		projectId: number;
+		canEdit: boolean;
+		hasActiveFilters: boolean;
+		search: string;
+		priority: string;
+		tagIds: string;
+		groupId: string;
+		createdBy: string;
+		assigneeId: string;
+		suiteId: string;
+		execStatus: string;
+		projectTags: { id: number; name: string; color: string }[];
+		groups: { id: number; name: string; sortOrder: number; color: string | null }[];
+		projectSuites: { id: number; name: string }[];
+		projectMembers: { userId: string; userName: string }[];
+		selectedRunIds: number[];
+	}
+
+	let {
+		basePath, projectId, canEdit, hasActiveFilters,
+		search, priority, tagIds, groupId, createdBy, assigneeId, suiteId, execStatus,
+		projectTags, groups, projectSuites, projectMembers, selectedRunIds
+	}: Props = $props();
+
+	const priorityOptions = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+	const execStatusOptions = ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING', 'NOT_EXECUTED'];
+
+	let searchInput = $state('');
+	let searchTimeout: ReturnType<typeof setTimeout>;
+	let newGroupName = $state('');
+	let creatingGroup = $state(false);
+
+	$effect(() => {
+		searchInput = search;
+	});
+
+	function parseMulti(val: string): string[] {
+		return val ? val.split(',').filter(Boolean) : [];
+	}
+
+	const selectedTagIds = $derived(
+		(tagIds ?? '').split(',').map(Number).filter((id) => !isNaN(id) && id > 0)
+	);
+	const selectedPriorities = $derived(parseMulti(priority));
+	const selectedSuiteIds = $derived(parseMulti(suiteId));
+	const selectedExecStatuses = $derived(parseMulti(execStatus));
+	const selectedCreatedByIds = $derived(parseMulti(createdBy));
+	const selectedAssigneeIds = $derived(parseMulti(assigneeId));
+	const selectedGroupId = $derived(groupId || '');
+
+	function priorityVariant(p: string): 'default' | 'secondary' | 'outline' | 'destructive' {
+		switch (p) {
+			case 'CRITICAL': return 'destructive';
+			case 'HIGH': return 'default';
+			case 'MEDIUM': return 'secondary';
+			default: return 'outline';
+		}
+	}
+
+	function statusColor(status: string): string {
+		switch (status) {
+			case 'PASS': return 'text-green-600 dark:text-green-400';
+			case 'FAIL': return 'text-red-600 dark:text-red-400';
+			case 'BLOCKED': return 'text-yellow-600 dark:text-yellow-400';
+			case 'SKIPPED': return 'text-gray-500';
+			default: return 'text-muted-foreground';
+		}
+	}
+
+	function handleSearch() {
+		clearTimeout(searchTimeout);
+		searchTimeout = setTimeout(() => {
+			const params = new URLSearchParams(page.url.searchParams);
+			if (searchInput) {
+				params.set('search', searchInput);
+			} else {
+				params.delete('search');
+			}
+			params.delete('page');
+			goto(`${basePath}?${params.toString()}`, { keepFocus: true });
+		}, 300);
+	}
+
+	function toggleFilter(paramName: string, value: string) {
+		const params = new URLSearchParams(page.url.searchParams);
+		const current = parseMulti(params.get(paramName) ?? '');
+		const idx = current.indexOf(value);
+		if (idx >= 0) current.splice(idx, 1);
+		else current.push(value);
+		if (current.length > 0) params.set(paramName, current.join(','));
+		else params.delete(paramName);
+		goto(`${basePath}?${params.toString()}`);
+	}
+
+	function setSingleFilter(paramName: string, value: string) {
+		const params = new URLSearchParams(page.url.searchParams);
+		const current = params.get(paramName) ?? '';
+		if (current === value) params.delete(paramName);
+		else params.set(paramName, value);
+		goto(`${basePath}?${params.toString()}`);
+	}
+
+	function clearAllFilters() {
+		goto(basePath);
+	}
+
+	async function createGroup() {
+		if (!newGroupName.trim() || creatingGroup) return;
+		creatingGroup = true;
+		try {
+			await apiPost(`/api/projects/${projectId}/test-case-groups`, { name: newGroupName.trim() });
+			toast.success(m.group_created());
+			newGroupName = '';
+			await invalidateAll();
+		} catch {
+			// error toast handled by apiPost
+		} finally {
+			creatingGroup = false;
+		}
+	}
+</script>
+
+<div class="flex flex-wrap items-center gap-2">
+	<Input
+		placeholder={m.tc_search_placeholder()}
+		class="h-7 max-w-xs text-xs"
+		bind:value={searchInput}
+		oninput={handleSearch}
+		aria-label={m.tc_search_placeholder()}
+	/>
+
+	<!-- Priority filter -->
+	<Popover.Root>
+		<Popover.Trigger>
+			{#snippet child({ props })}
+				<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+					{m.common_priority()}{selectedPriorities.length > 0 ? ` (${selectedPriorities.length})` : ''}
+				</Button>
+			{/snippet}
+		</Popover.Trigger>
+		<Popover.Content class="w-40 p-2" align="start">
+			{#each priorityOptions as p}
+				<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
+					<Checkbox checked={selectedPriorities.includes(p)} onCheckedChange={() => toggleFilter('priority', p)} />
+					<Badge variant={priorityVariant(p)} class="text-[10px] px-1.5 py-0 pointer-events-none">{p}</Badge>
+				</label>
+			{/each}
+		</Popover.Content>
+	</Popover.Root>
+
+	<!-- Suite filter -->
+	{#if projectSuites.length > 0}
+		<Popover.Root>
+			<Popover.Trigger>
+				{#snippet child({ props })}
+					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+						{m.tc_filter_suite()}{selectedSuiteIds.length > 0 ? ` (${selectedSuiteIds.length})` : ''}
+					</Button>
+				{/snippet}
+			</Popover.Trigger>
+			<Popover.Content class="w-48 p-2" align="start">
+				{#each projectSuites as s (s.id)}
+					<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
+						<Checkbox checked={selectedSuiteIds.includes(String(s.id))} onCheckedChange={() => toggleFilter('suiteId', String(s.id))} />
+						{s.name}
+					</label>
+				{/each}
+			</Popover.Content>
+		</Popover.Root>
+	{/if}
+
+	<!-- Execution status filter (only when runs are selected) -->
+	{#if selectedRunIds.length > 0}
+		<Popover.Root>
+			<Popover.Trigger>
+				{#snippet child({ props })}
+					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+						{m.tc_filter_exec_status()}{selectedExecStatuses.length > 0 ? ` (${selectedExecStatuses.length})` : ''}
+					</Button>
+				{/snippet}
+			</Popover.Trigger>
+			<Popover.Content class="w-44 p-2" align="start">
+				{#each execStatusOptions as st}
+					<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
+						<Checkbox checked={selectedExecStatuses.includes(st)} onCheckedChange={() => toggleFilter('execStatus', st)} />
+						<span class={statusColor(st)}>{st}</span>
+					</label>
+				{/each}
+			</Popover.Content>
+		</Popover.Root>
+	{/if}
+
+	<!-- Group filter (single-select) -->
+	{#if groups.length > 0}
+		{@const selectedGroupName = selectedGroupId === 'uncategorized' ? m.tc_filter_uncategorized() : groups.find((g) => String(g.id) === selectedGroupId)?.name}
+		<Popover.Root>
+			<Popover.Trigger>
+				{#snippet child({ props })}
+					<Button variant="outline" size="sm" class="h-7 px-2 text-xs gap-1" {...props}>
+						{selectedGroupName ?? m.tc_filter_group()}
+						{#if selectedGroupId}
+							<!-- svelte-ignore a11y_no_static_element_interactions -->
+							<span
+								class="ml-0.5 -mr-1 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
+								onclick={(e) => { e.stopPropagation(); setSingleFilter('groupId', selectedGroupId); }}
+								role="button"
+								tabindex="-1"
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+							</span>
+						{/if}
+					</Button>
+				{/snippet}
+			</Popover.Trigger>
+			<Popover.Content class="w-48 p-1" align="start">
+				<button
+					type="button"
+					class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer {selectedGroupId === 'uncategorized' ? 'bg-muted font-medium' : ''}"
+					onclick={() => setSingleFilter('groupId', 'uncategorized')}
+				>
+					{m.tc_filter_uncategorized()}
+				</button>
+				{#each groups as g (g.id)}
+					<button
+						type="button"
+						class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer {selectedGroupId === String(g.id) ? 'bg-muted font-medium' : ''}"
+						onclick={() => setSingleFilter('groupId', String(g.id))}
+					>
+						{#if g.color}
+							<span class="inline-block h-2 w-2 shrink-0 rounded-full" style="background-color: {g.color}"></span>
+						{/if}
+						{g.name}
+					</button>
+				{/each}
+			</Popover.Content>
+		</Popover.Root>
+	{/if}
+
+	<!-- Tag filter -->
+	{#if projectTags.length > 0}
+		<Popover.Root>
+			<Popover.Trigger>
+				{#snippet child({ props })}
+					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+						{m.nav_tags()}{selectedTagIds.length > 0 ? ` (${selectedTagIds.length})` : ''}
+					</Button>
+				{/snippet}
+			</Popover.Trigger>
+			<Popover.Content class="w-48 p-2" align="start">
+				{#each projectTags as t (t.id)}
+					<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
+						<Checkbox checked={selectedTagIds.includes(t.id)} onCheckedChange={() => toggleFilter('tagIds', String(t.id))} />
+						<span class="inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
+						{t.name}
+					</label>
+				{/each}
+			</Popover.Content>
+		</Popover.Root>
+	{/if}
+
+	<!-- CreatedBy filter -->
+	{#if projectMembers.length > 0}
+		<Popover.Root>
+			<Popover.Trigger>
+				{#snippet child({ props })}
+					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+						{m.tc_filter_created_by()}{selectedCreatedByIds.length > 0 ? ` (${selectedCreatedByIds.length})` : ''}
+					</Button>
+				{/snippet}
+			</Popover.Trigger>
+			<Popover.Content class="w-48 p-2" align="start">
+				{#each projectMembers as member}
+					<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
+						<Checkbox checked={selectedCreatedByIds.includes(member.userId)} onCheckedChange={() => toggleFilter('createdBy', member.userId)} />
+						{member.userName}
+					</label>
+				{/each}
+			</Popover.Content>
+		</Popover.Root>
+
+		<!-- Assignee filter -->
+		<Popover.Root>
+			<Popover.Trigger>
+				{#snippet child({ props })}
+					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+						{m.tc_filter_assignee()}{selectedAssigneeIds.length > 0 ? ` (${selectedAssigneeIds.length})` : ''}
+					</Button>
+				{/snippet}
+			</Popover.Trigger>
+			<Popover.Content class="w-48 p-2" align="start">
+				{#each projectMembers as member}
+					<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
+						<Checkbox checked={selectedAssigneeIds.includes(member.userId)} onCheckedChange={() => toggleFilter('assigneeId', member.userId)} />
+						{member.userName}
+					</label>
+				{/each}
+			</Popover.Content>
+		</Popover.Root>
+	{/if}
+
+	<!-- Clear all filters -->
+	{#if hasActiveFilters}
+		<Button
+			variant="ghost"
+			size="sm"
+			class="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+			onclick={clearAllFilters}
+		>
+			{m.tc_filter_clear()}
+		</Button>
+	{/if}
+
+	<!-- New group input -->
+	{#if canEdit}
+		<div class="flex items-center gap-1 ml-auto">
+			<Input
+				placeholder={m.group_name_placeholder()}
+				class="h-7 w-40 text-xs"
+				bind:value={newGroupName}
+				onkeydown={(e) => { if (e.key === 'Enter') createGroup(); }}
+			/>
+			<Button
+				size="sm"
+				class="h-7 px-2 text-xs"
+				disabled={!newGroupName.trim() || creatingGroup}
+				onclick={createGroup}
+			>
+				{m.group_new()}
+			</Button>
+		</div>
+	{/if}
+</div>

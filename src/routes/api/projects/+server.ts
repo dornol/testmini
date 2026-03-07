@@ -1,14 +1,13 @@
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { project, projectMember } from '$lib/server/db/schema';
-import { requireAuth, isGlobalAdmin, parseJsonBody } from '$lib/server/auth-utils';
+import { isGlobalAdmin, parseJsonBody } from '$lib/server/auth-utils';
 import { createProjectSchema } from '$lib/schemas/project.schema';
 import { and, eq, ilike, count, inArray, sql } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
+import { withAuth } from '$lib/server/api-handler';
 
-export const GET: RequestHandler = async ({ locals, url }) => {
-	const user = requireAuth(locals);
+export const GET = withAuth(async ({ user, url }) => {
 
 	const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'));
 	const limit = Math.min(50, Math.max(1, Number(url.searchParams.get('limit') ?? '12')));
@@ -65,10 +64,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			totalPages: Math.ceil(total / limit)
 		}
 	});
-};
+});
 
-export const POST: RequestHandler = async ({ locals, request }) => {
-	const user = requireAuth(locals);
+export const POST = withAuth(async ({ user, request }) => {
 
 	const body = await parseJsonBody(request);
 	const result = createProjectSchema.safeParse(body);
@@ -110,4 +108,4 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	});
 
 	return json({ data: newProject }, { status: 201 });
-};
+});

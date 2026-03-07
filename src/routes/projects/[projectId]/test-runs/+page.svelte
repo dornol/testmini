@@ -12,6 +12,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as m from '$lib/paraglide/messages.js';
+	import { apiPatch, apiPost, apiDelete } from '$lib/api-client';
 
 	let { data } = $props();
 
@@ -86,19 +87,12 @@
 		if (!editRunId) return;
 		editRunSaving = true;
 		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-runs/${editRunId}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: editRunName, environment: editRunEnv })
-			});
-			if (!res.ok) {
-				const err = await res.json();
-				toast.error(err.error ?? 'Failed to update');
-				return;
-			}
+			await apiPatch(`/api/projects/${data.project.id}/test-runs/${editRunId}`, { name: editRunName, environment: editRunEnv });
 			editDialogOpen = false;
 			toast.success(m.tr_updated());
 			await invalidateAll();
+		} catch {
+			// error toast handled by apiPatch
 		} finally {
 			editRunSaving = false;
 		}
@@ -108,19 +102,12 @@
 		if (!cloneRunId) return;
 		cloneRunSaving = true;
 		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-runs/${cloneRunId}/clone`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: cloneRunName })
-			});
-			if (!res.ok) {
-				toast.error(m.error_clone_failed());
-				return;
-			}
-			const { id } = await res.json();
+			const { id } = await apiPost<{ id: number }>(`/api/projects/${data.project.id}/test-runs/${cloneRunId}/clone`, { name: cloneRunName });
 			cloneDialogOpen = false;
 			toast.success(m.tr_cloned());
 			goto(`${basePath}/${id}`);
+		} catch {
+			// error toast handled by apiPost
 		} finally {
 			cloneRunSaving = false;
 		}
@@ -130,16 +117,12 @@
 		if (!deleteRunId) return;
 		deleteRunSaving = true;
 		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-runs/${deleteRunId}`, {
-				method: 'DELETE'
-			});
-			if (!res.ok) {
-				toast.error(m.error_delete_failed());
-				return;
-			}
+			await apiDelete(`/api/projects/${data.project.id}/test-runs/${deleteRunId}`);
 			deleteDialogOpen = false;
 			toast.success(m.tr_deleted());
 			await invalidateAll();
+		} catch {
+			// error toast handled by apiDelete
 		} finally {
 			deleteRunSaving = false;
 		}

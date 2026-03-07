@@ -1,23 +1,15 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testExecution, testRun } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectRole } from '$lib/server/api-handler';
 import { publish } from '$lib/server/redis';
 import type { RunEvent } from '$lib/types/events';
 
-export const PUT: RequestHandler = async ({ params, request, locals }) => {
-	const user = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, user, projectId }) => {
 	const runId = Number(params.runId);
 	const executionId = Number(params.executionId);
-
-	if (isNaN(projectId) || isNaN(runId) || isNaN(executionId)) {
-		error(400, 'Invalid parameters');
-	}
-
-	await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 	const body = await parseJsonBody(request) as Record<string, unknown>;
 	const { status } = body as { status: string };
@@ -69,7 +61,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	await publish(`run:${runId}:events`, event);
 
 	return json({ success: true, status });
-};
+});
 
 async function autoUpdateRunStatus(runId: number) {
 	// Only transition CREATED → IN_PROGRESS on first execution

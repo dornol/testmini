@@ -1,5 +1,4 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import {
 	testCase,
@@ -9,7 +8,7 @@ import {
 	testCaseTag
 } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { withProjectRole } from '$lib/server/api-handler';
 
 function parseCSV(text: string): string[][] {
 	const rows: string[][] = [];
@@ -110,10 +109,7 @@ function normalizeRow(obj: Record<string, string>): ImportRow {
 	};
 }
 
-export const POST: RequestHandler = async ({ params, locals, request }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA']);
+export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, user, projectId }) => {
 
 	const formData = await request.formData();
 	const file = formData.get('file') as File | null;
@@ -232,7 +228,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 						key,
 						groupId,
 						sortOrder,
-						createdBy: authUser.id
+						createdBy: user.id
 					})
 					.returning();
 
@@ -246,7 +242,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 						steps: row.steps,
 						expectedResult: row.expectedResult || null,
 						priority: row.priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
-						updatedBy: authUser.id
+						updatedBy: user.id
 					})
 					.returning();
 
@@ -281,4 +277,4 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	rowResults.sort((a, b) => a.row - b.row);
 
 	return json({ imported, errors, rows: rowResults });
-};
+});

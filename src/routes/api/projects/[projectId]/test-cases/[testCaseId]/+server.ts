@@ -1,19 +1,15 @@
-import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
-import { testCase, testCaseVersion, user, tag, testCaseTag, testCaseAssignee, projectMember } from '$lib/server/db/schema';
+import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
+import { testCase, testCaseVersion, user } from '$lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
+import { loadTestCaseMetadata } from '$lib/server/queries';
 
-export const GET: RequestHandler = async ({ params, locals }) => {
-	requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const testCaseId = Number(params.testCaseId);
 
-	const tc = await db.query.testCase.findFirst({
-		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)),
-		with: { latestVersion: true }
-	});
+	const tc = await findTestCaseWithLatestVersion(testCaseId, projectId);
 
 	if (!tc) {
 		error(404, 'Test case not found');
@@ -33,39 +29,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		.where(eq(testCaseVersion.testCaseId, testCaseId))
 		.orderBy(desc(testCaseVersion.versionNo));
 
-	const [assignedTags, projectTags, assignedAssignees, projectMembers] = await Promise.all([
-		db
-			.select({ id: tag.id, name: tag.name, color: tag.color })
-			.from(testCaseTag)
-			.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
-			.where(eq(testCaseTag.testCaseId, testCaseId))
-			.orderBy(tag.name),
-		db
-			.select({ id: tag.id, name: tag.name, color: tag.color })
-			.from(tag)
-			.where(eq(tag.projectId, projectId))
-			.orderBy(tag.name),
-		db
-			.select({
-				userId: testCaseAssignee.userId,
-				userName: user.name,
-				userImage: user.image
-			})
-			.from(testCaseAssignee)
-			.innerJoin(user, eq(testCaseAssignee.userId, user.id))
-			.where(eq(testCaseAssignee.testCaseId, testCaseId))
-			.orderBy(user.name),
-		db
-			.select({
-				userId: projectMember.userId,
-				userName: user.name,
-				userImage: user.image
-			})
-			.from(projectMember)
-			.innerJoin(user, eq(projectMember.userId, user.id))
-			.where(eq(projectMember.projectId, projectId))
-			.orderBy(user.name)
-	]);
+	const { assignedTags, projectTags, assignedAssignees, projectMembers } =
+		await loadTestCaseMetadata(testCaseId, projectId);
 
 	return json({
 		testCase: {
@@ -81,13 +46,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		assignedAssignees,
 		projectMembers
 	});
-};
+});
 
-export const PATCH: RequestHandler = async ({ params, request, locals }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, user, projectId }) => {
 	const testCaseId = Number(params.testCaseId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 	const body = await parseJsonBody(request);
 	const { key, title, priority, automationKey } = body as {
@@ -97,10 +59,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		automationKey?: string | null;
 	};
 
-	const tc = await db.query.testCase.findFirst({
-		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)),
-		with: { latestVersion: true }
-	});
+	const tc = await findTestCaseWithLatestVersion(testCaseId, projectId);
 
 	if (!tc) {
 		error(404, 'Test case not found');
@@ -156,7 +115,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 				expectedResult: latest.expectedResult,
 				priority: priority ?? latest.priority,
 				revision: nextRevision,
-				updatedBy: authUser.id
+				updatedBy: user.id
 			})
 			.returning();
 
@@ -167,13 +126,10 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	}
 
 	return json({ success: true });
-};
+});
 
-export const PUT: RequestHandler = async ({ params, request, locals }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, user, projectId }) => {
 	const testCaseId = Number(params.testCaseId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 	const body = await parseJsonBody(request);
 	const { title, precondition, steps, expectedResult, priority, revision } = body as {
@@ -193,10 +149,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		return json({ error: 'Invalid priority' }, { status: 400 });
 	}
 
-	const tc = await db.query.testCase.findFirst({
-		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)),
-		with: { latestVersion: true }
-	});
+	const tc = await findTestCaseWithLatestVersion(testCaseId, projectId);
 
 	if (!tc) {
 		error(404, 'Test case not found');
@@ -230,7 +183,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 				expectedResult: expectedResult || null,
 				priority,
 				revision: nextRevision,
-				updatedBy: authUser.id
+				updatedBy: user.id
 			})
 			.returning();
 
@@ -241,13 +194,10 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	});
 
 	return json({ success: true });
-};
+});
 
-export const DELETE: RequestHandler = async ({ params, locals }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
 	const testCaseId = Number(params.testCaseId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
 
 	const tc = await db.query.testCase.findFirst({
 		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
@@ -260,4 +210,4 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	await db.delete(testCase).where(eq(testCase.id, testCaseId));
 
 	return json({ success: true });
-};
+});

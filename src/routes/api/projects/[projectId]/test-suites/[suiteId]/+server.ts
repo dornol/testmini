@@ -1,16 +1,13 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testSuite, testSuiteItem, testCase, testCaseVersion, user } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, requireProjectAccess, parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { updateTestSuiteSchema } from '$lib/schemas/test-suite.schema';
 
-export const GET: RequestHandler = async ({ locals, params }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const suiteId = Number(params.suiteId);
-	await requireProjectAccess(authUser, projectId);
 
 	const suite = await db.query.testSuite.findFirst({
 		where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
@@ -35,13 +32,10 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		.orderBy(testCase.key);
 
 	return json({ ...suite, items });
-};
+});
 
-export const PATCH: RequestHandler = async ({ request, locals, params }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, params, projectId }) => {
 	const suiteId = Number(params.suiteId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA']);
 
 	const suite = await db.query.testSuite.findFirst({
 		where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
@@ -75,13 +69,10 @@ export const PATCH: RequestHandler = async ({ request, locals, params }) => {
 	});
 
 	return json(updated);
-};
+});
 
-export const DELETE: RequestHandler = async ({ locals, params }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const DELETE = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ params, projectId }) => {
 	const suiteId = Number(params.suiteId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA']);
 
 	const suite = await db.query.testSuite.findFirst({
 		where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
@@ -94,4 +85,4 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 	await db.delete(testSuite).where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)));
 
 	return json({ success: true });
-};
+});

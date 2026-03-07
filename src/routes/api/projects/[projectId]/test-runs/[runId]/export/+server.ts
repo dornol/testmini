@@ -1,5 +1,4 @@
 import { error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import {
 	testRun,
@@ -10,19 +9,13 @@ import {
 	user
 } from '$lib/server/db/schema';
 import { eq, and, gt, inArray } from 'drizzle-orm';
-import { requireAuth, requireProjectAccess } from '$lib/server/auth-utils';
+import { formatCsvRow } from '$lib/server/csv-utils';
+import { withProjectAccess } from '$lib/server/api-handler';
 
 const BATCH_SIZE = 100;
 
-function formatCsvRow(cells: (string | null | undefined)[]): string {
-	return cells.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',');
-}
-
-export const GET: RequestHandler = async ({ params, locals }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const runId = Number(params.runId);
-	await requireProjectAccess(authUser, projectId);
 
 	if (isNaN(runId)) {
 		error(400, 'Invalid run ID');
@@ -139,4 +132,4 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			'Content-Disposition': `attachment; filename="${fileName}"`
 		}
 	});
-};
+});

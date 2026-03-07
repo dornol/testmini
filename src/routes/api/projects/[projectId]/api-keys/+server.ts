@@ -1,15 +1,11 @@
-import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { projectApiKey } from '$lib/server/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { withProjectRole } from '$lib/server/api-handler';
 import { generateApiKey, hashApiKey } from '$lib/server/api-key-auth';
 
-export const GET: RequestHandler = async ({ params, locals }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER']);
+export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'], async ({ projectId }) => {
 
 	const keys = await db
 		.select({
@@ -25,12 +21,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		.orderBy(desc(projectApiKey.createdAt));
 
 	return json(keys);
-};
+});
 
-export const POST: RequestHandler = async ({ params, request, locals }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
+export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, projectId }) => {
 
 	let body: { name?: string };
 	try {
@@ -59,7 +52,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			name,
 			keyHash,
 			prefix,
-			createdBy: authUser.id
+			createdBy: user.id
 		})
 		.returning();
 
@@ -74,4 +67,4 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		},
 		{ status: 201 }
 	);
-};
+});

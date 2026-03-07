@@ -12,6 +12,7 @@
 	import VersionDiffDialog from './VersionDiffDialog.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
+	import { apiFetch, apiPut, apiDelete, apiPost } from '$lib/api-client';
 
 	let { projectId, canEdit, canDelete, onchange }: {
 		projectId: number;
@@ -56,19 +57,14 @@
 		diffLoading = true;
 		const [a, b] = compareSelectedVersions.sort((x, y) => x - y);
 		try {
-			const res = await fetch(
+			const data = await apiFetch<{ v1: any; v2: any }>(
 				`/api/projects/${projectId}/test-cases/${selectedTcId}/versions?v1=${a}&v2=${b}`
 			);
-			if (res.ok) {
-				const data = await res.json();
-				diffV1 = data.v1;
-				diffV2 = data.v2;
-				diffDialogOpen = true;
-			} else {
-				toast.error(m.error_operation_failed());
-			}
+			diffV1 = data.v1;
+			diffV2 = data.v2;
+			diffDialogOpen = true;
 		} catch {
-			toast.error(m.error_operation_failed());
+			// error toast handled by apiFetch
 		} finally {
 			diffLoading = false;
 		}
@@ -106,20 +102,13 @@
 		sheetOpen = true;
 
 		try {
-			const res = await fetch(`/api/projects/${projectId}/test-cases/${tcId}`);
-			if (res.ok) {
-				detailData = await res.json();
-			} else {
-				toast.error(m.error_operation_failed());
-				sheetOpen = false;
-			}
-			const lockRes = await fetch(`/api/projects/${projectId}/test-cases/${tcId}/lock`);
-			if (lockRes.ok) {
-				const lockData = await lockRes.json();
-				if (lockData.locked) sheetLockHolder = lockData.holder;
-			}
+			detailData = await apiFetch(`/api/projects/${projectId}/test-cases/${tcId}`);
+			const lockData = await apiFetch<{ locked: boolean; holder?: { userName: string } }>(
+				`/api/projects/${projectId}/test-cases/${tcId}/lock`,
+				{ silent: true }
+			);
+			if (lockData.locked && lockData.holder) sheetLockHolder = lockData.holder;
 		} catch {
-			toast.error(m.error_operation_failed());
 			sheetOpen = false;
 		} finally {
 			detailLoading = false;
@@ -177,33 +166,21 @@
 		editSaving = true;
 
 		try {
-			const res = await fetch(
-				`/api/projects/${projectId}/test-cases/${selectedTcId}`,
-				{
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						title: editTitle,
-						precondition: editPrecondition,
-						steps: editSteps,
-						expectedResult: editExpectedResult,
-						priority: editPriority,
-						revision: editRevision
-					})
-				}
-			);
-			if (res.ok) {
-				toast.success('Test case updated');
-				detailEditing = false;
-				releaseSheetLock();
-				onchange();
-				await open(selectedTcId);
-			} else {
-				const err = await res.json();
-				toast.error(err.error || 'Failed to update');
-			}
+			await apiPut(`/api/projects/${projectId}/test-cases/${selectedTcId}`, {
+				title: editTitle,
+				precondition: editPrecondition,
+				steps: editSteps,
+				expectedResult: editExpectedResult,
+				priority: editPriority,
+				revision: editRevision
+			});
+			toast.success('Test case updated');
+			detailEditing = false;
+			releaseSheetLock();
+			onchange();
+			await open(selectedTcId);
 		} catch {
-			toast.error(m.error_update_failed());
+			// error toast handled by apiPut
 		} finally {
 			editSaving = false;
 		}
@@ -212,22 +189,15 @@
 	async function deleteFromSheet() {
 		if (!selectedTcId) return;
 		try {
-			const res = await fetch(
-				`/api/projects/${projectId}/test-cases/${selectedTcId}`,
-				{ method: 'DELETE' }
-			);
-			if (res.ok) {
-				toast.success(m.tc_deleted());
-				sheetOpen = false;
-				detailData = null;
-				selectedTcId = null;
-				detailDeleteOpen = false;
-				onchange();
-			} else {
-				toast.error(m.error_delete_failed());
-			}
+			await apiDelete(`/api/projects/${projectId}/test-cases/${selectedTcId}`);
+			toast.success(m.tc_deleted());
+			sheetOpen = false;
+			detailData = null;
+			selectedTcId = null;
+			detailDeleteOpen = false;
+			onchange();
 		} catch {
-			toast.error(m.error_delete_failed());
+			// error toast handled by apiDelete
 		}
 	}
 
@@ -310,21 +280,15 @@
 	async function cloneFromSheet() {
 		if (!selectedTcId) return;
 		try {
-			const res = await fetch(
+			const result = await apiPost<{ newTestCaseId: number }>(
 				`/api/projects/${projectId}/test-cases/${selectedTcId}/clone`,
-				{ method: 'POST' }
+				{}
 			);
-			if (res.ok) {
-				const result = await res.json();
-				toast.success(m.tc_cloned());
-				onchange();
-				await open(result.newTestCaseId);
-			} else {
-				const err = await res.json();
-				toast.error(err.error || 'Failed to clone');
-			}
+			toast.success(m.tc_cloned());
+			onchange();
+			await open(result.newTestCaseId);
 		} catch {
-			toast.error(m.error_clone_failed());
+			// error toast handled by apiPost
 		}
 	}
 

@@ -9,6 +9,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages.js';
+	import { apiFetch, apiPost, apiDelete } from '$lib/api-client';
 
 	let { data } = $props();
 
@@ -35,12 +36,9 @@
 	async function loadKeys() {
 		loading = true;
 		try {
-			const res = await fetch(`/api/projects/${projectId}/api-keys`);
-			if (res.ok) {
-				apiKeys = await res.json();
-			}
+			apiKeys = await apiFetch<ApiKey[]>(`/api/projects/${projectId}/api-keys`);
 		} catch {
-			toast.error(m.error_operation_failed());
+			// error toast handled by apiFetch
 		} finally {
 			loading = false;
 		}
@@ -52,25 +50,15 @@
 		if (!newKeyName.trim()) return;
 		generating = true;
 		try {
-			const res = await fetch(`/api/projects/${projectId}/api-keys`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: newKeyName.trim() })
-			});
-			if (res.ok) {
-				const result = await res.json();
-				generatedKey = result.key;
-				generatedKeyName = result.name;
-				keyCopied = false;
-				generateOpen = false;
-				newKeyName = '';
-				await loadKeys();
-			} else {
-				const err = await res.json();
-				toast.error(err.error || m.error_operation_failed());
-			}
+			const result = await apiPost<{ key: string; name: string }>(`/api/projects/${projectId}/api-keys`, { name: newKeyName.trim() });
+			generatedKey = result.key;
+			generatedKeyName = result.name;
+			keyCopied = false;
+			generateOpen = false;
+			newKeyName = '';
+			await loadKeys();
 		} catch {
-			toast.error(m.error_operation_failed());
+			// error toast handled by apiPost
 		} finally {
 			generating = false;
 		}
@@ -79,17 +67,11 @@
 	async function revokeKey(key: ApiKey) {
 		revoking = true;
 		try {
-			const res = await fetch(`/api/projects/${projectId}/api-keys/${key.id}`, {
-				method: 'DELETE'
-			});
-			if (res.ok) {
-				toast.success(m.api_key_revoked());
-				await loadKeys();
-			} else {
-				toast.error(m.error_operation_failed());
-			}
+			await apiDelete(`/api/projects/${projectId}/api-keys/${key.id}`);
+			toast.success(m.api_key_revoked());
+			await loadKeys();
 		} catch {
-			toast.error(m.error_operation_failed());
+			// error toast handled by apiDelete
 		} finally {
 			revoking = false;
 		}

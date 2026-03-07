@@ -2,6 +2,7 @@
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as m from '$lib/paraglide/messages.js';
+	import { apiFetch } from '$lib/api-client';
 
 	let { projectId, onaddfailure }: {
 		projectId: number;
@@ -40,21 +41,16 @@
 
 	async function fetchFailures(runId: number, executionId: number) {
 		try {
-			const res = await fetch(
-				`/api/projects/${projectId}/test-runs/${runId}/executions/${executionId}/failures`
+			const data = await apiFetch<{ failures: any[] }>(
+				`/api/projects/${projectId}/test-runs/${runId}/executions/${executionId}/failures`,
+				{ silent: true }
 			);
-			if (res.ok) {
-				const json = await res.json();
-				if (sheetData && sheetData.executionId === executionId) {
-					sheetData.failures = json.failures;
-					sheetData.loading = false;
-				}
-			} else {
-				if (sheetData && sheetData.executionId === executionId) {
-					sheetData.loading = false;
-				}
+			if (sheetData && sheetData.executionId === executionId) {
+				sheetData.failures = data.failures;
 			}
 		} catch {
+			// silently ignore
+		} finally {
 			if (sheetData && sheetData.executionId === executionId) {
 				sheetData.loading = false;
 			}

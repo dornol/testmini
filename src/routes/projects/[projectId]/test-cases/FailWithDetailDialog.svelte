@@ -6,6 +6,7 @@
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
+	import { apiPost } from '$lib/api-client';
 
 	let { projectId, onsubmitted }: {
 		projectId: number;
@@ -38,34 +39,21 @@
 	async function submit() {
 		submitting = true;
 		try {
-			const res = await fetch(
+			await apiPost(
 				`/api/projects/${projectId}/test-runs/${runId}/executions/${executionId}/failures`,
 				{
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						errorMessage,
-						failureEnvironment: environment,
-						testMethod,
-						stackTrace,
-						comment
-					})
+					errorMessage,
+					failureEnvironment: environment,
+					testMethod,
+					stackTrace,
+					comment
 				}
 			);
-			if (res.ok) {
-				dialogOpen = false;
-				toast.success(m.fail_marked());
-				onsubmitted(runId, executionId);
-			} else {
-				let msg = `Error ${res.status}`;
-				try {
-					const err = await res.json();
-					msg = err.error || err.message || msg;
-				} catch { /* non-JSON response */ }
-				toast.error(msg);
-			}
-		} catch (e) {
-			toast.error('Network error: ' + String(e));
+			dialogOpen = false;
+			toast.success(m.fail_marked());
+			onsubmitted(runId, executionId);
+		} catch {
+			// error toast handled by apiPost
 		} finally {
 			submitting = false;
 		}

@@ -4,8 +4,9 @@ import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser, sampleTestCase, sampleTestCaseVersion } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
+const mockFindTC = vi.fn();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, findTestCaseWithLatestVersion: mockFindTC }));
 vi.mock('$lib/server/db/schema', () => ({
 	testCase: { id: 'id', projectId: 'project_id', key: 'key', latestVersionId: 'latest_version_id' },
 	testCaseVersion: {
@@ -51,7 +52,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 	describe('PUT', () => {
 		it('should update test case and create new version', async () => {
 			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
-			mockDb.query.testCase.findFirst.mockResolvedValue(tc);
+			mockFindTC.mockResolvedValue(tc);
 			mockDb.transaction.mockImplementation(async (fn) => {
 				const newVersion = { ...sampleTestCaseVersion, id: 101, versionNo: 2 };
 				const txChain = {
@@ -132,7 +133,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 				...sampleTestCase,
 				latestVersion: { ...sampleTestCaseVersion, revision: 99 }
 			};
-			mockDb.query.testCase.findFirst.mockResolvedValue(tc);
+			mockFindTC.mockResolvedValue(tc);
 
 			const event = createMockEvent({
 				method: 'PUT',
@@ -151,7 +152,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 	describe('PATCH', () => {
 		it('should update test case title and create new version', async () => {
 			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
-			mockDb.query.testCase.findFirst.mockResolvedValue(tc);
+			mockFindTC.mockResolvedValue(tc);
 
 			const newVersion = { ...sampleTestCaseVersion, id: 101, versionNo: 2 };
 			mockInsertReturning(mockDb, [newVersion]);
@@ -192,7 +193,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 		});
 
 		it('should return 404 when test case not found', async () => {
-			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+			mockFindTC.mockResolvedValue(null);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -205,7 +206,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 
 		it('should return 400 when key is empty string', async () => {
 			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
-			mockDb.query.testCase.findFirst.mockResolvedValue(tc);
+			mockFindTC.mockResolvedValue(tc);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -222,9 +223,9 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 
 		it('should return 409 when key already exists in project', async () => {
 			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
-			// First findFirst returns the test case itself, second returns a conflicting one
+			// findTestCaseWithLatestVersion returns the test case, findFirst returns a conflicting one
+			mockFindTC.mockResolvedValue(tc);
 			mockDb.query.testCase.findFirst
-				.mockResolvedValueOnce(tc)
 				.mockResolvedValueOnce({ ...sampleTestCase, id: 999, key: 'TC-DUPE' });
 
 			const event = createMockEvent({
@@ -242,7 +243,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 
 		it('should update priority and create new version', async () => {
 			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
-			mockDb.query.testCase.findFirst.mockResolvedValue(tc);
+			mockFindTC.mockResolvedValue(tc);
 
 			const newVersion = { ...sampleTestCaseVersion, id: 102, versionNo: 2, priority: 'CRITICAL' };
 			mockInsertReturning(mockDb, [newVersion]);

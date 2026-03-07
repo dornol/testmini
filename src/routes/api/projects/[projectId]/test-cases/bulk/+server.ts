@@ -1,13 +1,11 @@
-import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
 import { testCase, testCaseVersion, testCaseTag, testCaseAssignee, tag, projectMember } from '$lib/server/db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
+import { requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectAccess } from '$lib/server/api-handler';
 
-export const POST: RequestHandler = async ({ params, request, locals }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 
 	const body = await parseJsonBody(request);
 	const { action, testCaseIds, tagId, priority, groupId, userId } = body as {
@@ -29,9 +27,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 	// delete requires PROJECT_ADMIN, others require QA/DEV+
 	if (action === 'delete') {
-		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
+		await requireProjectRole(user, projectId, ['PROJECT_ADMIN']);
 	} else {
-		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 	}
 
 	// Verify all TCs belong to this project
@@ -85,10 +83,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 					return json({ error: 'Invalid priority' }, { status: 400 });
 				}
 				for (const tcId of validIds) {
-					const tc = await tx.query.testCase.findFirst({
-						where: eq(testCase.id, tcId),
-						with: { latestVersion: true }
-					});
+					const tc = await findTestCaseWithLatestVersion(tcId, projectId);
 					if (!tc?.latestVersion) continue;
 					if (tc.latestVersion.priority === priority) continue;
 
@@ -104,7 +99,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 							expectedResult: latest.expectedResult,
 							priority: priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
 							revision: latest.revision + 1,
-							updatedBy: authUser.id
+							updatedBy: user.id
 						})
 						.returning();
 
@@ -180,10 +175,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 				}
 
 				for (const tcId of validIds) {
-					const tc = await tx.query.testCase.findFirst({
-						where: eq(testCase.id, tcId),
-						with: { latestVersion: true }
-					});
+					const tc = await findTestCaseWithLatestVersion(tcId, projectId);
 					if (!tc?.latestVersion) continue;
 
 					const key = `TC-${String(nextNum).padStart(4, '0')}`;
@@ -206,7 +198,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 							key,
 							groupId: tc.groupId,
 							sortOrder,
-							createdBy: authUser.id
+							createdBy: user.id
 						})
 						.returning();
 
@@ -221,7 +213,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 							steps: latest.steps,
 							expectedResult: latest.expectedResult,
 							priority: latest.priority,
-							updatedBy: authUser.id
+							updatedBy: user.id
 						})
 						.returning();
 
@@ -259,4 +251,4 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	});
 
 	return json({ success: true, affected });
-};
+});

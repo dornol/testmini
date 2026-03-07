@@ -1,12 +1,10 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { notification } from '$lib/server/db/schema';
-import { requireAuth } from '$lib/server/auth-utils';
+import { withAuth } from '$lib/server/api-handler';
 import { and, eq, inArray } from 'drizzle-orm';
 
-export const POST: RequestHandler = async ({ locals, request }) => {
-	const user = requireAuth(locals);
+export const POST = withAuth(async ({ user, request }) => {
 
 	let body: unknown;
 	try {
@@ -48,4 +46,4 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	error(400, 'Provide either { all: true } or { ids: number[] }');
-};
+});

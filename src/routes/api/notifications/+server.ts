@@ -1,12 +1,10 @@
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { notification } from '$lib/server/db/schema';
-import { requireAuth } from '$lib/server/auth-utils';
+import { withAuth } from '$lib/server/api-handler';
 import { and, eq, lt, desc } from 'drizzle-orm';
 
-export const GET: RequestHandler = async ({ locals, url }) => {
-	const user = requireAuth(locals);
+export const GET = withAuth(async ({ user, url }) => {
 
 	const unreadOnly = url.searchParams.get('unreadOnly') === 'true';
 	const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') ?? '20')));
@@ -38,4 +36,4 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const nextCursor = hasMore ? String(items[items.length - 1].id) : null;
 
 	return json({ items, nextCursor, hasMore });
-};
+});

@@ -4,8 +4,9 @@ import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, sampleTestCase, sampleTestCaseVersion } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
+const mockFindTC = vi.fn();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, findTestCaseWithLatestVersion: mockFindTC }));
 vi.mock('$lib/server/db/schema', () => ({
 	testCase: { id: 'id', projectId: 'project_id', key: 'key', groupId: 'group_id', sortOrder: 'sort_order', latestVersionId: 'latest_version_id' },
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id', versionNo: 'version_no', title: 'title', precondition: 'precondition', steps: 'steps', expectedResult: 'expected_result', priority: 'priority', updatedBy: 'updated_by' },
@@ -56,7 +57,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/clone', () => {
 
 		it('should clone test case for non-VIEWER', async () => {
 			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
-			mockDb.query.testCase.findFirst.mockResolvedValue(tc);
+			mockFindTC.mockResolvedValue(tc);
 
 			const newTestCaseId = 11;
 			const newVersion = { ...sampleTestCaseVersion, id: 101, testCaseId: newTestCaseId };

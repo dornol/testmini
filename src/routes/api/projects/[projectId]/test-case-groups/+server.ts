@@ -1,14 +1,11 @@
-import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCaseGroup, testCase } from '$lib/server/db/schema';
 import { eq, sql, count, asc } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 
-export const GET: RequestHandler = async ({ params, locals }) => {
-	requireAuth(locals);
-	const projectId = Number(params.projectId);
-
+export const GET = withProjectAccess(async ({ projectId }) => {
 	const groups = await db
 		.select({
 			id: testCaseGroup.id,
@@ -24,12 +21,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		.orderBy(asc(testCaseGroup.sortOrder));
 
 	return json(groups);
-};
+});
 
-export const POST: RequestHandler = async ({ params, request, locals }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, user, projectId }) => {
 
 	const body = await parseJsonBody(request);
 	const { name, color } = body as { name: string; color?: string };
@@ -63,9 +57,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			name: name.trim(),
 			sortOrder: (maxResult?.maxOrder ?? 0) + 1000,
 			color: color || null,
-			createdBy: authUser.id
+			createdBy: user.id
 		})
 		.returning();
 
 	return json(created, { status: 201 });
-};
+});

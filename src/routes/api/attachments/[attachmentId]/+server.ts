@@ -1,9 +1,9 @@
 import { error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { attachment, testCase, testExecution, testFailureDetail } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { requireAuth, requireProjectAccess } from '$lib/server/auth-utils';
+import { requireProjectAccess } from '$lib/server/auth-utils';
+import { withAuth } from '$lib/server/api-handler';
 import { getFile, deleteFile } from '$lib/server/storage';
 
 async function getProjectIdForAttachment(record: { referenceType: string; referenceId: number }): Promise<number> {
@@ -41,8 +41,7 @@ async function getProjectIdForAttachment(record: { referenceType: string; refere
 	error(400, 'Unknown reference type');
 }
 
-export const GET: RequestHandler = async ({ params, locals }) => {
-	const user = requireAuth(locals);
+export const GET = withAuth(async ({ params, user }) => {
 
 	const attachmentId = Number(params.attachmentId);
 	if (isNaN(attachmentId)) {
@@ -70,10 +69,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			'Content-Length': String(fileBuffer.length)
 		}
 	});
-};
+});
 
-export const DELETE: RequestHandler = async ({ params, locals }) => {
-	requireAuth(locals);
+export const DELETE = withAuth(async ({ params }) => {
 
 	const attachmentId = Number(params.attachmentId);
 	if (isNaN(attachmentId)) {
@@ -92,4 +90,4 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	await db.delete(attachment).where(eq(attachment.id, attachmentId));
 
 	return new Response(null, { status: 204 });
-};
+});

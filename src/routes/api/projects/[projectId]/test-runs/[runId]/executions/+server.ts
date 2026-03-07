@@ -1,24 +1,16 @@
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, testExecution, testRun } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectRole } from '$lib/server/api-handler';
 import { childLogger } from '$lib/server/logger';
 
 const log = childLogger('executions');
 
-export const POST: RequestHandler = async ({ params, request, locals }) => {
+export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, projectId }) => {
 	try {
-		const user = requireAuth(locals);
-		const projectId = Number(params.projectId);
 		const runId = Number(params.runId);
-
-		if (isNaN(projectId) || isNaN(runId)) {
-			return json({ error: 'Invalid parameters' }, { status: 400 });
-		}
-
-		await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const body = await parseJsonBody(request);
 		const { testCaseId } = body as { testCaseId: number };
@@ -82,4 +74,4 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		}
 		return json({ error: String(err) }, { status: 500 });
 	}
-};
+});

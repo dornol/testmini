@@ -1,20 +1,13 @@
-import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
 import { testCase, testCaseVersion, testCaseTag } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { withProjectRole } from '$lib/server/api-handler';
 
-export const POST: RequestHandler = async ({ params, locals }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, user, projectId }) => {
 	const testCaseId = Number(params.testCaseId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
-	const tc = await db.query.testCase.findFirst({
-		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)),
-		with: { latestVersion: true }
-	});
+	const tc = await findTestCaseWithLatestVersion(testCaseId, projectId);
 
 	if (!tc) {
 		error(404, 'Test case not found');
@@ -61,7 +54,7 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 				key: newKey,
 				groupId: tc.groupId,
 				sortOrder,
-				createdBy: authUser.id
+				createdBy: user.id
 			})
 			.returning();
 
@@ -79,7 +72,7 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 				steps: latest.steps,
 				expectedResult: latest.expectedResult,
 				priority: latest.priority,
-				updatedBy: authUser.id
+				updatedBy: user.id
 			})
 			.returning();
 
@@ -101,4 +94,4 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 	});
 
 	return json({ success: true, newTestCaseId: newTestCaseId!, newKey: newKey! });
-};
+});

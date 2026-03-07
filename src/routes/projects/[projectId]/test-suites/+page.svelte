@@ -10,6 +10,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import * as m from '$lib/paraglide/messages.js';
+	import { apiPost, apiPatch, apiDelete } from '$lib/api-client';
 
 	let { data } = $props();
 
@@ -39,21 +40,14 @@
 	async function handleCreate() {
 		creating = true;
 		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-suites`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: newName, description: newDesc || undefined })
-			});
-			if (!res.ok) {
-				const err = await res.json();
-				toast.error(err.error ?? 'Failed to create');
-				return;
-			}
+			await apiPost(`/api/projects/${data.project.id}/test-suites`, { name: newName, description: newDesc || undefined });
 			createDialogOpen = false;
 			newName = '';
 			newDesc = '';
 			toast.success(m.suite_created());
 			await invalidateAll();
+		} catch {
+			// error toast handled by apiPost
 		} finally {
 			creating = false;
 		}
@@ -70,19 +64,12 @@
 		if (!editId) return;
 		editSaving = true;
 		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-suites/${editId}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: editName, description: editDesc || null })
-			});
-			if (!res.ok) {
-				const err = await res.json();
-				toast.error(err.error ?? 'Failed to update');
-				return;
-			}
+			await apiPatch(`/api/projects/${data.project.id}/test-suites/${editId}`, { name: editName, description: editDesc || null });
 			editDialogOpen = false;
 			toast.success(m.suite_updated());
 			await invalidateAll();
+		} catch {
+			// error toast handled by apiPatch
 		} finally {
 			editSaving = false;
 		}
@@ -97,16 +84,12 @@
 		if (!deleteId) return;
 		deleteSaving = true;
 		try {
-			const res = await fetch(`/api/projects/${data.project.id}/test-suites/${deleteId}`, {
-				method: 'DELETE'
-			});
-			if (!res.ok) {
-				toast.error(m.error_delete_failed());
-				return;
-			}
+			await apiDelete(`/api/projects/${data.project.id}/test-suites/${deleteId}`);
 			deleteDialogOpen = false;
 			toast.success(m.suite_deleted());
 			await invalidateAll();
+		} catch {
+			// error toast handled by apiDelete
 		} finally {
 			deleteSaving = false;
 		}

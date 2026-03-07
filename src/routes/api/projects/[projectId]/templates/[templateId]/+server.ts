@@ -1,15 +1,12 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testCaseTemplate, type TestStep } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, requireProjectAccess, parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 
-export const GET: RequestHandler = async ({ locals, params }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const templateId = Number(params.templateId);
-	await requireProjectAccess(authUser, projectId);
 
 	const template = await db.query.testCaseTemplate.findFirst({
 		where: and(
@@ -23,13 +20,10 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	}
 
 	return json(template);
-};
+});
 
-export const PATCH: RequestHandler = async ({ request, locals, params }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, projectId }) => {
 	const templateId = Number(params.templateId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 	const template = await db.query.testCaseTemplate.findFirst({
 		where: and(
@@ -95,13 +89,10 @@ export const PATCH: RequestHandler = async ({ request, locals, params }) => {
 		.where(eq(testCaseTemplate.id, templateId));
 
 	return json({ success: true });
-};
+});
 
-export const DELETE: RequestHandler = async ({ locals, params }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
 	const templateId = Number(params.templateId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
 
 	const template = await db.query.testCaseTemplate.findFirst({
 		where: and(
@@ -119,4 +110,4 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 		.where(eq(testCaseTemplate.id, templateId));
 
 	return json({ success: true });
-};
+});

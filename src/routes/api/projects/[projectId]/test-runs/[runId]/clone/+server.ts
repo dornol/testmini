@@ -1,15 +1,11 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testRun, testExecution, testCaseVersion, testCase } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { withProjectRole } from '$lib/server/api-handler';
 
-export const POST: RequestHandler = async ({ request, locals, params }) => {
-	const user = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, user, projectId }) => {
 	const runId = Number(params.runId);
-	await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 	const originalRun = await db.query.testRun.findFirst({
 		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
@@ -61,4 +57,4 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	});
 
 	return json({ id: newRun.id });
-};
+});

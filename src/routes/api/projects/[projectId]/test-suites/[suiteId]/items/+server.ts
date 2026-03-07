@@ -1,16 +1,13 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { testSuite, testSuiteItem, testCase } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
-import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody } from '$lib/server/auth-utils';
+import { withProjectRole } from '$lib/server/api-handler';
 import { suiteItemsSchema } from '$lib/schemas/test-suite.schema';
 
-export const POST: RequestHandler = async ({ request, locals, params }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, params, projectId }) => {
 	const suiteId = Number(params.suiteId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA']);
 
 	const suite = await db.query.testSuite.findFirst({
 		where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
@@ -50,13 +47,10 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	}
 
 	return json({ success: true });
-};
+});
 
-export const DELETE: RequestHandler = async ({ request, locals, params }) => {
-	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+export const DELETE = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, params, projectId }) => {
 	const suiteId = Number(params.suiteId);
-	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA']);
 
 	const suite = await db.query.testSuite.findFirst({
 		where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
@@ -82,4 +76,4 @@ export const DELETE: RequestHandler = async ({ request, locals, params }) => {
 		);
 
 	return json({ success: true });
-};
+});

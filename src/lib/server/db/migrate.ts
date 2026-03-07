@@ -4,17 +4,19 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { logger } from '$lib/server/logger';
 import { env } from '$env/dynamic/private';
 
-let migrated = false;
+// Track migration state globally so HMR doesn't skip new migrations
+const key = Symbol.for('__drizzle_migrated');
+const g = globalThis as Record<symbol, boolean>;
 
 /**
  * Run pending database migrations on server startup.
  *
  * Uses a dedicated connection with max:1 (required by postgres.js migrator).
- * Idempotent — only runs once per server process.
+ * Idempotent — only runs once per server process (survives HMR via globalThis symbol).
  */
 export async function runMigrations() {
-	if (migrated) return;
-	migrated = true;
+	if (g[key]) return;
+	g[key] = true;
 
 	if (!env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
 

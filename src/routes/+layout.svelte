@@ -81,7 +81,7 @@
 	});
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
+<svelte:head><link rel="icon" href={data.branding?.faviconUrl || favicon} /></svelte:head>
 
 <ModeWatcher />
 <Toaster />
@@ -101,6 +101,7 @@
 			user={data.user}
 			onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
 			unreadNotificationCount={data.unreadNotificationCount}
+			branding={data.branding}
 		/>
 		<div class="flex flex-1 overflow-hidden">
 			<Sidebar bind:open={sidebarOpen} />

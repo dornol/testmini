@@ -1,6 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"app_name": "TMS",
+	"app_name": "testmini",
 	"nav_projects": "프로젝트",
 	"nav_admin": "관리자",
 	"nav_dashboard": "대시보드",
@@ -587,5 +587,19 @@
 	"members_role_change_title": "역할 변경 확인",
 	"members_role_change_confirm": "{name}의 역할을 {role}(으)로 변경하시겠습니까?",
 	"members_role_change_action": "역할 변경",
-	"date_range_invalid": "시작일이 종료일보다 늦을 수 없습니다"
+	"date_range_invalid": "시작일이 종료일보다 늦을 수 없습니다",
+
+	"admin_branding_title": "브랜딩",
+	"admin_branding_desc": "앱 이름, 로고, 파비콘을 설정합니다",
+	"admin_branding_app_name": "앱 이름",
+	"admin_branding_app_name_placeholder": "예: testmini",
+	"admin_branding_logo": "로고",
+	"admin_branding_logo_desc": "헤더에 표시됩니다. 권장: 정사각형 이미지, 최소 64x64px.",
+	"admin_branding_favicon": "파비콘",
+	"admin_branding_favicon_desc": "브라우저 탭 아이콘입니다. 권장: 정사각형 이미지, 최소 32x32px.",
+	"admin_branding_upload": "업로드",
+	"admin_branding_remove": "제거",
+	"admin_branding_saved": "브랜딩 설정이 저장되었습니다",
+	"admin_branding_preview": "미리보기",
+	"admin_branding_current": "현재"
 }

@@ -1,6 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"app_name": "TMS",
+	"app_name": "testmini",
 	"nav_projects": "Projects",
 	"nav_admin": "Admin",
 	"nav_dashboard": "Dashboard",
@@ -587,5 +587,19 @@
 	"members_role_change_title": "Confirm Role Change",
 	"members_role_change_confirm": "Change {name}'s role to {role}?",
 	"members_role_change_action": "Change Role",
-	"date_range_invalid": "Start date cannot be after end date"
+	"date_range_invalid": "Start date cannot be after end date",
+
+	"admin_branding_title": "Branding",
+	"admin_branding_desc": "Customize the application name, logo, and favicon",
+	"admin_branding_app_name": "Application Name",
+	"admin_branding_app_name_placeholder": "e.g., testmini",
+	"admin_branding_logo": "Logo",
+	"admin_branding_logo_desc": "Displayed in the header. Recommended: square image, at least 64x64px.",
+	"admin_branding_favicon": "Favicon",
+	"admin_branding_favicon_desc": "Browser tab icon. Recommended: square image, at least 32x32px.",
+	"admin_branding_upload": "Upload",
+	"admin_branding_remove": "Remove",
+	"admin_branding_saved": "Branding settings saved",
+	"admin_branding_preview": "Preview",
+	"admin_branding_current": "Current"
 }

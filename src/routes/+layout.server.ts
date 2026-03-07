@@ -1,12 +1,22 @@
 import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { project, projectMember, testCaseGroup, userPreference, notification } from '$lib/server/db/schema';
+import { project, projectMember, testCaseGroup, userPreference, notification, appConfig } from '$lib/server/db/schema';
 import { and, eq, count } from 'drizzle-orm';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	let preferences: { locale: string | null; theme: string | null } | null = null;
 	let sidebarProjects: { id: number; name: string; groups: { id: number; name: string; color: string | null }[] }[] = [];
 	let unreadNotificationCount = 0;
+	let branding: { appName: string; logoUrl: string | null; faviconUrl: string | null } | null = null;
+
+	try {
+		const config = await db.query.appConfig.findFirst();
+		if (config) {
+			branding = { appName: config.appName, logoUrl: config.logoUrl, faviconUrl: config.faviconUrl };
+		}
+	} catch {
+		// table may not exist yet
+	}
 
 	if (locals.user) {
 		try {
@@ -70,6 +80,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		session: locals.session ?? null,
 		preferences,
 		sidebarProjects,
-		unreadNotificationCount
+		unreadNotificationCount,
+		branding
 	};
 };

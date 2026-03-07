@@ -46,6 +46,19 @@ export const referenceTypeEnum = pgEnum('reference_type', [
 	'FAILURE'
 ]);
 
+// ── AppConfig (singleton branding settings) ───────────
+
+export const appConfig = pgTable('app_config', {
+	id: serial('id').primaryKey(),
+	appName: text('app_name').notNull().default('testmini'),
+	logoUrl: text('logo_url'),
+	faviconUrl: text('favicon_url'),
+	updatedAt: timestamp('updated_at')
+		.defaultNow()
+		.$onUpdate(() => new Date())
+		.notNull()
+});
+
 // ── Project ────────────────────────────────────────────
 
 export const project = pgTable('project', {

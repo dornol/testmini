@@ -9,11 +9,19 @@
 	import { authClient } from '$lib/auth-client';
 	import { goto, invalidateAll } from '$app/navigation';
 
+	import logo from '$lib/assets/logo.svg';
+
 	let {
 		user,
 		onToggleSidebar,
-		unreadNotificationCount = 0
-	}: { user: any; onToggleSidebar: () => void; unreadNotificationCount?: number } = $props();
+		unreadNotificationCount = 0,
+		branding = null
+	}: {
+		user: any;
+		onToggleSidebar: () => void;
+		unreadNotificationCount?: number;
+		branding?: { appName: string; logoUrl: string | null } | null;
+	} = $props();
 
 	async function handleLogout() {
 		await authClient.signOut();
@@ -31,8 +39,13 @@
 		</svg>
 	</Button>
 
-	<a href="/" class="flex items-center gap-2 font-semibold">
-		<span class="text-base">{m.app_name()}</span>
+	<a href="/" class="flex items-center gap-1.5 font-semibold">
+		{#if branding?.logoUrl}
+			<img src={branding.logoUrl} alt="" class="h-5 w-5 object-contain" />
+		{:else}
+			<img src={logo} alt="" class="h-5 w-5" />
+		{/if}
+		<span class="text-base">{branding?.appName || m.app_name()}</span>
 	</a>
 
 	<div class="ml-auto flex items-center gap-1">

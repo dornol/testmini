@@ -70,8 +70,8 @@
 					{ silent: true }
 				);
 				searchResults = result.data;
-			} catch {
-				// silently ignore
+			} catch (e) {
+				console.warn('Failed to search users:', e);
 			} finally {
 				searching = false;
 			}

@@ -48,8 +48,8 @@
 			if (sheetData && sheetData.executionId === executionId) {
 				sheetData.failures = data.failures;
 			}
-		} catch {
-			// silently ignore
+		} catch (e) {
+			console.warn('Failed to fetch failure details:', e);
 		} finally {
 			if (sheetData && sheetData.executionId === executionId) {
 				sheetData.loading = false;

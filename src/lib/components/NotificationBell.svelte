@@ -79,8 +79,8 @@
 			nextCursor = data.nextCursor;
 			hasMore = data.hasMore;
 			unreadCount = data.items.filter((n) => !n.isRead).length;
-		} catch {
-			// silently ignore
+		} catch (e) {
+			console.warn('Failed to load notifications:', e);
 		} finally {
 			loading = false;
 		}
@@ -93,8 +93,8 @@
 				{ silent: true }
 			);
 			unreadCount = data.items.filter((n) => !n.isRead).length;
-		} catch {
-			// silently ignore
+		} catch (e) {
+			console.warn('Failed to refresh unread count:', e);
 		}
 	}
 
@@ -104,8 +104,8 @@
 			await apiPost('/api/notifications/read', { ids });
 			notifications = notifications.map((n) => (ids.includes(n.id) ? { ...n, isRead: true } : n));
 			unreadCount = Math.max(0, unreadCount - ids.length);
-		} catch {
-			// silently ignore
+		} catch (e) {
+			console.warn('Failed to mark notifications as read:', e);
 		}
 	}
 
@@ -114,8 +114,8 @@
 			await apiPost('/api/notifications/read', { all: true });
 			notifications = notifications.map((n) => ({ ...n, isRead: true }));
 			unreadCount = 0;
-		} catch {
-			// silently ignore
+		} catch (e) {
+			console.warn('Failed to mark all notifications as read:', e);
 		}
 	}
 

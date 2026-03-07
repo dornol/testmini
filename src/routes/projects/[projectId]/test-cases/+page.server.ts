@@ -12,12 +12,12 @@ import {
 	testRun,
 	testExecution,
 	projectMember,
-	testSuite,
-	testSuiteItem
+	testSuite
 } from '$lib/server/db/schema';
-import { eq, and, ilike, or, desc, asc, exists, sql, inArray, isNull } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, inArray } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { loadProjectTags } from '$lib/server/queries';
+import { buildTestCaseConditions } from '$lib/server/test-case-filters';
 
 export const load: PageServerLoad = async ({ params, url, parent, cookies }) => {
 	await parent();
@@ -42,104 +42,16 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		.map(Number)
 		.filter((id) => !isNaN(id) && id > 0);
 
-	const conditions = [eq(testCase.projectId, projectId)];
-
-	if (search) {
-		// key uses pattern matching (TC-0001 etc.)
-		const keyCondition = ilike(testCase.key, `%${search}%`);
-		// Other fields use full-text search via tsvector
-		const query = search.trim().split(/\s+/).join(' & ');
-		const ftsCondition = sql`test_case_version.search_vector @@ to_tsquery('english', ${query})`;
-		conditions.push(or(keyCondition, ftsCondition)!);
-	}
-
-	if (priority) {
-		const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
-		const priorities = priority.split(',').filter((p): p is typeof validPriorities[number] => validPriorities.includes(p as any));
-		if (priorities.length > 0) {
-			conditions.push(inArray(testCaseVersion.priority, priorities));
-		}
-	}
-
-	if (tagIds) {
-		const tagIdNums = tagIds
-			.split(',')
-			.map(Number)
-			.filter((id) => !isNaN(id) && id > 0);
-		for (const tagIdNum of tagIdNums) {
-			conditions.push(
-				exists(
-					db
-						.select({ one: sql`1` })
-						.from(testCaseTag)
-						.where(
-							and(
-								eq(testCaseTag.testCaseId, testCase.id),
-								eq(testCaseTag.tagId, tagIdNum)
-							)
-						)
-				)
-			);
-		}
-	}
-
-	if (groupId) {
-		if (groupId === 'uncategorized') {
-			conditions.push(isNull(testCase.groupId));
-		} else {
-			const gid = Number(groupId);
-			if (!isNaN(gid) && gid > 0) {
-				conditions.push(eq(testCase.groupId, gid));
-			}
-		}
-	}
-
-	if (createdBy) {
-		const createdByIds = createdBy.split(',').filter(Boolean);
-		if (createdByIds.length > 0) {
-			conditions.push(inArray(testCase.createdBy, createdByIds));
-		}
-	}
-
-	if (assigneeId) {
-		const assigneeIds = assigneeId.split(',').filter(Boolean);
-		if (assigneeIds.length > 0) {
-			conditions.push(
-				exists(
-					db
-						.select({ one: sql`1` })
-						.from(testCaseAssignee)
-						.where(
-							and(
-								eq(testCaseAssignee.testCaseId, testCase.id),
-								inArray(testCaseAssignee.userId, assigneeIds)
-							)
-						)
-				)
-			);
-		}
-	}
-
-	if (suiteId) {
-		const suiteIdNums = suiteId.split(',').map(Number).filter((id) => !isNaN(id) && id > 0);
-		if (suiteIdNums.length > 0) {
-			conditions.push(
-				exists(
-					db
-						.select({ one: sql`1` })
-						.from(testSuiteItem)
-						.where(
-							and(
-								eq(testSuiteItem.testCaseId, testCase.id),
-								inArray(testSuiteItem.suiteId, suiteIdNums)
-							)
-						)
-				)
-			);
-		}
-	}
-
-	const where = and(...conditions);
+	const where = buildTestCaseConditions({
+		projectId,
+		search,
+		priority,
+		tagIds,
+		groupId,
+		createdBy,
+		assigneeId,
+		suiteId
+	});
 
 	// Load groups for this project
 	const groups = await db

@@ -22,7 +22,7 @@
 | **Phase 4** | N+1 쿼리 해결 | ✅ 완료 |
 | **Phase 4** | DB 스키마 개선 | ⏳ 미진행 (마이그레이션 필요) |
 | **Phase 4** | 테스트 개선 | ⏳ 미진행 |
-| **Phase 4** | Silent Error 처리 | ⏳ 미진행 |
+| **Phase 4** | Silent Error 처리 | ✅ 완료 |
 
 ### 생성된 유틸리티 파일
 | 파일 | 설명 | 적용 현황 |
@@ -186,15 +186,14 @@ export function forbidden(msg: string) { return json({ error: msg }, { status: 4
 
 > 알림 아이템이 `{#each}` 루프 안에서 1회만 사용 (중복 없음), 스크립트와 템플릿 결합도가 높아 분할 효과 미미. 현재 크기 유지.
 
-### 2.5 test-cases/+page.server.ts (431줄)
+### 2.5 test-cases/+page.server.ts (429줄 → 335줄) ✅ 완료
 
-현재 하나의 `load()` 함수에 복잡한 필터링 로직 집중:
-- 8개 쿼리 파라미터 처리
-- 실행 상태 필터를 위한 메모리 내 후처리
+**추출된 헬퍼:**
+| 파일 | 함수 | 설명 |
+|------|------|------|
+| `src/lib/server/test-case-filters.ts` | `buildTestCaseConditions()` | 8개 필터 파라미터 → Drizzle SQL 조건 빌딩 (~120줄) |
 
-**개선 방향:**
-- 쿼리 빌더 헬퍼 추출 → `src/lib/server/test-case-queries.ts`
-- 실행 상태 필터를 DB 쿼리로 이동 (`WHERE EXISTS` + `inArray`)
+> 참고: 실행 상태 필터(execStatus)는 executionMap 의존으로 후처리 유지.
 
 ---
 
@@ -296,19 +295,14 @@ export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ user
 | Mock 정교화 | `mock-db.ts`가 실제 Drizzle API 커버리지 부족 |
 | 통합 테스트 | 현재 대부분 단위 테스트 → DB 연동 통합 테스트 추가 고려 |
 
-### 4.5 Silent Error 처리
+### 4.5 Silent Error 처리 ✅ 완료
 
-```typescript
-// NotificationBell.svelte — 현재
-} catch {
-  // network error — silently ignore
-}
+6개 silent catch에 `console.warn` 추가:
+- `NotificationBell.svelte` — 4개 (loadNotifications, refreshUnreadCount, markAsRead, markAllAsRead)
+- `FailureDetailsSheet.svelte` — 1개 (fetchFailures)
+- `settings/members/+page.svelte` — 1개 (user search)
 
-// 개선: 최소한 콘솔 로그 또는 토스트
-} catch (e) {
-  console.warn('Failed to fetch notifications:', e);
-}
-```
+> 나머지 silent catch는 의도적 동작: api-client 에러 토스트 위임, JSON 파싱 에러 반환, 스토리지 정리 등.
 
 ---
 
@@ -349,8 +343,9 @@ Phase 1 (공통 유틸리티)
 Phase 2 (컴포넌트 분할)
   ├─ 2.1 test-cases/+page.svelte ✅ 완료 (1,997→1,499줄)
   ├─ 2.2 CommentSection          ✅ 완료 (443→242줄)
-  ├─ 2.3 ImportDialog            ⏳ 미진행
-  └─ 2.4~2.5 기타               ⏳ 미진행
+  ├─ 2.3 ImportDialog            ✅ 완료 (429→275줄)
+  ├─ 2.4 NotificationBell        — 스킵 (효과 미미)
+  └─ 2.5 +page.server.ts        ✅ 완료 (429→335줄)
 
 Phase 3 (API 계층)
   ├─ 3.1 라우트 미들웨어          ✅ 완료 (38개 라우트)
@@ -362,5 +357,5 @@ Phase 4 (성능/품질)
   ├─ 4.2 JWKS 캐싱              ✅ 이미 구현됨
   ├─ 4.3 DB 스키마              ⏳ 미진행
   ├─ 4.4 테스트                 ⏳ 미진행
-  └─ 4.5 에러 처리              ⏳ 미진행
+  └─ 4.5 에러 처리              ✅ 완료
 ```

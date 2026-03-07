@@ -10,6 +10,7 @@ services:
       POSTGRES_DB: local
     volumes:
       - pgdata:/var/lib/postgresql
+  # Optional: remove if not using REDIS_URL
   redis:
     image: redis:7-alpine
     restart: always

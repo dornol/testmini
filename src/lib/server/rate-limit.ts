@@ -9,24 +9,48 @@ export interface RateLimitResult {
 	retryAfter?: number;
 }
 
+// --- In-memory fallback ---
+
+const memWindows = new Map<string, number[]>();
+
+function checkRateLimitMemory(key: string, limit: number, windowMs: number): RateLimitResult {
+	const now = Date.now();
+	const windowStart = now - windowMs;
+
+	let timestamps = memWindows.get(key) ?? [];
+	timestamps = timestamps.filter((t) => t > windowStart);
+
+	if (timestamps.length >= limit) {
+		memWindows.set(key, timestamps);
+		const retryAfter =
+			timestamps.length > 0
+				? Math.max(1, Math.ceil((timestamps[0] + windowMs - now) / 1000))
+				: Math.ceil(windowMs / 1000);
+		return { allowed: false, remaining: 0, retryAfter };
+	}
+
+	timestamps.push(now);
+	memWindows.set(key, timestamps);
+	return { allowed: true, remaining: Math.max(0, limit - timestamps.length) };
+}
+
+// --- Redis sliding window ---
+
 /**
- * Sliding window rate limiter using Redis sorted sets.
- *
- * Each request is stored as a member of a sorted set keyed by `key`,
- * with its score set to the current timestamp in milliseconds.
- * Old entries outside the window are removed on every check,
- * so the count always reflects only requests within the sliding window.
- *
- * Uses MULTI/EXEC to perform the operations atomically.
+ * Sliding window rate limiter.
+ * Uses Redis sorted sets when available, falls back to in-memory Map.
  */
 export async function checkRateLimit(
 	key: string,
 	limit: number,
 	windowMs: number
 ): Promise<RateLimitResult> {
+	if (!redis) {
+		return checkRateLimitMemory(key, limit, windowMs);
+	}
+
 	const now = Date.now();
 	const windowStart = now - windowMs;
-	// Unique member for this request: timestamp + random suffix to avoid collisions
 	const member = `${now}:${Math.random().toString(36).slice(2, 9)}`;
 	const redisKey = `rl:${key}`;
 	const expireSeconds = Math.ceil(windowMs / 1000) + 1;
@@ -46,11 +70,9 @@ export async function checkRateLimit(
 		const results = await pipeline.exec();
 
 		if (!results) {
-			// EXEC returned null — transaction was aborted (WATCH violation, etc.)
 			return { allowed: true, remaining: limit };
 		}
 
-		// results[2] is the ZCARD result: [error, count]
 		const [cardErr, count] = results[2] as [Error | null, number];
 
 		if (cardErr) {

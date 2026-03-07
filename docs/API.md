@@ -585,7 +585,7 @@ Update `sortOrder` and/or `groupId` for multiple test cases in one transaction.
 
 ### Test Case Lock
 
-Collaborative editing is protected by an optimistic distributed lock backed by Redis. A lock expires automatically after an idle period (the server refreshes it while editing).
+Collaborative editing is protected by an optimistic distributed lock (Redis-backed when available, in-memory fallback for single-server deployments). A lock expires automatically after an idle period (the server refreshes it while editing).
 
 #### `GET /api/projects/:projectId/test-cases/:testCaseId/lock`
 
@@ -935,7 +935,7 @@ Add a single test case to an existing test run.
 
 #### `PUT /api/projects/:projectId/test-runs/:runId/executions/:executionId/status`
 
-Record the result of an execution. Automatically transitions the run from `CREATED` to `IN_PROGRESS` on the first non-`PENDING` result. Publishes a real-time event to Redis so other users viewing the run see the update immediately.
+Record the result of an execution. Automatically transitions the run from `CREATED` to `IN_PROGRESS` on the first non-`PENDING` result. Publishes a real-time event (via Redis pub/sub or in-memory bus) so other users viewing the run see the update immediately.
 
 **Auth:** Session + `PROJECT_ADMIN | QA | DEV`
 
@@ -1056,7 +1056,7 @@ CSV columns: `Key, Title, Priority, Run Name, Environment, Status, Executed By, 
 
 #### `GET /api/projects/:projectId/test-runs/:runId/events`
 
-Subscribe to real-time updates for a test run using Server-Sent Events (SSE). Backed by Redis pub/sub. The connection sends a keepalive comment every 30 seconds.
+Subscribe to real-time updates for a test run using Server-Sent Events (SSE). Backed by Redis pub/sub when available, or an in-memory event bus for single-server deployments. The connection sends a keepalive comment every 30 seconds.
 
 **Auth:** Session + any project membership
 

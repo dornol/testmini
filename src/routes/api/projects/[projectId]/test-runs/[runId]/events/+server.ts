@@ -1,8 +1,7 @@
-import { error } from '@sveltejs/kit';
 import { createSubscriber } from '$lib/server/redis';
 import { withProjectRole } from '$lib/server/api-handler';
 
-export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'], async ({ params, request, projectId }) => {
+export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'], async ({ params, request }) => {
 	const runId = Number(params.runId);
 
 	const channel = `run:${runId}:events`;
@@ -23,10 +22,8 @@ export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'], asy
 			// Send initial connected event
 			send(JSON.stringify({ type: 'connected' }));
 
-			// Subscribe to Redis channel
-			subscriber.subscribe(channel).catch(() => {
-				// Connection may fail
-			});
+			// Subscribe to channel (Redis or in-memory)
+			subscriber.subscribe(channel).catch(() => {});
 
 			subscriber.on('message', (_ch: string, message: string) => {
 				send(message);

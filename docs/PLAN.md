@@ -1,6 +1,6 @@
-# QA Management System -- Detailed Implementation Plan
+# TestMini -- Detailed Implementation Plan
 
-> Detailed implementation plan for all phases
+> Detailed implementation plan for all phases. TestMini is a minimal QA management system -- simplicity first, no unnecessary complexity.
 
 ---
 
@@ -302,7 +302,7 @@ All tables are defined in `src/lib/server/db/schema.ts`.
 #### 3.3 Optimistic Lock Handling
 
 - [x] Revision check on save -> conflict detection
-- [x] Redis-based soft lock (`src/lib/server/lock.ts`)
+- [x] Soft lock (Redis or in-memory) (`src/lib/server/lock.ts`)
 - [x] Lock status UI display (show editing user)
 
 ---
@@ -403,11 +403,11 @@ All tables are defined in `src/lib/server/db/schema.ts`.
 
 ## Phase 2: Real-time & Dashboard
 
-### Milestone 8: Redis Integration
+### Milestone 8: Redis Integration (Optional)
 
-- [x] Add Redis service to `compose.yaml`
-- [x] Redis client setup (`src/lib/server/redis.ts`)
-- [x] Soft Lock implementation (`src/lib/server/lock.ts`, TestCase edit locking)
+- [x] Add Redis service to `compose.yaml` (optional)
+- [x] Redis client setup (`src/lib/server/redis.ts`) with in-memory fallback
+- [x] Soft Lock implementation (`src/lib/server/lock.ts`, TestCase edit locking) — Redis or in-memory
 - [x] Lock status UI display (show editing user)
 
 ### Milestone 9: SSE Real-time Sync
@@ -600,7 +600,7 @@ src/
 |   |   +-- crypto.ts               # AES-256-GCM encryption utility
 |   |   +-- storage.ts              # Local file storage
 |   |   +-- redis.ts                # Redis client + Pub/Sub
-|   |   +-- lock.ts                 # Redis-based soft lock
+|   |   +-- lock.ts                 # Soft lock (Redis or in-memory)
 |   |   +-- db/
 |   |       +-- index.ts            # Drizzle instance
 |   |       +-- schema.ts           # Domain schema

@@ -1,6 +1,6 @@
-# TestMini -- QA Management System
+# TestMini -- Minimal QA Management System
 
-An internal QA management system. Supports per-project test case management, test execution, failure tracking, and real-time synchronization.
+A minimal yet fully-featured QA management system. As the name "mini" suggests, TestMini prioritizes simplicity and minimalism -- no unnecessary complexity, no bloated abstractions, just the essentials done right. Supports per-project test case management, test execution, failure tracking, and real-time synchronization.
 
 ## Key Features
 
@@ -9,11 +9,11 @@ An internal QA management system. Supports per-project test case management, tes
 - **Test Runs** -- Per-environment execution, inline status changes, Bulk Pass, progress indicators
 - **Failure Details** -- Record failure environment, error messages, and stack traces
 - **File Attachments** -- Upload files to test cases/executions/failures (MIME whitelist, access control, drag and drop)
-- **Real-time Sync** -- SSE + Redis Pub/Sub based live test run updates
+- **Real-time Sync** -- SSE-based live test run updates (Redis Pub/Sub or in-memory bus)
 - **Dashboard/Reports** -- Pass rate, per-environment/priority statistics, Chart.js charts (lazy-loaded), date range filters, CSV streaming export, widget customization
 - **OIDC Integration** -- Admins can add external IdPs (Keycloak, Google, etc.) at runtime, JWKS signature verification, approval queue for new users
 - **User Approval Queue** -- When OIDC autoRegister is off, new users enter a pending state; admins approve/reject from the Admin panel
-- **Security** -- Rate Limiting (Redis), security headers, PBKDF2 key derivation, SSRF protection, path traversal prevention
+- **Security** -- Rate Limiting (Redis or in-memory), security headers, PBKDF2 key derivation, SSRF protection, path traversal prevention
 - **Audit Logs** -- Record key operation history, Admin view page (filters, pagination)
 - **Notification System** -- In-app notification bell, 30-second polling, mark as read
 - **TC Templates** -- Save/apply reusable TC structures as templates
@@ -35,7 +35,7 @@ An internal QA management system. Supports per-project test case management, tes
 | DB / ORM | **PostgreSQL**, **Drizzle ORM** (postgres.js) |
 | Auth | **better-auth** (email/password login + admin plugin, self-registration disabled) |
 | OIDC | Custom OAuth/PKCE handler (runtime IdP management) |
-| Cache / Real-time | **Redis** (ioredis) -- Soft Lock, SSE Pub/Sub |
+| Cache / Real-time | **Redis** (ioredis, optional) -- Soft Lock, SSE Pub/Sub; in-memory fallback for single-server |
 | File Storage | Local file system (S3-ready) |
 | Charts | **Chart.js** |
 | i18n | **Paraglide** (ko, en) |
@@ -176,7 +176,7 @@ Browser
   |     +-- Paraglide (i18n)
   |
   +-- PostgreSQL (data)
-  +-- Redis (Lock, Pub/Sub)
+  +-- Redis (optional: Lock, Pub/Sub)
   +-- Local Storage (file attachments)
 ```
 
@@ -185,16 +185,16 @@ Browser
 | Service | Image | Port | Purpose |
 |---------|-------|------|---------|
 | db | postgres | 5432 | Main database |
-| redis | redis:7-alpine | 6379 | Soft Lock, SSE Pub/Sub |
+| redis | redis:7-alpine | 6379 | Soft Lock, SSE Pub/Sub (optional) |
 
 ---
 
 ## Concurrency Management
 
-### Soft Lock (Redis)
+### Soft Lock
 
-- Redis-based locking when editing test cases
-- TTL: 10 minutes, auto-expiry
+- Locking when editing test cases (Redis-backed or in-memory)
+- TTL: 2 minutes, auto-expiry
 - UI displays the currently editing user
 
 ### Optimistic Lock

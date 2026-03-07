@@ -1,6 +1,6 @@
 # Contributing Guide
 
-This document covers everything you need to start contributing to testmini — a SvelteKit-based test case management application.
+This document covers everything you need to start contributing to testmini — a minimal SvelteKit-based test case management application. The project values simplicity and minimalism: avoid unnecessary complexity, keep solutions focused, and prefer the simplest approach that works.
 
 ---
 
@@ -33,7 +33,7 @@ This document covers everything you need to start contributing to testmini — a
 
 - Node.js 24 or later
 - pnpm 9 or later (`npm install -g pnpm`)
-- Docker (for PostgreSQL and Redis)
+- Docker (for PostgreSQL; Redis is optional)
 
 ### Steps
 
@@ -45,7 +45,7 @@ cd testmini
 # 2. Install dependencies
 pnpm install
 
-# 3. Start the database and Redis
+# 3. Start the database (Redis is optional — omit REDIS_URL for in-memory fallback)
 pnpm db:start          # docker compose up
 
 # 4. Push the database schema
@@ -53,7 +53,7 @@ pnpm db:push           # drizzle-kit push (applies schema without migrations)
 
 # 5. Copy and configure environment variables
 cp .env.example .env
-# Edit .env — set DATABASE_URL, REDIS_URL, and Better Auth secrets
+# Edit .env — set DATABASE_URL and Better Auth secrets (REDIS_URL is optional)
 
 # 6. Start the development server
 pnpm dev               # http://localhost:5173
@@ -111,12 +111,12 @@ testmini/
 │   │   │   │   ├── index.ts        # Drizzle ORM client (db)
 │   │   │   │   ├── schema.ts       # All Drizzle table definitions
 │   │   │   │   └── auth.schema.ts  # Better Auth-generated user/session tables
-│   │   │   ├── lock.ts             # Redis-backed distributed lock
+│   │   │   ├── lock.ts             # Distributed lock (Redis or in-memory)
 │   │   │   ├── logger.ts           # Pino logger
 │   │   │   ├── notifications.ts    # Notification creation helpers
 │   │   │   ├── oidc-jwt.ts         # OIDC JWT verification
-│   │   │   ├── rate-limit.ts       # Redis-backed rate limiter
-│   │   │   ├── redis.ts            # Redis client and pub/sub
+│   │   │   ├── rate-limit.ts       # Rate limiter (Redis or in-memory)
+│   │   │   ├── redis.ts            # Optional Redis client and pub/sub
 │   │   │   ├── storage.ts          # File storage abstraction (local/S3)
 │   │   │   └── test-helpers/       # Test utilities (never imported in production code)
 │   │   │       ├── fixtures.ts     # Shared test data objects

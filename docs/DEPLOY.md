@@ -34,7 +34,7 @@
 | Node.js | 24+ | LTS recommended |
 | pnpm | 9+ | `corepack enable && corepack prepare pnpm@latest --activate` |
 | PostgreSQL | 16+ | Production compose uses 17-alpine |
-| Redis | 7+ | For SSE real-time sync and Soft Lock |
+| Redis | 7+ | Optional: SSE real-time sync and Soft Lock (in-memory fallback available) |
 
 ### Additional Requirements for Docker Deployment
 
@@ -71,7 +71,7 @@ cp .env.example .env
 
 | Variable | Description | Default | Example |
 |------|------|--------|------|
-| `REDIS_URL` | Redis connection string | `redis://localhost:6379` | `redis://:password@localhost:6379` |
+| `REDIS_URL` | Redis connection string (omit to use in-memory fallback) | — | `redis://:password@localhost:6379` |
 | `PORT` | App listening port | `3000` | `3000` |
 | `NODE_ENV` | Node execution environment | — | `production` |
 
@@ -239,7 +239,7 @@ This method deploys directly to a Node.js server without using Docker.
 #### Prerequisites
 
 - PostgreSQL 16+ database and user created
-- Redis 7+ server running
+- Redis 7+ server (optional; omit REDIS_URL to use in-memory fallback)
 - Node.js 24+ and pnpm installed
 
 #### Build and Deploy
@@ -254,7 +254,8 @@ pnpm install --frozen-lockfile
 
 # 3. Configure environment variables
 cp .env.example .env
-# Edit .env file: set DATABASE_URL, ORIGIN, BETTER_AUTH_SECRET, REDIS_URL
+# Edit .env file: set DATABASE_URL, ORIGIN, BETTER_AUTH_SECRET
+# Optionally set REDIS_URL (omit for in-memory fallback)
 
 # 4. Production build
 pnpm build
@@ -293,7 +294,7 @@ pm2 logs testmini
 # /etc/systemd/system/testmini.service
 [Unit]
 Description=TestMini QA Management System
-After=network.target postgresql.service redis.service
+After=network.target postgresql.service
 
 [Service]
 Type=simple
@@ -753,7 +754,7 @@ docker compose -f compose.prod.yaml ps db
 
 ### Redis Connection Failure
 
-**Symptom:** Real-time SSE updates are not working. `Redis connection error` appears in logs.
+**Symptom:** Real-time SSE updates are not working across multiple servers. `Redis connection error` appears in logs.
 
 **Resolution:**
 
@@ -770,7 +771,7 @@ docker compose -f compose.prod.yaml exec redis \
 # redis://:password@host:6379
 ```
 
-> The app works without Redis, but SSE real-time sync and Soft Lock features will be disabled.
+> Redis is optional. Without `REDIS_URL`, all features (SSE pub/sub, soft locks, rate limiting) use in-memory fallbacks. This is suitable for single-server deployments.
 
 ### Authentication Error Due to ORIGIN Mismatch
 

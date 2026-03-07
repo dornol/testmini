@@ -26,7 +26,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		.where(eq(projectMember.projectId, projectId))
 		.orderBy(projectMember.createdAt);
 
-	// @ts-ignore zod 3.24 type mismatch with superforms adapter
+	// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
 	const addForm = await superValidate(zod(addMemberSchema));
 
 	return { members, addForm };
@@ -38,7 +38,7 @@ export const actions: Actions = {
 		const projectId = Number(params.projectId);
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
 
-		// @ts-ignore zod 3.24 type mismatch with superforms adapter
+		// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
 		const form = await superValidate(request, zod(addMemberSchema));
 
 		if (!form.valid) {

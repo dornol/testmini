@@ -14,7 +14,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 		redirect(303, '../test-cases');
 	}
 
-	// @ts-ignore zod 3.24 type mismatch with superforms adapter
+	// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
 	const form = await superValidate(zod(createTestCaseSchema));
 	return { form };
 };
@@ -25,7 +25,7 @@ export const actions: Actions = {
 		const projectId = Number(params.projectId);
 		await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
-		// @ts-ignore zod 3.24 type mismatch with superforms adapter
+		// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
 		const form = await superValidate(request, zod(createTestCaseSchema));
 
 		if (!form.valid) {

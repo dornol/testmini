@@ -14,7 +14,7 @@
 
 	let { data } = $props();
 
-	// @ts-ignore zod 3.24 type mismatch with superforms adapter
+	// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
 	const validators = zodClient(updateProjectSchema);
 	const { form, errors, enhance, submitting, tainted } = superForm(data.form, {
 		validators,

@@ -56,7 +56,11 @@ export const project = pgTable('project', {
 	createdBy: text('created_by')
 		.notNull()
 		.references(() => user.id),
-	createdAt: timestamp('created_at').defaultNow().notNull()
+	createdAt: timestamp('created_at').defaultNow().notNull(),
+	updatedAt: timestamp('updated_at')
+		.defaultNow()
+		.$onUpdate(() => new Date())
+		.notNull()
 });
 
 export const projectRelations = relations(project, ({ many }) => ({
@@ -178,6 +182,10 @@ export const testCaseRelations = relations(testCase, ({ one, many }) => ({
 }));
 
 // ── TestCaseVersion ────────────────────────────────────
+// Note: test_case_version table has a generated tsvector column `search_vector`
+// created via migration (0002_search_indexes.sql). It is not declared here
+// because Drizzle does not support generated columns natively.
+// Used for full-text search: search_vector @@ to_tsquery('english', ...)
 
 export type TestStep = {
 	order: number;
@@ -235,7 +243,11 @@ export const testRun = pgTable(
 		createdBy: text('created_by')
 			.notNull()
 			.references(() => user.id),
-		createdAt: timestamp('created_at').defaultNow().notNull()
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at')
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull()
 	},
 	(table) => [index('test_run_project_idx').on(table.projectId)]
 );

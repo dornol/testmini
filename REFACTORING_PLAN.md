@@ -11,7 +11,7 @@
 | **Phase 1** | 쿼리 헬퍼 (`queries.ts`) | ✅ 완료 |
 | **Phase 1** | CSV 유틸리티 (`csv-utils.ts`) | ✅ 완료 |
 | **Phase 1** | 에러 응답 유틸리티 | ⏳ 미진행 (현재 SvelteKit `error()` 사용이 주류, json 형태는 소수 — 우선순위 낮음) |
-| **Phase 1** | @ts-ignore 해결 | ⏳ 미진행 (zod 3.24 + superforms 호환 이슈, 의존성 업데이트 필요) |
+| **Phase 1** | @ts-ignore 해결 | ✅ 완료 (@ts-expect-error 전환, 4개 불필요 제거) |
 | **Phase 2** | test-cases/+page.svelte 분할 | ✅ 완료 |
 | **Phase 2** | CommentSection 분할 | ✅ 완료 |
 | **Phase 2** | ImportDialog, NotificationBell 등 기타 분할 | ⏳ 미진행 |
@@ -20,7 +20,7 @@
 | **Phase 3** | 입력 검증 강화 | ✅ 완료 |
 | **Phase 4** | JWKS 캐싱 | ✅ 이미 구현됨 (1시간 TTL) |
 | **Phase 4** | N+1 쿼리 해결 | ✅ 완료 |
-| **Phase 4** | DB 스키마 개선 | ⏳ 미진행 (마이그레이션 필요) |
+| **Phase 4** | DB 스키마 개선 | ✅ 부분 완료 (updatedAt 추가, search_vector 문서화) |
 | **Phase 4** | 테스트 개선 | ⏳ 미진행 |
 | **Phase 4** | Silent Error 처리 | ✅ 완료 |
 
@@ -144,13 +144,13 @@ export function conflict(msg: string) { return json({ error: msg }, { status: 40
 export function forbidden(msg: string) { return json({ error: msg }, { status: 403 }); }
 ```
 
-### 1.4 @ts-ignore 해결
+### 1.4 @ts-ignore 해결 ✅ 완료
 
-현재 3곳에 `@ts-ignore` 존재:
-```typescript
-// @ts-ignore zod 3.24 type mismatch with superforms adapter
-```
-- zod/superforms 버전 호환성 문제 → 의존성 업데이트 또는 타입 shim 생성
+15개 `@ts-ignore` → 11개 `@ts-expect-error` 전환, 4개 완전 제거 (타입 에러 해소됨).
+
+- `@ts-expect-error`는 실제 에러가 있을 때만 무시하며, 에러 해소 시 "Unused directive" 경고 발생
+- zod 3.25 + superforms 2.30: `superValidate(zod(schema))` 호출에서 `safeParse` 리턴 타입 불일치 잔존
+- `$form.steps` 할당은 이미 타입 호환 해결됨 → directive 제거
 
 ---
 
@@ -276,16 +276,20 @@ export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ user
 
 1시간 TTL 기반 캐시가 이미 구현되어 있음. 추가 작업 불필요.
 
-### 4.3 DB 스키마 개선
+### 4.3 DB 스키마 개선 ✅ 부분 완료
 
-**파일**: `src/lib/server/db/schema.ts` (819줄)
-
+**완료 항목:**
 | 항목 | 설명 |
 |------|------|
-| `updatedAt` 누락 | `testCase`, `testRun` 등 자주 수정되는 테이블에 자동 타임스탬프 추가 |
-| `search_vector` 미반영 | 마이그레이션에만 존재, 스키마 파일에 문서화 필요 |
-| Attachment FK | `referenceId` string → 엔티티별 명시적 FK 고려 |
-| 스키마 파일 분할 | 819줄 → 도메인별 분할 (`auth.schema.ts`, `test-case.schema.ts`, ...) |
+| `updatedAt` 추가 | `project`, `testRun` 테이블에 `$onUpdate()` 자동 타임스탬프 추가 |
+| `search_vector` 문서화 | `testCaseVersion` 섹션에 생성 컬럼 존재 설명 주석 추가 |
+| 마이그레이션 | `0015_add_updated_at.sql` 생성 |
+
+**미진행 항목:**
+| 항목 | 사유 |
+|------|------|
+| Attachment FK | `referenceId` + `referenceType` 다형성 패턴, 변경 시 대규모 마이그레이션 필요 |
+| 스키마 파일 분할 | 이미 섹션별 주석으로 정리됨. Drizzle relations의 cross-file 참조 시 circular dependency 리스크 |
 
 ### 4.4 테스트 개선
 

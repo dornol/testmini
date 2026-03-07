@@ -8,7 +8,7 @@ import { project } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 
-// @ts-ignore zod 3.24 type mismatch with superforms adapter
+// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
 const adapter = zod(updateProjectSchema);
 
 export const load: PageServerLoad = async ({ parent }) => {

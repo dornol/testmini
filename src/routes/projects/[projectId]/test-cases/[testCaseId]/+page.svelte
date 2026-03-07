@@ -30,7 +30,7 @@
 	let lockHolder = $state<{ userName: string } | null>(null);
 	let saveAsTemplateOpen = $state(false);
 
-	// @ts-ignore zod 3.24 type mismatch with superforms adapter
+	// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
 	const validators = zodClient(updateTestCaseSchema);
 	const { form, errors, enhance, submitting, reset, tainted } = superForm(data.form, {
 		validators,
@@ -411,7 +411,6 @@
 							<StepsEditor
 								value={($form.steps ?? []) as { action: string; expected: string }[]}
 								onchange={(s) => {
-									// @ts-ignore zod 3.24 type mismatch
 									$form.steps = s;
 								}}
 							/>

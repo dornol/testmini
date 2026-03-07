@@ -42,7 +42,6 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 
 	// Pre-fill edit form with latest version data
 	const latest = tc.latestVersion;
-	// @ts-ignore zod 3.24 type mismatch with superforms adapter
 	const form = await superValidate(
 		{
 			title: latest?.title ?? '',
@@ -53,7 +52,7 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 			revision: latest?.revision ?? 1,
 			automationKey: tc.automationKey ?? ''
 		},
-		// @ts-ignore zod 3.24 type mismatch with superforms adapter
+		// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
 		zod(updateTestCaseSchema)
 	);
 
@@ -88,7 +87,7 @@ export const actions: Actions = {
 		const testCaseId = Number(params.testCaseId);
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
-		// @ts-ignore zod 3.24 type mismatch with superforms adapter
+		// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
 		const form = await superValidate(request, zod(updateTestCaseSchema));
 
 		if (!form.valid) {

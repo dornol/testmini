@@ -99,6 +99,13 @@
       "when": 1741824000000,
       "tag": "0014_project_api_key",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1741910400000,
+      "tag": "0015_add_updated_at",
+      "breakpoints": true
     }
   ]
 }

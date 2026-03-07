@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		redirect(302, '/auth/login');
 	}
 
-	// @ts-ignore zod 3.24 type mismatch with superforms adapter
+	// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
 	const form = await superValidate(zod(createProjectSchema));
 	return { form };
 };
@@ -22,7 +22,7 @@ export const actions: Actions = {
 			redirect(302, '/auth/login');
 		}
 
-		// @ts-ignore zod 3.24 type mismatch with superforms adapter
+		// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
 		const form = await superValidate(request, zod(createProjectSchema));
 
 		if (!form.valid) {

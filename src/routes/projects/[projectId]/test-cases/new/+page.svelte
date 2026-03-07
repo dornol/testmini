@@ -16,7 +16,7 @@
 	let { data } = $props();
 	let formDirty = $state(false);
 
-	// @ts-ignore zod 3.24 type mismatch with superforms adapter
+	// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
 	const validators = zodClient(createTestCaseSchema);
 	const { form, errors, enhance, submitting, tainted } = superForm(data.form, {
 		validators,
@@ -40,7 +40,6 @@
 
 	function applyTemplate(template: Template) {
 		$form.precondition = template.precondition ?? '';
-		// @ts-ignore zod 3.24 type mismatch
 		$form.steps = template.steps.map((s) => ({ action: s.action, expected: s.expected }));
 		$form.priority = template.priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 	}
@@ -113,7 +112,6 @@
 				<StepsEditor
 					value={($form.steps ?? []) as { action: string; expected: string }[]}
 					onchange={(s) => {
-						// @ts-ignore zod 3.24 type mismatch
 						$form.steps = s;
 					}}
 				/>

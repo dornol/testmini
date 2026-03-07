@@ -1,7 +1,6 @@
 # QA Management System -- Detailed Implementation Plan
 
-> Based on [INITIAL_PLAN.md](./INITIAL_PLAN.md)
-> Detailed implementation plan centered on Phase 1 (MVP)
+> Detailed implementation plan for all phases
 
 ---
 

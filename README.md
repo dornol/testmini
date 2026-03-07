@@ -52,7 +52,7 @@ An internal QA management system. Supports per-project test case management, tes
 - pnpm
 - Docker & Docker Compose
 
-> For a detailed deployment guide, see [DEPLOY.md](./DEPLOY.md).
+> For a detailed deployment guide, see [docs/DEPLOY.md](./docs/DEPLOY.md).
 
 ### Installation
 
@@ -232,4 +232,4 @@ src/
 - [x] **Phase 3** -- Dynamic OIDC/OAuth management, full-text search, virtual scrolling, Import/Export
 - [x] **Phase 4** -- CI integration (`automation_key`, project API keys, automation result API, CI webhook)
 
-For the detailed implementation plan, see [PLAN.md](./PLAN.md). For the improvement task list, see [TODO.md](./TODO.md).
+For the detailed implementation plan, see [docs/PLAN.md](./docs/PLAN.md). For planned features, see [docs/TODO.md](./docs/TODO.md).

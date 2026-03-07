@@ -6,6 +6,16 @@
 
 ---
 
+## Key Documentation
+
+- **[docs/TODO.md](./docs/TODO.md)** -- Planned features and improvements (MCP server, future work)
+- **[docs/API.md](./docs/API.md)** -- API reference for all HTTP endpoints
+- **[docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md)** -- Contributing guide, code conventions, testing patterns
+- **[docs/DEPLOY.md](./docs/DEPLOY.md)** -- Deployment guide
+- **[docs/PLAN.md](./docs/PLAN.md)** -- Detailed implementation plan and milestones
+
+---
+
 You are able to use the Svelte MCP server, where you have access to comprehensive Svelte 5 and SvelteKit documentation. Here's how to use the available tools effectively:
 
 ## Available MCP Tools:

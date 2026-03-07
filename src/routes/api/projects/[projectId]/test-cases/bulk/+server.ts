@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
+import { db, findTestCasesWithLatestVersions } from '$lib/server/db';
 import { testCase, testCaseVersion, testCaseTag, testCaseAssignee, tag, projectMember } from '$lib/server/db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
@@ -55,26 +55,18 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 				});
 				if (!tagRecord) return json({ error: 'Tag not found' }, { status: 404 });
 
-				for (const tcId of validIds) {
-					const existing = await tx.query.testCaseTag.findFirst({
-						where: and(eq(testCaseTag.testCaseId, tcId), eq(testCaseTag.tagId, tagId))
-					});
-					if (!existing) {
-						await tx.insert(testCaseTag).values({ testCaseId: tcId, tagId });
-						affected++;
-					}
-				}
+				const tagValues = validIds.map((tcId) => ({ testCaseId: tcId, tagId }));
+				await tx.insert(testCaseTag).values(tagValues).onConflictDoNothing();
+				affected = validIds.length;
 				break;
 			}
 
 			case 'removeTag': {
 				if (!tagId) return json({ error: 'tagId required' }, { status: 400 });
-				for (const tcId of validIds) {
-					const result = await tx
-						.delete(testCaseTag)
-						.where(and(eq(testCaseTag.testCaseId, tcId), eq(testCaseTag.tagId, tagId)));
-					affected++;
-				}
+				await tx
+					.delete(testCaseTag)
+					.where(and(inArray(testCaseTag.testCaseId, validIds), eq(testCaseTag.tagId, tagId)));
+				affected = validIds.length;
 				break;
 			}
 
@@ -82,16 +74,16 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 				if (!priority || !['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) {
 					return json({ error: 'Invalid priority' }, { status: 400 });
 				}
-				for (const tcId of validIds) {
-					const tc = await findTestCaseWithLatestVersion(tcId, projectId);
-					if (!tc?.latestVersion) continue;
+				const tcsForPriority = await findTestCasesWithLatestVersions(validIds, projectId);
+				for (const tc of tcsForPriority) {
+					if (!tc.latestVersion) continue;
 					if (tc.latestVersion.priority === priority) continue;
 
 					const latest = tc.latestVersion;
 					const [version] = await tx
 						.insert(testCaseVersion)
 						.values({
-							testCaseId: tcId,
+							testCaseId: tc.id,
 							versionNo: latest.versionNo + 1,
 							title: latest.title,
 							precondition: latest.precondition,
@@ -106,7 +98,7 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 					await tx
 						.update(testCase)
 						.set({ latestVersionId: version.id })
-						.where(eq(testCase.id, tcId));
+						.where(eq(testCase.id, tc.id));
 					affected++;
 				}
 				break;
@@ -136,26 +128,18 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 				});
 				if (!memberRecord) return json({ error: 'User is not a project member' }, { status: 404 });
 
-				for (const tcId of validIds) {
-					const existing = await tx.query.testCaseAssignee.findFirst({
-						where: and(eq(testCaseAssignee.testCaseId, tcId), eq(testCaseAssignee.userId, userId))
-					});
-					if (!existing) {
-						await tx.insert(testCaseAssignee).values({ testCaseId: tcId, userId });
-						affected++;
-					}
-				}
+				const assigneeValues = validIds.map((tcId) => ({ testCaseId: tcId, userId }));
+				await tx.insert(testCaseAssignee).values(assigneeValues).onConflictDoNothing();
+				affected = validIds.length;
 				break;
 			}
 
 			case 'removeAssignee': {
 				if (!userId) return json({ error: 'userId required' }, { status: 400 });
-				for (const tcId of validIds) {
-					await tx
-						.delete(testCaseAssignee)
-						.where(and(eq(testCaseAssignee.testCaseId, tcId), eq(testCaseAssignee.userId, userId)));
-					affected++;
-				}
+				await tx
+					.delete(testCaseAssignee)
+					.where(and(inArray(testCaseAssignee.testCaseId, validIds), eq(testCaseAssignee.userId, userId)));
+				affected = validIds.length;
 				break;
 			}
 
@@ -174,9 +158,9 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 					}
 				}
 
-				for (const tcId of validIds) {
-					const tc = await findTestCaseWithLatestVersion(tcId, projectId);
-					if (!tc?.latestVersion) continue;
+				const tcsForClone = await findTestCasesWithLatestVersions(validIds, projectId);
+				for (const tc of tcsForClone) {
+					if (!tc.latestVersion) continue;
 
 					const key = `TC-${String(nextNum).padStart(4, '0')}`;
 					nextNum++;
@@ -226,18 +210,18 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 					const tcTags = await tx
 						.select({ tagId: testCaseTag.tagId })
 						.from(testCaseTag)
-						.where(eq(testCaseTag.testCaseId, tcId));
-					for (const t of tcTags) {
-						await tx.insert(testCaseTag).values({ testCaseId: created.id, tagId: t.tagId });
+						.where(eq(testCaseTag.testCaseId, tc.id));
+					if (tcTags.length > 0) {
+						await tx.insert(testCaseTag).values(tcTags.map((t) => ({ testCaseId: created.id, tagId: t.tagId })));
 					}
 
 					// Copy assignees
 					const tcAssignees = await tx
 						.select({ userId: testCaseAssignee.userId })
 						.from(testCaseAssignee)
-						.where(eq(testCaseAssignee.testCaseId, tcId));
-					for (const a of tcAssignees) {
-						await tx.insert(testCaseAssignee).values({ testCaseId: created.id, userId: a.userId });
+						.where(eq(testCaseAssignee.testCaseId, tc.id));
+					if (tcAssignees.length > 0) {
+						await tx.insert(testCaseAssignee).values(tcAssignees.map((a) => ({ testCaseId: created.id, userId: a.userId })));
 					}
 
 					affected++;

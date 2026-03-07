@@ -118,6 +118,11 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, u
 		error(400, 'No file uploaded');
 	}
 
+	const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+	if (file.size > MAX_FILE_SIZE) {
+		error(400, 'File size must not exceed 10MB');
+	}
+
 	const text = await file.text();
 	// Remove UTF-8 BOM if present
 	const clean = text.startsWith('\uFEFF') ? text.slice(1) : text;
@@ -167,6 +172,11 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, u
 		} else {
 			validRows.push({ row, originalIndex: idx });
 		}
+	}
+
+	const MAX_IMPORT_ROWS = 5_000;
+	if (importRows.length > MAX_IMPORT_ROWS) {
+		return json({ imported: 0, errors: [`Import limited to ${MAX_IMPORT_ROWS} rows. File contains ${importRows.length} rows.`], rows: [] }, { status: 400 });
 	}
 
 	if (validRows.length === 0) {

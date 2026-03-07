@@ -59,6 +59,11 @@ export const POST: RequestHandler = async ({ request }) => {
 	let isCompleted = false;
 	let message = 'Webhook received';
 
+	const contentLength = Number(request.headers.get('content-length') ?? 0);
+	if (contentLength > 1024 * 1024) {
+		return json({ error: 'Request body must not exceed 1MB' }, { status: 413 });
+	}
+
 	let body: unknown;
 	try {
 		body = await request.json();

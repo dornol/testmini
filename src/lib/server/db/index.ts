@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import * as schema from './schema';
 import { env } from '$env/dynamic/private';
 
@@ -32,4 +32,33 @@ export async function findTestCaseWithLatestVersion(
 		: null;
 
 	return { ...tc, latestVersion };
+}
+
+/**
+ * Batch fetch test cases with their latest versions.
+ * Reduces N+1 queries to 2 queries total.
+ */
+export async function findTestCasesWithLatestVersions(
+	testCaseIds: number[],
+	projectId: number
+) {
+	if (testCaseIds.length === 0) return [];
+
+	const tcs = await db
+		.select()
+		.from(schema.testCase)
+		.where(and(eq(schema.testCase.projectId, projectId), inArray(schema.testCase.id, testCaseIds)));
+
+	const versionIds = tcs.map((tc) => tc.latestVersionId).filter((id): id is number => id !== null);
+
+	const versions = versionIds.length > 0
+		? await db.select().from(schema.testCaseVersion).where(inArray(schema.testCaseVersion.id, versionIds))
+		: [];
+
+	const versionMap = new Map(versions.map((v) => [v.id, v]));
+
+	return tcs.map((tc) => ({
+		...tc,
+		latestVersion: tc.latestVersionId ? versionMap.get(tc.latestVersionId) ?? null : null
+	}));
 }

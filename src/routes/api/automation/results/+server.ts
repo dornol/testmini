@@ -39,6 +39,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json({ error: 'results array is required and must not be empty' }, { status: 400 });
 	}
 
+	if (results.length > 10_000) {
+		return json({ error: 'results array must not exceed 10,000 entries' }, { status: 400 });
+	}
+
 	// Validate each result entry
 	const validStatuses = ['PASS', 'FAIL', 'SKIP'];
 	for (const r of results) {

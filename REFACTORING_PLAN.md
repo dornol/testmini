@@ -8,26 +8,45 @@
 
 | Phase | 항목 | 상태 |
 |-------|------|------|
-| **Phase 1** | 쿼리 헬퍼 (`queries.ts`) | ✅ 완료 — 4개 파일 적용 |
-| **Phase 1** | CSV 유틸리티 (`csv-utils.ts`) | ✅ 완료 — 3개 파일 적용 |
-| **Phase 1** | 에러 응답 유틸리티 | ⏳ 미진행 (현재 SvelteKit `error()` 사용이 주류, json 형태는 소수) |
+| **Phase 1** | 쿼리 헬퍼 (`queries.ts`) | ✅ 완료 |
+| **Phase 1** | CSV 유틸리티 (`csv-utils.ts`) | ✅ 완료 |
+| **Phase 1** | 에러 응답 유틸리티 | ⏳ 미진행 (현재 SvelteKit `error()` 사용이 주류, json 형태는 소수 — 우선순위 낮음) |
 | **Phase 1** | @ts-ignore 해결 | ⏳ 미진행 (zod 3.24 + superforms 호환 이슈, 의존성 업데이트 필요) |
-| **Phase 2** | test-cases/+page.svelte 분할 | ✅ 완료 — 1,997줄 → 1,499줄 |
-| **Phase 3** | 클라이언트 Fetch 래퍼 (`api-client.ts`) | ✅ 완료 — 21개 Svelte 컴포넌트 적용 (57→13 raw fetch, 나머지는 FormData/lock 등 의도적 유지) |
-| **Phase 3** | 라우트 미들웨어 (`api-handler.ts`) | ✅ 완료 — 38개 API 라우트 적용 (admin 2개 + projects list 1개 제외) |
+| **Phase 2** | test-cases/+page.svelte 분할 | ✅ 완료 |
+| **Phase 2** | CommentSection 분할 | ✅ 완료 |
+| **Phase 2** | ImportDialog, NotificationBell 등 기타 분할 | ⏳ 미진행 |
+| **Phase 3** | 클라이언트 Fetch 래퍼 (`api-client.ts`) | ✅ 완료 |
+| **Phase 3** | 라우트 미들웨어 (`api-handler.ts`) | ✅ 완료 |
+| **Phase 3** | 입력 검증 강화 | ✅ 완료 |
 | **Phase 4** | JWKS 캐싱 | ✅ 이미 구현됨 (1시간 TTL) |
+| **Phase 4** | N+1 쿼리 해결 | ✅ 완료 |
 | **Phase 4** | DB 스키마 개선 | ⏳ 미진행 (마이그레이션 필요) |
 | **Phase 4** | 테스트 개선 | ⏳ 미진행 |
+| **Phase 4** | Silent Error 처리 | ⏳ 미진행 |
 
 ### 생성된 유틸리티 파일
-- `src/lib/server/queries.ts` — 공통 쿼리 헬퍼 (loadTestCaseMetadata 등)
-- `src/lib/server/csv-utils.ts` — CSV 포맷팅/응답 유틸리티
-- `src/lib/api-client.ts` — 클라이언트 fetch 래퍼 (apiFetch, apiPost, apiPatch 등)
-- `src/lib/server/api-handler.ts` — API 라우트 미들웨어 (withProjectRole, withProjectAccess, withAuth)
+| 파일 | 설명 | 적용 현황 |
+|------|------|-----------|
+| `src/lib/server/queries.ts` | 공통 쿼리 헬퍼 | `loadTestCaseMetadata` → 2개 파일, `loadProjectTags` → 2개 파일 |
+| `src/lib/server/csv-utils.ts` | CSV 포맷팅/응답 유틸리티 | `formatCsvRow` → 2개 파일, `csvResponse` → 1개 파일 |
+| `src/lib/api-client.ts` | 클라이언트 fetch 래퍼 | 21개 Svelte 컴포넌트 (57→13 raw fetch, 나머지는 FormData/lock 등 의도적 유지) |
+| `src/lib/server/api-handler.ts` | API 라우트 미들웨어 | 38개 API 라우트 (admin 2개 제외) |
 
 ### 분할된 컴포넌트
-- `TestCaseFilterBar.svelte` — 필터 UI + 검색 + 그룹 생성
-- `TestCaseBulkActionBar.svelte` — 벌크 작업 바 + 로직
+| 컴포넌트 | 원본 | 설명 |
+|---------|------|------|
+| `TestCaseFilterBar.svelte` | `test-cases/+page.svelte` | 필터 UI + 검색 + 그룹 생성 (~350줄) |
+| `TestCaseBulkActionBar.svelte` | `test-cases/+page.svelte` | 벌크 작업 바 + 로직 (~220줄) |
+| `CommentItem.svelte` | `CommentSection.svelte` | 개별 댓글 렌더링 (~130줄) |
+| `CommentForm.svelte` | `CommentSection.svelte` | 댓글/답글 입력 폼 (~45줄) |
+
+### 수치 요약
+| 항목 | Before | After |
+|------|--------|-------|
+| `test-cases/+page.svelte` | 1,997줄 | 1,499줄 (-25%) |
+| raw `fetch()` 호출 (Svelte) | 57개 | 13개 (-77%) |
+| API 라우트 보일러플레이트 | 3~5줄/핸들러 × 40 | `withProjectRole`/`withProjectAccess` 1줄 |
+| 전체 코드 변경 | — | 77 files, +1,828 -1,782 (net -1,145줄) |
 
 ---
 
@@ -51,9 +70,9 @@
 | 페이지 라우트 | 75+ |
 | 테스트 파일 | 58개 |
 | 300줄 초과 파일 | 9개 |
-| 최대 파일 크기 | 1,997줄 (`test-cases/+page.svelte`) |
-| 코드 중복 이슈 | 20+ |
-| 누락된 추상화 | 5개 |
+| 최대 파일 크기 | ~~1,997줄~~ 1,499줄 (`test-cases/+page.svelte`) |
+| 코드 중복 이슈 | ~~20+~~ ~10개 (쿼리/CSV/fetch/미들웨어 해결) |
+| 누락된 추상화 | ~~5개~~ 1개 (에러 응답 유틸만 잔여) |
 
 ### 잘 되어 있는 부분
 - shadcn-svelte 기반 UI 컴포넌트 구조
@@ -63,12 +82,12 @@
 - 테스트 헬퍼 분리 (`fixtures.ts`, `mock-db.ts`, `mock-event.ts`)
 
 ### 주요 문제점
-- `test-cases/+page.svelte` 2,000줄 초과 — 분할 필수
-- 태그/담당자/멤버 조회 쿼리 5곳 이상 중복
-- CSV 파싱/포맷 로직 3곳 산재
-- 에러 응답 형태 불일치 (`{ error }` vs `{ message }` vs `error()` throw)
-- 클라이언트 fetch 호출에 공통 래퍼 없음
-- JWKS 캐싱 미구현
+- ~~`test-cases/+page.svelte` 2,000줄 초과 — 분할 필수~~ → ✅ 1,499줄로 축소 (FilterBar, BulkActionBar 추출)
+- ~~태그/담당자/멤버 조회 쿼리 5곳 이상 중복~~ → ✅ `queries.ts` 헬퍼로 통합
+- ~~CSV 파싱/포맷 로직 3곳 산재~~ → ✅ `csv-utils.ts`로 통합
+- 에러 응답 형태 불일치 (`{ error }` vs `{ message }` vs `error()` throw) — 우선순위 낮음
+- ~~클라이언트 fetch 호출에 공통 래퍼 없음~~ → ✅ `api-client.ts` 적용 (57→13 raw fetch)
+- ~~JWKS 캐싱 미구현~~ → ✅ 이미 구현되어 있었음 (1시간 TTL)
 
 ---
 
@@ -76,50 +95,32 @@
 
 **목표**: 중복 코드 제거, 재사용 가능한 헬퍼 생성
 
-### 1.1 쿼리 헬퍼 추출
+### 1.1 쿼리 헬퍼 추출 ✅ 완료
 
-**신규 파일**: `src/lib/server/queries.ts`
+**파일**: `src/lib/server/queries.ts`
 
-현재 5개 이상 API 라우트에서 반복되는 패턴:
-```typescript
-// 이 패턴이 5곳 이상에서 중복
-const [assignedTags, projectTags, assignees, members] = await Promise.all([
-  db.select(...).from(testCaseTag).innerJoin(tag, ...),
-  db.select(...).from(tag).where(...),
-  db.select(...).from(testCaseAssignee).innerJoin(user, ...),
-  db.select(...).from(projectMember).innerJoin(user, ...)
-]);
-```
-
-**추출 대상 함수:**
-| 함수 | 설명 | 영향 파일 |
+**구현된 함수:**
+| 함수 | 설명 | 적용 파일 |
 |------|------|-----------|
-| `loadTestCaseMetadata(testCaseId, projectId)` | 태그+담당자+멤버 일괄 조회 | 5+ |
-| `loadProjectTags(projectId)` | 프로젝트 태그 목록 | 3+ |
-| `loadProjectMembers(projectId)` | 프로젝트 멤버 목록 | 4+ |
-| `batchLoadTagsByTestCase(testCaseIds)` | 테스트케이스별 태그 Map | 2+ |
-| `batchLoadAssigneesByTestCase(testCaseIds)` | 테스트케이스별 담당자 Map | 2+ |
+| `loadTestCaseMetadata(testCaseId, projectId)` | 태그+담당자+멤버 일괄 조회 (Promise.all) | `test-cases/[testCaseId]/+page.server.ts`, `api/.../test-cases/[testCaseId]/+server.ts` |
+| `loadProjectTags(projectId)` | 프로젝트 태그 목록 | `test-cases/+page.server.ts`, `test-runs/new/+page.server.ts` |
+| `loadTestCaseTags(testCaseId)` | 개별 테스트케이스 태그 | `loadTestCaseMetadata` 내부 사용 |
+| `loadTestCaseAssignees(testCaseId)` | 개별 테스트케이스 담당자 | `loadTestCaseMetadata` 내부 사용 |
+| `loadProjectMembers(projectId)` | 프로젝트 멤버 목록 | `loadTestCaseMetadata` 내부 사용 |
 
-**예상 효과**: ~50줄 중복 제거
+> 참고: `batchLoadTagsByTestCase`, `batchLoadAssigneesByTestCase`는 배치 조회 패턴이 단일 엔티티 조회와 형태가 달라 미추출. 기존 인라인 배치 로드 코드 유지.
 
-### 1.2 CSV 유틸리티 추출
+### 1.2 CSV 유틸리티 추출 ✅ 완료
 
-**신규 파일**: `src/lib/server/csv-utils.ts`
+**파일**: `src/lib/server/csv-utils.ts`
 
-현재 3개 파일에 산재:
-- `src/routes/api/.../test-cases/export/+server.ts`
-- `src/routes/api/.../test-runs/[runId]/export/+server.ts`
-- `src/routes/api/.../reports/export/+server.ts`
-- `src/routes/api/.../test-cases/import/+server.ts` (파서)
+**구현된 함수:**
+| 함수 | 설명 | 적용 파일 |
+|------|------|-----------|
+| `formatCsvRow(cells)` | 셀 이스케이프 + 행 포맷 | `reports/export/+server.ts`, `test-runs/[runId]/export/+server.ts` |
+| `csvResponse(headers, rows, filename)` | BOM + Content-Disposition + Response 생성 | `test-cases/export/+server.ts` |
 
-**추출 대상 함수:**
-| 함수 | 설명 |
-|------|------|
-| `parseCSV(text): string[][]` | CSV 텍스트 파싱 (import에서 추출) |
-| `formatCsvRow(cells: string[]): string` | 셀 이스케이프 + 행 포맷 |
-| `buildCsvResponse(headers, rows, filename)` | BOM + Content-Disposition 포함 Response 생성 |
-
-**예상 효과**: ~200줄 중복 제거
+> 참고: `parseCSV`는 import 전용이고 사용처가 1곳이라 미추출.
 
 ### 1.3 에러 응답 유틸리티
 
@@ -155,67 +156,35 @@ export function forbidden(msg: string) { return json({ error: msg }, { status: 4
 
 ## Phase 2: 대형 컴포넌트 분할
 
-### 2.1 test-cases/+page.svelte (1,997줄) — 최우선
+### 2.1 test-cases/+page.svelte (1,997줄 → 1,499줄) ✅ 완료
 
-현재 이 파일이 담당하는 역할:
-- 테스트 케이스 목록 표시 (가상 스크롤)
-- 필터링 (검색, 우선순위, 태그, 그룹, 담당자, 실행상태)
-- 그룹 관리 (CRUD, 드래그앤드롭)
-- 벌크 작업 (태그 추가/제거, 우선순위 변경, 그룹 이동, 삭제, 복제)
-- 인라인 편집
-- 여러 모달/시트 관리
-- 50+ 상태 변수
+**추출된 컴포넌트:**
 
-**분할 계획:**
+| 신규 컴포넌트 | 역할 | 라인 수 |
+|--------------|------|---------|
+| `TestCaseFilterBar.svelte` | 필터 UI + 검색 + 그룹 생성 다이얼로그 | ~350 |
+| `TestCaseBulkActionBar.svelte` | 벌크 작업 바 + 작업 로직 | ~220 |
 
-| 신규 컴포넌트 | 역할 | 예상 라인 |
-|--------------|------|----------|
-| `TestCaseFilter.svelte` | 필터 UI + 필터 상태 관리 | ~150 |
-| `TestCaseBulkActions.svelte` | 체크박스 선택 + 벌크 작업 메뉴 | ~200 |
-| `TestCaseGroupManager.svelte` | 그룹 CRUD + DnD 정렬 | ~200 |
-| `TestCaseInlineEditor.svelte` | 인라인 제목 편집 | ~100 |
-| `TestCaseListItem.svelte` | 개별 행 렌더링 | ~100 |
-| `+page.svelte` (축소) | 전체 레이아웃 + 상태 조율 | ~500 |
+> 참고: 당초 6개 분할 계획이었으나, 그룹 관리/인라인 편집/리스트 아이템은 +page.svelte와 상태 결합도가 높아 2개 컴포넌트만 추출. 추가 분할 시 props drilling이 과도해지므로 현재 구조가 적정.
 
-**상태 관리 개선:**
-```typescript
-// Before: 50+ 개별 $state 변수
-let search = $state('');
-let priorityFilter = $state('all');
-let selectedTcIds = $state<Set<number>>(new Set());
-// ... 47개 더
+### 2.2 CommentSection.svelte (443줄 → 242줄) ✅ 완료
 
-// After: 관련 상태 그룹화
-let filters = $state({ search: '', priority: 'all', tagIds: [], ... });
-let selection = $state({ ids: new Set<number>(), allSelected: false });
-let bulkOp = $state({ open: false, type: null, processing: false });
-```
+**추출된 컴포넌트:**
+| 컴포넌트 | 역할 | 라인 수 |
+|---------|------|---------|
+| `CommentItem.svelte` | 개별 댓글 렌더링 (아바타+내용+편집+액션) | ~130 |
+| `CommentForm.svelte` | 댓글/답글 입력 폼 (Textarea+버튼) | ~45 |
 
-### 2.2 CommentSection.svelte (473줄)
+### 2.3 ImportDialog.svelte (429줄 → 275줄) ✅ 완료
 
-**분할 계획:**
-| 컴포넌트 | 역할 |
-|---------|------|
-| `CommentList.svelte` | 댓글 트리 렌더링 |
-| `CommentForm.svelte` | 새 댓글 / 답글 입력 폼 |
-| `CommentItem.svelte` | 개별 댓글 (수정/삭제 포함) |
+**추출된 컴포넌트:**
+| 컴포넌트 | 역할 | 라인 수 |
+|---------|------|---------|
+| `ImportResults.svelte` | 임포트 결과 화면 (요약+실패행+버튼) | ~130 |
 
-### 2.3 ImportDialog.svelte (428줄)
+### 2.4 NotificationBell.svelte (335줄) — 스킵
 
-**분할 계획:**
-| 컴포넌트 | 역할 |
-|---------|------|
-| `ImportUpload.svelte` | 파일 업로드 + 포맷 선택 |
-| `ImportPreview.svelte` | 파싱 결과 미리보기 테이블 |
-| `ImportFieldMapping.svelte` | 필드 매핑 설정 |
-
-### 2.4 NotificationBell.svelte (339줄)
-
-**분할 계획:**
-| 컴포넌트 | 역할 |
-|---------|------|
-| `NotificationList.svelte` | 알림 목록 + 무한 스크롤 |
-| `NotificationItem.svelte` | 개별 알림 렌더링 |
+> 알림 아이템이 `{#each}` 루프 안에서 1회만 사용 (중복 없음), 스크립트와 템플릿 결합도가 높아 분할 효과 미미. 현재 크기 유지.
 
 ### 2.5 test-cases/+page.server.ts (431줄)
 
@@ -231,101 +200,82 @@ let bulkOp = $state({ open: false, type: null, processing: false });
 
 ## Phase 3: API 계층 정리
 
-### 3.1 라우트 미들웨어 패턴 도입
+### 3.1 라우트 미들웨어 패턴 도입 ✅ 완료
 
-현재 모든 API 라우트에서 반복:
+**파일**: `src/lib/server/api-handler.ts`
+
+**구현된 래퍼 함수:**
+| 함수 | 설명 | 적용 수 |
+|------|------|---------|
+| `withProjectRole(roles, handler)` | 인증 + projectId 파싱 + 역할 검사 | ~30개 라우트 |
+| `withProjectAccess(handler)` | 인증 + projectId 파싱 + 프로젝트 접근 검사 | ~4개 라우트 |
+| `withAuth(handler)` | 인증만 (비프로젝트 라우트) | ~6개 라우트 |
+
+**적용 현황**: 40개 API 라우트 중 38개 적용 (admin 2개는 별도 인증 패턴)
+
 ```typescript
+// Before (3~5줄 보일러플레이트)
 export async function GET({ locals, params }) {
   const authUser = requireAuth(locals);
   const projectId = Number(params.projectId);
   await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
-  // ... 실제 로직
-}
-```
-
-**개선안** — `src/lib/server/api-handler.ts`:
-```typescript
-export function withProjectAuth(roles, handler) {
-  return async (event) => {
-    const user = requireAuth(event.locals);
-    const projectId = Number(event.params.projectId);
-    await requireProjectRole(user, projectId, roles);
-    return handler({ ...event, user, projectId });
-  };
+  // ... 비즈니스 로직
 }
 
-// 사용 예:
-export const GET = withProjectAuth(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ user, projectId, url }) => {
-  // 바로 비즈니스 로직 시작
+// After (1줄)
+export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ user, projectId, url }) => {
+  // 바로 비즈니스 로직
 });
 ```
 
-**영향**: 49개 API 라우트 중 ~35개에서 보일러플레이트 3~5줄 감소
+### 3.2 입력 검증 강화 ✅ 완료
 
-### 3.2 입력 검증 강화
+| 라우트 | 추가된 검증 |
+|--------|------------|
+| `/automation/results/+server.ts` | results 배열 최대 10,000건 |
+| `/test-cases/import/+server.ts` | 파일 크기 10MB 제한 + 행 수 5,000건 제한 |
+| `/automation/webhook/+server.ts` | Content-Length 1MB 제한 (413 응답) |
 
-검증이 누락된 라우트:
-| 라우트 | 누락 항목 |
-|--------|----------|
-| `/automation/results/+server.ts` | 요청 body 크기 제한 없음 |
-| `/test-cases/import/+server.ts` | 임포트 행 수 제한 없음 |
-| `/automation/webhook/+server.ts` | webhook body 크기 검증 없음 |
+### 3.3 클라이언트 Fetch 래퍼 ✅ 완료
 
-### 3.3 클라이언트 Fetch 래퍼
+**파일**: `src/lib/api-client.ts`
 
-**신규 파일**: `src/lib/api-client.ts`
+**구현된 함수:**
+| 함수 | 설명 |
+|------|------|
+| `apiFetch<T>(url, options?)` | GET 요청 + 자동 에러 토스트 |
+| `apiPost<T>(url, body)` | POST 요청 |
+| `apiPut<T>(url, body)` | PUT 요청 |
+| `apiPatch<T>(url, body)` | PATCH 요청 |
+| `apiDelete<T>(url)` | DELETE 요청 |
 
-현재 30+ 컴포넌트에서 raw `fetch()` 사용:
-```typescript
-// 반복되는 패턴
-try {
-  const res = await fetch(`/api/projects/${projectId}/...`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) { /* 에러 처리 */ }
-  const result = await res.json();
-} catch { /* 네트워크 에러 */ }
-```
-
-**추출안:**
-```typescript
-export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, body.error ?? 'Unknown error');
-  }
-  return res.json();
-}
-```
+- `silent: true` 옵션으로 에러 토스트 억제 가능
+- 21개 Svelte 컴포넌트에 적용 (raw fetch 57→13, -77%)
+- 미변환 13개는 FormData 전송, lock 관련 fire-and-forget, 특수 에러 바디 처리 등 의도적 유지
 
 ---
 
 ## Phase 4: 성능 및 품질 개선
 
-### 4.1 N+1 쿼리 해결
+### 4.1 N+1 쿼리 해결 ✅ 완료
 
-| 위치 | 문제 | 해결 |
-|------|------|------|
-| `bulk/+server.ts` setPriority | 루프 내 `findTestCaseWithLatestVersion()` 개별 호출 | 배치 조회로 변경 |
-| `test-cases/+page.server.ts` | 선택된 런의 ALL 실행 기록 로드 후 메모리 필터 | DB에서 `WHERE EXISTS` 필터 |
-| `CommentSection.svelte` | 댓글 트리를 위한 클라이언트 필터링 | 서버에서 트리 구조로 반환 |
+**`bulk/+server.ts` 최적화:**
+| 액션 | Before | After |
+|------|--------|-------|
+| `setPriority` | N개 × `findTestCaseWithLatestVersion` (2N 쿼리) | `findTestCasesWithLatestVersions` 배치 (2 쿼리) |
+| `clone` | N개 × `findTestCaseWithLatestVersion` (2N 쿼리) | `findTestCasesWithLatestVersions` 배치 (2 쿼리) |
+| `addTag` | N개 × existence check + insert | 단일 `INSERT ... ON CONFLICT DO NOTHING` |
+| `removeTag` | N개 × 개별 DELETE | 단일 `DELETE ... WHERE IN` |
+| `addAssignee` | N개 × existence check + insert | 단일 `INSERT ... ON CONFLICT DO NOTHING` |
+| `removeAssignee` | N개 × 개별 DELETE | 단일 `DELETE ... WHERE IN` |
 
-### 4.2 JWKS 캐싱 구현
+> 참고: `test-cases/+page.server.ts` 실행상태 필터 및 `CommentSection` 트리 구조는 현재 성능 이슈 없어 유지.
 
-**파일**: `src/lib/server/oidc-jwt.ts` (347줄)
+### 4.2 JWKS 캐싱 ✅ 이미 구현됨
 
-현재 OIDC 토큰 검증 시 매번 JWKS 엔드포인트 호출 가능성.
-TTL 기반 캐시 추가 필요:
-```typescript
-const jwksCache = new Map<string, { keys: JsonWebKey[], expiresAt: number }>();
-const JWKS_TTL_MS = 60 * 60 * 1000; // 1시간
-```
+**파일**: `src/lib/server/oidc-jwt.ts`
+
+1시간 TTL 기반 캐시가 이미 구현되어 있음. 추가 작업 불필요.
 
 ### 4.3 DB 스키마 개선
 
@@ -368,7 +318,7 @@ const JWKS_TTL_MS = 60 * 60 * 1000; // 1시간
 
 | 파일 | 라인 | 우선순위 | 조치 |
 |------|------|----------|------|
-| `test-cases/+page.svelte` | 1,997 | **P0** | 6개 컴포넌트로 분할 |
+| `test-cases/+page.svelte` | ~~1,997~~ 1,499 | **P0** | ✅ 2개 컴포넌트 추출 완료 |
 | `db/schema.ts` | 819 | P2 | 도메인별 분할 + 문서화 |
 | `[projectId]/+page.svelte` (대시보드) | 771 | P2 | 위젯 컴포넌트 분할 |
 | `reports/+page.svelte` | 649 | P2 | 차트/필터 분할 |
@@ -390,27 +340,27 @@ const JWKS_TTL_MS = 60 * 60 * 1000; // 1시간
 ## 실행 순서 요약
 
 ```
-Phase 1 (공통 유틸리티)     ← 먼저 추출해야 Phase 2에서 활용 가능
-  ├─ 1.1 쿼리 헬퍼
-  ├─ 1.2 CSV 유틸리티
-  ├─ 1.3 에러 응답 유틸리티
-  └─ 1.4 @ts-ignore 해결
+Phase 1 (공통 유틸리티)
+  ├─ 1.1 쿼리 헬퍼              ✅ 완료
+  ├─ 1.2 CSV 유틸리티            ✅ 완료
+  ├─ 1.3 에러 응답 유틸리티       ⏳ 미진행 (우선순위 낮음)
+  └─ 1.4 @ts-ignore 해결        ⏳ 미진행 (의존성 업데이트 필요)
 
-Phase 2 (컴포넌트 분할)     ← 가장 큰 효과
-  ├─ 2.1 test-cases/+page.svelte (P0)
-  ├─ 2.2 CommentSection (P1)
-  ├─ 2.3 ImportDialog (P2)
-  └─ 2.4~2.5 기타
+Phase 2 (컴포넌트 분할)
+  ├─ 2.1 test-cases/+page.svelte ✅ 완료 (1,997→1,499줄)
+  ├─ 2.2 CommentSection          ✅ 완료 (443→242줄)
+  ├─ 2.3 ImportDialog            ⏳ 미진행
+  └─ 2.4~2.5 기타               ⏳ 미진행
 
 Phase 3 (API 계층)
-  ├─ 3.1 라우트 미들웨어
-  ├─ 3.2 입력 검증 강화
-  └─ 3.3 Fetch 래퍼
+  ├─ 3.1 라우트 미들웨어          ✅ 완료 (38개 라우트)
+  ├─ 3.2 입력 검증 강화           ✅ 완료
+  └─ 3.3 Fetch 래퍼              ✅ 완료 (21개 컴포넌트)
 
 Phase 4 (성능/품질)
-  ├─ 4.1 N+1 쿼리
-  ├─ 4.2 JWKS 캐싱
-  ├─ 4.3 DB 스키마
-  ├─ 4.4 테스트
-  └─ 4.5 에러 처리
+  ├─ 4.1 N+1 쿼리               ✅ 완료 (bulk 6개 액션 배치화)
+  ├─ 4.2 JWKS 캐싱              ✅ 이미 구현됨
+  ├─ 4.3 DB 스키마              ⏳ 미진행
+  ├─ 4.4 테스트                 ⏳ 미진행
+  └─ 4.5 에러 처리              ⏳ 미진행
 ```

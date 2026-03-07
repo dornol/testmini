@@ -6,8 +6,8 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import { Badge } from '$lib/components/ui/badge/index.js';
 	import TagBadge from '$lib/components/TagBadge.svelte';
+	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import VirtualList from '$lib/components/VirtualList.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as m from '$lib/paraglide/messages.js';
@@ -73,23 +73,11 @@
 		selectedIds = newSet;
 	}
 
-	function priorityVariant(
-		p: string
-	): 'default' | 'secondary' | 'outline' | 'destructive' {
-		switch (p) {
-			case 'CRITICAL':
-				return 'destructive';
-			case 'HIGH':
-				return 'default';
-			case 'MEDIUM':
-				return 'secondary';
-			default:
-				return 'outline';
-		}
+	function getPriorityColor(name: string): string {
+		return data.projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
 	}
 
 	const environments = ['DEV', 'QA', 'STAGE', 'PROD'];
-	const priorities = ['', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 </script>
 
 <div class="mx-auto max-w-3xl">
@@ -167,14 +155,22 @@
 							bind:value={searchFilter}
 						/>
 						<div class="flex gap-1">
-							{#each priorities as p (p)}
+							<Button
+								type="button"
+								variant={priorityFilter === '' ? 'default' : 'outline'}
+								size="sm"
+								onclick={() => (priorityFilter = '')}
+							>
+								{m.common_all()}
+							</Button>
+							{#each data.projectPriorities as p (p.id)}
 								<Button
 									type="button"
-									variant={priorityFilter === p ? 'default' : 'outline'}
+									variant={priorityFilter === p.name ? 'default' : 'outline'}
 									size="sm"
-									onclick={() => (priorityFilter = p)}
+									onclick={() => (priorityFilter = p.name)}
 								>
-									{p || m.common_all()}
+									{p.name}
 								</Button>
 							{/each}
 						</div>
@@ -247,7 +243,7 @@
 												<Table.Cell class="w-28 font-mono text-sm">{tc.key}</Table.Cell>
 												<Table.Cell class="font-medium">{tc.title}</Table.Cell>
 												<Table.Cell class="w-28">
-													<Badge variant={priorityVariant(tc.priority)}>{tc.priority}</Badge>
+													<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
 												</Table.Cell>
 											</Table.Row>
 										</Table.Body>

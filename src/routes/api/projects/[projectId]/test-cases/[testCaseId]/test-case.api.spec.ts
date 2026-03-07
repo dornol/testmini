@@ -114,16 +114,35 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]', () => {
 			expect(response.status).toBe(400);
 		});
 
-		it('should return 400 for invalid priority', async () => {
+		it('should accept custom priority values', async () => {
+			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
+			mockFindTC.mockResolvedValue(tc);
+			mockDb.transaction.mockImplementation(async (fn) => {
+				const newVersion = { ...sampleTestCaseVersion, id: 101, versionNo: 2, priority: 'CUSTOM' };
+				const txChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockResolvedValue([newVersion]),
+					set: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: undefined as unknown
+				};
+				txChain.then = (r: (v: unknown) => void) => Promise.resolve([newVersion]).then(r);
+				const tx = {
+					insert: vi.fn().mockReturnValue(txChain),
+					update: vi.fn().mockReturnValue(txChain)
+				};
+				return fn(tx);
+			});
+
 			const event = createMockEvent({
 				method: 'PUT',
 				params: PARAMS,
-				body: { title: 'Valid', priority: 'INVALID', revision: 1 },
+				body: { title: 'Valid', priority: 'CUSTOM', revision: 1 },
 				user: adminUser
 			});
 			const response = await PUT(event);
 
-			expect(response.status).toBe(400);
+			expect(response.status).toBe(200);
 		});
 
 		it('should return 404 when test case not found', async () => {

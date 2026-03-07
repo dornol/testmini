@@ -615,5 +615,26 @@
 	"admin_reject_confirm": "Reject {name}? Their account will be removed.",
 	"admin_user_approved": "User approved",
 	"admin_user_rejected": "User rejected",
-	"admin_show_pending": "Pending Only"
+	"admin_show_pending": "Pending Only",
+
+	"nav_priorities": "Priorities",
+	"priority_title": "Priorities",
+	"priority_desc": "Manage project priority levels",
+	"priority_new": "Add Priority",
+	"priority_name": "Priority Name",
+	"priority_name_placeholder": "Enter priority name...",
+	"priority_color": "Color",
+	"priority_empty": "No priorities configured. Add your first priority.",
+	"priority_created": "Priority created",
+	"priority_updated": "Priority updated",
+	"priority_deleted": "Priority deleted",
+	"priority_duplicate": "A priority with this name already exists",
+	"priority_delete_title": "Delete Priority",
+	"priority_delete_confirm": "Are you sure you want to delete \"{name}\"? Test cases using this priority will keep their current value.",
+	"priority_is_default": "Default",
+	"priority_set_default": "Set as default",
+	"priority_in_use": "In use by test cases",
+
+	"tag_create_inline": "Create \"{name}\"",
+	"tag_new_inline": "New tag..."
 }

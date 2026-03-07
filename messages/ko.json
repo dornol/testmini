@@ -615,5 +615,26 @@
 	"admin_reject_confirm": "{name}을(를) 거절하시겠습니까? 계정이 삭제됩니다.",
 	"admin_user_approved": "사용자가 승인되었습니다",
 	"admin_user_rejected": "사용자가 거절되었습니다",
-	"admin_show_pending": "대기만 보기"
+	"admin_show_pending": "대기만 보기",
+
+	"nav_priorities": "우선순위",
+	"priority_title": "우선순위",
+	"priority_desc": "프로젝트 우선순위 레벨을 관리하세요",
+	"priority_new": "우선순위 추가",
+	"priority_name": "우선순위 이름",
+	"priority_name_placeholder": "우선순위 이름 입력...",
+	"priority_color": "색상",
+	"priority_empty": "우선순위가 설정되지 않았습니다. 첫 번째 우선순위를 추가하세요.",
+	"priority_created": "우선순위가 생성되었습니다",
+	"priority_updated": "우선순위가 수정되었습니다",
+	"priority_deleted": "우선순위가 삭제되었습니다",
+	"priority_duplicate": "같은 이름의 우선순위가 이미 존재합니다",
+	"priority_delete_title": "우선순위 삭제",
+	"priority_delete_confirm": "\"{name}\" 우선순위를 삭제하시겠습니까? 이 우선순위를 사용하는 테스트 케이스는 현재 값을 유지합니다.",
+	"priority_is_default": "기본값",
+	"priority_set_default": "기본값으로 설정",
+	"priority_in_use": "테스트 케이스에서 사용 중",
+
+	"tag_create_inline": "\"{name}\" 생성",
+	"tag_new_inline": "새 태그..."
 }

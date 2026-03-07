@@ -11,7 +11,8 @@ vi.mock('$lib/server/db/schema', () => ({
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id' },
 	testCaseGroup: { id: 'id', projectId: 'project_id', name: 'name' },
 	tag: { id: 'id', projectId: 'project_id', name: 'name' },
-	testCaseTag: { testCaseId: 'test_case_id', tagId: 'tag_id' }
+	testCaseTag: { testCaseId: 'test_case_id', tagId: 'tag_id' },
+	priorityConfig: { id: 'id', projectId: 'project_id', name: 'name', color: 'color', position: 'position', isDefault: 'is_default', createdBy: 'created_by' }
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),

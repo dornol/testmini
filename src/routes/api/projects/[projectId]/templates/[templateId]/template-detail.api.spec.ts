@@ -133,7 +133,14 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 			expect(body.error).toMatch(/name/i);
 		});
 
-		it('should return 400 for invalid priority', async () => {
+		it('should accept custom priority values', async () => {
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+			};
+			mockDb.update.mockReturnValue(updateChain as never);
+
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -143,8 +150,8 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 			const response = await PATCH(event);
 			const body = await response.json();
 
-			expect(response.status).toBe(400);
-			expect(body.error).toMatch(/priority/i);
+			expect(response.status).toBe(200);
+			expect(body.success).toBe(true);
 		});
 
 		it('should return 403 when lacking required role', async () => {

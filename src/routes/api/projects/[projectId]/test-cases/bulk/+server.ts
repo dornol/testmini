@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { db, findTestCasesWithLatestVersions } from '$lib/server/db';
-import { testCase, testCaseVersion, testCaseTag, testCaseAssignee, tag, projectMember } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, testCaseTag, testCaseAssignee, tag, projectMember, priorityConfig } from '$lib/server/db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
@@ -72,7 +72,14 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 			}
 
 			case 'setPriority': {
-				if (!priority || !['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) {
+				if (!priority) {
+					return badRequest('Invalid priority');
+				}
+				// Validate priority against project config
+				const validPriority = await tx.query.priorityConfig.findFirst({
+					where: and(eq(priorityConfig.projectId, projectId), eq(priorityConfig.name, priority))
+				});
+				if (!validPriority) {
 					return badRequest('Invalid priority');
 				}
 				const tcsForPriority = await findTestCasesWithLatestVersions(validIds, projectId);
@@ -90,7 +97,7 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 							precondition: latest.precondition,
 							steps: latest.steps,
 							expectedResult: latest.expectedResult,
-							priority: priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+							priority,
 							revision: latest.revision + 1,
 							updatedBy: user.id
 						})

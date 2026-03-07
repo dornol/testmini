@@ -33,6 +33,7 @@
 		executions: Execution[];
 		failures: FailureRecord[];
 		canExecute: boolean;
+		projectPriorities: { id: number; name: string; color: string; position: number; isDefault: boolean }[];
 		selectedPending: Set<number>;
 		allPendingSelected: boolean;
 		pendingExecutions: Execution[];
@@ -48,6 +49,7 @@
 		executions,
 		failures,
 		canExecute,
+		projectPriorities,
 		selectedPending,
 		allPendingSelected,
 		pendingExecutions,
@@ -58,6 +60,10 @@
 		onOpenDeleteFailure,
 		onScrollContainerBind
 	}: Props = $props();
+
+	function getPriorityColor(name: string): string {
+		return projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
+	}
 
 	// Virtual scroll constants & state
 	const ROW_HEIGHT = 44;
@@ -326,6 +332,7 @@
 						showCheckbox={canExecute && pendingExecutions.length > 0}
 						isSelected={selectedPending.has(exec.id)}
 						isUpdating={updatingExecId === exec.id}
+						priorityColor={getPriorityColor(exec.testCasePriority)}
 						{viewFailuresExecId}
 						onToggleSelect={onTogglePending}
 						onToggleStatusDropdown={toggleStatusDropdown}

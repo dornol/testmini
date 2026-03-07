@@ -3,6 +3,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Chart from '$lib/components/Chart.svelte';
 	import type { ChartConfiguration } from 'chart.js';
@@ -197,19 +198,8 @@
 		return `${Math.round((pass / total) * 100)}%`;
 	}
 
-	function priorityVariant(
-		p: string
-	): 'default' | 'secondary' | 'outline' | 'destructive' {
-		switch (p) {
-			case 'CRITICAL':
-				return 'destructive';
-			case 'HIGH':
-				return 'default';
-			case 'MEDIUM':
-				return 'secondary';
-			default:
-				return 'outline';
-		}
+	function getPriorityColor(name: string): string {
+		return data.projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
 	}
 
 	function barWidth(value: number, total: number): string {
@@ -365,7 +355,7 @@
 							{@const fail = ps.failCount}
 							<Table.Row>
 								<Table.Cell>
-									<Badge variant={priorityVariant(ps.priority)}>{ps.priority}</Badge>
+									<PriorityBadge name={ps.priority} color={getPriorityColor(ps.priority)} />
 								</Table.Cell>
 								<Table.Cell>{total}</Table.Cell>
 								<Table.Cell class="text-green-600">{pass}</Table.Cell>

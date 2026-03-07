@@ -6,11 +6,13 @@
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
 	import { apiPost } from '$lib/api-client';
+	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 
 	interface Props {
 		selectedTcIds: Set<number>;
 		projectId: number;
 		projectTags: { id: number; name: string; color: string }[];
+		projectPriorities: { id: number; name: string; color: string; position: number; isDefault: boolean }[];
 		projectMembers: { userId: string; userName: string }[];
 		groups: { id: number; name: string }[];
 		projectSuites: { id: number; name: string }[];
@@ -20,22 +22,11 @@
 	}
 
 	let {
-		selectedTcIds, projectId, projectTags, projectMembers, groups, projectSuites,
+		selectedTcIds, projectId, projectTags, projectPriorities, projectMembers, groups, projectSuites,
 		canDelete, oncomplete, onclear
 	}: Props = $props();
-
-	const priorityOptions = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 	let bulkLoading = $state(false);
 	let bulkDeleteOpen = $state(false);
-
-	function priorityVariant(p: string): 'default' | 'secondary' | 'outline' | 'destructive' {
-		switch (p) {
-			case 'CRITICAL': return 'destructive';
-			case 'HIGH': return 'default';
-			case 'MEDIUM': return 'secondary';
-			default: return 'outline';
-		}
-	}
 
 	async function bulkAction(action: string, extra: Record<string, unknown> = {}) {
 		if (selectedTcIds.size === 0 || bulkLoading) return;
@@ -161,9 +152,9 @@
 			{/snippet}
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content align="start" class="min-w-[120px]">
-			{#each priorityOptions as p}
-				<DropdownMenu.Item onclick={() => bulkAction('setPriority', { priority: p })} class="text-xs">
-					<Badge variant={priorityVariant(p)} class="text-[10px] px-1.5 py-0 pointer-events-none">{p}</Badge>
+			{#each projectPriorities as p (p.id)}
+				<DropdownMenu.Item onclick={() => bulkAction('setPriority', { priority: p.name })} class="text-xs">
+					<PriorityBadge name={p.name} color={p.color} />
 				</DropdownMenu.Item>
 			{/each}
 		</DropdownMenu.Content>

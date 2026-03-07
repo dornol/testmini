@@ -100,6 +100,7 @@ testmini/
 │   │   │   ├── test-suite.schema.ts
 │   │   │   ├── failure.schema.ts
 │   │   │   ├── tag.schema.ts
+│   │   │   ├── priority.schema.ts
 │   │   │   └── member.schema.ts
 │   │   ├── server/                 # Server-only code (never imported by client components)
 │   │   │   ├── api-key-auth.ts     # API key generation and verification

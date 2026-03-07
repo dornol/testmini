@@ -8,16 +8,18 @@
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import TagBadge from '$lib/components/TagBadge.svelte';
+	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
 	import VersionDiffDialog from './VersionDiffDialog.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
 	import { apiFetch, apiPut, apiDelete, apiPost } from '$lib/api-client';
 
-	let { projectId, canEdit, canDelete, onchange }: {
+	let { projectId, canEdit, canDelete, projectPriorities, onchange }: {
 		projectId: number;
 		canEdit: boolean;
 		canDelete: boolean;
+		projectPriorities: { id: number; name: string; color: string; position: number; isDefault: boolean }[];
 		onchange: () => void;
 	} = $props();
 
@@ -81,15 +83,8 @@
 	let sheetLockHolder = $state<{ userName: string } | null>(null);
 	let sheetHeartbeatInterval: ReturnType<typeof setInterval> | undefined;
 
-	const priorityOptions = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-
-	function priorityVariant(p: string): 'default' | 'secondary' | 'outline' | 'destructive' {
-		switch (p) {
-			case 'CRITICAL': return 'destructive';
-			case 'HIGH': return 'default';
-			case 'MEDIUM': return 'secondary';
-			default: return 'outline';
-		}
+	function getPriorityColor(name: string): string {
+		return projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
 	}
 
 	export async function open(tcId: number) {
@@ -340,7 +335,7 @@
 						<div class="flex items-center gap-2.5">
 							<span class="bg-muted font-mono text-xs font-semibold px-2 py-0.5 rounded">{tc.key}</span>
 							{#if version}
-								<Badge variant={priorityVariant(version.priority)} class="text-xs">{version.priority}</Badge>
+								<PriorityBadge name={version.priority} color={getPriorityColor(version.priority)} />
 							{/if}
 							<span class="text-muted-foreground text-xs">v{version?.versionNo ?? 0}</span>
 						</div>
@@ -501,17 +496,16 @@
 									{#snippet child({ props })}
 										<Button variant="outline" class="h-9 w-full justify-between text-sm font-normal" {...props}>
 											<span class="flex items-center gap-2">
-												<Badge variant={priorityVariant(editPriority)} class="text-[10px] px-1.5 py-0 pointer-events-none">{editPriority}</Badge>
+												<PriorityBadge name={editPriority} color={getPriorityColor(editPriority)} />
 											</span>
 											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><polyline points="6 9 12 15 18 9"/></svg>
 										</Button>
 									{/snippet}
 								</DropdownMenu.Trigger>
 								<DropdownMenu.Content class="min-w-[160px]">
-									{#each priorityOptions as p}
-										<DropdownMenu.Item onclick={() => { editPriority = p; }} class="text-sm">
-											<Badge variant={priorityVariant(p)} class="text-[10px] px-1.5 py-0 pointer-events-none mr-2">{p}</Badge>
-											{p === 'LOW' ? m.priority_low() : p === 'MEDIUM' ? m.priority_medium() : p === 'HIGH' ? m.priority_high() : m.priority_critical()}
+									{#each projectPriorities as p (p.id)}
+										<DropdownMenu.Item onclick={() => { editPriority = p.name; }} class="text-sm">
+											<PriorityBadge name={p.name} color={p.color} />
 										</DropdownMenu.Item>
 									{/each}
 								</DropdownMenu.Content>
@@ -644,7 +638,7 @@
 													<span class="text-[10px] bg-primary/10 text-primary rounded px-1.5 py-0.5">latest</span>
 												{/if}
 											</div>
-											<Badge variant={priorityVariant(v.priority)} class="text-[10px]">{v.priority}</Badge>
+											<PriorityBadge name={v.priority} color={getPriorityColor(v.priority)} />
 										</div>
 										<p class="mt-1 text-sm truncate">{v.title}</p>
 										<div class="text-muted-foreground mt-1 text-xs">
@@ -661,4 +655,4 @@
 	</Sheet.Content>
 </Sheet.Root>
 
-<VersionDiffDialog bind:open={diffDialogOpen} v1={diffV1} v2={diffV2} />
+<VersionDiffDialog bind:open={diffDialogOpen} v1={diffV1} v2={diffV2} {projectPriorities} />

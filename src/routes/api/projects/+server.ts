@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { project, projectMember } from '$lib/server/db/schema';
+import { project, projectMember, priorityConfig } from '$lib/server/db/schema';
 import { isGlobalAdmin, parseJsonBody } from '$lib/server/auth-utils';
 import { createProjectSchema } from '$lib/schemas/project.schema';
 import { and, eq, ilike, count, inArray, sql } from 'drizzle-orm';
@@ -77,7 +77,7 @@ export const POST = withAuth(async ({ user, request }) => {
 
 	const { name, description } = result.data;
 
-	// Transaction: create project + add creator as PROJECT_ADMIN
+	// Transaction: create project + add creator as PROJECT_ADMIN + seed default priorities
 	const newProject = await db.transaction(async (tx) => {
 		const [created] = await tx
 			.insert(project)
@@ -93,6 +93,14 @@ export const POST = withAuth(async ({ user, request }) => {
 			userId: user.id,
 			role: 'PROJECT_ADMIN'
 		});
+
+		// Seed default priorities
+		await tx.insert(priorityConfig).values([
+			{ projectId: created.id, name: 'LOW', color: '#6b7280', position: 0, isDefault: false, createdBy: user.id },
+			{ projectId: created.id, name: 'MEDIUM', color: '#3b82f6', position: 1, isDefault: true, createdBy: user.id },
+			{ projectId: created.id, name: 'HIGH', color: '#f97316', position: 2, isDefault: false, createdBy: user.id },
+			{ projectId: created.id, name: 'CRITICAL', color: '#ef4444', position: 3, isDefault: false, createdBy: user.id }
+		]);
 
 		return created;
 	});

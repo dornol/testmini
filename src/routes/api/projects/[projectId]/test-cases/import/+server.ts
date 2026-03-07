@@ -5,7 +5,8 @@ import {
 	testCaseVersion,
 	testCaseGroup,
 	tag,
-	testCaseTag
+	testCaseTag,
+	priorityConfig
 } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
@@ -100,7 +101,7 @@ function normalizeRow(obj: Record<string, string>): ImportRow {
 
 	return {
 		title: obj['Title'] ?? obj['title'] ?? '',
-		priority: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority) ? priority : 'MEDIUM',
+		priority: priority || 'MEDIUM',
 		precondition: obj['Precondition'] ?? obj['precondition'] ?? '',
 		steps,
 		expectedResult: obj['Expected Result'] ?? obj['expectedResult'] ?? obj['expected_result'] ?? '',
@@ -183,6 +184,21 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, u
 		return json({ imported: 0, errors: ['No valid rows to import', ...errors], rows: rowResults }, { status: 400 });
 	}
 
+	// Load project priorities for validation
+	const projectPriorities = await db
+		.select({ name: priorityConfig.name, isDefault: priorityConfig.isDefault })
+		.from(priorityConfig)
+		.where(eq(priorityConfig.projectId, projectId));
+	const validPriorityNames = new Set(projectPriorities.map((p) => p.name));
+	const defaultPriority = projectPriorities.find((p) => p.isDefault)?.name ?? projectPriorities[0]?.name ?? 'MEDIUM';
+
+	// Normalize priority values against project config
+	for (const row of importRows) {
+		if (!validPriorityNames.has(row.priority)) {
+			row.priority = defaultPriority;
+		}
+	}
+
 	// Load project tags and groups for matching
 	const projectTags = await db
 		.select({ id: tag.id, name: tag.name })
@@ -251,7 +267,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, u
 						precondition: row.precondition || null,
 						steps: row.steps,
 						expectedResult: row.expectedResult || null,
-						priority: row.priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+						priority: row.priority,
 						updatedBy: user.id
 					})
 					.returning();

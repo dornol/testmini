@@ -59,16 +59,28 @@ describe('createTestCaseSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
-	it('should reject invalid priority enum', () => {
-		const result = createTestCaseSchema.safeParse({ title: 'T', priority: 'URGENT' });
-		expect(result.success).toBe(false);
-	});
-
-	it('should accept all valid priority values', () => {
-		for (const p of ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']) {
+	it('should accept any string priority', () => {
+		for (const p of ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'P1', 'Minor']) {
 			const result = createTestCaseSchema.safeParse({ title: 'T', priority: p });
 			expect(result.success).toBe(true);
 		}
+	});
+
+	it('should accept custom priority names', () => {
+		for (const p of ['URGENT', 'P0', 'Blocker']) {
+			const result = createTestCaseSchema.safeParse({ title: 'T', priority: p });
+			expect(result.success).toBe(true);
+		}
+	});
+
+	it('should reject empty priority', () => {
+		const result = createTestCaseSchema.safeParse({ title: 'T', priority: '' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject priority exceeding 30 characters', () => {
+		const result = createTestCaseSchema.safeParse({ title: 'T', priority: 'a'.repeat(31) });
+		expect(result.success).toBe(false);
 	});
 
 	it('should validate steps array structure', () => {

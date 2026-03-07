@@ -4,7 +4,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { createProjectSchema, type CreateProjectInput } from '$lib/schemas/project.schema';
 import { db } from '$lib/server/db';
-import { project, projectMember } from '$lib/server/db/schema';
+import { project, projectMember, priorityConfig } from '$lib/server/db/schema';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
@@ -46,6 +46,14 @@ export const actions: Actions = {
 				userId: locals.user!.id,
 				role: 'PROJECT_ADMIN'
 			});
+
+			// Seed default priorities
+			await tx.insert(priorityConfig).values([
+				{ projectId: created.id, name: 'LOW', color: '#6b7280', position: 0, isDefault: false, createdBy: locals.user!.id },
+				{ projectId: created.id, name: 'MEDIUM', color: '#3b82f6', position: 1, isDefault: true, createdBy: locals.user!.id },
+				{ projectId: created.id, name: 'HIGH', color: '#f97316', position: 2, isDefault: false, createdBy: locals.user!.id },
+				{ projectId: created.id, name: 'CRITICAL', color: '#ef4444', position: 3, isDefault: false, createdBy: locals.user!.id }
+			]);
 
 			return created;
 		});

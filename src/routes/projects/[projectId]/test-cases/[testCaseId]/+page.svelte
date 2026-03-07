@@ -17,10 +17,12 @@
 	import TagBadge from '$lib/components/TagBadge.svelte';
 	import CommentSection from '$lib/components/CommentSection.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import * as Popover from '$lib/components/ui/popover/index.js';
 	import SaveAsTemplateDialog from '../SaveAsTemplateDialog.svelte';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 	import { apiPost } from '$lib/api-client';
+	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 
 	let { data } = $props();
 
@@ -29,6 +31,16 @@
 	let showVersions = $state(false);
 	let lockHolder = $state<{ userName: string } | null>(null);
 	let saveAsTemplateOpen = $state(false);
+
+	// Inline tag creation
+	let tagSearchInput = $state('');
+	let showTagCreator = $state(false);
+
+	const TAG_PALETTE = [
+		'#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
+		'#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#6b7280'
+	];
+	let newTagColor = $state(TAG_PALETTE[0]);
 
 	// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
 	const validators = zodClient(updateTestCaseSchema);
@@ -123,19 +135,8 @@
 		lockHolder = null;
 	}
 
-	function priorityVariant(
-		p: string
-	): 'default' | 'secondary' | 'outline' | 'destructive' {
-		switch (p) {
-			case 'CRITICAL':
-				return 'destructive';
-			case 'HIGH':
-				return 'default';
-			case 'MEDIUM':
-				return 'secondary';
-			default:
-				return 'outline';
-		}
+	function getPriorityColor(name: string): string {
+		return data.projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
 	}
 </script>
 
@@ -156,7 +157,7 @@
 			<div class="mt-1 flex items-center gap-3">
 				<h2 class="text-xl font-bold">{tc.key}</h2>
 				{#if version}
-					<Badge variant={priorityVariant(version.priority)}>{version.priority}</Badge>
+					<PriorityBadge name={version.priority} color={getPriorityColor(version.priority)} />
 				{/if}
 			</div>
 		</div>
@@ -257,40 +258,108 @@
 						{@const unassignedTags = data.projectTags.filter(
 							(pt) => !data.assignedTags.some((at) => at.id === pt.id)
 						)}
-						{#if unassignedTags.length > 0}
-							<form method="POST" action="?/assignTag" use:formEnhance={() => {
-								return async ({ result, update }) => {
-									if (result.type === 'success') {
-										toast.success(m.tag_assigned());
-										await update();
-									}
-								};
-							}} class="inline-flex">
-								<input type="hidden" name="tagId" value="" />
-								<Select.Root
-									type="single"
-									value=""
-									onValueChange={(v: string) => {
-										if (!v) return;
-										const form = document.querySelector<HTMLFormElement>('form[action="?/assignTag"]');
-										if (form) {
-											const hidden = form.querySelector<HTMLInputElement>('input[name="tagId"]');
-											if (hidden) hidden.value = v;
-											form.requestSubmit();
-										}
-									}}
-								>
-									<Select.Trigger size="sm" class="h-7 px-2 text-xs">
+						{@const filteredUnassigned = tagSearchInput
+							? unassignedTags.filter((t) => t.name.toLowerCase().includes(tagSearchInput.toLowerCase()))
+							: unassignedTags}
+						{@const exactMatch = tagSearchInput && data.projectTags.some((t) => t.name.toLowerCase() === tagSearchInput.toLowerCase().trim())}
+						{@const canCreateNew = tagSearchInput.trim().length > 0 && !exactMatch}
+
+						<!-- Assign existing tag form (hidden) -->
+						<form id="assignTagForm" method="POST" action="?/assignTag" use:formEnhance={() => {
+							return async ({ result, update }) => {
+								if (result.type === 'success') {
+									toast.success(m.tag_assigned());
+									tagSearchInput = '';
+									showTagCreator = false;
+									await update();
+								}
+							};
+						}} class="hidden">
+							<input type="hidden" name="tagId" value="" />
+						</form>
+
+						<!-- Create new tag form (hidden) -->
+						<form id="createTagForm" method="POST" action="?/createTag" use:formEnhance={() => {
+							return async ({ result, update }) => {
+								if (result.type === 'success') {
+									toast.success(m.tag_created());
+									tagSearchInput = '';
+									showTagCreator = false;
+									newTagColor = TAG_PALETTE[0];
+									await update();
+								}
+							};
+						}} class="hidden">
+							<input type="hidden" name="name" value="" />
+							<input type="hidden" name="color" value="" />
+						</form>
+
+						<Popover.Root bind:open={showTagCreator} onOpenChange={(open) => { if (!open) tagSearchInput = ''; }}>
+							<Popover.Trigger>
+								{#snippet child({ props })}
+									<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
 										+ {m.tag_assign()}
-									</Select.Trigger>
-									<Select.Content>
-										{#each unassignedTags as t (t.id)}
-											<Select.Item value={String(t.id)} label={t.name} />
-										{/each}
-									</Select.Content>
-								</Select.Root>
-							</form>
-						{/if}
+									</Button>
+								{/snippet}
+							</Popover.Trigger>
+							<Popover.Content class="w-56 p-2" align="start">
+								<Input
+									placeholder={m.tag_new_inline()}
+									class="h-7 text-xs mb-2"
+									bind:value={tagSearchInput}
+									autofocus
+								/>
+								<div class="max-h-40 overflow-y-auto space-y-0.5">
+									{#each filteredUnassigned as t (t.id)}
+										<button
+											type="button"
+											class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
+											onclick={() => {
+												const form = document.getElementById('assignTagForm') as HTMLFormElement;
+												const hidden = form.querySelector<HTMLInputElement>('input[name="tagId"]');
+												if (hidden) hidden.value = String(t.id);
+												form.requestSubmit();
+											}}
+										>
+											<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {t.color}"></span>
+											{t.name}
+										</button>
+									{/each}
+								</div>
+								{#if canCreateNew}
+									<div class="border-t mt-1 pt-1">
+										<div class="flex items-center gap-1 mb-1.5">
+											{#each TAG_PALETTE as color (color)}
+												<button
+													type="button"
+													class="h-4 w-4 rounded-full border {newTagColor === color ? 'border-foreground scale-110' : 'border-transparent'}"
+													style="background-color: {color}"
+													onclick={() => (newTagColor = color)}
+												></button>
+											{/each}
+										</div>
+										<button
+											type="button"
+											class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer font-medium"
+											onclick={() => {
+												const form = document.getElementById('createTagForm') as HTMLFormElement;
+												const nameInput = form.querySelector<HTMLInputElement>('input[name="name"]');
+												const colorInput = form.querySelector<HTMLInputElement>('input[name="color"]');
+												if (nameInput) nameInput.value = tagSearchInput.trim();
+												if (colorInput) colorInput.value = newTagColor;
+												form.requestSubmit();
+											}}
+										>
+											<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {newTagColor}"></span>
+											{m.tag_create_inline({ name: tagSearchInput.trim() })}
+										</button>
+									</div>
+								{/if}
+								{#if filteredUnassigned.length === 0 && !canCreateNew}
+									<p class="text-xs text-muted-foreground text-center py-2">{m.common_no_results()}</p>
+								{/if}
+							</Popover.Content>
+						</Popover.Root>
 					{/if}
 				</div>
 
@@ -384,13 +453,14 @@
 									onValueChange={(v: string) => { $form.priority = v; }}
 								>
 									<Select.Trigger class="w-full">
-										{$form.priority === 'LOW' ? m.priority_low() : $form.priority === 'MEDIUM' ? m.priority_medium() : $form.priority === 'HIGH' ? m.priority_high() : m.priority_critical()}
+										{$form.priority}
 									</Select.Trigger>
 									<Select.Content>
-										<Select.Item value="LOW" label={m.priority_low()} />
-										<Select.Item value="MEDIUM" label={m.priority_medium()} />
-										<Select.Item value="HIGH" label={m.priority_high()} />
-										<Select.Item value="CRITICAL" label={m.priority_critical()} />
+										{#each data.projectPriorities as p (p.id)}
+											<Select.Item value={p.name} label={p.name}>
+												<PriorityBadge name={p.name} color={p.color} />
+											</Select.Item>
+										{/each}
 									</Select.Content>
 								</Select.Root>
 							</div>
@@ -558,9 +628,7 @@
 								>
 									<div class="flex items-center justify-between">
 										<span class="text-sm font-medium">v{v.versionNo}</span>
-										<Badge variant={priorityVariant(v.priority)} class="text-xs">
-											{v.priority}
-										</Badge>
+										<PriorityBadge name={v.priority} color={getPriorityColor(v.priority)} />
 									</div>
 									<p class="mt-1 text-sm">{v.title}</p>
 									<div class="text-muted-foreground mt-1 text-xs">

@@ -286,7 +286,13 @@ describe('PUT /api/projects/[projectId]/test-cases/[testCaseId] — optimistic c
 		expect(response.status).toBe(400);
 	});
 
-	it('should return 400 for an invalid priority regardless of revision', async () => {
+	it('should accept custom priority values', async () => {
+		const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
+		mockFindTC.mockResolvedValue(tc);
+
+		const newVersion = { ...sampleTestCaseVersion, id: 101, versionNo: 2, revision: 2 };
+		mockSuccessfulTransaction(newVersion);
+
 		const event = createMockEvent({
 			method: 'PUT',
 			params: PARAMS,
@@ -296,7 +302,7 @@ describe('PUT /api/projects/[projectId]/test-cases/[testCaseId] — optimistic c
 
 		const response = await PUT(event);
 
-		expect(response.status).toBe(400);
+		expect(response.status).toBe(200);
 	});
 
 	it('should return 404 when the test case does not exist', async () => {

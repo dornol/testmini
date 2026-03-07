@@ -5,6 +5,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 import { updateTestCaseSchema, type UpdateTestCaseInput } from '$lib/schemas/test-case.schema';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
 import { testCase, testCaseVersion, user, tag, testCaseTag, testCaseAssignee, projectMember } from '$lib/server/db/schema';
+import { createTagSchema } from '$lib/schemas/tag.schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { loadTestCaseMetadata } from '$lib/server/queries';
@@ -164,6 +165,53 @@ export const actions: Actions = {
 		});
 
 		return message(form, 'Test case updated successfully');
+	},
+
+	createTag: async ({ request, locals, params }) => {
+		const authUser = requireAuth(locals);
+		const projectId = Number(params.projectId);
+		const testCaseId = Number(params.testCaseId);
+		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+
+		const formData = await request.formData();
+		const name = (formData.get('name') as string)?.trim();
+		const color = formData.get('color') as string;
+
+		const parsed = createTagSchema.safeParse({ name, color });
+		if (!parsed.success) {
+			return fail(400, { error: 'Invalid tag data' });
+		}
+
+		// Check duplicate
+		const existing = await db.query.tag.findFirst({
+			where: and(eq(tag.projectId, projectId), eq(tag.name, parsed.data.name))
+		});
+
+		if (existing) {
+			// Tag exists, just assign it
+			const alreadyAssigned = await db.query.testCaseTag.findFirst({
+				where: and(eq(testCaseTag.testCaseId, testCaseId), eq(testCaseTag.tagId, existing.id))
+			});
+			if (!alreadyAssigned) {
+				await db.insert(testCaseTag).values({ testCaseId, tagId: existing.id });
+			}
+			return { tagCreatedAndAssigned: true };
+		}
+
+		// Create new tag and assign
+		const [newTag] = await db
+			.insert(tag)
+			.values({
+				projectId,
+				name: parsed.data.name,
+				color: parsed.data.color,
+				createdBy: authUser.id
+			})
+			.returning();
+
+		await db.insert(testCaseTag).values({ testCaseId, tagId: newTag.id });
+
+		return { tagCreatedAndAssigned: true };
 	},
 
 	assignTag: async ({ request, locals, params }) => {

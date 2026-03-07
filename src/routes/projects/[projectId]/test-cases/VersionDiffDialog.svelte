@@ -1,25 +1,23 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let {
 		open = $bindable(false),
 		v1,
-		v2
+		v2,
+		projectPriorities
 	}: {
 		open: boolean;
 		v1: any | null;
 		v2: any | null;
+		projectPriorities: { id: number; name: string; color: string; position: number; isDefault: boolean }[];
 	} = $props();
 
-	function priorityVariant(p: string): 'default' | 'secondary' | 'outline' | 'destructive' {
-		switch (p) {
-			case 'CRITICAL': return 'destructive';
-			case 'HIGH': return 'default';
-			case 'MEDIUM': return 'secondary';
-			default: return 'outline';
-		}
+	function getPriorityColor(name: string): string {
+		return projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
 	}
 
 	// Word-level diff using LCS
@@ -99,9 +97,9 @@
 						<div class="space-y-1">
 							<h4 class="text-xs font-semibold uppercase text-muted-foreground">{m.common_priority()}</h4>
 							<div class="flex items-center gap-2">
-								<Badge variant={priorityVariant(v1.priority)} class="line-through opacity-60">{v1.priority}</Badge>
+								<span class="line-through opacity-60"><PriorityBadge name={v1.priority} color={getPriorityColor(v1.priority)} /></span>
 								<span class="text-muted-foreground">&rarr;</span>
-								<Badge variant={priorityVariant(v2.priority)}>{v2.priority}</Badge>
+								<PriorityBadge name={v2.priority} color={getPriorityColor(v2.priority)} />
 							</div>
 						</div>
 					{/if}

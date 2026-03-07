@@ -26,6 +26,7 @@ export const projectRoleEnum = pgEnum('project_role', [
 	'VIEWER'
 ]);
 
+// priorityEnum kept for reference; columns now use text with priority_config table
 export const priorityEnum = pgEnum('priority', ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
 
 export const environmentEnum = pgEnum('environment', ['DEV', 'QA', 'STAGE', 'PROD']);
@@ -82,7 +83,8 @@ export const projectRelations = relations(project, ({ many }) => ({
 	testRuns: many(testRun),
 	tags: many(tag),
 	groups: many(testCaseGroup),
-	apiKeys: many(projectApiKey)
+	apiKeys: many(projectApiKey),
+	priorities: many(priorityConfig)
 }));
 
 // ── ProjectMember ──────────────────────────────────────
@@ -218,7 +220,7 @@ export const testCaseVersion = pgTable(
 		precondition: text('precondition'),
 		steps: jsonb('steps').$type<TestStep[]>().default([]).notNull(),
 		expectedResult: text('expected_result'),
-		priority: priorityEnum('priority').default('MEDIUM').notNull(),
+		priority: text('priority').default('MEDIUM').notNull(),
 		revision: integer('revision').default(1).notNull(),
 		updatedBy: text('updated_by')
 			.notNull()
@@ -428,6 +430,37 @@ export const testCaseTagRelations = relations(testCaseTag, ({ one }) => ({
 	})
 }));
 
+// ── PriorityConfig ────────────────────────────────────
+
+export const priorityConfig = pgTable(
+	'priority_config',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		color: text('color').notNull(),
+		position: integer('position').notNull().default(0),
+		isDefault: boolean('is_default').notNull().default(false),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		unique('priority_config_project_name_unique').on(table.projectId, table.name),
+		index('priority_config_project_idx').on(table.projectId)
+	]
+);
+
+export const priorityConfigRelations = relations(priorityConfig, ({ one }) => ({
+	project: one(project, {
+		fields: [priorityConfig.projectId],
+		references: [project.id]
+	})
+}));
+
 // ── TestCaseAssignee (join) ───────────────────────────
 
 export const testCaseAssignee = pgTable(
@@ -631,7 +664,7 @@ export const testCaseTemplate = pgTable(
 		description: text('description'),
 		precondition: text('precondition'),
 		steps: jsonb('steps').$type<TestStep[]>().default([]).notNull(),
-		priority: priorityEnum('priority').default('MEDIUM').notNull(),
+		priority: text('priority').default('MEDIUM').notNull(),
 		createdBy: text('created_by')
 			.notNull()
 			.references(() => user.id),

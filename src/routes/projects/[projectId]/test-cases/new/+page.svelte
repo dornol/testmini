@@ -11,6 +11,7 @@
 	import * as Select from '$lib/components/ui/select/index.js';
 	import TemplateSelector from '../TemplateSelector.svelte';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
+	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
@@ -41,7 +42,7 @@
 	function applyTemplate(template: Template) {
 		$form.precondition = template.precondition ?? '';
 		$form.steps = template.steps.map((s) => ({ action: s.action, expected: s.expected }));
-		$form.priority = template.priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+		$form.priority = template.priority;
 	}
 </script>
 
@@ -84,13 +85,14 @@
 						onValueChange={(v: string) => { $form.priority = v; }}
 					>
 						<Select.Trigger class="w-full">
-							{$form.priority === 'LOW' ? m.priority_low() : $form.priority === 'MEDIUM' ? m.priority_medium() : $form.priority === 'HIGH' ? m.priority_high() : m.priority_critical()}
+							{$form.priority}
 						</Select.Trigger>
 						<Select.Content>
-							<Select.Item value="LOW" label={m.priority_low()} />
-							<Select.Item value="MEDIUM" label={m.priority_medium()} />
-							<Select.Item value="HIGH" label={m.priority_high()} />
-							<Select.Item value="CRITICAL" label={m.priority_critical()} />
+							{#each data.projectPriorities as p (p.id)}
+								<Select.Item value={p.name} label={p.name}>
+									<PriorityBadge name={p.name} color={p.color} />
+								</Select.Item>
+							{/each}
 						</Select.Content>
 					</Select.Root>
 				</div>

@@ -52,11 +52,18 @@ export const sampleTestCaseVersion = {
 	precondition: 'User exists',
 	steps: [{ order: 1, action: 'Enter credentials', expected: 'Login success' }],
 	expectedResult: 'Redirected to dashboard',
-	priority: 'MEDIUM' as const,
+	priority: 'MEDIUM',
 	revision: 1,
 	updatedBy: 'user-1',
 	createdAt: new Date('2025-01-01')
 };
+
+export const samplePriorityConfigs = [
+	{ id: 1, projectId: 1, name: 'LOW', color: '#6b7280', position: 0, isDefault: false, createdBy: 'user-1', createdAt: new Date('2025-01-01') },
+	{ id: 2, projectId: 1, name: 'MEDIUM', color: '#3b82f6', position: 1, isDefault: true, createdBy: 'user-1', createdAt: new Date('2025-01-01') },
+	{ id: 3, projectId: 1, name: 'HIGH', color: '#f97316', position: 2, isDefault: false, createdBy: 'user-1', createdAt: new Date('2025-01-01') },
+	{ id: 4, projectId: 1, name: 'CRITICAL', color: '#ef4444', position: 3, isDefault: false, createdBy: 'user-1', createdAt: new Date('2025-01-01') }
+];
 
 export const sampleTestRun = {
 	id: 50,

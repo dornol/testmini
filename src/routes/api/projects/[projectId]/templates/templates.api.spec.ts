@@ -175,18 +175,32 @@ describe('/api/projects/[projectId]/templates', () => {
 			expect(body.error).toMatch(/name/i);
 		});
 
-		it('should return 400 for invalid priority', async () => {
+		it('should accept custom priority values', async () => {
+			const created = {
+				id: 3,
+				projectId: 1,
+				name: 'Custom Priority Template',
+				description: null,
+				precondition: null,
+				steps: [],
+				priority: 'URGENT',
+				createdBy: testUser.id,
+				createdAt: new Date('2025-01-01'),
+				updatedAt: new Date('2025-01-01')
+			};
+			mockInsertReturning(mockDb, [created]);
+
 			const event = createMockEvent({
 				method: 'POST',
 				params: PARAMS,
-				body: { name: 'Valid Name', priority: 'URGENT' },
+				body: { name: 'Custom Priority Template', priority: 'URGENT' },
 				user: testUser
 			});
 			const response = await POST(event);
 			const body = await response.json();
 
-			expect(response.status).toBe(400);
-			expect(body.error).toMatch(/priority/i);
+			expect(response.status).toBe(201);
+			expect(body.id).toBe(created.id);
 		});
 
 		it('should number steps with order on creation', async () => {

@@ -153,6 +153,7 @@
 		executions={data.executions}
 		failures={data.failures}
 		{canExecute}
+		projectPriorities={data.projectPriorities}
 		{selectedPending}
 		{allPendingSelected}
 		{pendingExecutions}

@@ -3,6 +3,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 
 	let { data } = $props();
@@ -46,13 +47,8 @@
 		}
 	}
 
-	function priorityVariant(p: string): 'default' | 'secondary' | 'outline' | 'destructive' {
-		switch (p) {
-			case 'CRITICAL': return 'destructive';
-			case 'HIGH': return 'default';
-			case 'MEDIUM': return 'secondary';
-			default: return 'outline';
-		}
+	function getPriorityColor(name: string): string {
+		return data.projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
 	}
 
 	function rowHighlight(statusA: string | null, statusB: string | null): string {
@@ -171,7 +167,7 @@
 							<Table.Cell class="py-1 px-2 text-xs font-mono">{row.key}</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs">{row.title}</Table.Cell>
 							<Table.Cell class="py-1 px-2">
-								<Badge variant={priorityVariant(row.priority)} class="text-[10px] px-1.5 py-0">{row.priority}</Badge>
+								<PriorityBadge name={row.priority} color={getPriorityColor(row.priority)} />
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2">
 								{#if row.statusA}

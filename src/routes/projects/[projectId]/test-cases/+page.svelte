@@ -25,6 +25,7 @@
 	import FailWithDetailDialog from './FailWithDetailDialog.svelte';
 	import TestCaseFilterBar from './TestCaseFilterBar.svelte';
 	import TestCaseBulkActionBar from './TestCaseBulkActionBar.svelte';
+	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 
 	let { data } = $props();
 
@@ -74,7 +75,7 @@
 		id: number;
 		key: string;
 		title: string;
-		priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+		priority: string;
 		updatedBy: string;
 		groupId: number | null;
 		sortOrder: number;
@@ -153,19 +154,8 @@
 		goto(`${basePath}?${params.toString()}`);
 	}
 
-	function priorityVariant(
-		p: string
-	): 'default' | 'secondary' | 'outline' | 'destructive' {
-		switch (p) {
-			case 'CRITICAL':
-				return 'destructive';
-			case 'HIGH':
-				return 'default';
-			case 'MEDIUM':
-				return 'secondary';
-			default:
-				return 'outline';
-		}
+	function getPriorityColor(name: string): string {
+		return data.projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
 	}
 
 	function statusColor(status: string): string {
@@ -278,7 +268,7 @@
 	}
 
 	const allStatuses = ['PENDING', 'PASS', 'FAIL', 'BLOCKED', 'SKIPPED'];
-	const priorityOptions = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+	const priorityOptions = $derived(data.projectPriorities);
 	const execStatusOptions = ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING', 'NOT_EXECUTED'];
 
 	const availableRuns = $derived(
@@ -672,6 +662,7 @@
 		suiteId={data.suiteId}
 		execStatus={data.execStatus}
 		projectTags={data.projectTags}
+		projectPriorities={data.projectPriorities}
 		groups={data.groups}
 		projectSuites={data.projectSuites}
 		projectMembers={data.projectMembers}
@@ -720,6 +711,7 @@
 			{selectedTcIds}
 			projectId={data.project.id}
 			projectTags={data.projectTags}
+			projectPriorities={data.projectPriorities}
 			projectMembers={data.projectMembers}
 			groups={data.groups}
 			projectSuites={data.projectSuites}
@@ -861,11 +853,11 @@
 					class="w-16 shrink-0 text-center"
 					onclick={(e) => { e.stopPropagation(); openPriorityPopover(tc.id, tc.priority, e); }}
 				>
-					<Badge variant={priorityVariant(tc.priority)} class="text-[10px] px-1.5 py-0 cursor-pointer hover:ring-1 hover:ring-ring/30 transition-all">{tc.priority}</Badge>
+					<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
 				</button>
 			{:else}
 				<span class="w-16 shrink-0 text-center">
-					<Badge variant={priorityVariant(tc.priority)} class="text-[10px] px-1.5 py-0">{tc.priority}</Badge>
+					<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
 				</span>
 			{/if}
 			<!-- Tags -->
@@ -964,9 +956,9 @@
 						{/snippet}
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Content align="start" class="min-w-[100px]">
-						{#each priorityOptions as p}
-							<DropdownMenu.Item onclick={() => { quickPriorities[groupKey] = p; }} class="text-xs">
-								<Badge variant={priorityVariant(p)} class="text-[10px] px-1.5 py-0 pointer-events-none">{p}</Badge>
+						{#each priorityOptions as p (p.id)}
+							<DropdownMenu.Item onclick={() => { quickPriorities[groupKey] = p.name; }} class="text-xs">
+								<PriorityBadge name={p.name} color={p.color} />
 							</DropdownMenu.Item>
 						{/each}
 					</DropdownMenu.Content>
@@ -1360,14 +1352,14 @@
 			class="fixed z-[9999] bg-popover border rounded-md shadow-lg py-1 min-w-[110px]"
 			style="left: {priorityPopover.x}px; top: {priorityPopover.y}px; transform: translateX(-50%);"
 		>
-			{#each priorityOptions as p}
+			{#each priorityOptions as p (p.id)}
 				<button
 					type="button"
-					class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted transition-colors {p === priorityPopover.currentValue ? 'font-bold bg-muted/50' : ''}"
-					onclick={() => selectPriority(priorityPopover!.tcId, p)}
+					class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted transition-colors {p.name === priorityPopover.currentValue ? 'font-bold bg-muted/50' : ''}"
+					onclick={() => selectPriority(priorityPopover!.tcId, p.name)}
 				>
-					<Badge variant={priorityVariant(p)} class="text-[10px] px-1.5 py-0 pointer-events-none">{p}</Badge>
-					{#if p === priorityPopover.currentValue}
+					<PriorityBadge name={p.name} color={p.color} />
+					{#if p.name === priorityPopover.currentValue}
 						<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-primary ml-auto"><polyline points="20 6 9 17 4 12"/></svg>
 					{/if}
 				</button>
@@ -1401,6 +1393,7 @@
 	projectId={data.project.id}
 	{canEdit}
 	{canDelete}
+	projectPriorities={data.projectPriorities}
 	onchange={() => invalidateAll()}
 />
 

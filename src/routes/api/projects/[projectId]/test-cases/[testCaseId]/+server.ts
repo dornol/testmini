@@ -56,7 +56,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ pa
 	const { key, title, priority, automationKey } = body as {
 		key?: string;
 		title?: string;
-		priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+		priority?: string;
 		automationKey?: string | null;
 	};
 
@@ -138,7 +138,7 @@ export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ para
 		precondition: string;
 		steps: { action: string; expected: string }[];
 		expectedResult: string;
-		priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+		priority: string;
 		revision: number;
 	};
 
@@ -146,8 +146,8 @@ export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ para
 		return badRequest('Title is required (1-200 characters)');
 	}
 
-	if (!['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) {
-		return badRequest('Invalid priority');
+	if (!priority) {
+		return badRequest('Priority is required');
 	}
 
 	const tc = await findTestCaseWithLatestVersion(testCaseId, projectId);

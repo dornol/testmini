@@ -40,6 +40,7 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 14. [Dashboard Layout](#dashboard-layout)
 15. [API Keys](#api-keys)
 16. [Automation](#automation)
+17. [Priority Configuration](#priority-configuration)
 
 ---
 
@@ -302,7 +303,7 @@ Partial update of a test case. Updating `title` or `priority` creates a new vers
 |---|---|---|
 | `key` | string | Must be unique within the project |
 | `title` | string | Creates a new version |
-| `priority` | `LOW \| MEDIUM \| HIGH \| CRITICAL` | Creates a new version |
+| `priority` | `string` (project-configured priority name, e.g. `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`) | Creates a new version |
 | `automationKey` | `string \| null` | Must be unique within the project |
 
 **Response 200**
@@ -344,7 +345,7 @@ Full update of test case content (title, precondition, steps, expectedResult, pr
 | `precondition` | string | No | Free text |
 | `steps` | array | No | Array of `{ action, expected }` objects |
 | `expectedResult` | string | No | Free text |
-| `priority` | enum | Yes | `LOW \| MEDIUM \| HIGH \| CRITICAL` |
+| `priority` | string | Yes | Project-configured priority name (e.g. `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`) |
 | `revision` | integer | Yes | Current revision number for optimistic locking |
 
 **Response 200**
@@ -531,7 +532,7 @@ Apply an operation to multiple test cases at once (max 200 per request).
 | `action` | enum | Yes | See table below |
 | `testCaseIds` | integer[] | Yes | IDs of target test cases |
 | `tagId` | integer | Conditional | Required for `addTag`, `removeTag` |
-| `priority` | enum | Conditional | Required for `setPriority` |
+| `priority` | string | Conditional | Required for `setPriority` |
 | `groupId` | integer\|null | Conditional | Required for `moveToGroup`; `null` moves to ungrouped |
 | `userId` | string | Conditional | Required for `addAssignee`, `removeAssignee` |
 
@@ -1586,7 +1587,7 @@ Create a new template.
 | `description` | string | No | — |
 | `precondition` | string | No | — |
 | `steps` | array | No | `{ action, expected }[]` |
-| `priority` | enum | No | `LOW \| MEDIUM \| HIGH \| CRITICAL` (default `MEDIUM`) |
+| `priority` | string | No | Project-configured priority name (default `MEDIUM`) |
 
 **Response 201**
 ```json
@@ -1886,6 +1887,38 @@ Receive CI/CD build pipeline notifications from GitHub or GitLab. The server par
 ```
 
 Unknown platforms return `{ "received": true, "message": "Webhook received. Use X-GitHub-Event or X-Gitlab-Event header for platform detection." }`.
+
+---
+
+## Priority Configuration
+
+Priorities are configurable per project. Each project has its own set of priority levels with custom names, colors, and display order. Default priorities (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`) are seeded when a project is created.
+
+Priority configuration is managed through the project settings UI at `/projects/:projectId/settings/priorities` (form actions, not REST API). The `priority_config` table stores priority definitions per project.
+
+**Schema:** `priority_config`
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | serial | Primary key |
+| `projectId` | integer | FK to `project` |
+| `name` | varchar(30) | Priority name (unique within project) |
+| `color` | varchar(7) | Hex color (e.g. `#ef4444`) |
+| `position` | integer | Display order (0-based) |
+| `isDefault` | boolean | Whether this is the default priority for new test cases |
+| `createdBy` | varchar | FK to `user` |
+| `createdAt` | timestamp | — |
+
+**Form actions** (on `/projects/:projectId/settings/priorities`):
+
+| Action | Description | Auth |
+|---|---|---|
+| `create` | Add a new priority level | PROJECT_ADMIN, QA, DEV |
+| `update` | Edit name/color/default; propagates name changes to test_case_version and test_case_template | PROJECT_ADMIN, QA, DEV |
+| `delete` | Remove a priority level | PROJECT_ADMIN, QA, DEV |
+| `reorder` | Reorder priority display positions | PROJECT_ADMIN, QA, DEV |
+
+Priority values in test cases and templates are stored as plain text strings that reference priority names from this configuration.
 
 ---
 

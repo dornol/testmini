@@ -269,7 +269,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Title is required (1-200 characters)' });
 		}
 
-		if (!['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) {
+		if (!priority) {
 			return fail(400, { error: 'Invalid priority' });
 		}
 
@@ -323,7 +323,7 @@ export const actions: Actions = {
 					precondition: null,
 					steps: [],
 					expectedResult: null,
-					priority: priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+					priority,
 					updatedBy: authUser.id
 				})
 				.returning();

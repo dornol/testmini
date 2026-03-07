@@ -10,7 +10,7 @@ export const createTestCaseSchema = z.object({
 	precondition: z.string().max(2000).default(''),
 	steps: z.array(stepSchema).default([]),
 	expectedResult: z.string().max(2000).default(''),
-	priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).default('MEDIUM'),
+	priority: z.string().min(1).max(30).default('MEDIUM'),
 	automationKey: z.string().max(200).optional().default('')
 });
 

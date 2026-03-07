@@ -31,12 +31,7 @@ export function buildTestCaseConditions(params: TestCaseFilterParams): SQL {
 	}
 
 	if (params.priority) {
-		const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
-		const priorities = params.priority
-			.split(',')
-			.filter((p): p is (typeof validPriorities)[number] =>
-				validPriorities.includes(p as any)
-			);
+		const priorities = params.priority.split(',').filter(Boolean);
 		if (priorities.length > 0) {
 			conditions.push(inArray(testCaseVersion.priority, priorities));
 		}

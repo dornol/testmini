@@ -43,7 +43,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ re
 		description?: string;
 		precondition?: string;
 		steps?: { action: string; expected: string }[];
-		priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+		priority?: string;
 	};
 
 	if (name !== undefined) {
@@ -55,16 +55,12 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ re
 		}
 	}
 
-	if (priority && !['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) {
-		return badRequest('Invalid priority value');
-	}
-
 	type TemplateUpdate = {
 		name?: string;
 		description?: string | null;
 		precondition?: string | null;
 		steps?: TestStep[];
-		priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+		priority?: string;
 	};
 
 	const updates: TemplateUpdate = {};

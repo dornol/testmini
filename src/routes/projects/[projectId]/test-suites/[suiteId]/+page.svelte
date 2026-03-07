@@ -10,6 +10,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import VirtualList from '$lib/components/VirtualList.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 	import { apiPatch, apiDelete, apiPost, apiFetch } from '$lib/api-client';
@@ -126,13 +127,8 @@
 		}
 	}
 
-	function priorityVariant(p: string): 'default' | 'secondary' | 'outline' | 'destructive' {
-		switch (p) {
-			case 'CRITICAL': return 'destructive';
-			case 'HIGH': return 'default';
-			case 'MEDIUM': return 'secondary';
-			default: return 'outline';
-		}
+	function getPriorityColor(name: string): string {
+		return data.projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
 	}
 </script>
 
@@ -196,7 +192,7 @@
 							<Table.Cell class="font-mono text-sm">{item.key}</Table.Cell>
 							<Table.Cell class="font-medium">{item.title}</Table.Cell>
 							<Table.Cell>
-								<Badge variant={priorityVariant(item.priority)}>{item.priority}</Badge>
+								<PriorityBadge name={item.priority} color={getPriorityColor(item.priority)} />
 							</Table.Cell>
 							{#if canManage}
 								<Table.Cell>
@@ -307,7 +303,7 @@
 										<Table.Cell class="w-28 font-mono text-sm">{tc.key}</Table.Cell>
 										<Table.Cell class="font-medium">{tc.title}</Table.Cell>
 										<Table.Cell class="w-28">
-											<Badge variant={priorityVariant(tc.priority)}>{tc.priority}</Badge>
+											<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
 										</Table.Cell>
 									</Table.Row>
 								</Table.Body>

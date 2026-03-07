@@ -156,7 +156,7 @@ All tables are defined in `src/lib/server/db/schema.ts`.
 - [x] Enum type definitions
   - `project_role`: PROJECT_ADMIN, QA, DEV, VIEWER
   - `global_role`: ADMIN, USER
-  - `priority`: LOW, MEDIUM, HIGH, CRITICAL
+  - `priority`: ~~enum~~ migrated to `text` column with `priority_config` table (per-project custom priorities)
   - `environment`: DEV, QA, STAGE, PROD
   - `run_status`: CREATED, IN_PROGRESS, COMPLETED
   - `execution_status`: PENDING, PASS, FAIL, BLOCKED, SKIPPED
@@ -527,6 +527,39 @@ Allows admins to add/edit/delete external IdPs (Keycloak, Google, GitHub, etc.) 
 - [x] Automation result ingestion API (`/api/automation/results`)
 - [x] CI webhook integration (GitHub Actions, GitLab CI)
 
+### Milestone 14: Custom Priorities & Inline Tag Creation
+
+#### 14.1 Custom Priorities
+
+Priorities were migrated from a PostgreSQL enum (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`) to a per-project configuration table (`priority_config`). Each project can define its own priority levels with custom names, colors, and display order.
+
+- [x] `priority_config` table (id, projectId, name, color, position, isDefault, createdBy, createdAt)
+- [x] Migration: `drizzle/0018_custom_priorities.sql` (ALTER columns to text, CREATE TABLE, seed defaults for existing projects)
+- [x] Schema: `src/lib/schemas/priority.schema.ts` (createPrioritySchema, updatePrioritySchema)
+- [x] Server queries: `loadProjectPriorities()` in `src/lib/server/queries.ts`
+- [x] Layout-level data loading: `projectPriorities` available to all child pages via `[projectId]/+layout.server.ts`
+- [x] Settings page: `src/routes/projects/[projectId]/settings/priorities/+page.server.ts` and `+page.svelte`
+  - CRUD actions (create, update, delete, reorder)
+  - Color palette picker, name input, isDefault checkbox
+  - Name change propagates to test_case_version and test_case_template
+- [x] `PriorityBadge` component (`src/lib/components/PriorityBadge.svelte`) — colored inline badge
+- [x] All UI updated to use `PriorityBadge` with dynamic colors from `projectPriorities`:
+  - test-cases list, detail, new, filter bar, bulk action bar
+  - test-runs new, execution row/table, compare
+  - test-suites detail, reports, version diff dialog, detail sheet
+- [x] API endpoints updated: priority type changed from enum to string
+- [x] Default priority seeding on project creation (both form and API)
+
+#### 14.2 Inline Tag Creation
+
+Tags can now be created directly from the tag assignment UI on test case detail pages, without navigating to the settings page.
+
+- [x] `createTag` form action in `src/routes/projects/[projectId]/test-cases/[testCaseId]/+page.server.ts`
+  - Creates tag and assigns to test case in one action
+  - If tag name already exists in project, just assigns the existing tag
+- [x] Inline tag creation UI: Popover with search input, color palette picker, and "Create" button
+- [x] i18n keys: `tag_create_inline`, `tag_new_inline`
+
 ---
 
 ## Directory Structure (Target)
@@ -564,6 +597,7 @@ src/
 |   |       +-- settings/
 |   |       |   +-- +page.svelte    # Project settings
 |   |       |   +-- members/+page.svelte
+|   |       |   +-- priorities/+page.svelte  # Custom priority management
 |   |       +-- test-cases/
 |   |       |   +-- +page.svelte    # List (integrated table, DnD, groups, bulk)
 |   |       |   +-- new/+page.svelte
@@ -587,6 +621,7 @@ src/
 |   |   +-- AttachmentManager.svelte # File attachment management
 |   |   +-- StepsEditor.svelte      # Test step editor
 |   |   +-- TagBadge.svelte         # Tag badge
+|   |   +-- PriorityBadge.svelte   # Priority badge (colored, per-project)
 |   |   +-- Chart.svelte            # Chart.js wrapper
 |   +-- schemas/                    # zod validation schemas
 |   |   +-- auth.schema.ts
@@ -594,6 +629,8 @@ src/
 |   |   +-- test-case.schema.ts
 |   |   +-- test-run.schema.ts
 |   |   +-- failure.schema.ts
+|   |   +-- tag.schema.ts
+|   |   +-- priority.schema.ts
 |   |   +-- member.schema.ts
 |   +-- server/
 |   |   +-- auth.ts                 # better-auth configuration

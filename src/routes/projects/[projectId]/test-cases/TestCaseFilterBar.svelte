@@ -9,6 +9,7 @@
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
 	import { apiPost } from '$lib/api-client';
+	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 
 	interface Props {
 		basePath: string;
@@ -24,6 +25,7 @@
 		suiteId: string;
 		execStatus: string;
 		projectTags: { id: number; name: string; color: string }[];
+		projectPriorities: { id: number; name: string; color: string; position: number; isDefault: boolean }[];
 		groups: { id: number; name: string; sortOrder: number; color: string | null }[];
 		projectSuites: { id: number; name: string }[];
 		projectMembers: { userId: string; userName: string }[];
@@ -33,10 +35,8 @@
 	let {
 		basePath, projectId, canEdit, hasActiveFilters,
 		search, priority, tagIds, groupId, createdBy, assigneeId, suiteId, execStatus,
-		projectTags, groups, projectSuites, projectMembers, selectedRunIds
+		projectTags, projectPriorities, groups, projectSuites, projectMembers, selectedRunIds
 	}: Props = $props();
-
-	const priorityOptions = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 	const execStatusOptions = ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING', 'NOT_EXECUTED'];
 
 	let searchInput = $state('');
@@ -61,15 +61,6 @@
 	const selectedCreatedByIds = $derived(parseMulti(createdBy));
 	const selectedAssigneeIds = $derived(parseMulti(assigneeId));
 	const selectedGroupId = $derived(groupId || '');
-
-	function priorityVariant(p: string): 'default' | 'secondary' | 'outline' | 'destructive' {
-		switch (p) {
-			case 'CRITICAL': return 'destructive';
-			case 'HIGH': return 'default';
-			case 'MEDIUM': return 'secondary';
-			default: return 'outline';
-		}
-	}
 
 	function statusColor(status: string): string {
 		switch (status) {
@@ -153,10 +144,10 @@
 			{/snippet}
 		</Popover.Trigger>
 		<Popover.Content class="w-40 p-2" align="start">
-			{#each priorityOptions as p}
+			{#each projectPriorities as p (p.id)}
 				<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
-					<Checkbox checked={selectedPriorities.includes(p)} onCheckedChange={() => toggleFilter('priority', p)} />
-					<Badge variant={priorityVariant(p)} class="text-[10px] px-1.5 py-0 pointer-events-none">{p}</Badge>
+					<Checkbox checked={selectedPriorities.includes(p.name)} onCheckedChange={() => toggleFilter('priority', p.name)} />
+					<PriorityBadge name={p.name} color={p.color} />
 				</label>
 			{/each}
 		</Popover.Content>

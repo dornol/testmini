@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Badge } from '$lib/components/ui/badge/index.js';
+	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
@@ -33,6 +33,7 @@
 		showCheckbox: boolean;
 		isSelected: boolean;
 		isUpdating?: boolean;
+		priorityColor: string;
 		viewFailuresExecId: number | null;
 		onToggleSelect: (id: number) => void;
 		onToggleStatusDropdown: (exec: Execution, event: MouseEvent) => void;
@@ -50,6 +51,7 @@
 		showCheckbox,
 		isSelected,
 		isUpdating = false,
+		priorityColor,
 		viewFailuresExecId,
 		onToggleSelect,
 		onToggleStatusDropdown,
@@ -77,20 +79,6 @@
 		}
 	}
 
-	function priorityVariant(
-		p: string
-	): 'default' | 'secondary' | 'outline' | 'destructive' {
-		switch (p) {
-			case 'CRITICAL':
-				return 'destructive';
-			case 'HIGH':
-				return 'default';
-			case 'MEDIUM':
-				return 'secondary';
-			default:
-				return 'outline';
-		}
-	}
 </script>
 
 <tr class="hover:bg-muted/50 border-b transition-colors">
@@ -114,9 +102,7 @@
 		<span class="text-muted-foreground text-xs"> (v{exec.versionNo})</span>
 	</td>
 	<td class="bg-clip-padding p-2 align-middle whitespace-nowrap">
-		<Badge variant={priorityVariant(exec.testCasePriority)}>
-			{exec.testCasePriority}
-		</Badge>
+		<PriorityBadge name={exec.testCasePriority} color={priorityColor} />
 	</td>
 	<td class="bg-clip-padding p-2 align-middle whitespace-nowrap">
 		{#if canExecute}

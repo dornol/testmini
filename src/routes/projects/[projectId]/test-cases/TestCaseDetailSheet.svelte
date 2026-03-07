@@ -115,6 +115,14 @@
 		}
 	}
 
+	async function refresh(tcId: number) {
+		try {
+			detailData = await apiFetch(`/api/projects/${projectId}/test-cases/${tcId}`);
+		} catch {
+			console.warn('Failed to refresh detail data');
+		}
+	}
+
 	async function startDetailEdit() {
 		if (!detailData?.testCase.latestVersion || !selectedTcId) return;
 
@@ -177,8 +185,8 @@
 			toast.success('Test case updated');
 			detailEditing = false;
 			releaseSheetLock();
+			await refresh(selectedTcId);
 			onchange();
-			await open(selectedTcId);
 		} catch {
 			// error toast handled by apiPut
 		} finally {
@@ -212,8 +220,8 @@
 			);
 			if (res.ok) {
 				toast.success(m.tag_assigned());
+				await refresh(selectedTcId);
 				onchange();
-				await open(selectedTcId);
 			}
 		} catch {
 			toast.error(m.error_operation_failed());
@@ -231,8 +239,8 @@
 			);
 			if (res.ok) {
 				toast.success(m.tag_removed());
+				await refresh(selectedTcId);
 				onchange();
-				await open(selectedTcId);
 			}
 		} catch {
 			toast.error(m.error_remove_failed());
@@ -250,8 +258,8 @@
 			);
 			if (res.ok) {
 				toast.success(m.assignee_assigned());
+				await refresh(selectedTcId);
 				onchange();
-				await open(selectedTcId);
 			}
 		} catch {
 			toast.error(m.error_operation_failed());
@@ -269,8 +277,8 @@
 			);
 			if (res.ok) {
 				toast.success(m.assignee_removed());
+				await refresh(selectedTcId);
 				onchange();
-				await open(selectedTcId);
 			}
 		} catch {
 			toast.error(m.error_remove_failed());
@@ -285,8 +293,9 @@
 				{}
 			);
 			toast.success(m.tc_cloned());
+			selectedTcId = result.newTestCaseId;
+			await refresh(result.newTestCaseId);
 			onchange();
-			await open(result.newTestCaseId);
 		} catch {
 			// error toast handled by apiPost
 		}

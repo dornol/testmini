@@ -1454,6 +1454,21 @@ Discover OpenID Connect endpoint URLs from an issuer's `.well-known/openid-confi
 
 ---
 
+### User Approval (Form Actions on `/admin/users`)
+
+The admin users page provides form actions for approving and rejecting pending users. These are SvelteKit form actions (not REST API endpoints).
+
+| Action | Description |
+|---|---|
+| `approve` | Sets `user.approved = true`. Requires `userId` in form data. Logs `USER_APPROVED` audit event. |
+| `reject` | Deletes the user account. Requires `userId` in form data. Logs `USER_REJECTED` audit event (before deletion). |
+
+Both actions require the global `admin` role. Non-admin users receive `403`.
+
+The user list load function supports a `?pending=true` query parameter to filter only unapproved users.
+
+---
+
 ## Notifications
 
 ### `GET /api/notifications`

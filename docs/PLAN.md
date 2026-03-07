@@ -211,8 +211,9 @@ All tables are defined in `src/lib/server/db/schema.ts`.
 #### 1.6 Auth Pages
 
 - [x] `src/routes/auth/login/+page.svelte` -- login form (superforms + zod)
-- [x] `src/routes/auth/register/+page.svelte` -- registration form (superforms + zod)
-- [x] `src/lib/schemas/auth.schema.ts` -- login/registration validation schema
+- [x] ~~`src/routes/auth/register/+page.svelte`~~ -- removed (self-registration disabled; enterprise OIDC-only)
+- [x] `src/routes/auth/pending/+page.svelte` -- pending approval waiting page (for unapproved OIDC users)
+- [x] `src/lib/schemas/auth.schema.ts` -- login validation schema
 - [x] better-auth client setup (`src/lib/auth-client.ts`)
 - [x] Verify login/logout functionality
 - [x] OIDC provider addition -> completed with custom OAuth/PKCE handler in Milestone 11
@@ -540,7 +541,7 @@ src/
 |   +-- auth/
 |   |   +-- +layout.svelte          # Center layout (no sidebar)
 |   |   +-- login/+page.svelte
-|   |   +-- register/+page.svelte
+|   |   +-- pending/+page.svelte    # Approval queue waiting page
 |   |   +-- account/+page.svelte    # Account linking management
 |   |   +-- oidc/[slug]/            # OIDC auth flow
 |   |       +-- +server.ts          # Authorization redirect

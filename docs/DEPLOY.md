@@ -349,13 +349,22 @@ docker compose -f compose.prod.yaml exec app pnpm db:migrate
 ```
 drizzle/
 ├── 0000_puzzling_klaw.sql                  # Initial schema
-├── 0001_aromatic_black_queen.sql
+├── 0001_aromatic_black_queen.sql           # OIDC provider/account tables
 ├── 0002_search_indexes.sql
-├── 0003_test_suite.sql
+├── 0002_overconfident_plazm.sql
 ├── 0004_index_tuning.sql
-├── 0005_user_preference.sql
 ├── 0006_test_execution_constraints.sql
-└── 0007_attachment_referential_integrity.sql
+├── 0007_attachment_referential_integrity.sql
+├── 0008_audit_log.sql
+├── 0009_test_case_templates.sql
+├── 0010_test_case_comments.sql
+├── 0011_notifications.sql
+├── 0012_dashboard_layout.sql
+├── 0013_automation_key.sql
+├── 0014_project_api_key.sql
+├── 0015_add_updated_at.sql
+├── 0016_app_config.sql
+└── 0017_user_approval.sql                  # Add approved column to user table
 ```
 
 ---

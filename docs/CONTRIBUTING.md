@@ -136,7 +136,7 @@ testmini/
 │       │   ├── notifications/
 │       │   ├── projects/
 │       │   └── users/
-│       ├── auth/                   # Login, register, OAuth callback pages
+│       ├── auth/                   # Login, pending approval, OAuth callback pages
 │       ├── admin/                  # Admin panel pages (global admin only)
 │       ├── account/                # User account/profile pages
 │       └── projects/               # Project pages

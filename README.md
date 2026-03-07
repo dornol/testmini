@@ -11,7 +11,8 @@ An internal QA management system. Supports per-project test case management, tes
 - **File Attachments** -- Upload files to test cases/executions/failures (MIME whitelist, access control, drag and drop)
 - **Real-time Sync** -- SSE + Redis Pub/Sub based live test run updates
 - **Dashboard/Reports** -- Pass rate, per-environment/priority statistics, Chart.js charts (lazy-loaded), date range filters, CSV streaming export, widget customization
-- **OIDC Integration** -- Admins can add external IdPs (Keycloak, Google, etc.) at runtime, JWKS signature verification
+- **OIDC Integration** -- Admins can add external IdPs (Keycloak, Google, etc.) at runtime, JWKS signature verification, approval queue for new users
+- **User Approval Queue** -- When OIDC autoRegister is off, new users enter a pending state; admins approve/reject from the Admin panel
 - **Security** -- Rate Limiting (Redis), security headers, PBKDF2 key derivation, SSRF protection, path traversal prevention
 - **Audit Logs** -- Record key operation history, Admin view page (filters, pagination)
 - **Notification System** -- In-app notification bell, 30-second polling, mark as read
@@ -32,14 +33,14 @@ An internal QA management system. Supports per-project test case management, tes
 | UI | **shadcn-svelte** (Radix UI), **TailwindCSS v4** |
 | Form Handling | **sveltekit-superforms** + **zod** |
 | DB / ORM | **PostgreSQL**, **Drizzle ORM** (postgres.js) |
-| Auth | **better-auth** (email/password + admin plugin) |
+| Auth | **better-auth** (email/password login + admin plugin, self-registration disabled) |
 | OIDC | Custom OAuth/PKCE handler (runtime IdP management) |
 | Cache / Real-time | **Redis** (ioredis) -- Soft Lock, SSE Pub/Sub |
 | File Storage | Local file system (S3-ready) |
 | Charts | **Chart.js** |
 | i18n | **Paraglide** (ko, en) |
 | Logging | **pino** (structured logging, request ID tracing) |
-| Testing | **Vitest** (478 unit/component tests), **Playwright** (5 E2E suites) |
+| Testing | **Vitest** (523 unit/component tests), **Playwright** (5 E2E suites) |
 | Package Manager | **pnpm** |
 
 ---
@@ -106,8 +107,9 @@ pnpm auth:schema      # Generate better-auth schema
 
 ### Auth Methods
 
-- **Email/Password** -- better-auth default authentication
+- **Email/Password** -- better-auth login (self-registration disabled; accounts are created via OIDC or admin seeding)
 - **OIDC/OAuth2** -- Admins can register/manage external IdPs at runtime via the Admin panel
+- **Approval Queue** -- When OIDC `autoRegister` is off, new users are created in a pending state and redirected to `/auth/pending`; admins approve or reject from `/admin/users`
   - PKCE (S256) support
   - OIDC Discovery auto-configuration (SSRF protection: private IP blocking, HTTPS enforced)
   - JWKS-based ID token signature verification (RS256/384/512)
@@ -155,7 +157,7 @@ URL: `/admin` (Global ADMIN only)
 
 | Tab | Path | Features |
 |-----|------|----------|
-| Users | `/admin/users` | User list, role changes, ban/unban |
+| Users | `/admin/users` | User list, role changes, ban/unban, approve/reject pending users |
 | Projects | `/admin/projects` | Manage all projects |
 | OIDC Providers | `/admin/oidc-providers` | Register/edit/delete/toggle IdPs |
 | Audit Logs | `/admin/audit-logs` | View audit logs (user, action, date filters) |
@@ -207,7 +209,7 @@ Browser
 ```
 src/
 +-- routes/
-|   +-- auth/              # Auth (login, signup, OIDC, account linking)
+|   +-- auth/              # Auth (login, OIDC, account linking, pending approval)
 |   +-- admin/             # Global Admin (users, projects, OIDC management)
 |   +-- projects/          # Projects (dashboard, TC, runs, settings, reports)
 |   +-- account/           # User profile/account settings

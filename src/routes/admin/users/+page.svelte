@@ -22,6 +22,11 @@
 	let banTarget = $state<{ id: string; name: string } | null>(null);
 	let banReason = $state('');
 
+	let approveDialogOpen = $state(false);
+	let approveTarget = $state<{ id: string; name: string } | null>(null);
+	let rejectDialogOpen = $state(false);
+	let rejectTarget = $state<{ id: string; name: string } | null>(null);
+
 	function doSearch() {
 		const params = new URLSearchParams();
 		if (searchInput) params.set('search', searchInput);
@@ -79,6 +84,12 @@
 	<form onsubmit={(e) => { e.preventDefault(); doSearch(); }} class="flex gap-2">
 		<Input placeholder={m.admin_search_placeholder()} class="max-w-sm" bind:value={searchInput} aria-label={m.admin_search_placeholder()} />
 		<Button type="submit" variant="outline">{m.common_search()}</Button>
+		<Button
+			variant={data.pendingOnly ? 'default' : 'outline'}
+			href={data.pendingOnly ? '/admin/users' : '/admin/users?pending=true'}
+		>
+			{m.admin_show_pending()}
+		</Button>
 	</form>
 
 	<!-- Users Table -->
@@ -107,6 +118,8 @@
 						<Table.Cell>
 							{#if u.banned}
 								<Badge variant="destructive">{m.admin_banned()}</Badge>
+							{:else if !u.approved}
+								<Badge class="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-amber-200 dark:border-amber-800">{m.admin_pending()}</Badge>
 							{:else}
 								<Badge variant="outline">{m.common_active()}</Badge>
 							{/if}
@@ -117,7 +130,26 @@
 						<Table.Cell>
 							{#if u.id !== currentUserId?.id}
 								<div class="flex gap-1">
-									{#if u.role !== 'admin'}
+									{#if !u.approved}
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											class="h-7 px-2 text-xs text-green-600"
+											onclick={() => { approveTarget = { id: u.id, name: u.name }; approveDialogOpen = true; }}
+										>
+											{m.admin_approve()}
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											class="text-destructive h-7 px-2 text-xs"
+											onclick={() => { rejectTarget = { id: u.id, name: u.name }; rejectDialogOpen = true; }}
+										>
+											{m.admin_reject()}
+										</Button>
+									{:else if u.role !== 'admin'}
 										<form method="POST" action="?/updateRole" use:enhance={handleResult}>
 											<input type="hidden" name="userId" value={u.id} />
 											<input type="hidden" name="role" value="admin" />
@@ -211,6 +243,66 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Approve Dialog -->
+<AlertDialog.Root bind:open={approveDialogOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>{m.admin_approve_title()}</AlertDialog.Title>
+			<AlertDialog.Description>
+				{m.admin_approve_confirm({ name: approveTarget?.name ?? '' })}
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+			<form method="POST" action="?/approve" use:enhance={() => {
+				return async ({ result, update }) => {
+					if (result.type === 'success') {
+						approveDialogOpen = false;
+						toast.success(m.admin_user_approved());
+						await invalidateAll();
+					} else if (result.type === 'failure') {
+						toast.error((result.data?.error as string) ?? m.error_operation_failed());
+						await update();
+					}
+				};
+			}}>
+				<input type="hidden" name="userId" value={approveTarget?.id ?? ''} />
+				<Button type="submit">{m.admin_approve()}</Button>
+			</form>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
+
+<!-- Reject Dialog -->
+<AlertDialog.Root bind:open={rejectDialogOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>{m.admin_reject_title()}</AlertDialog.Title>
+			<AlertDialog.Description>
+				{m.admin_reject_confirm({ name: rejectTarget?.name ?? '' })}
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+			<form method="POST" action="?/reject" use:enhance={() => {
+				return async ({ result, update }) => {
+					if (result.type === 'success') {
+						rejectDialogOpen = false;
+						toast.success(m.admin_user_rejected());
+						await invalidateAll();
+					} else if (result.type === 'failure') {
+						toast.error((result.data?.error as string) ?? m.error_operation_failed());
+						await update();
+					}
+				};
+			}}>
+				<input type="hidden" name="userId" value={rejectTarget?.id ?? ''} />
+				<Button type="submit" variant="destructive">{m.admin_reject()}</Button>
+			</form>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
 
 <!-- Ban Dialog -->
 <AlertDialog.Root bind:open={banDialogOpen}>

@@ -10,6 +10,7 @@ import { verifyIdToken, parseIdTokenPayload } from '$lib/server/oidc-jwt';
 import { env } from '$env/dynamic/private';
 import { childLogger } from '$lib/server/logger';
 import { logAudit } from '$lib/server/audit';
+import { createNotification } from '$lib/server/notifications';
 
 const log = childLogger('oidc-callback');
 
@@ -221,17 +222,16 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 
 	// 3. Auto-register if no match
 	let isNewUser = false;
+	let isPendingApproval = false;
 	if (!userId) {
-		if (!provider.autoRegister) {
-			redirect(302, '/auth/login?error=oidc_no_auto_register');
-		}
-
+		const approved = !!provider.autoRegister;
 		userId = randomUUID();
 		await db.insert(user).values({
 			id: userId,
 			name: name || email || sub,
 			email: email || `${sub}@oidc.local`,
-			emailVerified: !!email
+			emailVerified: !!email,
+			approved
 		});
 
 		await db.insert(oidcAccount).values({
@@ -243,16 +243,41 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 		});
 
 		isNewUser = true;
+		isPendingApproval = !approved;
+
+		if (!approved) {
+			// Notify all admin users about the pending approval
+			const adminUsers = await db
+				.select({ id: user.id })
+				.from(user)
+				.where(eq(user.role, 'admin'));
+
+			const userName = name || email || sub;
+			const userEmail = email || `${sub}@oidc.local`;
+			for (const admin of adminUsers) {
+				createNotification({
+					userId: admin.id,
+					type: 'USER_PENDING',
+					title: 'New user pending approval',
+					message: `${userName} (${userEmail}) is waiting for approval`,
+					link: '/admin/users?pending=true'
+				});
+			}
+		}
 	}
 
-	// Check if user is banned
+	// Check if user is banned or pending approval
 	const [existingUser] = await db
-		.select({ banned: user.banned })
+		.select({ banned: user.banned, approved: user.approved })
 		.from(user)
 		.where(eq(user.id, userId));
 
 	if (existingUser?.banned) {
 		redirect(302, '/auth/login?error=oidc_callback_error');
+	}
+
+	if (existingUser && !existingUser.approved) {
+		isPendingApproval = true;
 	}
 
 	// Create session
@@ -269,12 +294,13 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 		updatedAt: new Date()
 	});
 
-	callbackLog.info({ userId }, 'Session created, redirecting to /projects');
+	const redirectTarget = isPendingApproval ? '/auth/pending' : '/projects';
+	callbackLog.info({ userId, redirectTarget }, `Session created, redirecting to ${redirectTarget}`);
 
 	// Fire-and-forget audit log for login / registration
 	logAudit({
 		userId,
-		action: isNewUser ? 'REGISTER' : 'LOGIN',
+		action: isPendingApproval ? 'USER_PENDING_APPROVAL' : isNewUser ? 'REGISTER' : 'LOGIN',
 		entityType: 'USER',
 		entityId: userId,
 		metadata: { provider: provider.slug, method: 'OIDC' }
@@ -293,5 +319,5 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 		expires: expiresAt
 	});
 
-	redirect(302, '/projects');
+	redirect(302, redirectTarget);
 };

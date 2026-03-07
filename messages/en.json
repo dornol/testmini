@@ -601,5 +601,19 @@
 	"admin_branding_remove": "Remove",
 	"admin_branding_saved": "Branding settings saved",
 	"admin_branding_preview": "Preview",
-	"admin_branding_current": "Current"
+	"admin_branding_current": "Current",
+
+	"pending_title": "Account Pending Approval",
+	"pending_desc": "Your account is awaiting administrator approval. You'll be able to use the system once approved.",
+	"pending_check_status": "Check Status",
+	"admin_pending": "Pending",
+	"admin_approve": "Approve",
+	"admin_reject": "Reject",
+	"admin_approve_title": "Approve User",
+	"admin_approve_confirm": "Approve {name}? They will gain access to the system.",
+	"admin_reject_title": "Reject User",
+	"admin_reject_confirm": "Reject {name}? Their account will be removed.",
+	"admin_user_approved": "User approved",
+	"admin_user_rejected": "User rejected",
+	"admin_show_pending": "Pending Only"
 }

@@ -78,10 +78,4 @@
 			</div>
 		</Card.Content>
 	{/if}
-	<Card.Footer class="justify-center">
-		<p class="text-sm text-muted-foreground">
-			{m.auth_no_account()}
-			<a href="/auth/register" class="text-primary underline-offset-4 hover:underline">{m.auth_register()}</a>
-		</p>
-	</Card.Footer>
 </Card.Root>

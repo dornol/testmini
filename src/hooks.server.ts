@@ -1,5 +1,6 @@
 import { sequence } from '@sveltejs/kit/hooks';
 import { building } from '$app/environment';
+import { redirect } from '@sveltejs/kit';
 import { auth } from '$lib/server/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import type { Handle, HandleServerError } from '@sveltejs/kit';
@@ -9,6 +10,9 @@ import { checkRateLimit } from '$lib/server/rate-limit';
 import { logger } from '$lib/server/logger';
 import { runMigrations } from '$lib/server/db/migrate';
 import { seedAdminUser } from '$lib/server/db/seed';
+import { db } from '$lib/server/db';
+import { user as userTable } from '$lib/server/db/auth.schema';
+import { eq } from 'drizzle-orm';
 
 if (!building) {
 	runMigrations()
@@ -38,6 +42,24 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	// Only let better-auth handle its own API routes
 	if (event.url.pathname.startsWith('/api/auth')) {
 		return svelteKitHandler({ event, resolve, auth, building });
+	}
+
+	// Approval guard: unapproved users can only access /auth/pending and /api/auth
+	if (session?.user) {
+		const { pathname } = event.url;
+		const allowedPaths = ['/auth/pending', '/api/auth', '/_app/', '/favicon'];
+		const isAllowed = allowedPaths.some((p) => pathname.startsWith(p));
+
+		if (!isAllowed) {
+			const [dbUser] = await db
+				.select({ approved: userTable.approved })
+				.from(userTable)
+				.where(eq(userTable.id, session.user.id));
+
+			if (dbUser && !dbUser.approved) {
+				redirect(302, '/auth/pending');
+			}
+		}
 	}
 
 	return resolve(event);

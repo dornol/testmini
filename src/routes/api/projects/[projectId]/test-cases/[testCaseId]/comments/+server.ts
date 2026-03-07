@@ -4,6 +4,7 @@ import { testCase, testCaseComment, user as userTable } from '$lib/server/db/sch
 import { eq, and, asc, isNull } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
+import { badRequest } from '$lib/server/errors';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const testCaseId = Number(params.testCaseId);
@@ -58,11 +59,11 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 	const { content, parentId } = body as { content?: string; parentId?: number };
 
 	if (!content || typeof content !== 'string' || content.trim().length === 0) {
-		return json({ error: 'Content is required' }, { status: 400 });
+		return badRequest('Content is required');
 	}
 
 	if (content.trim().length > 10000) {
-		return json({ error: 'Content is too long (max 10000 characters)' }, { status: 400 });
+		return badRequest('Content is too long (max 10000 characters)');
 	}
 
 	// If parentId given, verify it's a top-level comment on this test case
@@ -76,7 +77,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 		});
 
 		if (!parent) {
-			return json({ error: 'Parent comment not found or is already a reply' }, { status: 400 });
+			return badRequest('Parent comment not found or is already a reply');
 		}
 	}
 

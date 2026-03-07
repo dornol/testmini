@@ -4,6 +4,7 @@ import { testCase, testCaseVersion, testCaseTag, testCaseAssignee, tag, projectM
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
+import { badRequest, notFound } from '$lib/server/errors';
 
 export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 
@@ -18,11 +19,11 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 	};
 
 	if (!testCaseIds || !Array.isArray(testCaseIds) || testCaseIds.length === 0) {
-		return json({ error: 'No test cases specified' }, { status: 400 });
+		return badRequest('No test cases specified');
 	}
 
 	if (testCaseIds.length > 200) {
-		return json({ error: 'Batch size cannot exceed 200 items' }, { status: 400 });
+		return badRequest('Batch size cannot exceed 200 items');
 	}
 
 	// delete requires PROJECT_ADMIN, others require QA/DEV+
@@ -40,7 +41,7 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 
 	const validIds = tcs.map((tc) => tc.id);
 	if (validIds.length === 0) {
-		return json({ error: 'No valid test cases found' }, { status: 400 });
+		return badRequest('No valid test cases found');
 	}
 
 	let affected = 0;
@@ -48,12 +49,12 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 	await db.transaction(async (tx) => {
 		switch (action) {
 			case 'addTag': {
-				if (!tagId) return json({ error: 'tagId required' }, { status: 400 });
+				if (!tagId) return badRequest('tagId required');
 				// Verify tag belongs to project
 				const tagRecord = await tx.query.tag.findFirst({
 					where: and(eq(tag.id, tagId), eq(tag.projectId, projectId))
 				});
-				if (!tagRecord) return json({ error: 'Tag not found' }, { status: 404 });
+				if (!tagRecord) return notFound('Tag not found');
 
 				const tagValues = validIds.map((tcId) => ({ testCaseId: tcId, tagId }));
 				await tx.insert(testCaseTag).values(tagValues).onConflictDoNothing();
@@ -62,7 +63,7 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 			}
 
 			case 'removeTag': {
-				if (!tagId) return json({ error: 'tagId required' }, { status: 400 });
+				if (!tagId) return badRequest('tagId required');
 				await tx
 					.delete(testCaseTag)
 					.where(and(inArray(testCaseTag.testCaseId, validIds), eq(testCaseTag.tagId, tagId)));
@@ -72,7 +73,7 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 
 			case 'setPriority': {
 				if (!priority || !['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) {
-					return json({ error: 'Invalid priority' }, { status: 400 });
+					return badRequest('Invalid priority');
 				}
 				const tcsForPriority = await findTestCasesWithLatestVersions(validIds, projectId);
 				for (const tc of tcsForPriority) {
@@ -121,12 +122,12 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 			}
 
 			case 'addAssignee': {
-				if (!userId) return json({ error: 'userId required' }, { status: 400 });
+				if (!userId) return badRequest('userId required');
 				// Verify user is a project member
 				const memberRecord = await tx.query.projectMember.findFirst({
 					where: and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userId))
 				});
-				if (!memberRecord) return json({ error: 'User is not a project member' }, { status: 404 });
+				if (!memberRecord) return notFound('User is not a project member');
 
 				const assigneeValues = validIds.map((tcId) => ({ testCaseId: tcId, userId }));
 				await tx.insert(testCaseAssignee).values(assigneeValues).onConflictDoNothing();
@@ -135,7 +136,7 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 			}
 
 			case 'removeAssignee': {
-				if (!userId) return json({ error: 'userId required' }, { status: 400 });
+				if (!userId) return badRequest('userId required');
 				await tx
 					.delete(testCaseAssignee)
 					.where(and(inArray(testCaseAssignee.testCaseId, validIds), eq(testCaseAssignee.userId, userId)));
@@ -230,7 +231,7 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 			}
 
 			default:
-				return json({ error: 'Invalid action' }, { status: 400 });
+				return badRequest('Invalid action');
 		}
 	});
 

@@ -1,4 +1,5 @@
 import { json, error } from '@sveltejs/kit';
+import { badRequest } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { testCaseTemplate, type TestStep } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -47,15 +48,15 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ re
 
 	if (name !== undefined) {
 		if (!name || name.trim().length === 0) {
-			return json({ error: 'Template name is required' }, { status: 400 });
+			return badRequest('Template name is required');
 		}
 		if (name.length > 200) {
-			return json({ error: 'Template name must be 200 characters or less' }, { status: 400 });
+			return badRequest('Template name must be 200 characters or less');
 		}
 	}
 
 	if (priority && !['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) {
-		return json({ error: 'Invalid priority value' }, { status: 400 });
+		return badRequest('Invalid priority value');
 	}
 
 	type TemplateUpdate = {

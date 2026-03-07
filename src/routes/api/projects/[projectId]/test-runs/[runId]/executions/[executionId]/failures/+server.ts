@@ -6,6 +6,7 @@ import { eq, and } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { createFailureSchema } from '$lib/schemas/failure.schema';
+import { badRequest } from '$lib/server/errors';
 
 export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'], async ({ params, projectId }) => {
 	const runId = Number(params.runId);
@@ -72,7 +73,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 	const body = await parseJsonBody(request);
 	const parsed = createFailureSchema.safeParse(body);
 	if (!parsed.success) {
-		return json({ error: 'Invalid failure detail data' }, { status: 400 });
+		return badRequest('Invalid failure detail data');
 	}
 
 	await db.transaction(async (tx) => {

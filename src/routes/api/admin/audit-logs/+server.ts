@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { forbidden } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { auditLog, user } from '$lib/server/db/schema';
 import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
@@ -9,7 +10,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const authUser = requireAuth(locals);
 
 	if (!isGlobalAdmin(authUser)) {
-		return json({ error: 'Admin access required' }, { status: 403 });
+		return forbidden('Admin access required');
 	}
 
 	const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'));

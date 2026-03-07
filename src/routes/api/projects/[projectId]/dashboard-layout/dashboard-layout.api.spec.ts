@@ -10,7 +10,8 @@ vi.mock('$lib/server/db/schema', () => ({
 	dashboardLayout: {
 		userId: 'user_id',
 		projectId: 'project_id'
-	}
+	},
+	projectMember: { projectId: 'project_id', userId: 'user_id' }
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),

@@ -1,4 +1,5 @@
 import { json, error } from '@sveltejs/kit';
+import { badRequest, validationError } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { testSuite, testSuiteItem, testCase } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
@@ -20,7 +21,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, p
 	const body = await parseJsonBody(request);
 	const parsed = suiteItemsSchema.safeParse(body);
 	if (!parsed.success) {
-		return json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 });
+		return validationError('Invalid input', parsed.error.flatten().fieldErrors);
 	}
 
 	// Validate all test cases belong to the same project
@@ -29,7 +30,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, p
 		.from(testCase)
 		.where(and(inArray(testCase.id, parsed.data.testCaseIds), eq(testCase.projectId, projectId)));
 	if (validTestCases.length !== parsed.data.testCaseIds.length) {
-		return json({ error: 'Some test cases do not belong to this project' }, { status: 400 });
+		return badRequest('Some test cases do not belong to this project');
 	}
 
 	const values = parsed.data.testCaseIds.map((tcId) => ({
@@ -63,7 +64,7 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request,
 	const body = await parseJsonBody(request);
 	const parsed = suiteItemsSchema.safeParse(body);
 	if (!parsed.success) {
-		return json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 });
+		return validationError('Invalid input', parsed.error.flatten().fieldErrors);
 	}
 
 	await db

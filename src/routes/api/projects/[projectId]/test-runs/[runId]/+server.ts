@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { updateTestRunSchema } from '$lib/schemas/test-run.schema';
+import { badRequest, conflict, validationError } from '$lib/server/errors';
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, projectId }) => {
 	const runId = Number(params.runId);
@@ -18,13 +19,13 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ re
 	}
 
 	if (run.status !== 'CREATED') {
-		return json({ error: 'Only CREATED runs can be edited' }, { status: 409 });
+		return conflict('Only CREATED runs can be edited');
 	}
 
 	const body = await parseJsonBody(request);
 	const parsed = updateTestRunSchema.safeParse(body);
 	if (!parsed.success) {
-		return json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 });
+		return validationError('Invalid input', parsed.error.flatten().fieldErrors);
 	}
 
 	const updates: Record<string, unknown> = {};
@@ -32,7 +33,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ re
 	if (parsed.data.environment !== undefined) updates.environment = parsed.data.environment;
 
 	if (Object.keys(updates).length === 0) {
-		return json({ error: 'No fields to update' }, { status: 400 });
+		return badRequest('No fields to update');
 	}
 
 	await db

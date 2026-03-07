@@ -5,6 +5,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { loadTestCaseMetadata } from '$lib/server/queries';
+import { badRequest, conflict } from '$lib/server/errors';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const testCaseId = Number(params.testCaseId);
@@ -69,14 +70,14 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ pa
 	if (key !== undefined) {
 		const trimmed = key.trim();
 		if (!trimmed) {
-			return json({ error: 'Key cannot be empty' }, { status: 400 });
+			return badRequest('Key cannot be empty');
 		}
 		// Check uniqueness within project
 		const existing = await db.query.testCase.findFirst({
 			where: and(eq(testCase.projectId, projectId), eq(testCase.key, trimmed))
 		});
 		if (existing && existing.id !== testCaseId) {
-			return json({ error: 'Key already exists in this project' }, { status: 409 });
+			return conflict('Key already exists in this project');
 		}
 		await db.update(testCase).set({ key: trimmed }).where(eq(testCase.id, testCaseId));
 	}
@@ -89,7 +90,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ pa
 				where: and(eq(testCase.projectId, projectId), eq(testCase.automationKey, trimmedAk))
 			});
 			if (existingAk && existingAk.id !== testCaseId) {
-				return json({ error: 'Automation key already exists in this project' }, { status: 409 });
+				return conflict('Automation key already exists in this project');
 			}
 		}
 		await db.update(testCase).set({ automationKey: trimmedAk }).where(eq(testCase.id, testCaseId));
@@ -142,11 +143,11 @@ export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ para
 	};
 
 	if (!title || title.length < 1 || title.length > 200) {
-		return json({ error: 'Title is required (1-200 characters)' }, { status: 400 });
+		return badRequest('Title is required (1-200 characters)');
 	}
 
 	if (!['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) {
-		return json({ error: 'Invalid priority' }, { status: 400 });
+		return badRequest('Invalid priority');
 	}
 
 	const tc = await findTestCaseWithLatestVersion(testCaseId, projectId);
@@ -156,10 +157,7 @@ export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ para
 	}
 
 	if (tc.latestVersion && tc.latestVersion.revision !== revision) {
-		return json(
-			{ error: 'This test case has been modified by another user. Please refresh and try again.' },
-			{ status: 409 }
-		);
+		return conflict('This test case has been modified by another user. Please refresh and try again.');
 	}
 
 	const nextVersionNo = tc.latestVersion ? tc.latestVersion.versionNo + 1 : 1;

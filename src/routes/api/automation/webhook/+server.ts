@@ -1,5 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
+import { unauthorized, badRequest } from '$lib/server/errors';
 import { authenticateApiKey } from '$lib/server/api-key-auth';
 import { childLogger } from '$lib/server/logger';
 
@@ -43,7 +44,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	// Authenticate via API key
 	const auth = await authenticateApiKey(request);
 	if (!auth) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
+		return unauthorized('Unauthorized');
 	}
 	const { projectId } = auth;
 
@@ -68,7 +69,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		body = await request.json();
 	} catch {
-		return json({ error: 'Invalid request body' }, { status: 400 });
+		return badRequest('Invalid request body');
 	}
 
 	if (githubEvent) {

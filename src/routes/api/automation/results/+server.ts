@@ -1,5 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
+import { unauthorized, badRequest, notFound } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { project, testCase, testRun, testExecution, testFailureDetail } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
@@ -22,7 +23,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	// Authenticate via API key (no user session)
 	const auth = await authenticateApiKey(request);
 	if (!auth) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
+		return unauthorized('Unauthorized');
 	}
 	const { projectId } = auth;
 
@@ -30,30 +31,27 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		body = await request.json();
 	} catch {
-		return json({ error: 'Invalid request body' }, { status: 400 });
+		return badRequest('Invalid request body');
 	}
 
 	const { results } = body;
 
 	if (!Array.isArray(results) || results.length === 0) {
-		return json({ error: 'results array is required and must not be empty' }, { status: 400 });
+		return badRequest('results array is required and must not be empty');
 	}
 
 	if (results.length > 10_000) {
-		return json({ error: 'results array must not exceed 10,000 entries' }, { status: 400 });
+		return badRequest('results array must not exceed 10,000 entries');
 	}
 
 	// Validate each result entry
 	const validStatuses = ['PASS', 'FAIL', 'SKIP'];
 	for (const r of results) {
 		if (!r.automationKey || typeof r.automationKey !== 'string') {
-			return json({ error: 'Each result must have an automationKey' }, { status: 400 });
+			return badRequest('Each result must have an automationKey');
 		}
 		if (!validStatuses.includes(r.status)) {
-			return json(
-				{ error: `Invalid status "${r.status}". Must be PASS, FAIL, or SKIP` },
-				{ status: 400 }
-			);
+			return badRequest(`Invalid status "${r.status}". Must be PASS, FAIL, or SKIP`);
 		}
 	}
 
@@ -78,7 +76,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	});
 
 	if (!projectRecord) {
-		return json({ error: 'Project not found' }, { status: 404 });
+		return notFound('Project not found');
 	}
 
 	const createdBy = projectRecord.createdBy;

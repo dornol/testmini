@@ -10,7 +10,8 @@ vi.mock('$lib/server/db/schema', () => ({
 	testCase: { id: 'id', projectId: 'project_id', latestVersionId: 'latest_version_id' },
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id' },
 	testExecution: { id: 'id', testRunId: 'test_run_id', testCaseVersionId: 'test_case_version_id' },
-	testRun: { id: 'id', projectId: 'project_id' }
+	testRun: { id: 'id', projectId: 'project_id' },
+	projectMember: { projectId: 'project_id', userId: 'user_id' }
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
@@ -81,9 +82,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions', () => {
 				body: { testCaseId: 10 },
 				user: testUser
 			});
-			const response = await POST(event);
-
-			expect(response.status).toBe(403);
+			await expect(POST(event)).rejects.toThrow();
 		});
 
 		it('should return 401 when unauthenticated', async () => {
@@ -93,9 +92,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions', () => {
 				body: { testCaseId: 10 },
 				user: null
 			});
-			const response = await POST(event);
-
-			expect(response.status).toBe(401);
+			await expect(POST(event)).rejects.toThrow();
 		});
 	});
 });

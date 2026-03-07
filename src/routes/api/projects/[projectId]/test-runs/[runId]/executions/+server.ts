@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { childLogger } from '$lib/server/logger';
+import { badRequest, notFound, conflict } from '$lib/server/errors';
 
 const log = childLogger('executions');
 
@@ -16,7 +17,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 		const { testCaseId } = body as { testCaseId: number };
 
 		if (!testCaseId || isNaN(testCaseId)) {
-			return json({ error: 'testCaseId is required' }, { status: 400 });
+			return badRequest('testCaseId is required');
 		}
 
 		// Verify run belongs to project
@@ -25,7 +26,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 		});
 
 		if (!run) {
-			return json({ error: 'Test run not found' }, { status: 404 });
+			return notFound('Test run not found');
 		}
 
 		// Verify test case belongs to project and get latest version
@@ -34,7 +35,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 		});
 
 		if (!tc || !tc.latestVersionId) {
-			return json({ error: 'Test case not found' }, { status: 404 });
+			return notFound('Test case not found');
 		}
 
 		// Check if execution already exists for this test case in this run
@@ -50,7 +51,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 			);
 
 		if (existing.length > 0) {
-			return json({ error: 'Execution already exists for this test case' }, { status: 409 });
+			return conflict('Execution already exists for this test case');
 		}
 
 		const [execution] = await db

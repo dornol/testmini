@@ -1,4 +1,5 @@
 import { json, error } from '@sveltejs/kit';
+import { badRequest, conflict } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { testCaseGroup } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -24,7 +25,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ pa
 	if (name !== undefined) {
 		const trimmed = name.trim();
 		if (!trimmed) {
-			return json({ error: 'Name cannot be empty' }, { status: 400 });
+			return badRequest('Name cannot be empty');
 		}
 		// Check uniqueness
 		const existing = await db.query.testCaseGroup.findFirst({
@@ -32,14 +33,14 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ pa
 				a(e(g.projectId, projectId), e(g.name, trimmed))
 		});
 		if (existing && existing.id !== groupId) {
-			return json({ error: 'A group with this name already exists' }, { status: 409 });
+			return conflict('A group with this name already exists');
 		}
 		updates.name = trimmed;
 	}
 
 	if (color !== undefined) {
 		if (color !== null && !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) {
-			return json({ error: 'Invalid HEX color format' }, { status: 400 });
+			return badRequest('Invalid HEX color format');
 		}
 		updates.color = color;
 	}

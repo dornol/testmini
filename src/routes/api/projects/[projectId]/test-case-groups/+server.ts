@@ -1,4 +1,5 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
+import { badRequest, conflict } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { testCaseGroup, testCase } from '$lib/server/db/schema';
 import { eq, sql, count, asc } from 'drizzle-orm';
@@ -29,11 +30,11 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ req
 	const { name, color } = body as { name: string; color?: string };
 
 	if (!name || !name.trim()) {
-		return json({ error: 'Name is required' }, { status: 400 });
+		return badRequest('Name is required');
 	}
 
 	if (color !== undefined && color !== null && !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) {
-		return json({ error: 'Invalid HEX color format' }, { status: 400 });
+		return badRequest('Invalid HEX color format');
 	}
 
 	// Check uniqueness
@@ -41,7 +42,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ req
 		where: (g, { and, eq }) => and(eq(g.projectId, projectId), eq(g.name, name.trim()))
 	});
 	if (existing) {
-		return json({ error: 'A group with this name already exists' }, { status: 409 });
+		return conflict('A group with this name already exists');
 	}
 
 	// Get max sortOrder

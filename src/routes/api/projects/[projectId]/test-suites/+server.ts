@@ -1,4 +1,5 @@
 import { json, error } from '@sveltejs/kit';
+import { validationError } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { testSuite, testSuiteItem, user } from '$lib/server/db/schema';
 import { eq, sql } from 'drizzle-orm';
@@ -30,7 +31,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, u
 	const body = await parseJsonBody(request);
 	const parsed = createTestSuiteSchema.safeParse(body);
 	if (!parsed.success) {
-		return json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 });
+		return validationError('Invalid input', parsed.error.flatten().fieldErrors);
 	}
 
 	const { name, description, testCaseIds } = parsed.data;

@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import { badRequest } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { testCaseGroup } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
@@ -11,12 +12,12 @@ export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ requ
 	const { groups } = body as { groups: { id: number; sortOrder: number }[] };
 
 	if (!Array.isArray(groups)) {
-		return json({ error: 'groups array is required' }, { status: 400 });
+		return badRequest('groups array is required');
 	}
 
 	for (const g of groups) {
 		if (!Number.isInteger(g.sortOrder) || g.sortOrder < 0) {
-			return json({ error: 'sortOrder must be a non-negative integer' }, { status: 400 });
+			return badRequest('sortOrder must be a non-negative integer');
 		}
 	}
 
@@ -28,7 +29,7 @@ export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ requ
 			.from(testCaseGroup)
 			.where(and(inArray(testCaseGroup.id, groupIds), eq(testCaseGroup.projectId, projectId)));
 		if (existingGroups.length !== groupIds.length) {
-			return json({ error: 'Some groups do not belong to this project' }, { status: 400 });
+			return badRequest('Some groups do not belong to this project');
 		}
 	}
 

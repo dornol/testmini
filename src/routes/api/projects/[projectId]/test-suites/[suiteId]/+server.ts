@@ -1,4 +1,5 @@
 import { json, error } from '@sveltejs/kit';
+import { badRequest, validationError } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { testSuite, testSuiteItem, testCase, testCaseVersion, user } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -48,7 +49,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, 
 	const body = await parseJsonBody(request);
 	const parsed = updateTestSuiteSchema.safeParse(body);
 	if (!parsed.success) {
-		return json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 });
+		return validationError('Invalid input', parsed.error.flatten().fieldErrors);
 	}
 
 	const updates: Record<string, unknown> = {};
@@ -56,7 +57,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, 
 	if (parsed.data.description !== undefined) updates.description = parsed.data.description;
 
 	if (Object.keys(updates).length === 0) {
-		return json({ error: 'No fields to update' }, { status: 400 });
+		return badRequest('No fields to update');
 	}
 
 	await db

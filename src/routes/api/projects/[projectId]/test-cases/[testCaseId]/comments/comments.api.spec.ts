@@ -17,7 +17,8 @@ vi.mock('$lib/server/db/schema', () => ({
 		createdAt: 'created_at',
 		updatedAt: 'updated_at'
 	},
-	user: { id: 'id', name: 'name', email: 'email', image: 'image' }
+	user: { id: 'id', name: 'name', email: 'email', image: 'image' },
+	projectMember: { projectId: 'project_id', userId: 'user_id' }
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -29,6 +30,7 @@ vi.mock('$lib/server/auth-utils', async () => {
 	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
+		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' }),
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
 	};
 });

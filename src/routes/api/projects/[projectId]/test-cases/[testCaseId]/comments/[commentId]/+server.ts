@@ -4,6 +4,7 @@ import { testCase, testCaseComment, projectMember } from '$lib/server/db/schema'
 import { eq, and } from 'drizzle-orm';
 import { isGlobalAdmin, parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
+import { badRequest } from '$lib/server/errors';
 
 async function resolveComment(
 	testCaseId: number,
@@ -60,11 +61,11 @@ export const PATCH = withProjectAccess(async ({ params, request, user, projectId
 	const { content } = body as { content?: string };
 
 	if (!content || typeof content !== 'string' || content.trim().length === 0) {
-		return json({ error: 'Content is required' }, { status: 400 });
+		return badRequest('Content is required');
 	}
 
 	if (content.trim().length > 10000) {
-		return json({ error: 'Content is too long (max 10000 characters)' }, { status: 400 });
+		return badRequest('Content is too long (max 10000 characters)');
 	}
 
 	const [updated] = await db

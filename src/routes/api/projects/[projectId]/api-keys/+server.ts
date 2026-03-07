@@ -1,4 +1,5 @@
 import { json, error } from '@sveltejs/kit';
+import { badRequest } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { projectApiKey } from '$lib/server/db/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -34,10 +35,10 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 
 	const name = (body.name ?? '').trim();
 	if (!name) {
-		return json({ error: 'Name is required' }, { status: 400 });
+		return badRequest('Name is required');
 	}
 	if (name.length > 100) {
-		return json({ error: 'Name must be 100 characters or less' }, { status: 400 });
+		return badRequest('Name must be 100 characters or less');
 	}
 
 	const rawKey = generateApiKey();

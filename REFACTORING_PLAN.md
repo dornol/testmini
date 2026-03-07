@@ -10,7 +10,7 @@
 |-------|------|------|
 | **Phase 1** | 쿼리 헬퍼 (`queries.ts`) | ✅ 완료 |
 | **Phase 1** | CSV 유틸리티 (`csv-utils.ts`) | ✅ 완료 |
-| **Phase 1** | 에러 응답 유틸리티 | ⏳ 미진행 (현재 SvelteKit `error()` 사용이 주류, json 형태는 소수 — 우선순위 낮음) |
+| **Phase 1** | 에러 응답 유틸리티 | ✅ 완료 (`errors.ts` → 21개 API 라우트 적용) |
 | **Phase 1** | @ts-ignore 해결 | ✅ 완료 (@ts-expect-error 전환, 4개 불필요 제거) |
 | **Phase 2** | test-cases/+page.svelte 분할 | ✅ 완료 |
 | **Phase 2** | CommentSection 분할 | ✅ 완료 |
@@ -21,7 +21,7 @@
 | **Phase 4** | JWKS 캐싱 | ✅ 이미 구현됨 (1시간 TTL) |
 | **Phase 4** | N+1 쿼리 해결 | ✅ 완료 |
 | **Phase 4** | DB 스키마 개선 | ✅ 부분 완료 (updatedAt 추가, search_vector 문서화) |
-| **Phase 4** | 테스트 개선 | ⏳ 미진행 |
+| **Phase 4** | 테스트 개선 | ✅ 완료 (5개 실패 테스트 수정, projectId 검증 추가) |
 | **Phase 4** | Silent Error 처리 | ✅ 완료 |
 
 ### 생성된 유틸리티 파일
@@ -29,6 +29,7 @@
 |------|------|-----------|
 | `src/lib/server/queries.ts` | 공통 쿼리 헬퍼 | `loadTestCaseMetadata` → 2개 파일, `loadProjectTags` → 2개 파일 |
 | `src/lib/server/csv-utils.ts` | CSV 포맷팅/응답 유틸리티 | `formatCsvRow` → 2개 파일, `csvResponse` → 1개 파일 |
+| `src/lib/server/errors.ts` | 에러 응답 헬퍼 | `badRequest`/`notFound`/`conflict` 등 → 21개 API 라우트 |
 | `src/lib/api-client.ts` | 클라이언트 fetch 래퍼 | 21개 Svelte 컴포넌트 (57→13 raw fetch, 나머지는 FormData/lock 등 의도적 유지) |
 | `src/lib/server/api-handler.ts` | API 라우트 미들웨어 | 38개 API 라우트 (admin 2개 제외) |
 
@@ -72,7 +73,7 @@
 | 300줄 초과 파일 | 9개 |
 | 최대 파일 크기 | ~~1,997줄~~ 1,499줄 (`test-cases/+page.svelte`) |
 | 코드 중복 이슈 | ~~20+~~ ~10개 (쿼리/CSV/fetch/미들웨어 해결) |
-| 누락된 추상화 | ~~5개~~ 1개 (에러 응답 유틸만 잔여) |
+| 누락된 추상화 | ~~5개~~ 0개 (모두 완료) |
 
 ### 잘 되어 있는 부분
 - shadcn-svelte 기반 UI 컴포넌트 구조
@@ -85,7 +86,7 @@
 - ~~`test-cases/+page.svelte` 2,000줄 초과 — 분할 필수~~ → ✅ 1,499줄로 축소 (FilterBar, BulkActionBar 추출)
 - ~~태그/담당자/멤버 조회 쿼리 5곳 이상 중복~~ → ✅ `queries.ts` 헬퍼로 통합
 - ~~CSV 파싱/포맷 로직 3곳 산재~~ → ✅ `csv-utils.ts`로 통합
-- 에러 응답 형태 불일치 (`{ error }` vs `{ message }` vs `error()` throw) — 우선순위 낮음
+- ~~에러 응답 형태 불일치~~ → ✅ `errors.ts` 헬퍼로 통합 (21개 라우트)
 - ~~클라이언트 fetch 호출에 공통 래퍼 없음~~ → ✅ `api-client.ts` 적용 (57→13 raw fetch)
 - ~~JWKS 캐싱 미구현~~ → ✅ 이미 구현되어 있었음 (1시간 TTL)
 
@@ -122,27 +123,21 @@
 
 > 참고: `parseCSV`는 import 전용이고 사용처가 1곳이라 미추출.
 
-### 1.3 에러 응답 유틸리티
+### 1.3 에러 응답 유틸리티 ✅ 완료
 
-**신규 파일**: `src/lib/server/errors.ts`
+**파일**: `src/lib/server/errors.ts`
 
-현재 에러 응답이 3가지 형태로 혼재:
-```typescript
-// 형태 1: 대부분의 라우트
-return json({ error: '...' }, { status: 400 });
-// 형태 2: 일부 폼
-return json({ message: '...' }, { status: 400 });
-// 형태 3: SvelteKit throw
-error(400, '...');
-```
+**구현된 함수:**
+| 함수 | 설명 | 적용 수 |
+|------|------|---------|
+| `badRequest(msg)` | 400 응답 | ~30개 |
+| `unauthorized(msg)` | 401 응답 | 3개 |
+| `forbidden(msg)` | 403 응답 | 1개 |
+| `notFound(msg)` | 404 응답 | 5개 |
+| `conflict(msg)` | 409 응답 | 6개 |
+| `validationError(msg, details)` | 400 + 필드별 에러 | 5개 |
 
-**추출 대상:**
-```typescript
-export function badRequest(msg: string) { return json({ error: msg }, { status: 400 }); }
-export function notFound(msg: string) { return json({ error: msg }, { status: 404 }); }
-export function conflict(msg: string) { return json({ error: msg }, { status: 409 }); }
-export function forbidden(msg: string) { return json({ error: msg }, { status: 403 }); }
-```
+21개 API 라우트 파일에 적용. 미변환: `{ status: 413 }`, `{ status: 500 }`, 오브젝트 에러 바디, lock/import 전용 응답.
 
 ### 1.4 @ts-ignore 해결 ✅ 완료
 
@@ -291,13 +286,15 @@ export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ user
 | Attachment FK | `referenceId` + `referenceType` 다형성 패턴, 변경 시 대규모 마이그레이션 필요 |
 | 스키마 파일 분할 | 이미 섹션별 주석으로 정리됨. Drizzle relations의 cross-file 참조 시 circular dependency 리스크 |
 
-### 4.4 테스트 개선
+### 4.4 테스트 개선 ✅ 완료
 
+**수정 사항:**
 | 항목 | 설명 |
 |------|------|
-| E2E 테스트 보강 | 핵심 워크플로우 (테스트케이스 CRUD, 실행 관리) E2E 추가 |
-| Mock 정교화 | `mock-db.ts`가 실제 Drizzle API 커버리지 부족 |
-| 통합 테스트 | 현재 대부분 단위 테스트 → DB 연동 통합 테스트 추가 고려 |
+| 기존 실패 테스트 수정 (5파일 7테스트) | schema mock에 `projectMember` 추가, `requireProjectAccess` mock 추가, throw 기반 assert로 전환 |
+| `api-handler.ts` projectId 검증 | `withProjectRole`/`withProjectAccess`에 `Number.isFinite()` 검증 추가 — invalid projectId → 400 |
+
+> 참고: E2E 보강, mock 정교화, DB 통합 테스트는 별도 작업으로 분리 (현재 스코프 외)
 
 ### 4.5 Silent Error 처리 ✅ 완료
 
@@ -341,8 +338,8 @@ export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ user
 Phase 1 (공통 유틸리티)
   ├─ 1.1 쿼리 헬퍼              ✅ 완료
   ├─ 1.2 CSV 유틸리티            ✅ 완료
-  ├─ 1.3 에러 응답 유틸리티       ⏳ 미진행 (우선순위 낮음)
-  └─ 1.4 @ts-ignore 해결        ⏳ 미진행 (의존성 업데이트 필요)
+  ├─ 1.3 에러 응답 유틸리티       ✅ 완료 (21개 라우트)
+  └─ 1.4 @ts-ignore 해결        ✅ 완료 (11개 전환, 4개 제거)
 
 Phase 2 (컴포넌트 분할)
   ├─ 2.1 test-cases/+page.svelte ✅ 완료 (1,997→1,499줄)
@@ -359,7 +356,7 @@ Phase 3 (API 계층)
 Phase 4 (성능/품질)
   ├─ 4.1 N+1 쿼리               ✅ 완료 (bulk 6개 액션 배치화)
   ├─ 4.2 JWKS 캐싱              ✅ 이미 구현됨
-  ├─ 4.3 DB 스키마              ⏳ 미진행
-  ├─ 4.4 테스트                 ⏳ 미진행
+  ├─ 4.3 DB 스키마              ✅ 완료 (updatedAt, search_vector 문서화)
+  ├─ 4.4 테스트                 ✅ 완료 (5파일 수정, projectId 검증)
   └─ 4.5 에러 처리              ✅ 완료
 ```

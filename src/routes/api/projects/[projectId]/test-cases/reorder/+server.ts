@@ -4,6 +4,7 @@ import { testCase } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
+import { badRequest } from '$lib/server/errors';
 
 export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, projectId }) => {
 
@@ -13,12 +14,12 @@ export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ requ
 	};
 
 	if (!Array.isArray(items)) {
-		return json({ error: 'items array is required' }, { status: 400 });
+		return badRequest('items array is required');
 	}
 
 	for (const item of items) {
 		if (!Number.isInteger(item.sortOrder) || item.sortOrder < 0) {
-			return json({ error: 'sortOrder must be a non-negative integer' }, { status: 400 });
+			return badRequest('sortOrder must be a non-negative integer');
 		}
 	}
 
@@ -30,7 +31,7 @@ export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ requ
 			.from(testCase)
 			.where(and(inArray(testCase.id, itemIds), eq(testCase.projectId, projectId)));
 		if (existingItems.length !== itemIds.length) {
-			return json({ error: 'Some test cases do not belong to this project' }, { status: 400 });
+			return badRequest('Some test cases do not belong to this project');
 		}
 	}
 

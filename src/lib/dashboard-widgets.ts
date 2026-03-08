@@ -55,6 +55,6 @@ export const DEFAULT_LAYOUT: WidgetConfig[] = WIDGET_DEFINITIONS.map((w, i) => (
 
 export const SIZE_COLS: Record<WidgetConfig['size'], string> = {
 	sm: 'col-span-1',
-	md: 'col-span-2',
-	lg: 'col-span-3'
+	md: 'col-span-1 md:col-span-2',
+	lg: 'col-span-1 md:col-span-2 lg:col-span-3'
 };

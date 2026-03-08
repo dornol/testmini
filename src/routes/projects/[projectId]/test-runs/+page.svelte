@@ -232,13 +232,13 @@
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head class="w-8 py-1 px-2"></Table.Head>
+						<Table.Head class="w-8 py-1 px-2 hidden sm:table-cell"></Table.Head>
 						<Table.Head class="py-1 px-2 text-xs">{m.common_name()}</Table.Head>
-						<Table.Head class="w-20 py-1 px-2 text-xs">{m.common_environment()}</Table.Head>
+						<Table.Head class="w-20 py-1 px-2 text-xs hidden sm:table-cell">{m.common_environment()}</Table.Head>
 						<Table.Head class="w-24 py-1 px-2 text-xs">{m.common_status()}</Table.Head>
-						<Table.Head class="w-36 py-1 px-2 text-xs">{m.tr_progress()}</Table.Head>
-						<Table.Head class="w-24 py-1 px-2 text-xs">{m.tr_created_by()}</Table.Head>
-						<Table.Head class="w-28 py-1 px-2 text-xs">{m.tr_created_at()}</Table.Head>
+						<Table.Head class="w-36 py-1 px-2 text-xs hidden md:table-cell">{m.tr_progress()}</Table.Head>
+						<Table.Head class="w-24 py-1 px-2 text-xs hidden lg:table-cell">{m.tr_created_by()}</Table.Head>
+						<Table.Head class="w-28 py-1 px-2 text-xs hidden lg:table-cell">{m.tr_created_at()}</Table.Head>
 						{#if canExecute}
 							<Table.Head class="w-16 py-1 px-2 text-xs">{m.common_actions()}</Table.Head>
 						{/if}
@@ -248,7 +248,7 @@
 					{#each data.runs as run (run.id)}
 						{@const pct = progressPercent(run.passedCount, run.totalCount)}
 						<Table.Row class="cursor-pointer hover:bg-muted/50" onclick={() => goto(`${basePath}/${run.id}`)}>
-							<Table.Cell class="py-1 px-2" onclick={(e: MouseEvent) => e.stopPropagation()}>
+							<Table.Cell class="py-1 px-2 hidden sm:table-cell" onclick={(e: MouseEvent) => e.stopPropagation()}>
 								<input
 									type="checkbox"
 									checked={compareSelectedIds.has(run.id)}
@@ -256,8 +256,13 @@
 									class="h-3.5 w-3.5 rounded border-gray-300"
 								/>
 							</Table.Cell>
-							<Table.Cell class="py-1 px-2 text-xs font-medium">{run.name}</Table.Cell>
-							<Table.Cell class="py-1 px-2">
+							<Table.Cell class="py-1 px-2 text-xs font-medium">
+								<div>{run.name}</div>
+								<div class="text-muted-foreground sm:hidden text-[10px]">
+									{run.environment} &middot; {pct}%
+								</div>
+							</Table.Cell>
+							<Table.Cell class="py-1 px-2 hidden sm:table-cell">
 								<Badge variant="outline" class="text-[10px] px-1.5 py-0">{run.environment}</Badge>
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2">
@@ -265,7 +270,7 @@
 									{run.status.replace('_', ' ')}
 								</Badge>
 							</Table.Cell>
-							<Table.Cell class="py-1 px-2">
+							<Table.Cell class="py-1 px-2 hidden md:table-cell">
 								<div class="flex items-center gap-1" title="{m.dashboard_pass()}: {run.passedCount} / {m.common_all()}: {run.totalCount} ({pct}%)">
 									<div class="bg-secondary h-1.5 w-full rounded-full">
 										<div
@@ -278,8 +283,8 @@
 									</span>
 								</div>
 							</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs">{run.createdBy}</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs">
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden lg:table-cell">{run.createdBy}</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden lg:table-cell">
 								{new Date(run.createdAt).toLocaleDateString()}
 							</Table.Cell>
 							{#if canExecute}

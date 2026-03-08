@@ -105,8 +105,8 @@
 		/>
 		<div class="flex flex-1 overflow-hidden">
 			<Sidebar bind:open={sidebarOpen} />
-			<main class="flex-1 overflow-y-auto px-4 pb-4">
-				<div class="pt-4">
+			<main class="flex-1 overflow-y-auto px-2 pb-4 sm:px-4">
+				<div class="pt-3 sm:pt-4">
 					{@render children()}
 				</div>
 			</main>

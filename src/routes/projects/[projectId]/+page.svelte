@@ -396,7 +396,7 @@
 {/if}
 
 <!-- ── Widget Grid ─────────────────────────────────────── -->
-<div class="grid grid-cols-3 gap-4">
+<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
 	{#each visibleWidgets as widget (widget.id)}
 		<div class="{SIZE_COLS[widget.size]} min-w-0">
 			<!-- stats_summary -->
@@ -596,10 +596,10 @@
 								<Table.Header>
 									<Table.Row>
 										<Table.Head>{m.common_name()}</Table.Head>
-										<Table.Head class="w-24">{m.dashboard_env()}</Table.Head>
+										<Table.Head class="w-24 hidden sm:table-cell">{m.dashboard_env()}</Table.Head>
 										<Table.Head class="w-28">{m.common_status()}</Table.Head>
-										<Table.Head class="w-40">{m.dashboard_result()}</Table.Head>
-										<Table.Head class="w-28">{m.common_date()}</Table.Head>
+										<Table.Head class="w-40 hidden md:table-cell">{m.dashboard_result()}</Table.Head>
+										<Table.Head class="w-28 hidden lg:table-cell">{m.common_date()}</Table.Head>
 									</Table.Row>
 								</Table.Header>
 								<Table.Body>
@@ -615,7 +615,7 @@
 											}}
 										>
 											<Table.Cell class="font-medium">{run.name}</Table.Cell>
-											<Table.Cell>
+											<Table.Cell class="hidden sm:table-cell">
 												<Badge variant="outline">{run.environment}</Badge>
 											</Table.Cell>
 											<Table.Cell>
@@ -623,7 +623,7 @@
 													{run.status.replace('_', ' ')}
 												</Badge>
 											</Table.Cell>
-											<Table.Cell>
+											<Table.Cell class="hidden md:table-cell">
 												<div class="flex items-center gap-2">
 													<div
 														class="bg-secondary flex h-2 w-20 overflow-hidden rounded-full"
@@ -647,7 +647,7 @@
 													>
 												</div>
 											</Table.Cell>
-											<Table.Cell class="text-muted-foreground text-xs">
+											<Table.Cell class="text-muted-foreground text-xs hidden lg:table-cell">
 												{new Date(run.createdAt).toLocaleDateString()}
 											</Table.Cell>
 										</Table.Row>

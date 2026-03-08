@@ -31,15 +31,15 @@
 	}
 </script>
 
-<div class="flex gap-6">
-	<nav class="w-44 shrink-0">
-		<ul class="space-y-1">
-			{#each subNav as item}
-				<li>
+<div class="flex flex-col gap-4 md:flex-row md:gap-6">
+	<nav class="shrink-0 md:w-44">
+		<ul class="flex gap-1 overflow-x-auto scrollbar-none md:flex-col md:space-y-1 md:overflow-visible">
+			{#each subNav as item (item.href)}
+				<li class="shrink-0 md:shrink">
 					<a
 						href={item.href}
 						class={cn(
-							'block rounded-md px-3 py-2 text-sm font-medium transition-colors',
+							'block rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors md:py-2 md:text-sm',
 							isActive(item.href, item.exact)
 								? 'bg-accent text-accent-foreground'
 								: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
@@ -52,7 +52,7 @@
 		</ul>
 	</nav>
 
-	<div class="flex-1">
+	<div class="min-w-0 flex-1">
 		{@render children()}
 	</div>
 </div>

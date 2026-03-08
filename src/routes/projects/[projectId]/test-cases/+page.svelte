@@ -849,12 +849,12 @@
 				/>
 			{/if}
 			{#if !dndDisabled}
-				<span use:dragHandle data-drag-handle-tc class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 flex justify-center" onclick={(e) => e.stopPropagation()}>
+				<span use:dragHandle data-drag-handle-tc class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 hidden sm:flex justify-center" onclick={(e) => e.stopPropagation()}>
 					<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
 				</span>
 			{/if}
 			<!-- Key -->
-			<span class="font-mono text-muted-foreground w-20 shrink-0 group/key inline-flex items-center gap-0.5">
+			<span class="font-mono text-muted-foreground w-20 shrink-0 group/key hidden sm:inline-flex items-center gap-0.5">
 				{#if editingCell?.tcId === tc.id && editingCell?.field === 'key'}
 					<!-- svelte-ignore a11y_autofocus -->
 					<input
@@ -920,19 +920,19 @@
 				<button
 					type="button"
 					data-priority-popover
-					class="w-16 shrink-0 text-center"
+					class="w-16 shrink-0 text-center hidden md:block"
 					onclick={(e) => { e.stopPropagation(); openPriorityPopover(tc.id, tc.priority, e); }}
 				>
 					<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
 				</button>
 			{:else}
-				<span class="w-16 shrink-0 text-center">
+				<span class="w-16 shrink-0 text-center hidden md:block">
 					<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
 				</span>
 			{/if}
 			<!-- Tags -->
 			{#if data.projectTags.length > 0}
-				<div class="w-28 shrink-0 flex gap-0.5 items-center overflow-hidden">
+				<div class="w-28 shrink-0 gap-0.5 items-center overflow-hidden hidden lg:flex">
 					{#if tc.tags && tc.tags.length > 0}
 						{#each tc.tags.slice(0, 3) as t (t.id)}
 							<span
@@ -952,21 +952,21 @@
 				<button
 					type="button"
 					data-assignee-popover
-					class="w-16 shrink-0 flex items-center cursor-pointer rounded hover:bg-muted/50 transition-colors px-0.5 -mx-0.5"
+					class="w-16 shrink-0 items-center cursor-pointer rounded hover:bg-muted/50 transition-colors px-0.5 -mx-0.5 hidden lg:flex"
 					onclick={(e) => { e.stopPropagation(); openAssigneePopover(tc.id, e); }}
 				>
 					{@render avatarStack(tc.assignees)}
 				</button>
 			{:else}
-				<div class="w-16 shrink-0 flex items-center">
+				<div class="w-16 shrink-0 items-center hidden lg:flex">
 					{@render avatarStack(tc.assignees)}
 				</div>
 			{/if}
-			<span class="text-muted-foreground w-20 shrink-0 text-right truncate" data-tip={tc.updatedBy}>{tc.updatedBy}</span>
+			<span class="text-muted-foreground w-20 shrink-0 text-right truncate hidden xl:block" data-tip={tc.updatedBy}>{tc.updatedBy}</span>
 			<!-- Custom field columns -->
 			{#each visibleCustomFields as cf (cf.id)}
 				{@const cfVal = formatCfValue(cf, tc.customFields)}
-				<span class="w-24 shrink-0 text-center truncate text-muted-foreground" data-tip={cfVal}>
+				<span class="w-24 shrink-0 text-center truncate text-muted-foreground hidden xl:block" data-tip={cfVal}>
 					{#if cf.fieldType === 'URL' && cfVal}
 						<a href={cfVal} target="_blank" rel="noopener noreferrer" class="text-primary hover:underline" onclick={(e) => e.stopPropagation()}>{cfVal}</a>
 					{:else if cf.fieldType === 'CHECKBOX'}
@@ -983,7 +983,7 @@
 			<!-- Test Run columns -->
 			{#each selectedRuns as run (run.id)}
 				{@const exec = data.executionMap[tc.id]?.[run.id]}
-				<span class="w-16 shrink-0 text-center" onclick={(e) => e.stopPropagation()}>
+				<span class="w-16 shrink-0 text-center hidden lg:block" onclick={(e) => e.stopPropagation()}>
 					{#if exec}
 						<button
 							type="button"
@@ -1023,8 +1023,8 @@
 					<input type="hidden" name="groupId" value={String(groupKey)} />
 				{/if}
 				{#if canEdit}<span class="w-3.5 shrink-0"></span>{/if}
-				{#if !dndDisabled}<span class="w-6 shrink-0"></span>{/if}
-				<span class="w-20 shrink-0"></span>
+				{#if !dndDisabled}<span class="w-6 shrink-0 hidden sm:block"></span>{/if}
+				<span class="w-20 shrink-0 hidden sm:block"></span>
 				<Input
 					name="title"
 					placeholder={m.tc_quick_create_placeholder()}
@@ -1067,20 +1067,20 @@
 						onchange={toggleSelectAll}
 					/>
 				{/if}
-				{#if !dndDisabled}<span class="w-6 shrink-0"></span>{/if}
-				<span class="w-20 shrink-0 text-center">{m.common_key()}</span>
+				{#if !dndDisabled}<span class="w-6 shrink-0 hidden sm:block"></span>{/if}
+				<span class="w-20 shrink-0 text-center hidden sm:block">{m.common_key()}</span>
 				<span class="flex-1 min-w-0 text-center">{m.common_title()}</span>
-				<span class="w-16 shrink-0 text-center">{m.common_priority()}</span>
+				<span class="w-16 shrink-0 text-center hidden md:block">{m.common_priority()}</span>
 				{#if data.projectTags.length > 0}
-					<span class="w-28 shrink-0 text-center">{m.tag_title()}</span>
+					<span class="w-28 shrink-0 text-center hidden lg:block">{m.tag_title()}</span>
 				{/if}
-				<span class="w-16 shrink-0 text-center">{m.assignee_title()}</span>
-				<span class="w-20 shrink-0 text-center">{m.tc_updated_by()}</span>
+				<span class="w-16 shrink-0 text-center hidden lg:block">{m.assignee_title()}</span>
+				<span class="w-20 shrink-0 text-center hidden xl:block">{m.tc_updated_by()}</span>
 				{#each visibleCustomFields as cf (cf.id)}
-					<span class="w-24 shrink-0 text-center truncate" data-tip={cf.name}>{cf.name}</span>
+					<span class="w-24 shrink-0 text-center truncate hidden xl:block" data-tip={cf.name}>{cf.name}</span>
 				{/each}
 				{#each selectedRuns as run (run.id)}
-					<span class="w-16 shrink-0 text-center truncate" data-tip={run.name}>{run.name}</span>
+					<span class="w-16 shrink-0 text-center truncate hidden lg:block" data-tip={run.name}>{run.name}</span>
 				{/each}
 			</div>
 

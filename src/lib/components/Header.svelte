@@ -80,7 +80,8 @@
 				<DropdownMenu.Trigger>
 					{#snippet child({ props })}
 						<Button variant="ghost" size="sm" {...props}>
-							{user.name}
+							<span class="hidden sm:inline">{user.name}</span>
+							<span class="sm:hidden">{user.name.charAt(0)}</span>
 						</Button>
 					{/snippet}
 				</DropdownMenu.Trigger>

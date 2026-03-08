@@ -29,16 +29,16 @@
 		<div class="mb-1">
 			<a href="/projects" class="text-muted-foreground hover:text-foreground text-sm">&larr; {m.projects_all()}</a>
 		</div>
-		<h1 class="text-xl font-bold">{data.project.name}</h1>
+		<h1 class="text-lg font-bold sm:text-xl">{data.project.name}</h1>
 	</div>
 
 	<nav class="border-b">
-		<div class="flex gap-2" role="tablist">
+		<div class="-mb-px flex gap-2 overflow-x-auto scrollbar-none" role="tablist">
 			{#each tabs as tab (tab.href)}
 				<a
 					href={tab.href}
 					class={cn(
-						'-mb-px border-b-2 px-1 py-1.5 text-sm font-medium transition-colors',
+						'shrink-0 border-b-2 px-1 py-1.5 text-xs font-medium whitespace-nowrap transition-colors sm:text-sm',
 						isActive(tab.href, tab.exact)
 							? 'border-primary text-foreground'
 							: 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'

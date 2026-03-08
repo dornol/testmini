@@ -29,6 +29,7 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
    - [Execution status](#execution-status)
    - [Failure details](#failure-details)
    - [Export (CSV)](#test-run-export)
+   - [Execution comments](#execution-comments)
    - [Real-time events (SSE)](#real-time-events)
 7. [Test Suites](#test-suites)
 8. [Reports](#reports)
@@ -49,6 +50,14 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 23. [Saved Filters](#saved-filters)
 24. [Report Export & Sharing](#report-export--sharing)
 25. [Report Schedules](#report-schedules)
+26. [Issue Link Status Sync](#issue-link-status-sync)
+27. [Parameterized Tests](#parameterized-tests)
+    - [Parameters](#test-case-parameters)
+    - [Data Sets](#test-case-data-sets)
+    - [Shared Data Sets](#shared-data-sets)
+28. [Custom Fields](#custom-fields)
+29. [Execution Comments](#execution-comments)
+30. [Branding](#branding)
 
 ---
 
@@ -2424,7 +2433,7 @@ or for validation errors:
 
 ---
 
-## 23. Saved Filters
+## Saved Filters
 
 Saved filters allow users to save and quickly apply filter presets for test case lists.
 
@@ -2462,7 +2471,7 @@ Only the filter owner can delete. Returns `{ "success": true }`.
 
 ---
 
-## 24. Report Export & Sharing
+## Report Export & Sharing
 
 ### Export PDF
 
@@ -2504,7 +2513,7 @@ Renders a read-only report view. No authentication required. Returns 404 if toke
 
 ---
 
-## 25. Report Schedules
+## Report Schedules
 
 ### List schedules
 
@@ -2562,3 +2571,377 @@ Requires PROJECT_ADMIN, QA, or DEV role.
 Syncs all issue links for the project (or scoped to a test case/execution). Returns `{ synced, failed, total }`.
 
 Optional query params: `testCaseId`, `testExecutionId`.
+
+---
+
+## Custom Fields
+
+Per-project custom field definitions for test cases. Field values are stored in JSONB on `test_case_version`.
+
+### List custom fields
+
+`GET /api/projects/:projectId/custom-fields`
+
+**Auth:** Project member (any role)
+
+Returns all custom fields for the project, ordered by `sortOrder`.
+
+**Response 200**
+```json
+[
+  {
+    "id": 1,
+    "projectId": 1,
+    "name": "Browser",
+    "fieldType": "SELECT",
+    "options": ["Chrome", "Firefox", "Safari"],
+    "required": false,
+    "sortOrder": 1,
+    "createdBy": "user-1"
+  }
+]
+```
+
+### Create custom field
+
+`POST /api/projects/:projectId/custom-fields`
+
+**Auth:** PROJECT_ADMIN
+
+```json
+{
+  "name": "Browser",
+  "fieldType": "SELECT",
+  "options": ["Chrome", "Firefox", "Safari"],
+  "required": false
+}
+```
+
+Valid field types: `TEXT`, `NUMBER`, `SELECT`, `MULTISELECT`, `DATE`, `CHECKBOX`, `URL`.
+
+`options` is required for `SELECT` and `MULTISELECT` types.
+
+**Response 201** — created field object.
+
+### Update custom field
+
+`PATCH /api/projects/:projectId/custom-fields/:fieldId`
+
+**Auth:** PROJECT_ADMIN
+
+```json
+{ "name": "Updated Name", "options": ["A", "B"], "required": true, "sortOrder": 2 }
+```
+
+Note: `fieldType` cannot be changed after creation.
+
+**Response 200** — updated field object.
+
+### Delete custom field
+
+`DELETE /api/projects/:projectId/custom-fields/:fieldId`
+
+**Auth:** PROJECT_ADMIN
+
+**Response 200** — `{ "success": true }`
+
+---
+
+## Execution Comments
+
+Comments on individual test run executions. Supports threaded replies (one level deep).
+
+### List execution comments
+
+`GET /api/projects/:projectId/test-runs/:runId/executions/:executionId/comments`
+
+**Auth:** Project member (any role)
+
+Returns all comments for the execution, ordered by creation time.
+
+**Response 200**
+```json
+[
+  {
+    "id": 1,
+    "testExecutionId": 10,
+    "userId": "user-1",
+    "content": "This fails intermittently on CI.",
+    "parentId": null,
+    "createdAt": "2025-01-15T10:00:00Z",
+    "updatedAt": "2025-01-15T10:00:00Z",
+    "userName": "Alice",
+    "userEmail": "alice@example.com",
+    "userImage": null
+  }
+]
+```
+
+### Create execution comment
+
+`POST /api/projects/:projectId/test-runs/:runId/executions/:executionId/comments`
+
+**Auth:** PROJECT_ADMIN, QA, or DEV
+
+```json
+{ "content": "Looks like a timing issue.", "parentId": null }
+```
+
+`parentId` is optional — set to a top-level comment ID to create a reply. Replies cannot be nested further (parent must have `parentId: null`).
+
+Content max length: 10,000 characters.
+
+**Response 201** — created comment with user info.
+
+### Update execution comment
+
+`PATCH /api/projects/:projectId/test-runs/:runId/executions/:executionId/comments/:commentId`
+
+**Auth:** Comment author or global admin
+
+```json
+{ "content": "Updated comment text." }
+```
+
+**Response 200** — updated comment object.
+
+### Delete execution comment
+
+`DELETE /api/projects/:projectId/test-runs/:runId/executions/:executionId/comments/:commentId`
+
+**Auth:** Comment author or global admin
+
+Deletes the comment and all its replies.
+
+**Response 200** — `{ "success": true }`
+
+---
+
+## Branding
+
+### Get branding asset
+
+`GET /api/branding/:path`
+
+**Auth:** None (public)
+
+Serves uploaded branding assets (logo, favicon). Returns the file with appropriate MIME type and 24-hour cache header.
+
+Supported formats: PNG, JPG, JPEG, SVG, WebP, ICO.
+
+**Response 200** — binary file with `Content-Type` header.
+**Response 404** — file not found.
+
+---
+
+## Parameterized Tests
+
+### Test Case Parameters
+
+Parameters define variable names (e.g., `username`, `password`) that can be used in test case steps as `{{variable}}` placeholders.
+
+#### List Parameters
+
+`GET /api/projects/:projectId/test-cases/:testCaseId/parameters`
+
+**Auth:** Session or API Key (project access)
+
+**Response 200:**
+```json
+[
+  { "id": 1, "testCaseId": 42, "name": "username", "orderIndex": 0 },
+  { "id": 2, "testCaseId": 42, "name": "password", "orderIndex": 1 }
+]
+```
+
+#### Create Parameter
+
+`POST /api/projects/:projectId/test-cases/:testCaseId/parameters`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Body:**
+```json
+{ "name": "username" }
+```
+
+**Response 201:** Created parameter object.
+
+#### Update Parameter
+
+`PATCH /api/projects/:projectId/test-cases/:testCaseId/parameters/:parameterId`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Body:**
+```json
+{ "name": "new_name", "orderIndex": 2 }
+```
+
+**Response 200:** `{ "success": true }`
+
+#### Delete Parameter
+
+`DELETE /api/projects/:projectId/test-cases/:testCaseId/parameters/:parameterId`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Response 200:** `{ "success": true }`
+
+---
+
+### Test Case Data Sets
+
+Data sets are rows of parameter values for parameterized test cases. Each row maps parameter names to values. When a test run is created, parameterized test cases are expanded into one execution per data set row.
+
+#### List Data Sets
+
+`GET /api/projects/:projectId/test-cases/:testCaseId/datasets`
+
+**Auth:** Session or API Key (project access)
+
+**Response 200:**
+```json
+[
+  { "id": 1, "testCaseId": 42, "name": "Valid admin", "values": { "username": "admin", "password": "pass123" }, "orderIndex": 0 },
+  { "id": 2, "testCaseId": 42, "name": "Invalid user", "values": { "username": "", "password": "x" }, "orderIndex": 1 }
+]
+```
+
+#### Create Data Set
+
+`POST /api/projects/:projectId/test-cases/:testCaseId/datasets`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Body:**
+```json
+{ "name": "Valid admin", "values": { "username": "admin", "password": "pass123" } }
+```
+
+**Response 201:** Created data set object.
+
+#### Update Data Set
+
+`PATCH /api/projects/:projectId/test-cases/:testCaseId/datasets/:datasetId`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Body:**
+```json
+{ "name": "Updated label", "values": { "username": "new", "password": "val" } }
+```
+
+**Response 200:** `{ "success": true }`
+
+#### Delete Data Set
+
+`DELETE /api/projects/:projectId/test-cases/:testCaseId/datasets/:datasetId`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Response 200:** `{ "success": true }`
+
+#### Import Data Sets from CSV
+
+`POST /api/projects/:projectId/test-cases/:testCaseId/datasets/import`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Content-Type:** `multipart/form-data`
+
+**Body:** `file` — CSV file. First row is headers (parameter names), subsequent rows are data values.
+
+**Response 200:**
+```json
+{ "imported": 5 }
+```
+
+Missing parameters are automatically created.
+
+---
+
+### Shared Data Sets
+
+Project-level reusable data sets that can be linked to multiple test cases.
+
+#### List Shared Data Sets
+
+`GET /api/projects/:projectId/shared-datasets`
+
+**Auth:** Session or API Key (project access)
+
+**Response 200:**
+```json
+[
+  {
+    "id": 1,
+    "projectId": 10,
+    "name": "Valid Users",
+    "parameters": ["username", "password", "role"],
+    "rows": [
+      { "username": "admin", "password": "pass", "role": "admin" }
+    ],
+    "createdBy": "user_id",
+    "createdAt": "2026-03-08T00:00:00.000Z"
+  }
+]
+```
+
+#### Create Shared Data Set
+
+`POST /api/projects/:projectId/shared-datasets`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Body:**
+```json
+{
+  "name": "Valid Users",
+  "parameters": ["username", "password"],
+  "rows": [
+    { "username": "admin", "password": "pass123" }
+  ]
+}
+```
+
+**Response 201:** Created shared data set object.
+
+#### Update Shared Data Set
+
+`PATCH /api/projects/:projectId/shared-datasets/:datasetId`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Body:**
+```json
+{ "name": "Updated name", "parameters": ["a", "b"], "rows": [{ "a": "1", "b": "2" }] }
+```
+
+**Response 200:** `{ "success": true }`
+
+#### Delete Shared Data Set
+
+`DELETE /api/projects/:projectId/shared-datasets/:datasetId`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Response 200:** `{ "success": true }`
+
+#### Link Shared Data Set to Test Case
+
+`POST /api/projects/:projectId/shared-datasets/:datasetId/link`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+Copies the shared data set rows into the test case's data sets, and creates any missing parameters.
+
+**Body:**
+```json
+{ "testCaseId": 42 }
+```
+
+**Response 200:**
+```json
+{ "linked": 3 }
+```

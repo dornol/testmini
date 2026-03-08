@@ -114,9 +114,16 @@ testmini/
 │   │   │   │   └── auth.schema.ts  # Better Auth-generated user/session tables
 │   │   │   ├── lock.ts             # Distributed lock (Redis or in-memory)
 │   │   │   ├── logger.ts           # Pino logger
+│   │   │   ├── api-handler.ts     # withProjectAccess / withProjectRole wrappers
+│   │   │   ├── email.ts           # SMTP email sending (nodemailer)
+│   │   │   ├── errors.ts          # badRequest, notFound, conflict helpers
+│   │   │   ├── issue-tracker.ts   # External issue tracker (Jira/GitHub/GitLab)
 │   │   │   ├── mcp/               # MCP (Model Context Protocol) server
 │   │   │   │   └── server.ts      # MCP server factory (scoped per project)
 │   │   │   ├── notifications.ts    # Notification creation helpers (also triggers webhooks)
+│   │   │   ├── pdf-report.ts      # PDF report generation (pdfkit)
+│   │   │   ├── report-data.ts     # Shared report data loading helpers
+│   │   │   ├── report-scheduler.ts # Scheduled report emails (node-cron)
 │   │   │   ├── webhooks.ts         # Outgoing webhook delivery (HMAC signing, fire-and-forget)
 │   │   │   ├── oidc-jwt.ts         # OIDC JWT verification
 │   │   │   ├── rate-limit.ts       # Rate limiter (Redis or in-memory)
@@ -417,36 +424,37 @@ describe('POST /api/projects/:projectId/test-cases/bulk', () => {
    src/routes/api/<your-path>/+server.ts
    ```
 
-2. **Export the appropriate HTTP method handlers:**
+2. **Export the appropriate HTTP method handlers.** Prefer the `withProjectAccess`/`withProjectRole` wrappers from `$lib/server/api-handler` — they handle auth, project ID parsing, and role checks automatically:
+
    ```typescript
-   import { json, error } from '@sveltejs/kit';
-   import type { RequestHandler } from './$types';
-   import { requireAuth, requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
+   import { json } from '@sveltejs/kit';
+   import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
    import { db } from '$lib/server/db';
 
-   export const GET: RequestHandler = async ({ locals, params, url }) => {
+   // Read-only — any project member can access
+   export const GET = withProjectAccess(async ({ projectId, url }) => {
+     const items = await db.query.myTable.findMany({ ... });
+     return json(items);
+   });
+
+   // Write — restricted to specific roles
+   export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ projectId, request, user }) => {
+     const body = await request.json();
+     // ... validate and insert ...
+     return json(created, { status: 201 });
+   });
+   ```
+
+   For non-project-scoped routes, use `requireAuth` directly:
+   ```typescript
+   import { json } from '@sveltejs/kit';
+   import type { RequestHandler } from './$types';
+   import { requireAuth } from '$lib/server/auth-utils';
+
+   export const GET: RequestHandler = async ({ locals }) => {
      const user = requireAuth(locals);
-     const projectId = Number(params.projectId);
-     await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
-
-     // ... query the db ...
-
-     return json({ data: result });
-   };
-
-   export const POST: RequestHandler = async ({ locals, params, request }) => {
-     const user = requireAuth(locals);
-     const body = await parseJsonBody(request);
-
-     // Validate with Zod
-     const parsed = mySchema.safeParse(body);
-     if (!parsed.success) {
-       return json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
-     }
-
-     // ... insert to db ...
-
-     return json({ data: created }, { status: 201 });
+     // ...
+     return json(result);
    };
    ```
 
@@ -454,7 +462,12 @@ describe('POST /api/projects/:projectId/test-cases/bulk', () => {
 
 4. **Auth:** Always call `requireAuth` first. For project-scoped routes, follow with `requireProjectAccess` (read-only access check) or `requireProjectRole` (write-access check). The global admin role bypasses all project role checks automatically.
 
-5. **Error handling:** Throw `error(statusCode, 'message')` from `@sveltejs/kit` for HTTP errors. Use `json({ error: '...' }, { status: 4xx })` for validation errors that warrant a specific response body.
+5. **Error handling:** Use helpers from `$lib/server/errors`:
+   - `badRequest('message')` — returns `400` JSON response
+   - `notFound('message')` — returns `404` JSON response
+   - `conflict('message')` — returns `409` JSON response
+
+   Or throw `error(statusCode, 'message')` from `@sveltejs/kit` for other HTTP errors.
 
 6. **Write a test file** next to the route: `+server.spec.ts` or `<name>.api.spec.ts`. Use the test helpers described in the [Testing Guide](#testing-guide).
 

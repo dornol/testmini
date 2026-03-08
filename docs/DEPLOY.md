@@ -1,6 +1,6 @@
 # TestMini -- Deployment Guide
 
-> Last updated: 2026-03-05
+> Last updated: 2026-03-08
 
 ---
 
@@ -370,7 +370,18 @@ drizzle/
 ├── 0014_project_api_key.sql
 ├── 0015_add_updated_at.sql
 ├── 0016_app_config.sql
-└── 0017_user_approval.sql                  # Add approved column to user table
+├── 0017_user_approval.sql                  # Add approved column to user table
+├── 0018_custom_priorities.sql
+├── 0019_project_webhooks.sql
+├── 0020_notification_preferences.sql
+├── 0021_custom_fields.sql
+├── 0022_execution_comments.sql
+├── 0023_issue_tracker.sql
+├── 0024_traceability_matrix.sql
+├── 0025_saved_filters.sql
+├── 0026_issue_link_status_sync.sql
+├── 0027_shared_reports.sql
+└── 0028_parameterized_tests.sql
 ```
 
 ---

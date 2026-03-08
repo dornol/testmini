@@ -112,7 +112,9 @@ testmini/
 │   │   │   ├── audit.ts            # Audit log helper
 │   │   │   ├── auth.ts             # Better Auth configuration
 │   │   │   ├── auth-utils.ts       # requireAuth, requireProjectRole helpers
+│   │   │   ├── cache.ts            # In-memory TTL cache (branding, priorities, environments)
 │   │   │   ├── crypto.ts           # Server-side crypto utilities
+│   │   │   ├── csv-utils.ts        # CSV formatting and response helpers
 │   │   │   ├── db/
 │   │   │   │   ├── index.ts        # Drizzle ORM client (db)
 │   │   │   │   ├── schema.ts       # All Drizzle table definitions
@@ -135,6 +137,7 @@ testmini/
 │   │   │   ├── rate-limit.ts       # Rate limiter (Redis or in-memory)
 │   │   │   ├── redis.ts            # Optional Redis client and pub/sub
 │   │   │   ├── storage.ts          # File storage abstraction (local filesystem or S3/MinIO)
+│   │   │   ├── test-case-filters.ts # Test case SQL filter condition builder
 │   │   │   └── test-helpers/       # Test utilities (never imported in production code)
 │   │   │       ├── fixtures.ts     # Shared test data objects
 │   │   │       ├── mock-db.ts      # Drizzle mock factory

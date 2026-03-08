@@ -815,6 +815,8 @@ docker compose -f compose.prod.yaml exec redis \
 
 > Redis is optional. Without `REDIS_URL`, all features (SSE pub/sub, soft locks, rate limiting) use in-memory fallbacks. This is suitable for single-server deployments.
 
+> **Application-level cache**: Branding config, project priorities, and environments are cached in-memory with a 5-minute TTL to reduce database load. This cache is automatic and requires no configuration. It is invalidated on mutations (settings updates).
+
 ### Authentication Error Due to ORIGIN Mismatch
 
 **Symptom:** Redirect failure after login, CSRF error

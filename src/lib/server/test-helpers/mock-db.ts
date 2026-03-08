@@ -21,7 +21,8 @@ function chainable(terminal?: () => unknown) {
 		'values',
 		'returning',
 		'onConflictDoNothing',
-		'onConflictDoUpdate'
+		'onConflictDoUpdate',
+		'$dynamic'
 	];
 
 	for (const m of methods) {

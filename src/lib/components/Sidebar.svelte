@@ -77,6 +77,25 @@
 	)}
 >
 	<nav class="flex-1 overflow-y-auto p-2">
+		<!-- Teams link -->
+		<a
+			href="/teams"
+			class={cn(
+				'flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors',
+				page.url.pathname.startsWith('/teams')
+					? 'bg-sidebar-accent text-sidebar-accent-foreground'
+					: 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+			)}
+		>
+			<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+				<circle cx="9" cy="7" r="4" />
+				<path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+				<path d="M16 3.13a4 4 0 0 1 0 7.75" />
+			</svg>
+			{m.nav_teams()}
+		</a>
+
 		<!-- Projects header -->
 		<a
 			href="/projects"

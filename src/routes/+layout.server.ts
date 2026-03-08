@@ -2,10 +2,12 @@ import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { project, projectMember, testCaseGroup, userPreference, notification, appConfig } from '$lib/server/db/schema';
 import { and, eq, count } from 'drizzle-orm';
+import { loadUserTeams } from '$lib/server/queries';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	let preferences: { locale: string | null; theme: string | null } | null = null;
 	let sidebarProjects: { id: number; name: string; groups: { id: number; name: string; color: string | null }[] }[] = [];
+	let sidebarTeams: { id: number; name: string; description: string | null; role: string; createdAt: Date }[] = [];
 	let unreadNotificationCount = 0;
 	let branding: { appName: string; logoUrl: string | null; faviconUrl: string | null } | null = null;
 
@@ -65,6 +67,12 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		}
 
 		try {
+			sidebarTeams = await loadUserTeams(locals.user.id);
+		} catch {
+			// team tables may not exist yet
+		}
+
+		try {
 			const [row] = await db
 				.select({ value: count() })
 				.from(notification)
@@ -80,6 +88,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		session: locals.session ?? null,
 		preferences,
 		sidebarProjects,
+		sidebarTeams,
 		unreadNotificationCount,
 		branding
 	};

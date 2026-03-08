@@ -225,6 +225,20 @@
       "when": 1774196000000,
       "tag": "0032_environment_config",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1774282400000,
+      "tag": "0033_test_plans",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1774368800000,
+      "tag": "0034_team_hierarchy",
+      "breakpoints": true
     }
   ]
 }

@@ -43,24 +43,26 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 16. [Automation](#automation)
 17. [Priority Configuration](#priority-configuration)
 18. [Environment Configuration](#environment-configuration)
-19. [MCP Server](#mcp-server)
-19. [Webhooks](#webhooks)
-20. [Issue Tracker](#issue-tracker)
-21. [Issue Links](#issue-links)
-22. [Requirements (Traceability)](#requirements-traceability)
-23. [Saved Filters](#saved-filters)
-24. [Report Export & Sharing](#report-export--sharing)
-25. [Report Schedules](#report-schedules)
-26. [Issue Link Status Sync](#issue-link-status-sync)
-27. [Parameterized Tests](#parameterized-tests)
+19. [Test Plans](#test-plans)
+20. [MCP Server](#mcp-server)
+21. [Webhooks](#webhooks)
+22. [Issue Tracker](#issue-tracker)
+23. [Issue Links](#issue-links)
+24. [Requirements (Traceability)](#requirements-traceability)
+25. [Saved Filters](#saved-filters)
+26. [Report Export & Sharing](#report-export--sharing)
+27. [Report Schedules](#report-schedules)
+28. [Issue Link Status Sync](#issue-link-status-sync)
+29. [Parameterized Tests](#parameterized-tests)
     - [Parameters](#test-case-parameters)
     - [Data Sets](#test-case-data-sets)
     - [Shared Data Sets](#shared-data-sets)
-28. [Custom Fields](#custom-fields)
-29. [Execution Comments](#execution-comments)
-30. [Branding](#branding)
-31. [Exploratory Sessions](#exploratory-sessions)
-32. [Approval Workflow](#approval-workflow)
+30. [Custom Fields](#custom-fields)
+31. [Execution Comments](#execution-comments)
+32. [Branding](#branding)
+33. [Exploratory Sessions](#exploratory-sessions)
+34. [Approval Workflow](#approval-workflow)
+35. [Teams](#teams)
 
 ---
 
@@ -2018,6 +2020,247 @@ Environment values in test runs are stored as plain text strings that reference 
 
 ---
 
+## Test Plans
+
+Test plans are a planning layer above test runs. A plan groups test cases for a particular milestone or release cycle, and can generate one or more test runs when ready for execution.
+
+### Schema
+
+**`test_plan` table:**
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | serial PK | |
+| `project_id` | integer FK → project | cascade delete |
+| `name` | text | required |
+| `description` | text | optional |
+| `status` | enum | `DRAFT`, `IN_REVIEW`, `APPROVED`, `ACTIVE`, `COMPLETED`, `ARCHIVED` (default: `DRAFT`) |
+| `milestone` | text | optional label |
+| `start_date` | timestamp | optional |
+| `end_date` | timestamp | optional |
+| `created_by` | text FK → user | |
+| `created_at` | timestamp | |
+| `updated_at` | timestamp | auto-updated |
+
+**`test_plan_test_case` table:**
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | serial PK | |
+| `test_plan_id` | integer FK → test_plan | cascade delete |
+| `test_case_id` | integer FK → test_case | cascade delete |
+| `position` | integer | ordering within plan (default: 0) |
+| `added_at` | timestamp | |
+
+Unique constraint on `(test_plan_id, test_case_id)`.
+
+**`test_run.test_plan_id`** — nullable FK to `test_plan` (set null on delete). Links a run back to the plan that created it.
+
+### Status Lifecycle
+
+```
+DRAFT → IN_REVIEW → APPROVED → ACTIVE → COMPLETED
+                                          ↑
+Any state ──────────────────────────→ ARCHIVED
+```
+
+### List Test Plans
+
+`GET /api/projects/:projectId/test-plans`
+
+**Auth:** Any project member (via `withProjectAccess`)
+
+**Query parameters:**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `status` | string | Optional. Filter by plan status (e.g., `ACTIVE`) |
+
+**Response 200:**
+```json
+[
+  {
+    "id": 1,
+    "name": "Sprint 12 Plan",
+    "description": "Regression for v2.5 release",
+    "status": "ACTIVE",
+    "milestone": "v2.5",
+    "startDate": "2026-03-01T00:00:00.000Z",
+    "endDate": "2026-03-15T00:00:00.000Z",
+    "createdBy": "John Doe",
+    "createdAt": "2026-03-01T10:00:00.000Z",
+    "itemCount": 15,
+    "runCount": 2
+  }
+]
+```
+
+### Create Test Plan
+
+`POST /api/projects/:projectId/test-plans`
+
+**Auth:** PROJECT_ADMIN, QA, DEV (via `withProjectRole`)
+
+**Request body:**
+```json
+{
+  "name": "Sprint 12 Plan",
+  "description": "Optional description",
+  "milestone": "v2.5",
+  "startDate": "2026-03-01",
+  "endDate": "2026-03-15",
+  "testCaseIds": [1, 2, 3]
+}
+```
+
+Required: `name`, `testCaseIds` (can be empty array). Optional: `description`, `milestone`, `startDate`, `endDate`.
+
+**Response 201:**
+```json
+{ "id": 1 }
+```
+
+### Get Test Plan Detail
+
+`GET /api/projects/:projectId/test-plans/:planId`
+
+**Auth:** Any project member (via `withProjectAccess`)
+
+**Response 200:**
+```json
+{
+  "id": 1,
+  "projectId": 5,
+  "name": "Sprint 12 Plan",
+  "description": "...",
+  "status": "ACTIVE",
+  "milestone": "v2.5",
+  "startDate": "2026-03-01T00:00:00.000Z",
+  "endDate": "2026-03-15T00:00:00.000Z",
+  "createdBy": "abc123",
+  "createdByName": "John Doe",
+  "createdAt": "2026-03-01T10:00:00.000Z",
+  "updatedAt": "2026-03-05T14:00:00.000Z",
+  "items": [
+    {
+      "id": 1,
+      "testCaseId": 10,
+      "key": "TC-10",
+      "title": "Login test",
+      "priority": "HIGH",
+      "position": 0
+    }
+  ],
+  "runs": [
+    {
+      "id": 3,
+      "name": "Sprint 12 Run 1",
+      "status": "IN_PROGRESS",
+      "environment": "QA",
+      "createdAt": "2026-03-06T09:00:00.000Z"
+    }
+  ]
+}
+```
+
+### Update Test Plan
+
+`PATCH /api/projects/:projectId/test-plans/:planId`
+
+**Auth:** PROJECT_ADMIN, QA, DEV (via `withProjectRole`)
+
+**Request body (all fields optional):**
+```json
+{
+  "name": "Updated name",
+  "description": "Updated description",
+  "status": "APPROVED",
+  "milestone": "v2.6",
+  "startDate": "2026-03-10",
+  "endDate": "2026-03-20"
+}
+```
+
+**Response 200:** Updated plan object.
+
+### Delete Test Plan
+
+`DELETE /api/projects/:projectId/test-plans/:planId`
+
+**Auth:** PROJECT_ADMIN (via `withProjectRole`)
+
+**Response 200:**
+```json
+{ "success": true }
+```
+
+Linked `test_plan_test_case` rows are cascade-deleted. Linked `test_run.test_plan_id` is set to null.
+
+### Add Test Cases to Plan
+
+`POST /api/projects/:projectId/test-plans/:planId/items`
+
+**Auth:** PROJECT_ADMIN, QA, DEV (via `withProjectRole`)
+
+**Request body:**
+```json
+{
+  "testCaseIds": [4, 5, 6]
+}
+```
+
+Duplicate test cases are silently skipped. All test case IDs must belong to the same project.
+
+**Response 200:**
+```json
+{ "success": true }
+```
+
+### Remove Test Cases from Plan
+
+`DELETE /api/projects/:projectId/test-plans/:planId/items`
+
+**Auth:** PROJECT_ADMIN, QA, DEV (via `withProjectRole`)
+
+**Request body:**
+```json
+{
+  "testCaseIds": [4, 5]
+}
+```
+
+**Response 200:**
+```json
+{ "success": true }
+```
+
+### Create Test Run from Plan
+
+`POST /api/projects/:projectId/test-plans/:planId/create-run`
+
+**Auth:** PROJECT_ADMIN, QA, DEV (via `withProjectRole`)
+
+Creates a new test run containing all test cases currently in the plan. Parameterized test cases are automatically expanded (one execution per data set row). The created run's `testPlanId` links back to the plan.
+
+**Request body:**
+```json
+{
+  "name": "Sprint 12 Run 1",
+  "environment": "QA"
+}
+```
+
+**Response 201:**
+```json
+{ "runId": 42 }
+```
+
+**Errors:**
+- `400` — Plan has no test cases
+- `404` — Plan not found
+
+---
+
 ## MCP Server
 
 TestMini exposes a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) endpoint so that AI assistants (Claude, Cursor, etc.) can interact with project data programmatically.
@@ -3166,3 +3409,57 @@ Manage test case approval status and history.
 - `400` - Missing comment on reject
 - `403` - Self-approval attempt or insufficient role
 - `404` - Test case not found
+
+---
+
+## Teams
+
+Teams provide an organizational layer above projects. A team groups users under shared ownership, and projects can be assigned to a team.
+
+### Pages
+
+Teams are managed through SvelteKit page routes (form actions), not REST API endpoints:
+
+| Page | Description |
+|------|-------------|
+| `/teams` | List all teams the current user belongs to |
+| `/teams/new` | Create a new team |
+| `/teams/:teamId` | Team dashboard — members and assigned projects |
+| `/teams/:teamId/settings` | Team settings — rename, description, manage members |
+
+### Schema
+
+**`team` table:**
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | serial PK | |
+| `name` | text | required |
+| `description` | text | optional |
+| `created_by` | text FK → user | |
+| `created_at` | timestamp | |
+| `updated_at` | timestamp | auto-updated |
+
+**`team_member` table:**
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | serial PK | |
+| `team_id` | integer FK → team | cascade delete |
+| `user_id` | text FK → user | cascade delete |
+| `role` | enum | `OWNER`, `ADMIN`, `MEMBER` |
+| `joined_at` | timestamp | |
+
+Unique constraint on `(team_id, user_id)`.
+
+### Roles
+
+| Role | Permissions |
+|------|-------------|
+| `OWNER` | Full control — edit team, manage members, assign/remove projects, delete team |
+| `ADMIN` | Manage members and project assignments |
+| `MEMBER` | View team and assigned projects |
+
+### Project Assignment
+
+Projects are assigned to teams via `project.team_id` (nullable integer FK → team, set null on delete). This is backward compatible — projects without a team continue to work as before. When a project belongs to a team, it appears on the team dashboard and team members gain visibility into the project.

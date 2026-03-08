@@ -68,6 +68,7 @@ export const project = pgTable('project', {
 	name: text('name').notNull(),
 	description: text('description'),
 	active: boolean('active').default(true).notNull(),
+	teamId: integer('team_id').references(() => team.id, { onDelete: 'set null' }),
 	createdBy: text('created_by')
 		.notNull()
 		.references(() => user.id),
@@ -78,7 +79,11 @@ export const project = pgTable('project', {
 		.notNull()
 });
 
-export const projectRelations = relations(project, ({ many }) => ({
+export const projectRelations = relations(project, ({ one, many }) => ({
+	team: one(team, {
+		fields: [project.teamId],
+		references: [team.id]
+	}),
 	members: many(projectMember),
 	testCases: many(testCase),
 	testRuns: many(testRun),
@@ -88,7 +93,8 @@ export const projectRelations = relations(project, ({ many }) => ({
 	priorities: many(priorityConfig),
 	environments: many(environmentConfig),
 	sharedDataSets: many(sharedDataSet),
-	exploratorySessions: many(exploratorySession)
+	exploratorySessions: many(exploratorySession),
+	testPlans: many(testPlan)
 }));
 
 // ── ProjectMember ──────────────────────────────────────
@@ -316,7 +322,8 @@ export const testRun = pgTable(
 		updatedAt: timestamp('updated_at')
 			.defaultNow()
 			.$onUpdate(() => new Date())
-			.notNull()
+			.notNull(),
+		testPlanId: integer('test_plan_id').references(() => testPlan.id, { onDelete: 'set null' })
 	},
 	(table) => [index('test_run_project_idx').on(table.projectId)]
 );
@@ -325,6 +332,10 @@ export const testRunRelations = relations(testRun, ({ one, many }) => ({
 	project: one(project, {
 		fields: [testRun.projectId],
 		references: [project.id]
+	}),
+	testPlan: one(testPlan, {
+		fields: [testRun.testPlanId],
+		references: [testPlan.id]
 	}),
 	executions: many(testExecution)
 }));
@@ -1468,5 +1479,136 @@ export const sessionNoteRelations = relations(sessionNote, ({ one }) => ({
 	session: one(exploratorySession, {
 		fields: [sessionNote.sessionId],
 		references: [exploratorySession.id]
+	})
+}));
+
+// ── TestPlan ──────────────────────────────────────────
+
+export const testPlanStatusEnum = pgEnum('test_plan_status', [
+	'DRAFT', 'IN_REVIEW', 'APPROVED', 'ACTIVE', 'COMPLETED', 'ARCHIVED'
+]);
+
+export const testPlan = pgTable(
+	'test_plan',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		description: text('description'),
+		status: testPlanStatusEnum('status').default('DRAFT').notNull(),
+		milestone: text('milestone'),
+		startDate: timestamp('start_date'),
+		endDate: timestamp('end_date'),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at')
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull()
+	},
+	(table) => [index('test_plan_project_idx').on(table.projectId)]
+);
+
+export const testPlanRelations = relations(testPlan, ({ one, many }) => ({
+	project: one(project, {
+		fields: [testPlan.projectId],
+		references: [project.id]
+	}),
+	creator: one(user, {
+		fields: [testPlan.createdBy],
+		references: [user.id]
+	}),
+	items: many(testPlanTestCase),
+	runs: many(testRun)
+}));
+
+export const testPlanTestCase = pgTable(
+	'test_plan_test_case',
+	{
+		id: serial('id').primaryKey(),
+		testPlanId: integer('test_plan_id')
+			.notNull()
+			.references(() => testPlan.id, { onDelete: 'cascade' }),
+		testCaseId: integer('test_case_id')
+			.notNull()
+			.references(() => testCase.id, { onDelete: 'cascade' }),
+		position: integer('position').notNull().default(0),
+		addedAt: timestamp('added_at').defaultNow().notNull()
+	},
+	(table) => [
+		unique('test_plan_test_case_unique').on(table.testPlanId, table.testCaseId),
+		index('test_plan_test_case_plan_idx').on(table.testPlanId)
+	]
+);
+
+export const testPlanTestCaseRelations = relations(testPlanTestCase, ({ one }) => ({
+	testPlan: one(testPlan, {
+		fields: [testPlanTestCase.testPlanId],
+		references: [testPlan.id]
+	}),
+	testCase: one(testCase, {
+		fields: [testPlanTestCase.testCaseId],
+		references: [testCase.id]
+	})
+}));
+
+// ── Team ──────────────────────────────────────────────
+
+export const teamRoleEnum = pgEnum('team_role', ['OWNER', 'ADMIN', 'MEMBER']);
+
+export const team = pgTable('team', {
+	id: serial('id').primaryKey(),
+	name: text('name').notNull(),
+	description: text('description'),
+	createdBy: text('created_by')
+		.notNull()
+		.references(() => user.id),
+	createdAt: timestamp('created_at').defaultNow().notNull(),
+	updatedAt: timestamp('updated_at')
+		.defaultNow()
+		.$onUpdate(() => new Date())
+		.notNull()
+});
+
+export const teamRelations = relations(team, ({ one, many }) => ({
+	creator: one(user, {
+		fields: [team.createdBy],
+		references: [user.id]
+	}),
+	members: many(teamMember),
+	projects: many(project)
+}));
+
+export const teamMember = pgTable(
+	'team_member',
+	{
+		id: serial('id').primaryKey(),
+		teamId: integer('team_id')
+			.notNull()
+			.references(() => team.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		role: teamRoleEnum('role').notNull(),
+		joinedAt: timestamp('joined_at').defaultNow().notNull()
+	},
+	(table) => [
+		unique('team_member_unique').on(table.teamId, table.userId),
+		index('team_member_team_idx').on(table.teamId)
+	]
+);
+
+export const teamMemberRelations = relations(teamMember, ({ one }) => ({
+	team: one(team, {
+		fields: [teamMember.teamId],
+		references: [team.id]
+	}),
+	user: one(user, {
+		fields: [teamMember.userId],
+		references: [user.id]
 	})
 }));

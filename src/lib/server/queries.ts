@@ -1,5 +1,5 @@
 import { db } from './db';
-import { tag, testCaseTag, testCaseAssignee, projectMember, user, priorityConfig, environmentConfig } from './db/schema';
+import { tag, testCaseTag, testCaseAssignee, projectMember, user, priorityConfig, environmentConfig, team, teamMember } from './db/schema';
 import { eq, asc } from 'drizzle-orm';
 
 /** Load tags assigned to a specific test case */
@@ -77,6 +77,40 @@ export function loadProjectEnvironments(projectId: number) {
 		.from(environmentConfig)
 		.where(eq(environmentConfig.projectId, projectId))
 		.orderBy(asc(environmentConfig.position));
+}
+
+/** Load all members of a team */
+export async function loadTeamMembers(teamId: number) {
+	return db
+		.select({
+			id: teamMember.id,
+			userId: teamMember.userId,
+			role: teamMember.role,
+			joinedAt: teamMember.joinedAt,
+			userName: user.name,
+			userEmail: user.email,
+			userImage: user.image
+		})
+		.from(teamMember)
+		.innerJoin(user, eq(teamMember.userId, user.id))
+		.where(eq(teamMember.teamId, teamId))
+		.orderBy(asc(teamMember.joinedAt));
+}
+
+/** Load all teams a user belongs to */
+export async function loadUserTeams(userId: string) {
+	return db
+		.select({
+			id: team.id,
+			name: team.name,
+			description: team.description,
+			role: teamMember.role,
+			createdAt: team.createdAt
+		})
+		.from(teamMember)
+		.innerJoin(team, eq(teamMember.teamId, team.id))
+		.where(eq(teamMember.userId, userId))
+		.orderBy(asc(team.name));
 }
 
 /** Load all metadata for a test case detail view (tags, assignees, project tags, project members) */

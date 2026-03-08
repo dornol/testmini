@@ -104,6 +104,8 @@ testmini/
 │   │   │   ├── tag.schema.ts
 │   │   │   ├── priority.schema.ts
 │   │   │   ├── environment.schema.ts
+│   │   │   ├── test-plan.schema.ts
+│   │   │   ├── team.schema.ts
 │   │   │   └── member.schema.ts
 │   │   ├── server/                 # Server-only code (never imported by client components)
 │   │   │   ├── api-key-auth.ts     # API key generation and verification
@@ -150,16 +152,18 @@ testmini/
 │       │   ├── health/
 │       │   ├── mcp/               # MCP Streamable HTTP endpoint
 │       │   ├── notifications/
-│       │   ├── projects/          # Includes webhooks/, exploratory-sessions/, approval/ endpoints
+│       │   ├── projects/          # Includes webhooks/, exploratory-sessions/, approval/, test-plans/ endpoints
 │       │   └── users/
 │       ├── auth/                   # Login, pending approval, OAuth callback pages
 │       ├── admin/                  # Admin panel pages (global admin only)
 │       ├── account/                # User account/profile pages
+│       ├── teams/                  # Team management pages (list, new, detail, settings)
 │       └── projects/               # Project pages
 │           └── [projectId]/
 │               ├── +layout.server.ts   # Load project, user role
 │               ├── test-cases/
 │               ├── test-runs/
+│               ├── test-plans/
 │               ├── test-suites/
 │               ├── exploratory/
 │               ├── reports/

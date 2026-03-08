@@ -9,7 +9,7 @@ vi.mock('$lib/server/db/schema', () => ({
 	testCaseTag: { tagId: 'tct.tag_id', testCaseId: 'tct.test_case_id' },
 	testCaseAssignee: { userId: 'tca.user_id', testCaseId: 'tca.test_case_id' },
 	projectMember: { userId: 'pm.user_id', projectId: 'pm.project_id' },
-	user: { id: 'user.id', name: 'user.name', image: 'user.image' },
+	user: { id: 'user.id', name: 'user.name', email: 'user.email', image: 'user.image' },
 	priorityConfig: {
 		id: 'pc.id',
 		name: 'pc.name',
@@ -25,7 +25,9 @@ vi.mock('$lib/server/db/schema', () => ({
 		position: 'ec.position',
 		isDefault: 'ec.is_default',
 		projectId: 'ec.project_id'
-	}
+	},
+	team: { id: 'team.id', name: 'team.name', description: 'team.description', createdAt: 'team.created_at' },
+	teamMember: { id: 'tm.id', teamId: 'tm.team_id', userId: 'tm.user_id', role: 'tm.role', joinedAt: 'tm.joined_at' }
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -40,7 +42,9 @@ const {
 	loadProjectMembers,
 	loadProjectPriorities,
 	loadProjectEnvironments,
-	loadTestCaseMetadata
+	loadTestCaseMetadata,
+	loadTeamMembers,
+	loadUserTeams
 } = await import('./queries');
 
 describe('queries', () => {
@@ -324,6 +328,86 @@ describe('queries', () => {
 				projectTags: [],
 				assignedAssignees: [],
 				projectMembers: []
+			});
+		});
+	});
+
+	// ── loadTeamMembers ──────────────────────────────────
+
+	describe('loadTeamMembers', () => {
+		it('should return members for a team', async () => {
+			const members = [
+				{ id: 1, userId: 'user-1', role: 'OWNER', joinedAt: new Date(), userName: 'Alice', userEmail: 'alice@example.com', userImage: null },
+				{ id: 2, userId: 'user-2', role: 'MEMBER', joinedAt: new Date(), userName: 'Bob', userEmail: 'bob@example.com', userImage: null }
+			];
+			mockSelectResult(mockDb, members);
+
+			const result = await loadTeamMembers(5);
+
+			expect(result).toEqual(members);
+			expect(mockDb.select).toHaveBeenCalledTimes(1);
+		});
+
+		it('should return empty array when team has no members', async () => {
+			mockSelectResult(mockDb, []);
+
+			const result = await loadTeamMembers(999);
+
+			expect(result).toEqual([]);
+		});
+
+		it('should call select with correct column shape', async () => {
+			mockSelectResult(mockDb, []);
+
+			await loadTeamMembers(5);
+
+			expect(mockDb.select).toHaveBeenCalledWith({
+				id: 'tm.id',
+				userId: 'tm.user_id',
+				role: 'tm.role',
+				joinedAt: 'tm.joined_at',
+				userName: 'user.name',
+				userEmail: 'user.email',
+				userImage: 'user.image'
+			});
+		});
+	});
+
+	// ── loadUserTeams ────────────────────────────────────
+
+	describe('loadUserTeams', () => {
+		it('should return teams for a user', async () => {
+			const teams = [
+				{ id: 1, name: 'Team A', description: 'First team', role: 'OWNER', createdAt: new Date() },
+				{ id: 2, name: 'Team B', description: null, role: 'MEMBER', createdAt: new Date() }
+			];
+			mockSelectResult(mockDb, teams);
+
+			const result = await loadUserTeams('user-1');
+
+			expect(result).toEqual(teams);
+			expect(mockDb.select).toHaveBeenCalledTimes(1);
+		});
+
+		it('should return empty array when user belongs to no teams', async () => {
+			mockSelectResult(mockDb, []);
+
+			const result = await loadUserTeams('user-999');
+
+			expect(result).toEqual([]);
+		});
+
+		it('should call select with correct column shape', async () => {
+			mockSelectResult(mockDb, []);
+
+			await loadUserTeams('user-1');
+
+			expect(mockDb.select).toHaveBeenCalledWith({
+				id: 'team.id',
+				name: 'team.name',
+				description: 'team.description',
+				role: 'tm.role',
+				createdAt: 'team.created_at'
 			});
 		});
 	});

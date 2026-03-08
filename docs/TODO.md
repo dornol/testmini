@@ -46,6 +46,8 @@ The following core capabilities are **already implemented**:
 | 34 | S3/MinIO Object Storage | Done | Optional S3-compatible backend for file uploads, env-driven with local fallback |
 | 35 | Environment Matrix | Done | Per-project configurable environments with colors and ordering, replaces hardcoded enum |
 | 36 | Mobile-Optimized Views | Done | Responsive breakpoints, scrollable tabs, column hiding, collapsible settings nav |
+| 37 | Test Plans | Done | Separate planning entity with lifecycle (Draft→Approved→Active→Completed), linked test cases and runs |
+| 38 | Team/Organization Hierarchy | Done | Teams above projects, OWNER/ADMIN/MEMBER roles, project assignment, backward compatible |
 
 ---
 
@@ -200,11 +202,11 @@ Items below are lower priority or dependent on user demand:
 | ~~Test case approval workflow (Draft -> Review -> Approved)~~ | ~~Medium~~ | ~~Done -- approvalStatus on test_case (DRAFT/IN_REVIEW/APPROVED/REJECTED); approval_history table; filter by status; badge + action buttons on list/detail; reject with comment; approval history timeline~~ |
 | ~~BDD/Gherkin support~~ | ~~Medium~~ | ~~Done -- Given/When/Then syntax editor; auto-parse into steps; stepFormat on test_case_version~~ |
 | ~~Exploratory test session recording~~ | ~~Medium~~ | ~~Done -- Timer-based session with free-form notes, screenshots, charter~~ |
-| Test plan as separate entity | Low | Currently test runs serve this purpose; separate "plan" adds planning phase before execution |
+| ~~Test plan as separate entity~~ | ~~Low~~ | ~~Done -- Separate planning entity (test_plan table) with lifecycle (DRAFT→IN_REVIEW→APPROVED→ACTIVE→COMPLETED→ARCHIVED); links test cases and generates test runs~~ |
 | ~~Environment matrix~~ | ~~Low~~ | ~~Done -- Per-project configurable environments (environment_config table), replaces hardcoded DEV/QA/STAGE/PROD enum; custom names, colors, ordering; cascades to test runs~~ |
 | ~~Mobile-optimized views~~ | ~~Low~~ | ~~Done -- Responsive breakpoints (sm/md/lg/xl), scrollable nav tabs, collapsible settings sidebar, responsive dashboard grid, column hiding on test case/run tables, mobile header~~ |
 | ~~S3/MinIO file storage migration~~ | ~~Low~~ | ~~Done -- S3/MinIO optional backend in storage.ts; env-driven (S3_BUCKET, S3_ENDPOINT); local filesystem fallback~~ |
-| Team/Organization hierarchy | Low | Multi-team structure above projects |
+| ~~Team/Organization hierarchy~~ | ~~Low~~ | ~~Done -- team/team_member tables; OWNER/ADMIN/MEMBER roles; project.teamId FK (nullable, backward compatible); team pages at /teams~~ |
 | ~~Test case review/approval workflow~~ | ~~Low~~ | ~~Done -- merged into approval workflow above~~ |
 | Bulk execution via CLI | Low | `testmini exec --run 123` for headless execution recording |
 | GraphQL API | Low | Alternative to REST for flexible querying |

@@ -402,7 +402,9 @@ drizzle/
 ├── 0029_approval_workflow.sql
 ├── 0030_gherkin_support.sql
 ├── 0031_exploratory_sessions.sql
-└── 0032_environment_config.sql
+├── 0032_environment_config.sql
+├── 0033_test_plans.sql
+└── 0034_team_hierarchy.sql
 ```
 
 ---

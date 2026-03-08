@@ -1046,7 +1046,8 @@ export const issueLink = pgTable(
 		createdBy: text('created_by')
 			.notNull()
 			.references(() => user.id),
-		createdAt: timestamp('created_at').defaultNow().notNull()
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		statusSyncedAt: timestamp('status_synced_at')
 	},
 	(table) => [
 		index('issue_link_project_idx').on(table.projectId),
@@ -1132,5 +1133,107 @@ export const requirementTestCaseRelations = relations(requirementTestCase, ({ on
 	testCase: one(testCase, {
 		fields: [requirementTestCase.testCaseId],
 		references: [testCase.id]
+	})
+}));
+
+// ── SavedFilter ───────────────────────────────────────
+
+export const savedFilter = pgTable(
+	'saved_filter',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		filterType: text('filter_type').notNull().default('test_cases'),
+		filters: jsonb('filters').$type<Record<string, unknown>>().notNull(),
+		sortOrder: integer('sort_order').notNull().default(0),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at')
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		index('saved_filter_user_project_idx').on(table.userId, table.projectId),
+		unique('saved_filter_user_project_name_unique').on(table.userId, table.projectId, table.name)
+	]
+);
+
+export const savedFilterRelations = relations(savedFilter, ({ one }) => ({
+	project: one(project, {
+		fields: [savedFilter.projectId],
+		references: [project.id]
+	}),
+	user: one(user, {
+		fields: [savedFilter.userId],
+		references: [user.id]
+	})
+}));
+
+// ── SharedReport ──────────────────────────────────────
+
+export const sharedReport = pgTable(
+	'shared_report',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		token: text('token').notNull().unique(),
+		name: text('name').notNull(),
+		config: jsonb('config').$type<{ from?: string; to?: string; preset?: string }>().notNull(),
+		expiresAt: timestamp('expires_at'),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		index('shared_report_token_idx').on(table.token),
+		index('shared_report_project_idx').on(table.projectId)
+	]
+);
+
+export const sharedReportRelations = relations(sharedReport, ({ one }) => ({
+	project: one(project, {
+		fields: [sharedReport.projectId],
+		references: [project.id]
+	})
+}));
+
+// ── ReportSchedule ────────────────────────────────────
+
+export const reportSchedule = pgTable(
+	'report_schedule',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		cronExpression: text('cron_expression').notNull(),
+		recipientEmails: jsonb('recipient_emails').$type<string[]>().notNull(),
+		reportRange: text('report_range').notNull().default('last_7_days'),
+		enabled: boolean('enabled').default(true).notNull(),
+		lastSentAt: timestamp('last_sent_at'),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		index('report_schedule_project_idx').on(table.projectId)
+	]
+);
+
+export const reportScheduleRelations = relations(reportSchedule, ({ one }) => ({
+	project: one(project, {
+		fields: [reportSchedule.projectId],
+		references: [project.id]
 	})
 }));

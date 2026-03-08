@@ -28,7 +28,7 @@
 		return () => clearTimeout(progressTimer);
 	});
 
-	const isAuthPage = $derived(page.url.pathname.startsWith('/auth'));
+	const isAuthPage = $derived(page.url.pathname.startsWith('/auth') || page.url.pathname.startsWith('/shared'));
 
 	// Global data-tip tooltip
 	onMount(() => {

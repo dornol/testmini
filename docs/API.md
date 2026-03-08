@@ -46,6 +46,9 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 20. [Issue Tracker](#issue-tracker)
 21. [Issue Links](#issue-links)
 22. [Requirements (Traceability)](#requirements-traceability)
+23. [Saved Filters](#saved-filters)
+24. [Report Export & Sharing](#report-export--sharing)
+25. [Report Schedules](#report-schedules)
 
 ---
 
@@ -2418,3 +2421,144 @@ or for validation errors:
 ```json
 { "error": { "fieldName": ["validation message"] } }
 ```
+
+---
+
+## 23. Saved Filters
+
+Saved filters allow users to save and quickly apply filter presets for test case lists.
+
+### List saved filters
+
+`GET /api/projects/:projectId/saved-filters?type=test_cases`
+
+Returns the current user's saved filters for the project, ordered by sortOrder.
+
+### Create saved filter
+
+`POST /api/projects/:projectId/saved-filters`
+
+```json
+{ "name": "My failing tests", "filterType": "test_cases", "filters": { "priority": "HIGH,CRITICAL", "execStatus": "FAIL" } }
+```
+
+Returns `201` with the created filter. Name must be unique per user per project.
+
+### Update saved filter
+
+`PATCH /api/projects/:projectId/saved-filters/:filterId`
+
+```json
+{ "name": "New name", "filters": { "priority": "HIGH" } }
+```
+
+Only the filter owner can update. Returns the updated filter.
+
+### Delete saved filter
+
+`DELETE /api/projects/:projectId/saved-filters/:filterId`
+
+Only the filter owner can delete. Returns `{ "success": true }`.
+
+---
+
+## 24. Report Export & Sharing
+
+### Export PDF
+
+`GET /api/projects/:projectId/reports/pdf?from=2025-01-01&to=2025-01-31`
+
+Generates a PDF report with environment summary, priority breakdown, top failing tests, and recent runs. Returns `application/pdf`.
+
+Query params: `from`, `to`, `preset` (same as reports page).
+
+### List shared report links
+
+`GET /api/projects/:projectId/reports/share`
+
+Returns all shared report links for the project.
+
+### Create shared report link
+
+`POST /api/projects/:projectId/reports/share`
+
+```json
+{ "name": "Q1 Report", "config": { "from": "2025-01-01", "to": "2025-03-31" }, "expiresInDays": 30 }
+```
+
+Returns `201` with `{ id, token, url }`. The URL at `/shared/:token` is publicly accessible without authentication.
+
+Requires PROJECT_ADMIN or QA role.
+
+### Revoke shared report link
+
+`DELETE /api/projects/:projectId/reports/share/:shareId`
+
+Requires PROJECT_ADMIN or QA role.
+
+### Public shared report
+
+`GET /shared/:token` (page route, not API)
+
+Renders a read-only report view. No authentication required. Returns 404 if token invalid, 410 if expired.
+
+---
+
+## 25. Report Schedules
+
+### List schedules
+
+`GET /api/projects/:projectId/reports/schedules`
+
+Returns all report schedules for the project.
+
+### Create schedule
+
+`POST /api/projects/:projectId/reports/schedules`
+
+```json
+{
+  "name": "Weekly Summary",
+  "cronExpression": "0 9 * * 1",
+  "recipientEmails": ["team@example.com"],
+  "reportRange": "last_7_days"
+}
+```
+
+Requires PROJECT_ADMIN role. Valid report ranges: `last_7_days`, `last_30_days`, `all`.
+
+### Update schedule
+
+`PATCH /api/projects/:projectId/reports/schedules/:scheduleId`
+
+```json
+{ "enabled": false }
+```
+
+Requires PROJECT_ADMIN role.
+
+### Delete schedule
+
+`DELETE /api/projects/:projectId/reports/schedules/:scheduleId`
+
+Requires PROJECT_ADMIN role.
+
+---
+
+## Issue Link Status Sync
+
+### Sync single issue link status
+
+`POST /api/projects/:projectId/issue-links/:linkId/sync`
+
+Fetches the current status from the external issue tracker (Jira/GitHub/GitLab) and updates the status in the database. Not available for CUSTOM provider.
+
+Requires PROJECT_ADMIN, QA, or DEV role.
+
+### Bulk sync issue link statuses
+
+`POST /api/projects/:projectId/issue-links/sync?testCaseId=123`
+
+Syncs all issue links for the project (or scoped to a test case/execution). Returns `{ synced, failed, total }`.
+
+Optional query params: `testCaseId`, `testExecutionId`.

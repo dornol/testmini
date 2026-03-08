@@ -37,6 +37,7 @@ export async function sendEmail(params: {
 	subject: string;
 	text: string;
 	html?: string;
+	attachments?: Array<{ filename: string; content: Buffer }>;
 }): Promise<void> {
 	const t = createTransport();
 	if (!t) {
@@ -52,7 +53,8 @@ export async function sendEmail(params: {
 			to: params.to,
 			subject: params.subject,
 			text: params.text,
-			html: params.html
+			html: params.html,
+			attachments: params.attachments
 		});
 	} catch (err) {
 		log.error({ err, to: params.to, subject: params.subject }, 'Failed to send email');

@@ -42,6 +42,9 @@ vi.mock('$lib/server/auth-utils', async () => {
 vi.mock('$lib/server/issue-tracker', () => ({
 	createExternalIssue: mockCreateExternalIssue
 }));
+vi.mock('$env/dynamic/private', () => ({
+	env: { ORIGIN: 'https://testmini.example.com' }
+}));
 
 const { POST } = await import('./+server');
 
@@ -194,7 +197,8 @@ describe('/api/projects/[projectId]/issue-links/create-issue', () => {
 				customTemplate: null
 			},
 			'Test',
-			'Description'
+			'Description',
+			'https://testmini.example.com/projects/1/test-cases/10'
 		);
 	});
 

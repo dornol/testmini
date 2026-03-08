@@ -36,6 +36,9 @@ The following core capabilities are **already implemented**:
 | 24 | Custom Fields | Done | Per-project field definitions (text/number/select/date/checkbox/URL), JSONB storage |
 | 25 | Execution Comments | Done | Comments on test run executions, inline in execution table |
 | 26 | Traceability Matrix | Done | Requirements ↔ test cases mapping, coverage gap analysis, CSV export |
+| 27 | Saved Filters & Views | Done | Per-user saved filter presets, quick switching in test case list |
+| 28 | Issue Status Sync | Done | Fetch/sync issue status from Jira/GitHub/GitLab, bidirectional links |
+| 29 | Report Export | Done | PDF generation, shareable links with tokens, scheduled report emails |
 
 ---
 
@@ -90,8 +93,8 @@ Link test results to external issue trackers for end-to-end traceability.
   - Pre-fill title, description with test case info, failure details, environment
 - [x] Link existing issue to test case or execution
   - Store external issue URL/key in separate `issue_link` table
-- [ ] Display linked issue status (sync from external tracker)
-- [ ] Bidirectional link: external issue links back to test run/case
+- [x] Display linked issue status (sync from external tracker)
+- [x] Bidirectional link: external issue links back to test run/case
 
 ### 6.2 Traceability Matrix
 
@@ -116,15 +119,15 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ### 7.2 Report Export
 
-- [ ] PDF report generation (test run summary, charts, failure details)
-- [ ] Scheduled report emails (weekly/milestone summary)
-- [ ] Shareable report links (public read-only view with token)
+- [x] PDF report generation (test run summary, charts, failure details)
+- [x] Scheduled report emails (weekly/milestone summary)
+- [x] Shareable report links (public read-only view with token)
 
 ### 7.3 Saved Filters & Custom Views
 
-- [ ] Save filter presets (combination of priority, tag, group, assignee, status)
-- [ ] Named views per user (e.g., "My failing tests", "Critical unexecuted")
-- [ ] Quick filter switching in test case list and test run list
+- [x] Save filter presets (combination of priority, tag, group, assignee, status)
+- [x] Named views per user (e.g., "My failing tests", "Critical unexecuted")
+- [x] Quick filter switching in test case list and test run list
 
 ---
 

@@ -10,6 +10,7 @@
 	import { toast } from 'svelte-sonner';
 	import { apiPost } from '$lib/api-client';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
+	import SavedFilterSelector from './SavedFilterSelector.svelte';
 
 	interface Props {
 		basePath: string;
@@ -32,13 +33,14 @@
 		selectedRunIds: number[];
 		projectCustomFields: { id: number; name: string; fieldType: string; options: string[] | null }[];
 		customFieldFilters: { fieldId: number; value: string }[];
+		savedFilters: { id: number; name: string; filters: Record<string, unknown>; filterType: string }[];
 	}
 
 	let {
 		basePath, projectId, canEdit, hasActiveFilters,
 		search, priority, tagIds, groupId, createdBy, assigneeId, suiteId, execStatus,
 		projectTags, projectPriorities, groups, projectSuites, projectMembers, selectedRunIds,
-		projectCustomFields, customFieldFilters
+		projectCustomFields, customFieldFilters, savedFilters
 	}: Props = $props();
 	const execStatusOptions = ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING', 'NOT_EXECUTED'];
 
@@ -154,6 +156,8 @@
 </script>
 
 <div class="flex flex-wrap items-center gap-2">
+	<SavedFilterSelector {projectId} {savedFilters} {hasActiveFilters} {basePath} />
+
 	<Input
 		placeholder={m.tc_search_placeholder()}
 		class="h-7 max-w-xs text-xs"

@@ -703,6 +703,7 @@
 		selectedRunIds={data.selectedRunIds}
 		projectCustomFields={data.projectCustomFields}
 		customFieldFilters={data.customFieldFilters}
+		savedFilters={data.savedFilters}
 	/>
 
 	<!-- Column & Run selector row -->

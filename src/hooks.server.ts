@@ -10,6 +10,7 @@ import { checkRateLimit } from '$lib/server/rate-limit';
 import { logger } from '$lib/server/logger';
 import { runMigrations } from '$lib/server/db/migrate';
 import { seedAdminUser } from '$lib/server/db/seed';
+import { initReportScheduler } from '$lib/server/report-scheduler';
 import { db } from '$lib/server/db';
 import { user as userTable } from '$lib/server/db/auth.schema';
 import { eq } from 'drizzle-orm';
@@ -17,6 +18,7 @@ import { eq } from 'drizzle-orm';
 if (!building) {
 	runMigrations()
 		.then(() => seedAdminUser())
+		.then(() => initReportScheduler())
 		.catch((err) => {
 			logger.fatal({ err }, 'Startup failed — migration or seed error');
 			process.exit(1);
@@ -47,7 +49,7 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	// Approval guard: unapproved users can only access /auth/pending and /api/auth
 	if (session?.user) {
 		const { pathname } = event.url;
-		const allowedPaths = ['/auth/pending', '/api/auth', '/_app/', '/favicon'];
+		const allowedPaths = ['/auth/pending', '/api/auth', '/_app/', '/favicon', '/shared/'];
 		const isAllowed = allowedPaths.some((p) => pathname.startsWith(p));
 
 		if (!isAllowed) {

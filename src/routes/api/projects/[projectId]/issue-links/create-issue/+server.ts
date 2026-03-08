@@ -5,6 +5,7 @@ import { issueTrackerConfig, issueLink } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { createExternalIssue } from '$lib/server/issue-tracker';
+import { env } from '$env/dynamic/private';
 
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
@@ -44,6 +45,16 @@ export const POST = withProjectRole(
 			return badRequest('Issue tracker is disabled');
 		}
 
+		const origin = env.ORIGIN ?? '';
+		let backlink = '';
+		if (origin) {
+			if (body.testCaseId) {
+				backlink = `${origin}/projects/${projectId}/test-cases/${body.testCaseId}`;
+			} else if (body.testExecutionId) {
+				backlink = `${origin}/projects/${projectId}/test-runs`;
+			}
+		}
+
 		let result;
 		try {
 			result = await createExternalIssue(
@@ -55,7 +66,8 @@ export const POST = withProjectRole(
 					customTemplate: config.customTemplate as Record<string, unknown> | null
 				},
 				title,
-				description
+				description,
+				backlink || undefined
 			);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to create external issue';

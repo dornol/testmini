@@ -48,6 +48,55 @@
 	let linkingIssue = $state(false);
 	let creatingIssue = $state(false);
 	let deleteIssueLinkId = $state<number | null>(null);
+	let syncingLinkId = $state<number | null>(null);
+	let syncingAll = $state(false);
+
+	function issueStatusClass(status: string | null): string {
+		if (!status) return '';
+		const lower = status.toLowerCase();
+		if (['closed', 'done', 'resolved'].some((s) => lower.includes(s)))
+			return 'bg-green-100 text-green-700 border-green-300';
+		if (['progress', 'review', 'testing'].some((s) => lower.includes(s)))
+			return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+		return 'bg-blue-100 text-blue-700 border-blue-300';
+	}
+
+	async function handleSyncIssueLink(linkId: number) {
+		if (syncingLinkId) return;
+		syncingLinkId = linkId;
+		try {
+			const result = await apiPost<IssueLinkRecord>(
+				`/api/projects/${data.project.id}/issue-links/${linkId}/sync`,
+				{}
+			);
+			issueLinks = issueLinks.map((l) => (l.id === linkId ? { ...l, status: result.status } : l));
+			toast.success(m.issue_link_synced());
+		} catch {
+			toast.error(m.issue_link_sync_failed());
+		} finally {
+			syncingLinkId = null;
+		}
+	}
+
+	async function handleSyncAllIssueLinks() {
+		if (syncingAll) return;
+		syncingAll = true;
+		try {
+			const result = await apiPost<{ synced: number; failed: number; total: number }>(
+				`/api/projects/${data.project.id}/issue-links/sync?testCaseId=${tc.id}`,
+				{}
+			);
+			toast.success(m.issue_link_sync_result({ synced: String(result.synced), total: String(result.total) }));
+			// Reload the page data to get updated statuses
+			const { invalidateAll } = await import('$app/navigation');
+			await invalidateAll();
+			issueLinks = data.issueLinks as IssueLinkRecord[];
+		} catch {
+			toast.error(m.issue_link_sync_failed());
+		} finally {
+			syncingAll = false;
+		}
+	}
 
 	async function handleLinkIssue() {
 		if (linkingIssue || !newIssueUrl.trim()) return;
@@ -831,6 +880,16 @@
 						<Card.Title class="text-base">{m.issue_link_title()}</Card.Title>
 						{#if canEdit}
 							<div class="flex gap-2">
+								{#if data.hasIssueTracker && issueLinks.length > 0}
+									<Button
+										variant="outline"
+										size="sm"
+										disabled={syncingAll}
+										onclick={handleSyncAllIssueLinks}
+									>
+										{syncingAll ? m.common_loading() : m.issue_link_sync_all()}
+									</Button>
+								{/if}
 								{#if data.hasIssueTracker}
 									<Button
 										variant="outline"
@@ -897,7 +956,9 @@
 												<span class="text-xs font-mono font-medium">{link.externalKey}</span>
 											{/if}
 											{#if link.status}
-												<Badge variant="outline" class="text-xs">{link.status}</Badge>
+												<span class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium {issueStatusClass(link.status)}">
+													{link.status}
+												</span>
 											{/if}
 										</div>
 										<a
@@ -909,16 +970,29 @@
 											{link.title || link.externalUrl}
 										</a>
 									</div>
-									{#if canEdit}
-										<Button
-											variant="ghost"
-											size="sm"
-											class="text-destructive hover:text-destructive h-7 px-2 text-xs shrink-0"
-											onclick={() => (deleteIssueLinkId = link.id)}
-										>
-											{m.common_delete()}
-										</Button>
-									{/if}
+									<div class="flex items-center gap-1 shrink-0">
+										{#if canEdit && link.provider !== 'CUSTOM' && data.hasIssueTracker}
+											<Button
+												variant="ghost"
+												size="sm"
+												class="h-7 px-2 text-xs"
+												disabled={syncingLinkId === link.id}
+												onclick={() => handleSyncIssueLink(link.id)}
+											>
+												{syncingLinkId === link.id ? m.common_loading() : m.issue_link_sync()}
+											</Button>
+										{/if}
+										{#if canEdit}
+											<Button
+												variant="ghost"
+												size="sm"
+												class="text-destructive hover:text-destructive h-7 px-2 text-xs"
+												onclick={() => (deleteIssueLinkId = link.id)}
+											>
+												{m.common_delete()}
+											</Button>
+										{/if}
+									</div>
 								</div>
 							{/each}
 						</div>

@@ -13,14 +13,15 @@ import {
 	testExecution,
 	projectMember,
 	testSuite,
-	customField
+	customField,
+	savedFilter
 } from '$lib/server/db/schema';
 import { eq, and, desc, asc, sql, inArray } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { loadProjectTags } from '$lib/server/queries';
 import { buildTestCaseConditions } from '$lib/server/test-case-filters';
 
-export const load: PageServerLoad = async ({ params, url, parent, cookies }) => {
+export const load: PageServerLoad = async ({ params, url, parent, cookies, locals }) => {
 	await parent();
 	const projectId = Number(params.projectId);
 
@@ -236,6 +237,19 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		cookies.delete(cookieKey, { path: '/' });
 	}
 
+	// Load saved filters for the current user
+	const savedFilters = await db
+		.select()
+		.from(savedFilter)
+		.where(
+			and(
+				eq(savedFilter.projectId, projectId),
+				eq(savedFilter.userId, locals.user!.id),
+				eq(savedFilter.filterType, 'test_cases')
+			)
+		)
+		.orderBy(asc(savedFilter.sortOrder), asc(savedFilter.name));
+
 	// Post-filter by execution status (requires executionMap)
 	let filteredTestCases = testCases;
 	if (execStatus && selectedRunIds.length > 0) {
@@ -277,7 +291,8 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		selectedRunIds,
 		executionMap,
 		projectCustomFields,
-		customFieldFilters
+		customFieldFilters,
+		savedFilters
 	};
 };
 

@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { project, projectMember, testCaseGroup, userPreference, notification, appConfig } from '$lib/server/db/schema';
 import { and, eq, count } from 'drizzle-orm';
 import { loadUserTeams } from '$lib/server/queries';
+import { cacheGet, cacheSet } from '$lib/server/cache';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	let preferences: { locale: string | null; theme: string | null } | null = null;
@@ -11,13 +12,20 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 	let unreadNotificationCount = 0;
 	let branding: { appName: string; logoUrl: string | null; faviconUrl: string | null } | null = null;
 
-	try {
-		const config = await db.query.appConfig.findFirst();
-		if (config) {
-			branding = { appName: config.appName, logoUrl: config.logoUrl, faviconUrl: config.faviconUrl };
+	const BRANDING_CACHE_KEY = 'global:branding';
+	const cached = cacheGet<typeof branding>(BRANDING_CACHE_KEY);
+	if (cached !== undefined) {
+		branding = cached;
+	} else {
+		try {
+			const config = await db.query.appConfig.findFirst();
+			if (config) {
+				branding = { appName: config.appName, logoUrl: config.logoUrl, faviconUrl: config.faviconUrl };
+			}
+			cacheSet(BRANDING_CACHE_KEY, branding, 5 * 60 * 1000);
+		} catch {
+			// table may not exist yet
 		}
-	} catch {
-		// table may not exist yet
 	}
 
 	if (locals.user) {

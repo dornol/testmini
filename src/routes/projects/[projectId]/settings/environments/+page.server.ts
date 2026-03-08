@@ -5,6 +5,7 @@ import { environmentConfig, testRun } from '$lib/server/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { createEnvironmentSchema, updateEnvironmentSchema } from '$lib/schemas/environment.schema';
+import { cacheDelete } from '$lib/server/cache';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = Number(params.projectId);
@@ -75,6 +76,7 @@ export const actions: Actions = {
 			});
 		});
 
+		cacheDelete(`project:${projectId}:environments`);
 		return { created: true };
 	},
 
@@ -136,6 +138,7 @@ export const actions: Actions = {
 				.where(eq(environmentConfig.id, environmentId));
 		});
 
+		cacheDelete(`project:${projectId}:environments`);
 		return { updated: true };
 	},
 
@@ -161,6 +164,7 @@ export const actions: Actions = {
 
 		await db.delete(environmentConfig).where(eq(environmentConfig.id, environmentId));
 
+		cacheDelete(`project:${projectId}:environments`);
 		return { deleted: true };
 	},
 
@@ -187,6 +191,7 @@ export const actions: Actions = {
 			}
 		});
 
+		cacheDelete(`project:${projectId}:environments`);
 		return { reordered: true };
 	}
 };

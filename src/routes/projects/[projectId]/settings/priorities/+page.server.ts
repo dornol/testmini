@@ -5,6 +5,7 @@ import { priorityConfig } from '$lib/server/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { createPrioritySchema, updatePrioritySchema } from '$lib/schemas/priority.schema';
+import { cacheDelete } from '$lib/server/cache';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = Number(params.projectId);
@@ -78,6 +79,7 @@ export const actions: Actions = {
 			});
 		});
 
+		cacheDelete(`project:${projectId}:priorities`);
 		return { created: true };
 	},
 
@@ -145,6 +147,7 @@ export const actions: Actions = {
 				.where(eq(priorityConfig.id, priorityId));
 		});
 
+		cacheDelete(`project:${projectId}:priorities`);
 		return { updated: true };
 	},
 
@@ -170,6 +173,7 @@ export const actions: Actions = {
 
 		await db.delete(priorityConfig).where(eq(priorityConfig.id, priorityId));
 
+		cacheDelete(`project:${projectId}:priorities`);
 		return { deleted: true };
 	},
 
@@ -196,6 +200,7 @@ export const actions: Actions = {
 			}
 		});
 
+		cacheDelete(`project:${projectId}:priorities`);
 		return { reordered: true };
 	}
 };

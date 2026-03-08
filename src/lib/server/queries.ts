@@ -1,6 +1,7 @@
 import { db } from './db';
 import { tag, testCaseTag, testCaseAssignee, projectMember, user, priorityConfig, environmentConfig, team, teamMember } from './db/schema';
 import { eq, asc } from 'drizzle-orm';
+import { cacheGet, cacheSet } from './cache';
 
 /** Load tags assigned to a specific test case */
 export function loadTestCaseTags(testCaseId: number) {
@@ -50,8 +51,13 @@ export function loadProjectMembers(projectId: number) {
 }
 
 /** Load all priority configs for a project */
-export function loadProjectPriorities(projectId: number) {
-	return db
+type PriorityRow = { id: number; name: string; color: string; position: number; isDefault: boolean };
+export async function loadProjectPriorities(projectId: number): Promise<PriorityRow[]> {
+	const cacheKey = `project:${projectId}:priorities`;
+	const cached = cacheGet<PriorityRow[]>(cacheKey);
+	if (cached) return cached;
+
+	const result = await db
 		.select({
 			id: priorityConfig.id,
 			name: priorityConfig.name,
@@ -62,11 +68,19 @@ export function loadProjectPriorities(projectId: number) {
 		.from(priorityConfig)
 		.where(eq(priorityConfig.projectId, projectId))
 		.orderBy(asc(priorityConfig.position));
+
+	cacheSet(cacheKey, result, 5 * 60 * 1000);
+	return result;
 }
 
 /** Load all environment configs for a project */
-export function loadProjectEnvironments(projectId: number) {
-	return db
+type EnvironmentRow = { id: number; name: string; color: string; position: number; isDefault: boolean };
+export async function loadProjectEnvironments(projectId: number): Promise<EnvironmentRow[]> {
+	const cacheKey = `project:${projectId}:environments`;
+	const cached = cacheGet<EnvironmentRow[]>(cacheKey);
+	if (cached) return cached;
+
+	const result = await db
 		.select({
 			id: environmentConfig.id,
 			name: environmentConfig.name,
@@ -77,6 +91,9 @@ export function loadProjectEnvironments(projectId: number) {
 		.from(environmentConfig)
 		.where(eq(environmentConfig.projectId, projectId))
 		.orderBy(asc(environmentConfig.position));
+
+	cacheSet(cacheKey, result, 5 * 60 * 1000);
+	return result;
 }
 
 /** Load all members of a team */

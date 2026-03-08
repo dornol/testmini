@@ -35,6 +35,7 @@ vi.mock('drizzle-orm', () => ({
 	inArray: vi.fn((a: unknown, b: unknown) => ['inArray', a, b])
 }));
 
+const { cacheClear } = await import('./cache');
 const {
 	loadTestCaseTags,
 	loadProjectTags,
@@ -50,6 +51,7 @@ const {
 describe('queries', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		cacheClear();
 	});
 
 	// ── loadTestCaseTags ──────────────────────────────────

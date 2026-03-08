@@ -5,6 +5,7 @@ import { appConfig } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
 import { saveFile, deleteFile } from '$lib/server/storage';
+import { cacheDelete } from '$lib/server/cache';
 import { randomUUID } from 'node:crypto';
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
@@ -105,6 +106,8 @@ export const actions: Actions = {
 		} else {
 			await db.insert(appConfig).values({ appName, logoUrl, faviconUrl });
 		}
+
+		cacheDelete('global:branding');
 
 		return { success: true };
 	}

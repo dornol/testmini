@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { childLogger } from './logger';
 import { sendProjectWebhooks } from './webhooks';
 import { sendEmail, isEmailConfigured } from './email';
+import { cacheDelete } from './cache';
 
 const log = childLogger('notifications');
 
@@ -59,6 +60,7 @@ export async function createNotification(params: CreateNotificationParams): Prom
 				link: params.link ?? null,
 				projectId: params.projectId ?? null
 			});
+			cacheDelete(`user:${params.userId}:unread_notifications`);
 		} catch (err) {
 			log.error({ err, params }, 'Failed to create notification');
 		}

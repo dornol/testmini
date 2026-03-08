@@ -9,6 +9,7 @@ import { eq, and, count } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { logAudit } from '$lib/server/audit';
 import { createNotification } from '$lib/server/notifications';
+import { cacheDelete } from '$lib/server/cache';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = Number(params.projectId);
@@ -65,6 +66,8 @@ export const actions: Actions = {
 			userId,
 			role
 		});
+
+		cacheDelete(`project:${projectId}:members`);
 
 		// Fire-and-forget audit log
 		logAudit({
@@ -128,6 +131,8 @@ export const actions: Actions = {
 			.set({ role: role as 'PROJECT_ADMIN' | 'QA' | 'DEV' | 'VIEWER' })
 			.where(eq(projectMember.id, memberId));
 
+		cacheDelete(`project:${projectId}:members`);
+
 		// Fire-and-forget audit log
 		logAudit({
 			userId: authUser.id,
@@ -175,6 +180,8 @@ export const actions: Actions = {
 		}
 
 		await db.delete(projectMember).where(eq(projectMember.id, memberId));
+
+		cacheDelete(`project:${projectId}:members`);
 
 		// Fire-and-forget audit log
 		logAudit({

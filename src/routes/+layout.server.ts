@@ -81,11 +81,18 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		}
 
 		try {
-			const [row] = await db
-				.select({ value: count() })
-				.from(notification)
-				.where(and(eq(notification.userId, locals.user.id), eq(notification.isRead, false)));
-			unreadNotificationCount = row?.value ?? 0;
+			const notifCacheKey = `user:${locals.user.id}:unread_notifications`;
+			const cachedCount = cacheGet<number>(notifCacheKey);
+			if (cachedCount !== undefined) {
+				unreadNotificationCount = cachedCount;
+			} else {
+				const [row] = await db
+					.select({ value: count() })
+					.from(notification)
+					.where(and(eq(notification.userId, locals.user.id), eq(notification.isRead, false)));
+				unreadNotificationCount = row?.value ?? 0;
+				cacheSet(notifCacheKey, unreadNotificationCount, 60 * 1000);
+			}
 		} catch {
 			// notification table may not exist yet
 		}

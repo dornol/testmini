@@ -3,10 +3,19 @@ import { db } from '$lib/server/db';
 import { testCase, testRun, testExecution, user, dashboardLayout } from '$lib/server/db/schema';
 import { eq, and, sql, desc, count } from 'drizzle-orm';
 import { DEFAULT_LAYOUT } from '$lib/dashboard-widgets';
+import { cacheGet, cacheSet } from '$lib/server/cache';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
-	const projectId = Number(params.projectId);
-	const currentUser = locals.user;
+interface DashboardStats {
+	stats: { testCaseCount: number; runCounts: { total: number; created: number; inProgress: number; completed: number }; execCounts: { total: number; pass: number; fail: number; blocked: number; skipped: number; pending: number } };
+	recentRuns: unknown[];
+	trendRuns: unknown[];
+	activityLog: unknown[];
+}
+
+async function loadDashboardStats(projectId: number): Promise<DashboardStats> {
+	const cacheKey = `project:${projectId}:dashboard`;
+	const cached = cacheGet<DashboardStats>(cacheKey);
+	if (cached) return cached;
 
 	// Test case count
 	const [caseCount] = await db
@@ -118,7 +127,28 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		.orderBy(desc(testExecution.executedAt))
 		.limit(20);
 
-	// Dashboard layout for current user
+	const result: DashboardStats = {
+		stats: {
+			testCaseCount: caseCount.count,
+			runCounts,
+			execCounts
+		},
+		recentRuns,
+		trendRuns: trendRuns.reverse(),
+		activityLog
+	};
+
+	cacheSet(cacheKey, result, 5 * 60 * 1000);
+	return result;
+}
+
+export const load: PageServerLoad = async ({ params, locals }) => {
+	const projectId = Number(params.projectId);
+	const currentUser = locals.user;
+
+	const dashboardData = await loadDashboardStats(projectId);
+
+	// Dashboard layout is user-specific, not cached with stats
 	let initialLayout = DEFAULT_LAYOUT;
 	if (currentUser) {
 		const layoutRow = await db.query.dashboardLayout.findFirst({
@@ -133,14 +163,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	return {
-		stats: {
-			testCaseCount: caseCount.count,
-			runCounts,
-			execCounts
-		},
-		recentRuns,
-		trendRuns: trendRuns.reverse(),
-		activityLog,
+		...dashboardData,
 		initialLayout
 	};
 };

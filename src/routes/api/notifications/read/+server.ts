@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { notification } from '$lib/server/db/schema';
 import { withAuth } from '$lib/server/api-handler';
 import { and, eq, inArray } from 'drizzle-orm';
+import { cacheDelete } from '$lib/server/cache';
 
 export const POST = withAuth(async ({ user, request }) => {
 
@@ -26,6 +27,7 @@ export const POST = withAuth(async ({ user, request }) => {
 			.set({ isRead: true })
 			.where(and(eq(notification.userId, user.id), eq(notification.isRead, false)));
 
+		cacheDelete(`user:${user.id}:unread_notifications`);
 		return json({ ok: true });
 	}
 
@@ -42,6 +44,7 @@ export const POST = withAuth(async ({ user, request }) => {
 			.set({ isRead: true })
 			.where(and(eq(notification.userId, user.id), inArray(notification.id, ids)));
 
+		cacheDelete(`user:${user.id}:unread_notifications`);
 		return json({ ok: true });
 	}
 

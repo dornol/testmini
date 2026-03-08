@@ -5,6 +5,7 @@ import { tag } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { createTagSchema, updateTagSchema } from '$lib/schemas/tag.schema';
+import { cacheDelete } from '$lib/server/cache';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = Number(params.projectId);
@@ -55,6 +56,7 @@ export const actions: Actions = {
 			createdBy: authUser.id
 		});
 
+		cacheDelete(`project:${projectId}:tags`);
 		return { created: true };
 	},
 
@@ -95,6 +97,7 @@ export const actions: Actions = {
 			.set({ name: parsed.data.name, color: parsed.data.color })
 			.where(eq(tag.id, tagId));
 
+		cacheDelete(`project:${projectId}:tags`);
 		return { updated: true };
 	},
 
@@ -120,6 +123,7 @@ export const actions: Actions = {
 
 		await db.delete(tag).where(eq(tag.id, tagId));
 
+		cacheDelete(`project:${projectId}:tags`);
 		return { deleted: true };
 	}
 };

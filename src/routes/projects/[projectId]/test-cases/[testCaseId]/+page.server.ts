@@ -9,6 +9,7 @@ import { createTagSchema } from '$lib/schemas/tag.schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { loadTestCaseMetadata } from '$lib/server/queries';
+import { cacheDelete } from '$lib/server/cache';
 
 export const load: PageServerLoad = async ({ params, parent, locals }) => {
 	await parent();
@@ -254,6 +255,7 @@ export const actions: Actions = {
 
 		await db.insert(testCaseTag).values({ testCaseId, tagId: newTag.id });
 
+		cacheDelete(`project:${projectId}:tags`);
 		return { tagCreatedAndAssigned: true };
 	},
 

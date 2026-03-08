@@ -13,13 +13,21 @@ export function loadTestCaseTags(testCaseId: number) {
 		.orderBy(tag.name);
 }
 
-/** Load all tags for a project */
-export function loadProjectTags(projectId: number) {
-	return db
+/** Load all tags for a project (cached, 5-min TTL) */
+type TagRow = { id: number; name: string; color: string };
+export async function loadProjectTags(projectId: number): Promise<TagRow[]> {
+	const cacheKey = `project:${projectId}:tags`;
+	const cached = cacheGet<TagRow[]>(cacheKey);
+	if (cached) return cached;
+
+	const result = await db
 		.select({ id: tag.id, name: tag.name, color: tag.color })
 		.from(tag)
 		.where(eq(tag.projectId, projectId))
 		.orderBy(tag.name);
+
+	cacheSet(cacheKey, result, 5 * 60 * 1000);
+	return result;
 }
 
 /** Load assignees for a specific test case */
@@ -36,9 +44,14 @@ export function loadTestCaseAssignees(testCaseId: number) {
 		.orderBy(user.name);
 }
 
-/** Load all members of a project */
-export function loadProjectMembers(projectId: number) {
-	return db
+/** Load all members of a project (cached, 5-min TTL) */
+type MemberRow = { userId: string; userName: string | null; userImage: string | null };
+export async function loadProjectMembers(projectId: number): Promise<MemberRow[]> {
+	const cacheKey = `project:${projectId}:members`;
+	const cached = cacheGet<MemberRow[]>(cacheKey);
+	if (cached) return cached;
+
+	const result = await db
 		.select({
 			userId: projectMember.userId,
 			userName: user.name,
@@ -48,6 +61,9 @@ export function loadProjectMembers(projectId: number) {
 		.innerJoin(user, eq(projectMember.userId, user.id))
 		.where(eq(projectMember.projectId, projectId))
 		.orderBy(user.name);
+
+	cacheSet(cacheKey, result, 5 * 60 * 1000);
+	return result;
 }
 
 /** Load all priority configs for a project */

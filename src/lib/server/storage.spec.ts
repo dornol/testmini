@@ -294,6 +294,49 @@ describe('storage', () => {
 			mockEnv.S3_SECRET_ACCESS_KEY = 'minioadmin';
 		});
 
+		describe('safeKey validation', () => {
+			it('rejects .. traversal in getFile', async () => {
+				await expect(getFile('../etc/passwd')).rejects.toThrow('Invalid object key');
+				expect(mockSend).not.toHaveBeenCalled();
+			});
+
+			it('rejects embedded .. in getFile', async () => {
+				await expect(getFile('path/../traversal')).rejects.toThrow('Invalid object key');
+				expect(mockSend).not.toHaveBeenCalled();
+			});
+
+			it('rejects .. traversal in saveFile', async () => {
+				await expect(saveFile('../etc/passwd', Buffer.from('x'))).rejects.toThrow(
+					'Invalid object key'
+				);
+				expect(mockSend).not.toHaveBeenCalled();
+			});
+
+			it('rejects embedded .. in saveFile', async () => {
+				await expect(saveFile('uploads/../secret', Buffer.from('x'))).rejects.toThrow(
+					'Invalid object key'
+				);
+				expect(mockSend).not.toHaveBeenCalled();
+			});
+
+			it('rejects .. traversal in deleteFile', async () => {
+				await expect(deleteFile('../etc/passwd')).rejects.toThrow('Invalid object key');
+				expect(mockSend).not.toHaveBeenCalled();
+			});
+
+			it('rejects embedded .. in deleteFile', async () => {
+				await expect(deleteFile('data/../../../etc/shadow')).rejects.toThrow(
+					'Invalid object key'
+				);
+				expect(mockSend).not.toHaveBeenCalled();
+			});
+
+			it('rejects .. traversal in fileExists', async () => {
+				await expect(fileExists('../etc/passwd')).rejects.toThrow('Invalid object key');
+				expect(mockSend).not.toHaveBeenCalled();
+			});
+		});
+
 		describe('saveFile', () => {
 			it('sends PutObjectCommand with correct bucket, key, and body', async () => {
 				const data = Buffer.from('hello');

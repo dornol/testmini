@@ -1,15 +1,14 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
-import { zod } from 'sveltekit-superforms/adapters';
 import { updateProjectSchema, type UpdateProjectInput } from '$lib/schemas/project.schema';
+import { zodAdapter } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { project } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 
-// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
-const adapter = zod(updateProjectSchema);
+const adapter = zodAdapter(updateProjectSchema);
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { project: proj } = await parent();

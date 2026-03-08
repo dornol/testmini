@@ -2,8 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { enhance as formEnhance } from '$app/forms';
 	import { superForm } from 'sveltekit-superforms';
-	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { updateTestCaseSchema } from '$lib/schemas/test-case.schema';
+	import { zodValidators } from '$lib/form-utils';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -249,8 +249,7 @@
 	];
 	let newTagColor = $state(TAG_PALETTE[0]);
 
-	// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
-	const validators = zodClient(updateTestCaseSchema);
+	const validators = zodValidators(updateTestCaseSchema);
 	const { form, errors, enhance, submitting, reset, tainted } = superForm(data.form, {
 		validators,
 		dataType: 'json',

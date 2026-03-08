@@ -1,8 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
-import { zod } from 'sveltekit-superforms/adapters';
 import { updateTestCaseSchema, type UpdateTestCaseInput } from '$lib/schemas/test-case.schema';
+import { zodAdapter, validateForm } from '$lib/server/form-utils';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
 import { testCase, testCaseVersion, user, tag, testCaseTag, testCaseAssignee, projectMember, customField, issueLink, issueTrackerConfig, testCaseParameter, testCaseDataSet } from '$lib/server/db/schema';
 import { createTagSchema } from '$lib/schemas/tag.schema';
@@ -56,8 +56,7 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 			automationKey: tc.automationKey ?? '',
 			customFields: (latest?.customFields as Record<string, unknown>) ?? {}
 		},
-		// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
-		zod(updateTestCaseSchema)
+		zodAdapter(updateTestCaseSchema)
 	);
 
 	const projectId = Number(params.projectId);
@@ -130,8 +129,7 @@ export const actions: Actions = {
 		const testCaseId = Number(params.testCaseId);
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
-		// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
-		const form = await superValidate(request, zod(updateTestCaseSchema));
+		const form = await validateForm(updateTestCaseSchema, request);
 
 		if (!form.valid) {
 			return fail(400, { form });

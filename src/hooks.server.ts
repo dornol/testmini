@@ -154,15 +154,13 @@ const handleSecurityHeaders: Handle = async ({ event, resolve }) => {
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('X-XSS-Protection', '1; mode=block');
-	response.headers.set(
-		'Content-Security-Policy',
-		"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
-	);
 	return response;
 };
 
 /** Paths that are excluded from request logging (static assets, health checks). */
 const SKIP_LOGGING_PREFIXES = ['/_app/', '/favicon', '/robots.txt', '/health'];
+
+const SLOW_REQUEST_THRESHOLD_MS = 1000;
 
 const handleRequestLogging: Handle = async ({ event, resolve }) => {
 	const { pathname } = new URL(event.request.url);
@@ -185,6 +183,10 @@ const handleRequestLogging: Handle = async ({ event, resolve }) => {
 	const status = response.status;
 
 	const meta = { requestId, method, path: pathname, status, durationMs };
+
+	if (durationMs > SLOW_REQUEST_THRESHOLD_MS) {
+		logger.warn(meta, 'slow request');
+	}
 
 	if (status >= 500) {
 		logger.error(meta, 'Request completed');

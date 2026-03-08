@@ -1,15 +1,14 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
-import { zod } from 'sveltekit-superforms/adapters';
 import { updateTeamSchema, type UpdateTeamInput } from '$lib/schemas/team.schema';
+import { zodAdapter } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { team, teamMember, project } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
 
-// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
-const adapter = zod(updateTeamSchema);
+const adapter = zodAdapter(updateTeamSchema);
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { team: t } = await parent();

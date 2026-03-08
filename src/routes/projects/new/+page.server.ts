@@ -1,8 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { redirect, fail } from '@sveltejs/kit';
-import { superValidate } from 'sveltekit-superforms';
-import { zod } from 'sveltekit-superforms/adapters';
 import { createProjectSchema, type CreateProjectInput } from '$lib/schemas/project.schema';
+import { emptyForm, validateForm } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { project, projectMember, priorityConfig, environmentConfig } from '$lib/server/db/schema';
 
@@ -11,8 +10,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		redirect(302, '/auth/login');
 	}
 
-	// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
-	const form = await superValidate(zod(createProjectSchema));
+	const form = await emptyForm(createProjectSchema);
 	return { form };
 };
 
@@ -22,8 +20,7 @@ export const actions: Actions = {
 			redirect(302, '/auth/login');
 		}
 
-		// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
-		const form = await superValidate(request, zod(createProjectSchema));
+		const form = await validateForm(createProjectSchema, request);
 
 		if (!form.valid) {
 			return fail(400, { form });

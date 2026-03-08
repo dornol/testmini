@@ -1,8 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
-import { superValidate, message } from 'sveltekit-superforms';
-import { zod } from 'sveltekit-superforms/adapters';
+import { message } from 'sveltekit-superforms';
 import { addTeamMemberSchema } from '$lib/schemas/team.schema';
+import { emptyForm, validateForm } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { teamMember, user } from '$lib/server/db/schema';
 import { eq, and, count } from 'drizzle-orm';
@@ -24,8 +24,7 @@ export const load: PageServerLoad = async ({ params }) => {
 
 	const members = await loadTeamMembers(teamId);
 
-	// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
-	const addForm = await superValidate(zod(addTeamMemberSchema));
+	const addForm = await emptyForm(addTeamMemberSchema);
 
 	return { members, addForm };
 };
@@ -36,8 +35,7 @@ export const actions: Actions = {
 		const teamId = Number(params.teamId);
 		await requireTeamAdmin(authUser, teamId);
 
-		// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
-		const form = await superValidate(request, zod(addTeamMemberSchema));
+		const form = await validateForm(addTeamMemberSchema, request);
 
 		if (!form.valid) {
 			return fail(400, { addForm: form });

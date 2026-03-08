@@ -1,8 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
-import { superValidate } from 'sveltekit-superforms';
-import { zod } from 'sveltekit-superforms/adapters';
 import { createTestCaseSchema, type CreateTestCaseInput } from '$lib/schemas/test-case.schema';
+import { emptyForm, validateForm } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { testCase, testCaseVersion } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
@@ -14,8 +13,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 		redirect(303, '../test-cases');
 	}
 
-	// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
-	const form = await superValidate(zod(createTestCaseSchema));
+	const form = await emptyForm(createTestCaseSchema);
 	return { form };
 };
 
@@ -25,8 +23,7 @@ export const actions: Actions = {
 		const projectId = Number(params.projectId);
 		await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
-		// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
-		const form = await superValidate(request, zod(createTestCaseSchema));
+		const form = await validateForm(createTestCaseSchema, request);
 
 		if (!form.valid) {
 			return fail(400, { form });

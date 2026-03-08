@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { superForm } from 'sveltekit-superforms';
-	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { createProjectSchema } from '$lib/schemas/project.schema';
+	import { zodValidators } from '$lib/form-utils';
 	import * as m from '$lib/paraglide/messages.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -11,8 +11,7 @@
 
 	let { data } = $props();
 
-	// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
-	const validators = zodClient(createProjectSchema);
+	const validators = zodValidators(createProjectSchema);
 	const { form, errors, enhance, submitting } = superForm(data.form, { validators });
 </script>
 

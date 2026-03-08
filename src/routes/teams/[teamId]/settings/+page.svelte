@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { superForm } from 'sveltekit-superforms';
-	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { updateTeamSchema } from '$lib/schemas/team.schema';
+	import { zodValidators } from '$lib/form-utils';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -14,8 +14,7 @@
 
 	let { data } = $props();
 
-	// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
-	const validators = zodClient(updateTeamSchema);
+	const validators = zodValidators(updateTeamSchema);
 	const { form, errors, enhance, submitting, tainted } = superForm(data.form, {
 		validators,
 		onUpdated({ form }) {

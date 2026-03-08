@@ -253,7 +253,55 @@ describe('buildTestCaseConditions', () => {
 		expect(sql2.values).toContain('%bar%');
 	});
 
-	// 20. All filters combined
+	// 20. customFieldFilter — key with SQL injection chars should be skipped
+	it('should skip custom field filter with SQL injection chars in key', () => {
+		const result = buildTestCaseConditions({
+			projectId: 1,
+			customFieldFilters: [{ fieldId: "'; DROP TABLE--" as unknown as number, value: 'val' }]
+		});
+
+		// Only projectId condition should be present — the unsafe key is skipped
+		expect(mockAnd.mock.calls[0]).toHaveLength(1);
+		expect(result).toEqual({
+			type: 'and',
+			conditions: [{ type: 'eq', field: 'project_id', value: 1 }]
+		});
+	});
+
+	// 21. customFieldFilter — key with spaces should be skipped
+	it('should skip custom field filter with spaces in key', () => {
+		buildTestCaseConditions({
+			projectId: 1,
+			customFieldFilters: [{ fieldId: 'field name' as unknown as number, value: 'val' }]
+		});
+
+		expect(mockAnd.mock.calls[0]).toHaveLength(1); // only projectId
+	});
+
+	// 22. customFieldFilter — empty string key should be skipped
+	it('should skip custom field filter with empty key', () => {
+		buildTestCaseConditions({
+			projectId: 1,
+			customFieldFilters: [{ fieldId: '' as unknown as number, value: 'val' }]
+		});
+
+		expect(mockAnd.mock.calls[0]).toHaveLength(1); // only projectId
+	});
+
+	// 23. customFieldFilter — valid alphanumeric key with underscore and hyphen should work
+	it('should allow custom field filter with valid key (alphanumeric, underscore, hyphen)', () => {
+		buildTestCaseConditions({
+			projectId: 1,
+			customFieldFilters: [{ fieldId: 'valid_field-name123' as unknown as number, value: 'val' }]
+		});
+
+		expect(mockAnd.mock.calls[0]).toHaveLength(2); // projectId + custom field
+		const sqlCondition = mockAnd.mock.calls[0][1];
+		expect(sqlCondition.type).toBe('sql');
+		expect(sqlCondition.values).toContain('%val%');
+	});
+
+	// 25. All filters combined
 	it('should combine all filters with and', () => {
 		buildTestCaseConditions({
 			projectId: 1,
@@ -276,7 +324,7 @@ describe('buildTestCaseConditions', () => {
 		expect(outerAndCall).toHaveLength(10);
 	});
 
-	// 21. Empty string filters — should not add conditions
+	// 26. Empty string filters — should not add conditions
 	it('should not add conditions for empty string filters', () => {
 		buildTestCaseConditions({
 			projectId: 1,
@@ -297,7 +345,7 @@ describe('buildTestCaseConditions', () => {
 		expect(mockIsNull).not.toHaveBeenCalled();
 	});
 
-	// 22. search with multiple words — should join with ' & '
+	// 27. search with multiple words — should join with ' & '
 	it('should join multiple search words with & for FTS', () => {
 		buildTestCaseConditions({ projectId: 1, search: 'login page test' });
 

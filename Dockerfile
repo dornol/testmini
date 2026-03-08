@@ -13,8 +13,8 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-# Prune dev dependencies
-RUN pnpm prune --prod
+# Prune dev dependencies and clean up build artifacts
+RUN pnpm prune --prod && rm -rf .svelte-kit
 
 # ---- Stage 2: Runtime ----
 FROM node:24-alpine AS runtime
@@ -43,6 +43,9 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \
+  CMD wget -qO- http://localhost:3000/api/health || exit 1
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "build"]

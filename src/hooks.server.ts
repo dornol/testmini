@@ -77,6 +77,7 @@ interface RateLimitRule {
 	/** Returns true when this rule applies to the given pathname + method. */
 	match: (pathname: string, method: string) => boolean;
 	limit: number;
+	apiKeyLimit?: number;
 	windowMs: number;
 	label: string;
 }
@@ -100,6 +101,7 @@ const RATE_LIMIT_RULES: RateLimitRule[] = [
 		label: 'api:attachments',
 		match: (p, m) => p === '/api/attachments' && m === 'POST',
 		limit: 30,
+		apiKeyLimit: 100,
 		windowMs: 60_000
 	},
 	// Bulk operations — matches any /api/<anything>/bulk POST
@@ -107,6 +109,7 @@ const RATE_LIMIT_RULES: RateLimitRule[] = [
 		label: 'api:bulk',
 		match: (p, m) => /^\/api\/[^/]+(?:\/[^/]+)*\/bulk$/.test(p) && m === 'POST',
 		limit: 20,
+		apiKeyLimit: 60,
 		windowMs: 60_000
 	},
 	// General API catch-all
@@ -114,6 +117,7 @@ const RATE_LIMIT_RULES: RateLimitRule[] = [
 		label: 'api:general',
 		match: (p) => p.startsWith('/api/'),
 		limit: 100,
+		apiKeyLimit: 300,
 		windowMs: 60_000
 	}
 ];
@@ -126,12 +130,21 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 
 	if (rule) {
 		const ip = event.getClientAddress();
-		const key = `${rule.label}:${ip}`;
 
-		const result = await checkRateLimit(key, rule.limit, rule.windowMs);
+		// Lightweight API key detection — full auth happens later in the pipeline
+		const authHeader = event.request.headers.get('authorization');
+		const isApiKey = authHeader?.startsWith('Bearer tmk_') ?? false;
+
+		const limit = (isApiKey && rule.apiKeyLimit) ? rule.apiKeyLimit : rule.limit;
+		const key = isApiKey
+			? `${rule.label}:apikey:${pathname.split('/')[2] ?? 'unknown'}`
+			: `${rule.label}:${ip}`;
+
+		const result = await checkRateLimit(key, limit, rule.windowMs);
 
 		if (!result.allowed) {
 			const retryAfter = result.retryAfter ?? Math.ceil(rule.windowMs / 1000);
+			logger.warn({ ip, path: pathname, label: rule.label }, 'rate limited');
 			return new Response(
 				JSON.stringify({ error: 'Too Many Requests', retryAfter }),
 				{

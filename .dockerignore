@@ -8,3 +8,9 @@ data/uploads
 .claude
 *.md
 .git
+**/*.spec.ts
+**/*.test.ts
+.vitest/
+.pnpm-store
+e2e/
+coverage/

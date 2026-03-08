@@ -2,9 +2,10 @@ import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 import { unauthorized, badRequest, notFound } from '$lib/server/errors';
 import { db } from '$lib/server/db';
-import { project, testCase, testRun, testExecution, testFailureDetail } from '$lib/server/db/schema';
+import { project, projectMember, testCase, testRun, testExecution, testFailureDetail } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { authenticateApiKey } from '$lib/server/api-key-auth';
+import { createNotification } from '$lib/server/notifications';
 
 interface AutomationResult {
 	automationKey: string;
@@ -167,6 +168,24 @@ export const POST: RequestHandler = async ({ request }) => {
 	});
 
 	const matched = finalResults.filter((r) => r.testCaseId !== null).length;
+	const failCount = finalResults.filter((r) => r.status === 'FAIL').length;
+
+	// Notify project members about completed CI run
+	const members = await db
+		.select({ userId: projectMember.userId })
+		.from(projectMember)
+		.where(eq(projectMember.projectId, projectId));
+
+	for (const m of members) {
+		createNotification({
+			userId: m.userId,
+			type: 'TEST_RUN_COMPLETED',
+			title: 'CI run completed',
+			message: `"${runName}" finished — ${matched} matched, ${failCount} failed`,
+			link: `/projects/${projectId}/test-runs/${runId}`,
+			projectId
+		});
+	}
 
 	return json({
 		runId,

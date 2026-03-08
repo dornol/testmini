@@ -18,8 +18,10 @@ vi.mock('$lib/server/db/schema', () => ({
 		updatedAt: 'updated_at'
 	},
 	user: { id: 'id', name: 'name', email: 'email', image: 'image' },
-	projectMember: { projectId: 'project_id', userId: 'user_id' }
+	projectMember: { projectId: 'project_id', userId: 'user_id' },
+	testCaseAssignee: { testCaseId: 'test_case_id', userId: 'user_id' }
 }));
+vi.mock('$lib/server/notifications', () => ({ createNotification: vi.fn() }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args),
@@ -57,6 +59,16 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments', () => {
 		mockDb.query.testCase = { findFirst: vi.fn().mockResolvedValue(sampleTestCase) };
 		mockDb.query.testCaseComment = { findFirst: vi.fn().mockResolvedValue(null) };
 		mockDb.query.user = { findFirst: vi.fn().mockResolvedValue(testUser) };
+
+		// Mock select for assignee lookup (notifications)
+		const selectChain = {
+			from: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			innerJoin: vi.fn().mockReturnThis(),
+			orderBy: vi.fn().mockReturnThis(),
+			then: (resolve: (v: unknown) => void) => Promise.resolve([]).then(resolve)
+		};
+		mockDb.select.mockReturnValue(selectChain as never);
 	});
 
 	describe('GET', () => {

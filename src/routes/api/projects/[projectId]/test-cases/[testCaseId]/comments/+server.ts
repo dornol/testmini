@@ -1,10 +1,11 @@
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testCase, testCaseComment, user as userTable } from '$lib/server/db/schema';
+import { testCase, testCaseComment, testCaseAssignee, user as userTable } from '$lib/server/db/schema';
 import { eq, and, asc, isNull } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
+import { createNotification } from '$lib/server/notifications';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const testCaseId = Number(params.testCaseId);
@@ -90,6 +91,25 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 			parentId: parentId ?? null
 		})
 		.returning();
+
+	// Notify assignees (exclude comment author)
+	const assignees = await db
+		.select({ userId: testCaseAssignee.userId })
+		.from(testCaseAssignee)
+		.where(eq(testCaseAssignee.testCaseId, testCaseId));
+
+	for (const a of assignees) {
+		if (a.userId !== user.id) {
+			createNotification({
+				userId: a.userId,
+				type: 'COMMENT_ADDED',
+				title: 'New comment',
+				message: `${user.name ?? 'Someone'} commented on ${tc.key}`,
+				link: `/projects/${projectId}/test-cases/${testCaseId}`,
+				projectId
+			});
+		}
+	}
 
 	// Return with user info
 	const userData = await db.query.user.findFirst({

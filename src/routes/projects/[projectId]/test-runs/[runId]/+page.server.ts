@@ -7,12 +7,14 @@ import {
 	testCaseVersion,
 	testCase,
 	testFailureDetail,
+	projectMember,
 	user
 } from '$lib/server/db/schema';
 import { eq, and, inArray, count, sql } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { createFailureSchema, type CreateFailureInput } from '$lib/schemas/failure.schema';
 import { publish } from '$lib/server/redis';
+import { createNotification } from '$lib/server/notifications';
 import type { RunEvent } from '$lib/types/events';
 
 export const load: PageServerLoad = async ({ params, parent, url }) => {
@@ -450,6 +452,28 @@ export const actions: Actions = {
 			status
 		};
 		await publish(`run:${runId}:events`, event);
+
+		// Notify project members when run is completed
+		if (status === 'COMPLETED') {
+			const run = await db.query.testRun.findFirst({ where: eq(testRun.id, runId) });
+			const members = await db
+				.select({ userId: projectMember.userId })
+				.from(projectMember)
+				.where(eq(projectMember.projectId, projectId));
+
+			for (const m of members) {
+				if (m.userId !== authUser.id) {
+					createNotification({
+						userId: m.userId,
+						type: 'TEST_RUN_COMPLETED',
+						title: 'Test run completed',
+						message: `"${run?.name ?? 'Test run'}" has been completed`,
+						link: `/projects/${projectId}/test-runs/${runId}`,
+						projectId
+					});
+				}
+			}
+		}
 
 		return { success: true };
 	}

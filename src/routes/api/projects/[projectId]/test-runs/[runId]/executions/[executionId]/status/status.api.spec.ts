@@ -7,9 +7,13 @@ const mockDb = createMockDb();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb }));
 vi.mock('$lib/server/db/schema', () => ({
-	testExecution: { id: 'id', testRunId: 'test_run_id', status: 'status', executedBy: 'executed_by', executedAt: 'executed_at' },
-	testRun: { id: 'id', projectId: 'project_id', status: 'status', startedAt: 'started_at' }
+	testExecution: { id: 'id', testRunId: 'test_run_id', testCaseVersionId: 'test_case_version_id', status: 'status', executedBy: 'executed_by', executedAt: 'executed_at' },
+	testRun: { id: 'id', projectId: 'project_id', name: 'name', status: 'status', startedAt: 'started_at' },
+	testCaseVersion: { id: 'id', testCaseId: 'test_case_id' },
+	testCase: { id: 'id', key: 'key' },
+	testCaseAssignee: { testCaseId: 'test_case_id', userId: 'user_id' }
 }));
+vi.mock('$lib/server/notifications', () => ({ createNotification: vi.fn() }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -40,6 +44,8 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 		mockDb.query.testRun.findFirst = vi.fn().mockResolvedValue(sampleTestRun);
 		mockDb.query.testExecution = { findFirst: vi.fn().mockResolvedValue(sampleExecution) };
+		mockDb.query.testCaseVersion = { findFirst: vi.fn().mockResolvedValue({ id: 1, testCaseId: 10 }) };
+		mockDb.query.testCase = { findFirst: vi.fn().mockResolvedValue({ id: 10, key: 'TC-0001' }) };
 
 		const updateChain = {
 			set: vi.fn().mockReturnThis(),
@@ -47,6 +53,14 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 			then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
 		};
 		mockDb.update.mockReturnValue(updateChain as never);
+
+		// Mock select for assignee lookup
+		const selectChain = {
+			from: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			then: (resolve: (v: unknown) => void) => Promise.resolve([]).then(resolve)
+		};
+		mockDb.select.mockReturnValue(selectChain as never);
 	});
 
 	describe('PUT', () => {

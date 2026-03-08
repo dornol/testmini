@@ -54,6 +54,10 @@
 				return '👤';
 			case 'COMMENT_ADDED':
 				return '💬';
+			case 'ASSIGNED':
+				return '📋';
+			case 'APPROVAL_PENDING':
+				return '⏳';
 			default:
 				return '🔔';
 		}

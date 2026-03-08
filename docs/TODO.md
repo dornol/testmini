@@ -1,6 +1,34 @@
 # TODO -- Planned Features and Improvements
 
-> This document tracks upcoming work.
+> This document tracks upcoming work. Features are organized by priority and grouped by domain.
+
+---
+
+## Current Status Review
+
+The following core capabilities are **already implemented**:
+
+| # | Category | Status | Notes |
+|---|----------|--------|-------|
+| 1 | Test Case CRUD | Done | Create/edit/delete, steps, preconditions, expected results |
+| 2 | Hierarchy & Organization | Done | Groups (sections), tags, drag-and-drop sorting |
+| 3 | Version Control | Done | Per-version history, diff viewer, revision-based optimistic locking |
+| 4 | Test Runs & Execution | Done | Run creation, execution status (Pass/Fail/Blocked/Skipped), bulk pass, progress tracking |
+| 5 | Failure Details | Done | Environment, error message, stack trace, comments per failure |
+| 6 | Dashboard & Reporting | Done | Pass/fail rates, per-environment/priority stats, Chart.js charts, CSV export |
+| 7 | User & Permission Management | Done | Global roles (ADMIN/USER), project roles (PROJECT_ADMIN/QA/DEV/VIEWER) |
+| 8 | File Attachments | Done | Upload/download/delete, linked to test cases |
+| 9 | Real-time Sync | Done | SSE for test run execution screen, Redis Pub/Sub |
+| 10 | CI/Automation Integration | Done | Automation key, result ingestion API, GitHub Actions/GitLab CI webhooks |
+| 11 | REST API | Done | Full CRUD for all entities, API key auth |
+| 12 | i18n | Done | Korean + English (paraglide) |
+| 13 | OIDC/OAuth SSO | Done | Dynamic IdP management, PKCE, account linking |
+| 14 | Custom Priorities | Done | Per-project configurable priorities with colors and ordering |
+| 15 | Templates | Done | Test case templates for quick creation |
+| 16 | Test Suites | Done | Grouping test cases into reusable suites |
+| 17 | Soft Locking | Done | Redis/in-memory edit locking with UI indicators |
+| 18 | Bulk Operations | Done | Bulk tag/priority/group/delete/clone for test cases |
+| 19 | Import/Export | Done | CSV and JSON import/export for test cases |
 
 ---
 
@@ -40,11 +68,127 @@ Expose project data via [Model Context Protocol (MCP)](https://modelcontextproto
 
 ---
 
+## Phase 6: Issue Tracking Integration & Traceability
+
+Link test results to external issue trackers for end-to-end traceability.
+
+### 6.1 External Issue Tracker Integration
+
+- [ ] Provider configuration (per-project settings page)
+  - Jira: base URL, API token, project key
+  - GitHub Issues: repo, token
+  - GitLab Issues: project, token
+  - Generic webhook: configurable URL + payload template
+- [ ] Auto-create issue on test failure (one-click from failure detail)
+  - Pre-fill title, description with test case info, failure details, environment
+- [ ] Link existing issue to test case or execution
+  - Store external issue URL/key in `test_failure_detail` or separate `issue_link` table
+- [ ] Display linked issue status (sync from external tracker)
+- [ ] Bidirectional link: external issue links back to test run/case
+
+### 6.2 Traceability Matrix
+
+- [ ] `requirement` table (id, projectId, externalId, title, source)
+- [ ] `requirement_test_case` mapping table
+- [ ] Traceability view: requirement -> test cases -> latest execution results
+- [ ] Coverage gap analysis: requirements without test cases
+- [ ] Export traceability matrix (CSV)
+
+---
+
+## Phase 7: Advanced Reporting & Analytics
+
+### 7.1 Trend Analysis
+
+- [ ] Failure trend chart: failure count over time (by run, by week/month)
+- [ ] Flaky test detection: tests that alternate Pass/Fail across recent runs
+  - Flag flaky tests with indicator badge
+  - Flaky test report page
+- [ ] Test case aging: identify stale test cases not executed recently
+- [ ] Per-assignee execution statistics
+
+### 7.2 Report Export
+
+- [ ] PDF report generation (test run summary, charts, failure details)
+- [ ] Scheduled report emails (weekly/milestone summary)
+- [ ] Shareable report links (public read-only view with token)
+
+### 7.3 Saved Filters & Custom Views
+
+- [ ] Save filter presets (combination of priority, tag, group, assignee, status)
+- [ ] Named views per user (e.g., "My failing tests", "Critical unexecuted")
+- [ ] Quick filter switching in test case list and test run list
+
+---
+
+## Phase 8: Notifications & Collaboration
+
+### 8.1 In-App Notifications
+
+- [ ] Notification bell with unread count
+- [ ] Events: assigned to test case/run, execution status changed, comment added, run completed
+- [ ] Mark as read / mark all read
+- [ ] Notification preferences (per-user toggle per event type)
+
+### 8.2 Webhook & External Notifications
+
+- [ ] Slack integration (incoming webhook)
+  - Run completed summary, failure alerts
+- [ ] Generic webhook (configurable URL + payload)
+- [ ] Email notifications (optional, SMTP config)
+
+### 8.3 Comments & Mentions
+
+- [ ] Comments on test cases (already exists) -- extend with @mention support
+- [ ] Comments on test run executions
+- [ ] @mention triggers notification to mentioned user
+
+---
+
+## Phase 9: Parameterized Tests & Test Data
+
+### 9.1 Parameterized Test Cases
+
+- [ ] Data-driven test case support: define parameter variables in steps (e.g., `{{username}}`, `{{password}}`)
+- [ ] Data set table: rows of parameter values per test case
+- [ ] Execution expands parameterized test case into N executions (one per data row)
+- [ ] Results tracked per parameter combination
+
+### 9.2 Shared Test Data Library
+
+- [ ] Project-level reusable data sets (e.g., "Valid Users", "Edge Case Inputs")
+- [ ] Link data sets to multiple test cases
+- [ ] Import data sets from CSV
+
+---
+
+## Phase 10: Custom Fields
+
+- [ ] Project-level custom field definitions
+  - Field types: text, number, dropdown (single/multi), date, checkbox, URL
+  - Configurable per project in settings
+- [ ] Custom fields displayed on test case detail/edit forms
+- [ ] Custom fields available as filter/search criteria
+- [ ] Custom field values stored in JSONB column on `test_case_version`
+- [ ] Custom field columns in test case list view (user-configurable)
+
+---
+
 ## Future Considerations
 
-- Failure trend analytics
-- Slack / webhook notifications
-- Flaky test detection
-- Project templates
-- Team/Organization management
-- S3/MinIO file storage migration
+Items below are lower priority or dependent on user demand:
+
+| Feature | Priority | Notes |
+|---------|----------|-------|
+| Test case approval workflow (Draft -> Review -> Approved) | Medium | Useful for regulated industries; adds review gate before test cases become active |
+| BDD/Gherkin support | Medium | Given/When/Then syntax editor; auto-parse into steps |
+| Exploratory test session recording | Medium | Timer-based session with free-form notes, screenshots, charter |
+| Test plan as separate entity | Low | Currently test runs serve this purpose; separate "plan" adds planning phase before execution |
+| Environment matrix | Low | Define environments centrally, run same suite across multiple environments |
+| Mobile-optimized views | Low | Responsive is done; dedicated mobile UX for field testers |
+| S3/MinIO file storage migration | Low | Replace local file storage with object storage |
+| Team/Organization hierarchy | Low | Multi-team structure above projects |
+| Test case review/approval workflow | Low | Separate from execution -- review test case content changes |
+| Bulk execution via CLI | Low | `testmini exec --run 123` for headless execution recording |
+| GraphQL API | Low | Alternative to REST for flexible querying |
+| AI-assisted test case generation | Low | Generate test cases from requirements or code changes using LLM |

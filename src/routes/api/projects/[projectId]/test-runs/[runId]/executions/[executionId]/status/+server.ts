@@ -1,10 +1,11 @@
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testExecution, testRun } from '$lib/server/db/schema';
+import { testExecution, testRun, testCaseVersion, testCase, testCaseAssignee } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { publish } from '$lib/server/redis';
+import { createNotification } from '$lib/server/notifications';
 import type { RunEvent } from '$lib/types/events';
 
 export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, user, projectId }) => {
@@ -51,6 +52,37 @@ export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ para
 
 	// Auto-update run status
 	await autoUpdateRunStatus(runId);
+
+	// Notify assignees on FAIL
+	if (status === 'FAIL') {
+		const version = await db.query.testCaseVersion.findFirst({
+			where: eq(testCaseVersion.id, execution.testCaseVersionId)
+		});
+		if (version) {
+			const tc = await db.query.testCase.findFirst({
+				where: eq(testCase.id, version.testCaseId)
+			});
+			if (tc) {
+				const assignees = await db
+					.select({ userId: testCaseAssignee.userId })
+					.from(testCaseAssignee)
+					.where(eq(testCaseAssignee.testCaseId, tc.id));
+
+				for (const a of assignees) {
+					if (a.userId !== user.id) {
+						createNotification({
+							userId: a.userId,
+							type: 'TEST_FAILED',
+							title: 'Test case failed',
+							message: `${tc.key} failed in "${run.name}"`,
+							link: `/projects/${projectId}/test-runs/${runId}`,
+							projectId
+						});
+					}
+				}
+			}
+		}
+	}
 
 	const event: RunEvent = {
 		type: 'execution:updated',

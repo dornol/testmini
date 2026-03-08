@@ -8,6 +8,7 @@ import { projectMember, user } from '$lib/server/db/schema';
 import { eq, and, count } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { logAudit } from '$lib/server/audit';
+import { createNotification } from '$lib/server/notifications';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = Number(params.projectId);
@@ -73,6 +74,16 @@ export const actions: Actions = {
 			entityId: userId,
 			projectId,
 			metadata: { role, targetUserId: userId }
+		});
+
+		// Fire-and-forget notification
+		createNotification({
+			userId,
+			type: 'MEMBER_ADDED',
+			title: 'Added to project',
+			message: `You have been added as ${role}`,
+			link: `/projects/${projectId}`,
+			projectId
 		});
 
 		return message(form, 'Member added successfully');

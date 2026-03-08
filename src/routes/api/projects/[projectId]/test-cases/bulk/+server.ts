@@ -5,6 +5,7 @@ import { eq, and, inArray, sql } from 'drizzle-orm';
 import { requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
+import { createNotification } from '$lib/server/notifications';
 
 export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 
@@ -139,6 +140,18 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 				const assigneeValues = validIds.map((tcId) => ({ testCaseId: tcId, userId }));
 				await tx.insert(testCaseAssignee).values(assigneeValues).onConflictDoNothing();
 				affected = validIds.length;
+
+				// Notify assigned user (fire-and-forget, outside transaction)
+				if (userId !== user.id) {
+					createNotification({
+						userId,
+						type: 'ASSIGNED',
+						title: 'Assigned to test cases',
+						message: `${user.name ?? 'Someone'} assigned you to ${validIds.length} test case(s)`,
+						link: `/projects/${projectId}/test-cases`,
+						projectId
+					});
+				}
 				break;
 			}
 

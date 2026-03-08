@@ -112,7 +112,7 @@ testmini/
 │   │   │   ├── audit.ts            # Audit log helper
 │   │   │   ├── auth.ts             # Better Auth configuration
 │   │   │   ├── auth-utils.ts       # requireAuth, requireProjectRole helpers
-│   │   │   ├── cache.ts            # In-memory TTL cache (branding, priorities, environments)
+│   │   │   ├── cache.ts            # In-memory TTL cache (branding, tags, members, priorities, environments, dashboard, notifications)
 │   │   │   ├── crypto.ts           # Server-side crypto utilities
 │   │   │   ├── csv-utils.ts        # CSV formatting and response helpers
 │   │   │   ├── db/

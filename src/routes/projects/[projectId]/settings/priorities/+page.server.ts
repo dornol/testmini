@@ -1,11 +1,12 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { priorityConfig } from '$lib/server/db/schema';
-import { eq, and, asc } from 'drizzle-orm';
+import { priorityConfig, testCaseVersion, testCase, testCaseTemplate } from '$lib/server/db/schema';
+import { eq, and, asc, sql } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { createPrioritySchema, updatePrioritySchema } from '$lib/schemas/priority.schema';
 import { cacheDelete } from '$lib/server/cache';
+import { getNextPosition } from '$lib/server/queries';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = Number(params.projectId);
@@ -52,13 +53,7 @@ export const actions: Actions = {
 			return fail(400, { duplicate: true, name, color });
 		}
 
-		// Get max position
-		const all = await db
-			.select({ position: priorityConfig.position })
-			.from(priorityConfig)
-			.where(eq(priorityConfig.projectId, projectId))
-			.orderBy(asc(priorityConfig.position));
-		const maxPos = all.length > 0 ? Math.max(...all.map((p) => p.position)) : -1;
+		const nextPos = await getNextPosition(priorityConfig, projectId);
 
 		await db.transaction(async (tx) => {
 			// If this is set as default, unset other defaults
@@ -73,7 +68,7 @@ export const actions: Actions = {
 				projectId,
 				name: parsed.data.name,
 				color: parsed.data.color,
-				position: maxPos + 1,
+				position: nextPos,
 				isDefault: parsed.data.isDefault,
 				createdBy: authUser.id
 			});
@@ -127,14 +122,24 @@ export const actions: Actions = {
 
 			// If name changed, update all test case versions using the old name
 			if (existing.name !== parsed.data.name) {
-				await tx.execute(
-					// raw SQL to update priority text in test_case_version
-					// safe because we validated the new name
-					`UPDATE test_case_version SET priority = '${parsed.data.name.replace(/'/g, "''")}' WHERE test_case_id IN (SELECT id FROM test_case WHERE project_id = ${projectId}) AND priority = '${existing.name.replace(/'/g, "''")}'`
-				);
-				await tx.execute(
-					`UPDATE test_case_template SET priority = '${parsed.data.name.replace(/'/g, "''")}' WHERE project_id = ${projectId} AND priority = '${existing.name.replace(/'/g, "''")}'`
-				);
+				await tx
+					.update(testCaseVersion)
+					.set({ priority: parsed.data.name })
+					.where(
+						and(
+							eq(testCaseVersion.priority, existing.name),
+							sql`${testCaseVersion.testCaseId} IN (SELECT id FROM test_case WHERE project_id = ${projectId})`
+						)
+					);
+				await tx
+					.update(testCaseTemplate)
+					.set({ priority: parsed.data.name })
+					.where(
+						and(
+							eq(testCaseTemplate.projectId, projectId),
+							eq(testCaseTemplate.priority, existing.name)
+						)
+					);
 			}
 
 			await tx

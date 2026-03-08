@@ -6,6 +6,7 @@ import { eq, and, asc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { createEnvironmentSchema, updateEnvironmentSchema } from '$lib/schemas/environment.schema';
 import { cacheDelete } from '$lib/server/cache';
+import { getNextPosition } from '$lib/server/queries';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = Number(params.projectId);
@@ -51,12 +52,7 @@ export const actions: Actions = {
 			return fail(400, { duplicate: true, name, color });
 		}
 
-		const all = await db
-			.select({ position: environmentConfig.position })
-			.from(environmentConfig)
-			.where(eq(environmentConfig.projectId, projectId))
-			.orderBy(asc(environmentConfig.position));
-		const maxPos = all.length > 0 ? Math.max(...all.map((p) => p.position)) : -1;
+		const nextPos = await getNextPosition(environmentConfig, projectId);
 
 		await db.transaction(async (tx) => {
 			if (parsed.data.isDefault) {
@@ -70,7 +66,7 @@ export const actions: Actions = {
 				projectId,
 				name: parsed.data.name,
 				color: parsed.data.color,
-				position: maxPos + 1,
+				position: nextPos,
 				isDefault: parsed.data.isDefault,
 				createdBy: authUser.id
 			});

@@ -815,7 +815,21 @@ docker compose -f compose.prod.yaml exec redis \
 
 > Redis is optional. Without `REDIS_URL`, all features (SSE pub/sub, soft locks, rate limiting) use in-memory fallbacks. This is suitable for single-server deployments.
 
-> **Application-level cache**: Branding config, project priorities, and environments are cached in-memory with a 5-minute TTL to reduce database load. This cache is automatic and requires no configuration. It is invalidated on mutations (settings updates).
+### Application-Level Cache
+
+The application uses an in-memory TTL cache (`src/lib/server/cache.ts`) to reduce database load for frequently-read, rarely-changed data. No configuration required.
+
+| Cache Key | Data | TTL | Invalidated By |
+|-----------|------|-----|----------------|
+| `global:branding` | App name, logo, favicon | 5 min | Admin branding settings save |
+| `project:{id}:tags` | Project tags | 5 min | Tag create/update/delete |
+| `project:{id}:members` | Project members | 5 min | Member add/update/remove |
+| `project:{id}:priorities` | Priority configs | 5 min | Priority create/update/delete/reorder |
+| `project:{id}:environments` | Environment configs | 5 min | Environment create/update/delete/reorder |
+| `project:{id}:dashboard` | Dashboard stats | 5 min | TTL expiry only |
+| `user:{id}:unread_notifications` | Unread count | 1 min | Mark as read |
+
+> **Note**: This is a per-process in-memory cache. In multi-server deployments, each instance maintains its own cache, so changes may take up to the TTL duration to propagate across instances. For single-server deployments this is not a concern.
 
 ### Authentication Error Due to ORIGIN Mismatch
 

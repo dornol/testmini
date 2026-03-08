@@ -4,7 +4,7 @@ import { db } from '$lib/server/db';
 import { project, projectMember } from '$lib/server/db/schema';
 import { eq, and, count, sql } from 'drizzle-orm';
 import { requireAuth, requireProjectAccess } from '$lib/server/auth-utils';
-import { loadProjectPriorities } from '$lib/server/queries';
+import { loadProjectPriorities, loadProjectEnvironments } from '$lib/server/queries';
 
 export const load: LayoutServerLoad = async ({ locals, params }) => {
 	const user = requireAuth(locals);
@@ -35,11 +35,15 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 		error(404, 'Project not found');
 	}
 
-	const projectPriorities = await loadProjectPriorities(projectId);
+	const [projectPriorities, projectEnvironments] = await Promise.all([
+		loadProjectPriorities(projectId),
+		loadProjectEnvironments(projectId)
+	]);
 
 	return {
 		project: result[0],
 		userRole,
-		projectPriorities
+		projectPriorities,
+		projectEnvironments
 	};
 };

@@ -9,7 +9,8 @@ vi.mock('$lib/server/db', () => ({ db: mockDb }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', name: 'name', description: 'description', active: 'active', createdBy: 'created_by', createdAt: 'created_at' },
 	projectMember: { projectId: 'project_id', userId: 'user_id', role: 'role' },
-	priorityConfig: { id: 'id', projectId: 'project_id', name: 'name', color: 'color', position: 'position', isDefault: 'is_default', createdBy: 'created_by', createdAt: 'created_at' }
+	priorityConfig: { id: 'id', projectId: 'project_id', name: 'name', color: 'color', position: 'position', isDefault: 'is_default', createdBy: 'created_by', createdAt: 'created_at' },
+	environmentConfig: { id: 'id', projectId: 'project_id', name: 'name', color: 'color', position: 'position', isDefault: 'is_default', createdBy: 'created_by', createdAt: 'created_at' }
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),

@@ -63,13 +63,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		body.runName ??
 		`CI Run ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-	const envInput = (body.environment ?? 'QA').toUpperCase();
-	const validEnvs = ['DEV', 'QA', 'STAGE', 'PROD'];
-	const environment = (validEnvs.includes(envInput) ? envInput : 'QA') as
-		| 'DEV'
-		| 'QA'
-		| 'STAGE'
-		| 'PROD';
+	const environment = (body.environment ?? 'QA').toUpperCase();
 
 	// Verify project exists and get creator for run attribution
 	const projectRecord = await db.query.project.findFirst({

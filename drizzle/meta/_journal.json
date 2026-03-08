@@ -218,6 +218,13 @@
       "when": 1774109600000,
       "tag": "0031_exploratory_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1774196000000,
+      "tag": "0032_environment_config",
+      "breakpoints": true
     }
   ]
 }

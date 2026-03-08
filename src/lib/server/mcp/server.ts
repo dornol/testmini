@@ -349,7 +349,7 @@ export function createMcpServer(projectId: number) {
 		'Create a new test run with selected test cases',
 		{
 			name: z.string().describe('Test run name'),
-			environment: z.enum(['DEV', 'QA', 'STAGE', 'PROD']).describe('Environment'),
+			environment: z.string().describe('Environment name (e.g., DEV, QA, STAGE, PROD)'),
 			testCaseIds: z.array(z.number()).optional().describe('Test case IDs to include (empty = all)')
 		},
 		async ({ name, environment, testCaseIds }) => {

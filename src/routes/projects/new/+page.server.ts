@@ -4,7 +4,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { createProjectSchema, type CreateProjectInput } from '$lib/schemas/project.schema';
 import { db } from '$lib/server/db';
-import { project, projectMember, priorityConfig } from '$lib/server/db/schema';
+import { project, projectMember, priorityConfig, environmentConfig } from '$lib/server/db/schema';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
@@ -53,6 +53,14 @@ export const actions: Actions = {
 				{ projectId: created.id, name: 'MEDIUM', color: '#3b82f6', position: 1, isDefault: true, createdBy: locals.user!.id },
 				{ projectId: created.id, name: 'HIGH', color: '#f97316', position: 2, isDefault: false, createdBy: locals.user!.id },
 				{ projectId: created.id, name: 'CRITICAL', color: '#ef4444', position: 3, isDefault: false, createdBy: locals.user!.id }
+			]);
+
+			// Seed default environments
+			await tx.insert(environmentConfig).values([
+				{ projectId: created.id, name: 'DEV', color: '#3b82f6', position: 0, isDefault: true, createdBy: locals.user!.id },
+				{ projectId: created.id, name: 'QA', color: '#8b5cf6', position: 1, isDefault: false, createdBy: locals.user!.id },
+				{ projectId: created.id, name: 'STAGE', color: '#f97316', position: 2, isDefault: false, createdBy: locals.user!.id },
+				{ projectId: created.id, name: 'PROD', color: '#ef4444', position: 3, isDefault: false, createdBy: locals.user!.id }
 			]);
 
 			return created;

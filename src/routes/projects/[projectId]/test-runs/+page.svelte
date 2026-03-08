@@ -63,7 +63,7 @@
 		}
 	}
 
-	const environments = ['DEV', 'QA', 'STAGE', 'PROD'];
+	const environments = data.projectEnvironments;
 
 	function openEdit(run: typeof data.runs[0]) {
 		editRunId = run.id;
@@ -369,8 +369,8 @@
 							{editRunEnv}
 						</Select.Trigger>
 						<Select.Content>
-							{#each environments as env}
-								<Select.Item value={env} label={env} />
+							{#each environments as env (env.id)}
+								<Select.Item value={env.name} label={env.name} />
 							{/each}
 						</Select.Content>
 					</Select.Root>

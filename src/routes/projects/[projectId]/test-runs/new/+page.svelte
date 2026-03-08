@@ -19,7 +19,8 @@
 	let searchFilter = $state('');
 	let priorityFilter = $state('');
 	let tagFilter = $state('');
-	let selectedEnv = $state('DEV');
+	const defaultEnv = data.projectEnvironments.find((e) => e.isDefault)?.name ?? data.projectEnvironments[0]?.name ?? 'DEV';
+	let selectedEnv = $state(defaultEnv);
 
 	function loadFromSuite(suiteId: string) {
 		if (!suiteId) return;
@@ -77,7 +78,7 @@
 		return data.projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
 	}
 
-	const environments = ['DEV', 'QA', 'STAGE', 'PROD'];
+	const environments = data.projectEnvironments;
 </script>
 
 <div class="mx-auto max-w-3xl">
@@ -115,8 +116,8 @@
 								{selectedEnv}
 							</Select.Trigger>
 							<Select.Content>
-								{#each environments as env}
-									<Select.Item value={env} label={env} />
+								{#each environments as env (env.id)}
+									<Select.Item value={env.name} label={env.name} />
 								{/each}
 							</Select.Content>
 						</Select.Root>

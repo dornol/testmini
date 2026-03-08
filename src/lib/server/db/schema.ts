@@ -29,6 +29,7 @@ export const projectRoleEnum = pgEnum('project_role', [
 // priorityEnum kept for reference; columns now use text with priority_config table
 export const priorityEnum = pgEnum('priority', ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
 
+// environmentEnum kept for reference; columns now use text with environment_config table
 export const environmentEnum = pgEnum('environment', ['DEV', 'QA', 'STAGE', 'PROD']);
 
 export const runStatusEnum = pgEnum('run_status', ['CREATED', 'IN_PROGRESS', 'COMPLETED']);
@@ -85,6 +86,7 @@ export const projectRelations = relations(project, ({ many }) => ({
 	groups: many(testCaseGroup),
 	apiKeys: many(projectApiKey),
 	priorities: many(priorityConfig),
+	environments: many(environmentConfig),
 	sharedDataSets: many(sharedDataSet),
 	exploratorySessions: many(exploratorySession)
 }));
@@ -303,7 +305,7 @@ export const testRun = pgTable(
 			.notNull()
 			.references(() => project.id, { onDelete: 'cascade' }),
 		name: text('name').notNull(),
-		environment: environmentEnum('environment').notNull(),
+		environment: text('environment').notNull(),
 		status: runStatusEnum('status').default('CREATED').notNull(),
 		startedAt: timestamp('started_at'),
 		finishedAt: timestamp('finished_at'),
@@ -511,6 +513,37 @@ export const priorityConfig = pgTable(
 export const priorityConfigRelations = relations(priorityConfig, ({ one }) => ({
 	project: one(project, {
 		fields: [priorityConfig.projectId],
+		references: [project.id]
+	})
+}));
+
+// ── EnvironmentConfig ─────────────────────────────────
+
+export const environmentConfig = pgTable(
+	'environment_config',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		color: text('color').notNull(),
+		position: integer('position').notNull().default(0),
+		isDefault: boolean('is_default').notNull().default(false),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		unique('environment_config_project_name_unique').on(table.projectId, table.name),
+		index('environment_config_project_idx').on(table.projectId)
+	]
+);
+
+export const environmentConfigRelations = relations(environmentConfig, ({ one }) => ({
+	project: one(project, {
+		fields: [environmentConfig.projectId],
 		references: [project.id]
 	})
 }));

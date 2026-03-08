@@ -42,7 +42,8 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 15. [API Keys](#api-keys)
 16. [Automation](#automation)
 17. [Priority Configuration](#priority-configuration)
-18. [MCP Server](#mcp-server)
+18. [Environment Configuration](#environment-configuration)
+19. [MCP Server](#mcp-server)
 19. [Webhooks](#webhooks)
 20. [Issue Tracker](#issue-tracker)
 21. [Issue Links](#issue-links)
@@ -1982,6 +1983,38 @@ Priority configuration is managed through the project settings UI at `/projects/
 | `reorder` | Reorder priority display positions | PROJECT_ADMIN, QA, DEV |
 
 Priority values in test cases and templates are stored as plain text strings that reference priority names from this configuration.
+
+---
+
+## Environment Configuration
+
+Environments are configurable per project. Each project has its own set of environments with custom names, colors, and display order. Default environments (`DEV`, `QA`, `STAGE`, `PROD`) are seeded when a project is created.
+
+Environment configuration is managed through the project settings UI at `/projects/:projectId/settings/environments` (form actions, not REST API). The `environment_config` table stores environment definitions per project.
+
+**Schema:** `environment_config`
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | serial | Primary key |
+| `projectId` | integer | FK to `project` |
+| `name` | varchar(30) | Environment name (unique within project) |
+| `color` | varchar(7) | Hex color (e.g. `#3b82f6`) |
+| `position` | integer | Display order (0-based) |
+| `isDefault` | boolean | Whether this is the default environment for new test runs |
+| `createdBy` | varchar | FK to `user` |
+| `createdAt` | timestamp | — |
+
+**Form actions** (on `/projects/:projectId/settings/environments`):
+
+| Action | Description | Auth |
+|---|---|---|
+| `create` | Add a new environment | PROJECT_ADMIN, QA, DEV |
+| `update` | Edit name/color/default; propagates name changes to `test_run.environment` | PROJECT_ADMIN, QA, DEV |
+| `delete` | Remove an environment | PROJECT_ADMIN, QA, DEV |
+| `reorder` | Reorder environment display positions | PROJECT_ADMIN, QA, DEV |
+
+Environment values in test runs are stored as plain text strings that reference environment names from this configuration. The automation API (`POST /api/automation/results`) also accepts any string as the environment value.
 
 ---
 

@@ -136,6 +136,7 @@
 		{isAdmin}
 		sseConnected={sse.connected}
 		{completedPct}
+		projectEnvironments={data.projectEnvironments}
 		onresult={() => {}}
 	/>
 

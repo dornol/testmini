@@ -44,6 +44,7 @@ The following core capabilities are **already implemented**:
 | 32 | Test Case Approval Workflow | Done | Draft → In Review → Approved/Rejected, approval history, notifications |
 | 33 | Exploratory Test Sessions | Done | Timer-based sessions, notes with types, screenshot upload, charter |
 | 34 | S3/MinIO Object Storage | Done | Optional S3-compatible backend for file uploads, env-driven with local fallback |
+| 35 | Environment Matrix | Done | Per-project configurable environments with colors and ordering, replaces hardcoded enum |
 
 ---
 
@@ -199,7 +200,7 @@ Items below are lower priority or dependent on user demand:
 | ~~BDD/Gherkin support~~ | ~~Medium~~ | ~~Done -- Given/When/Then syntax editor; auto-parse into steps; stepFormat on test_case_version~~ |
 | ~~Exploratory test session recording~~ | ~~Medium~~ | ~~Done -- Timer-based session with free-form notes, screenshots, charter~~ |
 | Test plan as separate entity | Low | Currently test runs serve this purpose; separate "plan" adds planning phase before execution |
-| Environment matrix | Low | Define environments centrally, run same suite across multiple environments |
+| ~~Environment matrix~~ | ~~Low~~ | ~~Done -- Per-project configurable environments (environment_config table), replaces hardcoded DEV/QA/STAGE/PROD enum; custom names, colors, ordering; cascades to test runs~~ |
 | Mobile-optimized views | Low | Responsive is done; dedicated mobile UX for field testers |
 | ~~S3/MinIO file storage migration~~ | ~~Low~~ | ~~Done -- S3/MinIO optional backend in storage.ts; env-driven (S3_BUCKET, S3_ENDPOINT); local filesystem fallback~~ |
 | Team/Organization hierarchy | Low | Multi-team structure above projects |

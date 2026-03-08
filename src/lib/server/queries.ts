@@ -1,5 +1,5 @@
 import { db } from './db';
-import { tag, testCaseTag, testCaseAssignee, projectMember, user, priorityConfig } from './db/schema';
+import { tag, testCaseTag, testCaseAssignee, projectMember, user, priorityConfig, environmentConfig } from './db/schema';
 import { eq, asc } from 'drizzle-orm';
 
 /** Load tags assigned to a specific test case */
@@ -62,6 +62,21 @@ export function loadProjectPriorities(projectId: number) {
 		.from(priorityConfig)
 		.where(eq(priorityConfig.projectId, projectId))
 		.orderBy(asc(priorityConfig.position));
+}
+
+/** Load all environment configs for a project */
+export function loadProjectEnvironments(projectId: number) {
+	return db
+		.select({
+			id: environmentConfig.id,
+			name: environmentConfig.name,
+			color: environmentConfig.color,
+			position: environmentConfig.position,
+			isDefault: environmentConfig.isDefault
+		})
+		.from(environmentConfig)
+		.where(eq(environmentConfig.projectId, projectId))
+		.orderBy(asc(environmentConfig.position));
 }
 
 /** Load all metadata for a test case detail view (tags, assignees, project tags, project members) */

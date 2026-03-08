@@ -14,6 +14,7 @@
 		{ href: `/projects/${projectId}/settings/members`, label: m.nav_members() },
 		{ href: `/projects/${projectId}/settings/tags`, label: m.nav_tags() },
 		{ href: `/projects/${projectId}/settings/priorities`, label: m.nav_priorities() },
+		{ href: `/projects/${projectId}/settings/environments`, label: m.nav_environments() },
 		{ href: `/projects/${projectId}/settings/custom-fields`, label: m.nav_custom_fields() },
 		...(isAdmin
 			? [

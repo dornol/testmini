@@ -36,17 +36,17 @@ describe('createTestRunSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
-	it('should reject invalid environment', () => {
+	it('should reject empty environment', () => {
 		const result = createTestRunSchema.safeParse({
 			name: 'Run',
-			environment: 'PRODUCTION',
+			environment: '',
 			testCaseIds: [1]
 		});
 		expect(result.success).toBe(false);
 	});
 
-	it('should accept all valid environments', () => {
-		for (const env of ['DEV', 'QA', 'STAGE', 'PROD']) {
+	it('should accept any non-empty environment string', () => {
+		for (const env of ['DEV', 'QA', 'STAGE', 'PROD', 'PRODUCTION', 'UAT', 'SANDBOX']) {
 			const result = createTestRunSchema.safeParse({
 				name: 'Run',
 				environment: env,
@@ -54,6 +54,15 @@ describe('createTestRunSchema', () => {
 			});
 			expect(result.success).toBe(true);
 		}
+	});
+
+	it('should reject environment longer than 30 chars', () => {
+		const result = createTestRunSchema.safeParse({
+			name: 'Run',
+			environment: 'A'.repeat(31),
+			testCaseIds: [1]
+		});
+		expect(result.success).toBe(false);
 	});
 
 	it('should reject empty testCaseIds', () => {
@@ -94,8 +103,13 @@ describe('updateTestRunSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
-	it('should reject invalid environment', () => {
-		const result = updateTestRunSchema.safeParse({ environment: 'INVALID' });
+	it('should accept any non-empty environment string', () => {
+		const result = updateTestRunSchema.safeParse({ environment: 'PRODUCTION' });
+		expect(result.success).toBe(true);
+	});
+
+	it('should reject empty environment', () => {
+		const result = updateTestRunSchema.safeParse({ environment: '' });
 		expect(result.success).toBe(false);
 	});
 });

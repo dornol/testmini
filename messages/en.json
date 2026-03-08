@@ -635,6 +635,22 @@
 	"priority_set_default": "Set as default",
 	"priority_in_use": "In use by test cases",
 
+	"nav_environments": "Environments",
+	"env_title": "Environments",
+	"env_desc": "Manage project environments for test runs",
+	"env_new": "Add Environment",
+	"env_name": "Environment Name",
+	"env_name_placeholder": "Enter environment name...",
+	"env_color": "Color",
+	"env_empty": "No environments configured. Add your first environment.",
+	"env_created": "Environment created",
+	"env_updated": "Environment updated",
+	"env_deleted": "Environment deleted",
+	"env_duplicate": "An environment with this name already exists",
+	"env_delete_title": "Delete Environment",
+	"env_delete_confirm": "Are you sure you want to delete \"{name}\"? Test runs using this environment will keep their current value.",
+	"env_is_default": "Default",
+
 	"tag_create_inline": "Create \"{name}\"",
 	"tag_new_inline": "New tag...",
 

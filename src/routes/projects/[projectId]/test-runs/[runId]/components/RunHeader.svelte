@@ -35,6 +35,7 @@
 		isAdmin: boolean;
 		sseConnected: boolean;
 		completedPct: number;
+		projectEnvironments: Array<{ id: number; name: string; color: string }>;
 		onresult: (result: { type: string; data?: Record<string, unknown> }) => void;
 	}
 
@@ -47,10 +48,11 @@
 		isAdmin,
 		sseConnected,
 		completedPct,
+		projectEnvironments,
 		onresult
 	}: Props = $props();
 
-	const environments = ['DEV', 'QA', 'STAGE', 'PROD'];
+	const environments = $derived(projectEnvironments.length > 0 ? projectEnvironments : [{ id: 0, name: run.environment, color: '#6b7280' }]);
 
 	// Edit run dialog state
 	let editRunDialogOpen = $state(false);
@@ -304,8 +306,8 @@
 							{editRunEnv}
 						</Select.Trigger>
 						<Select.Content>
-							{#each environments as env (env)}
-								<Select.Item value={env} label={env} />
+							{#each environments as env (env.id)}
+								<Select.Item value={env.name} label={env.name} />
 							{/each}
 						</Select.Content>
 					</Select.Root>

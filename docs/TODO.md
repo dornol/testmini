@@ -29,6 +29,8 @@ The following core capabilities are **already implemented**:
 | 17 | Soft Locking | Done | Redis/in-memory edit locking with UI indicators |
 | 18 | Bulk Operations | Done | Bulk tag/priority/group/delete/clone for test cases |
 | 19 | Import/Export | Done | CSV and JSON import/export for test cases |
+| 20 | In-App Notifications | Done | Bell UI, polling, mark as read; triggered by key events |
+| 21 | MCP Server | Done | Resources + tools via Streamable HTTP, API key auth |
 
 ---
 
@@ -38,33 +40,33 @@ Expose project data via [Model Context Protocol (MCP)](https://modelcontextproto
 
 ### MCP Resources (read-only data)
 
-- [ ] `projects` -- list all projects the caller has access to
-- [ ] `projects/{projectId}/test-cases` -- list test cases with filters (priority, tag, group)
-- [ ] `projects/{projectId}/test-cases/{testCaseId}` -- test case detail with latest version, steps, tags
-- [ ] `projects/{projectId}/test-runs` -- list test runs with status and progress
-- [ ] `projects/{projectId}/test-runs/{runId}` -- run detail with execution results
-- [ ] `projects/{projectId}/test-runs/{runId}/failures` -- failure details for a run
-- [ ] `projects/{projectId}/reports/summary` -- dashboard summary (pass rate, failure rate, metrics)
+- [x] `test-cases` -- list all test cases with latest version
+- [x] `test-runs` -- list recent test runs with status
+- [x] `summary` -- dashboard summary (total test cases, recent runs)
+- [ ] `projects` -- list all projects the caller has access to (future: multi-project API key)
 
 ### MCP Tools (actions)
 
-- [ ] `create-test-case` -- create a new test case with title, steps, priority, tags
+- [x] `search-test-cases` -- full-text search across test cases
+- [x] `get-test-case` -- get test case detail by ID or key (includes tags)
+- [x] `get-test-run` -- get test run with execution status counts
+- [x] `get-failures` -- get failure details for a run
+- [x] `create-test-case` -- create a new test case with title, steps, priority
+- [x] `update-execution-status` -- change execution status (PASS/FAIL/BLOCKED/SKIPPED)
 - [ ] `update-test-case` -- update an existing test case (creates new version)
 - [ ] `create-test-run` -- create a test run with selected test cases and environment
-- [ ] `update-execution-status` -- change execution status (PASS/FAIL/BLOCKED/SKIPPED)
 - [ ] `record-failure-detail` -- record failure environment, error message, stack trace
-- [ ] `search-test-cases` -- full-text search across test cases
 - [ ] `export-run-results` -- export test run results as structured data
 
-### Implementation Plan
+### Implementation
 
-- [ ] Add MCP server dependency (`@modelcontextprotocol/sdk`)
-- [ ] Create MCP server entry point (`src/lib/server/mcp/index.ts`)
-- [ ] Implement authentication (reuse project API key or session-based auth)
-- [ ] Register resources and tools
-- [ ] Add SSE transport for real-time updates (reuse existing SSE infrastructure)
+- [x] Add MCP server dependency (`@modelcontextprotocol/sdk` v1.27)
+- [x] Create MCP server (`src/lib/server/mcp/server.ts`)
+- [x] Implement authentication (reuse project API key via Bearer token)
+- [x] Register resources and tools
+- [x] Web Standard Streamable HTTP transport (`/api/mcp` endpoint)
+- [x] Documentation in `docs/API.md`
 - [ ] Integration tests for MCP endpoints
-- [ ] Documentation in `docs/API.md`
 
 ---
 

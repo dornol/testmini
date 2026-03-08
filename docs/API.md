@@ -41,6 +41,7 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 15. [API Keys](#api-keys)
 16. [Automation](#automation)
 17. [Priority Configuration](#priority-configuration)
+18. [MCP Server](#mcp-server)
 
 ---
 
@@ -1919,6 +1920,56 @@ Priority configuration is managed through the project settings UI at `/projects/
 | `reorder` | Reorder priority display positions | PROJECT_ADMIN, QA, DEV |
 
 Priority values in test cases and templates are stored as plain text strings that reference priority names from this configuration.
+
+---
+
+## MCP Server
+
+TestMini exposes a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) endpoint so that AI assistants (Claude, Cursor, etc.) can interact with project data programmatically.
+
+### Endpoint
+
+`GET|POST|DELETE /api/mcp`
+
+Authentication: Bearer API key (same as automation API).
+
+### Transport
+
+Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTransport`). Stateful sessions are managed via `mcp-session-id` header.
+
+### Resources
+
+| Resource | URI | Description |
+|----------|-----|-------------|
+| `test-cases` | `test-cases://list` | All test cases with latest version title, priority, key |
+| `test-runs` | `test-runs://list` | Recent test runs (last 50) with status |
+| `summary` | `reports://summary` | Total test case count + recent 5 runs |
+
+### Tools
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `search-test-cases` | `query`, `limit?` | Full-text search across test cases |
+| `get-test-case` | `id?`, `key?` | Get test case detail with version and tags |
+| `get-test-run` | `runId` | Get test run with execution status counts |
+| `get-failures` | `runId` | Get failure details (error messages, stack traces) |
+| `create-test-case` | `title`, `priority?`, `precondition?`, `steps?`, `expectedResult?` | Create a new test case |
+| `update-execution-status` | `runId`, `executionId`, `status` | Update execution status |
+
+### MCP Client Configuration
+
+```json
+{
+  "mcpServers": {
+    "testmini": {
+      "url": "https://your-instance.example.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer tmk_your_api_key"
+      }
+    }
+  }
+}
+```
 
 ---
 

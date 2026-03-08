@@ -30,12 +30,15 @@
 		projectSuites: { id: number; name: string }[];
 		projectMembers: { userId: string; userName: string }[];
 		selectedRunIds: number[];
+		projectCustomFields: { id: number; name: string; fieldType: string; options: string[] | null }[];
+		customFieldFilters: { fieldId: number; value: string }[];
 	}
 
 	let {
 		basePath, projectId, canEdit, hasActiveFilters,
 		search, priority, tagIds, groupId, createdBy, assigneeId, suiteId, execStatus,
-		projectTags, projectPriorities, groups, projectSuites, projectMembers, selectedRunIds
+		projectTags, projectPriorities, groups, projectSuites, projectMembers, selectedRunIds,
+		projectCustomFields, customFieldFilters
 	}: Props = $props();
 	const execStatusOptions = ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING', 'NOT_EXECUTED'];
 
@@ -61,6 +64,31 @@
 	const selectedCreatedByIds = $derived(parseMulti(createdBy));
 	const selectedAssigneeIds = $derived(parseMulti(assigneeId));
 	const selectedGroupId = $derived(groupId || '');
+	const activeCfFilterCount = $derived(customFieldFilters.length);
+
+	function getCfFilterValue(fieldId: number): string {
+		return customFieldFilters.find((f) => f.fieldId === fieldId)?.value ?? '';
+	}
+
+	function setCfFilter(fieldId: number, value: string) {
+		const params = new URLSearchParams(page.url.searchParams);
+		const key = `cf_${fieldId}`;
+		if (value) {
+			params.set(key, value);
+		} else {
+			params.delete(key);
+		}
+		goto(`${basePath}?${params.toString()}`);
+	}
+
+	function toggleCfMultiValue(fieldId: number, option: string) {
+		const current = getCfFilterValue(fieldId);
+		const values = current ? current.split(',').filter(Boolean) : [];
+		const idx = values.indexOf(option);
+		if (idx >= 0) values.splice(idx, 1);
+		else values.push(option);
+		setCfFilter(fieldId, values.join(','));
+	}
 
 	function statusColor(status: string): string {
 		switch (status) {
@@ -298,6 +326,70 @@
 						<Checkbox checked={selectedAssigneeIds.includes(member.userId)} onCheckedChange={() => toggleFilter('assigneeId', member.userId)} />
 						{member.userName}
 					</label>
+				{/each}
+			</Popover.Content>
+		</Popover.Root>
+	{/if}
+
+	<!-- Custom field filters -->
+	{#if projectCustomFields.length > 0}
+		<Popover.Root>
+			<Popover.Trigger>
+				{#snippet child({ props })}
+					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+						{m.tc_custom_field_filter()}{activeCfFilterCount > 0 ? ` (${activeCfFilterCount})` : ''}
+					</Button>
+				{/snippet}
+			</Popover.Trigger>
+			<Popover.Content class="w-64 p-3 space-y-3" align="start">
+				{#each projectCustomFields as cf (cf.id)}
+					<div class="space-y-1">
+						<label class="text-xs font-medium text-muted-foreground">{cf.name}</label>
+						{#if cf.fieldType === 'TEXT' || cf.fieldType === 'URL'}
+							<Input
+								class="h-7 text-xs"
+								placeholder={cf.name}
+								value={getCfFilterValue(cf.id)}
+								onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLInputElement).value)}
+							/>
+						{:else if cf.fieldType === 'NUMBER'}
+							<Input
+								type="number"
+								class="h-7 text-xs"
+								placeholder={cf.name}
+								value={getCfFilterValue(cf.id)}
+								onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLInputElement).value)}
+							/>
+						{:else if cf.fieldType === 'DATE'}
+							<Input
+								type="date"
+								class="h-7 text-xs"
+								value={getCfFilterValue(cf.id)}
+								onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLInputElement).value)}
+							/>
+						{:else if cf.fieldType === 'CHECKBOX'}
+							<select
+								class="h-7 w-full rounded-md border border-input bg-background px-2 text-xs"
+								value={getCfFilterValue(cf.id)}
+								onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLSelectElement).value)}
+							>
+								<option value="">--</option>
+								<option value="true">true</option>
+								<option value="false">false</option>
+							</select>
+						{:else if (cf.fieldType === 'SELECT' || cf.fieldType === 'MULTISELECT') && cf.options}
+							{@const selectedValues = getCfFilterValue(cf.id).split(',').filter(Boolean)}
+							{#each cf.options as opt}
+								<label class="flex items-center gap-2 rounded px-2 py-1 text-xs hover:bg-muted cursor-pointer">
+									<Checkbox
+										checked={selectedValues.includes(opt)}
+										onCheckedChange={() => toggleCfMultiValue(cf.id, opt)}
+									/>
+									{opt}
+								</label>
+							{/each}
+						{/if}
+					</div>
 				{/each}
 			</Popover.Content>
 		</Popover.Root>

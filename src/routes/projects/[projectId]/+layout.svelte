@@ -11,6 +11,7 @@
 		{ href: `/projects/${data.project.id}/test-suites`, label: m.nav_test_suites() },
 		{ href: `/projects/${data.project.id}/test-runs`, label: m.nav_test_runs() },
 		{ href: `/projects/${data.project.id}/reports`, label: m.nav_reports() },
+		{ href: `/projects/${data.project.id}/traceability`, label: m.nav_traceability() },
 		...(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN'
 			? [{ href: `/projects/${data.project.id}/settings`, label: m.nav_settings() }]
 			: [])

@@ -12,7 +12,8 @@ import {
 	testRun,
 	testExecution,
 	projectMember,
-	testSuite
+	testSuite,
+	customField
 } from '$lib/server/db/schema';
 import { eq, and, desc, asc, sql, inArray } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
@@ -42,6 +43,17 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		.map(Number)
 		.filter((id) => !isNaN(id) && id > 0);
 
+	// Parse custom field filters from URL params (cf_<fieldId>=value)
+	const customFieldFilters: { fieldId: number; value: string }[] = [];
+	for (const [key, value] of url.searchParams.entries()) {
+		if (key.startsWith('cf_') && value) {
+			const fieldId = Number(key.slice(3));
+			if (!isNaN(fieldId) && fieldId > 0) {
+				customFieldFilters.push({ fieldId, value });
+			}
+		}
+	}
+
 	const where = buildTestCaseConditions({
 		projectId,
 		search,
@@ -50,8 +62,21 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		groupId,
 		createdBy,
 		assigneeId,
-		suiteId
+		suiteId,
+		customFieldFilters
 	});
+
+	// Load custom field definitions for this project
+	const projectCustomFields = await db
+		.select({
+			id: customField.id,
+			name: customField.name,
+			fieldType: customField.fieldType,
+			options: customField.options
+		})
+		.from(customField)
+		.where(eq(customField.projectId, projectId))
+		.orderBy(asc(customField.sortOrder));
 
 	// Load groups for this project
 	const groups = await db
@@ -73,7 +98,8 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 			priority: testCaseVersion.priority,
 			updatedBy: user.name,
 			groupId: testCase.groupId,
-			sortOrder: testCase.sortOrder
+			sortOrder: testCase.sortOrder,
+			customFields: testCaseVersion.customFields
 		})
 		.from(testCase)
 		.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
@@ -249,7 +275,9 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies }) => 
 		projectSuites,
 		projectRuns,
 		selectedRunIds,
-		executionMap
+		executionMap,
+		projectCustomFields,
+		customFieldFilters
 	};
 };
 

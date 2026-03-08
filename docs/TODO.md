@@ -35,6 +35,7 @@ The following core capabilities are **already implemented**:
 | 23 | Issue Tracker Integration | Done | Jira, GitHub, GitLab, Custom webhook; link/create issues from test cases/executions |
 | 24 | Custom Fields | Done | Per-project field definitions (text/number/select/date/checkbox/URL), JSONB storage |
 | 25 | Execution Comments | Done | Comments on test run executions, inline in execution table |
+| 26 | Traceability Matrix | Done | Requirements ↔ test cases mapping, coverage gap analysis, CSV export |
 
 ---
 
@@ -94,11 +95,11 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ### 6.2 Traceability Matrix
 
-- [ ] `requirement` table (id, projectId, externalId, title, source)
-- [ ] `requirement_test_case` mapping table
-- [ ] Traceability view: requirement -> test cases -> latest execution results
-- [ ] Coverage gap analysis: requirements without test cases
-- [ ] Export traceability matrix (CSV)
+- [x] `requirement` table (id, projectId, externalId, title, source)
+- [x] `requirement_test_case` mapping table
+- [x] Traceability view: requirement -> test cases -> latest execution results
+- [x] Coverage gap analysis: requirements without test cases
+- [x] Export traceability matrix (CSV)
 
 ---
 
@@ -174,9 +175,9 @@ Link test results to external issue trackers for end-to-end traceability.
   - Field types: text, number, dropdown (single/multi), date, checkbox, URL
   - Configurable per project in settings
 - [x] Custom fields displayed on test case detail/edit forms
-- [ ] Custom fields available as filter/search criteria
+- [x] Custom fields available as filter/search criteria
 - [x] Custom field values stored in JSONB column on `test_case_version`
-- [ ] Custom field columns in test case list view (user-configurable)
+- [x] Custom field columns in test case list view (user-configurable)
 
 ---
 

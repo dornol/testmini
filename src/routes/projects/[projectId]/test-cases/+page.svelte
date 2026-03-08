@@ -81,6 +81,7 @@
 		sortOrder: number;
 		tags: { id: number; name: string; color: string }[];
 		assignees: { userId: string; userName: string }[];
+		customFields: Record<string, unknown> | null;
 		[SHADOW_ITEM_MARKER_PROPERTY_NAME]?: boolean;
 	};
 	type GroupItem = {
@@ -125,7 +126,7 @@
 		});
 	});
 
-	const hasActiveFilters = $derived(!!data.search || !!data.priority || !!data.tagIds || !!data.groupId || !!data.createdBy || !!data.assigneeId || !!data.suiteId || !!data.execStatus);
+	const hasActiveFilters = $derived(!!data.search || !!data.priority || !!data.tagIds || !!data.groupId || !!data.createdBy || !!data.assigneeId || !!data.suiteId || !!data.execStatus || data.customFieldFilters.length > 0);
 	const flipDurationMs = 150;
 
 
@@ -281,6 +282,39 @@
 	const VIRTUAL_SCROLL_THRESHOLD = 200;
 	const useVirtualScroll = $derived(data.testCases.length > VIRTUAL_SCROLL_THRESHOLD);
 	const dndDisabled = $derived(hasActiveFilters || !canEdit || useVirtualScroll);
+
+	// --- Custom field column visibility (persisted in localStorage) ---
+	function loadVisibleCfCols(): Set<number> {
+		try {
+			const stored = localStorage.getItem(`tc-cf-cols-${data.project.id}`);
+			if (stored) return new Set(JSON.parse(stored));
+		} catch { /* ignore */ }
+		return new Set();
+	}
+	let visibleCfCols: Set<number> = $state(loadVisibleCfCols());
+
+	function toggleCfCol(fieldId: number) {
+		const next = new Set(visibleCfCols);
+		if (next.has(fieldId)) next.delete(fieldId);
+		else next.add(fieldId);
+		visibleCfCols = next;
+		try {
+			localStorage.setItem(`tc-cf-cols-${data.project.id}`, JSON.stringify([...next]));
+		} catch { /* ignore */ }
+	}
+
+	const visibleCustomFields = $derived(
+		data.projectCustomFields.filter((cf) => visibleCfCols.has(cf.id))
+	);
+
+	function formatCfValue(cf: { id: number; fieldType: string }, customFields: Record<string, unknown> | null): string {
+		if (!customFields) return '';
+		const val = customFields[String(cf.id)];
+		if (val === undefined || val === null) return '';
+		if (cf.fieldType === 'MULTISELECT' && Array.isArray(val)) return val.join(', ');
+		if (cf.fieldType === 'CHECKBOX') return val ? 'Yes' : 'No';
+		return String(val);
+	}
 
 	type FlatItem =
 		| { _type: 'group-header'; group: GroupItem }
@@ -667,7 +701,34 @@
 		projectSuites={data.projectSuites}
 		projectMembers={data.projectMembers}
 		selectedRunIds={data.selectedRunIds}
+		projectCustomFields={data.projectCustomFields}
+		customFieldFilters={data.customFieldFilters}
 	/>
+
+	<!-- Column & Run selector row -->
+	{#if data.projectCustomFields.length > 0 || data.projectRuns.length > 0}
+		<div class="flex flex-wrap items-center gap-2">
+			{#if data.projectCustomFields.length > 0}
+				<Popover.Root>
+					<Popover.Trigger>
+						{#snippet child({ props })}
+							<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+								{m.tc_columns()}{visibleCfCols.size > 0 ? ` (${visibleCfCols.size})` : ''}
+							</Button>
+						{/snippet}
+					</Popover.Trigger>
+					<Popover.Content class="w-48 p-2" align="start">
+						{#each data.projectCustomFields as cf (cf.id)}
+							<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
+								<Checkbox checked={visibleCfCols.has(cf.id)} onCheckedChange={() => toggleCfCol(cf.id)} />
+								{cf.name}
+							</label>
+						{/each}
+					</Popover.Content>
+				</Popover.Root>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Run column selector -->
 	{#if data.projectRuns.length > 0}
@@ -893,6 +954,23 @@
 				</div>
 			{/if}
 			<span class="text-muted-foreground w-20 shrink-0 text-right truncate" data-tip={tc.updatedBy}>{tc.updatedBy}</span>
+			<!-- Custom field columns -->
+			{#each visibleCustomFields as cf (cf.id)}
+				{@const cfVal = formatCfValue(cf, tc.customFields)}
+				<span class="w-24 shrink-0 text-center truncate text-muted-foreground" data-tip={cfVal}>
+					{#if cf.fieldType === 'URL' && cfVal}
+						<a href={cfVal} target="_blank" rel="noopener noreferrer" class="text-primary hover:underline" onclick={(e) => e.stopPropagation()}>{cfVal}</a>
+					{:else if cf.fieldType === 'CHECKBOX'}
+						{#if tc.customFields?.[String(cf.id)]}
+							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-green-600 inline-block"><polyline points="20 6 9 17 4 12"/></svg>
+						{:else if tc.customFields?.[String(cf.id)] === false}
+							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground inline-block"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+						{/if}
+					{:else}
+						{cfVal}
+					{/if}
+				</span>
+			{/each}
 			<!-- Test Run columns -->
 			{#each selectedRuns as run (run.id)}
 				{@const exec = data.executionMap[tc.id]?.[run.id]}
@@ -989,6 +1067,9 @@
 				{/if}
 				<span class="w-16 shrink-0 text-center">{m.assignee_title()}</span>
 				<span class="w-20 shrink-0 text-center">{m.tc_updated_by()}</span>
+				{#each visibleCustomFields as cf (cf.id)}
+					<span class="w-24 shrink-0 text-center truncate" data-tip={cf.name}>{cf.name}</span>
+				{/each}
 				{#each selectedRuns as run (run.id)}
 					<span class="w-16 shrink-0 text-center truncate" data-tip={run.name}>{run.name}</span>
 				{/each}

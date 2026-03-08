@@ -1073,3 +1073,64 @@ export const issueLinkRelations = relations(issueLink, ({ one }) => ({
 		references: [user.id]
 	})
 }));
+
+// ── Requirement (Traceability) ────────────────────────
+
+export const requirement = pgTable(
+	'requirement',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		externalId: text('external_id'),
+		title: text('title').notNull(),
+		description: text('description'),
+		source: text('source'),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		index('requirement_project_idx').on(table.projectId)
+	]
+);
+
+export const requirementRelations = relations(requirement, ({ one, many }) => ({
+	project: one(project, {
+		fields: [requirement.projectId],
+		references: [project.id]
+	}),
+	testCases: many(requirementTestCase)
+}));
+
+export const requirementTestCase = pgTable(
+	'requirement_test_case',
+	{
+		id: serial('id').primaryKey(),
+		requirementId: integer('requirement_id')
+			.notNull()
+			.references(() => requirement.id, { onDelete: 'cascade' }),
+		testCaseId: integer('test_case_id')
+			.notNull()
+			.references(() => testCase.id, { onDelete: 'cascade' }),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		unique('req_tc_unique').on(table.requirementId, table.testCaseId),
+		index('req_tc_requirement_idx').on(table.requirementId),
+		index('req_tc_test_case_idx').on(table.testCaseId)
+	]
+);
+
+export const requirementTestCaseRelations = relations(requirementTestCase, ({ one }) => ({
+	requirement: one(requirement, {
+		fields: [requirementTestCase.requirementId],
+		references: [requirement.id]
+	}),
+	testCase: one(testCase, {
+		fields: [requirementTestCase.testCaseId],
+		references: [testCase.id]
+	})
+}));

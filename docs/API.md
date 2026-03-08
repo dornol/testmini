@@ -45,6 +45,7 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 19. [Webhooks](#webhooks)
 20. [Issue Tracker](#issue-tracker)
 21. [Issue Links](#issue-links)
+22. [Requirements (Traceability)](#requirements-traceability)
 
 ---
 
@@ -2276,6 +2277,124 @@ Creates an external issue via the configured tracker and automatically links it 
 **Response:** `201 Created` — issue link object with external URL and key
 
 Returns `404` if no tracker is configured. Returns `400` if the tracker is disabled or external issue creation fails.
+
+---
+
+## Requirements (Traceability)
+
+Manage requirements and link them to test cases for end-to-end traceability.
+
+### `GET /api/projects/:projectId/requirements`
+
+Lists all requirements for the project with linked test case counts and coverage status.
+
+**Auth:** Any project member
+
+**Response:** `200 OK`
+
+```json
+[
+  {
+    "id": 1,
+    "externalId": "REQ-001",
+    "title": "User login",
+    "description": "Users must be able to log in",
+    "source": "Jira",
+    "testCaseCount": 3,
+    "coverage": { "pass": 2, "fail": 1, "pending": 0, "blocked": 0, "skipped": 0, "notExecuted": 0 },
+    "createdAt": "2025-03-08T00:00:00.000Z"
+  }
+]
+```
+
+### `POST /api/projects/:projectId/requirements`
+
+Creates a new requirement.
+
+**Auth:** `PROJECT_ADMIN` or `QA`
+
+**Body:**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `title` | `string` | Yes | Requirement title |
+| `externalId` | `string` | No | External tracker ID (e.g., JIRA-123) |
+| `description` | `string` | No | Requirement description |
+| `source` | `string` | No | Source system (e.g., Jira, Confluence) |
+
+**Response:** `201 Created`
+
+### `PATCH /api/projects/:projectId/requirements/:requirementId`
+
+Updates a requirement.
+
+**Auth:** `PROJECT_ADMIN` or `QA`
+
+**Body:** Same fields as POST (all optional). At least one field required.
+
+**Response:** `200 OK`
+
+### `DELETE /api/projects/:projectId/requirements/:requirementId`
+
+Deletes a requirement and all its test case links.
+
+**Auth:** `PROJECT_ADMIN` or `QA`
+
+**Response:** `200 OK` `{ "success": true }`
+
+### `POST /api/projects/:projectId/requirements/:requirementId/test-cases`
+
+Links test cases to a requirement.
+
+**Auth:** `PROJECT_ADMIN` or `QA`
+
+**Body:**
+
+```json
+{ "testCaseIds": [10, 20, 30] }
+```
+
+**Response:** `200 OK` `{ "linked": 3 }`
+
+### `DELETE /api/projects/:projectId/requirements/:requirementId/test-cases?testCaseId=10`
+
+Unlinks a test case from a requirement.
+
+**Auth:** `PROJECT_ADMIN` or `QA`
+
+**Response:** `200 OK` `{ "success": true }`
+
+### `GET /api/projects/:projectId/requirements/matrix`
+
+Returns the full traceability matrix with requirements, linked test cases, and latest execution statuses.
+
+**Auth:** Any project member
+
+**Response:** `200 OK`
+
+```json
+{
+  "requirements": [
+    {
+      "id": 1,
+      "externalId": "REQ-001",
+      "title": "User login",
+      "source": "Jira",
+      "testCases": [
+        { "id": 10, "key": "TC-0001", "title": "Login flow", "latestStatus": "PASS" }
+      ]
+    }
+  ]
+}
+```
+
+### `GET /api/projects/:projectId/requirements/matrix/export`
+
+Exports the traceability matrix as CSV.
+
+**Auth:** Any project member
+
+**Response:** CSV file download with columns: Requirement ID, External ID, Title, Source, Test Case Key, Test Case Title, Latest Status
 
 ---
 

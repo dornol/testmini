@@ -52,6 +52,12 @@ function safePath(objectKey: string): string {
 	return filePath;
 }
 
+function safeKey(objectKey: string): void {
+	if (objectKey.includes('..')) {
+		throw new Error('Invalid object key');
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -72,6 +78,7 @@ export function generateObjectKey(
 
 export async function saveFile(objectKey: string, data: Buffer): Promise<void> {
 	if (isS3Enabled()) {
+		safeKey(objectKey);
 		await initS3();
 		const { PutObjectCommand } = await import('@aws-sdk/client-s3');
 		await getS3().send(
@@ -91,6 +98,7 @@ export async function saveFile(objectKey: string, data: Buffer): Promise<void> {
 
 export async function getFile(objectKey: string): Promise<Buffer> {
 	if (isS3Enabled()) {
+		safeKey(objectKey);
 		await initS3();
 		const { GetObjectCommand } = await import('@aws-sdk/client-s3');
 		const res = await getS3().send(
@@ -107,6 +115,7 @@ export async function getFile(objectKey: string): Promise<Buffer> {
 
 export async function deleteFile(objectKey: string): Promise<void> {
 	if (isS3Enabled()) {
+		safeKey(objectKey);
 		await initS3();
 		const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
 		await getS3().send(
@@ -127,6 +136,7 @@ export async function deleteFile(objectKey: string): Promise<void> {
 
 export async function fileExists(objectKey: string): Promise<boolean> {
 	if (isS3Enabled()) {
+		safeKey(objectKey);
 		await initS3();
 		const { HeadObjectCommand } = await import('@aws-sdk/client-s3');
 		try {

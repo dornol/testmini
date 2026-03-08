@@ -25,9 +25,22 @@
 
 	let sheetOpen = $state(false);
 	let selectedTcId: number | null = $state(null);
+	interface TestCaseVersion {
+		id: number;
+		versionNo: number;
+		title: string;
+		priority: string;
+		precondition?: string | null;
+		expectedResult?: string | null;
+		steps?: { order: number; action: string; expected: string }[] | null;
+		revision?: number;
+		updatedBy?: string;
+		createdAt?: string;
+	}
+
 	let detailData: {
-		testCase: { id: number; key: string; createdAt: string; latestVersion: any };
-		versions: any[];
+		testCase: { id: number; key: string; createdAt: string; latestVersion: TestCaseVersion | null };
+		versions: TestCaseVersion[];
 		assignedTags: { id: number; name: string; color: string }[];
 		projectTags: { id: number; name: string; color: string }[];
 		assignedAssignees: { userId: string; userName: string; userImage: string | null }[];
@@ -40,8 +53,8 @@
 
 	let compareSelectedVersions = $state<number[]>([]);
 	let diffDialogOpen = $state(false);
-	let diffV1: any = $state(null);
-	let diffV2: any = $state(null);
+	let diffV1: TestCaseVersion | null = $state(null);
+	let diffV2: TestCaseVersion | null = $state(null);
 	let diffLoading = $state(false);
 
 	function toggleVersionSelect(versionNo: number) {
@@ -59,7 +72,7 @@
 		diffLoading = true;
 		const [a, b] = compareSelectedVersions.sort((x, y) => x - y);
 		try {
-			const data = await apiFetch<{ v1: any; v2: any }>(
+			const data = await apiFetch<{ v1: TestCaseVersion; v2: TestCaseVersion }>(
 				`/api/projects/${projectId}/test-cases/${selectedTcId}/versions?v1=${a}&v2=${b}`
 			);
 			diffV1 = data.v1;
@@ -408,7 +421,7 @@
 								<span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium hover:bg-muted/50 transition-colors">
 									<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {t.color}"></span>
 									{t.name}
-									<button type="button" class="text-muted-foreground hover:text-destructive ml-0.5 transition-colors" onclick={() => removeTag(t.id)}>&times;</button>
+									<button type="button" class="text-muted-foreground hover:text-destructive ml-0.5 transition-colors" aria-label="Remove" onclick={() => removeTag(t.id)}>&times;</button>
 								</span>
 							{:else}
 								<TagBadge name={t.name} color={t.color} />
@@ -449,7 +462,7 @@
 							{#if canEdit}
 								<span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium hover:bg-muted/50 transition-colors">
 									{a.userName}
-									<button type="button" class="text-muted-foreground hover:text-destructive ml-0.5 transition-colors" onclick={() => removeAssignee(a.userId)}>&times;</button>
+									<button type="button" class="text-muted-foreground hover:text-destructive ml-0.5 transition-colors" aria-label="Remove" onclick={() => removeAssignee(a.userId)}>&times;</button>
 								</span>
 							{:else}
 								<Badge variant="outline" class="text-xs">{a.userName}</Badge>

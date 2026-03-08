@@ -1,7 +1,35 @@
 <script lang="ts">
-	import { Chart, registerables, type ChartConfiguration } from 'chart.js';
+	import {
+		Chart,
+		BarController,
+		LineController,
+		DoughnutController,
+		CategoryScale,
+		LinearScale,
+		BarElement,
+		LineElement,
+		PointElement,
+		ArcElement,
+		Tooltip,
+		Legend,
+		Filler,
+		type ChartConfiguration
+	} from 'chart.js';
 
-	Chart.register(...registerables);
+	Chart.register(
+		BarController,
+		LineController,
+		DoughnutController,
+		CategoryScale,
+		LinearScale,
+		BarElement,
+		LineElement,
+		PointElement,
+		ArcElement,
+		Tooltip,
+		Legend,
+		Filler
+	);
 
 	let { config, 'aria-label': ariaLabel }: { config: ChartConfiguration; 'aria-label'?: string } = $props();
 

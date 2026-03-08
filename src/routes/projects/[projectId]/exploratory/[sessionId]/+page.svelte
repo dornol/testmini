@@ -346,12 +346,18 @@
 						<div class="flex-1 min-w-0">
 							<p class="text-sm whitespace-pre-wrap">{note.content}</p>
 							{#if note.screenshotPath}
-								<img
-									src="/api/uploads/{note.screenshotPath}"
-									alt="Screenshot"
-									class="mt-2 max-w-xs rounded border cursor-pointer"
+								<button
+									type="button"
+									class="mt-2 cursor-pointer border-none bg-transparent p-0"
+									aria-label="Open screenshot in new tab"
 									onclick={() => window.open(`/api/uploads/${note.screenshotPath}`, '_blank')}
-								/>
+								>
+									<img
+										src="/api/uploads/{note.screenshotPath}"
+										alt="Screenshot"
+										class="max-w-xs rounded border"
+									/>
+								</button>
 							{/if}
 						</div>
 						{#if session.status !== 'COMPLETED'}

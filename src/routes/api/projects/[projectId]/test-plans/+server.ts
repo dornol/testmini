@@ -30,8 +30,10 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 		.orderBy(testPlan.createdAt)
 		.$dynamic();
 
-	if (statusFilter) {
-		query = query.where(eq(testPlan.status, statusFilter as any));
+	const validStatuses = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'ACTIVE', 'COMPLETED', 'ARCHIVED'] as const;
+	type TestPlanStatus = typeof validStatuses[number];
+	if (statusFilter && validStatuses.includes(statusFilter as TestPlanStatus)) {
+		query = query.where(eq(testPlan.status, statusFilter as TestPlanStatus));
 	}
 
 	const plans = await db

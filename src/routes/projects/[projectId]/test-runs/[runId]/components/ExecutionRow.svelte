@@ -160,6 +160,7 @@
 					checked={isSelected}
 					onchange={() => onToggleSelect(exec.id)}
 					class="rounded"
+					aria-label="Select {exec.testCaseKey}"
 				/>
 			{/if}
 		</td>
@@ -221,6 +222,7 @@
 			class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
 			class:text-primary={showComments}
 			title={m.exec_comment_title()}
+			aria-label={m.exec_comment_title()}
 			onclick={() => onToggleComments(exec.id)}
 		>
 			<svg
@@ -329,6 +331,7 @@
 									<button
 										type="button"
 										class="text-destructive hover:text-destructive/80 shrink-0"
+										aria-label="Remove"
 										onclick={() => handleRemoveExecIssueLink(link.id)}
 									>
 										&times;

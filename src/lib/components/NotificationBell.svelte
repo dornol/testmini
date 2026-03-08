@@ -243,6 +243,7 @@
 			transition:fly={{ y: -8, duration: 150 }}
 			class="border-border bg-popover text-popover-foreground absolute right-0 z-50 mt-1 w-80 rounded-md border shadow-lg sm:w-96"
 			role="dialog"
+			aria-modal="true"
 			aria-label="Notifications panel"
 			onkeydown={handleKeydown}
 		>

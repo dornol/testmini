@@ -234,7 +234,7 @@
 							tabindex="0"
 							class="flex cursor-pointer flex-col items-center gap-1 py-4 text-center"
 							onclick={() => fileInputEl?.click()}
-							onkeydown={(e) => e.key === 'Enter' && fileInputEl?.click()}
+							onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && fileInputEl?.click()}
 						>
 							<UploadCloudIcon class="text-muted-foreground size-6" />
 							<p class="text-muted-foreground text-xs">{m.attachments_none()}</p>

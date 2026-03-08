@@ -41,7 +41,17 @@
 
 	async function fetchFailures(runId: number, executionId: number) {
 		try {
-			const data = await apiFetch<{ failures: any[] }>(
+			const data = await apiFetch<{ failures: Array<{
+			id: number;
+			errorMessage: string | null;
+			testMethod: string | null;
+			failureEnvironment: string | null;
+			stackTrace: string | null;
+			comment: string | null;
+			createdBy: string;
+			createdAt: string;
+			createdByName: string | null;
+		}> }>(
 				`/api/projects/${projectId}/test-runs/${runId}/executions/${executionId}/failures`,
 				{ silent: true }
 			);

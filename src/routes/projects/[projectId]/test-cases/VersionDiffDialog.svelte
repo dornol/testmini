@@ -11,8 +11,8 @@
 		projectPriorities
 	}: {
 		open: boolean;
-		v1: any | null;
-		v2: any | null;
+		v1: { versionNo: number; priority: string; title: string; precondition?: string | null; expectedResult?: string | null; steps?: Step[] | null } | null;
+		v2: { versionNo: number; priority: string; title: string; precondition?: string | null; expectedResult?: string | null; steps?: Step[] | null } | null;
 		projectPriorities: { id: number; name: string; color: string; position: number; isDefault: boolean }[];
 	} = $props();
 

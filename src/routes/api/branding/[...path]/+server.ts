@@ -14,6 +14,10 @@ const MIME_TYPES: Record<string, string> = {
 export const GET: RequestHandler = async ({ params }) => {
 	const objectKey = params.path;
 
+	if (!objectKey.startsWith('branding/') || objectKey.includes('..') || objectKey.includes('//')) {
+		error(400, 'Invalid path');
+	}
+
 	try {
 		const fileBuffer = await getFile(objectKey);
 		const ext = objectKey.split('.').pop()?.toLowerCase() || '';

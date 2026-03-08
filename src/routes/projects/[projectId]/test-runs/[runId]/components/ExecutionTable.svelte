@@ -311,6 +311,7 @@
 				<tr>
 					{#if canExecute && pendingExecutions.length > 0}
 						<th
+							scope="col"
 							class="text-foreground h-10 w-10 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
 						>
 							<input
@@ -318,30 +319,36 @@
 								checked={allPendingSelected}
 								onchange={onTogglePendingAll}
 								class="rounded"
+								aria-label="Select all"
 							/>
 						</th>
 					{/if}
 					<th
+						scope="col"
 						class="text-foreground h-10 w-28 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
 						>{m.common_key()}</th
 					>
 					<th
+						scope="col"
 						class="text-foreground h-10 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
 						>{m.common_title()}</th
 					>
 					<th
+						scope="col"
 						class="text-foreground h-10 w-24 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
 						>{m.common_priority()}</th
 					>
 					<th
+						scope="col"
 						class="text-foreground h-10 w-28 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
 						>{m.common_status()}</th
 					>
 					<th
+						scope="col"
 						class="text-foreground h-10 w-32 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
 						>{m.run_executed_by()}</th
 					>
-					<th class="h-10 w-10 bg-clip-padding px-1"></th>
+					<th scope="col" class="h-10 w-10 bg-clip-padding px-1"></th>
 				</tr>
 			</thead>
 			<tbody class="[&_tr:last-child]:border-0">

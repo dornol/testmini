@@ -1133,6 +1133,7 @@
 											type="button"
 											class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"
 											title="Edit name"
+											aria-label="Edit name"
 											onclick={() => startEditGroupName(group.id, group.name)}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
@@ -1143,6 +1144,7 @@
 											type="button"
 											class="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted transition-colors"
 											title="Delete group"
+											aria-label="Delete group"
 											onclick={() => { deleteGroupId = group.id; deleteGroupOpen = true; }}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
@@ -1197,7 +1199,8 @@
 							<!-- Group separator row -->
 							<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 text-sm font-semibold">
 								{#if !dndDisabled}
-									<span use:dragHandle data-drag-handle-group class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 flex justify-center" title="Drag to reorder">
+									<span use:dragHandle data-drag-handle-group class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 flex justify-center" title="Drag to reorder"
+									aria-label="Drag to reorder">
 										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
 									</span>
 								{/if}
@@ -1241,6 +1244,7 @@
 											type="button"
 											class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"
 											title="Edit name"
+											aria-label="Edit name"
 											onclick={() => startEditGroupName(group.id, group.name)}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
@@ -1251,6 +1255,7 @@
 											type="button"
 											class="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted transition-colors"
 											title="Delete group"
+											aria-label="Delete group"
 											onclick={() => { deleteGroupId = group.id; deleteGroupOpen = true; }}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>

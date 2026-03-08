@@ -17,7 +17,7 @@
 		unreadNotificationCount = 0,
 		branding = null
 	}: {
-		user: any;
+		user: { name: string; email: string; image?: string | null } | null;
 		onToggleSidebar: () => void;
 		unreadNotificationCount?: number;
 		branding?: { appName: string; logoUrl: string | null } | null;

@@ -133,13 +133,13 @@ export function createMcpServer(projectId: number) {
 			.select({ name: environmentConfig.name, color: environmentConfig.color })
 			.from(environmentConfig)
 			.where(eq(environmentConfig.projectId, projectId))
-			.orderBy(asc(environmentConfig.sortOrder));
+			.orderBy(asc(environmentConfig.position));
 
 		const priorities = await db
 			.select({ name: priorityConfig.name, color: priorityConfig.color })
 			.from(priorityConfig)
 			.where(eq(priorityConfig.projectId, projectId))
-			.orderBy(asc(priorityConfig.sortOrder));
+			.orderBy(asc(priorityConfig.position));
 
 		const projectInfo = {
 			id: proj.id,

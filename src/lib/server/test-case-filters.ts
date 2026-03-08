@@ -130,6 +130,9 @@ export function buildTestCaseConditions(params: TestCaseFilterParams): SQL {
 	if (params.customFieldFilters && params.customFieldFilters.length > 0) {
 		for (const filter of params.customFieldFilters) {
 			const key = String(filter.fieldId);
+			if (!/^[\w-]+$/.test(key)) {
+				continue; // skip keys with unsafe characters
+			}
 			conditions.push(
 				sql`${testCaseVersion.customFields}->>${key} ILIKE ${'%' + filter.value + '%'}`
 			);

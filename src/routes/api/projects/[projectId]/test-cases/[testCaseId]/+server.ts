@@ -38,6 +38,7 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 			id: tc.id,
 			key: tc.key,
 			automationKey: tc.automationKey ?? null,
+			approvalStatus: tc.approvalStatus,
 			createdAt: tc.createdAt,
 			latestVersion: tc.latestVersion
 		},
@@ -133,13 +134,14 @@ export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ para
 	const testCaseId = Number(params.testCaseId);
 
 	const body = await parseJsonBody(request);
-	const { title, precondition, steps, expectedResult, priority, revision } = body as {
+	const { title, precondition, steps, expectedResult, priority, revision, stepFormat } = body as {
 		title: string;
 		precondition: string;
 		steps: { action: string; expected: string }[];
 		expectedResult: string;
 		priority: string;
 		revision: number;
+		stepFormat?: 'STEPS' | 'GHERKIN';
 	};
 
 	if (!title || title.length < 1 || title.length > 200) {
@@ -178,6 +180,7 @@ export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ para
 				title,
 				precondition: precondition || null,
 				steps: numberedSteps,
+				stepFormat: stepFormat ?? tc.latestVersion?.stepFormat ?? 'STEPS',
 				expectedResult: expectedResult || null,
 				priority,
 				revision: nextRevision,

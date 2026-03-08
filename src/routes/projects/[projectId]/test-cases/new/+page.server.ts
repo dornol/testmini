@@ -32,7 +32,7 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		const { title, precondition, steps, expectedResult, priority, automationKey } =
+		const { title, precondition, steps, expectedResult, priority, automationKey, stepFormat } =
 			form.data as CreateTestCaseInput;
 
 		// Validate automationKey uniqueness before transaction
@@ -92,6 +92,7 @@ export const actions: Actions = {
 					title,
 					precondition: precondition || null,
 					steps: numberedSteps,
+					stepFormat: stepFormat ?? 'STEPS',
 					expectedResult: expectedResult || null,
 					priority,
 					updatedBy: user.id

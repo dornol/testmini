@@ -58,6 +58,8 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 28. [Custom Fields](#custom-fields)
 29. [Execution Comments](#execution-comments)
 30. [Branding](#branding)
+31. [Exploratory Sessions](#exploratory-sessions)
+32. [Approval Workflow](#approval-workflow)
 
 ---
 
@@ -272,6 +274,7 @@ Get full test case detail including the latest version, version history summary,
     "id": 10,
     "key": "TC-0001",
     "automationKey": "login_happy_path",
+    "approvalStatus": "APPROVED",
     "createdAt": "2025-01-15T10:00:00.000Z",
     "latestVersion": {
       "id": 100,
@@ -285,6 +288,7 @@ Get full test case detail including the latest version, version history summary,
       ],
       "expectedResult": "User is authenticated and lands on /dashboard",
       "priority": "HIGH",
+      "stepFormat": "STEPS",
       "revision": 3
     }
   },
@@ -363,6 +367,7 @@ Full update of test case content (title, precondition, steps, expectedResult, pr
 | `steps` | array | No | Array of `{ action, expected }` objects |
 | `expectedResult` | string | No | Free text |
 | `priority` | string | Yes | Project-configured priority name (e.g. `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`) |
+| `stepFormat` | string | No | `STEPS` (default) or `GHERKIN`. When `GHERKIN`, steps use BDD Given/When/Then keywords prepended to the action field. |
 | `revision` | integer | Yes | Current revision number for optimistic locking |
 
 **Response 200**
@@ -2945,3 +2950,186 @@ Copies the shared data set rows into the test case's data sets, and creates any 
 ```json
 { "linked": 3 }
 ```
+
+---
+
+## Exploratory Sessions
+
+Timer-based exploratory testing sessions with free-form notes, screenshots, and test charters.
+
+### List Sessions
+
+`GET /api/projects/:projectId/exploratory-sessions`
+
+**Auth:** Any project member
+
+**Query params:**
+- `status` (optional): `ACTIVE` | `PAUSED` | `COMPLETED`
+- `limit` (optional, default 20, max 50)
+- `offset` (optional, default 0)
+
+**Response 200:**
+```json
+{
+  "sessions": [
+    {
+      "id": 1,
+      "title": "Login flow exploration",
+      "charter": "Explore edge cases in login",
+      "status": "ACTIVE",
+      "startedAt": "2026-03-08T10:00:00Z",
+      "pausedDuration": 0,
+      "completedAt": null,
+      "environment": "Staging",
+      "tags": ["login", "security"],
+      "createdBy": "John",
+      "noteCount": 3
+    }
+  ],
+  "total": 1
+}
+```
+
+### Create Session
+
+`POST /api/projects/:projectId/exploratory-sessions`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Body:**
+```json
+{
+  "title": "Login flow exploration",
+  "charter": "Explore edge cases in login",
+  "environment": "Staging",
+  "tags": ["login", "security"]
+}
+```
+
+**Response 201:** Created session object.
+
+### Get Session
+
+`GET /api/projects/:projectId/exploratory-sessions/:sessionId`
+
+**Auth:** Any project member
+
+**Response 200:** Session object with `notes` array and `creator` object.
+
+### Update Session
+
+`PATCH /api/projects/:projectId/exploratory-sessions/:sessionId`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Body:**
+```json
+{
+  "action": "pause" | "resume" | "complete",
+  "summary": "Found 2 bugs in login flow",
+  "pausedDuration": 120
+}
+```
+
+Other updatable fields: `title`, `charter`, `environment`, `tags`.
+
+**Response 200:** Updated session object.
+
+### Delete Session
+
+`DELETE /api/projects/:projectId/exploratory-sessions/:sessionId`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Response 200:** `{ "success": true }`
+
+### Add Note
+
+`POST /api/projects/:projectId/exploratory-sessions/:sessionId/notes`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Content-Type:** `multipart/form-data`
+
+**Fields:**
+- `content` (required): Note text
+- `noteType` (optional, default `NOTE`): `NOTE` | `BUG` | `QUESTION` | `IDEA`
+- `timestamp` (required): Elapsed seconds from session start
+- `screenshot` (optional): Image file upload
+
+**Response 201:** Created note object.
+
+### Delete Note
+
+`DELETE /api/projects/:projectId/exploratory-sessions/:sessionId/notes/:noteId`
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Response 200:** `{ "success": true }`
+
+---
+
+## Approval Workflow
+
+Manage test case approval status and history.
+
+### Get Approval Status & History
+
+`GET /api/projects/:projectId/test-cases/:testCaseId/approval`
+
+**Auth:** Any project member (via `withProjectAccess`)
+
+**Response 200:**
+```json
+{
+  "approvalStatus": "DRAFT",
+  "history": [
+    {
+      "id": 1,
+      "fromStatus": "DRAFT",
+      "toStatus": "IN_REVIEW",
+      "userId": "abc123",
+      "userName": "John Doe",
+      "comment": null,
+      "createdAt": "2026-03-08T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+### Perform Approval Action
+
+`POST /api/projects/:projectId/test-cases/:testCaseId/approval`
+
+**Auth:** PROJECT_ADMIN, QA, DEV (via `withProjectRole`)
+
+**Request body:**
+```json
+{
+  "action": "submit_review",
+  "comment": "Optional comment (required for reject)"
+}
+```
+
+**Valid actions and transitions:**
+
+| Action | From Status | To Status | Notes |
+|--------|------------|-----------|-------|
+| `submit_review` | `DRAFT` | `IN_REVIEW` | Any editor can submit |
+| `approve` | `IN_REVIEW` | `APPROVED` | PROJECT_ADMIN or QA only; cannot self-approve |
+| `reject` | `IN_REVIEW` | `REJECTED` | PROJECT_ADMIN or QA only; comment required |
+| `revert_draft` | `APPROVED`, `REJECTED` | `DRAFT` | Any editor can revert |
+
+**Response 200:**
+```json
+{
+  "approvalStatus": "IN_REVIEW",
+  "fromStatus": "DRAFT"
+}
+```
+
+**Errors:**
+- `400` - Invalid action or invalid state transition
+- `400` - Missing comment on reject
+- `403` - Self-approval attempt or insufficient role
+- `404` - Test case not found

@@ -197,6 +197,27 @@
       "when": 1773936800000,
       "tag": "0028_parameterized_tests",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1774023100000,
+      "tag": "0029_approval_workflow",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1774023200000,
+      "tag": "0030_gherkin_support",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1774109600000,
+      "tag": "0031_exploratory_sessions",
+      "breakpoints": true
     }
   ]
 }

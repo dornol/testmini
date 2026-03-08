@@ -40,6 +40,9 @@ The following core capabilities are **already implemented**:
 | 28 | Issue Status Sync | Done | Fetch/sync issue status from Jira/GitHub/GitLab, bidirectional links |
 | 29 | Report Export | Done | PDF generation, shareable links with tokens, scheduled report emails |
 | 30 | Parameterized Tests | Done | Parameters, data sets, CSV import, test run expansion, shared data library |
+| 31 | BDD/Gherkin Support | Done | Given/When/Then syntax editor, auto-parse into steps, format toggle |
+| 32 | Test Case Approval Workflow | Done | Draft → In Review → Approved/Rejected, approval history, notifications |
+| 33 | Exploratory Test Sessions | Done | Timer-based sessions, notes with types, screenshot upload, charter |
 
 ---
 
@@ -191,15 +194,15 @@ Items below are lower priority or dependent on user demand:
 
 | Feature | Priority | Notes |
 |---------|----------|-------|
-| Test case approval workflow (Draft -> Review -> Approved) | Medium | Useful for regulated industries; adds review gate before test cases become active |
-| BDD/Gherkin support | Medium | Given/When/Then syntax editor; auto-parse into steps |
-| Exploratory test session recording | Medium | Timer-based session with free-form notes, screenshots, charter |
+| ~~Test case approval workflow (Draft -> Review -> Approved)~~ | ~~Medium~~ | ~~Done -- approvalStatus on test_case (DRAFT/IN_REVIEW/APPROVED/REJECTED); approval_history table; filter by status; badge + action buttons on list/detail; reject with comment; approval history timeline~~ |
+| ~~BDD/Gherkin support~~ | ~~Medium~~ | ~~Done -- Given/When/Then syntax editor; auto-parse into steps; stepFormat on test_case_version~~ |
+| ~~Exploratory test session recording~~ | ~~Medium~~ | ~~Done -- Timer-based session with free-form notes, screenshots, charter~~ |
 | Test plan as separate entity | Low | Currently test runs serve this purpose; separate "plan" adds planning phase before execution |
 | Environment matrix | Low | Define environments centrally, run same suite across multiple environments |
 | Mobile-optimized views | Low | Responsive is done; dedicated mobile UX for field testers |
 | S3/MinIO file storage migration | Low | Replace local file storage with object storage |
 | Team/Organization hierarchy | Low | Multi-team structure above projects |
-| Test case review/approval workflow | Low | Separate from execution -- review test case content changes |
+| ~~Test case review/approval workflow~~ | ~~Low~~ | ~~Done -- merged into approval workflow above~~ |
 | Bulk execution via CLI | Low | `testmini exec --run 123` for headless execution recording |
 | GraphQL API | Low | Alternative to REST for flexible querying |
 | AI-assisted test case generation | Low | Generate test cases from requirements or code changes using LLM |

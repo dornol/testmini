@@ -94,6 +94,7 @@ testmini/
 │   ├── lib/
 │   │   ├── components/             # Shared Svelte components
 │   │   ├── dashboard-widgets.ts    # Dashboard widget definitions and defaults
+│   │   ├── gherkin-parser.ts       # BDD/Gherkin step parser (Given/When/Then)
 │   │   ├── schemas/                # Zod validation schemas (shared between server and client)
 │   │   │   ├── project.schema.ts
 │   │   │   ├── test-run.schema.ts
@@ -146,7 +147,7 @@ testmini/
 │       │   ├── health/
 │       │   ├── mcp/               # MCP Streamable HTTP endpoint
 │       │   ├── notifications/
-│       │   ├── projects/          # Includes webhooks/ CRUD endpoints
+│       │   ├── projects/          # Includes webhooks/, exploratory-sessions/, approval/ endpoints
 │       │   └── users/
 │       ├── auth/                   # Login, pending approval, OAuth callback pages
 │       ├── admin/                  # Admin panel pages (global admin only)
@@ -157,6 +158,7 @@ testmini/
 │               ├── test-cases/
 │               ├── test-runs/
 │               ├── test-suites/
+│               ├── exploratory/
 │               ├── reports/
 │               └── settings/
 │

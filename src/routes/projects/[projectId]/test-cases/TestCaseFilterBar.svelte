@@ -25,6 +25,7 @@
 		assigneeId: string;
 		suiteId: string;
 		execStatus: string;
+		approvalStatus: string;
 		projectTags: { id: number; name: string; color: string }[];
 		projectPriorities: { id: number; name: string; color: string; position: number; isDefault: boolean }[];
 		groups: { id: number; name: string; sortOrder: number; color: string | null }[];
@@ -38,11 +39,13 @@
 
 	let {
 		basePath, projectId, canEdit, hasActiveFilters,
-		search, priority, tagIds, groupId, createdBy, assigneeId, suiteId, execStatus,
+		search, priority, tagIds, groupId, createdBy, assigneeId, suiteId, execStatus, approvalStatus,
 		projectTags, projectPriorities, groups, projectSuites, projectMembers, selectedRunIds,
 		projectCustomFields, customFieldFilters, savedFilters
 	}: Props = $props();
 	const execStatusOptions = ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING', 'NOT_EXECUTED'];
+	const approvalStatusOptions = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'REJECTED'];
+	const selectedApprovalStatuses = $derived(parseMulti(approvalStatus));
 
 	let searchInput = $state('');
 	let searchTimeout: ReturnType<typeof setTimeout>;
@@ -180,6 +183,26 @@
 				<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
 					<Checkbox checked={selectedPriorities.includes(p.name)} onCheckedChange={() => toggleFilter('priority', p.name)} />
 					<PriorityBadge name={p.name} color={p.color} />
+				</label>
+			{/each}
+		</Popover.Content>
+	</Popover.Root>
+
+	<!-- Approval status filter -->
+	<Popover.Root>
+		<Popover.Trigger>
+			{#snippet child({ props })}
+				<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+					{m.approval_filter()}{selectedApprovalStatuses.length > 0 ? ` (${selectedApprovalStatuses.length})` : ''}
+				</Button>
+			{/snippet}
+		</Popover.Trigger>
+		<Popover.Content class="w-40 p-2" align="start">
+			{#each approvalStatusOptions as st}
+				{@const label = st === 'DRAFT' ? m.approval_draft() : st === 'IN_REVIEW' ? m.approval_in_review() : st === 'APPROVED' ? m.approval_approved() : m.approval_rejected()}
+				<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
+					<Checkbox checked={selectedApprovalStatuses.includes(st)} onCheckedChange={() => toggleFilter('approvalStatus', st)} />
+					{label}
 				</label>
 			{/each}
 		</Popover.Content>

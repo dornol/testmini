@@ -33,6 +33,7 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 	const assigneeId = url.searchParams.get('assigneeId') ?? '';
 	const suiteId = url.searchParams.get('suiteId') ?? '';
 	const execStatus = url.searchParams.get('execStatus') ?? '';
+	const approvalStatus = url.searchParams.get('approvalStatus') ?? '';
 
 	// Parse selected run IDs: URL param takes priority, otherwise fall back to cookie
 	const cookieKey = `tc_runIds_${projectId}`;
@@ -64,6 +65,7 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		createdBy,
 		assigneeId,
 		suiteId,
+		approvalStatus,
 		customFieldFilters
 	});
 
@@ -100,6 +102,7 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 			updatedBy: user.name,
 			groupId: testCase.groupId,
 			sortOrder: testCase.sortOrder,
+			approvalStatus: testCase.approvalStatus,
 			customFields: testCaseVersion.customFields
 		})
 		.from(testCase)
@@ -283,6 +286,7 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		assigneeId,
 		suiteId,
 		execStatus,
+		approvalStatus,
 		groups,
 		projectTags,
 		projectMembers,

@@ -18,6 +18,7 @@ interface TestCaseFilterParams {
 	createdBy?: string;
 	assigneeId?: string;
 	suiteId?: string;
+	approvalStatus?: string;
 	customFieldFilters?: { fieldId: number; value: string }[];
 }
 
@@ -116,6 +117,13 @@ export function buildTestCaseConditions(params: TestCaseFilterParams): SQL {
 						)
 				)
 			);
+		}
+	}
+
+	if (params.approvalStatus) {
+		const statuses = params.approvalStatus.split(',').filter(Boolean);
+		if (statuses.length > 0) {
+			conditions.push(inArray(testCase.approvalStatus, statuses));
 		}
 	}
 

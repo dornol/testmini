@@ -81,6 +81,7 @@
 		sortOrder: number;
 		tags: { id: number; name: string; color: string }[];
 		assignees: { userId: string; userName: string }[];
+		approvalStatus: string;
 		customFields: Record<string, unknown> | null;
 		[SHADOW_ITEM_MARKER_PROPERTY_NAME]?: boolean;
 	};
@@ -126,7 +127,7 @@
 		});
 	});
 
-	const hasActiveFilters = $derived(!!data.search || !!data.priority || !!data.tagIds || !!data.groupId || !!data.createdBy || !!data.assigneeId || !!data.suiteId || !!data.execStatus || data.customFieldFilters.length > 0);
+	const hasActiveFilters = $derived(!!data.search || !!data.priority || !!data.tagIds || !!data.groupId || !!data.createdBy || !!data.assigneeId || !!data.suiteId || !!data.execStatus || !!data.approvalStatus || data.customFieldFilters.length > 0);
 	const flipDurationMs = 150;
 
 
@@ -695,6 +696,7 @@
 		assigneeId={data.assigneeId}
 		suiteId={data.suiteId}
 		execStatus={data.execStatus}
+		approvalStatus={data.approvalStatus}
 		projectTags={data.projectTags}
 		projectPriorities={data.projectPriorities}
 		groups={data.groups}
@@ -907,6 +909,12 @@
 					{/if}
 				{/if}
 			</span>
+			<!-- Approval Status -->
+			{#if tc.approvalStatus && tc.approvalStatus !== 'DRAFT'}
+				<span class="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none {tc.approvalStatus === 'IN_REVIEW' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : tc.approvalStatus === 'APPROVED' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : tc.approvalStatus === 'REJECTED' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : ''}">
+					{tc.approvalStatus === 'IN_REVIEW' ? m.approval_in_review() : tc.approvalStatus === 'APPROVED' ? m.approval_approved() : tc.approvalStatus === 'REJECTED' ? m.approval_rejected() : tc.approvalStatus}
+				</span>
+			{/if}
 			<!-- Priority -->
 			{#if canEdit}
 				<button

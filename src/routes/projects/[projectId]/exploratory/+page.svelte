@@ -1,0 +1,194 @@
+<script lang="ts">
+	import { goto, invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import { Textarea } from '$lib/components/ui/textarea/index.js';
+	import * as m from '$lib/paraglide/messages.js';
+	import { toast } from 'svelte-sonner';
+	import { apiPost } from '$lib/api-client';
+
+	let { data } = $props();
+
+	let showNewDialog = $state(false);
+	let newTitle = $state('');
+	let newCharter = $state('');
+	let newEnvironment = $state('');
+	let newTags = $state('');
+	let creating = $state(false);
+
+	const projectId = $derived(data.project.id);
+	const apiBase = $derived(`/api/projects/${projectId}/exploratory-sessions`);
+
+	let statusFilter = $derived(data.statusFilter);
+
+	function setStatusFilter(status: string) {
+		const url = new URL(page.url);
+		if (status) {
+			url.searchParams.set('status', status);
+		} else {
+			url.searchParams.delete('status');
+		}
+		goto(url.toString(), { replaceState: true });
+	}
+
+	function statusVariant(status: string): 'default' | 'secondary' | 'outline' | 'destructive' {
+		if (status === 'ACTIVE') return 'default';
+		if (status === 'PAUSED') return 'secondary';
+		return 'outline';
+	}
+
+	function statusLabel(status: string): string {
+		if (status === 'ACTIVE') return m.exploratory_status_active();
+		if (status === 'PAUSED') return m.exploratory_status_paused();
+		return m.exploratory_status_completed();
+	}
+
+	function formatDuration(session: { startedAt: string | Date; pausedDuration: number; completedAt: string | Date | null; status: string }): string {
+		const start = new Date(session.startedAt).getTime();
+		const end = session.completedAt ? new Date(session.completedAt).getTime() : Date.now();
+		const elapsed = Math.floor((end - start) / 1000) - session.pausedDuration;
+		const secs = Math.max(0, elapsed);
+		const h = Math.floor(secs / 3600);
+		const min = Math.floor((secs % 3600) / 60);
+		const s = secs % 60;
+		if (h > 0) return `${h}h ${min}m`;
+		return `${min}m ${s}s`;
+	}
+
+	async function createSession() {
+		if (!newTitle.trim()) return;
+		creating = true;
+		try {
+			const session = await apiPost<{ id: number }>(apiBase, {
+				title: newTitle.trim(),
+				charter: newCharter.trim() || undefined,
+				environment: newEnvironment.trim() || undefined,
+				tags: newTags.trim() ? newTags.split(',').map((t) => t.trim()).filter(Boolean) : []
+			});
+			toast.success(m.exploratory_created());
+			showNewDialog = false;
+			newTitle = '';
+			newCharter = '';
+			newEnvironment = '';
+			newTags = '';
+			goto(`/projects/${projectId}/exploratory/${session.id}`);
+		} catch {
+			// error toast handled by apiPost
+		} finally {
+			creating = false;
+		}
+	}
+</script>
+
+<div class="space-y-4">
+	<div class="flex items-center justify-between">
+		<h2 class="text-lg font-semibold">{m.exploratory_title()}</h2>
+		<Button size="sm" onclick={() => (showNewDialog = true)}>{m.exploratory_new()}</Button>
+	</div>
+
+	<div class="flex gap-2">
+		<Button
+			variant={statusFilter === '' ? 'default' : 'outline'}
+			size="sm"
+			onclick={() => setStatusFilter('')}
+		>{m.common_all()}</Button>
+		<Button
+			variant={statusFilter === 'ACTIVE' ? 'default' : 'outline'}
+			size="sm"
+			onclick={() => setStatusFilter('ACTIVE')}
+		>{m.exploratory_status_active()}</Button>
+		<Button
+			variant={statusFilter === 'PAUSED' ? 'default' : 'outline'}
+			size="sm"
+			onclick={() => setStatusFilter('PAUSED')}
+		>{m.exploratory_status_paused()}</Button>
+		<Button
+			variant={statusFilter === 'COMPLETED' ? 'default' : 'outline'}
+			size="sm"
+			onclick={() => setStatusFilter('COMPLETED')}
+		>{m.exploratory_status_completed()}</Button>
+	</div>
+
+	{#if data.sessions.length === 0}
+		<div class="text-muted-foreground py-12 text-center">
+			<p class="font-medium">{m.exploratory_empty()}</p>
+			<p class="mt-1 text-sm">{m.exploratory_empty_hint()}</p>
+		</div>
+	{:else}
+		<div class="border rounded-md">
+			<table class="w-full text-sm">
+				<thead>
+					<tr class="border-b bg-muted/50">
+						<th class="px-3 py-2 text-left font-medium">{m.common_title()}</th>
+						<th class="px-3 py-2 text-left font-medium">{m.exploratory_charter()}</th>
+						<th class="px-3 py-2 text-left font-medium">{m.common_status()}</th>
+						<th class="px-3 py-2 text-left font-medium">{m.exploratory_duration()}</th>
+						<th class="px-3 py-2 text-left font-medium">{m.exploratory_notes()}</th>
+						<th class="px-3 py-2 text-left font-medium">{m.tr_created_by()}</th>
+						<th class="px-3 py-2 text-left font-medium">{m.common_date()}</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each data.sessions as session (session.id)}
+						<tr
+							class="border-b hover:bg-muted/30 cursor-pointer transition-colors"
+							onclick={() => goto(`/projects/${projectId}/exploratory/${session.id}`)}
+						>
+							<td class="px-3 py-2 font-medium">{session.title}</td>
+							<td class="px-3 py-2 text-muted-foreground max-w-[200px] truncate">
+								{session.charter ?? '-'}
+							</td>
+							<td class="px-3 py-2">
+								<Badge variant={statusVariant(session.status)}>{statusLabel(session.status)}</Badge>
+							</td>
+							<td class="px-3 py-2 text-muted-foreground">{formatDuration(session)}</td>
+							<td class="px-3 py-2 text-muted-foreground">{session.noteCount}</td>
+							<td class="px-3 py-2 text-muted-foreground">{session.createdBy}</td>
+							<td class="px-3 py-2 text-muted-foreground">
+								{new Date(session.startedAt).toLocaleDateString()}
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+		<p class="text-muted-foreground text-sm">{m.common_total_count({ count: data.total })}</p>
+	{/if}
+</div>
+
+<Dialog.Root bind:open={showNewDialog}>
+	<Dialog.Content class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>{m.exploratory_new()}</Dialog.Title>
+			<Dialog.Description>{m.exploratory_new_desc()}</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-3">
+			<div>
+				<Label>{m.common_title()}</Label>
+				<Input bind:value={newTitle} placeholder={m.exploratory_title_placeholder()} />
+			</div>
+			<div>
+				<Label>{m.exploratory_charter()}</Label>
+				<Textarea bind:value={newCharter} placeholder={m.exploratory_charter_placeholder()} rows={3} />
+			</div>
+			<div>
+				<Label>{m.common_environment()}</Label>
+				<Input bind:value={newEnvironment} placeholder={m.exploratory_env_placeholder()} />
+			</div>
+			<div>
+				<Label>{m.exploratory_tags_label()}</Label>
+				<Input bind:value={newTags} placeholder={m.exploratory_tags_placeholder()} />
+			</div>
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (showNewDialog = false)}>{m.common_cancel()}</Button>
+			<Button onclick={createSession} disabled={creating || !newTitle.trim()}>
+				{creating ? m.common_creating() : m.exploratory_start()}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>

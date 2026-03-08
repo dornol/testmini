@@ -8,7 +8,10 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
+	import GherkinEditor from '$lib/components/GherkinEditor.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import * as Tabs from '$lib/components/ui/tabs/index.js';
+	import { parseGherkin, stepsToGherkin, stepsToGherkinSteps, gherkinStepsToSteps } from '$lib/gherkin-parser';
 	import TemplateSelector from '../TemplateSelector.svelte';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
@@ -30,6 +33,24 @@
 	$effect(() => {
 		formDirty = !!$tainted;
 	});
+
+	let gherkinText = $state('');
+
+	function handleFormatChange(format: string) {
+		const currentSteps = ($form.steps ?? []) as { action: string; expected: string }[];
+
+		if (format === 'GHERKIN') {
+			const gSteps = stepsToGherkinSteps(currentSteps);
+			gherkinText = stepsToGherkin(gSteps);
+			$form.stepFormat = 'GHERKIN';
+		} else {
+			if (gherkinText.trim()) {
+				const parsed = parseGherkin(gherkinText);
+				$form.steps = gherkinStepsToSteps(parsed);
+			}
+			$form.stepFormat = 'STEPS';
+		}
+	}
 
 	interface Template {
 		id: number;
@@ -111,12 +132,35 @@
 					/>
 				</div>
 
-				<StepsEditor
-					value={($form.steps ?? []) as { action: string; expected: string }[]}
-					onchange={(s) => {
-						$form.steps = s;
-					}}
-				/>
+				<div class="space-y-3">
+					<Tabs.Root
+						value={($form.stepFormat as string) ?? 'STEPS'}
+						onValueChange={handleFormatChange}
+					>
+						<Tabs.List class="w-fit">
+							<Tabs.Trigger value="STEPS">{m.step_format_steps()}</Tabs.Trigger>
+							<Tabs.Trigger value="GHERKIN">{m.step_format_gherkin()}</Tabs.Trigger>
+						</Tabs.List>
+					</Tabs.Root>
+
+					{#if $form.stepFormat === 'GHERKIN'}
+						<GherkinEditor
+							value={gherkinText}
+							onchange={(text) => {
+								gherkinText = text;
+								const parsed = parseGherkin(text);
+								$form.steps = gherkinStepsToSteps(parsed);
+							}}
+						/>
+					{:else}
+						<StepsEditor
+							value={($form.steps ?? []) as { action: string; expected: string }[]}
+							onchange={(s) => {
+								$form.steps = s;
+							}}
+						/>
+					{/if}
+				</div>
 
 				<div class="space-y-2">
 					<Label for="expectedResult">{m.tc_expected_result()}</Label>

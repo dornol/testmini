@@ -14,6 +14,9 @@
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { toast } from 'svelte-sonner';
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
+	import GherkinEditor from '$lib/components/GherkinEditor.svelte';
+	import * as Tabs from '$lib/components/ui/tabs/index.js';
+	import { parseGherkin, stepsToGherkin, stepsToGherkinSteps, gherkinStepsToSteps, type GherkinStep } from '$lib/gherkin-parser';
 	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
 	import TagBadge from '$lib/components/TagBadge.svelte';
 	import CommentSection from '$lib/components/CommentSection.svelte';
@@ -23,10 +26,91 @@
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import ParameterDataSection from '$lib/components/ParameterDataSection.svelte';
 	import * as m from '$lib/paraglide/messages.js';
-	import { apiPost, apiDelete } from '$lib/api-client';
+	import { apiPost, apiDelete, apiFetch } from '$lib/api-client';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 
 	let { data } = $props();
+
+	// Approval workflow state
+	interface ApprovalHistoryEntry {
+		id: number;
+		fromStatus: string;
+		toStatus: string;
+		userId: string;
+		userName: string;
+		comment: string | null;
+		createdAt: string;
+	}
+	let approvalStatus = $state(data.testCaseDetail.approvalStatus ?? 'DRAFT');
+	let approvalHistory = $state<ApprovalHistoryEntry[]>([]);
+	let approvalLoading = $state(false);
+	let rejectDialogOpen = $state(false);
+	let rejectComment = $state('');
+
+	// Load approval history on mount
+	$effect(() => {
+		const tcId = data.testCaseDetail.id;
+		const projId = data.project.id;
+		apiFetch<{ approvalStatus: string; history: ApprovalHistoryEntry[] }>(
+			`/api/projects/${projId}/test-cases/${tcId}/approval`
+		).then((result) => {
+			approvalStatus = result.approvalStatus;
+			approvalHistory = result.history;
+		}).catch(() => {});
+	});
+
+	async function handleApprovalAction(action: string, comment?: string) {
+		approvalLoading = true;
+		try {
+			const result = await apiPost<{ approvalStatus: string }>(
+				`/api/projects/${data.project.id}/test-cases/${tc.id}/approval`,
+				{ action, comment }
+			);
+			approvalStatus = result.approvalStatus;
+			// Reload history
+			const refreshed = await apiFetch<{ history: ApprovalHistoryEntry[] }>(
+				`/api/projects/${data.project.id}/test-cases/${tc.id}/approval`
+			);
+			approvalHistory = refreshed.history;
+			// Show toast
+			if (action === 'submit_review') toast.success(m.approval_submitted());
+			else if (action === 'approve') toast.success(m.approval_approved_toast());
+			else if (action === 'reject') toast.success(m.approval_rejected_toast());
+			else if (action === 'revert_draft') toast.success(m.approval_reverted());
+		} catch {
+			toast.error(m.approval_error());
+		} finally {
+			approvalLoading = false;
+			rejectDialogOpen = false;
+			rejectComment = '';
+		}
+	}
+
+	function getApprovalBadgeClass(status: string): string {
+		switch (status) {
+			case 'IN_REVIEW': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+			case 'APPROVED': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+			case 'REJECTED': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+			default: return 'bg-muted text-muted-foreground';
+		}
+	}
+
+	function getApprovalLabel(status: string): string {
+		switch (status) {
+			case 'DRAFT': return m.approval_draft();
+			case 'IN_REVIEW': return m.approval_in_review();
+			case 'APPROVED': return m.approval_approved();
+			case 'REJECTED': return m.approval_rejected();
+			default: return status;
+		}
+	}
+
+	const canApproveReject = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'QA');
+	const latestRejection = $derived(
+		approvalStatus === 'REJECTED'
+			? approvalHistory.find((h) => h.toStatus === 'REJECTED')
+			: null
+	);
 
 	let editing = $state(false);
 	let deleteDialogOpen = $state(false);
@@ -183,6 +267,37 @@
 		}
 	});
 
+	let gherkinText = $state('');
+
+	// Initialize gherkin text when entering edit mode
+	function initGherkinText() {
+		const currentSteps = ($form.steps ?? []) as { action: string; expected: string }[];
+		if ($form.stepFormat === 'GHERKIN') {
+			const gSteps = stepsToGherkinSteps(currentSteps);
+			gherkinText = stepsToGherkin(gSteps);
+		} else {
+			gherkinText = '';
+		}
+	}
+
+	function handleFormatChange(format: string) {
+		const currentSteps = ($form.steps ?? []) as { action: string; expected: string }[];
+
+		if (format === 'GHERKIN') {
+			// Steps -> Gherkin: convert existing steps to Gherkin text
+			const gSteps = stepsToGherkinSteps(currentSteps);
+			gherkinText = stepsToGherkin(gSteps);
+			$form.stepFormat = 'GHERKIN';
+		} else {
+			// Gherkin -> Steps: parse gherkin text back to steps
+			if (gherkinText.trim()) {
+				const parsed = parseGherkin(gherkinText);
+				$form.steps = gherkinStepsToSteps(parsed);
+			}
+			$form.stepFormat = 'STEPS';
+		}
+	}
+
 	const editDirty = $derived(editing && !!$tainted);
 
 	const tc = $derived(data.testCaseDetail);
@@ -260,6 +375,7 @@
 		}
 		lockHolder = null;
 		reset();
+		initGherkinText();
 		editing = true;
 	}
 
@@ -298,7 +414,15 @@
 				{#if version}
 					<PriorityBadge name={version.priority} color={getPriorityColor(version.priority)} />
 				{/if}
+				<span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium {getApprovalBadgeClass(approvalStatus)}">
+					{getApprovalLabel(approvalStatus)}
+				</span>
 			</div>
+			{#if latestRejection?.comment}
+				<p class="mt-1 text-xs text-red-600 dark:text-red-400 italic">
+					{m.approval_reject()}: "{latestRejection.comment}" &mdash; {latestRejection.userName}
+				</p>
+			{/if}
 		</div>
 		<div class="flex items-center gap-2">
 			{#if lockHolder && !editing}
@@ -323,6 +447,24 @@
 					{m.template_save_as()}
 				</Button>
 				<Button size="sm" onclick={startEdit}>{m.common_edit()}</Button>
+			{/if}
+			{#if canEdit && !editing}
+				{#if approvalStatus === 'DRAFT'}
+					<Button variant="outline" size="sm" disabled={approvalLoading} onclick={() => handleApprovalAction('submit_review')}>
+						{m.approval_submit_review()}
+					</Button>
+				{:else if approvalStatus === 'IN_REVIEW' && canApproveReject}
+					<Button variant="outline" size="sm" class="text-green-700 border-green-300 hover:bg-green-50 dark:text-green-400 dark:border-green-700 dark:hover:bg-green-950" disabled={approvalLoading} onclick={() => handleApprovalAction('approve')}>
+						{m.approval_approve()}
+					</Button>
+					<Button variant="outline" size="sm" class="text-red-700 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-950" disabled={approvalLoading} onclick={() => (rejectDialogOpen = true)}>
+						{m.approval_reject()}
+					</Button>
+				{:else if approvalStatus === 'APPROVED' || approvalStatus === 'REJECTED'}
+					<Button variant="outline" size="sm" disabled={approvalLoading} onclick={() => handleApprovalAction('revert_draft')}>
+						{m.approval_revert_draft()}
+					</Button>
+				{/if}
 			{/if}
 			{#if canDelete && !editing}
 				<AlertDialog.Root bind:open={deleteDialogOpen}>
@@ -617,12 +759,35 @@
 								/>
 							</div>
 
-							<StepsEditor
-								value={($form.steps ?? []) as { action: string; expected: string }[]}
-								onchange={(s) => {
-									$form.steps = s;
-								}}
-							/>
+							<div class="space-y-3">
+								<Tabs.Root
+									value={($form.stepFormat as string) ?? 'STEPS'}
+									onValueChange={handleFormatChange}
+								>
+									<Tabs.List class="w-fit">
+										<Tabs.Trigger value="STEPS">{m.step_format_steps()}</Tabs.Trigger>
+										<Tabs.Trigger value="GHERKIN">{m.step_format_gherkin()}</Tabs.Trigger>
+									</Tabs.List>
+								</Tabs.Root>
+
+								{#if $form.stepFormat === 'GHERKIN'}
+									<GherkinEditor
+										value={gherkinText}
+										onchange={(text) => {
+											gherkinText = text;
+											const parsed = parseGherkin(text);
+											$form.steps = gherkinStepsToSteps(parsed);
+										}}
+									/>
+								{:else}
+									<StepsEditor
+										value={($form.steps ?? []) as { action: string; expected: string }[]}
+										onchange={(s) => {
+											$form.steps = s;
+										}}
+									/>
+								{/if}
+							</div>
 
 							<div class="space-y-2">
 								<Label for="expectedResult">{m.tc_expected_result()}</Label>
@@ -782,28 +947,55 @@
 
 						{#if version?.steps && version.steps.length > 0}
 							<div>
-								<h4 class="text-sm font-medium">{m.tc_detail_steps()}</h4>
-								<div class="mt-2 space-y-2">
-									{#each version.steps as step, i (step.order)}
-										<div class="rounded-md border p-3">
-											<div class="text-muted-foreground mb-1 text-xs font-medium">
-												{m.tc_detail_step_n({ n: step.order })}
-											</div>
-											<div class="grid gap-2 sm:grid-cols-2">
-												<div>
-													<span class="text-muted-foreground text-xs">{m.tc_detail_action()}:</span>
-													<p class="text-sm">{step.action}</p>
-												</div>
+								<div class="flex items-center gap-2">
+									<h4 class="text-sm font-medium">{m.tc_detail_steps()}</h4>
+									{#if version.stepFormat === 'GHERKIN'}
+										<span class="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">BDD</span>
+									{/if}
+								</div>
+								{#if version.stepFormat === 'GHERKIN'}
+									<div class="mt-2 space-y-1 rounded-md border p-3">
+										{#each version.steps as step, i (i)}
+											{@const parts = step.action.split(' ')}
+											{@const keyword = parts[0]}
+											{@const stepText = parts.slice(1).join(' ')}
+											{@const isKeyword = ['Given', 'When', 'Then', 'And', 'But'].includes(keyword)}
+											<div class="text-sm">
+												{#if isKeyword}
+													<span class="font-bold {keyword === 'Given' ? 'text-blue-600 dark:text-blue-400' : keyword === 'When' ? 'text-amber-600 dark:text-amber-400' : keyword === 'Then' ? 'text-green-600 dark:text-green-400' : 'text-purple-600 dark:text-purple-400'}">{keyword}</span>
+													<span class="ml-1">{stepText}</span>
+												{:else}
+													<span>{step.action}</span>
+												{/if}
 												{#if step.expected}
-													<div>
-														<span class="text-muted-foreground text-xs">{m.tc_detail_expected()}:</span>
-														<p class="text-sm">{step.expected}</p>
-													</div>
+													<span class="text-muted-foreground text-xs ml-2">({step.expected})</span>
 												{/if}
 											</div>
-										</div>
-									{/each}
-								</div>
+										{/each}
+									</div>
+								{:else}
+									<div class="mt-2 space-y-2">
+										{#each version.steps as step, i (step.order)}
+											<div class="rounded-md border p-3">
+												<div class="text-muted-foreground mb-1 text-xs font-medium">
+													{m.tc_detail_step_n({ n: step.order })}
+												</div>
+												<div class="grid gap-2 sm:grid-cols-2">
+													<div>
+														<span class="text-muted-foreground text-xs">{m.tc_detail_action()}:</span>
+														<p class="text-sm">{step.action}</p>
+													</div>
+													{#if step.expected}
+														<div>
+															<span class="text-muted-foreground text-xs">{m.tc_detail_expected()}:</span>
+															<p class="text-sm">{step.expected}</p>
+														</div>
+													{/if}
+												</div>
+											</div>
+										{/each}
+									</div>
+								{/if}
 							</div>
 						{/if}
 
@@ -1041,6 +1233,37 @@
 				currentUserId={data.currentUserId}
 				userRole={data.userRole}
 			/>
+
+			<!-- Approval History -->
+			{#if approvalHistory.length > 0}
+				<Card.Root>
+					<Card.Header>
+						<Card.Title class="text-base">{m.approval_history_title()}</Card.Title>
+					</Card.Header>
+					<Card.Content>
+						<div class="relative pl-4 space-y-4">
+							<div class="absolute left-1.5 top-1 bottom-1 w-px bg-border"></div>
+							{#each approvalHistory as entry (entry.id)}
+								<div class="relative">
+									<div class="absolute -left-4 top-1 h-3 w-3 rounded-full border-2 border-background {entry.toStatus === 'APPROVED' ? 'bg-green-500' : entry.toStatus === 'REJECTED' ? 'bg-red-500' : entry.toStatus === 'IN_REVIEW' ? 'bg-yellow-500' : 'bg-muted-foreground'}"></div>
+									<div class="text-sm">
+										<span class="font-medium">{entry.userName}</span>
+										<span class="text-muted-foreground">
+											{getApprovalLabel(entry.fromStatus)} &rarr; {getApprovalLabel(entry.toStatus)}
+										</span>
+									</div>
+									{#if entry.comment}
+										<p class="text-sm text-muted-foreground mt-0.5 italic">"{entry.comment}"</p>
+									{/if}
+									<p class="text-xs text-muted-foreground mt-0.5">
+										{new Date(entry.createdAt).toLocaleString()}
+									</p>
+								</div>
+							{/each}
+						</div>
+					</Card.Content>
+				</Card.Root>
+			{/if}
 		</div>
 
 		<!-- Version History Sidebar -->
@@ -1086,3 +1309,35 @@
 	steps={(version?.steps ?? []).map((s: { action: string; expected: string }) => ({ action: s.action, expected: s.expected }))}
 	priority={version?.priority ?? 'MEDIUM'}
 />
+
+<!-- Reject Dialog -->
+<AlertDialog.Root bind:open={rejectDialogOpen}>
+	<AlertDialog.Portal>
+		<AlertDialog.Overlay />
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>{m.approval_reject_title()}</AlertDialog.Title>
+				<AlertDialog.Description>
+					{m.approval_reject_desc()}
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<div class="py-4">
+				<Textarea
+					placeholder={m.approval_reject_comment_placeholder()}
+					bind:value={rejectComment}
+					rows={3}
+				/>
+			</div>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel onclick={() => { rejectComment = ''; }}>{m.common_cancel()}</AlertDialog.Cancel>
+				<Button
+					variant="destructive"
+					disabled={approvalLoading || !rejectComment.trim()}
+					onclick={() => handleApprovalAction('reject', rejectComment)}
+				>
+					{m.approval_reject()}
+				</Button>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Portal>
+</AlertDialog.Root>

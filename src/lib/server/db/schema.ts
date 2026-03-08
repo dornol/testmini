@@ -85,7 +85,8 @@ export const projectRelations = relations(project, ({ many }) => ({
 	groups: many(testCaseGroup),
 	apiKeys: many(projectApiKey),
 	priorities: many(priorityConfig),
-	sharedDataSets: many(sharedDataSet)
+	sharedDataSets: many(sharedDataSet),
+	exploratorySessions: many(exploratorySession)
 }));
 
 // ── ProjectMember ──────────────────────────────────────
@@ -165,6 +166,7 @@ export const testCase = pgTable(
 		latestVersionId: integer('latest_version_id'),
 		groupId: integer('group_id').references(() => testCaseGroup.id, { onDelete: 'set null' }),
 		sortOrder: integer('sort_order').notNull().default(0),
+		approvalStatus: text('approval_status').notNull().default('DRAFT'),
 		createdBy: text('created_by')
 			.notNull()
 			.references(() => user.id),
@@ -196,7 +198,42 @@ export const testCaseRelations = relations(testCase, ({ one, many }) => ({
 	tags: many(testCaseTag),
 	assignees: many(testCaseAssignee),
 	parameters: many(testCaseParameter),
-	dataSets: many(testCaseDataSet)
+	dataSets: many(testCaseDataSet),
+	approvalHistory: many(approvalHistory)
+}));
+
+// ── ApprovalHistory ───────────────────────────────────
+
+export const approvalHistory = pgTable(
+	'approval_history',
+	{
+		id: serial('id').primaryKey(),
+		testCaseId: integer('test_case_id')
+			.notNull()
+			.references(() => testCase.id, { onDelete: 'cascade' }),
+		fromStatus: text('from_status').notNull(),
+		toStatus: text('to_status').notNull(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id),
+		comment: text('comment'),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		index('approval_history_test_case_idx').on(table.testCaseId),
+		index('approval_history_created_idx').on(table.testCaseId, table.createdAt)
+	]
+);
+
+export const approvalHistoryRelations = relations(approvalHistory, ({ one }) => ({
+	testCase: one(testCase, {
+		fields: [approvalHistory.testCaseId],
+		references: [testCase.id]
+	}),
+	user: one(user, {
+		fields: [approvalHistory.userId],
+		references: [user.id]
+	})
 }));
 
 // ── TestCaseVersion ────────────────────────────────────
@@ -211,6 +248,16 @@ export type TestStep = {
 	expected: string;
 };
 
+export type GherkinKeyword = 'Given' | 'When' | 'Then' | 'And' | 'But';
+
+export type GherkinStep = {
+	keyword: GherkinKeyword;
+	text: string;
+	expected: string;
+};
+
+export type StepFormat = 'STEPS' | 'GHERKIN';
+
 export const testCaseVersion = pgTable(
 	'test_case_version',
 	{
@@ -222,6 +269,7 @@ export const testCaseVersion = pgTable(
 		title: text('title').notNull(),
 		precondition: text('precondition'),
 		steps: jsonb('steps').$type<TestStep[]>().default([]).notNull(),
+		stepFormat: text('step_format').$type<StepFormat>().default('STEPS').notNull(),
 		expectedResult: text('expected_result'),
 		priority: text('priority').default('MEDIUM').notNull(),
 		customFields: jsonb('custom_fields').$type<Record<string, unknown>>(),
@@ -1320,5 +1368,72 @@ export const reportScheduleRelations = relations(reportSchedule, ({ one }) => ({
 	project: one(project, {
 		fields: [reportSchedule.projectId],
 		references: [project.id]
+	})
+}));
+
+// ── ExploratorySession ────────────────────────────────
+
+export const exploratorySession = pgTable(
+	'exploratory_session',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		title: text('title').notNull(),
+		charter: text('charter'),
+		status: text('status').notNull().default('ACTIVE'),
+		startedAt: timestamp('started_at').defaultNow().notNull(),
+		pausedDuration: integer('paused_duration').notNull().default(0),
+		completedAt: timestamp('completed_at'),
+		summary: text('summary'),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		environment: text('environment'),
+		tags: jsonb('tags').$type<string[]>().notNull().default([])
+	},
+	(table) => [
+		index('exploratory_session_project_idx').on(table.projectId),
+		index('exploratory_session_status_idx').on(table.projectId, table.status)
+	]
+);
+
+export const exploratorySessionRelations = relations(exploratorySession, ({ one, many }) => ({
+	project: one(project, {
+		fields: [exploratorySession.projectId],
+		references: [project.id]
+	}),
+	creator: one(user, {
+		fields: [exploratorySession.createdBy],
+		references: [user.id]
+	}),
+	notes: many(sessionNote)
+}));
+
+// ── SessionNote ───────────────────────────────────────
+
+export const sessionNote = pgTable(
+	'session_note',
+	{
+		id: serial('id').primaryKey(),
+		sessionId: integer('session_id')
+			.notNull()
+			.references(() => exploratorySession.id, { onDelete: 'cascade' }),
+		content: text('content').notNull(),
+		noteType: text('note_type').notNull().default('NOTE'),
+		timestamp: integer('timestamp').notNull(),
+		screenshotPath: text('screenshot_path'),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		index('session_note_session_idx').on(table.sessionId)
+	]
+);
+
+export const sessionNoteRelations = relations(sessionNote, ({ one }) => ({
+	session: one(exploratorySession, {
+		fields: [sessionNote.sessionId],
+		references: [exploratorySession.id]
 	})
 }));

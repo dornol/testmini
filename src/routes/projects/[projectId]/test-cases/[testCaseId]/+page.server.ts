@@ -48,6 +48,7 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 			title: latest?.title ?? '',
 			precondition: latest?.precondition ?? '',
 			steps: (latest?.steps ?? []).map((s: { action: string; expected: string }) => ({ action: s.action, expected: s.expected })),
+			stepFormat: (latest?.stepFormat as 'STEPS' | 'GHERKIN') ?? 'STEPS',
 			expectedResult: latest?.expectedResult ?? '',
 			priority: latest?.priority ?? 'MEDIUM',
 			revision: latest?.revision ?? 1,
@@ -101,6 +102,8 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 			id: tc.id,
 			key: tc.key,
 			automationKey: tc.automationKey ?? null,
+			approvalStatus: tc.approvalStatus,
+			createdBy: tc.createdBy,
 			createdAt: tc.createdAt,
 			latestVersion: latest
 		},
@@ -133,7 +136,7 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		const { title, precondition, steps, expectedResult, priority, revision, automationKey, customFields: customFieldValues } =
+		const { title, precondition, steps, stepFormat, expectedResult, priority, revision, automationKey, customFields: customFieldValues } =
 			form.data as UpdateTestCaseInput;
 
 		// Optimistic lock check
@@ -189,6 +192,7 @@ export const actions: Actions = {
 					title,
 					precondition: precondition || null,
 					steps: numberedSteps,
+					stepFormat: stepFormat ?? 'STEPS',
 					expectedResult: expectedResult || null,
 					priority,
 					customFields: customFieldValues && Object.keys(customFieldValues).length > 0 ? customFieldValues : null,

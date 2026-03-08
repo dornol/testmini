@@ -22,13 +22,14 @@
 	}
 
 	interface Props {
-		testCaseId: number;
-		projectId: number;
+		testCaseId?: number;
+		projectId?: number;
 		currentUserId: string;
 		userRole: string;
+		commentUrl?: string;
 	}
 
-	let { testCaseId, projectId, currentUserId, userRole }: Props = $props();
+	let { testCaseId, projectId, currentUserId, userRole, commentUrl }: Props = $props();
 
 	const canComment = $derived(userRole !== 'VIEWER');
 
@@ -57,7 +58,7 @@
 	}
 
 	const baseUrl = $derived(
-		`/api/projects/${projectId}/test-cases/${testCaseId}/comments`
+		commentUrl ?? `/api/projects/${projectId}/test-cases/${testCaseId}/comments`
 	);
 
 	async function loadComments() {

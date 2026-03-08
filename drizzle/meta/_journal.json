@@ -141,6 +141,27 @@
       "when": 1773245600000,
       "tag": "0020_notification_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1773332000000,
+      "tag": "0021_custom_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1773418400000,
+      "tag": "0022_execution_comments",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1773504800000,
+      "tag": "0023_issue_tracker",
+      "breakpoints": true
     }
   ]
 }

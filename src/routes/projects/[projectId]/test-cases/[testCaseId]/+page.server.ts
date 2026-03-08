@@ -4,9 +4,9 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { updateTestCaseSchema, type UpdateTestCaseInput } from '$lib/schemas/test-case.schema';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
-import { testCase, testCaseVersion, user, tag, testCaseTag, testCaseAssignee, projectMember } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, user, tag, testCaseTag, testCaseAssignee, projectMember, customField, issueLink, issueTrackerConfig } from '$lib/server/db/schema';
 import { createTagSchema } from '$lib/schemas/tag.schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, asc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { loadTestCaseMetadata } from '$lib/server/queries';
 
@@ -51,7 +51,8 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 			expectedResult: latest?.expectedResult ?? '',
 			priority: latest?.priority ?? 'MEDIUM',
 			revision: latest?.revision ?? 1,
-			automationKey: tc.automationKey ?? ''
+			automationKey: tc.automationKey ?? '',
+			customFields: (latest?.customFields as Record<string, unknown>) ?? {}
 		},
 		// @ts-expect-error zod 3.x safeParse return type mismatch with superforms adapter
 		zod(updateTestCaseSchema)
@@ -62,6 +63,25 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 	// Load project tags, assigned tags, assignees, and project members
 	const { assignedTags, projectTags, assignedAssignees, projectMembers } =
 		await loadTestCaseMetadata(testCaseId, projectId);
+
+	// Load custom field definitions
+	const customFieldDefs = await db
+		.select()
+		.from(customField)
+		.where(eq(customField.projectId, projectId))
+		.orderBy(asc(customField.sortOrder), asc(customField.id));
+
+	// Load issue links for this test case
+	const issueLinks = await db
+		.select()
+		.from(issueLink)
+		.where(eq(issueLink.testCaseId, testCaseId))
+		.orderBy(desc(issueLink.createdAt));
+
+	// Check if issue tracker is configured
+	const trackerConfig = await db.query.issueTrackerConfig.findFirst({
+		where: and(eq(issueTrackerConfig.projectId, projectId), eq(issueTrackerConfig.enabled, true))
+	});
 
 	return {
 		testCaseDetail: {
@@ -77,7 +97,10 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 		assignedTags,
 		assignedAssignees,
 		projectMembers,
-		currentUserId: authUser.id
+		currentUserId: authUser.id,
+		customFieldDefs,
+		issueLinks,
+		hasIssueTracker: !!trackerConfig
 	};
 };
 
@@ -95,7 +118,7 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		const { title, precondition, steps, expectedResult, priority, revision, automationKey } =
+		const { title, precondition, steps, expectedResult, priority, revision, automationKey, customFields: customFieldValues } =
 			form.data as UpdateTestCaseInput;
 
 		// Optimistic lock check
@@ -153,6 +176,7 @@ export const actions: Actions = {
 					steps: numberedSteps,
 					expectedResult: expectedResult || null,
 					priority,
+					customFields: customFieldValues && Object.keys(customFieldValues).length > 0 ? customFieldValues : null,
 					revision: nextRevision,
 					updatedBy: authUser.id
 				})

@@ -17,8 +17,9 @@ import { publish } from '$lib/server/redis';
 import { createNotification } from '$lib/server/notifications';
 import type { RunEvent } from '$lib/types/events';
 
-export const load: PageServerLoad = async ({ params, parent, url }) => {
+export const load: PageServerLoad = async ({ params, parent, url, locals }) => {
 	await parent();
+	const authUser = requireAuth(locals);
 	const projectId = Number(params.projectId);
 	const runId = Number(params.runId);
 
@@ -114,7 +115,8 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		executions,
 		failures,
 		stats,
-		statusFilter
+		statusFilter,
+		currentUserId: authUser.id
 	};
 };
 

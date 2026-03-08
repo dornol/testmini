@@ -157,6 +157,10 @@
 		{selectedPending}
 		{allPendingSelected}
 		{pendingExecutions}
+		{projectId}
+		{runId}
+		currentUserId={data.currentUserId}
+		userRole={data.userRole}
 		onTogglePendingAll={togglePendingAll}
 		onTogglePending={togglePending}
 		onOpenFailDialog={openFailDialog}

@@ -8,7 +8,7 @@ import {
 	testCaseAssignee,
 	user
 } from '$lib/server/db/schema';
-import { eq, and, sql, desc, count, isNotNull, gte, lte } from 'drizzle-orm';
+import { eq, and, sql, desc, count, isNotNull, gte, lte, max, isNull } from 'drizzle-orm';
 
 function toDateString(date: Date): string {
 	return date.toISOString().slice(0, 10);
@@ -76,7 +76,8 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		dailyResults,
 		executorStats,
 		topFailingCases,
-		flakyTests
+		flakyTests,
+		staleTests
 	] = await Promise.all([
 		// Pass rate by environment
 		db
@@ -274,7 +275,24 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 				sql`count(case when ${testExecution.status} = 'PASS' then 1 end) > 0 AND count(case when ${testExecution.status} = 'FAIL' then 1 end) > 0`
 			)
 			.orderBy(desc(sql`count(case when ${testExecution.status} = 'FAIL' then 1 end)`))
-			.limit(10)
+			.limit(10),
+
+		// Stale test cases: not executed recently (or never executed)
+		db
+			.select({
+				testCaseId: testCase.id,
+				testCaseKey: testCase.key,
+				title: testCaseVersion.title,
+				priority: testCaseVersion.priority,
+				lastExecutedAt: max(testExecution.executedAt)
+			})
+			.from(testCase)
+			.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
+			.leftJoin(testExecution, eq(testExecution.testCaseVersionId, testCaseVersion.id))
+			.where(eq(testCase.projectId, projectId))
+			.groupBy(testCase.id, testCase.key, testCaseVersion.title, testCaseVersion.priority)
+			.orderBy(sql`max(${testExecution.executedAt}) ASC NULLS FIRST`)
+			.limit(20)
 	]);
 
 	return {
@@ -287,6 +305,7 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		executorStats,
 		topFailingCases,
 		flakyTests,
+		staleTests,
 		dateRange: {
 			from: fromDate ? toDateString(fromDate) : null,
 			to: toDate ? toDateString(toDate) : null,

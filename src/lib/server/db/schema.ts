@@ -221,6 +221,7 @@ export const testCaseVersion = pgTable(
 		steps: jsonb('steps').$type<TestStep[]>().default([]).notNull(),
 		expectedResult: text('expected_result'),
 		priority: text('priority').default('MEDIUM').notNull(),
+		customFields: jsonb('custom_fields').$type<Record<string, unknown>>(),
 		revision: integer('revision').default(1).notNull(),
 		updatedBy: text('updated_by')
 			.notNull()
@@ -911,6 +912,164 @@ export const projectWebhookRelations = relations(projectWebhook, ({ one }) => ({
 	}),
 	creator: one(user, {
 		fields: [projectWebhook.createdBy],
+		references: [user.id]
+	})
+}));
+
+// ── CustomField ───────────────────────────────────────
+
+export const customField = pgTable(
+	'custom_field',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		fieldType: text('field_type').notNull(),
+		options: jsonb('options').$type<string[]>(),
+		required: boolean('required').notNull().default(false),
+		sortOrder: integer('sort_order').notNull().default(0),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		unique('custom_field_project_name_unique').on(table.projectId, table.name),
+		index('custom_field_project_idx').on(table.projectId)
+	]
+);
+
+export const customFieldRelations = relations(customField, ({ one }) => ({
+	project: one(project, {
+		fields: [customField.projectId],
+		references: [project.id]
+	})
+}));
+
+// ── ExecutionComment ──────────────────────────────────
+
+export const executionComment = pgTable(
+	'execution_comment',
+	{
+		id: serial('id').primaryKey(),
+		testExecutionId: integer('test_execution_id')
+			.notNull()
+			.references(() => testExecution.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id),
+		content: text('content').notNull(),
+		parentId: integer('parent_id'),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at')
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		index('execution_comment_exec_created_idx').on(table.testExecutionId, table.createdAt),
+		index('execution_comment_parent_idx').on(table.parentId)
+	]
+);
+
+export const executionCommentRelations = relations(executionComment, ({ one, many }) => ({
+	testExecution: one(testExecution, {
+		fields: [executionComment.testExecutionId],
+		references: [testExecution.id]
+	}),
+	user: one(user, {
+		fields: [executionComment.userId],
+		references: [user.id]
+	}),
+	parent: one(executionComment, {
+		fields: [executionComment.parentId],
+		references: [executionComment.id],
+		relationName: 'execReplies'
+	}),
+	replies: many(executionComment, { relationName: 'execReplies' })
+}));
+
+// ── IssueTrackerConfig ────────────────────────────────
+
+export const issueTrackerConfig = pgTable(
+	'issue_tracker_config',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		provider: text('provider').notNull(),
+		baseUrl: text('base_url').notNull(),
+		apiToken: text('api_token'),
+		projectKey: text('project_key'),
+		customTemplate: jsonb('custom_template').$type<Record<string, unknown>>(),
+		enabled: boolean('enabled').default(true).notNull(),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [unique('issue_tracker_config_project_unique').on(table.projectId)]
+);
+
+export const issueTrackerConfigRelations = relations(issueTrackerConfig, ({ one }) => ({
+	project: one(project, {
+		fields: [issueTrackerConfig.projectId],
+		references: [project.id]
+	}),
+	creator: one(user, {
+		fields: [issueTrackerConfig.createdBy],
+		references: [user.id]
+	})
+}));
+
+// ── IssueLink ─────────────────────────────────────────
+
+export const issueLink = pgTable(
+	'issue_link',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		testCaseId: integer('test_case_id').references(() => testCase.id, { onDelete: 'cascade' }),
+		testExecutionId: integer('test_execution_id').references(() => testExecution.id, {
+			onDelete: 'cascade'
+		}),
+		externalUrl: text('external_url').notNull(),
+		externalKey: text('external_key'),
+		title: text('title'),
+		status: text('status'),
+		provider: text('provider').notNull(),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		index('issue_link_project_idx').on(table.projectId),
+		index('issue_link_test_case_idx').on(table.testCaseId),
+		index('issue_link_test_execution_idx').on(table.testExecutionId)
+	]
+);
+
+export const issueLinkRelations = relations(issueLink, ({ one }) => ({
+	project: one(project, {
+		fields: [issueLink.projectId],
+		references: [project.id]
+	}),
+	testCase: one(testCase, {
+		fields: [issueLink.testCaseId],
+		references: [testCase.id]
+	}),
+	testExecution: one(testExecution, {
+		fields: [issueLink.testExecutionId],
+		references: [testExecution.id]
+	}),
+	creator: one(user, {
+		fields: [issueLink.createdBy],
 		references: [user.id]
 	})
 }));

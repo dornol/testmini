@@ -22,6 +22,7 @@
 	const executorStats = $derived(data.executorStats);
 	const topFailingCases = $derived(data.topFailingCases);
 	const flakyTests = $derived(data.flakyTests);
+	const staleTests = $derived(data.staleTests);
 	const dateRange = $derived(data.dateRange);
 
 	// Active filter state — derived from server data.
@@ -615,6 +616,53 @@
 											<div class="bg-red-500" style="width: {barWidth(fail, total)}"></div>
 										{/if}
 									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
+	<!-- Stale Test Cases -->
+	{#if staleTests.length > 0}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="text-sm font-medium">{m.stale_tests_title()}</Card.Title>
+				<Card.Description>{m.stale_tests_desc()}</Card.Description>
+			</Card.Header>
+			<Card.Content class="p-0">
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>{m.reports_test_case()}</Table.Head>
+							<Table.Head class="w-28">{m.common_priority()}</Table.Head>
+							<Table.Head class="w-36">{m.stale_tests_last_executed()}</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each staleTests as tc (tc.testCaseId)}
+							{@const daysAgo = tc.lastExecutedAt ? Math.floor((Date.now() - new Date(tc.lastExecutedAt).getTime()) / 86400000) : null}
+							<Table.Row
+								class="cursor-pointer"
+								onclick={() => { window.location.href = `/projects/${data.project.id}/test-cases/${tc.testCaseId}`; }}
+							>
+								<Table.Cell>
+									<div>
+										<span class="text-muted-foreground text-xs">{tc.testCaseKey}</span>
+										<span class="ml-1 font-medium">{tc.title}</span>
+									</div>
+								</Table.Cell>
+								<Table.Cell>
+									<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
+								</Table.Cell>
+								<Table.Cell>
+									{#if daysAgo === null}
+										<Badge variant="outline" class="bg-red-50 text-red-700 border-red-300 text-xs">{m.stale_tests_never()}</Badge>
+									{:else}
+										<span class="text-muted-foreground text-sm {daysAgo > 30 ? 'text-yellow-600 font-medium' : ''}">{m.stale_tests_days_ago({ days: daysAgo })}</span>
+									{/if}
 								</Table.Cell>
 							</Table.Row>
 						{/each}

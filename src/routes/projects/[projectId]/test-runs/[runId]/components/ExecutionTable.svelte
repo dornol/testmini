@@ -37,6 +37,10 @@
 		selectedPending: Set<number>;
 		allPendingSelected: boolean;
 		pendingExecutions: Execution[];
+		projectId: number;
+		runId: number;
+		currentUserId: string;
+		userRole: string;
 		onTogglePendingAll: () => void;
 		onTogglePending: (id: number) => void;
 		onOpenFailDialog: (execId: number, key: string) => void;
@@ -53,6 +57,10 @@
 		selectedPending,
 		allPendingSelected,
 		pendingExecutions,
+		projectId,
+		runId,
+		currentUserId,
+		userRole,
 		onTogglePendingAll,
 		onTogglePending,
 		onOpenFailDialog,
@@ -86,6 +94,7 @@
 	const allStatuses = ['PENDING', 'PASS', 'FAIL', 'BLOCKED', 'SKIPPED'];
 
 	let viewFailuresExecId = $state<number | null>(null);
+	let commentOpenExecId = $state<number | null>(null);
 	let updatingExecId = $state<number | null>(null);
 
 	// Pass scroll container ref to parent via callback
@@ -113,6 +122,9 @@
 			let h = ROW_HEIGHT;
 			if (exec.status === 'FAIL' && viewFailuresExecId === exec.id) {
 				h += expandedHeights.get(exec.id) ?? 300;
+			}
+			if (commentOpenExecId === exec.id) {
+				h += expandedHeights.get(-exec.id) ?? 400;
 			}
 			offsets.push(offsets[i] + h);
 		}
@@ -236,6 +248,15 @@
 		}
 	}
 
+	function handleToggleComments(execId: number) {
+		if (commentOpenExecId === execId) {
+			expandedHeights.delete(-execId);
+			commentOpenExecId = null;
+		} else {
+			commentOpenExecId = execId;
+		}
+	}
+
 	function handleDropdownKeydown(event: KeyboardEvent) {
 		if (!statusDropdown) return;
 		const items = Array.from(
@@ -320,6 +341,7 @@
 						class="text-foreground h-10 w-32 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
 						>{m.run_executed_by()}</th
 					>
+					<th class="h-10 w-10 bg-clip-padding px-1"></th>
 				</tr>
 			</thead>
 			<tbody class="[&_tr:last-child]:border-0">
@@ -334,9 +356,15 @@
 						isUpdating={updatingExecId === exec.id}
 						priorityColor={getPriorityColor(exec.testCasePriority)}
 						{viewFailuresExecId}
+						{commentOpenExecId}
+						{projectId}
+						{runId}
+						{currentUserId}
+						{userRole}
 						onToggleSelect={onTogglePending}
 						onToggleStatusDropdown={toggleStatusDropdown}
 						onToggleViewFailures={handleToggleViewFailures}
+						onToggleComments={handleToggleComments}
 						{onOpenFailDialog}
 						{onOpenEditFailure}
 						{onOpenDeleteFailure}

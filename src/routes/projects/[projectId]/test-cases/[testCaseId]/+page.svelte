@@ -11,6 +11,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { toast } from 'svelte-sonner';
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
 	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
@@ -21,7 +22,7 @@
 	import SaveAsTemplateDialog from '../SaveAsTemplateDialog.svelte';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import * as m from '$lib/paraglide/messages.js';
-	import { apiPost } from '$lib/api-client';
+	import { apiPost, apiDelete } from '$lib/api-client';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 
 	let { data } = $props();
@@ -31,6 +32,78 @@
 	let showVersions = $state(false);
 	let lockHolder = $state<{ userName: string } | null>(null);
 	let saveAsTemplateOpen = $state(false);
+
+	// Issue links
+	interface IssueLinkRecord {
+		id: number;
+		externalUrl: string;
+		externalKey: string | null;
+		title: string | null;
+		status: string | null;
+		provider: string;
+	}
+	let issueLinks = $state<IssueLinkRecord[]>(data.issueLinks as IssueLinkRecord[]);
+	let showLinkForm = $state(false);
+	let newIssueUrl = $state('');
+	let linkingIssue = $state(false);
+	let creatingIssue = $state(false);
+	let deleteIssueLinkId = $state<number | null>(null);
+
+	async function handleLinkIssue() {
+		if (linkingIssue || !newIssueUrl.trim()) return;
+		linkingIssue = true;
+		try {
+			const created = await apiPost<IssueLinkRecord>(
+				`/api/projects/${data.project.id}/issue-links`,
+				{ testCaseId: tc.id, externalUrl: newIssueUrl.trim() }
+			);
+			issueLinks = [created, ...issueLinks];
+			newIssueUrl = '';
+			showLinkForm = false;
+			toast.success(m.issue_link_linked());
+		} catch {
+			// handled
+		} finally {
+			linkingIssue = false;
+		}
+	}
+
+	async function handleCreateIssue() {
+		if (creatingIssue) return;
+		creatingIssue = true;
+		try {
+			const created = await apiPost<IssueLinkRecord>(
+				`/api/projects/${data.project.id}/issue-links/create-issue`,
+				{
+					testCaseId: tc.id,
+					title: `[${tc.key}] ${version?.title ?? 'Test failure'}`,
+					description: `Test case ${tc.key} requires attention.\n\nTitle: ${version?.title ?? ''}\nPriority: ${version?.priority ?? ''}`
+				}
+			);
+			issueLinks = [created, ...issueLinks];
+			toast.success(m.issue_link_created());
+		} catch {
+			// handled
+		} finally {
+			creatingIssue = false;
+		}
+	}
+
+	async function handleRemoveIssueLink() {
+		if (!deleteIssueLinkId) return;
+		const id = deleteIssueLinkId;
+		try {
+			await apiDelete(
+				`/api/projects/${data.project.id}/issue-links/${id}`
+			);
+			issueLinks = issueLinks.filter((l) => l.id !== id);
+			toast.success(m.issue_link_removed());
+		} catch {
+			// handled
+		} finally {
+			deleteIssueLinkId = null;
+		}
+	}
 
 	// Inline tag creation
 	let tagSearchInput = $state('');
@@ -67,6 +140,22 @@
 	const canEdit = $derived(data.userRole !== 'VIEWER');
 	const canDelete = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
 	const basePath = $derived(`/projects/${data.project.id}/test-cases`);
+	const customFieldDefs = $derived(data.customFieldDefs ?? []);
+	const customFieldValues = $derived((version?.customFields ?? {}) as Record<string, unknown>);
+
+	function getCustomFieldFormValues(): Record<string, unknown> {
+		return ($form.customFields ?? {}) as Record<string, unknown>;
+	}
+
+	function setCustomFieldValue(key: string, value: unknown) {
+		const current = getCustomFieldFormValues();
+		current[key] = value;
+		($form as Record<string, unknown>).customFields = { ...current };
+	}
+
+	function getCustomFieldValue(key: string): unknown {
+		return getCustomFieldFormValues()[key];
+	}
 
 	async function cloneTestCase() {
 		try {
@@ -511,6 +600,106 @@
 								{/if}
 							</div>
 
+							{#if customFieldDefs.length > 0}
+								<div class="space-y-3 border-t pt-4">
+									<h4 class="text-sm font-medium">{m.custom_field_title()}</h4>
+									{#each customFieldDefs as cf (cf.id)}
+										{@const fieldKey = String(cf.id)}
+										<div class="space-y-1">
+											<Label for="cf-{cf.id}">
+												{cf.name}
+												{#if cf.required}<span class="text-destructive">*</span>{/if}
+											</Label>
+											{#if cf.fieldType === 'TEXT'}
+												<Input
+													id="cf-{cf.id}"
+													value={(getCustomFieldValue(fieldKey) as string) ?? ''}
+													oninput={(e) => {
+														setCustomFieldValue(fieldKey, e.currentTarget.value);
+													}}
+												/>
+											{:else if cf.fieldType === 'NUMBER'}
+												<Input
+													id="cf-{cf.id}"
+													type="number"
+													value={(getCustomFieldValue(fieldKey) as string) ?? ''}
+													oninput={(e) => {
+														const v = e.currentTarget.value;
+														setCustomFieldValue(fieldKey, v === '' ? null : Number(v));
+													}}
+												/>
+											{:else if cf.fieldType === 'DATE'}
+												<Input
+													id="cf-{cf.id}"
+													type="date"
+													value={(getCustomFieldValue(fieldKey) as string) ?? ''}
+													oninput={(e) => {
+														setCustomFieldValue(fieldKey, e.currentTarget.value || null);
+													}}
+												/>
+											{:else if cf.fieldType === 'URL'}
+												<Input
+													id="cf-{cf.id}"
+													type="url"
+													value={(getCustomFieldValue(fieldKey) as string) ?? ''}
+													placeholder="https://..."
+													oninput={(e) => {
+														setCustomFieldValue(fieldKey, e.currentTarget.value || null);
+													}}
+												/>
+											{:else if cf.fieldType === 'CHECKBOX'}
+												<div class="flex items-center gap-2">
+													<Checkbox
+														id="cf-{cf.id}"
+														checked={!!getCustomFieldValue(fieldKey)}
+														onCheckedChange={(checked) => {
+															setCustomFieldValue(fieldKey, !!checked);
+														}}
+													/>
+												</div>
+											{:else if cf.fieldType === 'SELECT'}
+												<Select.Root
+													type="single"
+													value={(getCustomFieldValue(fieldKey) as string) ?? ''}
+													onValueChange={(v) => {
+														setCustomFieldValue(fieldKey, v || null);
+													}}
+												>
+													<Select.Trigger class="w-full">
+														{(getCustomFieldValue(fieldKey) as string) || '-'}
+													</Select.Trigger>
+													<Select.Content>
+														{#each cf.options ?? [] as opt (opt)}
+															<Select.Item value={opt} label={opt} />
+														{/each}
+													</Select.Content>
+												</Select.Root>
+											{:else if cf.fieldType === 'MULTISELECT'}
+												{@const selected = ((getCustomFieldValue(fieldKey) ?? []) as string[])}
+												<div class="flex flex-wrap gap-2">
+													{#each cf.options ?? [] as opt (opt)}
+														<label class="inline-flex items-center gap-1.5 text-sm cursor-pointer">
+															<Checkbox
+																checked={selected.includes(opt)}
+																onCheckedChange={(checked) => {
+																	const cur = ((getCustomFieldValue(fieldKey) ?? []) as string[]);
+																	if (checked) {
+																		setCustomFieldValue(fieldKey, [...cur, opt]);
+																	} else {
+																		setCustomFieldValue(fieldKey, cur.filter((v) => v !== opt));
+																	}
+																}}
+															/>
+															{opt}
+														</label>
+													{/each}
+												</div>
+											{/if}
+										</div>
+									{/each}
+								</div>
+							{/if}
+
 							<div class="flex gap-3">
 								<Button type="submit" disabled={$submitting}>
 									{$submitting ? m.common_saving() : m.common_save_changes()}
@@ -585,6 +774,41 @@
 								</p>
 							</div>
 						{/if}
+
+						{#if customFieldDefs.length > 0}
+							{@const hasAnyValue = customFieldDefs.some((cf) => {
+								const v = customFieldValues[String(cf.id)];
+								return v != null && v !== '' && !(Array.isArray(v) && v.length === 0);
+							})}
+							{#if hasAnyValue}
+								<div class="border-t pt-4 space-y-3">
+									<h4 class="text-sm font-medium">{m.custom_field_title()}</h4>
+									{#each customFieldDefs as cf (cf.id)}
+										{@const val = customFieldValues[String(cf.id)]}
+										{#if val != null && val !== '' && !(Array.isArray(val) && val.length === 0)}
+											<div>
+												<span class="text-muted-foreground text-xs">{cf.name}</span>
+												{#if cf.fieldType === 'URL' && typeof val === 'string'}
+													<p class="text-sm mt-0.5">
+														<a href={val} target="_blank" rel="noopener noreferrer" class="text-primary underline">{val}</a>
+													</p>
+												{:else if cf.fieldType === 'CHECKBOX'}
+													<p class="text-sm mt-0.5">{val ? 'Yes' : 'No'}</p>
+												{:else if cf.fieldType === 'MULTISELECT' && Array.isArray(val)}
+													<div class="flex flex-wrap gap-1 mt-0.5">
+														{#each val as v (v)}
+															<Badge variant="secondary" class="text-xs">{v}</Badge>
+														{/each}
+													</div>
+												{:else}
+													<p class="text-muted-foreground mt-0.5 text-sm">{String(val)}</p>
+												{/if}
+											</div>
+										{/if}
+									{/each}
+								</div>
+							{/if}
+						{/if}
 					</Card.Content>
 				</Card.Root>
 			{/if}
@@ -599,6 +823,132 @@
 					/>
 				</Card.Content>
 			</Card.Root>
+
+			<!-- Issue Links -->
+			<Card.Root>
+				<Card.Header>
+					<div class="flex items-center justify-between">
+						<Card.Title class="text-base">{m.issue_link_title()}</Card.Title>
+						{#if canEdit}
+							<div class="flex gap-2">
+								{#if data.hasIssueTracker}
+									<Button
+										variant="outline"
+										size="sm"
+										disabled={creatingIssue}
+										onclick={handleCreateIssue}
+									>
+										{creatingIssue ? m.common_loading() : m.issue_link_create()}
+									</Button>
+								{/if}
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={() => (showLinkForm = !showLinkForm)}
+								>
+									{m.issue_link_add()}
+								</Button>
+							</div>
+						{/if}
+					</div>
+				</Card.Header>
+				<Card.Content>
+					{#if showLinkForm}
+						<form
+							onsubmit={(e) => {
+								e.preventDefault();
+								handleLinkIssue();
+							}}
+							class="mb-4 flex gap-2"
+						>
+							<Input
+								placeholder={m.issue_link_url_placeholder()}
+								type="url"
+								bind:value={newIssueUrl}
+								required
+								class="flex-1"
+							/>
+							<Button type="submit" size="sm" disabled={linkingIssue || !newIssueUrl.trim()}>
+								{linkingIssue ? m.common_loading() : m.issue_link_add()}
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onclick={() => {
+									showLinkForm = false;
+									newIssueUrl = '';
+								}}
+							>
+								{m.common_cancel()}
+							</Button>
+						</form>
+					{/if}
+
+					{#if issueLinks.length === 0}
+						<p class="text-muted-foreground text-sm">{m.issue_link_empty()}</p>
+					{:else}
+						<div class="space-y-2">
+							{#each issueLinks as link (link.id)}
+								<div class="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+									<div class="min-w-0 flex-1">
+										<div class="flex items-center gap-2">
+											{#if link.externalKey}
+												<span class="text-xs font-mono font-medium">{link.externalKey}</span>
+											{/if}
+											{#if link.status}
+												<Badge variant="outline" class="text-xs">{link.status}</Badge>
+											{/if}
+										</div>
+										<a
+											href={link.externalUrl}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="text-primary text-sm hover:underline truncate block"
+										>
+											{link.title || link.externalUrl}
+										</a>
+									</div>
+									{#if canEdit}
+										<Button
+											variant="ghost"
+											size="sm"
+											class="text-destructive hover:text-destructive h-7 px-2 text-xs shrink-0"
+											onclick={() => (deleteIssueLinkId = link.id)}
+										>
+											{m.common_delete()}
+										</Button>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</Card.Content>
+			</Card.Root>
+
+			<!-- Delete issue link dialog -->
+			<AlertDialog.Root
+				open={!!deleteIssueLinkId}
+				onOpenChange={(open) => {
+					if (!open) deleteIssueLinkId = null;
+				}}
+			>
+				<AlertDialog.Portal>
+					<AlertDialog.Overlay />
+					<AlertDialog.Content>
+						<AlertDialog.Header>
+							<AlertDialog.Title>{m.issue_link_remove_title()}</AlertDialog.Title>
+							<AlertDialog.Description>
+								{m.issue_link_remove_confirm()}
+							</AlertDialog.Description>
+						</AlertDialog.Header>
+						<AlertDialog.Footer>
+							<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+							<Button variant="destructive" onclick={handleRemoveIssueLink}>{m.common_delete()}</Button>
+						</AlertDialog.Footer>
+					</AlertDialog.Content>
+				</AlertDialog.Portal>
+			</AlertDialog.Root>
 
 			<!-- Comments -->
 			<CommentSection

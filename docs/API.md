@@ -43,6 +43,8 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 17. [Priority Configuration](#priority-configuration)
 18. [MCP Server](#mcp-server)
 19. [Webhooks](#webhooks)
+20. [Issue Tracker](#issue-tracker)
+21. [Issue Links](#issue-links)
 
 ---
 
@@ -2105,6 +2107,175 @@ All webhook deliveries use `POST` with `Content-Type: application/json`:
 ```
 
 If a signing secret is configured, the request includes an `X-Webhook-Signature` header with `sha256=<hex>` (HMAC-SHA256 of the raw JSON body).
+
+---
+
+## Issue Tracker
+
+Per-project external issue tracker configuration. Supports Jira, GitHub Issues, GitLab Issues, and custom webhook providers.
+
+### `GET /api/projects/:projectId/issue-tracker`
+
+Returns the issue tracker configuration for the project, or `null` if not configured.
+
+**Auth:** Any project member
+
+**Response:** `200 OK`
+
+```json
+{
+  "id": 1,
+  "provider": "JIRA",
+  "baseUrl": "https://company.atlassian.net",
+  "projectKey": "PROJ",
+  "customTemplate": null,
+  "enabled": true,
+  "hasApiToken": true,
+  "createdAt": "2025-03-08T00:00:00.000Z"
+}
+```
+
+> Note: The raw `apiToken` is never returned. Only `hasApiToken` (boolean) indicates whether a token is stored.
+
+### `POST /api/projects/:projectId/issue-tracker`
+
+Creates or updates the issue tracker configuration. If a config already exists for the project, it is updated (upsert).
+
+**Auth:** `PROJECT_ADMIN`
+
+**Body:**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `provider` | `string` | Yes | One of: `JIRA`, `GITHUB`, `GITLAB`, `CUSTOM` |
+| `baseUrl` | `string` | Yes | Must be a valid `http` or `https` URL |
+| `apiToken` | `string` | No | Stored securely. Omit to keep existing token on update |
+| `projectKey` | `string` | No | Jira project key, GitHub `owner/repo`, or GitLab project ID |
+| `customTemplate` | `object` | No | Custom provider template (e.g., `{ "headers": {...} }`) |
+| `enabled` | `boolean` | No | Default `true` |
+
+**Response:** `201 Created` (new) or `200 OK` (update) — same shape as GET
+
+### `DELETE /api/projects/:projectId/issue-tracker`
+
+Removes the issue tracker configuration.
+
+**Auth:** `PROJECT_ADMIN`
+
+**Response:** `200 OK` `{ "success": true }`
+
+### `POST /api/projects/:projectId/issue-tracker/test`
+
+Tests connectivity to the configured issue tracker.
+
+**Auth:** `PROJECT_ADMIN`
+
+**Response:** `200 OK`
+
+```json
+{ "ok": true, "message": "Connected as Test User" }
+```
+
+Returns `404` if no tracker is configured. Returns `{ "ok": false, "message": "..." }` if the tracker is disabled or the connection fails.
+
+---
+
+## Issue Links
+
+Link test cases or test executions to external issues (Jira tickets, GitHub issues, etc.).
+
+### `GET /api/projects/:projectId/issue-links`
+
+Lists issue links for the project, optionally filtered by test case or execution.
+
+**Auth:** Any project member
+
+**Query params:**
+
+| Param | Type | Description |
+|---|---|---|
+| `testCaseId` | `number` | Filter by test case ID |
+| `testExecutionId` | `number` | Filter by test execution ID |
+
+**Response:** `200 OK`
+
+```json
+[
+  {
+    "id": 1,
+    "testCaseId": 10,
+    "testExecutionId": null,
+    "externalUrl": "https://company.atlassian.net/browse/PROJ-123",
+    "externalKey": "PROJ-123",
+    "title": "Login bug",
+    "status": null,
+    "provider": "JIRA",
+    "createdAt": "2025-03-08T00:00:00.000Z"
+  }
+]
+```
+
+### `POST /api/projects/:projectId/issue-links`
+
+Manually links an external issue URL to a test case or execution.
+
+**Auth:** `PROJECT_ADMIN`, `QA`, or `DEV`
+
+**Body:**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `testCaseId` | `number` | * | At least one of `testCaseId` or `testExecutionId` required |
+| `testExecutionId` | `number` | * | |
+| `externalUrl` | `string` | Yes | Must be a valid `http`/`https` URL |
+| `externalKey` | `string` | No | e.g., `PROJ-123`, `#42` |
+| `title` | `string` | No | Issue title |
+
+**Response:** `201 Created` — issue link object
+
+### `PATCH /api/projects/:projectId/issue-links/:linkId`
+
+Updates an issue link's title or status.
+
+**Auth:** `PROJECT_ADMIN`, `QA`, or `DEV`
+
+**Body:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `title` | `string` | New title (empty string clears it) |
+| `status` | `string` | New status (e.g., `OPEN`, `CLOSED`) |
+
+At least one field must be provided.
+
+**Response:** `200 OK` — updated issue link object
+
+### `DELETE /api/projects/:projectId/issue-links/:linkId`
+
+Removes an issue link.
+
+**Auth:** `PROJECT_ADMIN`, `QA`, or `DEV`
+
+**Response:** `200 OK` `{ "success": true }`
+
+### `POST /api/projects/:projectId/issue-links/create-issue`
+
+Creates an external issue via the configured tracker and automatically links it to a test case or execution.
+
+**Auth:** `PROJECT_ADMIN`, `QA`, or `DEV`
+
+**Body:**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `testCaseId` | `number` | * | At least one of `testCaseId` or `testExecutionId` required |
+| `testExecutionId` | `number` | * | |
+| `title` | `string` | Yes | Issue title |
+| `description` | `string` | No | Issue description/body |
+
+**Response:** `201 Created` — issue link object with external URL and key
+
+Returns `404` if no tracker is configured. Returns `400` if the tracker is disabled or external issue creation fails.
 
 ---
 

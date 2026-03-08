@@ -613,6 +613,49 @@ Optional SMTP-based email notifications. Fire-and-forget — never blocks or thr
 - [x] i18n: Korean + English messages for mentions and trends
 - [x] Tests: 2 mention notification tests
 
+### Milestone 18: Issue Tracker Integration, Custom Fields & Execution Comments
+
+#### 18.1 External Issue Tracker Integration
+
+Per-project external issue tracker configuration with support for Jira, GitHub Issues, GitLab Issues, and Custom webhook providers.
+
+- [x] `issue_tracker_config` table (id, projectId, provider, baseUrl, apiToken, projectKey, customTemplate, enabled, createdBy)
+- [x] `issue_link` table (id, projectId, testCaseId, testExecutionId, externalUrl, externalKey, title, status, provider, createdBy)
+- [x] Migration: `drizzle/0023_issue_tracker.sql`
+- [x] Issue tracker helper: `src/lib/server/issue-tracker.ts` (createExternalIssue, testConnection)
+  - Jira: REST API v3, Basic auth (email:token), creates Bug issues
+  - GitHub: Bearer token, creates issues via GitHub API
+  - GitLab: PRIVATE-TOKEN header, creates issues via GitLab API v4
+  - Custom: Configurable endpoint, headers, and Bearer token
+- [x] API endpoints: `/api/projects/:id/issue-tracker` (GET/POST/DELETE), `.../test` (POST)
+- [x] API endpoints: `/api/projects/:id/issue-links` (GET/POST), `.../:linkId` (PATCH/DELETE), `.../create-issue` (POST)
+- [x] Settings UI: `src/routes/projects/[projectId]/settings/issue-tracker/+page.svelte`
+- [x] Test case detail: Issue links card with link/create/delete
+- [x] Execution row: Issue link display in failure details
+- [x] Tests: 6 test files (83 tests) covering all API endpoints and issue-tracker helper
+- [x] i18n: Korean + English messages
+
+#### 18.2 Custom Fields
+
+Per-project custom field definitions with 7 field types, stored as JSONB on test_case_version.
+
+- [x] `custom_field` table (id, projectId, name, fieldType, options, required, sortOrder)
+- [x] Migration: `drizzle/0021_custom_fields.sql`
+- [x] API endpoints: `/api/projects/:id/custom-fields` (CRUD)
+- [x] Settings UI: `src/routes/projects/[projectId]/settings/custom-fields/+page.svelte`
+- [x] Test case detail: Custom fields edit/view UI for TEXT, NUMBER, SELECT, MULTISELECT, DATE, CHECKBOX, URL
+- [x] `customFields` JSONB column on `test_case_version`
+
+#### 18.3 Execution Comments
+
+Comments on test run executions, displayed inline in the execution table.
+
+- [x] `execution_comment` table (id, executionId, content, createdBy, createdAt, updatedAt)
+- [x] Migration: `drizzle/0022_execution_comments.sql`
+- [x] API endpoints: `/api/projects/:id/test-runs/:runId/executions/:execId/comments` (GET/POST/PATCH/DELETE)
+- [x] CommentSection component reuse via `commentUrl` prop in ExecutionRow
+- [x] Virtual scroll height accounting for inline comment sections
+
 #### 14.2 Inline Tag Creation
 
 Tags can now be created directly from the tag assignment UI on test case detail pages, without navigating to the settings page.
@@ -661,6 +704,9 @@ src/
 |   |       |   +-- +page.svelte    # Project settings
 |   |       |   +-- members/+page.svelte
 |   |       |   +-- priorities/+page.svelte  # Custom priority management
+|   |       |   +-- webhooks/+page.svelte    # Outgoing webhook settings
+|   |       |   +-- issue-tracker/+page.svelte  # Issue tracker config
+|   |       |   +-- custom-fields/+page.svelte  # Custom field definitions
 |   |       +-- test-cases/
 |   |       |   +-- +page.svelte    # List (integrated table, DnD, groups, bulk)
 |   |       |   +-- new/+page.svelte
@@ -675,6 +721,8 @@ src/
 |       +-- admin/oidc-providers/   # OIDC Discovery API
 |       |   +-- discover/+server.ts
 |       +-- automation/...          # Phase 4
+|       +-- issue-tracker/...      # Issue tracker config API
+|       +-- issue-links/...        # Issue links API
 +-- lib/
 |   +-- components/
 |   |   +-- ui/                     # shadcn-svelte components (generated)
@@ -701,6 +749,7 @@ src/
 |   |   +-- storage.ts              # Local file storage
 |   |   +-- redis.ts                # Redis client + Pub/Sub
 |   |   +-- lock.ts                 # Soft lock (Redis or in-memory)
+|   |   +-- issue-tracker.ts       # External issue tracker integration
 |   |   +-- db/
 |   |       +-- index.ts            # Drizzle instance
 |   |       +-- schema.ts           # Domain schema

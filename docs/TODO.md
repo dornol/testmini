@@ -32,6 +32,9 @@ The following core capabilities are **already implemented**:
 | 20 | In-App Notifications | Done | Bell UI, polling, mark as read; triggered by key events |
 | 21 | MCP Server | Done | Resources + tools via Streamable HTTP, API key auth |
 | 22 | Outgoing Webhooks | Done | Per-project webhook config, Slack/generic HTTP, HMAC signing, event filtering |
+| 23 | Issue Tracker Integration | Done | Jira, GitHub, GitLab, Custom webhook; link/create issues from test cases/executions |
+| 24 | Custom Fields | Done | Per-project field definitions (text/number/select/date/checkbox/URL), JSONB storage |
+| 25 | Execution Comments | Done | Comments on test run executions, inline in execution table |
 
 ---
 
@@ -77,15 +80,15 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ### 6.1 External Issue Tracker Integration
 
-- [ ] Provider configuration (per-project settings page)
+- [x] Provider configuration (per-project settings page)
   - Jira: base URL, API token, project key
   - GitHub Issues: repo, token
   - GitLab Issues: project, token
   - Generic webhook: configurable URL + payload template
-- [ ] Auto-create issue on test failure (one-click from failure detail)
+- [x] Auto-create issue on test failure (one-click from failure detail)
   - Pre-fill title, description with test case info, failure details, environment
-- [ ] Link existing issue to test case or execution
-  - Store external issue URL/key in `test_failure_detail` or separate `issue_link` table
+- [x] Link existing issue to test case or execution
+  - Store external issue URL/key in separate `issue_link` table
 - [ ] Display linked issue status (sync from external tracker)
 - [ ] Bidirectional link: external issue links back to test run/case
 
@@ -107,8 +110,8 @@ Link test results to external issue trackers for end-to-end traceability.
 - [x] Flaky test detection: tests that alternate Pass/Fail across recent runs
   - Flag flaky tests with indicator badge
   - Flaky test report page
-- [ ] Test case aging: identify stale test cases not executed recently
-- [ ] Per-assignee execution statistics
+- [x] Test case aging: identify stale test cases not executed recently
+- [x] Per-assignee execution statistics
 
 ### 7.2 Report Export
 
@@ -143,7 +146,7 @@ Link test results to external issue trackers for end-to-end traceability.
 ### 8.3 Comments & Mentions
 
 - [x] Comments on test cases (already exists) -- extend with @mention support
-- [ ] Comments on test run executions
+- [x] Comments on test run executions
 - [x] @mention triggers notification to mentioned user
 
 ---
@@ -167,12 +170,12 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ## Phase 10: Custom Fields
 
-- [ ] Project-level custom field definitions
+- [x] Project-level custom field definitions
   - Field types: text, number, dropdown (single/multi), date, checkbox, URL
   - Configurable per project in settings
-- [ ] Custom fields displayed on test case detail/edit forms
+- [x] Custom fields displayed on test case detail/edit forms
 - [ ] Custom fields available as filter/search criteria
-- [ ] Custom field values stored in JSONB column on `test_case_version`
+- [x] Custom field values stored in JSONB column on `test_case_version`
 - [ ] Custom field columns in test case list view (user-configurable)
 
 ---

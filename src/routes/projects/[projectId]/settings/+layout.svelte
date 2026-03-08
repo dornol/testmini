@@ -14,9 +14,11 @@
 		{ href: `/projects/${projectId}/settings/members`, label: m.nav_members() },
 		{ href: `/projects/${projectId}/settings/tags`, label: m.nav_tags() },
 		{ href: `/projects/${projectId}/settings/priorities`, label: m.nav_priorities() },
+		{ href: `/projects/${projectId}/settings/custom-fields`, label: m.nav_custom_fields() },
 		...(isAdmin
 			? [
 					{ href: `/projects/${projectId}/settings/webhooks`, label: m.nav_webhooks() },
+					{ href: `/projects/${projectId}/settings/issue-tracker`, label: m.nav_issue_tracker() },
 					{ href: `/projects/${projectId}/settings/api-keys`, label: m.nav_api_keys() }
 				]
 			: [])

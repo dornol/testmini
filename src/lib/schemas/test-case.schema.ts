@@ -15,7 +15,8 @@ export const createTestCaseSchema = z.object({
 });
 
 export const updateTestCaseSchema = createTestCaseSchema.extend({
-	revision: z.number().int().positive('Revision is required')
+	revision: z.number().int().positive('Revision is required'),
+	customFields: z.record(z.string(), z.unknown()).optional().default({})
 });
 
 export type CreateTestCaseInput = z.infer<typeof createTestCaseSchema>;

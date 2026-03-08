@@ -708,6 +708,11 @@ Post a new comment or reply to an existing comment.
 
 **Response 201** — created comment with user info
 
+**Side effects:**
+- Sends `COMMENT_ADDED` notification to test case assignees (excluding the comment author)
+- Parses `@name` mentions in content and sends `MENTION` notification to matching project members
+- If SMTP is configured, also sends email notifications
+
 ---
 
 #### `PATCH /api/projects/:projectId/test-cases/:testCaseId/comments/:commentId`
@@ -1227,6 +1232,30 @@ Remove test cases from a suite.
 ### `GET /api/projects/:projectId/reports/export`
 
 See [Test Run Export — multi-run](#get-apiprojectsprojectidreportsexport) above.
+
+### `GET /api/projects/:projectId/reports/trends`
+
+Fetch failure trend and flaky test data for a project.
+
+**Auth:** Project member (any role)
+
+**Query parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `limit` | integer | No | Number of recent completed runs (default: 20) |
+
+**Response 200**
+```json
+{
+  "failureTrend": [
+    { "runId": 5, "name": "Sprint 3", "createdAt": "...", "totalCount": 20, "passCount": 18, "failCount": 2 }
+  ],
+  "flakyTests": [
+    { "testCaseId": 10, "testCaseKey": "TC-0003", "title": "Login test", "totalExecs": 8, "passCount": 5, "failCount": 3 }
+  ]
+}
+```
 
 ---
 

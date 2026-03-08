@@ -253,6 +253,7 @@
 						{submitting}
 						onsubmit={submitComment}
 					/>
+					<p class="text-muted-foreground mt-1 text-xs">{m.comment_mention_hint()}</p>
 				</div>
 			{/if}
 		</Card.Content>

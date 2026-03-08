@@ -21,6 +21,7 @@
 	const dailyResults = $derived(data.dailyResults);
 	const executorStats = $derived(data.executorStats);
 	const topFailingCases = $derived(data.topFailingCases);
+	const flakyTests = $derived(data.flakyTests);
 	const dateRange = $derived(data.dateRange);
 
 	// Active filter state — derived from server data.
@@ -545,6 +546,65 @@
 								<Table.Cell>{total}</Table.Cell>
 								<Table.Cell class="text-red-600 font-medium">{fail}</Table.Cell>
 								<Table.Cell class="text-green-600">{pass}</Table.Cell>
+								<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
+								<Table.Cell>
+									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
+										{#if pass > 0}
+											<div class="bg-green-500" style="width: {barWidth(pass, total)}"></div>
+										{/if}
+										{#if fail > 0}
+											<div class="bg-red-500" style="width: {barWidth(fail, total)}"></div>
+										{/if}
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
+	<!-- Flaky Tests -->
+	{#if flakyTests.length > 0}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="text-sm font-medium">{m.trends_flaky_tests()}</Card.Title>
+				<Card.Description>{m.trends_flaky_desc()}</Card.Description>
+			</Card.Header>
+			<Card.Content class="p-0">
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>{m.reports_test_case()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_total()}</Table.Head>
+							<Table.Head class="w-28">{m.trends_pass()}</Table.Head>
+							<Table.Head class="w-28">{m.trends_fail()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass_rate()}</Table.Head>
+							<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each flakyTests as tc (tc.testCaseId)}
+							{@const total = tc.totalExecs}
+							{@const pass = tc.passCount}
+							{@const fail = tc.failCount}
+							<Table.Row
+								class="cursor-pointer"
+								onclick={() => { window.location.href = `/projects/${data.project.id}/test-cases/${tc.testCaseId}`; }}
+							>
+								<Table.Cell>
+									<div class="flex items-center gap-2">
+										<Badge variant="outline" class="bg-yellow-50 text-yellow-700 border-yellow-300 text-xs">Flaky</Badge>
+										<div>
+											<span class="text-muted-foreground text-xs">{tc.testCaseKey}</span>
+											<span class="ml-1 font-medium">{tc.title}</span>
+										</div>
+									</div>
+								</Table.Cell>
+								<Table.Cell>{total}</Table.Cell>
+								<Table.Cell class="text-green-600">{pass}</Table.Cell>
+								<Table.Cell class="text-red-600 font-medium">{fail}</Table.Cell>
 								<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
 								<Table.Cell>
 									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">

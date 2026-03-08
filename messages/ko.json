@@ -674,5 +674,16 @@
 	"notification_type_MEMBER_ADDED": "멤버 추가",
 	"notification_type_ASSIGNED": "담당자 배정",
 	"notification_type_USER_PENDING": "사용자 승인 대기",
-	"notification_preferences_saved": "알림 설정이 저장되었습니다"
+	"notification_type_MENTION": "댓글에서 멘션됨",
+	"notification_preferences_saved": "알림 설정이 저장되었습니다",
+	"trends_title": "트렌드 & 분석",
+	"trends_failure_trend": "실패 추이",
+	"trends_no_data": "완료된 실행이 없습니다",
+	"trends_flaky_tests": "불안정 테스트",
+	"trends_flaky_desc": "최근 실행에서 PASS와 FAIL이 번갈아 나타나는 테스트",
+	"trends_no_flaky": "불안정 테스트가 감지되지 않았습니다",
+	"trends_pass": "통과",
+	"trends_fail": "실패",
+	"trends_runs": "회 실행",
+	"comment_mention_hint": "@이름으로 프로젝트 멤버를 멘션하세요"
 }

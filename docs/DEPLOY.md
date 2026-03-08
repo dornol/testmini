@@ -74,6 +74,11 @@ cp .env.example .env
 | `REDIS_URL` | Redis connection string (omit to use in-memory fallback) | — | `redis://:password@localhost:6379` |
 | `PORT` | App listening port | `3000` | `3000` |
 | `NODE_ENV` | Node execution environment | — | `production` |
+| `SMTP_HOST` | SMTP server hostname (omit to disable email) | — | `smtp.example.com` |
+| `SMTP_PORT` | SMTP server port | `587` | `587` |
+| `SMTP_USER` | SMTP authentication username | — | `noreply@example.com` |
+| `SMTP_PASS` | SMTP authentication password | — | `password` |
+| `SMTP_FROM` | Email sender address | `SMTP_USER` value | `noreply@example.com` |
 
 ### Docker Compose Only Variables (`compose.prod.yaml`)
 

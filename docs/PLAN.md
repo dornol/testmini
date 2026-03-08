@@ -586,6 +586,33 @@ Per-user notification preferences allowing users to control which in-app notific
 - [x] i18n: Korean + English messages for notification preference UI
 - [x] Tests: 6 notification preference tests, 3 preferences API tests
 
+### Milestone 17: Email Notifications, Trend Analysis & @Mentions
+
+#### 17.1 Email Notifications (SMTP)
+
+Optional SMTP-based email notifications. Fire-and-forget — never blocks or throws.
+
+- [x] `src/lib/server/email.ts` — nodemailer utility (`isEmailConfigured`, `sendEmail`)
+- [x] Env vars: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+- [x] `createNotification()` sends email after DB insert (looks up user email, sends if SMTP configured)
+- [x] Tests: 3 email tests with mutable env mock pattern
+
+#### 17.2 Trend Analysis & Flaky Test Detection
+
+- [x] Flaky test detection: SQL `HAVING` clause identifies tests with both PASS and FAIL in date range
+- [x] Flaky tests table in reports page with distribution bar and pass/fail counts
+- [x] Top failing test cases chart (existing) enhanced with date range filtering
+
+#### 17.3 @Mention Support in Comments
+
+- [x] `extractMentions()` parses `@name` from comment content
+- [x] Matches mentioned names against project members (case-insensitive)
+- [x] `MENTION` notification type — skips already-notified users (assignee dedup via `notifiedUserIds` Set)
+- [x] Comment form hint text for @mention usage
+- [x] MENTION added to notification preference toggles
+- [x] i18n: Korean + English messages for mentions and trends
+- [x] Tests: 2 mention notification tests
+
 #### 14.2 Inline Tag Creation
 
 Tags can now be created directly from the tag assignment UI on test case detail pages, without navigating to the settings page.

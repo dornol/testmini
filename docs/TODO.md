@@ -103,8 +103,8 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ### 7.1 Trend Analysis
 
-- [ ] Failure trend chart: failure count over time (by run, by week/month)
-- [ ] Flaky test detection: tests that alternate Pass/Fail across recent runs
+- [x] Failure trend chart: failure count over time (by run, by week/month)
+- [x] Flaky test detection: tests that alternate Pass/Fail across recent runs
   - Flag flaky tests with indicator badge
   - Flaky test report page
 - [ ] Test case aging: identify stale test cases not executed recently
@@ -138,13 +138,13 @@ Link test results to external issue trackers for end-to-end traceability.
 - [x] Slack integration (incoming webhook)
   - Run completed summary, failure alerts
 - [x] Generic webhook (configurable URL + payload, HMAC signing, per-project settings)
-- [ ] Email notifications (optional, SMTP config)
+- [x] Email notifications (optional, SMTP config)
 
 ### 8.3 Comments & Mentions
 
-- [ ] Comments on test cases (already exists) -- extend with @mention support
+- [x] Comments on test cases (already exists) -- extend with @mention support
 - [ ] Comments on test run executions
-- [ ] @mention triggers notification to mentioned user
+- [x] @mention triggers notification to mentioned user
 
 ---
 

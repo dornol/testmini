@@ -674,5 +674,16 @@
 	"notification_type_MEMBER_ADDED": "Member added",
 	"notification_type_ASSIGNED": "Assigned",
 	"notification_type_USER_PENDING": "User pending approval",
-	"notification_preferences_saved": "Notification preferences saved"
+	"notification_type_MENTION": "Mentioned in comment",
+	"notification_preferences_saved": "Notification preferences saved",
+	"trends_title": "Trends & Analytics",
+	"trends_failure_trend": "Failure Trend",
+	"trends_no_data": "No completed runs yet",
+	"trends_flaky_tests": "Flaky Tests",
+	"trends_flaky_desc": "Tests that alternate between PASS and FAIL across recent runs",
+	"trends_no_flaky": "No flaky tests detected",
+	"trends_pass": "Pass",
+	"trends_fail": "Fail",
+	"trends_runs": "runs",
+	"comment_mention_hint": "Use @name to mention a project member"
 }

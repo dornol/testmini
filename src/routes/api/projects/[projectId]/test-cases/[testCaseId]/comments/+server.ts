@@ -1,11 +1,18 @@
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testCase, testCaseComment, testCaseAssignee, user as userTable } from '$lib/server/db/schema';
+import { testCase, testCaseComment, testCaseAssignee, projectMember, user as userTable } from '$lib/server/db/schema';
 import { eq, and, asc, isNull } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
 import { createNotification } from '$lib/server/notifications';
+
+/** Extract @mentioned names from comment content */
+function extractMentions(content: string): string[] {
+	const matches = content.match(/@(\w+)/g);
+	if (!matches) return [];
+	return [...new Set(matches.map((m) => m.slice(1)).filter(Boolean))];
+}
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const testCaseId = Number(params.testCaseId);
@@ -98,8 +105,11 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 		.from(testCaseAssignee)
 		.where(eq(testCaseAssignee.testCaseId, testCaseId));
 
+	const notifiedUserIds = new Set<string>([user.id]);
+
 	for (const a of assignees) {
-		if (a.userId !== user.id) {
+		if (!notifiedUserIds.has(a.userId)) {
+			notifiedUserIds.add(a.userId);
 			createNotification({
 				userId: a.userId,
 				type: 'COMMENT_ADDED',
@@ -108,6 +118,31 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 				link: `/projects/${projectId}/test-cases/${testCaseId}`,
 				projectId
 			});
+		}
+	}
+
+	// Notify @mentioned users (only project members, exclude already notified)
+	const mentionedNames = extractMentions(content);
+	if (mentionedNames.length > 0) {
+		const members = await db
+			.select({ userId: projectMember.userId, userName: userTable.name })
+			.from(projectMember)
+			.innerJoin(userTable, eq(projectMember.userId, userTable.id))
+			.where(eq(projectMember.projectId, projectId));
+
+		for (const name of mentionedNames) {
+			const member = members.find((m) => m.userName?.toLowerCase() === name.toLowerCase());
+			if (member && !notifiedUserIds.has(member.userId)) {
+				notifiedUserIds.add(member.userId);
+				createNotification({
+					userId: member.userId,
+					type: 'MENTION',
+					title: 'You were mentioned',
+					message: `${user.name ?? 'Someone'} mentioned you in a comment on ${tc.key}`,
+					link: `/projects/${projectId}/test-cases/${testCaseId}`,
+					projectId
+				});
+			}
 		}
 	}
 

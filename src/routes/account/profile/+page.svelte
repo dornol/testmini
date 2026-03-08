@@ -19,6 +19,7 @@
 		'TEST_RUN_COMPLETED',
 		'TEST_FAILED',
 		'COMMENT_ADDED',
+		'MENTION',
 		'MEMBER_ADDED',
 		'ASSIGNED',
 		'USER_PENDING'
@@ -83,6 +84,7 @@
 		TEST_RUN_COMPLETED: m.notification_type_TEST_RUN_COMPLETED,
 		TEST_FAILED: m.notification_type_TEST_FAILED,
 		COMMENT_ADDED: m.notification_type_COMMENT_ADDED,
+		MENTION: m.notification_type_MENTION,
 		MEMBER_ADDED: m.notification_type_MEMBER_ADDED,
 		ASSIGNED: m.notification_type_ASSIGNED,
 		USER_PENDING: m.notification_type_USER_PENDING

@@ -75,7 +75,8 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		assigneeStats,
 		dailyResults,
 		executorStats,
-		topFailingCases
+		topFailingCases,
+		flakyTests
 	] = await Promise.all([
 		// Pass rate by environment
 		db
@@ -247,6 +248,32 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 				sql`count(case when ${testExecution.status} = 'FAIL' then 1 end) > 0`
 			)
 			.orderBy(desc(sql`count(case when ${testExecution.status} = 'FAIL' then 1 end)`))
+			.limit(10),
+
+		// Flaky tests: test cases with both PASS and FAIL in the date range
+		db
+			.select({
+				testCaseId: testCase.id,
+				testCaseKey: testCase.key,
+				title: testCaseVersion.title,
+				totalExecs: count(testExecution.id),
+				passCount: sql<number>`count(case when ${testExecution.status} = 'PASS' then 1 end)`.as(
+					'pass_count'
+				),
+				failCount: sql<number>`count(case when ${testExecution.status} = 'FAIL' then 1 end)`.as(
+					'fail_count'
+				)
+			})
+			.from(testExecution)
+			.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
+			.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
+			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
+			.where(execRunDateCondition())
+			.groupBy(testCase.id, testCase.key, testCaseVersion.title)
+			.having(
+				sql`count(case when ${testExecution.status} = 'PASS' then 1 end) > 0 AND count(case when ${testExecution.status} = 'FAIL' then 1 end) > 0`
+			)
+			.orderBy(desc(sql`count(case when ${testExecution.status} = 'FAIL' then 1 end)`))
 			.limit(10)
 	]);
 
@@ -259,6 +286,7 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		dailyResults,
 		executorStats,
 		topFailingCases,
+		flakyTests,
 		dateRange: {
 			from: fromDate ? toDateString(fromDate) : null,
 			to: toDate ? toDateString(toDate) : null,

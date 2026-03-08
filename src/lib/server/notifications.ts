@@ -1,8 +1,10 @@
 import { db } from '$lib/server/db';
 import { notification, userPreference } from '$lib/server/db/schema';
+import { user as userTable } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { childLogger } from './logger';
 import { sendProjectWebhooks } from './webhooks';
+import { sendEmail, isEmailConfigured } from './email';
 
 const log = childLogger('notifications');
 
@@ -59,6 +61,24 @@ export async function createNotification(params: CreateNotificationParams): Prom
 			});
 		} catch (err) {
 			log.error({ err, params }, 'Failed to create notification');
+		}
+	}
+
+	// Send email notification if SMTP is configured (fire-and-forget)
+	if (isEmailConfigured()) {
+		try {
+			const recipient = await db.query.user.findFirst({
+				where: eq(userTable.id, params.userId)
+			});
+			if (recipient?.email) {
+				sendEmail({
+					to: recipient.email,
+					subject: `[testmini] ${params.title}`,
+					text: `${params.message}${params.link ? `\n\nView: ${params.link}` : ''}`
+				});
+			}
+		} catch (err) {
+			log.error({ err }, 'Failed to send email notification');
 		}
 	}
 

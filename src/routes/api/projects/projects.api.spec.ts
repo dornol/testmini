@@ -134,6 +134,7 @@ describe('/api/projects', () => {
 
 		it('should create project with 201 via transaction', async () => {
 			const created = { ...sampleProject, id: 99 };
+			let capturedTx: { insert: ReturnType<typeof vi.fn> } | null = null;
 			mockDb.transaction.mockImplementation(async (fn) => {
 				const txInsertChain = {
 					values: vi.fn().mockReturnThis(),
@@ -145,6 +146,7 @@ describe('/api/projects', () => {
 				const tx = {
 					insert: vi.fn().mockReturnValue(txInsertChain)
 				};
+				capturedTx = tx;
 				return fn(tx);
 			});
 
@@ -159,6 +161,11 @@ describe('/api/projects', () => {
 			expect(response.status).toBe(201);
 			expect(data.data.id).toBe(created.id);
 			expect(data.data.name).toBe(created.name);
+
+			// Verify transaction received tx and called insert for:
+			// 1. project, 2. projectMember, 3. priorityConfig, 4. environmentConfig
+			expect(capturedTx).not.toBeNull();
+			expect(capturedTx!.insert).toHaveBeenCalledTimes(4);
 		});
 	});
 });

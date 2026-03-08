@@ -401,7 +401,8 @@ drizzle/
 ├── 0028_parameterized_tests.sql
 ├── 0029_approval_workflow.sql
 ├── 0030_gherkin_support.sql
-└── 0031_exploratory_sessions.sql
+├── 0031_exploratory_sessions.sql
+└── 0032_environment_config.sql
 ```
 
 ---

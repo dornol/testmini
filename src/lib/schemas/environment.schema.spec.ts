@@ -63,6 +63,34 @@ describe('createEnvironmentSchema', () => {
 			expect(result.data.isDefault).toBe(true);
 		}
 	});
+
+	it('should accept name with exactly 1 character', () => {
+		const result = createEnvironmentSchema.safeParse({ name: 'X', color: '#ff0000' });
+		expect(result.success).toBe(true);
+	});
+
+	it('should reject 3-character hex color (#fff)', () => {
+		const result = createEnvironmentSchema.safeParse({ name: 'Test', color: '#fff' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject color without # prefix', () => {
+		const result = createEnvironmentSchema.safeParse({ name: 'Test', color: 'ff0000' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should accept color with uppercase letters (#FF0000)', () => {
+		const result = createEnvironmentSchema.safeParse({ name: 'Test', color: '#FF0000' });
+		expect(result.success).toBe(true);
+	});
+
+	it('should accept all fields provided', () => {
+		const result = createEnvironmentSchema.safeParse({ name: 'Production', color: '#abcdef', isDefault: true });
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data).toEqual({ name: 'Production', color: '#abcdef', isDefault: true });
+		}
+	});
 });
 
 describe('updateEnvironmentSchema', () => {
@@ -135,6 +163,49 @@ describe('updateEnvironmentSchema', () => {
 		expect(result.success).toBe(true);
 		if (result.success) {
 			expect(result.data.isDefault).toBe(true);
+		}
+	});
+
+	it('should accept name with exactly 30 characters', () => {
+		const result = updateEnvironmentSchema.safeParse({ environmentId: 1, name: 'a'.repeat(30), color: '#ff0000' });
+		expect(result.success).toBe(true);
+	});
+
+	it('should accept name with exactly 1 character', () => {
+		const result = updateEnvironmentSchema.safeParse({ environmentId: 1, name: 'X', color: '#ff0000' });
+		expect(result.success).toBe(true);
+	});
+
+	it('should reject environmentId as float (1.5)', () => {
+		const result = updateEnvironmentSchema.safeParse({ environmentId: 1.5, name: 'Staging', color: '#000000' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject negative environmentId', () => {
+		const result = updateEnvironmentSchema.safeParse({ environmentId: -5, name: 'Staging', color: '#000000' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject 3-character hex color (#fff)', () => {
+		const result = updateEnvironmentSchema.safeParse({ environmentId: 1, name: 'Test', color: '#fff' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject color without # prefix', () => {
+		const result = updateEnvironmentSchema.safeParse({ environmentId: 1, name: 'Test', color: 'ff0000' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should accept color with uppercase letters (#FF0000)', () => {
+		const result = updateEnvironmentSchema.safeParse({ environmentId: 1, name: 'Test', color: '#FF0000' });
+		expect(result.success).toBe(true);
+	});
+
+	it('should accept all fields provided', () => {
+		const result = updateEnvironmentSchema.safeParse({ environmentId: 42, name: 'Prod', color: '#abcdef', isDefault: true });
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data).toEqual({ environmentId: 42, name: 'Prod', color: '#abcdef', isDefault: true });
 		}
 	});
 });

@@ -297,6 +297,89 @@ describe('environments settings page server', () => {
 		});
 	});
 
+	describe('actions.create (edge cases)', () => {
+		it('should create with isDefault=true successfully', async () => {
+			mockDb.query.environmentConfig.findFirst.mockResolvedValue(null);
+			mockSelectResult(mockDb, [{ position: 0 }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ name: 'Primary', color: '#10b981', isDefault: 'true' }),
+				user: testUser
+			});
+
+			const result = await actions.create(event);
+
+			expect(result).toEqual({ created: true });
+			expect(mockDb.transaction).toHaveBeenCalled();
+		});
+
+		it('should accept color with lowercase hex', async () => {
+			mockDb.query.environmentConfig.findFirst.mockResolvedValue(null);
+			mockSelectResult(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ name: 'QA', color: '#abcdef', isDefault: 'false' }),
+				user: testUser
+			});
+
+			const result = await actions.create(event);
+
+			expect(result).toEqual({ created: true });
+		});
+	});
+
+	describe('actions.update (edge cases)', () => {
+		it('should update only color without triggering name cascade', async () => {
+			mockDb.query.environmentConfig.findFirst
+				.mockResolvedValueOnce(sampleEnvironments[0]) // existing
+				.mockResolvedValueOnce(null); // no duplicate
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({
+					environmentId: '1',
+					name: 'Development', // same name as existing
+					color: '#00ff00', // different color
+					isDefault: 'false'
+				}),
+				user: testUser
+			});
+
+			const result = await actions.update(event);
+
+			expect(result).toEqual({ updated: true });
+			expect(mockDb.transaction).toHaveBeenCalled();
+		});
+
+		it('should update isDefault to true', async () => {
+			mockDb.query.environmentConfig.findFirst
+				.mockResolvedValueOnce(sampleEnvironments[1]) // existing (Staging)
+				.mockResolvedValueOnce(null); // no duplicate
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({
+					environmentId: '2',
+					name: 'Staging',
+					color: '#f97316',
+					isDefault: 'true'
+				}),
+				user: testUser
+			});
+
+			const result = await actions.update(event);
+
+			expect(result).toEqual({ updated: true });
+			expect(mockDb.transaction).toHaveBeenCalled();
+		});
+	});
+
 	describe('actions.delete', () => {
 		it('should delete an environment successfully', async () => {
 			mockDb.query.environmentConfig.findFirst.mockResolvedValue(sampleEnvironments[1]);
@@ -365,6 +448,23 @@ describe('environments settings page server', () => {
 			const status = (result as { status: number }).status;
 			expect(status).toBe(404);
 		});
+
+		it('should delete even when test runs reference the environment', async () => {
+			// The current code does not check for test run references before deleting
+			mockDb.query.environmentConfig.findFirst.mockResolvedValue(sampleEnvironments[2]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ environmentId: '3' }),
+				user: testUser
+			});
+
+			const result = await actions.delete(event);
+
+			expect(result).toEqual({ deleted: true });
+			expect(mockDb.delete).toHaveBeenCalled();
+		});
 	});
 
 	describe('actions.reorder', () => {
@@ -373,6 +473,34 @@ describe('environments settings page server', () => {
 				method: 'POST',
 				params: PARAMS,
 				formData: makeFormData({ order: JSON.stringify([3, 1, 2]) }),
+				user: testUser
+			});
+
+			const result = await actions.reorder(event);
+
+			expect(result).toEqual({ reordered: true });
+			expect(mockDb.transaction).toHaveBeenCalled();
+		});
+
+		it('should succeed with empty order array', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ order: JSON.stringify([]) }),
+				user: testUser
+			});
+
+			const result = await actions.reorder(event);
+
+			expect(result).toEqual({ reordered: true });
+			expect(mockDb.transaction).toHaveBeenCalled();
+		});
+
+		it('should succeed with single item order', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ order: JSON.stringify([5]) }),
 				user: testUser
 			});
 

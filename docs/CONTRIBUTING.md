@@ -115,6 +115,7 @@ testmini/
 │   │   │   │   ├── index.ts        # Drizzle ORM client (db)
 │   │   │   │   ├── schema.ts       # All Drizzle table definitions
 │   │   │   │   └── auth.schema.ts  # Better Auth-generated user/session tables
+│   │   │   ├── queries.ts          # Shared query helpers (loadProjectTags, loadProjectEnvironments, etc.)
 │   │   │   ├── lock.ts             # Distributed lock (Redis or in-memory)
 │   │   │   ├── logger.ts           # Pino logger
 │   │   │   ├── api-handler.ts     # withProjectAccess / withProjectRole wrappers
@@ -264,6 +265,26 @@ When adding a new UI element:
 This project uses Tailwind CSS v4 with Vite plugin (`@tailwindcss/vite`). Configuration is CSS-native — there is no `tailwind.config.ts`. Custom design tokens are defined as CSS custom properties in `src/routes/layout.css`.
 
 Do not use v3 configuration patterns like `theme.extend` in a JS config file.
+
+### Responsive Design
+
+The app uses a mobile-first responsive strategy with these breakpoints:
+
+| Breakpoint | Width | Usage |
+|---|---|---|
+| (default) | < 640px | Mobile phones — minimal columns, stacked layouts |
+| `sm:` | ≥ 640px | Large phones — show key column, checkboxes |
+| `md:` | ≥ 768px | Tablets — show priority, progress bar; settings sidebar appears |
+| `lg:` | ≥ 1024px | Desktop — sidebar static, show tags/assignees/run columns |
+| `xl:` | ≥ 1280px | Wide desktop — show all columns (updatedBy, custom fields) |
+
+**Key patterns:**
+- **Navigation tabs** (`[projectId]/+layout.svelte`): Horizontal scroll with `overflow-x-auto scrollbar-none`, `shrink-0` on each tab
+- **Settings layout** (`settings/+layout.svelte`): `flex-col` on mobile → `md:flex-row` with sidebar
+- **Table column hiding**: Use `hidden sm:table-cell`, `hidden md:table-cell`, etc. on both `<Table.Head>` and `<Table.Cell>`
+- **Dashboard grid**: `grid-cols-1 md:grid-cols-2 lg:grid-cols-3`
+- **Main padding**: `px-2 sm:px-4` (tighter on mobile)
+- **Scrollbar hiding**: Use the `scrollbar-none` utility class (defined in `layout.css`)
 
 ---
 

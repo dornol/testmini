@@ -59,7 +59,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const linkedProviderSlugs = new Set(linkedAccounts.map((a) => a.providerSlug));
 	const availableProviders = allActiveProviders.filter((p) => !linkedProviderSlugs.has(p.slug));
 
-	let pref: { locale: string | null; theme: string | null } | undefined;
+	let pref: {
+		locale: string | null;
+		theme: string | null;
+		notificationSettings: { enableInApp?: boolean; mutedTypes?: string[] } | null;
+	} | undefined;
 	try {
 		pref = await db.query.userPreference.findFirst({
 			where: eq(userPreference.userId, authUser.id)
@@ -73,7 +77,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		hasPassword,
 		linkedAccounts,
 		availableProviders,
-		preferences: pref ?? { locale: null, theme: null }
+		preferences: pref ?? { locale: null, theme: null, notificationSettings: null }
 	};
 };
 

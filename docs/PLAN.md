@@ -563,6 +563,29 @@ Per-project outgoing webhook configuration for Slack and generic HTTP endpoints.
 - [x] i18n: Korean + English messages for all webhook UI strings
 - [x] Tests: Unit tests for webhook delivery, API endpoint tests for CRUD/test, notification integration tests
 
+### Milestone 16: MCP Tools Expansion & Notification Preferences
+
+#### 16.1 MCP Server — Additional Tools
+
+Four new tools added to `src/lib/server/mcp/server.ts` (total: 10 tools):
+
+- [x] `update-test-case` — update existing test case by creating a new version, preserving unchanged fields
+- [x] `create-test-run` — create a test run with selected test cases or all, with environment selection
+- [x] `record-failure-detail` — record failure details (error message, stack trace, environment) on an execution
+- [x] `export-run-results` — export complete run results with status counts, executions, and failure details
+
+#### 16.2 Notification Preferences
+
+Per-user notification preferences allowing users to control which in-app notifications they receive.
+
+- [x] `notificationSettings` JSONB column on `user_preference` table (`enableInApp`, `mutedTypes`)
+- [x] Migration: `drizzle/0020_notification_preferences.sql`
+- [x] `createNotification()` checks user preferences before DB insert (webhooks always fire)
+- [x] Preferences API (`/api/users/me/preferences`) updated with validation for notification settings
+- [x] Profile page UI: toggle for global enable/disable + per-type checkboxes (6 types)
+- [x] i18n: Korean + English messages for notification preference UI
+- [x] Tests: 6 notification preference tests, 3 preferences API tests
+
 #### 14.2 Inline Tag Creation
 
 Tags can now be created directly from the tag assignment UI on test case detail pages, without navigating to the settings page.

@@ -284,6 +284,230 @@ export function createMcpServer(projectId: number) {
 	);
 
 	server.tool(
+		'update-test-case',
+		'Update an existing test case (creates a new version)',
+		{
+			id: z.number().optional().describe('Test case ID'),
+			key: z.string().optional().describe('Test case key (e.g., TC-0001)'),
+			title: z.string().optional().describe('New title'),
+			priority: z.string().optional().describe('New priority name'),
+			precondition: z.string().optional().describe('New precondition'),
+			steps: z.array(z.object({ action: z.string(), expected: z.string().optional() })).optional().describe('New steps'),
+			expectedResult: z.string().optional().describe('New expected result')
+		},
+		async ({ id, key, title, priority, precondition, steps, expectedResult }) => {
+			let tc;
+			if (id) {
+				tc = await findTestCaseWithLatestVersion(id, projectId);
+			} else if (key) {
+				const found = await db.query.testCase.findFirst({
+					where: and(eq(testCase.projectId, projectId), eq(testCase.key, key))
+				});
+				if (found) tc = await findTestCaseWithLatestVersion(found.id, projectId);
+			}
+
+			if (!tc) return { content: [{ type: 'text' as const, text: 'Test case not found' }], isError: true };
+			if (!tc.latestVersion) return { content: [{ type: 'text' as const, text: 'No version found' }], isError: true };
+
+			const prev = tc.latestVersion;
+			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
+			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+
+			const formattedSteps = steps
+				? steps.map((s, i) => ({ order: i + 1, action: s.action, expected: s.expected ?? '' }))
+				: prev.steps;
+
+			const result = await db.transaction(async (tx) => {
+				const [version] = await tx
+					.insert(testCaseVersion)
+					.values({
+						testCaseId: tc.id,
+						versionNo: prev.versionNo + 1,
+						title: title ?? prev.title,
+						precondition: precondition !== undefined ? precondition : prev.precondition,
+						steps: formattedSteps,
+						expectedResult: expectedResult !== undefined ? expectedResult : prev.expectedResult,
+						priority: priority ?? prev.priority,
+						updatedBy: proj.createdBy
+					})
+					.returning();
+
+				await tx
+					.update(testCase)
+					.set({ latestVersionId: version.id })
+					.where(eq(testCase.id, tc.id));
+
+				return { ...tc, latestVersion: version };
+			});
+
+			return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+		}
+	);
+
+	server.tool(
+		'create-test-run',
+		'Create a new test run with selected test cases',
+		{
+			name: z.string().describe('Test run name'),
+			environment: z.enum(['DEV', 'QA', 'STAGE', 'PROD']).describe('Environment'),
+			testCaseIds: z.array(z.number()).optional().describe('Test case IDs to include (empty = all)')
+		},
+		async ({ name, environment, testCaseIds }) => {
+			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
+			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+
+			// Get test cases with latest versions
+			let cases;
+			if (testCaseIds && testCaseIds.length > 0) {
+				cases = await db
+					.select({ id: testCase.id, latestVersionId: testCase.latestVersionId })
+					.from(testCase)
+					.where(and(eq(testCase.projectId, projectId), inArray(testCase.id, testCaseIds)));
+			} else {
+				cases = await db
+					.select({ id: testCase.id, latestVersionId: testCase.latestVersionId })
+					.from(testCase)
+					.where(eq(testCase.projectId, projectId));
+			}
+
+			if (cases.length === 0) {
+				return { content: [{ type: 'text' as const, text: 'No test cases found' }], isError: true };
+			}
+
+			const result = await db.transaction(async (tx) => {
+				const [run] = await tx
+					.insert(testRun)
+					.values({
+						projectId,
+						name,
+						environment,
+						createdBy: proj.createdBy
+					})
+					.returning();
+
+				const executionValues = cases
+					.filter((c) => c.latestVersionId !== null)
+					.map((c) => ({
+						testRunId: run.id,
+						testCaseVersionId: c.latestVersionId!
+					}));
+
+				if (executionValues.length > 0) {
+					await tx.insert(testExecution).values(executionValues);
+				}
+
+				return { ...run, executionCount: executionValues.length };
+			});
+
+			return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+		}
+	);
+
+	server.tool(
+		'record-failure-detail',
+		'Record failure details for a failed test execution',
+		{
+			runId: z.number().describe('Test run ID'),
+			executionId: z.number().describe('Execution ID'),
+			errorMessage: z.string().optional().describe('Error message'),
+			stackTrace: z.string().optional().describe('Stack trace'),
+			failureEnvironment: z.string().optional().describe('Environment details (OS, browser, etc.)'),
+			comment: z.string().optional().describe('Additional comment')
+		},
+		async ({ runId, executionId, errorMessage, stackTrace, failureEnvironment, comment }) => {
+			const run = await db.query.testRun.findFirst({
+				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
+			});
+			if (!run) return { content: [{ type: 'text' as const, text: 'Test run not found' }], isError: true };
+
+			const execution = await db.query.testExecution.findFirst({
+				where: and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId))
+			});
+			if (!execution) return { content: [{ type: 'text' as const, text: 'Execution not found' }], isError: true };
+
+			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
+			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+
+			const [detail] = await db
+				.insert(testFailureDetail)
+				.values({
+					testExecutionId: executionId,
+					errorMessage: errorMessage ?? null,
+					stackTrace: stackTrace ?? null,
+					failureEnvironment: failureEnvironment ?? null,
+					comment: comment ?? null,
+					createdBy: proj.createdBy
+				})
+				.returning();
+
+			return { content: [{ type: 'text' as const, text: JSON.stringify(detail, null, 2) }] };
+		}
+	);
+
+	server.tool(
+		'export-run-results',
+		'Export test run results as structured data',
+		{ runId: z.number().describe('Test run ID') },
+		async ({ runId }) => {
+			const run = await db.query.testRun.findFirst({
+				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
+			});
+			if (!run) return { content: [{ type: 'text' as const, text: 'Test run not found' }], isError: true };
+
+			const executions = await db
+				.select({
+					executionId: testExecution.id,
+					status: testExecution.status,
+					executedAt: testExecution.executedAt,
+					testCaseKey: testCase.key,
+					testCaseTitle: testCaseVersion.title,
+					priority: testCaseVersion.priority
+				})
+				.from(testExecution)
+				.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
+				.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
+				.where(eq(testExecution.testRunId, runId));
+
+			const failures = await db
+				.select({
+					executionId: testFailureDetail.testExecutionId,
+					errorMessage: testFailureDetail.errorMessage,
+					stackTrace: testFailureDetail.stackTrace,
+					failureEnvironment: testFailureDetail.failureEnvironment,
+					comment: testFailureDetail.comment
+				})
+				.from(testFailureDetail)
+				.innerJoin(testExecution, eq(testFailureDetail.testExecutionId, testExecution.id))
+				.where(eq(testExecution.testRunId, runId));
+
+			const failureMap = new Map<number, typeof failures>();
+			for (const f of failures) {
+				const list = failureMap.get(f.executionId) ?? [];
+				list.push(f);
+				failureMap.set(f.executionId, list);
+			}
+
+			const statusCounts = { PASS: 0, FAIL: 0, BLOCKED: 0, SKIPPED: 0, PENDING: 0 };
+			const results = executions.map((e) => {
+				if (e.status in statusCounts) statusCounts[e.status as keyof typeof statusCounts]++;
+				return {
+					...e,
+					failures: failureMap.get(e.executionId) ?? []
+				};
+			});
+
+			const exportData = {
+				run: { id: run.id, name: run.name, environment: run.environment, status: run.status, createdAt: run.createdAt, finishedAt: run.finishedAt },
+				statusCounts,
+				totalExecutions: executions.length,
+				results
+			};
+
+			return { content: [{ type: 'text' as const, text: JSON.stringify(exportData, null, 2) }] };
+		}
+	);
+
+	server.tool(
 		'update-execution-status',
 		'Update the execution status of a test case in a run',
 		{

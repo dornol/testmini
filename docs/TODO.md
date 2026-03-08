@@ -54,10 +54,10 @@ Expose project data via [Model Context Protocol (MCP)](https://modelcontextproto
 - [x] `get-failures` -- get failure details for a run
 - [x] `create-test-case` -- create a new test case with title, steps, priority
 - [x] `update-execution-status` -- change execution status (PASS/FAIL/BLOCKED/SKIPPED)
-- [ ] `update-test-case` -- update an existing test case (creates new version)
-- [ ] `create-test-run` -- create a test run with selected test cases and environment
-- [ ] `record-failure-detail` -- record failure environment, error message, stack trace
-- [ ] `export-run-results` -- export test run results as structured data
+- [x] `update-test-case` -- update an existing test case (creates new version)
+- [x] `create-test-run` -- create a test run with selected test cases and environment
+- [x] `record-failure-detail` -- record failure environment, error message, stack trace
+- [x] `export-run-results` -- export test run results as structured data
 
 ### Implementation
 
@@ -131,7 +131,7 @@ Link test results to external issue trackers for end-to-end traceability.
 - [x] Notification bell with unread count
 - [x] Events: assigned to test case/run, execution status changed, comment added, run completed
 - [x] Mark as read / mark all read
-- [ ] Notification preferences (per-user toggle per event type)
+- [x] Notification preferences (per-user toggle per event type)
 
 ### 8.2 Webhook & External Notifications
 

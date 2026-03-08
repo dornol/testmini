@@ -663,5 +663,16 @@
 	"webhook_event_TEST_FAILED": "테스트 실패",
 	"webhook_event_COMMENT_ADDED": "댓글 추가",
 	"webhook_event_MEMBER_ADDED": "멤버 추가",
-	"webhook_event_ASSIGNED": "담당자 배정"
+	"webhook_event_ASSIGNED": "담당자 배정",
+	"notification_preferences": "알림 설정",
+	"notification_preferences_desc": "앱 내 알림 수신 여부를 설정합니다.",
+	"notification_enable_in_app": "앱 내 알림 활성화",
+	"notification_muted_types": "알림 유형",
+	"notification_type_TEST_RUN_COMPLETED": "테스트 실행 완료",
+	"notification_type_TEST_FAILED": "테스트 실패",
+	"notification_type_COMMENT_ADDED": "댓글 추가",
+	"notification_type_MEMBER_ADDED": "멤버 추가",
+	"notification_type_ASSIGNED": "담당자 배정",
+	"notification_type_USER_PENDING": "사용자 승인 대기",
+	"notification_preferences_saved": "알림 설정이 저장되었습니다"
 }

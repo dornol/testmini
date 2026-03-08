@@ -663,5 +663,16 @@
 	"webhook_event_TEST_FAILED": "Test Failed",
 	"webhook_event_COMMENT_ADDED": "Comment Added",
 	"webhook_event_MEMBER_ADDED": "Member Added",
-	"webhook_event_ASSIGNED": "Assigned"
+	"webhook_event_ASSIGNED": "Assigned",
+	"notification_preferences": "Notification Preferences",
+	"notification_preferences_desc": "Choose which notifications you receive in-app.",
+	"notification_enable_in_app": "Enable in-app notifications",
+	"notification_muted_types": "Notification types",
+	"notification_type_TEST_RUN_COMPLETED": "Test run completed",
+	"notification_type_TEST_FAILED": "Test failed",
+	"notification_type_COMMENT_ADDED": "Comment added",
+	"notification_type_MEMBER_ADDED": "Member added",
+	"notification_type_ASSIGNED": "Assigned",
+	"notification_type_USER_PENDING": "User pending approval",
+	"notification_preferences_saved": "Notification preferences saved"
 }

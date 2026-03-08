@@ -134,6 +134,13 @@
       "when": 1773159200000,
       "tag": "0019_project_webhooks",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1773245600000,
+      "tag": "0020_notification_preferences",
+      "breakpoints": true
     }
   ]
 }

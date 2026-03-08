@@ -11,6 +11,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		userId: 'user_id',
 		locale: 'locale',
 		theme: 'theme',
+		notificationSettings: 'notification_settings',
 		updatedAt: 'updated_at'
 	}
 }));
@@ -56,6 +57,7 @@ describe('/api/users/me/preferences', () => {
 			expect(data.userId).toBe(testUser.id);
 			expect(data.locale).toBeNull();
 			expect(data.theme).toBeNull();
+			expect(data.notificationSettings).toBeNull();
 		});
 
 		it('should return 401 when unauthenticated', async () => {
@@ -87,6 +89,47 @@ describe('/api/users/me/preferences', () => {
 			expect(data.locale).toBe('en');
 			expect(data.theme).toBe('light');
 			expect(mockDb.insert).toHaveBeenCalled();
+		});
+
+		it('should save notification settings', async () => {
+			const updatedPreferences = {
+				userId: testUser.id,
+				locale: null,
+				theme: null,
+				notificationSettings: { enableInApp: false, mutedTypes: ['TEST_FAILED'] }
+			};
+			mockInsertReturning(mockDb, [updatedPreferences]);
+			mockDb.query.userPreference = { findFirst: vi.fn().mockResolvedValue(updatedPreferences) };
+
+			const event = createMockEvent({
+				method: 'PUT',
+				body: { notificationSettings: { enableInApp: false, mutedTypes: ['TEST_FAILED'] } },
+				user: testUser
+			});
+			const response = await PUT(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.notificationSettings.enableInApp).toBe(false);
+			expect(data.notificationSettings.mutedTypes).toEqual(['TEST_FAILED']);
+		});
+
+		it('should reject invalid notificationSettings', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				body: { notificationSettings: { enableInApp: 'yes' } },
+				user: testUser
+			});
+			await expect(PUT(event)).rejects.toThrow();
+		});
+
+		it('should reject invalid mutedTypes', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				body: { notificationSettings: { mutedTypes: [123] } },
+				user: testUser
+			});
+			await expect(PUT(event)).rejects.toThrow();
 		});
 
 		it('should return 401 when unauthenticated', async () => {

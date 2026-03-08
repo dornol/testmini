@@ -11,7 +11,18 @@
 	import * as m from '$lib/paraglide/messages.js';
 	import { setLocale } from '$lib/paraglide/runtime';
 	import { setMode } from 'mode-watcher';
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { apiPut } from '$lib/api-client';
+	import { SvelteSet } from 'svelte/reactivity';
+
+	const NOTIFICATION_TYPES = [
+		'TEST_RUN_COMPLETED',
+		'TEST_FAILED',
+		'COMMENT_ADDED',
+		'MEMBER_ADDED',
+		'ASSIGNED',
+		'USER_PENDING'
+	] as const;
 
 	let { data } = $props();
 
@@ -19,6 +30,11 @@
 	let prefLocale = $state(data.preferences.locale ?? '');
 	let prefTheme = $state(data.preferences.theme ?? 'system');
 	let prefSaving = $state(false);
+
+	// Notification preferences
+	let notifEnabled = $state(data.preferences.notificationSettings?.enableInApp !== false);
+	let mutedTypes = new SvelteSet<string>(data.preferences.notificationSettings?.mutedTypes ?? []);
+	let notifSaving = $state(false);
 
 	async function savePreferences() {
 		prefSaving = true;
@@ -37,6 +53,40 @@
 			prefSaving = false;
 		}
 	}
+
+	async function saveNotificationPreferences() {
+		notifSaving = true;
+		try {
+			await apiPut('/api/users/me/preferences', {
+				notificationSettings: {
+					enableInApp: notifEnabled,
+					mutedTypes: [...mutedTypes]
+				}
+			});
+			toast.success(m.notification_preferences_saved());
+		} catch {
+			// error toast handled by apiPut
+		} finally {
+			notifSaving = false;
+		}
+	}
+
+	function toggleMutedType(type: string) {
+		if (mutedTypes.has(type)) {
+			mutedTypes.delete(type);
+		} else {
+			mutedTypes.add(type);
+		}
+	}
+
+	const notifTypeLabels: Record<string, () => string> = {
+		TEST_RUN_COMPLETED: m.notification_type_TEST_RUN_COMPLETED,
+		TEST_FAILED: m.notification_type_TEST_FAILED,
+		COMMENT_ADDED: m.notification_type_COMMENT_ADDED,
+		MEMBER_ADDED: m.notification_type_MEMBER_ADDED,
+		ASSIGNED: m.notification_type_ASSIGNED,
+		USER_PENDING: m.notification_type_USER_PENDING
+	};
 	let currentPassword = $state('');
 	let newPassword = $state('');
 	let confirmPassword = $state('');
@@ -207,6 +257,44 @@
 			</div>
 			<Button onclick={savePreferences} disabled={prefSaving}>
 				{prefSaving ? m.common_saving() : m.common_save_changes()}
+			</Button>
+		</Card.Content>
+	</Card.Root>
+
+	<!-- Notification Preferences -->
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>{m.notification_preferences()}</Card.Title>
+			<Card.Description>{m.notification_preferences_desc()}</Card.Description>
+		</Card.Header>
+		<Card.Content class="space-y-4">
+			<div class="flex items-center gap-2">
+				<Checkbox
+					id="notif-enabled"
+					checked={notifEnabled}
+					onCheckedChange={(v) => { notifEnabled = !!v; }}
+				/>
+				<Label for="notif-enabled">{m.notification_enable_in_app()}</Label>
+			</div>
+
+			{#if notifEnabled}
+				<div class="space-y-2">
+					<Label>{m.notification_muted_types()}</Label>
+					{#each NOTIFICATION_TYPES as type (type)}
+						<div class="flex items-center gap-2">
+							<Checkbox
+								id="notif-type-{type}"
+								checked={!mutedTypes.has(type)}
+								onCheckedChange={() => toggleMutedType(type)}
+							/>
+							<Label for="notif-type-{type}">{notifTypeLabels[type]()}</Label>
+						</div>
+					{/each}
+				</div>
+			{/if}
+
+			<Button onclick={saveNotificationPreferences} disabled={notifSaving}>
+				{notifSaving ? m.common_saving() : m.common_save_changes()}
 			</Button>
 		</Card.Content>
 	</Card.Root>

@@ -1339,7 +1339,7 @@ If `q` is shorter than 2 characters, returns `{ "data": [] }`.
 
 ### `GET /api/users/me/preferences`
 
-Get the authenticated user's UI preferences (locale and theme).
+Get the authenticated user's preferences (locale, theme, notification settings).
 
 **Auth:** Session required
 
@@ -1348,17 +1348,21 @@ Get the authenticated user's UI preferences (locale and theme).
 {
   "userId": "u-1",
   "locale": "en",
-  "theme": "dark"
+  "theme": "dark",
+  "notificationSettings": {
+    "enableInApp": true,
+    "mutedTypes": ["COMMENT_ADDED"]
+  }
 }
 ```
 
-`locale` and `theme` may be `null` if not set.
+`locale`, `theme`, and `notificationSettings` may be `null` if not set.
 
 ---
 
 ### `PUT /api/users/me/preferences`
 
-Save or update UI preferences. Uses upsert semantics — a missing preference row is created automatically.
+Save or update preferences. Uses upsert semantics — a missing preference row is created automatically.
 
 **Auth:** Session required
 
@@ -1366,7 +1370,11 @@ Save or update UI preferences. Uses upsert semantics — a missing preference ro
 ```json
 {
   "locale": "ko",
-  "theme": "system"
+  "theme": "system",
+  "notificationSettings": {
+    "enableInApp": true,
+    "mutedTypes": ["TEST_FAILED"]
+  }
 }
 ```
 
@@ -1374,8 +1382,12 @@ Save or update UI preferences. Uses upsert semantics — a missing preference ro
 |---|---|
 | `locale` | `en \| ko` |
 | `theme` | `light \| dark \| system` |
+| `notificationSettings.enableInApp` | `true \| false` |
+| `notificationSettings.mutedTypes` | Array of notification type strings |
 
-Both fields are optional; omitted fields retain their current value.
+All fields are optional; omitted fields retain their current value.
+
+**Notification types:** `TEST_RUN_COMPLETED`, `TEST_FAILED`, `COMMENT_ADDED`, `MEMBER_ADDED`, `ASSIGNED`, `USER_PENDING`
 
 **Response 200** — full updated preference record
 

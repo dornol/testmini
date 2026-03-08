@@ -599,6 +599,10 @@ export const userPreference = pgTable('user_preference', {
 		.references(() => user.id, { onDelete: 'cascade' }),
 	locale: text('locale'),
 	theme: text('theme'),
+	notificationSettings: jsonb('notification_settings').$type<{
+		enableInApp?: boolean;
+		mutedTypes?: string[];
+	}>(),
 	updatedAt: timestamp('updated_at')
 		.defaultNow()
 		.$onUpdate(() => new Date())

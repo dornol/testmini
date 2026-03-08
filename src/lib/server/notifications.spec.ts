@@ -6,7 +6,11 @@ const mockSendProjectWebhooks = vi.fn();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb }));
 vi.mock('$lib/server/db/schema', () => ({
-	notification: { id: 'id' }
+	notification: { id: 'id' },
+	userPreference: { userId: 'user_id' }
+}));
+vi.mock('drizzle-orm', () => ({
+	eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/logger', () => ({
 	childLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })
@@ -20,6 +24,8 @@ const { createNotification } = await import('./notifications');
 describe('createNotification', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		// Default: no preferences set
+		mockDb.query.userPreference = { findFirst: vi.fn().mockResolvedValue(undefined) };
 	});
 
 	it('should insert into the DB with all provided fields', async () => {
@@ -181,5 +187,134 @@ describe('createNotification', () => {
 			message: 'TC-0001 failed',
 			link: null
 		});
+	});
+
+	// ── Notification Preferences ─────────────────────────
+
+	it('should skip DB insert when enableInApp is false', async () => {
+		mockDb.query.userPreference.findFirst.mockResolvedValue({
+			notificationSettings: { enableInApp: false }
+		});
+
+		const insertChain = {
+			values: vi.fn().mockReturnThis(),
+			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+		};
+		mockDb.insert.mockReturnValue(insertChain as never);
+
+		await createNotification({
+			userId: 'user-1',
+			type: 'TEST_RUN_COMPLETED',
+			title: 'Run done',
+			message: 'Sprint 1 completed'
+		});
+
+		expect(mockDb.insert).not.toHaveBeenCalled();
+	});
+
+	it('should skip DB insert when notification type is muted', async () => {
+		mockDb.query.userPreference.findFirst.mockResolvedValue({
+			notificationSettings: { enableInApp: true, mutedTypes: ['TEST_FAILED'] }
+		});
+
+		const insertChain = {
+			values: vi.fn().mockReturnThis(),
+			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+		};
+		mockDb.insert.mockReturnValue(insertChain as never);
+
+		await createNotification({
+			userId: 'user-1',
+			type: 'TEST_FAILED',
+			title: 'Test failed',
+			message: 'TC-0001 failed'
+		});
+
+		expect(mockDb.insert).not.toHaveBeenCalled();
+	});
+
+	it('should insert when notification type is not in mutedTypes', async () => {
+		mockDb.query.userPreference.findFirst.mockResolvedValue({
+			notificationSettings: { enableInApp: true, mutedTypes: ['COMMENT_ADDED'] }
+		});
+
+		const insertChain = {
+			values: vi.fn().mockReturnThis(),
+			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+		};
+		mockDb.insert.mockReturnValue(insertChain as never);
+
+		await createNotification({
+			userId: 'user-1',
+			type: 'TEST_FAILED',
+			title: 'Test failed',
+			message: 'TC-0001 failed'
+		});
+
+		expect(mockDb.insert).toHaveBeenCalledTimes(1);
+	});
+
+	it('should still send webhooks even when in-app notifications are disabled', async () => {
+		mockDb.query.userPreference.findFirst.mockResolvedValue({
+			notificationSettings: { enableInApp: false }
+		});
+
+		await createNotification({
+			userId: 'user-1',
+			type: 'TEST_FAILED',
+			title: 'Test failed',
+			message: 'TC-0001 failed',
+			projectId: 1
+		});
+
+		expect(mockDb.insert).not.toHaveBeenCalled();
+		expect(mockSendProjectWebhooks).toHaveBeenCalledWith(1, 'TEST_FAILED', {
+			title: 'Test failed',
+			message: 'TC-0001 failed',
+			link: null
+		});
+	});
+
+	it('should insert when notificationSettings is null', async () => {
+		mockDb.query.userPreference.findFirst.mockResolvedValue({
+			notificationSettings: null
+		});
+
+		const insertChain = {
+			values: vi.fn().mockReturnThis(),
+			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+		};
+		mockDb.insert.mockReturnValue(insertChain as never);
+
+		await createNotification({
+			userId: 'user-1',
+			type: 'TEST_RUN_COMPLETED',
+			title: 'Run done',
+			message: 'Sprint 1 completed'
+		});
+
+		expect(mockDb.insert).toHaveBeenCalledTimes(1);
+	});
+
+	it('should not throw when preference query fails', async () => {
+		mockDb.query.userPreference.findFirst.mockRejectedValue(new Error('DB error'));
+
+		const insertChain = {
+			values: vi.fn().mockReturnThis(),
+			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+		};
+		mockDb.insert.mockReturnValue(insertChain as never);
+
+		await expect(
+			createNotification({
+				userId: 'user-1',
+				type: 'SYSTEM',
+				title: 'Alert',
+				message: 'Something happened'
+			})
+		).resolves.toBeUndefined();
+
+		// Should still insert (preference query failed, default to insert)
+		expect(mockDb.insert).toHaveBeenCalledTimes(1);
 	});
 });

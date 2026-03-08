@@ -1,5 +1,6 @@
 import { db } from '$lib/server/db';
-import { notification } from '$lib/server/db/schema';
+import { notification, userPreference } from '$lib/server/db/schema';
+import { eq } from 'drizzle-orm';
 import { childLogger } from './logger';
 import { sendProjectWebhooks } from './webhooks';
 
@@ -20,23 +21,49 @@ export interface CreateNotificationParams {
  * Fire-and-forget: the returned Promise is intentionally not awaited by callers.
  * Any DB error is caught and logged so it never propagates to the caller.
  *
+ * Respects user notification preferences:
+ * - enableInApp: false → skip DB insert entirely
+ * - mutedTypes: ['TYPE'] → skip if notification type is muted
+ *
  * Also triggers outgoing webhooks for the project if configured.
  */
 export async function createNotification(params: CreateNotificationParams): Promise<void> {
+	let shouldInsert = true;
+
 	try {
-		await db.insert(notification).values({
-			userId: params.userId,
-			type: params.type,
-			title: params.title,
-			message: params.message,
-			link: params.link ?? null,
-			projectId: params.projectId ?? null
+		const pref = await db.query.userPreference.findFirst({
+			where: eq(userPreference.userId, params.userId)
 		});
+
+		if (pref?.notificationSettings) {
+			const settings = pref.notificationSettings;
+			if (settings.enableInApp === false) {
+				shouldInsert = false;
+			} else if (settings.mutedTypes?.includes(params.type)) {
+				shouldInsert = false;
+			}
+		}
 	} catch (err) {
-		log.error({ err, params }, 'Failed to create notification');
+		log.error({ err }, 'Failed to load notification preferences');
+	}
+
+	if (shouldInsert) {
+		try {
+			await db.insert(notification).values({
+				userId: params.userId,
+				type: params.type,
+				title: params.title,
+				message: params.message,
+				link: params.link ?? null,
+				projectId: params.projectId ?? null
+			});
+		} catch (err) {
+			log.error({ err, params }, 'Failed to create notification');
+		}
 	}
 
 	// Trigger outgoing webhooks (fire-and-forget, only if project-scoped)
+	// Webhooks are always sent regardless of user notification preferences
 	if (params.projectId) {
 		sendProjectWebhooks(params.projectId, params.type, {
 			title: params.title,

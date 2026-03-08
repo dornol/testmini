@@ -4,7 +4,7 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { updateTestCaseSchema, type UpdateTestCaseInput } from '$lib/schemas/test-case.schema';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
-import { testCase, testCaseVersion, user, tag, testCaseTag, testCaseAssignee, projectMember, customField, issueLink, issueTrackerConfig } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, user, tag, testCaseTag, testCaseAssignee, projectMember, customField, issueLink, issueTrackerConfig, testCaseParameter, testCaseDataSet } from '$lib/server/db/schema';
 import { createTagSchema } from '$lib/schemas/tag.schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
@@ -83,6 +83,19 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 		where: and(eq(issueTrackerConfig.projectId, projectId), eq(issueTrackerConfig.enabled, true))
 	});
 
+	// Load parameters and data sets
+	const parameters = await db
+		.select()
+		.from(testCaseParameter)
+		.where(eq(testCaseParameter.testCaseId, testCaseId))
+		.orderBy(asc(testCaseParameter.orderIndex));
+
+	const dataSets = await db
+		.select()
+		.from(testCaseDataSet)
+		.where(eq(testCaseDataSet.testCaseId, testCaseId))
+		.orderBy(asc(testCaseDataSet.orderIndex));
+
 	return {
 		testCaseDetail: {
 			id: tc.id,
@@ -100,7 +113,9 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 		currentUserId: authUser.id,
 		customFieldDefs,
 		issueLinks,
-		hasIssueTracker: !!trackerConfig
+		hasIssueTracker: !!trackerConfig,
+		parameters,
+		dataSets
 	};
 };
 

@@ -830,5 +830,20 @@
 	"report_schedule_monthly": "매월 (1일, 오전 9시)",
 	"report_schedule_empty": "예약된 리포트가 없습니다",
 	"report_shared_title": "공유 리포트",
-	"report_shared_expired": "이 리포트 링크가 만료되었습니다"
+	"report_shared_expired": "이 리포트 링크가 만료되었습니다",
+
+	"param_title": "매개변수 & 데이터",
+	"param_variables": "매개변수",
+	"param_name_placeholder": "변수명...",
+	"param_added": "매개변수가 추가되었습니다",
+	"param_removed": "매개변수가 제거되었습니다",
+	"param_empty": "정의된 매개변수가 없습니다",
+	"dataset_title": "데이터 세트",
+	"dataset_label": "라벨",
+	"dataset_add_row": "행 추가",
+	"dataset_empty": "데이터 세트가 없습니다. 행을 추가하여 테스트 데이터를 정의하세요.",
+	"dataset_removed": "데이터 세트 행이 제거되었습니다",
+	"dataset_import_csv": "CSV 가져오기",
+	"dataset_imported": "{count}행 가져오기 완료",
+	"dataset_import_failed": "CSV 가져오기 실패"
 }

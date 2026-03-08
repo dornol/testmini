@@ -84,7 +84,8 @@ export const projectRelations = relations(project, ({ many }) => ({
 	tags: many(tag),
 	groups: many(testCaseGroup),
 	apiKeys: many(projectApiKey),
-	priorities: many(priorityConfig)
+	priorities: many(priorityConfig),
+	sharedDataSets: many(sharedDataSet)
 }));
 
 // ── ProjectMember ──────────────────────────────────────
@@ -193,7 +194,9 @@ export const testCaseRelations = relations(testCase, ({ one, many }) => ({
 		relationName: 'latestVersion'
 	}),
 	tags: many(testCaseTag),
-	assignees: many(testCaseAssignee)
+	assignees: many(testCaseAssignee),
+	parameters: many(testCaseParameter),
+	dataSets: many(testCaseDataSet)
 }));
 
 // ── TestCaseVersion ────────────────────────────────────
@@ -290,6 +293,8 @@ export const testExecution = pgTable(
 			.references(() => testCaseVersion.id),
 		status: executionStatusEnum('status').default('PENDING').notNull(),
 		comment: text('comment'),
+		dataSetId: integer('data_set_id').references(() => testCaseDataSet.id, { onDelete: 'set null' }),
+		parameterValues: jsonb('parameter_values').$type<Record<string, string>>(),
 		executedBy: text('executed_by').references(() => user.id),
 		executedAt: timestamp('executed_at')
 	},
@@ -1202,6 +1207,86 @@ export const sharedReport = pgTable(
 export const sharedReportRelations = relations(sharedReport, ({ one }) => ({
 	project: one(project, {
 		fields: [sharedReport.projectId],
+		references: [project.id]
+	})
+}));
+
+// ── TestCaseParameter ─────────────────────────────────
+
+export const testCaseParameter = pgTable(
+	'test_case_parameter',
+	{
+		id: serial('id').primaryKey(),
+		testCaseId: integer('test_case_id')
+			.notNull()
+			.references(() => testCase.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		orderIndex: integer('order_index').notNull().default(0)
+	},
+	(table) => [
+		unique('test_case_parameter_unique').on(table.testCaseId, table.name),
+		index('test_case_parameter_case_idx').on(table.testCaseId)
+	]
+);
+
+export const testCaseParameterRelations = relations(testCaseParameter, ({ one }) => ({
+	testCase: one(testCase, {
+		fields: [testCaseParameter.testCaseId],
+		references: [testCase.id]
+	})
+}));
+
+// ── TestCaseDataSet ───────────────────────────────────
+
+export const testCaseDataSet = pgTable(
+	'test_case_data_set',
+	{
+		id: serial('id').primaryKey(),
+		testCaseId: integer('test_case_id')
+			.notNull()
+			.references(() => testCase.id, { onDelete: 'cascade' }),
+		name: text('name'),
+		values: jsonb('values').$type<Record<string, string>>().notNull(),
+		orderIndex: integer('order_index').notNull().default(0)
+	},
+	(table) => [
+		index('test_case_data_set_case_idx').on(table.testCaseId)
+	]
+);
+
+export const testCaseDataSetRelations = relations(testCaseDataSet, ({ one }) => ({
+	testCase: one(testCase, {
+		fields: [testCaseDataSet.testCaseId],
+		references: [testCase.id]
+	})
+}));
+
+// ── SharedDataSet ─────────────────────────────────────
+
+export const sharedDataSet = pgTable(
+	'shared_data_set',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		parameters: jsonb('parameters').$type<string[]>().notNull().default([]),
+		rows: jsonb('rows').$type<Record<string, string>[]>().notNull().default([]),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		unique('shared_data_set_project_name_unique').on(table.projectId, table.name),
+		index('shared_data_set_project_idx').on(table.projectId)
+	]
+);
+
+export const sharedDataSetRelations = relations(sharedDataSet, ({ one }) => ({
+	project: one(project, {
+		fields: [sharedDataSet.projectId],
 		references: [project.id]
 	})
 }));

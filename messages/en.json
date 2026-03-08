@@ -830,5 +830,20 @@
 	"report_schedule_monthly": "Monthly (1st, 9am)",
 	"report_schedule_empty": "No scheduled reports",
 	"report_shared_title": "Shared Report",
-	"report_shared_expired": "This report link has expired"
+	"report_shared_expired": "This report link has expired",
+
+	"param_title": "Parameters & Data",
+	"param_variables": "Parameters",
+	"param_name_placeholder": "Variable name...",
+	"param_added": "Parameter added",
+	"param_removed": "Parameter removed",
+	"param_empty": "No parameters defined",
+	"dataset_title": "Data Sets",
+	"dataset_label": "Label",
+	"dataset_add_row": "Add Row",
+	"dataset_empty": "No data sets. Add a row to start defining test data.",
+	"dataset_removed": "Data set row removed",
+	"dataset_import_csv": "Import CSV",
+	"dataset_imported": "{count} rows imported",
+	"dataset_import_failed": "CSV import failed"
 }

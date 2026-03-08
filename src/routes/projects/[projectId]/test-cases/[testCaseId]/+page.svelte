@@ -21,6 +21,7 @@
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import SaveAsTemplateDialog from '../SaveAsTemplateDialog.svelte';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
+	import ParameterDataSection from '$lib/components/ParameterDataSection.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 	import { apiPost, apiDelete } from '$lib/api-client';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
@@ -872,6 +873,15 @@
 					/>
 				</Card.Content>
 			</Card.Root>
+
+			<!-- Parameters & Data -->
+			<ParameterDataSection
+				projectId={data.project.id}
+				testCaseId={tc.id}
+				parameters={data.parameters}
+				dataSets={data.dataSets}
+				editable={canEdit}
+			/>
 
 			<!-- Issue Links -->
 			<Card.Root>

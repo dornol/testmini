@@ -39,6 +39,7 @@ The following core capabilities are **already implemented**:
 | 27 | Saved Filters & Views | Done | Per-user saved filter presets, quick switching in test case list |
 | 28 | Issue Status Sync | Done | Fetch/sync issue status from Jira/GitHub/GitLab, bidirectional links |
 | 29 | Report Export | Done | PDF generation, shareable links with tokens, scheduled report emails |
+| 30 | Parameterized Tests | Done | Parameters, data sets, CSV import, test run expansion, shared data library |
 
 ---
 
@@ -74,7 +75,7 @@ Expose project data via [Model Context Protocol (MCP)](https://modelcontextproto
 - [x] Register resources and tools
 - [x] Web Standard Streamable HTTP transport (`/api/mcp` endpoint)
 - [x] Documentation in `docs/API.md`
-- [ ] Integration tests for MCP endpoints
+- [x] Integration tests for MCP endpoints
 
 ---
 
@@ -159,16 +160,16 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ### 9.1 Parameterized Test Cases
 
-- [ ] Data-driven test case support: define parameter variables in steps (e.g., `{{username}}`, `{{password}}`)
-- [ ] Data set table: rows of parameter values per test case
-- [ ] Execution expands parameterized test case into N executions (one per data row)
-- [ ] Results tracked per parameter combination
+- [x] Data-driven test case support: define parameter variables in steps (e.g., `{{username}}`, `{{password}}`)
+- [x] Data set table: rows of parameter values per test case
+- [x] Execution expands parameterized test case into N executions (one per data row)
+- [x] Results tracked per parameter combination
 
 ### 9.2 Shared Test Data Library
 
-- [ ] Project-level reusable data sets (e.g., "Valid Users", "Edge Case Inputs")
-- [ ] Link data sets to multiple test cases
-- [ ] Import data sets from CSV
+- [x] Project-level reusable data sets (e.g., "Valid Users", "Edge Case Inputs")
+- [x] Link data sets to multiple test cases
+- [x] Import data sets from CSV
 
 ---
 

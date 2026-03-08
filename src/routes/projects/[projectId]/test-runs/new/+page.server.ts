@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testCase, testCaseVersion, testRun, testExecution, tag, testCaseTag, testSuite, testSuiteItem } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, testRun, testExecution, tag, testCaseTag, testSuite, testSuiteItem, testCaseDataSet } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { loadProjectTags } from '$lib/server/queries';
@@ -126,6 +126,29 @@ export const actions: Actions = {
 
 		const caseMap = new Map(selectedCases.map((c) => [c.id, c.latestVersionId]));
 
+		// Load data sets for all selected test cases (for parameterized expansion)
+		const allDataSets = input.testCaseIds.length > 0
+			? await db
+				.select()
+				.from(testCaseDataSet)
+				.where(eq(testCaseDataSet.testCaseId, input.testCaseIds[0]))
+			: [];
+		// Load for all test case IDs
+		const dataSetsByTcId = new Map<number, typeof allDataSets>();
+		if (input.testCaseIds.length > 0) {
+			const dsRows = await db
+				.select()
+				.from(testCaseDataSet)
+				.orderBy(testCaseDataSet.orderIndex);
+			for (const row of dsRows) {
+				if (!input.testCaseIds.includes(row.testCaseId)) continue;
+				if (!dataSetsByTcId.has(row.testCaseId)) {
+					dataSetsByTcId.set(row.testCaseId, []);
+				}
+				dataSetsByTcId.get(row.testCaseId)!.push(row);
+			}
+		}
+
 		const newRun = await db.transaction(async (tx) => {
 			const [run] = await tx
 				.insert(testRun)
@@ -137,16 +160,36 @@ export const actions: Actions = {
 				})
 				.returning();
 
-			const executionValues = input.testCaseIds
-				.map((tcId) => {
-					const versionId = caseMap.get(tcId);
-					if (!versionId) return null;
-					return {
+			const executionValues: {
+				testRunId: number;
+				testCaseVersionId: number;
+				dataSetId?: number | null;
+				parameterValues?: Record<string, string> | null;
+			}[] = [];
+
+			for (const tcId of input.testCaseIds) {
+				const versionId = caseMap.get(tcId);
+				if (!versionId) continue;
+
+				const dataSets = dataSetsByTcId.get(tcId);
+				if (dataSets && dataSets.length > 0) {
+					// Expand: one execution per data set row
+					for (const ds of dataSets) {
+						executionValues.push({
+							testRunId: run.id,
+							testCaseVersionId: versionId,
+							dataSetId: ds.id,
+							parameterValues: ds.values as Record<string, string>
+						});
+					}
+				} else {
+					// No data sets: single execution as before
+					executionValues.push({
 						testRunId: run.id,
 						testCaseVersionId: versionId
-					};
-				})
-				.filter(Boolean) as { testRunId: number; testCaseVersionId: number }[];
+					});
+				}
+			}
 
 			if (executionValues.length > 0) {
 				await tx.insert(testExecution).values(executionValues);

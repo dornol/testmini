@@ -10,9 +10,13 @@ import {
 	testExecution,
 	testFailureDetail,
 	tag,
-	testCaseTag
+	testCaseTag,
+	testSuite,
+	testPlan,
+	environmentConfig,
+	priorityConfig
 } from '$lib/server/db/schema';
-import { eq, and, desc, count, sql, inArray } from 'drizzle-orm';
+import { eq, and, desc, count, sql, inArray, asc } from 'drizzle-orm';
 
 /**
  * Creates an MCP server scoped to a specific project (authenticated via API key).
@@ -86,6 +90,76 @@ export function createMcpServer(projectId: number) {
 		};
 
 		return { contents: [{ uri: 'reports://summary', text: JSON.stringify(summary, null, 2), mimeType: 'application/json' }] };
+	});
+
+	server.resource('project', 'projects://current', async () => {
+		const proj = await db.query.project.findFirst({
+			where: eq(project.id, projectId)
+		});
+
+		if (!proj) {
+			return { contents: [{ uri: 'projects://current', text: JSON.stringify(null), mimeType: 'application/json' }] };
+		}
+
+		const [tcCount] = await db
+			.select({ value: count() })
+			.from(testCase)
+			.where(eq(testCase.projectId, projectId));
+
+		const [runCount] = await db
+			.select({ value: count() })
+			.from(testRun)
+			.where(eq(testRun.projectId, projectId));
+
+		const [suiteCount] = await db
+			.select({ value: count() })
+			.from(testSuite)
+			.where(eq(testSuite.projectId, projectId));
+
+		const [planCount] = await db
+			.select({ value: count() })
+			.from(testPlan)
+			.where(eq(testPlan.projectId, projectId));
+
+		const members = await db
+			.select({
+				userId: projectMember.userId,
+				role: projectMember.role
+			})
+			.from(projectMember)
+			.where(eq(projectMember.projectId, projectId));
+
+		const environments = await db
+			.select({ name: environmentConfig.name, color: environmentConfig.color })
+			.from(environmentConfig)
+			.where(eq(environmentConfig.projectId, projectId))
+			.orderBy(asc(environmentConfig.sortOrder));
+
+		const priorities = await db
+			.select({ name: priorityConfig.name, color: priorityConfig.color })
+			.from(priorityConfig)
+			.where(eq(priorityConfig.projectId, projectId))
+			.orderBy(asc(priorityConfig.sortOrder));
+
+		const projectInfo = {
+			id: proj.id,
+			name: proj.name,
+			description: proj.description,
+			active: proj.active,
+			createdAt: proj.createdAt,
+			counts: {
+				testCases: tcCount?.value ?? 0,
+				testRuns: runCount?.value ?? 0,
+				testSuites: suiteCount?.value ?? 0,
+				testPlans: planCount?.value ?? 0,
+				members: members.length
+			},
+			members,
+			environments,
+			priorities
+		};
+
+		return { contents: [{ uri: 'projects://current', text: JSON.stringify(projectInfo, null, 2), mimeType: 'application/json' }] };
 	});
 
 	// ── Tools ─────────────────────────────────────────────

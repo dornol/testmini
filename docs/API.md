@@ -2282,6 +2282,7 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `test-cases` | `test-cases://list` | All test cases with latest version title, priority, key |
 | `test-runs` | `test-runs://list` | Recent test runs (last 50) with status |
 | `summary` | `reports://summary` | Total test case count + recent 5 runs |
+| `project` | `projects://current` | Current project info with counts, members, environments, priorities |
 
 ### Tools
 

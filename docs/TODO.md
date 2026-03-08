@@ -60,7 +60,7 @@ Expose project data via [Model Context Protocol (MCP)](https://modelcontextproto
 - [x] `test-cases` -- list all test cases with latest version
 - [x] `test-runs` -- list recent test runs with status
 - [x] `summary` -- dashboard summary (total test cases, recent runs)
-- [ ] `projects` -- list all projects the caller has access to (future: multi-project API key)
+- [x] `projects` -- current project info with counts, members, environments, priorities
 
 ### MCP Tools (actions)
 

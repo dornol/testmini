@@ -21,8 +21,12 @@ vi.mock('$lib/server/db', () => ({
 	findTestCaseWithLatestVersion: mockFindTestCaseWithLatestVersion
 }));
 vi.mock('$lib/server/db/schema', () => ({
-	project: { id: 'id', createdBy: 'created_by' },
-	projectMember: { projectId: 'project_id', userId: 'user_id' },
+	project: { id: 'id', name: 'name', description: 'description', active: 'active', createdBy: 'created_by', createdAt: 'created_at' },
+	projectMember: { projectId: 'project_id', userId: 'user_id', role: 'role' },
+	testSuite: { id: 'id', projectId: 'project_id' },
+	testPlan: { id: 'id', projectId: 'project_id' },
+	environmentConfig: { projectId: 'project_id', name: 'name', color: 'color', sortOrder: 'sort_order' },
+	priorityConfig: { projectId: 'project_id', name: 'name', color: 'color', sortOrder: 'sort_order' },
 	testCase: {
 		id: 'id',
 		projectId: 'project_id',
@@ -78,6 +82,7 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
 	like: vi.fn((a: unknown, b: unknown) => [a, b]),
 	desc: vi.fn((a: unknown) => a),
+	asc: vi.fn((a: unknown) => a),
 	sql: Object.assign(
 		(strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }),
 		{ raw: (s: string) => s }
@@ -206,6 +211,59 @@ describe('MCP Server', () => {
 			expect(parsed.totalTestCases).toBe(42);
 			expect(parsed.recentRuns).toHaveLength(1);
 			expect(parsed.recentRuns[0].name).toBe('Sprint 1');
+		});
+	});
+
+	describe('resource: projects://current', () => {
+		it('should return project info with counts and metadata', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+
+			let selectCallCount = 0;
+			mockDb.select.mockImplementation(() => {
+				selectCallCount++;
+				let data: unknown[];
+				switch (selectCallCount) {
+					case 1: data = [{ value: 25 }]; break;   // testCases count
+					case 2: data = [{ value: 10 }]; break;   // testRuns count
+					case 3: data = [{ value: 3 }]; break;    // testSuites count
+					case 4: data = [{ value: 2 }]; break;    // testPlans count
+					case 5: data = [{ userId: 'user-1', role: 'PROJECT_ADMIN' }, { userId: 'user-2', role: 'QA' }]; break; // members
+					case 6: data = [{ name: 'DEV', color: '#22c55e' }, { name: 'QA', color: '#3b82f6' }]; break; // environments
+					case 7: data = [{ name: 'HIGH', color: '#ef4444' }, { name: 'MEDIUM', color: '#f59e0b' }]; break; // priorities
+					default: data = [];
+				}
+				const chain = {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					orderBy: vi.fn().mockReturnThis(),
+					then: (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve)
+				};
+				return chain as never;
+			});
+
+			const result = await client.readResource({ uri: 'projects://current' });
+
+			expect(result.contents).toHaveLength(1);
+			expect(result.contents[0].uri).toBe('projects://current');
+			expect(result.contents[0].mimeType).toBe('application/json');
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+			expect(parsed.name).toBe('Sample Project');
+			expect(parsed.counts.testCases).toBe(25);
+			expect(parsed.counts.testRuns).toBe(10);
+			expect(parsed.counts.testSuites).toBe(3);
+			expect(parsed.counts.testPlans).toBe(2);
+			expect(parsed.counts.members).toBe(2);
+			expect(parsed.members).toHaveLength(2);
+			expect(parsed.environments).toHaveLength(2);
+			expect(parsed.priorities).toHaveLength(2);
+		});
+
+		it('should return null when project not found', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(null) };
+
+			const result = await client.readResource({ uri: 'projects://current' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+			expect(parsed).toBeNull();
 		});
 	});
 
@@ -914,11 +972,12 @@ describe('MCP Server', () => {
 			]);
 		});
 
-		it('should list all 3 resources', async () => {
+		it('should list all 4 resources', async () => {
 			const result = await client.listResources();
 			const uris = result.resources.map((r) => r.uri).sort();
 
 			expect(uris).toEqual([
+				'projects://current',
 				'reports://summary',
 				'test-cases://list',
 				'test-runs://list'

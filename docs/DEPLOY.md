@@ -35,6 +35,7 @@
 | pnpm | 9+ | `corepack enable && corepack prepare pnpm@latest --activate` |
 | PostgreSQL | 16+ | Production compose uses 17-alpine |
 | Redis | 7+ | Optional: SSE real-time sync and Soft Lock (in-memory fallback available) |
+| S3/MinIO | — | Optional: Object storage for file uploads (local filesystem fallback available) |
 
 ### Additional Requirements for Docker Deployment
 
@@ -72,6 +73,11 @@ cp .env.example .env
 | Variable | Description | Default | Example |
 |------|------|--------|------|
 | `REDIS_URL` | Redis connection string (omit to use in-memory fallback) | — | `redis://:password@localhost:6379` |
+| `S3_BUCKET` | S3/MinIO bucket name (omit to use local filesystem) | — | `testmini` |
+| `S3_ENDPOINT` | S3/MinIO endpoint URL | — | `http://localhost:9000` |
+| `S3_REGION` | S3 region | `us-east-1` | `us-east-1` |
+| `S3_ACCESS_KEY_ID` | S3/MinIO access key | — | `minioadmin` |
+| `S3_SECRET_ACCESS_KEY` | S3/MinIO secret key | — | `minioadmin` |
 | `PORT` | App listening port | `3000` | `3000` |
 | `NODE_ENV` | Node execution environment | — | `production` |
 | `SMTP_HOST` | SMTP server hostname (omit to disable email) | — | `smtp.example.com` |
@@ -91,6 +97,11 @@ cp .env.example .env
 | `ORIGIN` | Public URL of the app | `https://qa.example.com` |
 | `BETTER_AUTH_SECRET` | Session signing secret | Output of `openssl rand -base64 32` |
 | `APP_PORT` | Port exposed to the host | `3000` |
+| `S3_BUCKET` | S3/MinIO bucket name (optional) | `testmini` |
+| `S3_ENDPOINT` | S3/MinIO endpoint URL (optional) | `http://minio:9000` |
+| `S3_REGION` | S3 region (optional) | `us-east-1` |
+| `S3_ACCESS_KEY_ID` | S3/MinIO access key (optional) | `minioadmin` |
+| `S3_SECRET_ACCESS_KEY` | S3/MinIO secret key (optional) | `minioadmin` |
 
 > **Warning:** If `BETTER_AUTH_SECRET` is leaked, session token forgery becomes possible. Never commit it to Git.
 
@@ -116,7 +127,7 @@ cd testmini
 # 2. Install dependencies
 pnpm install
 
-# 3. Start development Docker services (PostgreSQL + Redis)
+# 3. Start development Docker services (PostgreSQL + Redis + MinIO)
 docker compose -f compose.yaml up -d
 
 # 4. Configure environment variables
@@ -139,6 +150,11 @@ DATABASE_URL="postgres://root:mysecretpassword@localhost:5432/local"
 ORIGIN="http://localhost:5173"
 BETTER_AUTH_SECRET="dev-only-secret-change-in-production"
 REDIS_URL="redis://localhost:6379"
+# Optional: S3/MinIO (omit to use local filesystem at data/uploads/)
+# S3_BUCKET="testmini"
+# S3_ENDPOINT="http://localhost:9000"
+# S3_ACCESS_KEY_ID="minioadmin"
+# S3_SECRET_ACCESS_KEY="minioadmin"
 ```
 
 ### Key Development Scripts
@@ -172,6 +188,7 @@ Internet
               |
               +-- db:5432    (backend network, not exposed externally)
               +-- redis:6379 (backend network, not exposed externally)
+              +-- minio:9000 (optional, backend network)
 ```
 
 #### Deployment Procedure
@@ -721,14 +738,17 @@ The app outputs minimal logs when `NODE_ENV=production`. Redis connection errors
 
 ### Disk Usage Monitoring
 
-Due to the file attachment feature, disk usage of `/app/data/uploads` (Docker: `uploads` volume) may increase.
+Due to the file attachment feature, disk usage of `/app/data/uploads` (Docker: `uploads` volume) may increase. When using S3/MinIO, files are stored in the object store instead.
 
 ```bash
-# Check Docker volume usage
+# Check Docker volume usage (local filesystem mode)
 docker system df -v | grep uploads
 
 # Check upload directory size (manual deployment)
 du -sh /opt/testmini/data/uploads
+
+# Check MinIO bucket usage (S3 mode)
+mc du local/testmini
 ```
 
 ---
@@ -813,7 +833,7 @@ ORIGIN=http://qa.example.com    # Wrong (http set for HTTPS deployment)
 
 **Symptom:** Error when uploading attachments
 
-**Resolution:**
+**Resolution (local filesystem):**
 
 ```bash
 # Docker: Verify uploads volume mount
@@ -829,6 +849,20 @@ chmod 755 /opt/testmini/data/uploads
 
 # Reverse proxy: Check client_max_body_size setting (Nginx)
 grep client_max_body_size /etc/nginx/sites-available/testmini
+```
+
+**Resolution (S3/MinIO):**
+
+```bash
+# Verify S3 env vars are set
+docker compose -f compose.prod.yaml exec app env | grep S3_
+
+# Test MinIO connectivity
+curl -s http://localhost:9000/minio/health/live
+
+# Verify bucket exists (using mc CLI)
+mc alias set local http://localhost:9000 minioadmin minioadmin
+mc ls local/testmini
 ```
 
 ### Port Conflict
@@ -910,4 +944,4 @@ Verify the following items before deployment.
 - [ ] Confirmed whether `pnpm db:migrate` needs to be run (if new migration files exist)
 - [ ] Health check endpoint (`/api/health`) returns a normal response after deployment
 - [ ] Reverse proxy configuration verified (HTTPS, SSE timeout)
-- [ ] Upload volume/directory mount verified
+- [ ] Upload volume/directory mount verified (or S3/MinIO bucket accessible)

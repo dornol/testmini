@@ -43,6 +43,7 @@ The following core capabilities are **already implemented**:
 | 31 | BDD/Gherkin Support | Done | Given/When/Then syntax editor, auto-parse into steps, format toggle |
 | 32 | Test Case Approval Workflow | Done | Draft → In Review → Approved/Rejected, approval history, notifications |
 | 33 | Exploratory Test Sessions | Done | Timer-based sessions, notes with types, screenshot upload, charter |
+| 34 | S3/MinIO Object Storage | Done | Optional S3-compatible backend for file uploads, env-driven with local fallback |
 
 ---
 
@@ -200,7 +201,7 @@ Items below are lower priority or dependent on user demand:
 | Test plan as separate entity | Low | Currently test runs serve this purpose; separate "plan" adds planning phase before execution |
 | Environment matrix | Low | Define environments centrally, run same suite across multiple environments |
 | Mobile-optimized views | Low | Responsive is done; dedicated mobile UX for field testers |
-| S3/MinIO file storage migration | Low | Replace local file storage with object storage |
+| ~~S3/MinIO file storage migration~~ | ~~Low~~ | ~~Done -- S3/MinIO optional backend in storage.ts; env-driven (S3_BUCKET, S3_ENDPOINT); local filesystem fallback~~ |
 | Team/Organization hierarchy | Low | Multi-team structure above projects |
 | ~~Test case review/approval workflow~~ | ~~Low~~ | ~~Done -- merged into approval workflow above~~ |
 | Bulk execution via CLI | Low | `testmini exec --run 123` for headless execution recording |

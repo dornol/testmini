@@ -18,6 +18,20 @@ services:
       - 6379:6379
     volumes:
       - redisdata:/data
+  # Optional: remove if not using S3_ENDPOINT
+  minio:
+    image: minio/minio
+    restart: always
+    ports:
+      - 9000:9000
+      - 9001:9001
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - miniodata:/data
 volumes:
   pgdata:
   redisdata:
+  miniodata:

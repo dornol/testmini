@@ -45,7 +45,7 @@ cd testmini
 # 2. Install dependencies
 pnpm install
 
-# 3. Start the database (Redis is optional — omit REDIS_URL for in-memory fallback)
+# 3. Start the database (Redis and MinIO are optional)
 pnpm db:start          # docker compose up
 
 # 4. Push the database schema
@@ -53,7 +53,8 @@ pnpm db:push           # drizzle-kit push (applies schema without migrations)
 
 # 5. Copy and configure environment variables
 cp .env.example .env
-# Edit .env — set DATABASE_URL and Better Auth secrets (REDIS_URL is optional)
+# Edit .env — set DATABASE_URL and Better Auth secrets
+# Optional: REDIS_URL (in-memory fallback), S3_BUCKET+S3_ENDPOINT (local filesystem fallback)
 
 # 6. Start the development server
 pnpm dev               # http://localhost:5173
@@ -129,7 +130,7 @@ testmini/
 │   │   │   ├── oidc-jwt.ts         # OIDC JWT verification
 │   │   │   ├── rate-limit.ts       # Rate limiter (Redis or in-memory)
 │   │   │   ├── redis.ts            # Optional Redis client and pub/sub
-│   │   │   ├── storage.ts          # File storage abstraction (local/S3)
+│   │   │   ├── storage.ts          # File storage abstraction (local filesystem or S3/MinIO)
 │   │   │   └── test-helpers/       # Test utilities (never imported in production code)
 │   │   │       ├── fixtures.ts     # Shared test data objects
 │   │   │       ├── mock-db.ts      # Drizzle mock factory

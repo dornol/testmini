@@ -636,5 +636,32 @@
 	"priority_in_use": "테스트 케이스에서 사용 중",
 
 	"tag_create_inline": "\"{name}\" 생성",
-	"tag_new_inline": "새 태그..."
+	"tag_new_inline": "새 태그...",
+
+	"nav_webhooks": "웹훅",
+	"webhook_title": "웹훅",
+	"webhook_desc": "이벤트 발생 시 Slack이나 다른 서비스에 알림을 보내는 웹훅을 설정합니다.",
+	"webhook_new": "웹훅 추가",
+	"webhook_name": "이름",
+	"webhook_name_placeholder": "예: Slack #testing",
+	"webhook_url": "URL",
+	"webhook_url_placeholder": "https://hooks.slack.com/services/...",
+	"webhook_secret": "시크릿",
+	"webhook_secret_placeholder": "선택 사항 서명 시크릿",
+	"webhook_events": "이벤트",
+	"webhook_events_all": "모든 이벤트",
+	"webhook_enabled": "활성화",
+	"webhook_created": "웹훅이 생성되었습니다",
+	"webhook_updated": "웹훅이 수정되었습니다",
+	"webhook_deleted": "웹훅이 삭제되었습니다",
+	"webhook_delete_title": "웹훅 삭제",
+	"webhook_delete_confirm": "\"{name}\" 웹훅을 삭제하시겠습니까?",
+	"webhook_empty": "웹훅이 설정되지 않았습니다. 알림을 받으려면 첫 번째 웹훅을 추가하세요.",
+	"webhook_test": "테스트",
+	"webhook_test_sent": "테스트 웹훅이 전송되었습니다",
+	"webhook_event_TEST_RUN_COMPLETED": "테스트 실행 완료",
+	"webhook_event_TEST_FAILED": "테스트 실패",
+	"webhook_event_COMMENT_ADDED": "댓글 추가",
+	"webhook_event_MEMBER_ADDED": "멤버 추가",
+	"webhook_event_ASSIGNED": "담당자 배정"
 }

@@ -636,5 +636,32 @@
 	"priority_in_use": "In use by test cases",
 
 	"tag_create_inline": "Create \"{name}\"",
-	"tag_new_inline": "New tag..."
+	"tag_new_inline": "New tag...",
+
+	"nav_webhooks": "Webhooks",
+	"webhook_title": "Webhooks",
+	"webhook_desc": "Configure outgoing webhooks to receive notifications in Slack or other services when events occur.",
+	"webhook_new": "Add Webhook",
+	"webhook_name": "Name",
+	"webhook_name_placeholder": "e.g., Slack #testing",
+	"webhook_url": "URL",
+	"webhook_url_placeholder": "https://hooks.slack.com/services/...",
+	"webhook_secret": "Secret",
+	"webhook_secret_placeholder": "Optional signing secret",
+	"webhook_events": "Events",
+	"webhook_events_all": "All events",
+	"webhook_enabled": "Enabled",
+	"webhook_created": "Webhook created",
+	"webhook_updated": "Webhook updated",
+	"webhook_deleted": "Webhook deleted",
+	"webhook_delete_title": "Delete Webhook",
+	"webhook_delete_confirm": "Are you sure you want to delete \"{name}\"?",
+	"webhook_empty": "No webhooks configured. Add your first webhook to receive notifications.",
+	"webhook_test": "Test",
+	"webhook_test_sent": "Test webhook sent",
+	"webhook_event_TEST_RUN_COMPLETED": "Test Run Completed",
+	"webhook_event_TEST_FAILED": "Test Failed",
+	"webhook_event_COMMENT_ADDED": "Comment Added",
+	"webhook_event_MEMBER_ADDED": "Member Added",
+	"webhook_event_ASSIGNED": "Assigned"
 }

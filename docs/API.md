@@ -42,6 +42,7 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 16. [Automation](#automation)
 17. [Priority Configuration](#priority-configuration)
 18. [MCP Server](#mcp-server)
+19. [Webhooks](#webhooks)
 
 ---
 
@@ -1970,6 +1971,99 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
   }
 }
 ```
+
+---
+
+## Webhooks
+
+Per-project outgoing webhook configuration. Webhooks are triggered automatically when notification events occur (test run completed, test failed, comment added, member added, assigned). Requires `PROJECT_ADMIN` role for create/update/delete.
+
+### List webhooks
+
+```
+GET /api/projects/:projectId/webhooks
+```
+
+**Response:** `200 OK`
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Slack #testing",
+    "url": "https://hooks.slack.com/services/...",
+    "events": ["TEST_RUN_COMPLETED", "TEST_FAILED"],
+    "enabled": true,
+    "createdAt": "2025-03-08T..."
+  }
+]
+```
+
+### Create webhook
+
+```
+POST /api/projects/:projectId/webhooks
+```
+
+**Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Display name (max 100 chars) |
+| `url` | string | Yes | HTTP/HTTPS endpoint URL |
+| `secret` | string | No | HMAC-SHA256 signing secret |
+| `events` | string[] | No | Event filter (empty = all events) |
+
+Valid events: `TEST_RUN_COMPLETED`, `TEST_FAILED`, `COMMENT_ADDED`, `MEMBER_ADDED`, `ASSIGNED`
+
+**Response:** `201 Created`
+
+### Update webhook
+
+```
+PATCH /api/projects/:projectId/webhooks/:webhookId
+```
+
+**Body:** Any subset of `name`, `url`, `secret`, `events`, `enabled`.
+
+**Response:** `200 OK`
+
+### Delete webhook
+
+```
+DELETE /api/projects/:projectId/webhooks/:webhookId
+```
+
+**Response:** `200 OK` `{ "success": true }`
+
+### Test webhook
+
+```
+POST /api/projects/:projectId/webhooks/:webhookId/test
+```
+
+Sends a test payload to the webhook URL.
+
+**Response:** `200 OK` `{ "success": true }`
+
+### Webhook payload format
+
+All webhook deliveries use `POST` with `Content-Type: application/json`:
+
+```json
+{
+  "event": "TEST_RUN_COMPLETED",
+  "projectId": 1,
+  "timestamp": "2025-03-08T12:00:00.000Z",
+  "data": {
+    "title": "Test run completed",
+    "message": "\"Sprint 1\" has been completed",
+    "link": "/projects/1/test-runs/42"
+  }
+}
+```
+
+If a signing secret is configured, the request includes an `X-Webhook-Signature` header with `sha256=<hex>` (HMAC-SHA256 of the raw JSON body).
 
 ---
 

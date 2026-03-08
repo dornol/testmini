@@ -14,7 +14,12 @@
 		{ href: `/projects/${projectId}/settings/members`, label: m.nav_members() },
 		{ href: `/projects/${projectId}/settings/tags`, label: m.nav_tags() },
 		{ href: `/projects/${projectId}/settings/priorities`, label: m.nav_priorities() },
-		...(isAdmin ? [{ href: `/projects/${projectId}/settings/api-keys`, label: m.nav_api_keys() }] : [])
+		...(isAdmin
+			? [
+					{ href: `/projects/${projectId}/settings/webhooks`, label: m.nav_webhooks() },
+					{ href: `/projects/${projectId}/settings/api-keys`, label: m.nav_api_keys() }
+				]
+			: [])
 	]);
 
 	function isActive(href: string, exact?: boolean): boolean {

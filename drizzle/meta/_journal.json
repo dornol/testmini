@@ -120,6 +120,20 @@
       "when": 1772986400000,
       "tag": "0017_user_approval",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1773072800000,
+      "tag": "0018_custom_priorities",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1773159200000,
+      "tag": "0019_project_webhooks",
+      "breakpoints": true
     }
   ]
 }

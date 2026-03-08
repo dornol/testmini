@@ -875,3 +875,38 @@ export const projectApiKeyRelations = relations(projectApiKey, ({ one }) => ({
 		references: [user.id]
 	})
 }));
+
+// ── ProjectWebhook ────────────────────────────────────
+
+export const projectWebhook = pgTable(
+	'project_webhook',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		url: text('url').notNull(),
+		secret: text('secret'),
+		events: jsonb('events').$type<string[]>().notNull().default([]),
+		enabled: boolean('enabled').default(true).notNull(),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		index('project_webhook_project_idx').on(table.projectId)
+	]
+);
+
+export const projectWebhookRelations = relations(projectWebhook, ({ one }) => ({
+	project: one(project, {
+		fields: [projectWebhook.projectId],
+		references: [project.id]
+	}),
+	creator: one(user, {
+		fields: [projectWebhook.createdBy],
+		references: [user.id]
+	})
+}));

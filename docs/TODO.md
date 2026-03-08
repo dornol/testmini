@@ -31,6 +31,7 @@ The following core capabilities are **already implemented**:
 | 19 | Import/Export | Done | CSV and JSON import/export for test cases |
 | 20 | In-App Notifications | Done | Bell UI, polling, mark as read; triggered by key events |
 | 21 | MCP Server | Done | Resources + tools via Streamable HTTP, API key auth |
+| 22 | Outgoing Webhooks | Done | Per-project webhook config, Slack/generic HTTP, HMAC signing, event filtering |
 
 ---
 
@@ -127,16 +128,16 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ### 8.1 In-App Notifications
 
-- [ ] Notification bell with unread count
-- [ ] Events: assigned to test case/run, execution status changed, comment added, run completed
-- [ ] Mark as read / mark all read
+- [x] Notification bell with unread count
+- [x] Events: assigned to test case/run, execution status changed, comment added, run completed
+- [x] Mark as read / mark all read
 - [ ] Notification preferences (per-user toggle per event type)
 
 ### 8.2 Webhook & External Notifications
 
-- [ ] Slack integration (incoming webhook)
+- [x] Slack integration (incoming webhook)
   - Run completed summary, failure alerts
-- [ ] Generic webhook (configurable URL + payload)
+- [x] Generic webhook (configurable URL + payload, HMAC signing, per-project settings)
 - [ ] Email notifications (optional, SMTP config)
 
 ### 8.3 Comments & Mentions

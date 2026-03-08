@@ -114,7 +114,10 @@ testmini/
 │   │   │   │   └── auth.schema.ts  # Better Auth-generated user/session tables
 │   │   │   ├── lock.ts             # Distributed lock (Redis or in-memory)
 │   │   │   ├── logger.ts           # Pino logger
-│   │   │   ├── notifications.ts    # Notification creation helpers
+│   │   │   ├── mcp/               # MCP (Model Context Protocol) server
+│   │   │   │   └── server.ts      # MCP server factory (scoped per project)
+│   │   │   ├── notifications.ts    # Notification creation helpers (also triggers webhooks)
+│   │   │   ├── webhooks.ts         # Outgoing webhook delivery (HMAC signing, fire-and-forget)
 │   │   │   ├── oidc-jwt.ts         # OIDC JWT verification
 │   │   │   ├── rate-limit.ts       # Rate limiter (Redis or in-memory)
 │   │   │   ├── redis.ts            # Optional Redis client and pub/sub
@@ -134,8 +137,9 @@ testmini/
 │       │   ├── attachments/
 │       │   ├── automation/
 │       │   ├── health/
+│       │   ├── mcp/               # MCP Streamable HTTP endpoint
 │       │   ├── notifications/
-│       │   ├── projects/
+│       │   ├── projects/          # Includes webhooks/ CRUD endpoints
 │       │   └── users/
 │       ├── auth/                   # Login, pending approval, OAuth callback pages
 │       ├── admin/                  # Admin panel pages (global admin only)

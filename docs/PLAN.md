@@ -550,6 +550,19 @@ Priorities were migrated from a PostgreSQL enum (`LOW`, `MEDIUM`, `HIGH`, `CRITI
 - [x] API endpoints updated: priority type changed from enum to string
 - [x] Default priority seeding on project creation (both form and API)
 
+### Milestone 15: Outgoing Webhooks
+
+Per-project outgoing webhook configuration for Slack and generic HTTP endpoints. Webhooks fire automatically when notification events occur, using the existing `createNotification()` integration point.
+
+- [x] `project_webhook` table (id, projectId, name, url, secret, events, enabled, createdBy, createdAt)
+- [x] Migration: `drizzle/0019_project_webhooks.sql`
+- [x] Webhook delivery: `src/lib/server/webhooks.ts` (HMAC-SHA256 signing, 10s timeout, fire-and-forget)
+- [x] Integration: `createNotification()` triggers `sendProjectWebhooks()` for project-scoped notifications
+- [x] API endpoints: CRUD at `/api/projects/:projectId/webhooks`, test endpoint at `.../test`
+- [x] Settings UI: `src/routes/projects/[projectId]/settings/webhooks/+page.svelte`
+- [x] i18n: Korean + English messages for all webhook UI strings
+- [x] Tests: Unit tests for webhook delivery, API endpoint tests for CRUD/test, notification integration tests
+
 #### 14.2 Inline Tag Creation
 
 Tags can now be created directly from the tag assignment UI on test case detail pages, without navigating to the settings page.

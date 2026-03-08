@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockDb } from '$lib/server/test-helpers/mock-db';
 
 const mockDb = createMockDb();
+const mockSendProjectWebhooks = vi.fn();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb }));
 vi.mock('$lib/server/db/schema', () => ({
@@ -9,6 +10,9 @@ vi.mock('$lib/server/db/schema', () => ({
 }));
 vi.mock('$lib/server/logger', () => ({
 	childLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })
+}));
+vi.mock('$lib/server/webhooks', () => ({
+	sendProjectWebhooks: mockSendProjectWebhooks
 }));
 
 const { createNotification } = await import('./notifications');
@@ -117,5 +121,65 @@ describe('createNotification', () => {
 		});
 
 		expect(mockDb.insert).toHaveBeenCalledTimes(1);
+	});
+
+	it('should trigger sendProjectWebhooks when projectId is provided', async () => {
+		const insertChain = {
+			values: vi.fn().mockReturnThis(),
+			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+		};
+		mockDb.insert.mockReturnValue(insertChain as never);
+
+		await createNotification({
+			userId: 'user-1',
+			type: 'TEST_RUN_COMPLETED',
+			title: 'Run done',
+			message: 'Sprint 1 completed',
+			link: '/projects/1/test-runs/50',
+			projectId: 1
+		});
+
+		expect(mockSendProjectWebhooks).toHaveBeenCalledWith(1, 'TEST_RUN_COMPLETED', {
+			title: 'Run done',
+			message: 'Sprint 1 completed',
+			link: '/projects/1/test-runs/50'
+		});
+	});
+
+	it('should not trigger sendProjectWebhooks when projectId is not provided', async () => {
+		const insertChain = {
+			values: vi.fn().mockReturnThis(),
+			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+		};
+		mockDb.insert.mockReturnValue(insertChain as never);
+
+		await createNotification({
+			userId: 'user-1',
+			type: 'SYSTEM',
+			title: 'System alert',
+			message: 'Something happened'
+		});
+
+		expect(mockSendProjectWebhooks).not.toHaveBeenCalled();
+	});
+
+	it('should still trigger webhook even when DB insert fails', async () => {
+		mockDb.insert.mockImplementation(() => {
+			throw new Error('DB connection failed');
+		});
+
+		await createNotification({
+			userId: 'user-1',
+			type: 'TEST_FAILED',
+			title: 'Test failed',
+			message: 'TC-0001 failed',
+			projectId: 1
+		});
+
+		expect(mockSendProjectWebhooks).toHaveBeenCalledWith(1, 'TEST_FAILED', {
+			title: 'Test failed',
+			message: 'TC-0001 failed',
+			link: null
+		});
 	});
 });

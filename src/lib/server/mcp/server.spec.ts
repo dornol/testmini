@@ -173,6 +173,32 @@ describe('MCP Server', () => {
 			expect(parsed).toHaveLength(1);
 			expect(parsed[0].name).toBe('Sprint 1');
 		});
+
+		it('should return empty array when no test runs exist', async () => {
+			mockSelectResult(mockDb, []);
+
+			const result = await client.readResource({ uri: 'test-runs://list' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+			expect(parsed).toEqual([]);
+		});
+
+		it('should include all run fields', async () => {
+			const mockRuns = [
+				{ id: 50, name: 'Sprint 1', environment: 'QA', status: 'COMPLETED', createdAt: '2025-01-01', finishedAt: '2025-01-05' }
+			];
+			mockSelectResult(mockDb, mockRuns);
+
+			const result = await client.readResource({ uri: 'test-runs://list' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+			expect(parsed[0]).toEqual({
+				id: 50,
+				name: 'Sprint 1',
+				environment: 'QA',
+				status: 'COMPLETED',
+				createdAt: '2025-01-01',
+				finishedAt: '2025-01-05'
+			});
+		});
 	});
 
 	describe('resource: reports://summary', () => {
@@ -215,30 +241,49 @@ describe('MCP Server', () => {
 	});
 
 	describe('resource: projects://current', () => {
-		it('should return project info with counts and metadata', async () => {
-			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
-
+		function mockProjectSelects(data: {
+			tcCount?: number;
+			runCount?: number;
+			suiteCount?: number;
+			planCount?: number;
+			members?: unknown[];
+			environments?: unknown[];
+			priorities?: unknown[];
+		}) {
 			let selectCallCount = 0;
 			mockDb.select.mockImplementation(() => {
 				selectCallCount++;
-				let data: unknown[];
+				let result: unknown[];
 				switch (selectCallCount) {
-					case 1: data = [{ value: 25 }]; break;   // testCases count
-					case 2: data = [{ value: 10 }]; break;   // testRuns count
-					case 3: data = [{ value: 3 }]; break;    // testSuites count
-					case 4: data = [{ value: 2 }]; break;    // testPlans count
-					case 5: data = [{ userId: 'user-1', role: 'PROJECT_ADMIN' }, { userId: 'user-2', role: 'QA' }]; break; // members
-					case 6: data = [{ name: 'DEV', color: '#22c55e' }, { name: 'QA', color: '#3b82f6' }]; break; // environments
-					case 7: data = [{ name: 'HIGH', color: '#ef4444' }, { name: 'MEDIUM', color: '#f59e0b' }]; break; // priorities
-					default: data = [];
+					case 1: result = [{ value: data.tcCount ?? 0 }]; break;
+					case 2: result = [{ value: data.runCount ?? 0 }]; break;
+					case 3: result = [{ value: data.suiteCount ?? 0 }]; break;
+					case 4: result = [{ value: data.planCount ?? 0 }]; break;
+					case 5: result = data.members ?? []; break;
+					case 6: result = data.environments ?? []; break;
+					case 7: result = data.priorities ?? []; break;
+					default: result = [];
 				}
 				const chain = {
 					from: vi.fn().mockReturnThis(),
 					where: vi.fn().mockReturnThis(),
 					orderBy: vi.fn().mockReturnThis(),
-					then: (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve)
+					then: (resolve: (v: unknown) => void) => Promise.resolve(result).then(resolve)
 				};
 				return chain as never;
+			});
+		}
+
+		it('should return project info with counts and metadata', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockProjectSelects({
+				tcCount: 25,
+				runCount: 10,
+				suiteCount: 3,
+				planCount: 2,
+				members: [{ userId: 'user-1', role: 'PROJECT_ADMIN' }, { userId: 'user-2', role: 'QA' }],
+				environments: [{ name: 'DEV', color: '#22c55e' }, { name: 'QA', color: '#3b82f6' }],
+				priorities: [{ name: 'HIGH', color: '#ef4444' }, { name: 'MEDIUM', color: '#f59e0b' }]
 			});
 
 			const result = await client.readResource({ uri: 'projects://current' });
@@ -248,14 +293,19 @@ describe('MCP Server', () => {
 			expect(result.contents[0].mimeType).toBe('application/json');
 			const parsed = JSON.parse(getResourceText(result.contents[0]));
 			expect(parsed.name).toBe('Sample Project');
+			expect(parsed.description).toBe('A test project');
+			expect(parsed.active).toBe(true);
 			expect(parsed.counts.testCases).toBe(25);
 			expect(parsed.counts.testRuns).toBe(10);
 			expect(parsed.counts.testSuites).toBe(3);
 			expect(parsed.counts.testPlans).toBe(2);
 			expect(parsed.counts.members).toBe(2);
 			expect(parsed.members).toHaveLength(2);
+			expect(parsed.members[0]).toEqual({ userId: 'user-1', role: 'PROJECT_ADMIN' });
 			expect(parsed.environments).toHaveLength(2);
+			expect(parsed.environments[0]).toEqual({ name: 'DEV', color: '#22c55e' });
 			expect(parsed.priorities).toHaveLength(2);
+			expect(parsed.priorities[0]).toEqual({ name: 'HIGH', color: '#ef4444' });
 		});
 
 		it('should return null when project not found', async () => {
@@ -264,6 +314,93 @@ describe('MCP Server', () => {
 			const result = await client.readResource({ uri: 'projects://current' });
 			const parsed = JSON.parse(getResourceText(result.contents[0]));
 			expect(parsed).toBeNull();
+		});
+
+		it('should handle project with zero counts', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockProjectSelects({});
+
+			const result = await client.readResource({ uri: 'projects://current' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+
+			expect(parsed.counts.testCases).toBe(0);
+			expect(parsed.counts.testRuns).toBe(0);
+			expect(parsed.counts.testSuites).toBe(0);
+			expect(parsed.counts.testPlans).toBe(0);
+			expect(parsed.counts.members).toBe(0);
+			expect(parsed.members).toEqual([]);
+			expect(parsed.environments).toEqual([]);
+			expect(parsed.priorities).toEqual([]);
+		});
+
+		it('should include project id and createdAt', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockProjectSelects({});
+
+			const result = await client.readResource({ uri: 'projects://current' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+
+			expect(parsed.id).toBe(1);
+			expect(parsed.createdAt).toBeDefined();
+		});
+
+		it('should handle single member project', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockProjectSelects({
+				members: [{ userId: 'user-1', role: 'PROJECT_ADMIN' }]
+			});
+
+			const result = await client.readResource({ uri: 'projects://current' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+
+			expect(parsed.counts.members).toBe(1);
+			expect(parsed.members).toHaveLength(1);
+			expect(parsed.members[0].role).toBe('PROJECT_ADMIN');
+		});
+
+		it('should handle project with many environments and priorities', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			const envs = [
+				{ name: 'DEV', color: '#22c55e' },
+				{ name: 'QA', color: '#3b82f6' },
+				{ name: 'STAGE', color: '#f59e0b' },
+				{ name: 'PROD', color: '#ef4444' }
+			];
+			const prios = [
+				{ name: 'LOW', color: '#6b7280' },
+				{ name: 'MEDIUM', color: '#3b82f6' },
+				{ name: 'HIGH', color: '#f97316' },
+				{ name: 'CRITICAL', color: '#ef4444' }
+			];
+			mockProjectSelects({ environments: envs, priorities: prios });
+
+			const result = await client.readResource({ uri: 'projects://current' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+
+			expect(parsed.environments).toHaveLength(4);
+			expect(parsed.priorities).toHaveLength(4);
+			expect(parsed.environments.map((e: { name: string }) => e.name)).toEqual(['DEV', 'QA', 'STAGE', 'PROD']);
+			expect(parsed.priorities.map((p: { name: string }) => p.name)).toEqual(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
+		});
+
+		it('should handle inactive project', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue({ ...sampleProject, active: false }) };
+			mockProjectSelects({});
+
+			const result = await client.readResource({ uri: 'projects://current' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+
+			expect(parsed.active).toBe(false);
+		});
+
+		it('should handle project with null description', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue({ ...sampleProject, description: null }) };
+			mockProjectSelects({});
+
+			const result = await client.readResource({ uri: 'projects://current' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+
+			expect(parsed.description).toBeNull();
 		});
 	});
 
@@ -388,6 +525,36 @@ describe('MCP Server', () => {
 
 			expect(result.isError).toBe(true);
 			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Test run not found');
+		});
+
+		it('should count all execution status types correctly', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			const mockExecutions = [
+				{ id: 200, status: 'PASS', executedAt: '2025-01-02', testCaseKey: 'TC-0001', testCaseTitle: 'Test 1' },
+				{ id: 201, status: 'PASS', executedAt: '2025-01-02', testCaseKey: 'TC-0002', testCaseTitle: 'Test 2' },
+				{ id: 202, status: 'FAIL', executedAt: '2025-01-02', testCaseKey: 'TC-0003', testCaseTitle: 'Test 3' },
+				{ id: 203, status: 'BLOCKED', executedAt: null, testCaseKey: 'TC-0004', testCaseTitle: 'Test 4' },
+				{ id: 204, status: 'SKIPPED', executedAt: null, testCaseKey: 'TC-0005', testCaseTitle: 'Test 5' },
+				{ id: 205, status: 'PENDING', executedAt: null, testCaseKey: 'TC-0006', testCaseTitle: 'Test 6' }
+			];
+			mockSelectResult(mockDb, mockExecutions);
+
+			const result = await client.callTool({ name: 'get-test-run', arguments: { runId: 50 } });
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+
+			expect(parsed.statusCounts).toEqual({ PASS: 2, FAIL: 1, BLOCKED: 1, SKIPPED: 1, PENDING: 1 });
+			expect(parsed.executions).toHaveLength(6);
+		});
+
+		it('should handle run with no executions', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockSelectResult(mockDb, []);
+
+			const result = await client.callTool({ name: 'get-test-run', arguments: { runId: 50 } });
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+
+			expect(parsed.statusCounts).toEqual({ PASS: 0, FAIL: 0, BLOCKED: 0, SKIPPED: 0, PENDING: 0 });
+			expect(parsed.executions).toHaveLength(0);
 		});
 	});
 
@@ -809,6 +976,49 @@ describe('MCP Server', () => {
 			expect(result.isError).toBe(true);
 			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Execution not found');
 		});
+
+		it('should record failure with only required params', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testExecution = { findFirst: vi.fn().mockResolvedValue(sampleExecution) };
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+
+			const createdDetail = {
+				id: 2,
+				testExecutionId: 200,
+				errorMessage: null,
+				stackTrace: null,
+				failureEnvironment: null,
+				comment: null,
+				createdBy: 'user-1'
+			};
+			mockInsertReturning(mockDb, [createdDetail]);
+
+			const result = await client.callTool({
+				name: 'record-failure-detail',
+				arguments: { runId: 50, executionId: 200 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.errorMessage).toBeNull();
+			expect(parsed.stackTrace).toBeNull();
+			expect(parsed.failureEnvironment).toBeNull();
+			expect(parsed.comment).toBeNull();
+		});
+
+		it('should return error when project not found', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testExecution = { findFirst: vi.fn().mockResolvedValue(sampleExecution) };
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(null) };
+
+			const result = await client.callTool({
+				name: 'record-failure-detail',
+				arguments: { runId: 50, executionId: 200 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Project not found');
+		});
 	});
 
 	describe('tool: export-run-results', () => {
@@ -855,6 +1065,68 @@ describe('MCP Server', () => {
 
 			expect(result.isError).toBe(true);
 			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Test run not found');
+		});
+
+		it('should export run with no failures', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+
+			const mockExecutions = [
+				{ executionId: 200, status: 'PASS', executedAt: '2025-01-02', testCaseKey: 'TC-0001', testCaseTitle: 'Login', priority: 'HIGH' }
+			];
+
+			let selectCallCount = 0;
+			mockDb.select.mockImplementation(() => {
+				selectCallCount++;
+				const data = selectCallCount === 1 ? mockExecutions : [];
+				const chain = {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					innerJoin: vi.fn().mockReturnThis(),
+					then: (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve)
+				};
+				return chain as never;
+			});
+
+			const result = await client.callTool({ name: 'export-run-results', arguments: { runId: 50 } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.statusCounts.PASS).toBe(1);
+			expect(parsed.statusCounts.FAIL).toBe(0);
+			expect(parsed.results[0].failures).toEqual([]);
+		});
+
+		it('should export run with multiple failures per execution', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+
+			const mockExecutions = [
+				{ executionId: 200, status: 'FAIL', executedAt: '2025-01-02', testCaseKey: 'TC-0001', testCaseTitle: 'Login', priority: 'HIGH' }
+			];
+			const mockFailures = [
+				{ executionId: 200, errorMessage: 'Error 1', stackTrace: 'trace1', failureEnvironment: 'Chrome', comment: null },
+				{ executionId: 200, errorMessage: 'Error 2', stackTrace: 'trace2', failureEnvironment: 'Firefox', comment: 'retry' }
+			];
+
+			let selectCallCount = 0;
+			mockDb.select.mockImplementation(() => {
+				selectCallCount++;
+				const data = selectCallCount === 1 ? mockExecutions : mockFailures;
+				const chain = {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					innerJoin: vi.fn().mockReturnThis(),
+					then: (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve)
+				};
+				return chain as never;
+			});
+
+			const result = await client.callTool({ name: 'export-run-results', arguments: { runId: 50 } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.results[0].failures).toHaveLength(2);
+			expect(parsed.results[0].failures[0].errorMessage).toBe('Error 1');
+			expect(parsed.results[0].failures[1].errorMessage).toBe('Error 2');
 		});
 	});
 

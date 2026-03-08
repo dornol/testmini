@@ -2293,7 +2293,39 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `get-test-run` | `runId` | Get test run with execution status counts |
 | `get-failures` | `runId` | Get failure details (error messages, stack traces) |
 | `create-test-case` | `title`, `priority?`, `precondition?`, `steps?`, `expectedResult?` | Create a new test case |
-| `update-execution-status` | `runId`, `executionId`, `status` | Update execution status |
+| `update-test-case` | `id?`, `key?`, `title?`, `priority?`, `precondition?`, `steps?`, `expectedResult?` | Update test case (creates new version) |
+| `create-test-run` | `name`, `environment`, `testCaseIds?` | Create test run with selected or all test cases |
+| `record-failure-detail` | `runId`, `executionId`, `errorMessage?`, `stackTrace?`, `failureEnvironment?`, `comment?` | Record failure details for execution |
+| `export-run-results` | `runId` | Export test run results as structured JSON |
+| `update-execution-status` | `runId`, `executionId`, `status` | Update execution status (PASS/FAIL/BLOCKED/SKIPPED/PENDING) |
+
+### Resource: `projects://current` Response
+
+```json
+{
+  "id": 1,
+  "name": "My Project",
+  "description": "Project description",
+  "active": true,
+  "createdAt": "2025-01-01T00:00:00.000Z",
+  "counts": {
+    "testCases": 25,
+    "testRuns": 10,
+    "testSuites": 3,
+    "testPlans": 2,
+    "members": 4
+  },
+  "members": [
+    { "userId": "user-1", "role": "PROJECT_ADMIN" }
+  ],
+  "environments": [
+    { "name": "DEV", "color": "#22c55e" }
+  ],
+  "priorities": [
+    { "name": "HIGH", "color": "#ef4444" }
+  ]
+}
+```
 
 ### MCP Client Configuration
 

@@ -74,6 +74,67 @@ describe('/api/branding/[...path]', () => {
 			}
 		});
 
+		it('should return 400 for path with backslash traversal', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				params: { path: 'branding\\..\\..\\etc' }
+			});
+
+			// Backslash path doesn't start with 'branding/' (uses backslash instead)
+			await expect(GET(event)).rejects.toThrow();
+			try {
+				await GET(event);
+			} catch (e: any) {
+				expect(e.status).toBe(400);
+			}
+		});
+
+		it('should return 400 for empty path', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				params: { path: '' }
+			});
+
+			await expect(GET(event)).rejects.toThrow();
+			try {
+				await GET(event);
+			} catch (e: any) {
+				expect(e.status).toBe(400);
+			}
+		});
+
+		it('should return 400 for URL-encoded traversal attempt', async () => {
+			// When SvelteKit resolves the [...path] param, percent-encoded sequences
+			// are decoded. So %2e%2e becomes '..' by the time it reaches the handler.
+			const event = createMockEvent({
+				method: 'GET',
+				params: { path: 'branding/../etc/passwd' }
+			});
+
+			await expect(GET(event)).rejects.toThrow();
+			try {
+				await GET(event);
+			} catch (e: any) {
+				expect(e.status).toBe(400);
+			}
+		});
+
+		it('should serve file for long but valid branding path', async () => {
+			const longFileName = 'branding/' + 'a'.repeat(200) + '.png';
+			const fileBuffer = Buffer.from('fake-data');
+			mockGetFile.mockResolvedValue(fileBuffer);
+
+			const event = createMockEvent({
+				method: 'GET',
+				params: { path: longFileName }
+			});
+
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(mockGetFile).toHaveBeenCalledWith(longFileName);
+		});
+
 		it('should return 404 when file does not exist', async () => {
 			mockGetFile.mockRejectedValue(new Error('File not found'));
 

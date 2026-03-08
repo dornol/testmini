@@ -301,6 +301,72 @@ describe('buildTestCaseConditions', () => {
 		expect(sqlCondition.values).toContain('%val%');
 	});
 
+	// 24a. customFieldFilter — key with SQL comment syntax should be skipped
+	it('should skip custom field filter with SQL comment syntax in key', () => {
+		buildTestCaseConditions({
+			projectId: 1,
+			customFieldFilters: [{ fieldId: 'key; --' as unknown as number, value: 'val' }]
+		});
+
+		expect(mockAnd.mock.calls[0]).toHaveLength(1); // only projectId
+	});
+
+	// 24b. customFieldFilter — key with backticks should be skipped
+	it('should skip custom field filter with backticks in key', () => {
+		buildTestCaseConditions({
+			projectId: 1,
+			customFieldFilters: [{ fieldId: '`field`' as unknown as number, value: 'val' }]
+		});
+
+		expect(mockAnd.mock.calls[0]).toHaveLength(1); // only projectId
+	});
+
+	// 24c. customFieldFilter — key with parentheses should be skipped
+	it('should skip custom field filter with parentheses in key', () => {
+		buildTestCaseConditions({
+			projectId: 1,
+			customFieldFilters: [{ fieldId: 'field()' as unknown as number, value: 'val' }]
+		});
+
+		expect(mockAnd.mock.calls[0]).toHaveLength(1); // only projectId
+	});
+
+	// 24d. customFieldFilter — key with equals sign should be skipped
+	it('should skip custom field filter with equals sign in key', () => {
+		buildTestCaseConditions({
+			projectId: 1,
+			customFieldFilters: [{ fieldId: 'field=1' as unknown as number, value: 'val' }]
+		});
+
+		expect(mockAnd.mock.calls[0]).toHaveLength(1); // only projectId
+	});
+
+	// 24e. customFieldFilter — valid key with numbers and hyphens should work
+	it('should allow custom field filter with numbers and hyphens in key', () => {
+		buildTestCaseConditions({
+			projectId: 1,
+			customFieldFilters: [{ fieldId: 'field-123' as unknown as number, value: 'val' }]
+		});
+
+		expect(mockAnd.mock.calls[0]).toHaveLength(2); // projectId + custom field
+		const sqlCondition = mockAnd.mock.calls[0][1];
+		expect(sqlCondition.type).toBe('sql');
+		expect(sqlCondition.values).toContain('%val%');
+	});
+
+	// 24f. customFieldFilter — valid key with underscores should work
+	it('should allow custom field filter with underscores in key', () => {
+		buildTestCaseConditions({
+			projectId: 1,
+			customFieldFilters: [{ fieldId: 'my_field' as unknown as number, value: 'val' }]
+		});
+
+		expect(mockAnd.mock.calls[0]).toHaveLength(2); // projectId + custom field
+		const sqlCondition = mockAnd.mock.calls[0][1];
+		expect(sqlCondition.type).toBe('sql');
+		expect(sqlCondition.values).toContain('%val%');
+	});
+
 	// 25. All filters combined
 	it('should combine all filters with and', () => {
 		buildTestCaseConditions({

@@ -137,11 +137,13 @@ testmini/
 │   │   │   ├── rate-limit.ts       # Rate limiter (Redis or in-memory)
 │   │   │   ├── redis.ts            # Optional Redis client and pub/sub
 │   │   │   ├── storage.ts          # File storage abstraction (local filesystem or S3/MinIO)
+│   │   │   ├── form-utils.ts       # Superforms/Zod adapter wrappers (centralizes type suppressions)
 │   │   │   ├── test-case-filters.ts # Test case SQL filter condition builder
 │   │   │   └── test-helpers/       # Test utilities (never imported in production code)
 │   │   │       ├── fixtures.ts     # Shared test data objects
 │   │   │       ├── mock-db.ts      # Drizzle mock factory
 │   │   │       └── mock-event.ts   # SvelteKit RequestEvent mock
+│   │   ├── form-utils.ts           # Client-side Zod validator wrapper
 │   │   └── types/
 │   │       └── events.ts           # Shared event type definitions (SSE payloads, etc.)
 │   │
@@ -446,6 +448,11 @@ describe('POST /api/projects/:projectId/test-cases/bulk', () => {
   });
 });
 ```
+
+### Additional Test Patterns
+
+- **Form-utils tests** (`src/lib/server/form-utils.spec.ts`, `src/lib/form-utils.spec.ts`): Test the Superforms/Zod adapter wrappers to ensure type suppression centralisation works correctly.
+- **Security tests**: API route tests should cover authentication (missing session → 401), authorization (wrong role → 403), and input validation (malformed data → 400). Use `createMockEvent({ user: null })` for unauthenticated requests.
 
 ---
 

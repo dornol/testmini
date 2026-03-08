@@ -45,7 +45,8 @@ const {
 	loadProjectEnvironments,
 	loadTestCaseMetadata,
 	loadTeamMembers,
-	loadUserTeams
+	loadUserTeams,
+	getNextPosition
 } = await import('./queries');
 
 describe('queries', () => {
@@ -411,6 +412,87 @@ describe('queries', () => {
 				role: 'tm.role',
 				createdAt: 'team.created_at'
 			});
+		});
+	});
+
+	// ── getNextPosition ─────────────────────────────────
+
+	describe('getNextPosition', () => {
+		it('should return 0 when no existing items', async () => {
+			mockSelectResult(mockDb, []);
+
+			const result = await getNextPosition(
+				{ position: 'pc.position', projectId: 'pc.project_id' },
+				1
+			);
+
+			expect(result).toBe(0);
+		});
+
+		it('should return maxPosition + 1 when items exist', async () => {
+			mockSelectResult(mockDb, [
+				{ position: 0 },
+				{ position: 1 },
+				{ position: 2 }
+			]);
+
+			const result = await getNextPosition(
+				{ position: 'pc.position', projectId: 'pc.project_id' },
+				1
+			);
+
+			expect(result).toBe(3);
+		});
+
+		it('should return maxPosition + 1 with non-sequential positions', async () => {
+			mockSelectResult(mockDb, [
+				{ position: 0 },
+				{ position: 5 },
+				{ position: 10 }
+			]);
+
+			const result = await getNextPosition(
+				{ position: 'ec.position', projectId: 'ec.project_id' },
+				2
+			);
+
+			expect(result).toBe(11);
+		});
+
+		it('should call db.select with correct shape', async () => {
+			mockSelectResult(mockDb, []);
+
+			await getNextPosition(
+				{ position: 'pc.position', projectId: 'pc.project_id' },
+				1
+			);
+
+			expect(mockDb.select).toHaveBeenCalledWith({
+				position: 'pc.position'
+			});
+		});
+
+		it('should filter by projectId', async () => {
+			const { eq } = await import('drizzle-orm');
+			mockSelectResult(mockDb, []);
+
+			await getNextPosition(
+				{ position: 'pc.position', projectId: 'pc.project_id' },
+				42
+			);
+
+			expect(eq).toHaveBeenCalledWith('pc.project_id', 42);
+		});
+
+		it('should handle a single item', async () => {
+			mockSelectResult(mockDb, [{ position: 7 }]);
+
+			const result = await getNextPosition(
+				{ position: 'pc.position', projectId: 'pc.project_id' },
+				1
+			);
+
+			expect(result).toBe(8);
 		});
 	});
 });

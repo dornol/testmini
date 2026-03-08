@@ -831,6 +831,14 @@ The application uses an in-memory TTL cache (`src/lib/server/cache.ts`) to reduc
 
 > **Note**: This is a per-process in-memory cache. In multi-server deployments, each instance maintains its own cache, so changes may take up to the TTL duration to propagate across instances. For single-server deployments this is not a concern.
 
+### Content Security Policy
+
+CSP is configured in `svelte.config.js` with nonce-based `script-src`. SvelteKit automatically generates per-request nonces for inline scripts. `style-src` allows `unsafe-inline` for dynamic Svelte style attributes.
+
+### Performance Monitoring
+
+Slow requests (>1s) are automatically logged at WARN level with method, path, status, and duration. In development mode, all database queries are logged for debugging. Configure log level via `LOG_LEVEL` environment variable.
+
 ### Authentication Error Due to ORIGIN Mismatch
 
 **Symptom:** Redirect failure after login, CSRF error

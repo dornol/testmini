@@ -71,6 +71,7 @@ pnpm dev               # http://localhost:5173
 | `pnpm check:watch` | Watch mode for svelte-check |
 | `pnpm test` | Run all unit tests once |
 | `pnpm test:unit` | Run unit tests in watch mode |
+| `pnpm test:coverage` | Run tests with coverage report |
 | `pnpm test:e2e` | Run Playwright end-to-end tests |
 | `pnpm lint` | ESLint |
 | `pnpm format` | Prettier (write) |
@@ -303,9 +304,23 @@ Tests use **Vitest**. Test files are co-located with the source files they test 
 
 Run tests:
 ```bash
-pnpm test          # all tests, once
-pnpm test:unit     # watch mode
+pnpm test            # all tests, once
+pnpm test:unit       # watch mode
+pnpm test:coverage   # with coverage report (html at coverage/index.html)
 ```
+
+### Coverage Thresholds
+
+Coverage is enforced on `src/lib/**/*.ts` and `src/hooks*.ts` (excludes Svelte components, UI primitives, DB schemas, paraglide):
+
+| Metric | Threshold |
+|--------|-----------|
+| Statements | 70% |
+| Branches | 65% |
+| Functions | 70% |
+| Lines | 70% |
+
+`pnpm test:coverage` will fail if any threshold is not met.
 
 ### Unit Test Patterns with Vitest
 

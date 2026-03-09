@@ -399,6 +399,32 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ---
 
+## Phase 17: Test Coverage Reporting
+
+### 17.1 Coverage Infrastructure -- Done
+
+- [x] `@vitest/coverage-v8` integration (`pnpm test:coverage`)
+  - Reporters: text, text-summary, html, json-summary
+  - HTML report at `coverage/index.html`
+  - Scoped to testable lib code (`src/lib/**/*.ts`, `src/hooks*.ts`)
+  - Excludes: Svelte components, paraglide, DB schemas, test helpers, ui primitives
+- [x] Global coverage thresholds enforced:
+  - Statements: 70%, Branches: 65%, Functions: 70%, Lines: 70%
+- [x] Current coverage: 77% statements, 70% branches, 78% functions, 78% lines
+
+### 17.2 High-Coverage Modules
+
+| Module | Stmts | Notes |
+|--------|-------|-------|
+| `src/lib/utils/*` | 100% | percentile, navigation, unsaved-guard |
+| `src/lib/server/db/pool-config.ts` | 100% | Connection pool config |
+| `src/lib/server/db/query-logger.ts` | 100% | Query timing/logging |
+| `src/lib/server/mcp/server.ts` | 99% | MCP server |
+| `src/lib/schemas/*` | 100% | Zod validation schemas |
+| `src/lib/server/cache.ts` | 98% | TTL cache with stats |
+
+---
+
 ## Future Considerations
 
 | Feature | Priority | Notes |

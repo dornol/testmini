@@ -28,6 +28,31 @@ export default defineConfig({
 	],
 	test: {
 		expect: { requireAssertions: true },
+		coverage: {
+			provider: 'v8',
+			reporter: ['text', 'text-summary', 'html', 'json-summary'],
+			reportsDirectory: 'coverage',
+			include: [
+				'src/lib/**/*.ts',
+				'src/hooks*.ts'
+			],
+			exclude: [
+				'src/**/*.{test,spec}.{ts,js}',
+				'src/**/*.svelte.{test,spec}.{ts,js}',
+				'src/lib/paraglide/**',
+				'src/lib/server/db/schema.ts',
+				'src/lib/server/db/auth.schema.ts',
+				'src/lib/components/**',
+				'src/lib/server/test-helpers/**',
+				'src/app.d.ts'
+			],
+			thresholds: {
+				statements: 70,
+				branches: 65,
+				functions: 70,
+				lines: 70
+			}
+		},
 		projects: [
 			{
 				extends: './vite.config.ts',

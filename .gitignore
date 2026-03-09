@@ -43,6 +43,9 @@ e2e/playwright-report/
 # Claude
 .claude/
 
+# Coverage
+coverage/
+
 # Lighthouse CI
 .lighthouseci/
 

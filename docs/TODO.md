@@ -359,6 +359,46 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ---
 
+## Phase 16: DB Pool Tuning, Bundle Analysis & Lighthouse CI
+
+### 16.1 DB Connection Pool Tuning -- Done
+
+- [x] Explicit postgres.js pool options (was: library defaults only)
+  - `max`: 20 (prod) / 10 (dev), configurable via `DB_POOL_MAX`
+  - `idle_timeout`: 30s, configurable via `DB_IDLE_TIMEOUT`
+  - `connect_timeout`: 10s, configurable via `DB_CONNECT_TIMEOUT`
+  - `max_lifetime`: 30 minutes (connection recycling)
+  - `prepare`: true (prepared statements for query plan caching)
+- [x] Environment variables documented in `.env.example`
+
+### 16.2 Bundle Size Analysis -- Done
+
+- [x] `rollup-plugin-visualizer` integration (`pnpm build:analyze`)
+  - Generates treemap HTML report at `build/stats.html`
+  - Shows gzip and brotli compressed sizes
+  - Only activates when `ANALYZE=true`
+- [x] Bundle safety tests (7 tests) -- prevents server-only packages from leaking into client code
+  - Guards: @aws-sdk, pdfkit, nodemailer, ioredis, pino, postgres, drizzle-orm
+  - Validates devDependencies vs dependencies classification
+
+### 16.3 Lighthouse CI -- Done
+
+- [x] Lighthouse CI configuration (`lighthouserc.cjs`, `pnpm lighthouse`)
+  - Desktop preset, 3 runs per URL
+  - Performance thresholds: FCP < 2s, LCP < 3s, CLS < 0.1, TBT < 300ms
+  - Accessibility threshold: score >= 0.9
+  - Results stored locally (`.lighthouseci/`)
+- [x] `@lhci/cli` added as devDependency
+
+### 16.4 Test Coverage -- Done
+
+144 test files, 1720 tests (was 142 files, 1657 tests):
+
+- [x] Connection pool config (21 tests) -- pool max (prod/dev defaults, env override, edge cases 0/1), idle timeout, connect timeout, max lifetime, prepared statements, full config snapshots, partial overrides, undefined env values
+- [x] Bundle safety (42 tests) -- server-only package scans across critical files and all components, client util server-import checks, database import guards, package.json dependency classification (runtime, client, devOnly, framework), lighthouserc.cjs validation, vite.config.ts visualizer config
+
+---
+
 ## Future Considerations
 
 | Feature | Priority | Notes |

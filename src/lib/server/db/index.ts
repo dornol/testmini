@@ -5,10 +5,11 @@ import * as schema from './schema';
 import { env } from '$env/dynamic/private';
 import { childLogger } from '../logger';
 import { QueryLogger } from './query-logger';
+import { resolvePoolConfig } from './pool-config';
 
 if (!env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
 
-const client = postgres(env.DATABASE_URL);
+const client = postgres(env.DATABASE_URL, resolvePoolConfig(env, process.env.NODE_ENV === 'production'));
 
 export const db = drizzle(client, { schema, logger: new QueryLogger(childLogger('db')) });
 

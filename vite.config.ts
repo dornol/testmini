@@ -3,6 +3,9 @@ import { playwright } from '@vitest/browser-playwright';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { visualizer } from 'rollup-plugin-visualizer';
+
+const analyze = process.env.ANALYZE === 'true';
 
 export default defineConfig({
 	server: {
@@ -14,7 +17,14 @@ export default defineConfig({
 	plugins: [
 		tailwindcss(),
 		sveltekit(),
-		paraglideVitePlugin({ project: './project.inlang', outdir: './src/lib/paraglide' })
+		paraglideVitePlugin({ project: './project.inlang', outdir: './src/lib/paraglide' }),
+		analyze && visualizer({
+			filename: 'build/stats.html',
+			open: true,
+			gzipSize: true,
+			brotliSize: true,
+			template: 'treemap'
+		})
 	],
 	test: {
 		expect: { requireAssertions: true },

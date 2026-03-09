@@ -533,6 +533,35 @@ BASE_URL=http://localhost:3000 BENCH_ROUNDS=50 PROJECT_ID=1 API_KEY=tmk_xxx pnpm
 
 Output includes sequential latency (avg/p50/p95/p99), concurrent load test (RPS), and slow endpoint warnings.
 
+### Bundle Size Analysis
+
+Run `pnpm build:analyze` to generate a treemap visualization of the client bundle:
+
+```bash
+pnpm build:analyze   # opens build/stats.html in browser
+```
+
+### Lighthouse CI
+
+Run `pnpm lighthouse` to measure performance and accessibility scores:
+
+```bash
+pnpm preview &       # start production server
+pnpm lighthouse      # run Lighthouse CI (3 runs, desktop preset)
+```
+
+Results are saved to `.lighthouseci/`. Thresholds are configured in `lighthouserc.cjs`.
+
+### Database Connection Pool
+
+The connection pool is configured in `src/lib/server/db/pool-config.ts` (used by `src/lib/server/db/index.ts`) with env-configurable options:
+
+| Env Var | Default (prod/dev) | Description |
+|---------|-------------------|-------------|
+| `DB_POOL_MAX` | 20 / 10 | Max connections |
+| `DB_IDLE_TIMEOUT` | 30 | Idle timeout (seconds) |
+| `DB_CONNECT_TIMEOUT` | 10 | Connect timeout (seconds) |
+
 ---
 
 ## How to Add a New API Route

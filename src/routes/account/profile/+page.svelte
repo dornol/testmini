@@ -104,6 +104,7 @@
 	let currentPassword = $state('');
 	let newPassword = $state('');
 	let confirmPassword = $state('');
+	let pwSaving = $state(false);
 
 	function handleNameResult() {
 		return async ({
@@ -124,6 +125,7 @@
 	}
 
 	function handlePasswordResult() {
+		pwSaving = true;
 		return async ({
 			result,
 			update
@@ -131,6 +133,7 @@
 			result: { type: string; data?: Record<string, unknown> };
 			update: () => Promise<void>;
 		}) => {
+			pwSaving = false;
 			if (result.type === 'success') {
 				toast.success(m.profile_password_updated());
 				currentPassword = '';
@@ -221,8 +224,8 @@
 						<Label for="confirmPassword">{m.profile_confirm_password()}</Label>
 						<Input id="confirmPassword" name="confirmPassword" type="password" bind:value={confirmPassword} />
 					</div>
-					<Button type="submit" disabled={!currentPassword || !newPassword || !confirmPassword}>
-						{m.profile_change_password()}
+					<Button type="submit" disabled={!currentPassword || !newPassword || !confirmPassword || pwSaving}>
+						{pwSaving ? m.common_saving() : m.profile_change_password()}
 					</Button>
 				</form>
 			</Card.Content>

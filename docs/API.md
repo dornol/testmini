@@ -10,6 +10,9 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
    - [Session-based auth](#session-based-authentication)
    - [API key auth](#api-key-authentication)
    - [Roles and permissions](#roles-and-permissions)
+   - [Rate limiting](#rate-limiting)
+   - [Request body size limit](#request-body-size-limit)
+   - [Security headers](#security-headers)
 2. [Health](#health)
 3. [Projects](#projects)
 4. [Test Cases](#test-cases)
@@ -100,6 +103,39 @@ Auth helpers used throughout:
 - `requireAuth(locals)` — 401 if no session
 - `requireProjectAccess(user, projectId)` — 403 if user is not a project member
 - `requireProjectRole(user, projectId, roles)` — 403 if user role is not in `roles`
+
+### Rate Limiting
+
+All rate limits are applied per IP address and enforced via an in-memory sliding window. When a limit is exceeded the server responds with `429 Too Many Requests`.
+
+| Rule | Applies to | Limit (session) | Limit (API key) |
+|---|---|---|---|
+| `auth:sign-in` | `POST /auth/sign-in/**` | 10 req/min | — |
+| `auth:sign-up` | `POST /auth/sign-up/**` | 10 req/min | — |
+| `auth:password` | `POST` endpoints ending with `/changePassword` | 5 req/min | — |
+| `api:profile` | `PUT`/`PATCH` on `/api/users/me/*` | 20 req/min | — |
+| `api:attachments` | `/api/attachments` | 30 req/min | 100 req/min |
+| `api:bulk` | Bulk operation endpoints | 20 req/min | 60 req/min |
+| `api:general` | All other `/api/**` endpoints | 100 req/min | 300 req/min |
+
+### Request Body Size Limit
+
+All JSON request bodies parsed via `parseJsonBody()` are limited to **1 MB**. Requests exceeding this limit receive `413 Payload Too Large`:
+
+```json
+{ "error": "Request body too large (max 1MB)" }
+```
+
+### Security Headers
+
+Every response includes the following security headers:
+
+| Header | Value | Purpose |
+|---|---|---|
+| `X-Frame-Options` | `DENY` | Prevents clickjacking by disallowing embedding in frames |
+| `X-Content-Type-Options` | `nosniff` | Prevents MIME-type sniffing |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Limits referrer information sent to external origins |
+| `X-XSS-Protection` | `1; mode=block` | Enables browser XSS filtering |
 
 ---
 
@@ -2733,6 +2769,8 @@ Exports the traceability matrix as CSV.
 | `403` | Forbidden — authenticated but lacks required role |
 | `404` | Resource not found |
 | `409` | Conflict — duplicate key, concurrent edit conflict, or invalid state transition |
+| `413` | Payload too large — request body exceeds 1 MB limit |
+| `429` | Too many requests — rate limit exceeded (see [Rate Limiting](#rate-limiting)) |
 | `503` | Service unavailable — database connectivity failure (health check only) |
 
 All error responses follow one of these shapes:

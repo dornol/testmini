@@ -246,6 +246,44 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ---
 
+## Phase 13: Performance, Security & Maintenance
+
+### 13.1 Performance Optimizations -- Done
+
+- [x] Requirements N+1 query elimination -- batch `DISTINCT ON` query replaces per-test-case loop (3 endpoints)
+  - `requirements/+server.ts` -- coverage calculation
+  - `requirements/matrix/+server.ts` -- traceability matrix JSON
+  - `requirements/matrix/export/+server.ts` -- traceability matrix CSV
+- [x] Test case export tag filter -- `inArray` filter replaces full project tag scan
+- [x] Composite index `test_execution(test_case_version_id, id)` for execution lookups
+
+### 13.2 Security Hardening -- Done
+
+- [x] Remove plaintext password logging from admin seed
+- [x] JSON body size limit (1MB) via `parseJsonBody()` -- returns 413 if exceeded
+- [x] Rate limiting for password change (5/min) and profile updates (20/min)
+
+### 13.3 UX Improvements -- Done
+
+- [x] Replace `console.warn()` with `toast.error()` in member search (project + team)
+- [x] Add loading state to password change button
+
+### 13.4 Tech Debt -- Done
+
+- [x] Dependency updates -- svelte, bits-ui, better-auth, svelte-sonner, paraglide, lucide, etc.
+- [x] Test mock infrastructure -- `db.execute`, `inArray`, `sql` mocks added
+
+### 13.5 Test Coverage -- Done
+
+140 test files, 1615 tests (was 136 files, 1564 tests):
+
+- [x] Requirements list API (11 tests) -- GET coverage calculation, POST validation
+- [x] `parseJsonBody` size limit (7 tests) -- valid JSON, invalid JSON, 413 on oversize, edge cases
+- [x] Admin seed (6 tests) -- no plaintext password, default warning, skip when users exist
+- [x] Rate limit rule matching (27 tests) -- all 7 rules, priority ordering, method filtering
+
+---
+
 ## Future Considerations
 
 | Feature | Priority | Notes |

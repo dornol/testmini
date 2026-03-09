@@ -112,6 +112,20 @@ const RATE_LIMIT_RULES: RateLimitRule[] = [
 		apiKeyLimit: 60,
 		windowMs: 60_000
 	},
+	// Password change — brute-force protection
+	{
+		label: 'auth:password',
+		match: (p, m) => p.endsWith('/changePassword') && m === 'POST',
+		limit: 5,
+		windowMs: 60_000
+	},
+	// Profile/preferences updates
+	{
+		label: 'api:profile',
+		match: (p, m) => p.startsWith('/api/users/me') && (m === 'PUT' || m === 'PATCH'),
+		limit: 20,
+		windowMs: 60_000
+	},
 	// General API catch-all
 	{
 		label: 'api:general',

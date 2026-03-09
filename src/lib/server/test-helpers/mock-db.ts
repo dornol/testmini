@@ -59,6 +59,7 @@ export function createMockDb() {
 			};
 			return fn(tx);
 		}),
+		execute: vi.fn().mockResolvedValue([]),
 		query: {
 			testCase: { findFirst: vi.fn() },
 			testRun: { findFirst: vi.fn() },

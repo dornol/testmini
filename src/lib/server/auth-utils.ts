@@ -59,7 +59,13 @@ export async function requireProjectRole(
 	return { role: member.role };
 }
 
+const MAX_JSON_BODY_SIZE = 1024 * 1024; // 1MB
+
 export async function parseJsonBody(request: Request): Promise<unknown> {
+	const contentLength = Number(request.headers.get('content-length') ?? 0);
+	if (contentLength > MAX_JSON_BODY_SIZE) {
+		error(413, 'Request body must not exceed 1MB');
+	}
 	try {
 		return await request.json();
 	} catch {

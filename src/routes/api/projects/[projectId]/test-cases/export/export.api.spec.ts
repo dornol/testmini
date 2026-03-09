@@ -16,7 +16,8 @@ vi.mock('$lib/server/db/schema', () => ({
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
-	asc: vi.fn((a: unknown) => ['asc', a])
+	asc: vi.fn((a: unknown) => ['asc', a]),
+	inArray: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
 	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');

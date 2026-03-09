@@ -7,7 +7,7 @@ import {
 	tag,
 	testCaseTag
 } from '$lib/server/db/schema';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, inArray } from 'drizzle-orm';
 import { csvResponse } from '$lib/server/csv-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
 
@@ -42,16 +42,20 @@ export const GET = withProjectAccess(async ({ url, projectId }) => {
 		.where(eq(testCaseGroup.projectId, projectId));
 	const groupMap = new Map(groups.map((g) => [g.id, g.name]));
 
-	// Load tags per test case
-	const tcTags = await db
-		.select({
-			testCaseId: testCaseTag.testCaseId,
-			tagName: tag.name
-		})
-		.from(testCaseTag)
-		.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
-		.where(eq(tag.projectId, projectId))
-		.orderBy(tag.name);
+	// Load tags only for exported test cases
+	const tcIdSet = new Set(testCases.map((tc) => tc.id));
+	const tcIds = [...tcIdSet];
+	const tcTags = tcIds.length > 0
+		? await db
+			.select({
+				testCaseId: testCaseTag.testCaseId,
+				tagName: tag.name
+			})
+			.from(testCaseTag)
+			.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
+			.where(inArray(testCaseTag.testCaseId, tcIds))
+			.orderBy(tag.name)
+		: [];
 
 	const tagsByTc = new Map<number, string[]>();
 	for (const row of tcTags) {

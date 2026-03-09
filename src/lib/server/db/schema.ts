@@ -363,7 +363,8 @@ export const testExecution = pgTable(
 		index('test_execution_run_status_idx').on(table.testRunId, table.status),
 		index('test_execution_case_version_idx').on(table.testCaseVersionId),
 		index('test_execution_executed_by_idx').on(table.executedBy),
-		index('test_execution_executed_at_idx').on(table.executedAt)
+		index('test_execution_executed_at_idx').on(table.executedAt),
+		index('test_execution_version_id_desc_idx').on(table.testCaseVersionId, table.id)
 	]
 );
 

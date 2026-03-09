@@ -70,8 +70,8 @@
 					{ silent: true }
 				);
 				searchResults = result.data;
-			} catch (e) {
-				console.warn('Failed to search users:', e);
+			} catch {
+				toast.error(m.error_operation_failed());
 			} finally {
 				searching = false;
 			}

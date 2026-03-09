@@ -353,6 +353,14 @@ mockInsertReturning(db as ReturnType<typeof createMockDb>, [
 
 The mock `db.transaction` automatically runs the callback with a nested transaction object that has the same chainable methods.
 
+For raw SQL queries (`db.execute(sql\`...\``), use the `execute` mock directly:
+```typescript
+const mockDb = createMockDb();
+mockDb.execute.mockResolvedValue([
+  { test_case_id: 10, status: 'PASS' }
+]);
+```
+
 ### Using mock-event
 
 `src/lib/server/test-helpers/mock-event.ts` creates a mock `RequestEvent` for testing `+server.ts` route handlers directly, without spinning up an HTTP server.

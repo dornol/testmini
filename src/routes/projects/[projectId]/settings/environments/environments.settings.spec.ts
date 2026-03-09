@@ -69,7 +69,7 @@ describe('environments settings page server', () => {
 		it('should return environments ordered by position', async () => {
 			mockSelectResult(mockDb, sampleEnvironments);
 
-			const result = await load({ params: PARAMS } as never);
+			const result = await load({ params: PARAMS } as never) as Record<string, unknown>;
 
 			expect(result.environments).toEqual(sampleEnvironments);
 			expect(mockDb.select).toHaveBeenCalled();
@@ -78,7 +78,7 @@ describe('environments settings page server', () => {
 		it('should return empty array when no environments exist', async () => {
 			mockSelectResult(mockDb, []);
 
-			const result = await load({ params: PARAMS } as never);
+			const result = await load({ params: PARAMS } as never) as Record<string, unknown>;
 
 			expect(result.environments).toEqual([]);
 		});

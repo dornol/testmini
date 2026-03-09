@@ -150,7 +150,7 @@ describe('admin/users approval actions', () => {
 			const url = new URL('http://localhost:5173/admin/users');
 			mockSelectResult(mockDb, [{ count: 0 }]);
 
-			const result = await load({ url } as never);
+			const result = await load({ url } as never) as Record<string, unknown>;
 			expect(result.pendingOnly).toBe(false);
 		});
 
@@ -158,7 +158,7 @@ describe('admin/users approval actions', () => {
 			const url = new URL('http://localhost:5173/admin/users?pending=true');
 			mockSelectResult(mockDb, [{ count: 0 }]);
 
-			const result = await load({ url } as never);
+			const result = await load({ url } as never) as Record<string, unknown>;
 			expect(result.pendingOnly).toBe(true);
 		});
 
@@ -168,7 +168,7 @@ describe('admin/users approval actions', () => {
 			// In mock, we verify the query was made; actual field mapping is drizzle's responsibility
 			mockSelectResult(mockDb, [{ count: 0 }]);
 
-			const result = await load({ url } as never);
+			const result = await load({ url } as never) as Record<string, unknown>;
 			expect(result.users).toBeDefined();
 			expect(mockDb.select).toHaveBeenCalled();
 		});

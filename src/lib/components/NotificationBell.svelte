@@ -245,6 +245,7 @@
 			role="dialog"
 			aria-modal="true"
 			aria-label="Notifications panel"
+			tabindex="-1"
 			onkeydown={handleKeydown}
 		>
 			<!-- Header -->

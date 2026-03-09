@@ -28,7 +28,7 @@
 
 	const projectId = $derived(data.project.id);
 
-	let config = $state<TrackerConfig | null>(data.issueTrackerConfig as TrackerConfig | null);
+	let config = $state<TrackerConfig | null>(null);
 
 	// Derive UI fields from normalized config
 	// JIRA: baseUrl = jira URL, projectKey = project key, apiToken = "email:token"
@@ -36,22 +36,35 @@
 	// GITLAB: baseUrl = gitlab URL, projectKey = project ID
 	// CUSTOM: baseUrl = endpoint URL, customTemplate = { headers, titleTemplate, bodyTemplate }
 
-	let provider = $state<Provider>((config?.provider as Provider) ?? 'JIRA');
-	let baseUrl = $state(config?.provider === 'JIRA' || config?.provider === 'GITLAB' ? config.baseUrl : '');
+	let provider = $state<Provider>('JIRA');
+	let baseUrl = $state('');
 	let apiToken = $state('');
-	let projectKey = $state(config?.provider === 'JIRA' ? (config.projectKey ?? '') : '');
+	let projectKey = $state('');
 	// For GitHub
-	let repository = $state(config?.provider === 'GITHUB' ? (config.projectKey ?? '') : '');
+	let repository = $state('');
 	// For GitLab
-	let gitlabUrl = $state(config?.provider === 'GITLAB' ? config.baseUrl : '');
-	let gitlabProjectId = $state(config?.provider === 'GITLAB' ? (config.projectKey ?? '') : '');
+	let gitlabUrl = $state('');
+	let gitlabProjectId = $state('');
 	// For Custom
-	let customEndpoint = $state(config?.provider === 'CUSTOM' ? config.baseUrl : '');
-	let customHeaders = $state(
-		config?.provider === 'CUSTOM' && config.customTemplate
-			? JSON.stringify((config.customTemplate as Record<string, unknown>).headers ?? {}, null, 2)
-			: ''
-	);
+	let customEndpoint = $state('');
+	let customHeaders = $state('');
+
+	// Sync from data (reactive)
+	$effect(() => {
+		const c = data.issueTrackerConfig as TrackerConfig | null;
+		config = c;
+		provider = (c?.provider as Provider) ?? 'JIRA';
+		baseUrl = c?.provider === 'JIRA' || c?.provider === 'GITLAB' ? c.baseUrl : '';
+		apiToken = '';
+		projectKey = c?.provider === 'JIRA' ? (c.projectKey ?? '') : '';
+		repository = c?.provider === 'GITHUB' ? (c.projectKey ?? '') : '';
+		gitlabUrl = c?.provider === 'GITLAB' ? c.baseUrl : '';
+		gitlabProjectId = c?.provider === 'GITLAB' ? (c.projectKey ?? '') : '';
+		customEndpoint = c?.provider === 'CUSTOM' ? c.baseUrl : '';
+		customHeaders = c?.provider === 'CUSTOM' && c.customTemplate
+			? JSON.stringify((c.customTemplate as Record<string, unknown>).headers ?? {}, null, 2)
+			: '';
+	});
 
 	let saving = $state(false);
 	let testing = $state(false);

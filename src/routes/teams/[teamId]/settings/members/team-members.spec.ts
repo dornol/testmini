@@ -64,7 +64,7 @@ describe('/teams/[teamId]/settings/members', () => {
 				params: { teamId: '5' },
 				user: testUser
 			});
-			const result = await load(event);
+			const result = await load(event) as Record<string, any>;
 
 			expect(result.members).toEqual(sampleMembers);
 			expect(mockLoadTeamMembers).toHaveBeenCalledWith(5);
@@ -77,7 +77,7 @@ describe('/teams/[teamId]/settings/members', () => {
 				params: { teamId: '5' },
 				user: testUser
 			});
-			const result = await load(event);
+			const result = await load(event) as Record<string, any>;
 
 			expect(result).toHaveProperty('addForm');
 			expect(result.addForm).toHaveProperty('valid');

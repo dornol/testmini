@@ -10,55 +10,7 @@ import {
 } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
-
-function parseCSV(text: string): string[][] {
-	const rows: string[][] = [];
-	let current = '';
-	let inQuotes = false;
-	let row: string[] = [];
-
-	for (let i = 0; i < text.length; i++) {
-		const ch = text[i];
-		if (inQuotes) {
-			if (ch === '"') {
-				if (i + 1 < text.length && text[i + 1] === '"') {
-					current += '"';
-					i++;
-				} else {
-					inQuotes = false;
-				}
-			} else {
-				current += ch;
-			}
-		} else {
-			if (ch === '"') {
-				inQuotes = true;
-			} else if (ch === ',') {
-				row.push(current);
-				current = '';
-			} else if (ch === '\n' || ch === '\r') {
-				if (ch === '\r' && i + 1 < text.length && text[i + 1] === '\n') {
-					i++;
-				}
-				row.push(current);
-				current = '';
-				if (row.some((c) => c.trim() !== '')) {
-					rows.push(row);
-				}
-				row = [];
-			} else {
-				current += ch;
-			}
-		}
-	}
-	// Last row
-	row.push(current);
-	if (row.some((c) => c.trim() !== '')) {
-		rows.push(row);
-	}
-
-	return rows;
-}
+import { parseCSV } from '$lib/server/csv-utils';
 
 interface ImportRow {
 	title: string;

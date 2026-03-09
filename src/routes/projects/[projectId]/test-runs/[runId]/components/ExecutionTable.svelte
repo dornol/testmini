@@ -386,11 +386,11 @@
 
 <!-- Fixed-position status dropdown -->
 {#if statusDropdown}
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		data-status-dropdown
 		role="menu"
 		aria-label="Status options"
+		tabindex="-1"
 		class="fixed z-[9999] bg-popover border rounded-md shadow-lg py-1 min-w-[120px]"
 		style="left: {statusDropdown.x}px; top: {statusDropdown.y}px; transform: translateX(-50%);"
 		onkeydown={handleDropdownKeydown}

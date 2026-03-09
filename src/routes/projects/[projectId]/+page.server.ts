@@ -5,11 +5,39 @@ import { eq, and, sql, desc, count } from 'drizzle-orm';
 import { DEFAULT_LAYOUT } from '$lib/dashboard-widgets';
 import { cacheGet, cacheSet } from '$lib/server/cache';
 
+interface RecentRun {
+	id: number;
+	name: string;
+	environment: string;
+	status: string;
+	createdAt: Date;
+	finishedAt: Date | null;
+	totalCount: number;
+	passCount: number;
+	failCount: number;
+}
+
+interface TrendRun {
+	id: number;
+	name: string;
+	finishedAt: Date | null;
+	totalCount: number;
+	passCount: number;
+}
+
+interface ActivityEntry {
+	id: number;
+	status: string;
+	executedBy: string | null;
+	executedAt: Date | null;
+	testRunName: string;
+}
+
 interface DashboardStats {
 	stats: { testCaseCount: number; runCounts: { total: number; created: number; inProgress: number; completed: number }; execCounts: { total: number; pass: number; fail: number; blocked: number; skipped: number; pending: number } };
-	recentRuns: unknown[];
-	trendRuns: unknown[];
-	activityLog: unknown[];
+	recentRuns: RecentRun[];
+	trendRuns: TrendRun[];
+	activityLog: ActivityEntry[];
 }
 
 async function loadDashboardStats(projectId: number): Promise<DashboardStats> {

@@ -20,6 +20,204 @@ function signSessionCookie(value: string, secret: string): string {
 	return `${value}.${signature}`;
 }
 
+/** Exchange the authorization code for tokens at the provider's token endpoint */
+async function exchangeToken(
+	provider: { tokenUrl: string; clientId: string; clientSecretEncrypted: string },
+	code: string,
+	codeVerifier: string,
+	slug: string,
+	clientSecret: string
+): Promise<{ tokenData: Record<string, unknown>; accessToken: string } | null> {
+	const tokenRes = await fetch(provider.tokenUrl, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+		body: new URLSearchParams({
+			grant_type: 'authorization_code',
+			code,
+			redirect_uri: `${env.ORIGIN}/auth/oidc/${slug}/callback`,
+			client_id: provider.clientId,
+			client_secret: clientSecret,
+			code_verifier: codeVerifier
+		})
+	});
+
+	if (!tokenRes.ok) {
+		const errorBody = await tokenRes.text();
+		return null;
+	}
+
+	const tokenData = await tokenRes.json();
+	return { tokenData, accessToken: tokenData.access_token };
+}
+
+/** Resolve user identity (sub, email, name) from ID token verification and/or userinfo endpoint */
+async function resolveUserInfo(
+	tokenData: Record<string, unknown>,
+	provider: { jwksUri: string | null; issuerUrl: string | null; clientId: string; userinfoUrl: string | null },
+	accessToken: string,
+	callbackLog: typeof log
+): Promise<{ sub?: string; email?: string; name?: string }> {
+	let sub: string | undefined;
+	let email: string | undefined;
+	let name: string | undefined;
+
+	if (tokenData.id_token) {
+		const jwksUri = provider.jwksUri ?? null;
+		const issuerUrl = provider.issuerUrl ?? null;
+
+		if (jwksUri && issuerUrl) {
+			const result = await verifyIdToken({
+				idToken: tokenData.id_token as string,
+				jwksUri,
+				issuer: issuerUrl,
+				audience: provider.clientId
+			});
+
+			if (result.verified && result.claims) {
+				callbackLog.info('ID token signature and claims verified');
+				sub = result.claims.sub;
+				email = result.claims.email;
+				name = result.claims.name;
+			} else {
+				callbackLog.warn({ warning: result.warning }, 'ID token verification failed');
+			}
+		} else {
+			callbackLog.warn(
+				'Provider has no jwksUri configured — ID token signature is NOT verified. Set jwksUri via the discovery endpoint.'
+			);
+			const payload = parseIdTokenPayload(tokenData.id_token as string);
+			if (payload) {
+				sub = payload.sub;
+				email = payload.email;
+				name = payload.name;
+			}
+		}
+	}
+
+	// Fetch userinfo if needed
+	if ((!sub || !email) && provider.userinfoUrl && accessToken) {
+		try {
+			const userinfoRes = await fetch(provider.userinfoUrl, {
+				headers: { Authorization: `Bearer ${accessToken}` }
+			});
+			if (userinfoRes.ok) {
+				const userinfo = await userinfoRes.json();
+				sub = sub || userinfo.sub;
+				email = email || userinfo.email;
+				name = name || userinfo.name;
+			}
+		} catch {
+			// Continue with what we have
+		}
+	}
+
+	callbackLog.info({ hasSub: !!sub, hasEmail: !!email, hasName: !!name }, 'User info resolved');
+	return { sub, email, name };
+}
+
+/** Match an existing account or create a new user, returning the userId and registration status */
+async function matchOrCreateUser(
+	sub: string,
+	email: string | undefined,
+	name: string | undefined,
+	provider: { id: number; slug: string; autoRegister: boolean | null },
+	callbackLog: typeof log
+): Promise<{ userId: string; isNewUser: boolean; isPendingApproval: boolean }> {
+	let userId: string | undefined;
+	let isNewUser = false;
+	let isPendingApproval = false;
+
+	// 1. Check existing oidcAccount by (providerId, externalId)
+	const [existingAccount] = await db
+		.select({ userId: oidcAccount.userId })
+		.from(oidcAccount)
+		.where(
+			and(eq(oidcAccount.providerId, provider.id), eq(oidcAccount.externalId, sub))
+		);
+
+	if (existingAccount) {
+		userId = existingAccount.userId;
+	}
+
+	// 2. Try email matching if no existing link
+	if (!userId && email) {
+		const [existingUser] = await db
+			.select({ id: user.id })
+			.from(user)
+			.where(eq(user.email, email));
+
+		if (existingUser) {
+			userId = existingUser.id;
+			await db.insert(oidcAccount).values({
+				userId,
+				providerId: provider.id,
+				externalId: sub,
+				email: email || null,
+				name: name || null
+			}).onConflictDoNothing();
+		}
+	}
+
+	// 3. Auto-register if no match
+	if (!userId) {
+		const approved = !!provider.autoRegister;
+		userId = randomUUID();
+		await db.insert(user).values({
+			id: userId,
+			name: name || email || sub,
+			email: email || `${sub}@oidc.local`,
+			emailVerified: !!email,
+			approved
+		});
+
+		await db.insert(oidcAccount).values({
+			userId,
+			providerId: provider.id,
+			externalId: sub,
+			email: email || null,
+			name: name || null
+		});
+
+		isNewUser = true;
+		isPendingApproval = !approved;
+
+		if (!approved) {
+			const adminUsers = await db
+				.select({ id: user.id })
+				.from(user)
+				.where(eq(user.role, 'admin'));
+
+			const userName = name || email || sub;
+			const userEmail = email || `${sub}@oidc.local`;
+			for (const admin of adminUsers) {
+				createNotification({
+					userId: admin.id,
+					type: 'USER_PENDING',
+					title: 'New user pending approval',
+					message: `${userName} (${userEmail}) is waiting for approval`,
+					link: '/admin/users?pending=true'
+				});
+			}
+		}
+	}
+
+	// Check if user is banned or pending approval
+	const [existingUser] = await db
+		.select({ banned: user.banned, approved: user.approved })
+		.from(user)
+		.where(eq(user.id, userId));
+
+	if (existingUser?.banned) {
+		redirect(302, '/auth/login?error=oidc_callback_error');
+	}
+
+	if (existingUser && !existingUser.approved) {
+		isPendingApproval = true;
+	}
+
+	return { userId, isNewUser, isPendingApproval };
+}
+
 export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 	const slug = params.slug;
 	const requestId = locals.requestId;
@@ -79,93 +277,17 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 	const clientSecret = decrypt(provider.clientSecretEncrypted);
 
 	// Token exchange
-	const tokenRes = await fetch(provider.tokenUrl, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-		body: new URLSearchParams({
-			grant_type: 'authorization_code',
-			code,
-			redirect_uri: `${env.ORIGIN}/auth/oidc/${params.slug}/callback`,
-			client_id: provider.clientId,
-			client_secret: clientSecret,
-			code_verifier: cookieData.codeVerifier
-		})
-	});
-
-	if (!tokenRes.ok) {
-		const errorBody = await tokenRes.text();
-		callbackLog.warn({ status: tokenRes.status, body: errorBody }, 'Token exchange failed');
+	const tokenResult = await exchangeToken(provider, code, cookieData.codeVerifier, params.slug, clientSecret);
+	if (!tokenResult) {
+		callbackLog.warn('Token exchange failed');
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
-	const tokenData = await tokenRes.json();
+	const { tokenData, accessToken } = tokenResult;
 	callbackLog.info({ hasIdToken: !!tokenData.id_token }, 'Token exchange succeeded');
-	const accessToken = tokenData.access_token;
 
-	// Extract user info from ID token or userinfo endpoint
-	let sub: string | undefined;
-	let email: string | undefined;
-	let name: string | undefined;
-
-	// Verify the ID token signature and claims when possible.
-	// We need the provider's JWKS URI, which comes from its discovery document.
-	// The issuerUrl column is optional; fall back gracefully when absent.
-	if (tokenData.id_token) {
-		const jwksUri = provider.jwksUri ?? null;
-		const issuerUrl = provider.issuerUrl ?? null;
-
-		if (jwksUri && issuerUrl) {
-			// Full cryptographic verification path
-			const result = await verifyIdToken({
-				idToken: tokenData.id_token,
-				jwksUri,
-				issuer: issuerUrl,
-				audience: provider.clientId
-			});
-
-			if (result.verified && result.claims) {
-				callbackLog.info('ID token signature and claims verified');
-				sub = result.claims.sub;
-				email = result.claims.email;
-				name = result.claims.name;
-			} else {
-				// Verification failed — log a warning and fall through to userinfo endpoint.
-				// We intentionally do NOT use unverified payload claims for identity (sub).
-				callbackLog.warn({ warning: result.warning }, 'ID token verification failed');
-			}
-		} else {
-			// No JWKS URI configured — parse payload without signature verification.
-			// This is the legacy behaviour; a warning is emitted to guide administrators.
-			callbackLog.warn(
-				'Provider has no jwksUri configured — ID token signature is NOT verified. Set jwksUri via the discovery endpoint.'
-			);
-			const payload = parseIdTokenPayload(tokenData.id_token);
-			if (payload) {
-				sub = payload.sub;
-				email = payload.email;
-				name = payload.name;
-			}
-		}
-	}
-
-	// Fetch userinfo if needed
-	if ((!sub || !email) && provider.userinfoUrl && accessToken) {
-		try {
-			const userinfoRes = await fetch(provider.userinfoUrl, {
-				headers: { Authorization: `Bearer ${accessToken}` }
-			});
-			if (userinfoRes.ok) {
-				const userinfo = await userinfoRes.json();
-				sub = sub || userinfo.sub;
-				email = email || userinfo.email;
-				name = name || userinfo.name;
-			}
-		} catch {
-			// Continue with what we have
-		}
-	}
-
-	callbackLog.info({ hasSub: !!sub, hasEmail: !!email, hasName: !!name }, 'User info resolved');
+	// Resolve user identity
+	const { sub, email, name } = await resolveUserInfo(tokenData, provider, accessToken, callbackLog);
 
 	if (!sub) {
 		callbackLog.warn('No sub claim found in token or userinfo response');
@@ -185,100 +307,8 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 		redirect(302, '/auth/account');
 	}
 
-	// Account matching logic
-	let userId: string | undefined;
-
-	// 1. Check existing oidcAccount by (providerId, externalId)
-	const [existingAccount] = await db
-		.select({ userId: oidcAccount.userId })
-		.from(oidcAccount)
-		.where(
-			and(eq(oidcAccount.providerId, provider.id), eq(oidcAccount.externalId, sub))
-		);
-
-	if (existingAccount) {
-		userId = existingAccount.userId;
-	}
-
-	// 2. Try email matching if no existing link
-	if (!userId && email) {
-		const [existingUser] = await db
-			.select({ id: user.id })
-			.from(user)
-			.where(eq(user.email, email));
-
-		if (existingUser) {
-			userId = existingUser.id;
-			// Create oidc account link
-			await db.insert(oidcAccount).values({
-				userId,
-				providerId: provider.id,
-				externalId: sub,
-				email: email || null,
-				name: name || null
-			}).onConflictDoNothing();
-		}
-	}
-
-	// 3. Auto-register if no match
-	let isNewUser = false;
-	let isPendingApproval = false;
-	if (!userId) {
-		const approved = !!provider.autoRegister;
-		userId = randomUUID();
-		await db.insert(user).values({
-			id: userId,
-			name: name || email || sub,
-			email: email || `${sub}@oidc.local`,
-			emailVerified: !!email,
-			approved
-		});
-
-		await db.insert(oidcAccount).values({
-			userId,
-			providerId: provider.id,
-			externalId: sub,
-			email: email || null,
-			name: name || null
-		});
-
-		isNewUser = true;
-		isPendingApproval = !approved;
-
-		if (!approved) {
-			// Notify all admin users about the pending approval
-			const adminUsers = await db
-				.select({ id: user.id })
-				.from(user)
-				.where(eq(user.role, 'admin'));
-
-			const userName = name || email || sub;
-			const userEmail = email || `${sub}@oidc.local`;
-			for (const admin of adminUsers) {
-				createNotification({
-					userId: admin.id,
-					type: 'USER_PENDING',
-					title: 'New user pending approval',
-					message: `${userName} (${userEmail}) is waiting for approval`,
-					link: '/admin/users?pending=true'
-				});
-			}
-		}
-	}
-
-	// Check if user is banned or pending approval
-	const [existingUser] = await db
-		.select({ banned: user.banned, approved: user.approved })
-		.from(user)
-		.where(eq(user.id, userId));
-
-	if (existingUser?.banned) {
-		redirect(302, '/auth/login?error=oidc_callback_error');
-	}
-
-	if (existingUser && !existingUser.approved) {
-		isPendingApproval = true;
-	}
+	// Match or create user account
+	const { userId, isNewUser, isPendingApproval } = await matchOrCreateUser(sub, email, name, provider, callbackLog);
 
 	// Create session
 	const sessionId = randomUUID();

@@ -52,7 +52,7 @@ describe('/teams/new', () => {
 
 		it('should return form for authenticated user', async () => {
 			const event = createMockEvent({ user: testUser });
-			const result = await load(event);
+			const result = await load(event) as Record<string, any>;
 			expect(result).toHaveProperty('form');
 			expect(result.form).toHaveProperty('valid');
 		});

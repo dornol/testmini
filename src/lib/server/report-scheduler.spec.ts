@@ -45,7 +45,7 @@ describe('registerJob', () => {
 		mockValidate.mockReturnValue(true);
 		mockCronSchedule.mockReturnValue({ stop: vi.fn() });
 
-		registerJob({ id: 1, cronExpression: '0 9 * * *' });
+		registerJob({ id: 1, cronExpression: '0 9 * * *' } as never);
 
 		expect(mockValidate).toHaveBeenCalledWith('0 9 * * *');
 	});
@@ -54,7 +54,7 @@ describe('registerJob', () => {
 		mockValidate.mockReturnValue(true);
 		mockCronSchedule.mockReturnValue({ stop: vi.fn() });
 
-		registerJob({ id: 1, cronExpression: '0 9 * * *' });
+		registerJob({ id: 1, cronExpression: '0 9 * * *' } as never);
 
 		expect(mockCronSchedule).toHaveBeenCalledWith('0 9 * * *', expect.any(Function));
 	});
@@ -64,12 +64,12 @@ describe('registerJob', () => {
 		mockValidate.mockReturnValue(true);
 		mockCronSchedule.mockReturnValue({ stop: mockStop });
 
-		registerJob({ id: 1, cronExpression: '0 9 * * *' });
+		registerJob({ id: 1, cronExpression: '0 9 * * *' } as never);
 
 		const mockStop2 = vi.fn();
 		mockCronSchedule.mockReturnValue({ stop: mockStop2 });
 
-		registerJob({ id: 1, cronExpression: '0 10 * * *' });
+		registerJob({ id: 1, cronExpression: '0 10 * * *' } as never);
 
 		expect(mockStop).toHaveBeenCalled();
 	});
@@ -77,7 +77,7 @@ describe('registerJob', () => {
 	it('does not create task for invalid cron expression', () => {
 		mockValidate.mockReturnValue(false);
 
-		registerJob({ id: 1, cronExpression: 'invalid' });
+		registerJob({ id: 1, cronExpression: 'invalid' } as never);
 
 		expect(mockCronSchedule).not.toHaveBeenCalled();
 	});
@@ -85,7 +85,7 @@ describe('registerJob', () => {
 	it('logs warning for invalid cron', () => {
 		mockValidate.mockReturnValue(false);
 
-		registerJob({ id: 1, cronExpression: 'invalid' });
+		registerJob({ id: 1, cronExpression: 'invalid' } as never);
 
 		expect(mockLog.warn).toHaveBeenCalledWith(
 			{ id: 1, cron: 'invalid' },
@@ -98,7 +98,7 @@ describe('registerJob', () => {
 		mockValidate.mockReturnValue(true);
 		mockCronSchedule.mockReturnValue({ stop: mockStop });
 
-		registerJob({ id: 42, cronExpression: '0 9 * * *' });
+		registerJob({ id: 42, cronExpression: '0 9 * * *' } as never);
 
 		removeJob(42);
 
@@ -111,10 +111,10 @@ describe('registerJob', () => {
 		mockValidate.mockReturnValue(true);
 
 		mockCronSchedule.mockReturnValue({ stop: mockStop1 });
-		registerJob({ id: 1, cronExpression: '0 9 * * *' });
+		registerJob({ id: 1, cronExpression: '0 9 * * *' } as never);
 
 		mockCronSchedule.mockReturnValue({ stop: mockStop2 });
-		registerJob({ id: 1, cronExpression: '0 10 * * *' });
+		registerJob({ id: 1, cronExpression: '0 10 * * *' } as never);
 
 		removeJob(1);
 
@@ -124,7 +124,7 @@ describe('registerJob', () => {
 	it('does not store task when cron is invalid', () => {
 		mockValidate.mockReturnValue(false);
 
-		registerJob({ id: 99, cronExpression: 'bad' });
+		registerJob({ id: 99, cronExpression: 'bad' } as never);
 
 		// removeJob should not call stop since nothing was stored
 		removeJob(99);
@@ -143,7 +143,7 @@ describe('removeJob', () => {
 		mockValidate.mockReturnValue(true);
 		mockCronSchedule.mockReturnValue({ stop: mockStop });
 
-		registerJob({ id: 10, cronExpression: '0 9 * * *' });
+		registerJob({ id: 10, cronExpression: '0 9 * * *' } as never);
 		removeJob(10);
 
 		expect(mockStop).toHaveBeenCalled();

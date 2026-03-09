@@ -12,21 +12,37 @@
 
 	let { data } = $props();
 
-	let name = $state(data.provider.name);
-	let slug = $state(data.provider.slug);
-	let providerType = $state(data.provider.providerType);
-	let clientId = $state(data.provider.clientId);
+	let name = $state('');
+	let slug = $state('');
+	let providerType = $state('');
+	let clientId = $state('');
 	let clientSecret = $state('');
-	let issuerUrl = $state(data.provider.issuerUrl ?? '');
-	let authorizationUrl = $state(data.provider.authorizationUrl);
-	let tokenUrl = $state(data.provider.tokenUrl);
-	let userinfoUrl = $state(data.provider.userinfoUrl ?? '');
-	let scopes = $state(data.provider.scopes);
-	let autoRegister = $state(data.provider.autoRegister);
-	let iconUrl = $state(data.provider.iconUrl ?? '');
-	let displayOrder = $state(data.provider.displayOrder);
+	let issuerUrl = $state('');
+	let authorizationUrl = $state('');
+	let tokenUrl = $state('');
+	let userinfoUrl = $state('');
+	let scopes = $state('');
+	let autoRegister = $state(false);
+	let iconUrl = $state('');
+	let displayOrder = $state(0);
 	let discovering = $state(false);
 	let deleteDialogOpen = $state(false);
+
+	// Sync from data (reactive)
+	$effect(() => {
+		name = data.provider.name;
+		slug = data.provider.slug;
+		providerType = data.provider.providerType;
+		clientId = data.provider.clientId;
+		issuerUrl = data.provider.issuerUrl ?? '';
+		authorizationUrl = data.provider.authorizationUrl;
+		tokenUrl = data.provider.tokenUrl;
+		userinfoUrl = data.provider.userinfoUrl ?? '';
+		scopes = data.provider.scopes;
+		autoRegister = data.provider.autoRegister;
+		iconUrl = data.provider.iconUrl ?? '';
+		displayOrder = data.provider.displayOrder;
+	});
 
 	async function discover() {
 		if (!issuerUrl) return;

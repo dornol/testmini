@@ -17,6 +17,38 @@ import { publish } from '$lib/server/redis';
 import { createNotification } from '$lib/server/notifications';
 import type { RunEvent } from '$lib/types/events';
 
+// ── Local helpers ──────────────────────────────────────────────────
+
+async function getActionContext(locals: App.Locals, params: Record<string, string>) {
+	const authUser = requireAuth(locals);
+	const projectId = Number(params.projectId);
+	const runId = Number(params.runId);
+	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+	return { authUser, projectId, runId };
+}
+
+async function requireEditableRun(projectId: number, runId: number) {
+	const run = await db.query.testRun.findFirst({
+		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
+	});
+	if (run?.status === 'COMPLETED') {
+		return fail(403, { error: 'Cannot modify executions in a completed run' });
+	}
+	return null;
+}
+
+function parseFailureFormData(formData: FormData): CreateFailureInput {
+	return {
+		failureEnvironment: (formData.get('failureEnvironment') as string) || '',
+		testMethod: (formData.get('testMethod') as string) || '',
+		errorMessage: (formData.get('errorMessage') as string) || '',
+		stackTrace: (formData.get('stackTrace') as string) || '',
+		comment: (formData.get('comment') as string) || ''
+	};
+}
+
+// ── Load ───────────────────────────────────────────────────────────
+
 export const load: PageServerLoad = async ({ params, parent, url, locals }) => {
 	await parent();
 	const authUser = requireAuth(locals);
@@ -122,17 +154,10 @@ export const load: PageServerLoad = async ({ params, parent, url, locals }) => {
 
 export const actions: Actions = {
 	updateStatus: async ({ request, locals, params }) => {
-		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
-		const runId = Number(params.runId);
-		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		const { authUser, projectId, runId } = await getActionContext(locals, params);
 
-		const run = await db.query.testRun.findFirst({
-			where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
-		});
-		if (run?.status === 'COMPLETED') {
-			return fail(403, { error: 'Cannot modify executions in a completed run' });
-		}
+		const guard = await requireEditableRun(projectId, runId);
+		if (guard) return guard;
 
 		const formData = await request.formData();
 		const executionId = Number(formData.get('executionId'));
@@ -175,17 +200,10 @@ export const actions: Actions = {
 	},
 
 	failWithDetail: async ({ request, locals, params }) => {
-		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
-		const runId = Number(params.runId);
-		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		const { authUser, projectId, runId } = await getActionContext(locals, params);
 
-		const run = await db.query.testRun.findFirst({
-			where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
-		});
-		if (run?.status === 'COMPLETED') {
-			return fail(403, { error: 'Cannot modify executions in a completed run' });
-		}
+		const guard = await requireEditableRun(projectId, runId);
+		if (guard) return guard;
 
 		const formData = await request.formData();
 		const executionId = Number(formData.get('executionId'));
@@ -202,15 +220,7 @@ export const actions: Actions = {
 			return fail(404, { error: 'Execution not found' });
 		}
 
-		const input: CreateFailureInput = {
-			failureEnvironment: (formData.get('failureEnvironment') as string) || '',
-			testMethod: (formData.get('testMethod') as string) || '',
-			errorMessage: (formData.get('errorMessage') as string) || '',
-			stackTrace: (formData.get('stackTrace') as string) || '',
-			comment: (formData.get('comment') as string) || ''
-		};
-
-		const parsed = createFailureSchema.safeParse(input);
+		const parsed = createFailureSchema.safeParse(parseFailureFormData(formData));
 		if (!parsed.success) {
 			return fail(400, { error: 'Invalid failure detail data' });
 		}
@@ -256,10 +266,7 @@ export const actions: Actions = {
 	},
 
 	addFailure: async ({ request, locals, params }) => {
-		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
-		const runId = Number(params.runId);
-		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		const { authUser, projectId, runId } = await getActionContext(locals, params);
 
 		const formData = await request.formData();
 		const executionId = Number(formData.get('executionId'));
@@ -280,15 +287,7 @@ export const actions: Actions = {
 			return fail(404, { error: 'FAIL execution not found' });
 		}
 
-		const input: CreateFailureInput = {
-			failureEnvironment: (formData.get('failureEnvironment') as string) || '',
-			testMethod: (formData.get('testMethod') as string) || '',
-			errorMessage: (formData.get('errorMessage') as string) || '',
-			stackTrace: (formData.get('stackTrace') as string) || '',
-			comment: (formData.get('comment') as string) || ''
-		};
-
-		const parsed = createFailureSchema.safeParse(input);
+		const parsed = createFailureSchema.safeParse(parseFailureFormData(formData));
 		if (!parsed.success) {
 			return fail(400, { error: 'Invalid failure detail data' });
 		}
@@ -307,9 +306,7 @@ export const actions: Actions = {
 	},
 
 	updateFailure: async ({ request, locals, params }) => {
-		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
-		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		const { authUser, projectId, runId } = await getActionContext(locals, params);
 
 		const formData = await request.formData();
 		const failureId = Number(formData.get('failureId'));
@@ -326,15 +323,7 @@ export const actions: Actions = {
 			return fail(404, { error: 'Failure detail not found' });
 		}
 
-		const input: CreateFailureInput = {
-			failureEnvironment: (formData.get('failureEnvironment') as string) || '',
-			testMethod: (formData.get('testMethod') as string) || '',
-			errorMessage: (formData.get('errorMessage') as string) || '',
-			stackTrace: (formData.get('stackTrace') as string) || '',
-			comment: (formData.get('comment') as string) || ''
-		};
-
-		const parsed = createFailureSchema.safeParse(input);
+		const parsed = createFailureSchema.safeParse(parseFailureFormData(formData));
 		if (!parsed.success) {
 			return fail(400, { error: 'Invalid failure detail data' });
 		}
@@ -354,9 +343,7 @@ export const actions: Actions = {
 	},
 
 	deleteFailure: async ({ request, locals, params }) => {
-		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
-		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		const { authUser, projectId, runId } = await getActionContext(locals, params);
 
 		const formData = await request.formData();
 		const failureId = Number(formData.get('failureId'));
@@ -371,17 +358,10 @@ export const actions: Actions = {
 	},
 
 	bulkPass: async ({ request, locals, params }) => {
-		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
-		const runId = Number(params.runId);
-		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		const { authUser, projectId, runId } = await getActionContext(locals, params);
 
-		const run = await db.query.testRun.findFirst({
-			where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
-		});
-		if (run?.status === 'COMPLETED') {
-			return fail(403, { error: 'Cannot modify executions in a completed run' });
-		}
+		const guard = await requireEditableRun(projectId, runId);
+		if (guard) return guard;
 
 		const formData = await request.formData();
 		const executionIds = formData
@@ -421,10 +401,7 @@ export const actions: Actions = {
 	},
 
 	updateRunStatus: async ({ request, locals, params }) => {
-		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
-		const runId = Number(params.runId);
-		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		const { authUser, projectId, runId } = await getActionContext(locals, params);
 
 		const formData = await request.formData();
 		const status = formData.get('status') as string;

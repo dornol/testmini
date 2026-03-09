@@ -18,18 +18,18 @@
 	const apiBase = $derived(`/api/projects/${projectId}/exploratory-sessions/${sessionId}`);
 
 	// Session state -- use $state with $effect sync for optimistic updates
-	let session = $state(data.session);
-	let notes = $state(data.notes);
+	let session: typeof data.session = $state(null as any);
+	let notes: typeof data.notes = $state([]);
 
 	// Timer state
 	let timerDisplay = $state('00:00');
 	let pausedAt: number | null = $state(null);
-	let accumulatedPause = $state(data.session.pausedDuration);
+	let accumulatedPause = $state(0);
 
 	// Non-reactive timer handle (no need to track in $effect)
 	let _timerInterval: ReturnType<typeof setInterval> | null = null;
 
-	// Sync from server data when it changes (e.g., invalidateAll)
+	// Sync from server data when it changes (e.g., invalidateAll + initial load)
 	$effect(() => {
 		const s = data.session;
 		const n = data.notes;

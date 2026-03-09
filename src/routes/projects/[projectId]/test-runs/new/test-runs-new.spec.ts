@@ -106,7 +106,7 @@ describe('/projects/[projectId]/test-runs/new', () => {
 			mockLoadProjectTags.mockResolvedValue(projectTags);
 
 			const event = createLoadEvent();
-			const result = await load(event);
+			const result = await load(event) as Record<string, any>;
 
 			expect(result.testCases).toHaveLength(1);
 			expect(result.testCases[0]).toMatchObject({
@@ -141,7 +141,7 @@ describe('/projects/[projectId]/test-runs/new', () => {
 			mockLoadProjectTags.mockResolvedValue([]);
 
 			const event = createLoadEvent({ searchParams: { suiteId: '5' } });
-			const result = await load(event);
+			const result = await load(event) as Record<string, any>;
 
 			expect(result.preselectedIds).toEqual([10, 11]);
 		});
@@ -151,7 +151,7 @@ describe('/projects/[projectId]/test-runs/new', () => {
 			mockLoadProjectTags.mockResolvedValue([]);
 
 			const event = createLoadEvent();
-			const result = await load(event);
+			const result = await load(event) as Record<string, any>;
 
 			expect(result.testCases).toEqual([]);
 			expect(result.preselectedIds).toEqual([]);
@@ -171,7 +171,7 @@ describe('/projects/[projectId]/test-runs/new', () => {
 		it('should return 401 when not authenticated', async () => {
 			mockRequireAuth.mockImplementation(() => {
 				const err = new Error('Authentication required');
-				(err as Record<string, unknown>).status = 401;
+				(err as unknown as Record<string, unknown>).status = 401;
 				throw err;
 			});
 
@@ -448,11 +448,12 @@ describe('/projects/[projectId]/test-runs/new', () => {
 
 			try { await actions.default(event); } catch { /* redirect */ }
 
-			expect(mockRequireAuth).toHaveBeenCalledWith(event.locals);
+			expect(mockRequireAuth).toHaveBeenCalledWith((event as any).locals);
 			expect(mockRequireProjectRole).toHaveBeenCalledWith(testUser, 1, ['PROJECT_ADMIN', 'QA', 'DEV']);
 		});
 	});
 });
+
 
 // --- Helpers ---
 

@@ -27,14 +27,26 @@
 
 	let { data } = $props();
 
-	let displayName = $state(data.userData.name);
-	let prefLocale = $state(data.preferences.locale ?? '');
-	let prefTheme = $state(data.preferences.theme ?? 'system');
+	let displayName = $state('');
+	let prefLocale = $state('');
+	let prefTheme = $state('system');
 	let prefSaving = $state(false);
 
 	// Notification preferences
-	let notifEnabled = $state(data.preferences.notificationSettings?.enableInApp !== false);
-	let mutedTypes = new SvelteSet<string>(data.preferences.notificationSettings?.mutedTypes ?? []);
+	let notifEnabled = $state(true);
+	let mutedTypes = new SvelteSet<string>();
+
+	// Sync from data (reactive)
+	$effect(() => {
+		displayName = data.userData.name;
+		prefLocale = data.preferences.locale ?? '';
+		prefTheme = data.preferences.theme ?? 'system';
+		notifEnabled = data.preferences.notificationSettings?.enableInApp !== false;
+		mutedTypes.clear();
+		for (const t of data.preferences.notificationSettings?.mutedTypes ?? []) {
+			mutedTypes.add(t);
+		}
+	});
 	let notifSaving = $state(false);
 
 	async function savePreferences() {

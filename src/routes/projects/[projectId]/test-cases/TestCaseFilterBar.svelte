@@ -259,10 +259,10 @@
 					<Button variant="outline" size="sm" class="h-7 px-2 text-xs gap-1" {...props}>
 						{selectedGroupName ?? m.tc_filter_group()}
 						{#if selectedGroupId}
-							<!-- svelte-ignore a11y_no_static_element_interactions -->
 							<span
 								class="ml-0.5 -mr-1 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
 								onclick={(e) => { e.stopPropagation(); setSingleFilter('groupId', selectedGroupId); }}
+								onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setSingleFilter('groupId', selectedGroupId); } }}
 								role="button"
 								tabindex="-1"
 								aria-label="Clear group filter"
@@ -372,9 +372,10 @@
 			<Popover.Content class="w-64 p-3 space-y-3" align="start">
 				{#each projectCustomFields as cf (cf.id)}
 					<div class="space-y-1">
-						<label class="text-xs font-medium text-muted-foreground">{cf.name}</label>
+						<label class="text-xs font-medium text-muted-foreground" for="cf-filter-{cf.id}">{cf.name}</label>
 						{#if cf.fieldType === 'TEXT' || cf.fieldType === 'URL'}
 							<Input
+								id="cf-filter-{cf.id}"
 								class="h-7 text-xs"
 								placeholder={cf.name}
 								value={getCfFilterValue(cf.id)}
@@ -382,6 +383,7 @@
 							/>
 						{:else if cf.fieldType === 'NUMBER'}
 							<Input
+								id="cf-filter-{cf.id}"
 								type="number"
 								class="h-7 text-xs"
 								placeholder={cf.name}
@@ -390,6 +392,7 @@
 							/>
 						{:else if cf.fieldType === 'DATE'}
 							<Input
+								id="cf-filter-{cf.id}"
 								type="date"
 								class="h-7 text-xs"
 								value={getCfFilterValue(cf.id)}
@@ -397,6 +400,7 @@
 							/>
 						{:else if cf.fieldType === 'CHECKBOX'}
 							<select
+								id="cf-filter-{cf.id}"
 								class="h-7 w-full rounded-md border border-input bg-background px-2 text-xs"
 								value={getCfFilterValue(cf.id)}
 								onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLSelectElement).value)}

@@ -15,7 +15,7 @@
 		url: string;
 		events: string[];
 		enabled: boolean;
-		createdAt: string;
+		createdAt: string | Date;
 	}
 
 	const EVENT_TYPES = [
@@ -30,7 +30,12 @@
 
 	const projectId = $derived(data.project.id);
 
-	let webhooks = $state(data.webhooks);
+	let webhooks = $state<Webhook[]>([]);
+
+	// Sync from data (reactive)
+	$effect(() => {
+		webhooks = data.webhooks as Webhook[];
+	});
 
 	// Create form
 	let showCreateForm = $state(false);

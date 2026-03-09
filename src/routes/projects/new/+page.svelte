@@ -12,7 +12,9 @@
 	let { data } = $props();
 
 	const validators = zodValidators(createProjectSchema);
-	const { form, errors, enhance, submitting } = superForm(data.form, { validators });
+	const { form, errors, enhance, submitting } = superForm(
+		// svelte-ignore state_referenced_locally
+		data.form, { validators });
 </script>
 
 <div class="mx-auto max-w-lg">

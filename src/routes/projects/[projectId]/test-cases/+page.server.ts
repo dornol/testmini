@@ -21,6 +21,129 @@ import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 import { loadProjectTags } from '$lib/server/queries';
 import { buildTestCaseConditions } from '$lib/server/test-case-filters';
 
+async function loadBatchTags(
+	projectId: number,
+	tcIds: Set<number>
+): Promise<Record<number, { id: number; name: string; color: string }[]>> {
+	const tagsByTestCase: Record<number, { id: number; name: string; color: string }[]> = {};
+	if (tcIds.size === 0) return tagsByTestCase;
+
+	const tcTags = await db
+		.select({
+			testCaseId: testCaseTag.testCaseId,
+			tagId: tag.id,
+			tagName: tag.name,
+			tagColor: tag.color
+		})
+		.from(testCaseTag)
+		.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
+		.where(eq(tag.projectId, projectId))
+		.orderBy(tag.name);
+
+	for (const row of tcTags) {
+		if (!tcIds.has(row.testCaseId)) continue;
+		if (!tagsByTestCase[row.testCaseId]) {
+			tagsByTestCase[row.testCaseId] = [];
+		}
+		tagsByTestCase[row.testCaseId].push({
+			id: row.tagId,
+			name: row.tagName,
+			color: row.tagColor
+		});
+	}
+	return tagsByTestCase;
+}
+
+async function loadBatchAssignees(
+	tcIds: Set<number>
+): Promise<Record<number, { userId: string; userName: string }[]>> {
+	const assigneesByTestCase: Record<number, { userId: string; userName: string }[]> = {};
+	if (tcIds.size === 0) return assigneesByTestCase;
+
+	const tcAssignees = await db
+		.select({
+			testCaseId: testCaseAssignee.testCaseId,
+			userId: testCaseAssignee.userId,
+			userName: user.name
+		})
+		.from(testCaseAssignee)
+		.innerJoin(user, eq(testCaseAssignee.userId, user.id))
+		.orderBy(user.name);
+
+	for (const row of tcAssignees) {
+		if (!tcIds.has(row.testCaseId)) continue;
+		if (!assigneesByTestCase[row.testCaseId]) {
+			assigneesByTestCase[row.testCaseId] = [];
+		}
+		assigneesByTestCase[row.testCaseId].push({
+			userId: row.userId,
+			userName: row.userName
+		});
+	}
+	return assigneesByTestCase;
+}
+
+async function loadExecutionMap(
+	selectedRunIds: number[],
+	projectId: number,
+	tcIds: Set<number>
+): Promise<Record<number, Record<number, { executionId: number; status: string }>>> {
+	const executionMap: Record<number, Record<number, { executionId: number; status: string }>> = {};
+	if (selectedRunIds.length === 0 || tcIds.size === 0) return executionMap;
+
+	const executions = await db
+		.select({
+			executionId: testExecution.id,
+			testRunId: testExecution.testRunId,
+			testCaseId: testCase.id,
+			status: testExecution.status
+		})
+		.from(testExecution)
+		.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
+		.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
+		.where(
+			and(
+				inArray(testExecution.testRunId, selectedRunIds),
+				eq(testCase.projectId, projectId)
+			)
+		);
+
+	for (const exec of executions) {
+		if (!executionMap[exec.testCaseId]) {
+			executionMap[exec.testCaseId] = {};
+		}
+		executionMap[exec.testCaseId][exec.testRunId] = {
+			executionId: exec.executionId,
+			status: exec.status
+		};
+	}
+	return executionMap;
+}
+
+function applyExecStatusFilter<T extends { id: number }>(
+	testCases: T[],
+	executionMap: Record<number, Record<number, { executionId: number; status: string }>>,
+	execStatus: string,
+	selectedRunIds: number[]
+): T[] {
+	if (!execStatus || selectedRunIds.length === 0) return testCases;
+
+	const execStatuses = execStatus.split(',').filter(Boolean);
+	if (execStatuses.length === 0) return testCases;
+
+	const hasNotExecuted = execStatuses.includes('NOT_EXECUTED');
+	const otherStatuses = execStatuses.filter((s) => s !== 'NOT_EXECUTED');
+	return testCases.filter((tc) => {
+		const tcExecs = executionMap[tc.id];
+		const isNotExecuted = !tcExecs || selectedRunIds.every((rid) => !tcExecs[rid]);
+		if (hasNotExecuted && isNotExecuted) return true;
+		if (otherStatuses.length > 0 && tcExecs) {
+			return selectedRunIds.some((rid) => tcExecs[rid] && otherStatuses.includes(tcExecs[rid].status));
+		}
+		return false;
+	});
+}
+
 export const load: PageServerLoad = async ({ params, url, parent, cookies, locals }) => {
 	await parent();
 	const projectId = Number(params.projectId);
@@ -112,61 +235,11 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 
 	const testCases = await baseQuery.orderBy(asc(testCase.sortOrder));
 
-	// Batch load tags for test cases in this project, then filter to current page
 	const tcIdSet = new Set(testCases.map((tc) => tc.id));
-	const tagsByTestCase: Record<number, { id: number; name: string; color: string }[]> = {};
-
-	if (tcIdSet.size > 0) {
-		const tcTags = await db
-			.select({
-				testCaseId: testCaseTag.testCaseId,
-				tagId: tag.id,
-				tagName: tag.name,
-				tagColor: tag.color
-			})
-			.from(testCaseTag)
-			.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
-			.where(eq(tag.projectId, projectId))
-			.orderBy(tag.name);
-
-		for (const row of tcTags) {
-			if (!tcIdSet.has(row.testCaseId)) continue;
-			if (!tagsByTestCase[row.testCaseId]) {
-				tagsByTestCase[row.testCaseId] = [];
-			}
-			tagsByTestCase[row.testCaseId].push({
-				id: row.tagId,
-				name: row.tagName,
-				color: row.tagColor
-			});
-		}
-	}
-
-	// Batch load assignees for test cases
-	const assigneesByTestCase: Record<number, { userId: string; userName: string }[]> = {};
-
-	if (tcIdSet.size > 0) {
-		const tcAssignees = await db
-			.select({
-				testCaseId: testCaseAssignee.testCaseId,
-				userId: testCaseAssignee.userId,
-				userName: user.name
-			})
-			.from(testCaseAssignee)
-			.innerJoin(user, eq(testCaseAssignee.userId, user.id))
-			.orderBy(user.name);
-
-		for (const row of tcAssignees) {
-			if (!tcIdSet.has(row.testCaseId)) continue;
-			if (!assigneesByTestCase[row.testCaseId]) {
-				assigneesByTestCase[row.testCaseId] = [];
-			}
-			assigneesByTestCase[row.testCaseId].push({
-				userId: row.userId,
-				userName: row.userName
-			});
-		}
-	}
+	const [tagsByTestCase, assigneesByTestCase] = await Promise.all([
+		loadBatchTags(projectId, tcIdSet),
+		loadBatchAssignees(tcIdSet)
+	]);
 
 	// Load project tags for filter UI
 	const projectTags = await loadProjectTags(projectId);
@@ -201,37 +274,7 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		.where(eq(testRun.projectId, projectId))
 		.orderBy(desc(testRun.createdAt));
 
-	// Load execution data for selected runs
-	let executionMap: Record<number, Record<number, { executionId: number; status: string }>> = {};
-
-	if (selectedRunIds.length > 0 && tcIdSet.size > 0) {
-		const executions = await db
-			.select({
-				executionId: testExecution.id,
-				testRunId: testExecution.testRunId,
-				testCaseId: testCase.id,
-				status: testExecution.status
-			})
-			.from(testExecution)
-			.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
-			.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
-			.where(
-				and(
-					inArray(testExecution.testRunId, selectedRunIds),
-					eq(testCase.projectId, projectId)
-				)
-			);
-
-		for (const exec of executions) {
-			if (!executionMap[exec.testCaseId]) {
-				executionMap[exec.testCaseId] = {};
-			}
-			executionMap[exec.testCaseId][exec.testRunId] = {
-				executionId: exec.executionId,
-				status: exec.status
-			};
-		}
-	}
+	const executionMap = await loadExecutionMap(selectedRunIds, projectId, tcIdSet);
 
 	// Persist selected run IDs to cookie
 	if (selectedRunIds.length > 0) {
@@ -253,24 +296,7 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		)
 		.orderBy(asc(savedFilter.sortOrder), asc(savedFilter.name));
 
-	// Post-filter by execution status (requires executionMap)
-	let filteredTestCases = testCases;
-	if (execStatus && selectedRunIds.length > 0) {
-		const execStatuses = execStatus.split(',').filter(Boolean);
-		if (execStatuses.length > 0) {
-			const hasNotExecuted = execStatuses.includes('NOT_EXECUTED');
-			const otherStatuses = execStatuses.filter((s) => s !== 'NOT_EXECUTED');
-			filteredTestCases = testCases.filter((tc) => {
-				const tcExecs = executionMap[tc.id];
-				const isNotExecuted = !tcExecs || selectedRunIds.every((rid) => !tcExecs[rid]);
-				if (hasNotExecuted && isNotExecuted) return true;
-				if (otherStatuses.length > 0 && tcExecs) {
-					return selectedRunIds.some((rid) => tcExecs[rid] && otherStatuses.includes(tcExecs[rid].status));
-				}
-				return false;
-			});
-		}
-	}
+	const filteredTestCases = applyExecStatusFilter(testCases, executionMap, execStatus, selectedRunIds);
 
 	return {
 		testCases: filteredTestCases.map((tc) => ({

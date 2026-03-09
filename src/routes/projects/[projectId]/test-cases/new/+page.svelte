@@ -21,7 +21,9 @@
 	let formDirty = $state(false);
 
 	const validators = zodValidators(createTestCaseSchema);
-	const { form, errors, enhance, submitting, tainted } = superForm(data.form, {
+	const { form, errors, enhance, submitting, tainted } = superForm(
+		// svelte-ignore state_referenced_locally
+		data.form, {
 		validators,
 		dataType: 'json',
 		onUpdated() {

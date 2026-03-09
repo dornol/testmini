@@ -11,7 +11,7 @@
 
 	let { data } = $props();
 
-	let appName = $state(data.config?.appName || 'testmini');
+	let appName = $state('testmini');
 	let logoPreview = $state<string | null>(null);
 	let faviconPreview = $state<string | null>(null);
 	let removeLogo = $state(false);

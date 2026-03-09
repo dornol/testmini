@@ -15,7 +15,7 @@ vi.mock('./logger', () => ({
 // Test RSA key pair & JWT helper
 // ---------------------------------------------------------------------------
 
-const { publicKey, privateKey } = generateKeyPairSync('rsa', {
+const { publicKey, privateKey } = generateKeyPairSync('rsa' as never, {
 	modulusLength: 2048,
 	publicKeyEncoding: { type: 'spki', format: 'jwk' },
 	privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
@@ -73,14 +73,14 @@ function createTestJwt(opts: JwtOptions = {}): string {
 	const hashMap: Record<string, string> = { RS256: 'sha256', RS384: 'sha384', RS512: 'sha512' };
 	const hashName = hashMap[opts.alg ?? 'RS256'] ?? 'sha256';
 
-	let sigKey = privateKey as string;
+	let sigKey = privateKey as unknown as string;
 	if (opts.badSignature) {
 		const { privateKey: other } = generateKeyPairSync('rsa', {
 			modulusLength: 2048,
 			publicKeyEncoding: { type: 'spki', format: 'pem' },
 			privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
 		});
-		sigKey = other as string;
+		sigKey = other as unknown as string;
 	}
 
 	const signer = createSign(hashName);

@@ -92,8 +92,13 @@
 		measureHeight
 	}: Props = $props();
 
-	let issueLinks = $state<IssueLinkRecord[]>(execIssueLinks);
+	let issueLinks = $state<IssueLinkRecord[]>([]);
 	let showIssueLinkForm = $state(false);
+
+	// Sync from prop (reactive)
+	$effect(() => {
+		issueLinks = execIssueLinks;
+	});
 	let newIssueLinkUrl = $state('');
 	let linkingIssue = $state(false);
 

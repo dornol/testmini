@@ -15,7 +15,9 @@
 	let { data } = $props();
 
 	const validators = zodValidators(updateTeamSchema);
-	const { form, errors, enhance, submitting, tainted } = superForm(data.form, {
+	const { form, errors, enhance, submitting, tainted } = superForm(
+		// svelte-ignore state_referenced_locally
+		data.form, {
 		validators,
 		onUpdated({ form }) {
 			if (form.message) {

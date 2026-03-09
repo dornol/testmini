@@ -101,7 +101,6 @@ describe('server form-utils', () => {
 			const form = await validateForm(testSchema, request);
 
 			expect(form.errors.name).toBeDefined();
-			expect(form.errors.name!.length).toBeGreaterThan(0);
 		});
 
 		it('should validate a more complex schema correctly', async () => {

@@ -193,21 +193,61 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ---
 
-## Future Considerations
+## Phase 11: Code Quality & Maintenance
 
-Items below are lower priority or dependent on user demand:
+### 11.1 TypeScript Error Fixes -- Done
+
+80 type errors fixed (svelte-check: 0 errors):
+
+- [x] `+page.server.ts` dashboard -- typed `unknown[]` → `RecentRun[]`, `TrendRun[]`, `ActivityEntry[]`
+- [x] `report-scheduler.spec.ts` -- incomplete mock objects → `as never` cast
+- [x] `webhooks/+page.svelte` -- `createdAt` type `string | Date`
+- [x] Spec files (6) -- `load()` result type assertions
+- [x] `oidc-jwt.spec.ts`, `form-utils.spec.ts`, `TestCaseDetailSheet.svelte`, `[testCaseId]/+page.svelte` -- individual type fixes
+
+### 11.2 Svelte Warnings -- Done
+
+64 warnings fixed (svelte-check: 0 warnings):
+
+- [x] Reactivity: `$derived`, `$effect` sync, `svelte-ignore` for intentional captures (superForm)
+- [x] Accessibility: `aria-label`, `tabindex`, `onkeydown` handlers, `for` attributes
+
+### 11.3 Large File Refactoring -- Done
+
+- [x] `test-runs/[runId]/+page.server.ts` (496 → 473 lines) -- extracted `getActionContext`, `requireEditableRun`, `parseFailureFormData`
+- [x] `test-cases/+page.server.ts` (387 → 413 lines) -- extracted `loadBatchTags`, `loadBatchAssignees`, `loadExecutionMap`, `applyExecStatusFilter`; parallel loading via `Promise.all`
+- [x] `auth/oidc/[slug]/callback/+server.ts` (323 → 353 lines) -- extracted `exchangeToken`, `resolveUserInfo`, `matchOrCreateUser`
+- [x] `api/.../test-cases/import/+server.ts` (306 → 258 lines) -- moved `parseCSV` to `$lib/server/csv-utils.ts`
+- [x] `test-cases/[testCaseId]/+page.server.ts` (386 lines) -- kept as-is (small focused actions, no duplication)
+
+---
+
+## Phase 12: Test Coverage Expansion
+
+### 12.1 Client Component Tests
+
+Currently only 3 `.svelte.spec.ts` files vs 127 server-side tests. Priority targets:
+
+- [ ] Core UI components (FilterBar, BulkActionBar, NotificationBell, etc.)
+- [ ] Form components (test case editor, custom field inputs)
+- [ ] Interactive components (drag-and-drop, virtual scroll list)
+
+### 12.2 E2E Test Expansion
+
+Currently 5 Playwright suites. Add coverage for:
+
+- [ ] Test case CRUD workflow (create → edit → version → delete)
+- [ ] Test run execution flow (create run → execute → report)
+- [ ] Team/project management workflow
+- [ ] OIDC/SSO login flow
+- [ ] Import/export roundtrip
+
+---
+
+## Future Considerations
 
 | Feature | Priority | Notes |
 |---------|----------|-------|
-| ~~Test case approval workflow (Draft -> Review -> Approved)~~ | ~~Medium~~ | ~~Done -- approvalStatus on test_case (DRAFT/IN_REVIEW/APPROVED/REJECTED); approval_history table; filter by status; badge + action buttons on list/detail; reject with comment; approval history timeline~~ |
-| ~~BDD/Gherkin support~~ | ~~Medium~~ | ~~Done -- Given/When/Then syntax editor; auto-parse into steps; stepFormat on test_case_version~~ |
-| ~~Exploratory test session recording~~ | ~~Medium~~ | ~~Done -- Timer-based session with free-form notes, screenshots, charter~~ |
-| ~~Test plan as separate entity~~ | ~~Low~~ | ~~Done -- Separate planning entity (test_plan table) with lifecycle (DRAFT→IN_REVIEW→APPROVED→ACTIVE→COMPLETED→ARCHIVED); links test cases and generates test runs~~ |
-| ~~Environment matrix~~ | ~~Low~~ | ~~Done -- Per-project configurable environments (environment_config table), replaces hardcoded DEV/QA/STAGE/PROD enum; custom names, colors, ordering; cascades to test runs~~ |
-| ~~Mobile-optimized views~~ | ~~Low~~ | ~~Done -- Responsive breakpoints (sm/md/lg/xl), scrollable nav tabs, collapsible settings sidebar, responsive dashboard grid, column hiding on test case/run tables, mobile header~~ |
-| ~~S3/MinIO file storage migration~~ | ~~Low~~ | ~~Done -- S3/MinIO optional backend in storage.ts; env-driven (S3_BUCKET, S3_ENDPOINT); local filesystem fallback~~ |
-| ~~Team/Organization hierarchy~~ | ~~Low~~ | ~~Done -- team/team_member tables; OWNER/ADMIN/MEMBER roles; project.teamId FK (nullable, backward compatible); team pages at /teams~~ |
-| ~~Test case review/approval workflow~~ | ~~Low~~ | ~~Done -- merged into approval workflow above~~ |
 | Bulk execution via CLI | Low | `testmini exec --run 123` for headless execution recording |
 | GraphQL API | Low | Alternative to REST for flexible querying |
 | AI-assisted test case generation | Low | Generate test cases from requirements or code changes using LLM |

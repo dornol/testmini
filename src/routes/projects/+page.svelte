@@ -11,7 +11,7 @@
 
 	let { data } = $props();
 
-	let searchInput = $state(data.search);
+	let searchInput = $state('');
 	let searchTimeout: ReturnType<typeof setTimeout>;
 
 	// Show loading skeleton when navigating due to search/filter changes on this page

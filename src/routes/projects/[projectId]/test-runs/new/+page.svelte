@@ -15,12 +15,18 @@
 	let { data } = $props();
 	const actionData = $derived(page.form as Record<string, unknown> | null);
 
-	let selectedIds = $state<Set<number>>(new Set(data.preselectedIds ?? []));
+	let selectedIds = $state<Set<number>>(new Set());
 	let searchFilter = $state('');
 	let priorityFilter = $state('');
 	let tagFilter = $state('');
-	const defaultEnv = data.projectEnvironments.find((e) => e.isDefault)?.name ?? data.projectEnvironments[0]?.name ?? 'DEV';
-	let selectedEnv = $state(defaultEnv);
+	const defaultEnv = $derived(data.projectEnvironments.find((e) => e.isDefault)?.name ?? data.projectEnvironments[0]?.name ?? 'DEV');
+	let selectedEnv = $state('DEV');
+
+	// Sync from data (reactive)
+	$effect(() => {
+		selectedIds = new Set(data.preselectedIds ?? []);
+		selectedEnv = defaultEnv;
+	});
 
 	function loadFromSuite(suiteId: string) {
 		if (!suiteId) return;
@@ -78,7 +84,7 @@
 		return data.projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
 	}
 
-	const environments = data.projectEnvironments;
+	const environments = $derived(data.projectEnvironments);
 </script>
 
 <div class="mx-auto max-w-3xl">

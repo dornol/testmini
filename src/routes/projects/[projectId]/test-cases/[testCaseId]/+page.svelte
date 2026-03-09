@@ -41,7 +41,12 @@
 		comment: string | null;
 		createdAt: string;
 	}
-	let approvalStatus = $state(data.testCaseDetail.approvalStatus ?? 'DRAFT');
+	let approvalStatus = $state('DRAFT');
+
+	// Sync approvalStatus from data
+	$effect(() => {
+		approvalStatus = data.testCaseDetail.approvalStatus ?? 'DRAFT';
+	});
 	let approvalHistory = $state<ApprovalHistoryEntry[]>([]);
 	let approvalLoading = $state(false);
 	let rejectDialogOpen = $state(false);
@@ -127,7 +132,12 @@
 		status: string | null;
 		provider: string;
 	}
-	let issueLinks = $state<IssueLinkRecord[]>(data.issueLinks as IssueLinkRecord[]);
+	let issueLinks = $state<IssueLinkRecord[]>([]);
+
+	// Sync issueLinks from data
+	$effect(() => {
+		issueLinks = data.issueLinks as IssueLinkRecord[];
+	});
 	let showLinkForm = $state(false);
 	let newIssueUrl = $state('');
 	let linkingIssue = $state(false);
@@ -250,7 +260,9 @@
 	let newTagColor = $state(TAG_PALETTE[0]);
 
 	const validators = zodValidators(updateTestCaseSchema);
-	const { form, errors, enhance, submitting, reset, tainted } = superForm(data.form, {
+	const { form, errors, enhance, submitting, reset, tainted } = superForm(
+		// svelte-ignore state_referenced_locally
+		data.form, {
 		validators,
 		dataType: 'json',
 		onUpdated({ form }) {
@@ -614,6 +626,7 @@
 													type="button"
 													class="h-4 w-4 rounded-full border {newTagColor === color ? 'border-foreground scale-110' : 'border-transparent'}"
 													style="background-color: {color}"
+													aria-label="Select color {color}"
 													onclick={() => (newTagColor = color)}
 												></button>
 											{/each}
@@ -698,7 +711,7 @@
 									</Select.Trigger>
 									<Select.Content>
 										{#each unassignedMembers as member (member.userId)}
-											<Select.Item value={member.userId} label={member.userName} />
+											<Select.Item value={member.userId} label={member.userName ?? undefined} />
 										{/each}
 									</Select.Content>
 								</Select.Root>

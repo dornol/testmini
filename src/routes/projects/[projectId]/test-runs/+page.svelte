@@ -63,7 +63,7 @@
 		}
 	}
 
-	const environments = data.projectEnvironments;
+	const environments = $derived(data.projectEnvironments);
 
 	function openEdit(run: typeof data.runs[0]) {
 		editRunId = run.id;

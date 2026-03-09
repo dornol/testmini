@@ -849,7 +849,7 @@
 				/>
 			{/if}
 			{#if !dndDisabled}
-				<span use:dragHandle data-drag-handle-tc class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 hidden sm:flex justify-center" onclick={(e) => e.stopPropagation()}>
+				<span use:dragHandle data-drag-handle-tc class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 hidden sm:flex justify-center" role="button" tabindex="0" aria-label="Drag to reorder" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
 					<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
 				</span>
 			{/if}
@@ -983,7 +983,8 @@
 			<!-- Test Run columns -->
 			{#each selectedRuns as run (run.id)}
 				{@const exec = data.executionMap[tc.id]?.[run.id]}
-				<span class="w-16 shrink-0 text-center hidden lg:block" onclick={(e) => e.stopPropagation()}>
+				<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+			<span class="w-16 shrink-0 text-center hidden lg:block" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
 					{#if exec}
 						<button
 							type="button"
@@ -1413,12 +1414,15 @@
 	<!-- Fixed-position assignee popover -->
 	{#if assigneePopover}
 		{@const tcForPopover = data.testCases.find((tc) => tc.id === assigneePopover!.tcId)}
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			data-assignee-popover
 			class="fixed z-[9999] bg-popover border rounded-md shadow-lg py-1 min-w-[150px] max-h-[240px] overflow-y-auto"
 			style="left: {assigneePopover.x}px; top: {assigneePopover.y}px; transform: translateX(-50%);"
+			role="listbox"
+			tabindex="-1"
+			aria-label="Assign members"
 			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
 		>
 			{#each data.projectMembers as member (member.userId)}
 				{@const isAssigned = tcForPopover?.assignees?.some((a) => a.userId === member.userId) ?? false}

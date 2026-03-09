@@ -655,7 +655,7 @@
 										</div>
 										<p class="mt-1 text-sm truncate">{v.title}</p>
 										<div class="text-muted-foreground mt-1 text-xs">
-											{v.updatedBy} &middot; {new Date(v.createdAt).toLocaleDateString()}
+											{v.updatedBy} &middot; {v.createdAt ? new Date(v.createdAt).toLocaleDateString() : ''}
 										</div>
 									</button>
 								{/each}

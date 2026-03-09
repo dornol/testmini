@@ -122,6 +122,30 @@ describe('/api/projects/[projectId]/exploratory-sessions', () => {
 			expect(body.total).toBe(0);
 		});
 
+		it('should ignore invalid status filter values (treat as no filter)', async () => {
+			let callCount = 0;
+			mockDb.select.mockImplementation(() => {
+				callCount++;
+				if (callCount === 1) {
+					return createChainResolving([sampleSession]);
+				}
+				return createChainResolving([{ total: 1 }]);
+			});
+
+			const event = createMockEvent({
+				method: 'GET',
+				params: PARAMS,
+				user: testUser,
+				searchParams: { status: 'INVALID_STATUS' }
+			});
+			const response = await GET(event);
+			expect(response.status).toBe(200);
+
+			const body = await response.json();
+			// Invalid status is ignored, so all sessions are returned (no filter applied)
+			expect(body.sessions).toHaveLength(1);
+		});
+
 		it('should pass status filter parameter', async () => {
 			let callCount = 0;
 			mockDb.select.mockImplementation(() => {
@@ -217,6 +241,72 @@ describe('/api/projects/[projectId]/exploratory-sessions', () => {
 			const body = await response.json();
 			expect(body.title).toBe('Explore login flow');
 			expect(body.charter).toBe('Test all login scenarios');
+		});
+
+		it('should reject invalid JSON body (returns 400)', async () => {
+			const url = new URL('http://localhost:5173/api/test');
+			const request = new Request(url, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: 'not valid json{'
+			});
+			const event = {
+				request,
+				url,
+				params: PARAMS,
+				locals: {
+					user: testUser,
+					session: { id: 'session-1' },
+					requestId: 'test-request-id'
+				},
+				cookies: {
+					get: () => undefined,
+					set: () => {},
+					delete: () => {},
+					getAll: () => [],
+					serialize: () => ''
+				},
+				getClientAddress: () => '127.0.0.1',
+				platform: undefined,
+				route: { id: '' },
+				isDataRequest: false,
+				isSubRequest: false,
+				fetch: globalThis.fetch
+			} as never;
+
+			await expect(POST(event)).rejects.toThrow();
+		});
+
+		it('should trim whitespace from title', async () => {
+			const createdSession = {
+				id: 3,
+				projectId: 1,
+				title: 'Trimmed title',
+				charter: null,
+				status: 'ACTIVE',
+				environment: null,
+				tags: [],
+				createdBy: 'user-1',
+				startedAt: new Date(),
+				pausedDuration: 0,
+				completedAt: null
+			};
+			mockInsertReturning(mockDb, [createdSession]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { title: '   Trimmed title   ' }
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(201);
+
+			const body = await response.json();
+			expect(body.title).toBe('Trimmed title');
+			// Verify the db insert was called (title was accepted after trimming)
+			expect(mockDb.insert).toHaveBeenCalled();
 		});
 
 		it('should use default values when optional fields are omitted', async () => {

@@ -3294,6 +3294,7 @@ Timer-based exploratory testing sessions with free-form notes, screenshots, and 
       "environment": "Staging",
       "tags": ["login", "security"],
       "createdBy": "John",
+      "createdById": "user_abc123",
       "noteCount": 3
     }
   ],
@@ -3316,6 +3317,12 @@ Timer-based exploratory testing sessions with free-form notes, screenshots, and 
   "tags": ["login", "security"]
 }
 ```
+
+**Validation:**
+- `title` (required): Max 500 characters
+- `charter` (optional): String
+- `environment` (optional): String
+- `tags` (optional): Array of strings
 
 **Response 201:** Created session object.
 
@@ -3344,7 +3351,17 @@ Timer-based exploratory testing sessions with free-form notes, screenshots, and 
 
 Other updatable fields: `title`, `charter`, `environment`, `tags`.
 
+**State transition rules:**
+- `pause`: Only from `ACTIVE` state
+- `resume`: Only from `PAUSED` state
+- `complete`: From `ACTIVE` or `PAUSED` state (not from `COMPLETED`)
+
 **Response 200:** Updated session object.
+
+**Error responses:**
+- `400` - Invalid state transition (e.g., pausing a paused session)
+- `400` - Empty title, no fields to update
+- `404` - Session not found
 
 ### Delete Session
 
@@ -3365,8 +3382,8 @@ Other updatable fields: `title`, `charter`, `environment`, `tags`.
 **Fields:**
 - `content` (required): Note text
 - `noteType` (optional, default `NOTE`): `NOTE` | `BUG` | `QUESTION` | `IDEA`
-- `timestamp` (required): Elapsed seconds from session start
-- `screenshot` (optional): Image file upload
+- `timestamp` (required): Elapsed seconds from session start (must be a non-negative number)
+- `screenshot` (optional): Image file upload (max 10MB)
 
 **Response 201:** Created note object.
 
@@ -3375,6 +3392,8 @@ Other updatable fields: `title`, `charter`, `environment`, `tags`.
 `DELETE /api/projects/:projectId/exploratory-sessions/:sessionId/notes/:noteId`
 
 **Auth:** PROJECT_ADMIN, QA, DEV
+
+Associated screenshot files are also deleted.
 
 **Response 200:** `{ "success": true }`
 

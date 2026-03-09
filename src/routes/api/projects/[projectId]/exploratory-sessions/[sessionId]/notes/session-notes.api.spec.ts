@@ -168,6 +168,59 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 			expect((await response.json()).error).toContain('Invalid note type');
 		});
 
+		it('should reject negative timestamp', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+			const event = createFormDataEvent({
+				content: 'Some note',
+				noteType: 'NOTE',
+				timestamp: '-10'
+			});
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid timestamp');
+		});
+
+		it('should handle screenshot upload (mock file, verify saveFile called)', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+			const createdNote = {
+				id: 3,
+				sessionId: 10,
+				content: 'Bug with screenshot',
+				noteType: 'BUG',
+				timestamp: 200,
+				screenshotPath: 'exploratory/10/test-uuid-1234_screenshot.png'
+			};
+			mockInsertReturning(mockDb, [createdNote]);
+			mockSaveFile.mockResolvedValue(undefined);
+
+			const mockFile = new File(['fake image data'], 'screenshot.png', {
+				type: 'image/png'
+			});
+
+			const formData = new FormData();
+			formData.append('content', 'Bug with screenshot');
+			formData.append('noteType', 'BUG');
+			formData.append('timestamp', '200');
+			formData.append('screenshot', mockFile);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				formData
+			});
+			const response = await POST(event);
+			expect(response.status).toBe(201);
+
+			expect(mockSaveFile).toHaveBeenCalledTimes(1);
+			expect(mockSaveFile).toHaveBeenCalledWith(
+				expect.stringContaining('exploratory/10/'),
+				expect.any(Buffer)
+			);
+		});
+
 		it('should accept all valid note types', async () => {
 			for (const noteType of ['NOTE', 'BUG', 'QUESTION', 'IDEA']) {
 				vi.clearAllMocks();

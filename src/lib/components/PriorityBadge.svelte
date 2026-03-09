@@ -8,9 +8,9 @@
 </script>
 
 <span
-	class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium"
-	style="border-color: {color}; color: {color};"
+	class="inline-flex items-center gap-1 text-xs font-medium truncate"
+	style="color: {color};"
 >
-	<span class="h-1.5 w-1.5 rounded-full" style="background-color: {color}"></span>
-	{name}
+	<span class="h-2 w-2 shrink-0 rounded-full" style="background-color: {color}"></span>
+	<span class="truncate">{name}</span>
 </span>

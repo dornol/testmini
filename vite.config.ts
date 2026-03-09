@@ -5,6 +5,12 @@ import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 
 export default defineConfig({
+	server: {
+		allowedHosts: ['home-macmini'],
+		hmr: {
+			host: 'home-macmini'
+		}
+	},
 	plugins: [
 		tailwindcss(),
 		sveltekit(),

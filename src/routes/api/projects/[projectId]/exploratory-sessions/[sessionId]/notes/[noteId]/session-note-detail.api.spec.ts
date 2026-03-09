@@ -74,6 +74,15 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes/[note
 			await expect(DELETE(event)).rejects.toThrow();
 		});
 
+		it('should return 400 for invalid noteId format', async () => {
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: { projectId: '1', sessionId: '10', noteId: 'abc' },
+				user: testUser
+			});
+			await expect(DELETE(event)).rejects.toThrow();
+		});
+
 		it('should return 404 when session not found', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(null);
 

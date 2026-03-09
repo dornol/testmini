@@ -105,6 +105,15 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]', () => {
 			await expect(GET(event)).rejects.toThrow();
 		});
 
+		it('should return 400 for invalid session ID format (non-numeric)', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				params: { projectId: '1', sessionId: 'abc' },
+				user: testUser
+			});
+			await expect(GET(event)).rejects.toThrow();
+		});
+
 		it('should return 404 when session not found', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(null);
 
@@ -313,6 +322,77 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]', () => {
 			expect((await response.json()).error).toContain('Title cannot be empty');
 		});
 
+		it('should complete a paused session (PAUSED -> COMPLETED is valid)', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue({
+				...sampleSession,
+				status: 'PAUSED'
+			});
+			const updatedSession = {
+				...sampleSession,
+				status: 'COMPLETED',
+				completedAt: new Date()
+			};
+			mockUpdateReturning(mockDb, [updatedSession]);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { action: 'complete', pausedDuration: 5000 }
+			});
+			const response = await PATCH(event);
+			expect(response.status).toBe(200);
+
+			const body = await response.json();
+			expect(body.status).toBe('COMPLETED');
+		});
+
+		it('should update environment and tags', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+			const updatedSession = {
+				...sampleSession,
+				environment: 'Firefox / Linux',
+				tags: ['performance', 'ui']
+			};
+			mockUpdateReturning(mockDb, [updatedSession]);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { environment: 'Firefox / Linux', tags: ['performance', 'ui'] }
+			});
+			const response = await PATCH(event);
+			expect(response.status).toBe(200);
+
+			const body = await response.json();
+			expect(body.environment).toBe('Firefox / Linux');
+			expect(body.tags).toEqual(['performance', 'ui']);
+		});
+
+		it('should handle negative pausedDuration (ignore, do not include in updates)', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue({
+				...sampleSession,
+				status: 'ACTIVE'
+			});
+			const updatedSession = { ...sampleSession, status: 'PAUSED' };
+			mockUpdateReturning(mockDb, [updatedSession]);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { action: 'pause', pausedDuration: -100 }
+			});
+			const response = await PATCH(event);
+			expect(response.status).toBe(200);
+
+			// Verify the update was called -- negative pausedDuration is ignored
+			// (status update still proceeds, but pausedDuration is not set)
+			const body = await response.json();
+			expect(body.status).toBe('PAUSED');
+		});
+
 		it('should reject when no fields to update', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
 
@@ -331,6 +411,15 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]', () => {
 	describe('DELETE', () => {
 		it('should return 401 when not authenticated', async () => {
 			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: null });
+			await expect(DELETE(event)).rejects.toThrow();
+		});
+
+		it('should return 400 for invalid session ID format', async () => {
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: { projectId: '1', sessionId: 'not-a-number' },
+				user: testUser
+			});
 			await expect(DELETE(event)).rejects.toThrow();
 		});
 

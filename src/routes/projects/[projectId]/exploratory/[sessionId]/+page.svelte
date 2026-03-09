@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
+	import { untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import * as Select from '$lib/components/ui/select/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
@@ -18,15 +17,28 @@
 	const sessionId = $derived(data.session.id);
 	const apiBase = $derived(`/api/projects/${projectId}/exploratory-sessions/${sessionId}`);
 
-	// Session state
+	// Session state -- use $state with $effect sync for optimistic updates
 	let session = $state(data.session);
 	let notes = $state(data.notes);
 
 	// Timer state
 	let timerDisplay = $state('00:00');
-	let timerInterval: ReturnType<typeof setInterval> | null = $state(null);
 	let pausedAt: number | null = $state(null);
-	let accumulatedPause = $state(session.pausedDuration);
+	let accumulatedPause = $state(data.session.pausedDuration);
+
+	// Non-reactive timer handle (no need to track in $effect)
+	let _timerInterval: ReturnType<typeof setInterval> | null = null;
+
+	// Sync from server data when it changes (e.g., invalidateAll)
+	$effect(() => {
+		const s = data.session;
+		const n = data.notes;
+		untrack(() => {
+			session = s;
+			notes = n;
+			accumulatedPause = s.pausedDuration;
+		});
+	});
 
 	// Note form state
 	let noteContent = $state('');
@@ -67,37 +79,40 @@
 	}
 
 	function startTimer() {
-		if (timerInterval) clearInterval(timerInterval);
+		if (_timerInterval) clearInterval(_timerInterval);
 		updateTimer();
-		timerInterval = setInterval(updateTimer, 1000);
+		_timerInterval = setInterval(updateTimer, 1000);
 	}
 
 	function stopTimer() {
-		if (timerInterval) {
-			clearInterval(timerInterval);
-			timerInterval = null;
+		if (_timerInterval) {
+			clearInterval(_timerInterval);
+			_timerInterval = null;
 		}
 	}
 
-	// Initialize timer based on session status
+	// Initialize timer based on session status -- only react to status changes
 	$effect(() => {
-		if (session.status === 'ACTIVE') {
-			pausedAt = null;
-			startTimer();
-		} else if (session.status === 'PAUSED') {
-			// Estimate when it was paused (now, since we just loaded)
-			pausedAt = Date.now();
-			startTimer();
-		} else {
-			// COMPLETED -- show final time
-			stopTimer();
-			if (session.completedAt) {
-				const start = new Date(session.startedAt).getTime();
-				const end = new Date(session.completedAt).getTime();
-				const elapsed = Math.max(0, Math.floor((end - start) / 1000) - session.pausedDuration);
-				timerDisplay = formatTime(elapsed);
+		const status = session.status;
+
+		untrack(() => {
+			if (status === 'ACTIVE') {
+				pausedAt = null;
+				startTimer();
+			} else if (status === 'PAUSED') {
+				pausedAt = Date.now();
+				startTimer();
+			} else {
+				// COMPLETED -- show final time
+				stopTimer();
+				if (session.completedAt) {
+					const start = new Date(session.startedAt).getTime();
+					const end = new Date(session.completedAt).getTime();
+					const elapsed = Math.max(0, Math.floor((end - start) / 1000) - session.pausedDuration);
+					timerDisplay = formatTime(elapsed);
+				}
 			}
-		}
+		});
 
 		return () => stopTimer();
 	});
@@ -129,14 +144,12 @@
 	}
 
 	async function pauseSession() {
-		const currentElapsed = getElapsedSeconds();
 		pausedAt = Date.now();
 		try {
-			const updated = await apiPatch(apiBase, {
+			await apiPatch(apiBase, {
 				action: 'pause',
-				pausedDuration: Math.floor(new Date(session.startedAt).getTime() / 1000 + accumulatedPause + currentElapsed - Date.now() / 1000 + currentElapsed)
+				pausedDuration: accumulatedPause
 			});
-			// Simpler: just send current accumulatedPause
 			session = { ...session, status: 'PAUSED' };
 			toast.success(m.exploratory_paused());
 		} catch {
@@ -150,7 +163,7 @@
 			pausedAt = null;
 		}
 		try {
-			const updated = await apiPatch(apiBase, {
+			await apiPatch(apiBase, {
 				action: 'resume',
 				pausedDuration: accumulatedPause
 			});
@@ -259,7 +272,7 @@
 					<Badge variant="outline">{session.environment}</Badge>
 				{/if}
 				{#if session.tags && session.tags.length > 0}
-					{#each session.tags as tag}
+					{#each session.tags as tag (tag)}
 						<Badge variant="secondary">{tag}</Badge>
 					{/each}
 				{/if}
@@ -306,7 +319,7 @@
 			/>
 			<div class="flex items-center gap-3 flex-wrap">
 				<div class="flex gap-1">
-					{#each ['NOTE', 'BUG', 'QUESTION', 'IDEA'] as type}
+					{#each ['NOTE', 'BUG', 'QUESTION', 'IDEA'] as type (type)}
 						<Button
 							variant={noteType === type ? 'default' : 'outline'}
 							size="sm"

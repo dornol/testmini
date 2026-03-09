@@ -76,7 +76,7 @@
 		open ? 'translate-x-0' : '-translate-x-full'
 	)}
 >
-	<nav class="flex-1 overflow-y-auto p-2">
+	<nav class="flex-1 overflow-y-auto p-2" aria-label="Main navigation">
 		<!-- Teams link -->
 		<a
 			href="/teams"

@@ -177,6 +177,16 @@ pnpm db:studio        # Drizzle Studio (browser DB GUI)
 
 Uses `compose.prod.yaml`. The app (Node 24-alpine), PostgreSQL 17, and Redis 7 are included in a single configuration.
 
+#### Docker Image Optimization
+
+The Dockerfile uses a 3-stage build for minimal image size and fast rebuilds:
+
+1. **deps** — Installs dependencies with pnpm store cache mount (`--mount=type=cache`)
+2. **build** — Builds the app and creates a production-only node_modules via `pnpm deploy --prod`
+3. **runtime** — Copies only the build output, prod deps, and drizzle migrations
+
+Health checks use Node.js `fetch()` instead of wget/curl, eliminating an extra package dependency.
+
 #### Architecture
 
 ```

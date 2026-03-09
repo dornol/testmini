@@ -462,6 +462,77 @@ describe('POST /api/projects/:projectId/test-cases/bulk', () => {
 - **Form-utils tests** (`src/lib/server/form-utils.spec.ts`, `src/lib/form-utils.spec.ts`): Test the Superforms/Zod adapter wrappers to ensure type suppression centralisation works correctly.
 - **Security tests**: API route tests should cover authentication (missing session → 401), authorization (wrong role → 403), and input validation (malformed data → 400). Use `createMockEvent({ user: null })` for unauthenticated requests.
 
+### E2E Tests (Playwright)
+
+E2E tests live in `e2e/tests/` and use Playwright with a custom auth fixture. Run with `pnpm test:e2e`.
+
+**Structure:**
+- `e2e/global-setup.ts` — Registers a test user, saves auth state
+- `e2e/fixtures/auth.fixture.ts` — Reuses stored auth state
+- `e2e/tests/*.spec.ts` — Test suites (serial execution, shared project state)
+
+**Writing a new E2E test:**
+```typescript
+import { test, expect } from '../fixtures/auth.fixture';
+
+test.describe.serial('My Feature', () => {
+  let projectId: string;
+
+  test('1. Create a project', async ({ page }) => {
+    await page.goto('/projects/new');
+    await page.fill('#name', `Test ${Date.now()}`);
+    await page.click('button[type="submit"]');
+    await page.waitForURL('**/projects/**', { timeout: 15000 });
+    projectId = page.url().match(/\/projects\/(\d+)/)![1];
+  });
+
+  test('2. Test your feature', async ({ page }) => {
+    await page.goto(`/projects/${projectId}/your-feature`);
+    // ...assertions
+  });
+});
+```
+
+**Accessibility tests** use `@axe-core/playwright` for automated WCAG 2.1 AA checks:
+```typescript
+import AxeBuilder from '@axe-core/playwright';
+
+const results = await new AxeBuilder({ page })
+  .withTags(['wcag2a', 'wcag2aa'])
+  .analyze();
+```
+
+### Performance Monitoring
+
+The project includes built-in performance monitoring:
+
+- **Query timing**: Custom Drizzle logger (`src/lib/server/db/index.ts`) logs slow queries (>500ms) at warn level
+- **Request timing**: Hooks middleware logs slow requests (>1000ms) with request ID correlation
+- **Cache stats**: `cacheStats()` from `src/lib/server/cache.ts` returns hit/miss rates, logged every 5 minutes
+
+```typescript
+import { cacheStats } from '$lib/server/cache';
+
+const stats = cacheStats(); // { hits, misses, size, hitRate }
+```
+
+### Performance Benchmarks
+
+Run `pnpm bench` to measure API response times against a running server:
+
+```bash
+# Start dev server first
+pnpm dev &
+
+# Run benchmarks (default: 20 rounds per endpoint)
+pnpm bench
+
+# With options
+BASE_URL=http://localhost:3000 BENCH_ROUNDS=50 PROJECT_ID=1 API_KEY=tmk_xxx pnpm bench
+```
+
+Output includes sequential latency (avg/p50/p95/p99), concurrent load test (RPS), and slow endpoint warnings.
+
 ---
 
 ## How to Add a New API Route

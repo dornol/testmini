@@ -96,6 +96,9 @@
 {#if isAuthPage}
 	{@render children()}
 {:else}
+	<a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[100] focus:rounded focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg focus:ring-2 focus:ring-ring">
+		Skip to main content
+	</a>
 	<div class="flex h-dvh flex-col">
 		<Header
 			user={data.user}
@@ -105,7 +108,7 @@
 		/>
 		<div class="flex flex-1 overflow-hidden">
 			<Sidebar bind:open={sidebarOpen} />
-			<main class="flex-1 overflow-y-auto px-2 pb-4 sm:px-4">
+			<main id="main-content" class="flex-1 overflow-y-auto px-2 pb-4 sm:px-4">
 				<div class="pt-3 sm:pt-4">
 					{@render children()}
 				</div>

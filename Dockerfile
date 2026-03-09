@@ -1,30 +1,37 @@
-# ---- Stage 1: Build ----
-FROM node:24-alpine AS build
+# ---- Stage 1: Dependencies ----
+FROM node:24-alpine AS deps
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10 --activate
 
 WORKDIR /app
 
-# Install dependencies first (layer cache)
+# Copy only dependency manifests for optimal layer caching
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
 
-# Copy source and build
+# Mount pnpm store as cache to speed up repeated builds
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+
+# ---- Stage 2: Build ----
+FROM deps AS build
+
 COPY . .
 RUN pnpm build
 
-# Prune dev dependencies and clean up build artifacts
-RUN pnpm prune --prod && rm -rf .svelte-kit
+# Use pnpm deploy to create a minimal production-only node_modules
+# (more efficient than install + prune: copies only prod deps, no symlinks)
+RUN pnpm deploy --prod --filter=testmini /app/prod
 
-# ---- Stage 2: Runtime ----
+# ---- Stage 3: Runtime ----
 FROM node:24-alpine AS runtime
 
+# tini for proper PID 1 signal handling
 RUN apk add --no-cache tini
 
 WORKDIR /app
 
-# Copy production dependencies
-COPY --from=build /app/node_modules ./node_modules
+# Copy production-only dependencies (from pnpm deploy)
+COPY --from=build /app/prod/node_modules ./node_modules
 
 # Copy build output (adapter-node)
 COPY --from=build /app/build ./build
@@ -44,8 +51,9 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \
-  CMD wget -qO- http://localhost:3000/api/health || exit 1
+# Use node for health check instead of installing wget/curl
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=15s \
+  CMD node -e "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)throw 1}).catch(()=>process.exit(1))"
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "build"]

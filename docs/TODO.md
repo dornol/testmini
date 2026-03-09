@@ -284,6 +284,81 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ---
 
+## Phase 14: Monitoring, Accessibility & E2E Coverage
+
+### 14.1 Performance Monitoring -- Done
+
+- [x] Custom Drizzle query logger with execution timing
+  - Slow query detection (>500ms threshold) with structured logging
+  - Debug-level query logging in development
+- [x] Cache hit/miss tracking with `cacheStats()` function
+  - Hit rate, miss count, store size metrics
+  - Periodic stats logging every 5 minutes via hooks.server.ts
+
+### 14.2 Accessibility Improvements -- Done
+
+- [x] Skip-to-content link (`<a href="#main-content">`) with focus-visible styling
+- [x] `<main id="main-content">` landmark for skip-link target
+- [x] Sidebar `<nav aria-label="Main navigation">` for screen reader identification
+- [x] axe-core integration for automated WCAG 2.1 AA testing
+
+### 14.3 E2E Test Expansion -- Done
+
+13 Playwright suites (was 9), 4 new suites added:
+
+- [x] Dashboard & Navigation (8 tests) -- project dashboard, sidebar navigation, widget rendering
+- [x] Bulk Operations (5 tests) -- multi-select, bulk action bar, select all
+- [x] Notifications (3 tests) -- bell visibility, notification panel, direct navigation
+- [x] Accessibility (8 tests) -- skip-to-content, landmarks, axe-core WCAG checks, keyboard nav, alt attributes
+
+### 14.4 Unit Test Coverage -- Done
+
+141 test files, 1641 tests (was 140 files, 1615 tests):
+
+- [x] Cache stats tracking (12 tests) -- hits, misses, hit rate, counter reset, store size, interleaved ops, delete/prefix exclusions
+- [x] Query logger (15 tests) -- slow query detection, threshold boundary, query truncation (200/120 chars), param count, production mode suppression, duration rounding, sub-ms queries, multiple queries
+
+---
+
+## Phase 15: Docker Optimization & Performance Benchmarks
+
+### 15.1 Docker Image Optimization -- Done
+
+- [x] 3-stage build (deps → build → runtime) for better layer caching
+  - Stage 1: dependency install with `--mount=type=cache` for pnpm store
+  - Stage 2: build + `pnpm deploy --prod` for minimal node_modules (no symlinks, prod-only)
+  - Stage 3: runtime with only necessary files
+- [x] Pinned pnpm version (`pnpm@10`) instead of `@latest`
+- [x] Node.js-based health check (removes wget/curl dependency from runtime image)
+- [x] Improved .dockerignore (docs/, .idea/, .vscode/, non-prod scripts)
+
+### 15.2 Performance Benchmark Tooling -- Done
+
+- [x] Benchmark script (`scripts/benchmark.ts`, `pnpm bench`)
+  - Sequential benchmark: avg, p50, p95, p99, min, max per endpoint
+  - Concurrent load test: 5/10 concurrent workers, RPS measurement
+  - Warm-up request before measurement
+  - Slow endpoint detection (p95 > 500ms warning)
+- [x] Shared statistics utilities (`src/lib/utils/percentile.ts`)
+  - `percentile(sorted, p)` -- interpolated percentile calculation
+  - `round2(n)` -- round to 2 decimal places
+- [x] 16 unit tests for benchmark statistics (percentile + round2)
+
+### 15.3 Benchmarked Endpoints
+
+| Tier | Endpoint | Notes |
+|------|----------|-------|
+| Critical | Dashboard page | 6+ queries, 5-min cache |
+| Critical | Test cases list | Full load, no pagination |
+| Critical | Test runs list | Paginated with subqueries |
+| High | Bulk operations | Up to 200 items, transactional |
+| High | Trends report | Aggregate queries with HAVING |
+| High | Requirements matrix | DISTINCT ON, multiple joins |
+| Medium | SSE events | Connection scalability |
+| Medium | Import/export | Streaming, file processing |
+
+---
+
 ## Future Considerations
 
 | Feature | Priority | Notes |

@@ -11,6 +11,7 @@ import { logger } from '$lib/server/logger';
 import { runMigrations } from '$lib/server/db/migrate';
 import { seedAdminUser } from '$lib/server/db/seed';
 import { initReportScheduler } from '$lib/server/report-scheduler';
+import { cacheStats } from '$lib/server/cache';
 import { db } from '$lib/server/db';
 import { user as userTable } from '$lib/server/db/auth.schema';
 import { eq } from 'drizzle-orm';
@@ -23,6 +24,14 @@ if (!building) {
 			logger.fatal({ err }, 'Startup failed — migration or seed error');
 			process.exit(1);
 		});
+
+	// Log cache stats every 5 minutes for monitoring
+	setInterval(() => {
+		const stats = cacheStats();
+		if (stats.hits + stats.misses > 0) {
+			logger.info({ ...stats, hitRate: Math.round(stats.hitRate * 100) + '%' }, 'cache stats');
+		}
+	}, 5 * 60 * 1000).unref();
 }
 
 const handleParaglide: Handle = ({ event, resolve }) => paraglideMiddleware(event.request, ({ request, locale }) => {

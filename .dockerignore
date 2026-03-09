@@ -1,16 +1,40 @@
+# Dependencies & build output
 node_modules
 build
 .svelte-kit
+
+# Environment (keep example)
 .env
 .env.*
 !.env.example
+
+# Data & state
 data/uploads
 .claude
+
+# Documentation
 *.md
+docs/
+
+# Git
 .git
+.gitignore
+
+# Tests
 **/*.spec.ts
 **/*.test.ts
 .vitest/
-.pnpm-store
 e2e/
 coverage/
+
+# Dev tooling
+.pnpm-store
+.vscode
+.idea
+*.swp
+*.swo
+
+# Scripts not needed in production
+scripts/seed-5k.ts
+scripts/seed-testcases.ts
+scripts/backup/

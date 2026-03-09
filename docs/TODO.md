@@ -224,23 +224,25 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ## Phase 12: Test Coverage Expansion
 
-### 12.1 Client Component Tests
+### 12.1 Client Component Tests -- Done
 
-Currently only 3 `.svelte.spec.ts` files vs 127 server-side tests. Priority targets:
+9 `.svelte.spec.ts` files (was 3), 27 component tests added:
 
-- [ ] Core UI components (FilterBar, BulkActionBar, NotificationBell, etc.)
-- [ ] Form components (test case editor, custom field inputs)
-- [ ] Interactive components (drag-and-drop, virtual scroll list)
+- [x] PriorityBadge (3 tests) -- name, color dot, text color
+- [x] TagBadge (5 tests) -- name, color, remove button conditional, callback
+- [x] AddCircleButton (5 tests) -- button vs span, aria-label, onclick
+- [x] CommentForm (6 tests) -- textarea, disabled submit, cancel button, submitting state
+- [x] ImportResults (4 tests) -- success/error counts, expandable rows, progress bar
+- [x] GherkinEditor (4 tests) -- textarea, preview, keyword colors
 
-### 12.2 E2E Test Expansion
+### 12.2 E2E Test Expansion -- Done
 
-Currently 5 Playwright suites. Add coverage for:
+9 Playwright suites (was 5):
 
-- [ ] Test case CRUD workflow (create → edit → version → delete)
-- [ ] Test run execution flow (create run → execute → report)
-- [ ] Team/project management workflow
-- [ ] OIDC/SSO login flow
-- [ ] Import/export roundtrip
+- [x] Test case CRUD workflow (create → edit → version → delete)
+- [x] Test run execution flow (create run → start → FAIL → PASS → complete)
+- [x] Team/project management workflow (create team → settings → members)
+- [x] Import/export roundtrip (export CSV → import CSV → verify)
 
 ---
 

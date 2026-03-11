@@ -260,6 +260,20 @@
       "when": 1774628000000,
       "tag": "0037_test_run_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1774714400000,
+      "tag": "0038_retest_and_duration",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1774800800000,
+      "tag": "0039_release_signoff_retest",
+      "breakpoints": true
     }
   ]
 }

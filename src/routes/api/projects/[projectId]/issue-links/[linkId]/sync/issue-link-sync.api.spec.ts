@@ -25,6 +25,10 @@ vi.mock('$lib/server/db/schema', () => ({
 	issueTrackerConfig: {
 		projectId: 'project_id',
 		provider: 'provider'
+	},
+	testCase: {
+		id: 'id',
+		retestNeeded: 'retest_needed'
 	}
 }));
 vi.mock('drizzle-orm', () => ({
@@ -180,6 +184,74 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/sync', () => {
 			'https://company.atlassian.net/browse/PROJ-123',
 			'PROJ-123'
 		);
+	});
+
+	it('should mark linked test case as retest needed when issue is resolved', async () => {
+		mockDb.query.issueLink.findFirst.mockResolvedValue(sampleLink);
+		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+		mockFetchIssueStatus.mockResolvedValue({ status: 'Done', statusCategory: 'done' });
+
+		const updatedLink = { ...sampleLink, status: 'Done', statusSyncedAt: new Date() };
+		mockUpdateReturning(mockDb, [updatedLink]);
+
+		// Mock the second update call (retest flag)
+		const retestUpdateChain = {
+			set: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+		};
+		mockDb.update.mockReturnValueOnce(
+			// first call returns the link update chain from mockUpdateReturning above
+			mockDb.update.getMockImplementation()?.() ?? retestUpdateChain as never
+		).mockReturnValue(retestUpdateChain as never);
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser
+		});
+
+		const response = await POST(event);
+		expect(response.status).toBe(200);
+		// The update mock should have been called twice: once for link, once for testCase retest
+		expect(mockDb.update).toHaveBeenCalledTimes(2);
+	});
+
+	it('should not mark retest when issue is not resolved', async () => {
+		mockDb.query.issueLink.findFirst.mockResolvedValue(sampleLink);
+		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+		mockFetchIssueStatus.mockResolvedValue({ status: 'In Progress', statusCategory: 'in_progress' });
+		mockUpdateReturning(mockDb, [{ ...sampleLink, status: 'In Progress' }]);
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser
+		});
+
+		const response = await POST(event);
+		expect(response.status).toBe(200);
+		// Only one update call: the link status update
+		expect(mockDb.update).toHaveBeenCalledTimes(1);
+	});
+
+	it('should not mark retest when link has no testCaseId', async () => {
+		const linkWithoutTestCase = { ...sampleLink, testCaseId: null };
+		mockDb.query.issueLink.findFirst.mockResolvedValue(linkWithoutTestCase);
+		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+		mockFetchIssueStatus.mockResolvedValue({ status: 'Done', statusCategory: 'done' });
+		mockUpdateReturning(mockDb, [{ ...linkWithoutTestCase, status: 'Done' }]);
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser
+		});
+
+		const response = await POST(event);
+		expect(response.status).toBe(200);
+		// Only one update call: the link status update
+		expect(mockDb.update).toHaveBeenCalledTimes(1);
 	});
 
 	it('should reject invalid link ID', async () => {

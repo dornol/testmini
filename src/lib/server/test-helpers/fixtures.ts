@@ -89,3 +89,17 @@ export const sampleExecution = {
 	startedAt: null,
 	completedAt: null
 };
+
+export const sampleRelease = {
+	id: 300,
+	projectId: 1,
+	name: 'v1.0.0',
+	version: '1.0.0',
+	description: 'First release',
+	status: 'PLANNING' as const,
+	targetDate: null,
+	releaseDate: null,
+	createdBy: 'user-1',
+	createdAt: new Date('2025-01-01'),
+	updatedAt: new Date('2025-01-01')
+};

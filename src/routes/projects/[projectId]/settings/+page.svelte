@@ -8,7 +8,9 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { toast } from 'svelte-sonner';
+	import { invalidateAll } from '$app/navigation';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
@@ -63,6 +65,21 @@
 
 				<Button type="submit" disabled={$submitting}>
 					{$submitting ? m.common_saving() : m.common_save_changes()}
+				</Button>
+			</form>
+		</Card.Content>
+	</Card.Root>
+
+	<!-- Sign-off requirement -->
+	<Card.Root>
+		<Card.Content class="flex items-center justify-between py-4">
+			<div>
+				<p class="text-sm font-medium">{m.settings_require_signoff()}</p>
+				<p class="text-muted-foreground text-xs">{m.signoff_required()}</p>
+			</div>
+			<form method="POST" action="?/toggleSignoff">
+				<Button type="submit" variant={data.requireSignoff ? 'default' : 'outline'} size="sm">
+					{data.requireSignoff ? m.common_active() : m.common_inactive()}
 				</Button>
 			</form>
 		</Card.Content>

@@ -208,6 +208,24 @@
 		</Popover.Content>
 	</Popover.Root>
 
+	<!-- Retest needed filter -->
+	<Button
+		variant={page.url.searchParams.get('retestNeeded') === 'true' ? 'default' : 'outline'}
+		size="sm"
+		class="h-7 px-2 text-xs"
+		onclick={() => {
+			const params = new URLSearchParams(page.url.searchParams);
+			if (params.get('retestNeeded') === 'true') {
+				params.delete('retestNeeded');
+			} else {
+				params.set('retestNeeded', 'true');
+			}
+			goto(`${basePath}?${params.toString()}`);
+		}}
+	>
+		{m.retest_filter()}
+	</Button>
+
 	<!-- Suite filter -->
 	{#if projectSuites.length > 0}
 		<Popover.Root>

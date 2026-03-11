@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { issueLink, issueTrackerConfig } from '$lib/server/db/schema';
+import { issueLink, issueTrackerConfig, testCase } from '$lib/server/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { notFound, badRequest } from '$lib/server/errors';
@@ -43,6 +43,14 @@ export const POST = withProjectRole(
 			.set({ status: result.status, statusSyncedAt: new Date() })
 			.where(eq(issueLink.id, linkId))
 			.returning();
+
+		// Auto-mark linked test case as retest needed when issue is resolved
+		if (result.statusCategory === 'done' && link.testCaseId) {
+			await db
+				.update(testCase)
+				.set({ retestNeeded: true })
+				.where(eq(testCase.id, link.testCaseId));
+		}
 
 		return json({ ...updated, statusCategory: result.statusCategory });
 	}

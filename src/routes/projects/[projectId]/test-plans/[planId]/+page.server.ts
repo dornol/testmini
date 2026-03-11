@@ -1,8 +1,8 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testPlan, testPlanTestCase, testCase, testCaseVersion, testRun, user } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { testPlan, testPlanTestCase, testCase, testCaseVersion, testRun, user, testPlanSignoff, project, release } from '$lib/server/db/schema';
+import { eq, and, sql } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ params, parent }) => {
 	await parent();
@@ -65,10 +65,39 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		.where(eq(testCase.projectId, projectId))
 		.orderBy(testCase.key);
 
+	// Sign-off history
+	const signoffs = await db
+		.select({
+			id: testPlanSignoff.id,
+			decision: testPlanSignoff.decision,
+			comment: testPlanSignoff.comment,
+			createdAt: testPlanSignoff.createdAt,
+			userName: user.name
+		})
+		.from(testPlanSignoff)
+		.innerJoin(user, eq(testPlanSignoff.userId, user.id))
+		.where(eq(testPlanSignoff.testPlanId, planId))
+		.orderBy(testPlanSignoff.createdAt);
+
+	// Project settings
+	const [proj] = await db
+		.select({ requireSignoff: project.requireSignoff })
+		.from(project)
+		.where(eq(project.id, projectId));
+
+	// Available releases for linking
+	const releases = await db
+		.select({ id: release.id, name: release.name, version: release.version })
+		.from(release)
+		.where(eq(release.projectId, projectId));
+
 	return {
 		plan: { ...plan, createdByName: creator?.name ?? '' },
 		items,
 		runs,
-		allTestCases
+		allTestCases,
+		signoffs,
+		requireSignoff: proj?.requireSignoff ?? false,
+		releases
 	};
 };

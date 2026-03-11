@@ -1,8 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 import { badRequest, validationError } from '$lib/server/errors';
 import { db } from '$lib/server/db';
-import { testPlan, testPlanTestCase, testCase, testCaseVersion, testRun, user } from '$lib/server/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { testPlan, testPlanTestCase, testCase, testCaseVersion, testRun, user, project, testPlanSignoff } from '$lib/server/db/schema';
+import { eq, and, sql, desc } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { updateTestPlanSchema } from '$lib/schemas/test-plan.schema';
@@ -78,6 +78,27 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ re
 		return validationError('Invalid input', parsed.error.flatten().fieldErrors);
 	}
 
+	// Sign-off guard: if status → COMPLETED and project requires sign-off
+	if (parsed.data.status === 'COMPLETED') {
+		const [proj] = await db
+			.select({ requireSignoff: project.requireSignoff })
+			.from(project)
+			.where(eq(project.id, projectId));
+
+		if (proj?.requireSignoff) {
+			const latestSignoff = await db
+				.select({ decision: testPlanSignoff.decision })
+				.from(testPlanSignoff)
+				.where(eq(testPlanSignoff.testPlanId, planId))
+				.orderBy(desc(testPlanSignoff.createdAt))
+				.limit(1);
+
+			if (!latestSignoff.length || latestSignoff[0].decision !== 'APPROVED') {
+				return badRequest('Sign-off approval is required before completing this plan');
+			}
+		}
+	}
+
 	const updates: Record<string, unknown> = {};
 	if (parsed.data.name !== undefined) updates.name = parsed.data.name;
 	if (parsed.data.description !== undefined) updates.description = parsed.data.description;
@@ -85,6 +106,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ re
 	if (parsed.data.milestone !== undefined) updates.milestone = parsed.data.milestone;
 	if (parsed.data.startDate !== undefined) updates.startDate = parsed.data.startDate ? new Date(parsed.data.startDate) : null;
 	if (parsed.data.endDate !== undefined) updates.endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : null;
+	if (parsed.data.releaseId !== undefined) updates.releaseId = parsed.data.releaseId;
 
 	if (Object.keys(updates).length === 0) {
 		return badRequest('No fields to update');

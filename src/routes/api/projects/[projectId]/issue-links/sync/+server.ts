@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { issueLink, issueTrackerConfig } from '$lib/server/db/schema';
+import { issueLink, issueTrackerConfig, testCase } from '$lib/server/db/schema';
 import { and, eq, ne } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { notFound } from '$lib/server/errors';
@@ -37,6 +37,7 @@ export const POST = withProjectRole(
 
 		let synced = 0;
 		let failed = 0;
+		const retestCaseIds: number[] = [];
 
 		const BATCH_SIZE = 5;
 		for (let i = 0; i < links.length; i += BATCH_SIZE) {
@@ -52,6 +53,11 @@ export const POST = withProjectRole(
 						.update(issueLink)
 						.set({ status: result.status, statusSyncedAt: new Date() })
 						.where(eq(issueLink.id, link.id));
+
+					// Track test cases that need retesting
+					if (result.statusCategory === 'done' && link.testCaseId) {
+						retestCaseIds.push(link.testCaseId);
+					}
 					return result;
 				})
 			);
@@ -62,6 +68,15 @@ export const POST = withProjectRole(
 			}
 		}
 
-		return json({ synced, failed, total: links.length });
+		// Mark linked test cases as retest needed
+		if (retestCaseIds.length > 0) {
+			const { inArray } = await import('drizzle-orm');
+			await db
+				.update(testCase)
+				.set({ retestNeeded: true })
+				.where(inArray(testCase.id, retestCaseIds));
+		}
+
+		return json({ synced, failed, total: links.length, retestMarked: retestCaseIds.length });
 	}
 );

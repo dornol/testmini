@@ -19,6 +19,7 @@ interface TestCaseFilterParams {
 	assigneeId?: string;
 	suiteId?: string;
 	approvalStatus?: string;
+	retestNeeded?: string;
 	customFieldFilters?: { fieldId: number; value: string }[];
 }
 
@@ -125,6 +126,10 @@ export function buildTestCaseConditions(params: TestCaseFilterParams): SQL {
 		if (statuses.length > 0) {
 			conditions.push(inArray(testCase.approvalStatus, statuses));
 		}
+	}
+
+	if (params.retestNeeded === 'true') {
+		conditions.push(eq(testCase.retestNeeded, true));
 	}
 
 	if (params.customFieldFilters && params.customFieldFilters.length > 0) {

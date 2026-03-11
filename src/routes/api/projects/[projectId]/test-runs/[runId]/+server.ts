@@ -18,19 +18,22 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ re
 		error(404, 'Test run not found');
 	}
 
-	if (run.status !== 'CREATED') {
-		return conflict('Only CREATED runs can be edited');
-	}
-
 	const body = await parseJsonBody(request);
 	const parsed = updateTestRunSchema.safeParse(body);
 	if (!parsed.success) {
 		return validationError('Invalid input', parsed.error.flatten().fieldErrors);
 	}
 
+	// Name/environment edits only allowed in CREATED status; releaseId can be set anytime
+	const hasFieldEdits = parsed.data.name !== undefined || parsed.data.environment !== undefined;
+	if (hasFieldEdits && run.status !== 'CREATED') {
+		return conflict('Only CREATED runs can be edited');
+	}
+
 	const updates: Record<string, unknown> = {};
 	if (parsed.data.name !== undefined) updates.name = parsed.data.name;
 	if (parsed.data.environment !== undefined) updates.environment = parsed.data.environment;
+	if (parsed.data.releaseId !== undefined) updates.releaseId = parsed.data.releaseId;
 
 	if (Object.keys(updates).length === 0) {
 		return badRequest('No fields to update');

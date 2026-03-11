@@ -10,6 +10,7 @@
 		{ href: `/projects/${data.project.id}/test-cases`, label: m.nav_test_cases() },
 		{ href: `/projects/${data.project.id}/test-suites`, label: m.nav_test_suites() },
 		{ href: `/projects/${data.project.id}/test-plans`, label: m.nav_test_plans() },
+		{ href: `/projects/${data.project.id}/releases`, label: m.nav_releases() },
 		{ href: `/projects/${data.project.id}/test-runs`, label: m.nav_test_runs() },
 		{ href: `/projects/${data.project.id}/reports`, label: m.nav_reports() },
 		{ href: `/projects/${data.project.id}/exploratory`, label: m.nav_exploratory() },

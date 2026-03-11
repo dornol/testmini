@@ -10,6 +10,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import VirtualList from '$lib/components/VirtualList.svelte';
 	import * as m from '$lib/paraglide/messages.js';
@@ -179,6 +180,46 @@
 		if (!date) return '-';
 		return new Date(date).toLocaleDateString();
 	}
+
+	// Sign-off
+	let signoffDialogOpen = $state(false);
+	let signoffDecision = $state<'APPROVED' | 'REJECTED'>('APPROVED');
+	let signoffComment = $state('');
+	let signoffSaving = $state(false);
+	const canSignoff = $derived(
+		data.userRole === 'PROJECT_ADMIN' || data.userRole === 'QA' || data.userRole === 'ADMIN'
+	);
+
+	function openSignoff() {
+		signoffDecision = 'APPROVED';
+		signoffComment = '';
+		signoffDialogOpen = true;
+	}
+
+	async function handleSignoff() {
+		signoffSaving = true;
+		try {
+			await apiPost(`/api/projects/${data.project.id}/test-plans/${data.plan.id}/signoffs`, {
+				decision: signoffDecision,
+				comment: signoffComment.trim() || undefined
+			});
+			signoffDialogOpen = false;
+			toast.success(m.signoff_submitted());
+			await invalidateAll();
+		} catch { /* handled */ }
+		finally { signoffSaving = false; }
+	}
+
+	// Release linking
+	async function handleReleaseChange(releaseId: string) {
+		try {
+			await apiPatch(`/api/projects/${data.project.id}/test-plans/${data.plan.id}`, {
+				releaseId: releaseId ? Number(releaseId) : null
+			});
+			toast.success(m.tp_updated());
+			await invalidateAll();
+		} catch { /* handled */ }
+	}
 </script>
 
 <div class="space-y-4">
@@ -225,6 +266,88 @@
 			{/if}
 		</div>
 	</div>
+
+	<!-- Release & Sign-off Row -->
+	<div class="flex flex-wrap gap-4 items-start">
+		<!-- Release Link -->
+		{#if data.releases.length > 0}
+			<div class="space-y-1">
+				<span class="text-xs font-medium text-muted-foreground">{m.nav_releases()}</span>
+				<Select.Root
+					type="single"
+					value={data.plan.releaseId?.toString() ?? ''}
+					onValueChange={(v: string) => handleReleaseChange(v)}
+				>
+					<Select.Trigger class="w-44 h-7 text-xs">
+						{@const linked = data.releases.find((r) => r.id === data.plan.releaseId)}
+						{linked ? `${linked.name}${linked.version ? ` (${linked.version})` : ''}` : '-'}
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="" label="-" />
+						{#each data.releases as rel (rel.id)}
+							<Select.Item value={rel.id.toString()} label={`${rel.name}${rel.version ? ` (${rel.version})` : ''}`} />
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</div>
+		{/if}
+
+		<!-- Sign-off Status -->
+		{#if data.requireSignoff}
+			<div class="space-y-1">
+				<span class="text-xs font-medium text-muted-foreground">{m.signoff_title()}</span>
+				<div class="flex items-center gap-2">
+					{#if data.signoffs.length > 0}
+						{@const latest = data.signoffs[data.signoffs.length - 1]}
+						<Badge variant={latest.decision === 'APPROVED' ? 'default' : 'destructive'}>
+							{latest.decision === 'APPROVED' ? m.signoff_decision_approved() : m.signoff_decision_rejected()}
+						</Badge>
+						<span class="text-xs text-muted-foreground">{latest.userName}</span>
+					{:else}
+						<Badge variant="outline">{m.signoff_required()}</Badge>
+					{/if}
+					{#if canSignoff}
+						<Button variant="outline" size="sm" class="h-7 text-xs" onclick={openSignoff}>
+							{m.signoff_submit()}
+						</Button>
+					{/if}
+				</div>
+			</div>
+		{/if}
+	</div>
+
+	<!-- Sign-off History -->
+	{#if data.signoffs.length > 0}
+		<div class="space-y-2">
+			<h3 class="font-semibold text-sm">{m.signoff_history()}</h3>
+			<div class="rounded-md border">
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head class="w-28 py-1 px-2 text-xs">{m.common_date()}</Table.Head>
+							<Table.Head class="w-24 py-1 px-2 text-xs">{m.signoff_title()}</Table.Head>
+							<Table.Head class="w-28 py-1 px-2 text-xs">{m.common_name()}</Table.Head>
+							<Table.Head class="py-1 px-2 text-xs">{m.signoff_comment()}</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each data.signoffs as s (s.id)}
+							<Table.Row>
+								<Table.Cell class="py-1 px-2 text-xs text-muted-foreground">{formatDate(s.createdAt)}</Table.Cell>
+								<Table.Cell class="py-1 px-2 text-xs">
+									<Badge variant={s.decision === 'APPROVED' ? 'default' : 'destructive'} class="text-xs">
+										{s.decision === 'APPROVED' ? m.signoff_decision_approved() : m.signoff_decision_rejected()}
+									</Badge>
+								</Table.Cell>
+								<Table.Cell class="py-1 px-2 text-xs">{s.userName}</Table.Cell>
+								<Table.Cell class="py-1 px-2 text-xs text-muted-foreground">{s.comment ?? '-'}</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Test Cases Section -->
 	<div class="space-y-2">
@@ -406,6 +529,51 @@
 				<Button variant="outline" onclick={() => (addCasesDialogOpen = false)}>{m.common_cancel()}</Button>
 				<Button onclick={handleAddCases} disabled={addCasesSaving || addCasesSelected.size === 0}>
 					{addCasesSaving ? m.common_saving() : m.tp_add_cases()} ({addCasesSelected.size})
+				</Button>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>
+
+<!-- Sign-off Dialog -->
+<Dialog.Root bind:open={signoffDialogOpen}>
+	<Dialog.Portal>
+		<Dialog.Overlay />
+		<Dialog.Content class="sm:max-w-md">
+			<Dialog.Header>
+				<Dialog.Title>{m.signoff_submit()}</Dialog.Title>
+			</Dialog.Header>
+			<div class="space-y-4 py-4">
+				<div class="flex gap-2">
+					<Button
+						variant={signoffDecision === 'APPROVED' ? 'default' : 'outline'}
+						size="sm"
+						onclick={() => { signoffDecision = 'APPROVED'; }}
+					>
+						{m.signoff_approve()}
+					</Button>
+					<Button
+						variant={signoffDecision === 'REJECTED' ? 'destructive' : 'outline'}
+						size="sm"
+						onclick={() => { signoffDecision = 'REJECTED'; }}
+					>
+						{m.signoff_reject()}
+					</Button>
+				</div>
+				<div class="space-y-2">
+					<Label for="signoffComment">{m.signoff_comment()}</Label>
+					<Textarea
+						id="signoffComment"
+						bind:value={signoffComment}
+						placeholder={m.signoff_comment_placeholder()}
+						rows={3}
+					/>
+				</div>
+			</div>
+			<Dialog.Footer>
+				<Button variant="outline" onclick={() => (signoffDialogOpen = false)}>{m.common_cancel()}</Button>
+				<Button onclick={handleSignoff} disabled={signoffSaving}>
+					{signoffSaving ? m.common_saving() : m.signoff_submit()}
 				</Button>
 			</Dialog.Footer>
 		</Dialog.Content>

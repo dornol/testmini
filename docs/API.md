@@ -68,6 +68,9 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 34. [Approval Workflow](#approval-workflow)
 35. [Teams](#teams)
 36. [Column Settings](#column-settings)
+37. [Releases](#releases)
+38. [Test Plan Sign-off](#test-plan-sign-off)
+39. [Retest on Defect Fix](#retest-on-defect-fix)
 
 ---
 
@@ -3742,3 +3745,131 @@ Array order determines display order. Settings are project-wide (shared across a
 ```json
 { "success": true }
 ```
+
+---
+
+## Releases
+
+### List Releases
+
+`GET /api/projects/:projectId/releases`
+
+Query params: `?status=PLANNING|IN_PROGRESS|READY|RELEASED`
+
+Returns all releases for the project with plan/run counts.
+
+### Create Release
+
+`POST /api/projects/:projectId/releases`
+
+Roles: PROJECT_ADMIN, QA
+
+```json
+{
+  "name": "v1.0.0 Sprint 42",
+  "version": "1.0.0",
+  "description": "First release",
+  "status": "PLANNING",
+  "targetDate": "2025-06-01T00:00:00.000Z",
+  "releaseDate": "2025-06-15T00:00:00.000Z"
+}
+```
+
+### Get Release Detail
+
+`GET /api/projects/:projectId/releases/:releaseId`
+
+Returns release with linked plans, runs, and aggregated execution stats.
+
+### Update Release
+
+`PATCH /api/projects/:projectId/releases/:releaseId`
+
+Roles: PROJECT_ADMIN, QA
+
+### Delete Release
+
+`DELETE /api/projects/:projectId/releases/:releaseId`
+
+Roles: PROJECT_ADMIN. Linked plans/runs are unlinked (SET NULL).
+
+### Release Readiness
+
+`GET /api/projects/:projectId/releases/:releaseId/readiness`
+
+Returns Go/No-Go verdict based on linked run execution stats:
+
+```json
+{
+  "verdict": "GO | NO_GO | CAUTION",
+  "stats": { "total": 100, "pass": 95, "fail": 3, "blocked": 2, "pending": 0, "passRate": 95 },
+  "runCount": 3,
+  "blockingRuns": [{ "id": 1, "name": "Run 1", "fail": 2, "blocked": 1 }]
+}
+```
+
+- **GO**: All tests pass, no failures or blocked
+- **NO_GO**: Any failures or blocked executions exist
+- **CAUTION**: No runs linked or pending executions remain
+
+---
+
+## Test Plan Sign-off
+
+### List Sign-offs
+
+`GET /api/projects/:projectId/test-plans/:planId/signoffs`
+
+Returns sign-off history with user names.
+
+### Submit Sign-off
+
+`POST /api/projects/:projectId/test-plans/:planId/signoffs`
+
+Roles: PROJECT_ADMIN, QA
+
+```json
+{
+  "decision": "APPROVED | REJECTED",
+  "comment": "Looks good to ship"
+}
+```
+
+Sends notifications to plan creator and project admins.
+
+**Sign-off completion guard:** When `project.requireSignoff = true`, the test plan PATCH endpoint blocks status transition to COMPLETED unless the latest sign-off is APPROVED.
+
+---
+
+## Retest on Defect Fix
+
+### Create Retest Run
+
+`POST /api/projects/:projectId/test-cases/retest-run`
+
+Roles: PROJECT_ADMIN, QA, DEV
+
+Creates a test run from all test cases with `retestNeeded = true`, then clears the flag.
+
+```json
+{
+  "name": "Retest Run",
+  "environment": "QA",
+  "testCaseIds": [1, 2, 3]
+}
+```
+
+All fields are optional. If `testCaseIds` is omitted, all retest-needed cases are included.
+
+**Response:**
+```json
+{ "runId": 123, "executionCount": 5 }
+```
+
+### Auto-marking retest needed
+
+When issue link sync endpoints (`POST .../issue-links/sync`, `POST .../issue-links/:id/sync`) detect that an issue's `statusCategory` changed to `"done"`, the linked test case's `retestNeeded` flag is automatically set to `true`.
+
+### Filtering
+
+Test case list supports `?retestNeeded=true` URL parameter to filter only cases needing retest.

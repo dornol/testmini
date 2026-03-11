@@ -578,28 +578,37 @@ Link test results to external issue trackers for end-to-end traceability.
 - [x] Retest API (15 tests) -- auth (401, 403), not found (404), no failures (400), success, default/custom name, retestOfRunId, environment preservation, createdBy, null version filter, execution records, malformed body, single execution, all-null versions
 - [x] Test run detail page server (27 tests) -- load (invalid ID, 404, stats+executions with duration), updateStatus (400, 404, 403, startedAt from PENDING, no startedAt when already started, SSE), failWithDetail (400, 404, startedAt+completedAt, no startedAt when started, dual SSE events), bulkPass (400, 403, startedAt+completedAt, SSE), updateRunStatus (400, IN_PROGRESS startedAt, COMPLETED finishedAt, member notifications, self-exclude, SSE), deleteFailure (400, success)
 
-### 21.3 Release / Milestone Management -- Medium Priority
+### 21.3 Release / Milestone Management -- Done
 
-- [ ] `release` table (id, projectId, name, version, status: PLANNING/IN_PROGRESS/READY/RELEASED, targetDate, releaseDate)
-- [ ] Link test plans and test runs to releases
-- [ ] Release dashboard: aggregated pass rate across all linked runs
-- [ ] Release readiness view: "Go / No-Go" summary with blocking failures
-- [ ] Release history page with trend across versions
+- [x] `release` table (id, projectId, name, version, status: PLANNING/IN_PROGRESS/READY/RELEASED, targetDate, releaseDate)
+- [x] Link test plans and test runs to releases (`releaseId` FK on both tables)
+- [x] Release dashboard: aggregated pass rate across all linked runs
+- [x] Release readiness view: Go/No-Go verdict with blocking failure details
+- [x] Release list page with status filters, release detail page with readiness card
+- [x] Link/unlink plans and runs from release detail page
+- [x] API: CRUD `/api/projects/:id/releases`, readiness `/api/projects/:id/releases/:id/readiness`
+- [x] i18n messages (en/ko) for release UI
 
-### 21.4 Sign-off / Go-No-Go Workflow -- Medium Priority
+### 21.4 Sign-off / Go-No-Go Workflow -- Done
 
-- [ ] Sign-off action on test plans (QA lead approval with comment)
-- [ ] `test_plan_signoff` table (planId, userId, decision: APPROVED/REJECTED, comment, createdAt)
-- [ ] Sign-off history and audit trail
-- [ ] Block plan status transition to COMPLETED without sign-off (configurable)
-- [ ] Sign-off notification to stakeholders
+- [x] Sign-off action on test plans (QA/admin approval with comment)
+- [x] `test_plan_signoff` table (planId, userId, decision: APPROVED/REJECTED, comment, createdAt)
+- [x] Sign-off history and audit trail on plan detail page
+- [x] Block plan status transition to COMPLETED without sign-off (configurable per project)
+- [x] Sign-off notification to plan creator and project admins
+- [x] Project settings toggle for `requireSignoff`
+- [x] API: GET/POST `/api/projects/:id/test-plans/:id/signoffs`
+- [x] i18n messages (en/ko) for sign-off UI
 
-### 21.5 Retest on Defect Fix (Issue Tracker Sync) -- Medium Priority
+### 21.5 Retest on Defect Fix (Issue Tracker Sync) -- Done
 
-- [ ] When linked issue status changes to "Fixed"/"Resolved", auto-mark related test cases as "Retest Needed"
-- [ ] Retest needed filter in test case list
-- [ ] Defect density report: defects per module/group
-- [ ] One-click "Create retest run" from retest-needed test cases
+- [x] When linked issue status syncs to "done", auto-mark related test cases as `retestNeeded = true`
+- [x] Retest needed filter toggle in test case list filter bar
+- [x] `retestNeeded` boolean column on `test_case` table with partial index
+- [x] One-click "Create retest run" API from retest-needed test cases (`POST /api/projects/:id/test-cases/retest-run`)
+- [x] Both single-link and bulk-sync endpoints updated to set retest flag
+- [x] i18n messages (en/ko) for retest UI
+- [ ] Defect density report: defects per module/group (deferred to analytics phase)
 
 ### 21.6 Risk-Based Testing -- Low Priority
 

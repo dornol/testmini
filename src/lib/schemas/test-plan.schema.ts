@@ -6,6 +6,7 @@ export const createTestPlanSchema = z.object({
 	milestone: z.string().max(200).optional(),
 	startDate: z.string().optional(),
 	endDate: z.string().optional(),
+	releaseId: z.number().int().positive().nullable().optional(),
 	testCaseIds: z.array(z.number().int().positive()).default([])
 });
 
@@ -15,7 +16,8 @@ export const updateTestPlanSchema = z.object({
 	status: z.enum(['DRAFT', 'IN_REVIEW', 'APPROVED', 'ACTIVE', 'COMPLETED', 'ARCHIVED']).optional(),
 	milestone: z.string().max(200).nullable().optional(),
 	startDate: z.string().nullable().optional(),
-	endDate: z.string().nullable().optional()
+	endDate: z.string().nullable().optional(),
+	releaseId: z.number().int().positive().nullable().optional()
 });
 
 export type CreateTestPlanInput = z.infer<typeof createTestPlanSchema>;

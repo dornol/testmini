@@ -10,14 +10,20 @@ import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 
 const adapter = zodAdapter(updateProjectSchema);
 
-export const load: PageServerLoad = async ({ parent }) => {
+export const load: PageServerLoad = async ({ parent, params }) => {
 	const { project: proj } = await parent();
 	const form = await superValidate(
 		{ name: proj.name, description: proj.description ?? '' },
 		adapter
 	);
 
-	return { form };
+	const projectId = Number(params.projectId);
+	const [projSettings] = await db
+		.select({ requireSignoff: project.requireSignoff })
+		.from(project)
+		.where(eq(project.id, projectId));
+
+	return { form, requireSignoff: projSettings?.requireSignoff ?? false };
 };
 
 export const actions: Actions = {
@@ -42,6 +48,24 @@ export const actions: Actions = {
 			.where(eq(project.id, projectId));
 
 		return message(form, 'Project updated successfully');
+	},
+
+	toggleSignoff: async ({ locals, params }) => {
+		const user = requireAuth(locals);
+		const projectId = Number(params.projectId);
+		await requireProjectRole(user, projectId, ['PROJECT_ADMIN']);
+
+		const [proj] = await db
+			.select({ requireSignoff: project.requireSignoff })
+			.from(project)
+			.where(eq(project.id, projectId));
+
+		await db
+			.update(project)
+			.set({ requireSignoff: !proj.requireSignoff })
+			.where(eq(project.id, projectId));
+
+		return { success: true };
 	},
 
 	deactivate: async ({ locals, params }) => {

@@ -54,11 +54,12 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ pa
 	const testCaseId = Number(params.testCaseId);
 
 	const body = await parseJsonBody(request);
-	const { key, title, priority, automationKey } = body as {
+	const { key, title, priority, automationKey, customFields } = body as {
 		key?: string;
 		title?: string;
 		priority?: string;
 		automationKey?: string | null;
+		customFields?: Record<string, unknown>;
 	};
 
 	const tc = await findTestCaseWithLatestVersion(testCaseId, projectId);
@@ -97,14 +98,24 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ pa
 		await db.update(testCase).set({ automationKey: trimmedAk }).where(eq(testCase.id, testCaseId));
 	}
 
-	// Title or priority update: create a new version to preserve history
-	if (title !== undefined || priority !== undefined) {
+	// Title, priority, or customFields update: create a new version to preserve history
+	if (title !== undefined || priority !== undefined || customFields !== undefined) {
 		if (!tc.latestVersion) {
 			error(500, 'No latest version found');
 		}
 		const latest = tc.latestVersion;
 		const nextVersionNo = latest.versionNo + 1;
 		const nextRevision = latest.revision + 1;
+
+		// Merge custom fields: apply partial update over existing values
+		let mergedCustomFields = (latest.customFields as Record<string, unknown>) ?? {};
+		if (customFields !== undefined) {
+			mergedCustomFields = { ...mergedCustomFields, ...customFields };
+			// Remove null entries
+			for (const [k, v] of Object.entries(mergedCustomFields)) {
+				if (v === null || v === undefined) delete mergedCustomFields[k];
+			}
+		}
 
 		const [version] = await db
 			.insert(testCaseVersion)
@@ -114,8 +125,10 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ pa
 				title: title ?? latest.title,
 				precondition: latest.precondition,
 				steps: latest.steps,
+				stepFormat: latest.stepFormat ?? 'STEPS',
 				expectedResult: latest.expectedResult,
 				priority: priority ?? latest.priority,
+				customFields: Object.keys(mergedCustomFields).length > 0 ? mergedCustomFields : null,
 				revision: nextRevision,
 				updatedBy: user.id
 			})

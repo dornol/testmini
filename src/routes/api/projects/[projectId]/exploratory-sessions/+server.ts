@@ -62,17 +62,23 @@ export const POST = withProjectRole(
 		if (!title) return badRequest('Title is required');
 		if (title.length > 500) return badRequest('Title must be 500 characters or less');
 
-		const [created] = await db
-			.insert(exploratorySession)
-			.values({
-				projectId,
-				title,
-				charter: body.charter?.trim() || null,
-				environment: body.environment?.trim() || null,
-				tags: body.tags ?? [],
-				createdBy: authUser.id
-			})
-			.returning();
+		let created;
+		try {
+			[created] = await db
+				.insert(exploratorySession)
+				.values({
+					projectId,
+					title,
+					charter: body.charter?.trim() || null,
+					environment: body.environment?.trim() || null,
+					tags: body.tags ?? [],
+					createdBy: authUser.id
+				})
+				.returning();
+		} catch (e) {
+			console.error('Failed to create exploratory session:', e);
+			error(500, 'Failed to create session. Please check that the database migration has been applied.');
+		}
 
 		return json(created, { status: 201 });
 	}

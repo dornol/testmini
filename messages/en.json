@@ -782,6 +782,7 @@
 	"issue_link_sync_result": "Synced {synced} of {total} issues",
 
 	"tc_columns": "Columns",
+	"tc_column_order": "Order",
 	"tc_custom_field_filter": "Custom Fields",
 
 	"nav_traceability": "Traceability",

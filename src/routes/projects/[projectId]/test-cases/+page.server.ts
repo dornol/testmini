@@ -14,7 +14,8 @@ import {
 	projectMember,
 	testSuite,
 	customField,
-	savedFilter
+	savedFilter,
+	project
 } from '$lib/server/db/schema';
 import { eq, and, desc, asc, sql, inArray } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
@@ -192,9 +193,9 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		customFieldFilters
 	});
 
-	// Load custom field definitions for this project
-	const projectCustomFields = await db
-		.select({
+	// Load custom field definitions and column settings for this project
+	const [projectCustomFields, projectRow] = await Promise.all([
+		db.select({
 			id: customField.id,
 			name: customField.name,
 			fieldType: customField.fieldType,
@@ -202,7 +203,14 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		})
 		.from(customField)
 		.where(eq(customField.projectId, projectId))
-		.orderBy(asc(customField.sortOrder));
+		.orderBy(asc(customField.sortOrder)),
+
+		db.query.project.findFirst({
+			where: eq(project.id, projectId),
+			columns: { columnSettings: true }
+		})
+	]);
+	const columnSettings = (projectRow?.columnSettings ?? null) as { id: string; visible: boolean }[] | null;
 
 	// Load groups for this project
 	const groups = await db
@@ -322,7 +330,8 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		executionMap,
 		projectCustomFields,
 		customFieldFilters,
-		savedFilters
+		savedFilters,
+		columnSettings
 	};
 };
 

@@ -3,18 +3,28 @@ import { fail, redirect } from '@sveltejs/kit';
 import { createTestCaseSchema, type CreateTestCaseInput } from '$lib/schemas/test-case.schema';
 import { emptyForm, validateForm } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
-import { testCase, testCaseVersion } from '$lib/server/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { testCase, testCaseVersion, customField } from '$lib/server/db/schema';
+import { eq, and, sql, asc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
 
-export const load: PageServerLoad = async ({ parent }) => {
+export const load: PageServerLoad = async ({ parent, params }) => {
 	const { userRole } = await parent();
 	if (userRole === 'VIEWER') {
 		redirect(303, '../test-cases');
 	}
 
-	const form = await emptyForm(createTestCaseSchema);
-	return { form };
+	const projectId = Number(params.projectId);
+	const [form, customFieldDefs] = await Promise.all([
+		emptyForm(createTestCaseSchema),
+		db.select({
+			id: customField.id,
+			name: customField.name,
+			fieldType: customField.fieldType,
+			options: customField.options,
+			required: customField.required
+		}).from(customField).where(eq(customField.projectId, projectId)).orderBy(asc(customField.sortOrder), asc(customField.id))
+	]);
+	return { form, customFieldDefs };
 };
 
 export const actions: Actions = {
@@ -29,7 +39,7 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		const { title, precondition, steps, expectedResult, priority, automationKey, stepFormat } =
+		const { title, precondition, steps, expectedResult, priority, automationKey, stepFormat, customFields: customFieldValues } =
 			form.data as CreateTestCaseInput;
 
 		// Validate automationKey uniqueness before transaction
@@ -92,6 +102,7 @@ export const actions: Actions = {
 					stepFormat: stepFormat ?? 'STEPS',
 					expectedResult: expectedResult || null,
 					priority,
+					customFields: customFieldValues && Object.keys(customFieldValues).length > 0 ? customFieldValues : null,
 					updatedBy: user.id
 				})
 				.returning();

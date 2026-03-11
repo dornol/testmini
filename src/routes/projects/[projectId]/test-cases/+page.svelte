@@ -47,6 +47,18 @@
 	// Assignee popover state (fixed position like priority popover)
 	let assigneePopover: { tcId: number; x: number; y: number } | null = $state(null);
 
+	// Custom field popover state (fixed position)
+	let cfPopover: { tcId: number; cfId: number; fieldType: string; options: string[] | null; x: number; y: number; value: unknown } | null = $state(null);
+
+	// Tag popover state (fixed position)
+	let tagPopover: { tcId: number; x: number; y: number } | null = $state(null);
+	let tagSearchInput = $state('');
+	let newTagColor = $state('#ef4444');
+	const TAG_PALETTE = [
+		'#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
+		'#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#6b7280'
+	];
+
 	// Component references
 	let detailSheet: TestCaseDetailSheet;
 	let failureSheet: FailureDetailsSheet;
@@ -264,6 +276,13 @@
 		if (assigneePopover && !target.closest('[data-assignee-popover]')) {
 			assigneePopover = null;
 		}
+		if (tagPopover && !target.closest('[data-tag-popover]')) {
+			tagPopover = null;
+			tagSearchInput = '';
+		}
+		if (cfPopover && !target.closest('[data-cf-popover]')) {
+			cfPopover = null;
+		}
 		if (editingCell && !target.closest('[data-inline-edit]')) {
 			commitInlineEdit();
 		}
@@ -284,29 +303,119 @@
 	const useVirtualScroll = $derived(data.testCases.length > VIRTUAL_SCROLL_THRESHOLD);
 	const dndDisabled = $derived(hasActiveFilters || !canEdit || useVirtualScroll);
 
-	// --- Custom field column visibility (persisted in localStorage) ---
-	function loadVisibleCfCols(): Set<number> {
-		try {
-			const stored = localStorage.getItem(`tc-cf-cols-${data.project.id}`);
-			if (stored) return new Set(JSON.parse(stored));
-		} catch { /* ignore */ }
-		return new Set();
-	}
-	let visibleCfCols: Set<number> = $state(loadVisibleCfCols());
+	// --- Column visibility & order (project-wide, persisted in DB) ---
+	type ColId = 'key' | 'title' | 'priority' | 'tags' | 'assignees' | 'updatedBy' | `cf_${number}` | `run_${number}`;
+	const STATIC_COLS: ColId[] = ['key', 'title', 'priority', 'tags', 'assignees', 'updatedBy'];
 
-	function toggleCfCol(fieldId: number) {
-		const next = new Set(visibleCfCols);
-		if (next.has(fieldId)) next.delete(fieldId);
-		else next.add(fieldId);
-		visibleCfCols = next;
-		try {
-			localStorage.setItem(`tc-cf-cols-${data.project.id}`, JSON.stringify([...next]));
-		} catch { /* ignore */ }
+	// All possible columns (static + dynamic) with defaults
+	function buildAllColumns(): { id: ColId; visible: boolean }[] {
+		const saved = data.columnSettings as { id: string; visible: boolean }[] | null;
+		const allIds: ColId[] = [
+			...STATIC_COLS,
+			...data.projectCustomFields.map((cf): ColId => `cf_${cf.id}`),
+			...selectedRuns.map((r): ColId => `run_${r.id}`)
+		];
+		if (!saved || saved.length === 0) {
+			// Default: all visible
+			return allIds.map((id) => ({ id, visible: true }));
+		}
+		// Merge saved with current columns
+		const result: { id: ColId; visible: boolean }[] = [];
+		const remaining = new Set<ColId>(allIds);
+		for (const s of saved) {
+			const cid = s.id as ColId;
+			if (remaining.has(cid)) {
+				result.push({ id: cid, visible: s.visible });
+				remaining.delete(cid);
+			}
+		}
+		// Append new columns not in saved settings
+		for (const id of allIds) {
+			if (remaining.has(id)) {
+				result.push({ id, visible: true });
+				remaining.delete(id);
+			}
+		}
+		return result;
 	}
 
-	const visibleCustomFields = $derived(
-		data.projectCustomFields.filter((cf) => visibleCfCols.has(cf.id))
+	let colConfig = $state(buildAllColumns());
+
+	// Re-sync when server data changes (e.g. after invalidateAll)
+	$effect(() => {
+		// Track references
+		data.columnSettings;
+		data.projectCustomFields;
+		selectedRuns;
+		untrack(() => {
+			colConfig = buildAllColumns();
+		});
+	});
+
+	// Derived: only visible columns in order
+	const orderedColIds = $derived(
+		colConfig.filter((c) => c.visible).map((c) => c.id)
 	);
+
+	// Derived: visible custom fields based on column config
+	const visibleCustomFields = $derived(
+		data.projectCustomFields.filter((cf) =>
+			colConfig.some((c) => c.id === `cf_${cf.id}` && c.visible)
+		)
+	);
+
+	let colSaveTimeout: ReturnType<typeof setTimeout>;
+
+	function persistColConfig() {
+		clearTimeout(colSaveTimeout);
+		colSaveTimeout = setTimeout(async () => {
+			try {
+				await apiPut(`/api/projects/${data.project.id}/column-settings`, {
+					columnSettings: colConfig.map((c) => ({ id: c.id, visible: c.visible }))
+				});
+			} catch { /* silent */ }
+		}, 500);
+	}
+
+	function toggleColVisible(colId: ColId) {
+		colConfig = colConfig.map((c) =>
+			c.id === colId ? { ...c, visible: !c.visible } : c
+		);
+		persistColConfig();
+	}
+
+	function moveCol(idx: number, dir: -1 | 1) {
+		// idx is relative to visible columns, map to absolute config index
+		const visibleIds = colConfig.filter((c) => c.visible).map((c) => c.id);
+		const targetVisIdx = idx + dir;
+		if (targetVisIdx < 0 || targetVisIdx >= visibleIds.length) return;
+		const srcId = visibleIds[idx];
+		const dstId = visibleIds[targetVisIdx];
+		const srcAbsIdx = colConfig.findIndex((c) => c.id === srcId);
+		const dstAbsIdx = colConfig.findIndex((c) => c.id === dstId);
+		const arr = [...colConfig];
+		[arr[srcAbsIdx], arr[dstAbsIdx]] = [arr[dstAbsIdx], arr[srcAbsIdx]];
+		colConfig = arr;
+		persistColConfig();
+	}
+
+	function getColLabel(colId: ColId): string {
+		if (colId === 'key') return m.common_key();
+		if (colId === 'title') return m.common_title();
+		if (colId === 'priority') return m.common_priority();
+		if (colId === 'tags') return m.tag_title();
+		if (colId === 'assignees') return m.assignee_title();
+		if (colId === 'updatedBy') return m.tc_updated_by();
+		if (colId.startsWith('cf_')) {
+			const cfId = Number(colId.slice(3));
+			return data.projectCustomFields.find((c) => c.id === cfId)?.name ?? colId;
+		}
+		if (colId.startsWith('run_')) {
+			const runId = Number(colId.slice(4));
+			return data.projectRuns.find((r) => r.id === runId)?.name ?? colId;
+		}
+		return colId;
+	}
 
 	function formatCfValue(cf: { id: number; fieldType: string }, customFields: Record<string, unknown> | null): string {
 		if (!customFields) return '';
@@ -458,6 +567,35 @@
 		}
 	}
 
+	function openCfPopover(tcId: number, cf: { id: number; fieldType: string; options: string[] | null }, currentValue: unknown, event: MouseEvent) {
+		event.stopPropagation();
+		if (cfPopover?.tcId === tcId && cfPopover?.cfId === cf.id) {
+			cfPopover = null;
+		} else {
+			const el = event.currentTarget as HTMLElement;
+			const rect = el.getBoundingClientRect();
+			cfPopover = { tcId, cfId: cf.id, fieldType: cf.fieldType, options: cf.options, x: rect.left + rect.width / 2, y: rect.bottom + 4, value: currentValue ?? null };
+		}
+	}
+
+	async function saveCfValue(tcId: number, cfId: number, value: unknown) {
+		cfPopover = null;
+		updatingTcIds.add(tcId);
+		updatingTcIds = new Set(updatingTcIds);
+		try {
+			await apiPatch(
+				`/api/projects/${data.project.id}/test-cases/${tcId}`,
+				{ customFields: { [String(cfId)]: value } }
+			);
+			await invalidateAll();
+		} catch {
+			// error toast handled by apiPatch
+		} finally {
+			updatingTcIds.delete(tcId);
+			updatingTcIds = new Set(updatingTcIds);
+		}
+	}
+
 	// --- Assignee popover ---
 	function openAssigneePopover(tcId: number, event: MouseEvent) {
 		event.stopPropagation();
@@ -474,25 +612,18 @@
 		const tc = data.testCases.find((t) => t.id === tcId);
 		if (!tc || updatingTcIds.has(tcId)) return;
 		const isAssigned = tc.assignees?.some((a) => a.userId === userId);
-		const action = isAssigned ? 'removeAssignee' : 'assignAssignee';
-		const formData = new FormData();
-		formData.set('userId', userId);
+		const action = isAssigned ? 'removeAssignee' : 'addAssignee';
 		updatingTcIds.add(tcId);
 		updatingTcIds = new Set(updatingTcIds);
-		// Save popover state before invalidation
 		const savedPopover = assigneePopover ? { ...assigneePopover } : null;
 		try {
-			const res = await fetch(
-				`/projects/${data.project.id}/test-cases/${tcId}?/${action}`,
-				{ method: 'POST', body: formData }
-			);
-			if (res.ok) {
-				await invalidateAll();
-				// Restore popover after data refresh
-				if (savedPopover) assigneePopover = savedPopover;
-			} else {
-				toast.error(m.error_operation_failed());
-			}
+			await apiPost(`/api/projects/${data.project.id}/test-cases/bulk`, {
+				action,
+				testCaseIds: [tcId],
+				userId
+			});
+			await invalidateAll();
+			if (savedPopover) assigneePopover = savedPopover;
 		} catch {
 			toast.error(m.error_operation_failed());
 		} finally {
@@ -501,6 +632,69 @@
 		}
 	}
 
+
+	// --- Tag popover ---
+	function openTagPopover(tcId: number, event: MouseEvent) {
+		event.stopPropagation();
+		if (tagPopover?.tcId === tcId) {
+			tagPopover = null;
+			tagSearchInput = '';
+		} else {
+			const el = event.currentTarget as HTMLElement;
+			const rect = el.getBoundingClientRect();
+			tagPopover = { tcId, x: rect.left + rect.width / 2, y: rect.bottom + 4 };
+			tagSearchInput = '';
+			newTagColor = TAG_PALETTE[0];
+		}
+	}
+
+	async function toggleTag(tcId: number, tagId: number) {
+		const tc = data.testCases.find((t) => t.id === tcId);
+		if (!tc || updatingTcIds.has(tcId)) return;
+		const isAssigned = tc.tags?.some((t) => t.id === tagId);
+		const action = isAssigned ? 'removeTag' : 'addTag';
+		updatingTcIds.add(tcId);
+		updatingTcIds = new Set(updatingTcIds);
+		const savedPopover = tagPopover ? { ...tagPopover } : null;
+		try {
+			await apiPost(`/api/projects/${data.project.id}/test-cases/bulk`, {
+				action,
+				testCaseIds: [tcId],
+				tagId
+			});
+			await invalidateAll();
+			if (savedPopover) tagPopover = savedPopover;
+		} catch {
+			toast.error(m.error_operation_failed());
+		} finally {
+			updatingTcIds.delete(tcId);
+			updatingTcIds = new Set(updatingTcIds);
+		}
+	}
+
+	async function createAndAssignTagInline(tcId: number, name: string, color: string) {
+		if (updatingTcIds.has(tcId)) return;
+		updatingTcIds.add(tcId);
+		updatingTcIds = new Set(updatingTcIds);
+		const savedPopover = tagPopover ? { ...tagPopover } : null;
+		try {
+			await apiPost(`/api/projects/${data.project.id}/tags`, {
+				name: name.trim(),
+				color,
+				testCaseId: tcId
+			});
+			toast.success(m.tag_created());
+			tagSearchInput = '';
+			newTagColor = TAG_PALETTE[0];
+			await invalidateAll();
+			if (savedPopover) tagPopover = savedPopover;
+		} catch {
+			toast.error(m.error_operation_failed());
+		} finally {
+			updatingTcIds.delete(tcId);
+			updatingTcIds = new Set(updatingTcIds);
+		}
+	}
 
 	// --- Checkbox selection helpers ---
 	function toggleTcSelection(tcId: number) {
@@ -648,7 +842,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="space-y-4" onclick={handleClickOutside} onkeydown={(e) => { if (e.key === 'Escape') { openDropdown = null; editingCell = null; priorityPopover = null; assigneePopover = null; } }}>
+<div class="space-y-4" onclick={handleClickOutside} onkeydown={(e) => { if (e.key === 'Escape') { openDropdown = null; editingCell = null; priorityPopover = null; assigneePopover = null; tagPopover = null; tagSearchInput = ''; cfPopover = null; } }}>
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2">
 			<h2 class="text-lg font-semibold">{m.tc_title()}</h2>
@@ -708,30 +902,45 @@
 		savedFilters={data.savedFilters}
 	/>
 
-	<!-- Column & Run selector row -->
-	{#if data.projectCustomFields.length > 0 || data.projectRuns.length > 0}
-		<div class="flex flex-wrap items-center gap-2">
-			{#if data.projectCustomFields.length > 0}
-				<Popover.Root>
-					<Popover.Trigger>
-						{#snippet child({ props })}
-							<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
-								{m.tc_columns()}{visibleCfCols.size > 0 ? ` (${visibleCfCols.size})` : ''}
-							</Button>
-						{/snippet}
-					</Popover.Trigger>
-					<Popover.Content class="w-48 p-2" align="start">
-						{#each data.projectCustomFields as cf (cf.id)}
-							<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
-								<Checkbox checked={visibleCfCols.has(cf.id)} onCheckedChange={() => toggleCfCol(cf.id)} />
-								{cf.name}
-							</label>
-						{/each}
-					</Popover.Content>
-				</Popover.Root>
-			{/if}
-		</div>
-	{/if}
+	<!-- Column settings row -->
+	<div class="flex flex-wrap items-center gap-2">
+		<Popover.Root>
+			<Popover.Trigger>
+				{#snippet child({ props })}
+					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+						{m.tc_columns()}
+					</Button>
+				{/snippet}
+			</Popover.Trigger>
+			<Popover.Content class="w-60 p-2 max-h-[70vh] overflow-y-auto" align="start">
+				{#each colConfig as col, absIdx (col.id)}
+					{@const visIdx = orderedColIds.indexOf(col.id)}
+					<div class="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-muted">
+						<Checkbox checked={col.visible} onCheckedChange={() => toggleColVisible(col.id)} />
+						<span class="flex-1 truncate ml-1">{getColLabel(col.id)}</span>
+						{#if col.visible}
+							<button
+								type="button"
+								class="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
+								disabled={visIdx === 0}
+								onclick={() => moveCol(visIdx, -1)}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+							</button>
+							<button
+								type="button"
+								class="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
+								disabled={visIdx === orderedColIds.length - 1}
+								onclick={() => moveCol(visIdx, 1)}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+							</button>
+						{/if}
+					</div>
+				{/each}
+			</Popover.Content>
+		</Popover.Root>
+	</div>
 
 	<!-- Run column selector -->
 	{#if data.projectRuns.length > 0}
@@ -853,153 +1062,218 @@
 					<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
 				</span>
 			{/if}
-			<!-- Key -->
-			<span class="font-mono text-muted-foreground w-20 shrink-0 group/key hidden sm:inline-flex items-center gap-0.5">
-				{#if editingCell?.tcId === tc.id && editingCell?.field === 'key'}
-					<!-- svelte-ignore a11y_autofocus -->
-					<input
-						data-inline-edit
-						type="text"
-						class="border-primary bg-background h-5 w-full rounded border px-1 text-xs font-mono outline-none ring-1 ring-primary/30"
-						bind:value={editingCell.value}
-						onblur={commitInlineEdit}
-						onkeydown={handleInlineKeydown}
-						onclick={(e) => e.stopPropagation()}
-						autofocus
-					/>
-				{:else}
-					{tc.key}
+			<!-- Ordered columns -->
+			{#each orderedColIds as colId (colId)}
+				{#if colId === 'key'}
+					<span class="font-mono text-muted-foreground w-20 shrink-0 group/key hidden sm:inline-flex items-center gap-0.5">
+						{#if editingCell?.tcId === tc.id && editingCell?.field === 'key'}
+							<!-- svelte-ignore a11y_autofocus -->
+							<input
+								data-inline-edit
+								type="text"
+								class="border-primary bg-background h-5 w-full rounded border px-1 text-xs font-mono outline-none ring-1 ring-primary/30"
+								bind:value={editingCell.value}
+								onblur={commitInlineEdit}
+								onkeydown={handleInlineKeydown}
+								onclick={(e) => e.stopPropagation()}
+								autofocus
+							/>
+						{:else}
+							{tc.key}
+							{#if canEdit}
+								<button
+									type="button"
+									aria-label="Edit key"
+									class="opacity-0 group-hover/key:opacity-100 text-muted-foreground hover:text-foreground transition-opacity shrink-0 p-0.5 -m-0.5 rounded hover:bg-muted"
+									onclick={(e) => startInlineEdit(tc.id, 'key', tc.key, e)}
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+								</button>
+							{/if}
+						{/if}
+					</span>
+				{:else if colId === 'title'}
+					<span class="font-medium truncate flex-1 min-w-0 group/title inline-flex items-center gap-0.5">
+						{#if editingCell?.tcId === tc.id && editingCell?.field === 'title'}
+							<!-- svelte-ignore a11y_autofocus -->
+							<input
+								data-inline-edit
+								type="text"
+								class="border-primary bg-background h-5 w-full rounded border px-1 text-xs outline-none ring-1 ring-primary/30"
+								bind:value={editingCell.value}
+								onblur={commitInlineEdit}
+								onkeydown={handleInlineKeydown}
+								onclick={(e) => e.stopPropagation()}
+								autofocus
+							/>
+						{:else}
+							<button type="button" class="truncate text-left hover:underline cursor-pointer" data-tip={tc.title} onclick={(e) => { e.stopPropagation(); detailSheet.open(tc.id); }}>{tc.title}</button>
+							{#if canEdit}
+								<button
+									type="button"
+									aria-label="Edit title"
+									class="opacity-0 group-hover/title:opacity-100 text-muted-foreground hover:text-foreground transition-opacity shrink-0 p-0.5 -m-0.5 rounded hover:bg-muted"
+									onclick={(e) => startInlineEdit(tc.id, 'title', tc.title, e)}
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+								</button>
+							{/if}
+						{/if}
+					</span>
+					<!-- Approval Status (always after title) -->
+					{#if tc.approvalStatus && tc.approvalStatus !== 'DRAFT'}
+						<span class="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none {tc.approvalStatus === 'IN_REVIEW' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : tc.approvalStatus === 'APPROVED' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : tc.approvalStatus === 'REJECTED' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : ''}">
+							{tc.approvalStatus === 'IN_REVIEW' ? m.approval_in_review() : tc.approvalStatus === 'APPROVED' ? m.approval_approved() : tc.approvalStatus === 'REJECTED' ? m.approval_rejected() : tc.approvalStatus}
+						</span>
+					{/if}
+				{:else if colId === 'priority'}
 					{#if canEdit}
 						<button
 							type="button"
-							aria-label="Edit key"
-							class="opacity-0 group-hover/key:opacity-100 text-muted-foreground hover:text-foreground transition-opacity shrink-0 p-0.5 -m-0.5 rounded hover:bg-muted"
-							onclick={(e) => startInlineEdit(tc.id, 'key', tc.key, e)}
+							data-priority-popover
+							class="w-16 shrink-0 text-center hidden md:block"
+							onclick={(e) => { e.stopPropagation(); openPriorityPopover(tc.id, tc.priority, e); }}
 						>
-							<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+							<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
 						</button>
+					{:else}
+						<span class="w-16 shrink-0 text-center hidden md:block">
+							<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
+						</span>
 					{/if}
-				{/if}
-			</span>
-			<!-- Title -->
-			<span class="font-medium truncate flex-1 min-w-0 group/title inline-flex items-center gap-0.5">
-				{#if editingCell?.tcId === tc.id && editingCell?.field === 'title'}
-					<!-- svelte-ignore a11y_autofocus -->
-					<input
-						data-inline-edit
-						type="text"
-						class="border-primary bg-background h-5 w-full rounded border px-1 text-xs outline-none ring-1 ring-primary/30"
-						bind:value={editingCell.value}
-						onblur={commitInlineEdit}
-						onkeydown={handleInlineKeydown}
-						onclick={(e) => e.stopPropagation()}
-						autofocus
-					/>
-				{:else}
-					<button type="button" class="truncate text-left hover:underline cursor-pointer" data-tip={tc.title} onclick={(e) => { e.stopPropagation(); detailSheet.open(tc.id); }}>{tc.title}</button>
+				{:else if colId === 'tags'}
+					{#if data.projectTags.length > 0 || canEdit}
+						{#if canEdit}
+							<button
+								type="button"
+								data-tag-popover
+								class="w-28 shrink-0 gap-0.5 items-center overflow-hidden hidden lg:flex cursor-pointer rounded hover:bg-muted/50 transition-colors px-0.5 -mx-0.5"
+								onclick={(e) => { e.stopPropagation(); openTagPopover(tc.id, e); }}
+							>
+								{#if tc.tags && tc.tags.length > 0}
+									{#each tc.tags.slice(0, 3) as t (t.id)}
+										<span
+											class="rounded px-1 py-px text-[10px] leading-tight font-medium truncate max-w-[4rem]"
+											style="background-color: {t.color}20; color: {t.color}"
+											data-tip={t.name}
+										>{t.name}</span>
+									{/each}
+									{#if tc.tags.length > 3}
+										<span class="text-[10px] text-muted-foreground shrink-0">+{tc.tags.length - 3}</span>
+									{/if}
+								{:else}
+									<span class="text-[10px] text-muted-foreground">-</span>
+								{/if}
+							</button>
+						{:else}
+							<div class="w-28 shrink-0 gap-0.5 items-center overflow-hidden hidden lg:flex">
+								{#if tc.tags && tc.tags.length > 0}
+									{#each tc.tags.slice(0, 3) as t (t.id)}
+										<span
+											class="rounded px-1 py-px text-[10px] leading-tight font-medium truncate max-w-[4rem]"
+											style="background-color: {t.color}20; color: {t.color}"
+											data-tip={t.name}
+										>{t.name}</span>
+									{/each}
+									{#if tc.tags.length > 3}
+										<span class="text-[10px] text-muted-foreground shrink-0">+{tc.tags.length - 3}</span>
+									{/if}
+								{/if}
+							</div>
+						{/if}
+					{/if}
+				{:else if colId === 'assignees'}
 					{#if canEdit}
 						<button
 							type="button"
-							aria-label="Edit title"
-							class="opacity-0 group-hover/title:opacity-100 text-muted-foreground hover:text-foreground transition-opacity shrink-0 p-0.5 -m-0.5 rounded hover:bg-muted"
-							onclick={(e) => startInlineEdit(tc.id, 'title', tc.title, e)}
+							data-assignee-popover
+							class="w-16 shrink-0 items-center cursor-pointer rounded hover:bg-muted/50 transition-colors px-0.5 -mx-0.5 hidden lg:flex"
+							onclick={(e) => { e.stopPropagation(); openAssigneePopover(tc.id, e); }}
 						>
-							<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+							{@render avatarStack(tc.assignees)}
 						</button>
+					{:else}
+						<div class="w-16 shrink-0 items-center hidden lg:flex">
+							{@render avatarStack(tc.assignees)}
+						</div>
+					{/if}
+				{:else if colId === 'updatedBy'}
+					<span class="text-muted-foreground w-20 shrink-0 text-right truncate hidden xl:block" data-tip={tc.updatedBy}>{tc.updatedBy}</span>
+				{:else if colId.startsWith('cf_')}
+					{@const cfId = Number(colId.slice(3))}
+					{@const cf = visibleCustomFields.find((c) => c.id === cfId)}
+					{#if cf}
+						{@const cfVal = formatCfValue(cf, tc.customFields)}
+						{@const cfRaw = tc.customFields?.[String(cf.id)] ?? null}
+						{#if canEdit}
+							{#if cf.fieldType === 'CHECKBOX'}
+								<button
+									type="button"
+									data-cf-popover
+									class="w-24 shrink-0 text-center truncate text-muted-foreground hidden xl:block cursor-pointer rounded hover:bg-muted/50 transition-colors"
+									onclick={(e) => { e.stopPropagation(); saveCfValue(tc.id, cf.id, !cfRaw); }}
+								>
+									{#if cfRaw}
+										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-green-600 inline-block"><polyline points="20 6 9 17 4 12"/></svg>
+									{:else}
+										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground inline-block"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+									{/if}
+								</button>
+							{:else}
+								<button
+									type="button"
+									data-cf-popover
+									class="w-24 shrink-0 text-center truncate text-muted-foreground hidden xl:block cursor-pointer rounded hover:bg-muted/50 transition-colors"
+									data-tip={cfVal}
+									onclick={(e) => openCfPopover(tc.id, cf, cfRaw, e)}
+								>
+									{#if cf.fieldType === 'URL' && cfVal}
+										<span class="text-primary">{cfVal}</span>
+									{:else}
+										{cfVal || '-'}
+									{/if}
+								</button>
+							{/if}
+						{:else}
+							<span class="w-24 shrink-0 text-center truncate text-muted-foreground hidden xl:block" data-tip={cfVal}>
+								{#if cf.fieldType === 'URL' && cfVal}
+									<a href={cfVal} target="_blank" rel="noopener noreferrer" class="text-primary hover:underline" onclick={(e) => e.stopPropagation()}>{cfVal}</a>
+								{:else if cf.fieldType === 'CHECKBOX'}
+									{#if cfRaw}
+										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-green-600 inline-block"><polyline points="20 6 9 17 4 12"/></svg>
+									{:else if cfRaw === false}
+										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground inline-block"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+									{/if}
+								{:else}
+									{cfVal}
+								{/if}
+							</span>
+						{/if}
+					{/if}
+				{:else if colId.startsWith('run_')}
+					{@const runId = Number(colId.slice(4))}
+					{@const run = selectedRuns.find((r) => r.id === runId)}
+					{#if run}
+						{@const exec = data.executionMap[tc.id]?.[run.id]}
+						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+						<span class="w-16 shrink-0 text-center hidden lg:block" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+							{#if exec}
+								<button
+									type="button"
+									data-status-dropdown
+									class="font-medium cursor-pointer {statusColor(exec.status)} hover:underline"
+									onclick={(e) => toggleDropdown(tc.id, run.id, e)}
+								>
+									{exec.status}
+								</button>
+							{:else if canEdit}
+								<AddCircleButton tip="Add to run" onclick={(e) => addExecution(tc.id, run.id, e)} />
+							{:else}
+								<span class="text-muted-foreground">-</span>
+							{/if}
+						</span>
 					{/if}
 				{/if}
-			</span>
-			<!-- Approval Status -->
-			{#if tc.approvalStatus && tc.approvalStatus !== 'DRAFT'}
-				<span class="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none {tc.approvalStatus === 'IN_REVIEW' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : tc.approvalStatus === 'APPROVED' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : tc.approvalStatus === 'REJECTED' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : ''}">
-					{tc.approvalStatus === 'IN_REVIEW' ? m.approval_in_review() : tc.approvalStatus === 'APPROVED' ? m.approval_approved() : tc.approvalStatus === 'REJECTED' ? m.approval_rejected() : tc.approvalStatus}
-				</span>
-			{/if}
-			<!-- Priority -->
-			{#if canEdit}
-				<button
-					type="button"
-					data-priority-popover
-					class="w-16 shrink-0 text-center hidden md:block"
-					onclick={(e) => { e.stopPropagation(); openPriorityPopover(tc.id, tc.priority, e); }}
-				>
-					<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
-				</button>
-			{:else}
-				<span class="w-16 shrink-0 text-center hidden md:block">
-					<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
-				</span>
-			{/if}
-			<!-- Tags -->
-			{#if data.projectTags.length > 0}
-				<div class="w-28 shrink-0 gap-0.5 items-center overflow-hidden hidden lg:flex">
-					{#if tc.tags && tc.tags.length > 0}
-						{#each tc.tags.slice(0, 3) as t (t.id)}
-							<span
-								class="rounded px-1 py-px text-[10px] leading-tight font-medium truncate max-w-[4rem]"
-								style="background-color: {t.color}20; color: {t.color}"
-								data-tip={t.name}
-							>{t.name}</span>
-						{/each}
-						{#if tc.tags.length > 3}
-							<span class="text-[10px] text-muted-foreground shrink-0">+{tc.tags.length - 3}</span>
-						{/if}
-					{/if}
-				</div>
-			{/if}
-			<!-- Assignees -->
-			{#if canEdit}
-				<button
-					type="button"
-					data-assignee-popover
-					class="w-16 shrink-0 items-center cursor-pointer rounded hover:bg-muted/50 transition-colors px-0.5 -mx-0.5 hidden lg:flex"
-					onclick={(e) => { e.stopPropagation(); openAssigneePopover(tc.id, e); }}
-				>
-					{@render avatarStack(tc.assignees)}
-				</button>
-			{:else}
-				<div class="w-16 shrink-0 items-center hidden lg:flex">
-					{@render avatarStack(tc.assignees)}
-				</div>
-			{/if}
-			<span class="text-muted-foreground w-20 shrink-0 text-right truncate hidden xl:block" data-tip={tc.updatedBy}>{tc.updatedBy}</span>
-			<!-- Custom field columns -->
-			{#each visibleCustomFields as cf (cf.id)}
-				{@const cfVal = formatCfValue(cf, tc.customFields)}
-				<span class="w-24 shrink-0 text-center truncate text-muted-foreground hidden xl:block" data-tip={cfVal}>
-					{#if cf.fieldType === 'URL' && cfVal}
-						<a href={cfVal} target="_blank" rel="noopener noreferrer" class="text-primary hover:underline" onclick={(e) => e.stopPropagation()}>{cfVal}</a>
-					{:else if cf.fieldType === 'CHECKBOX'}
-						{#if tc.customFields?.[String(cf.id)]}
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-green-600 inline-block"><polyline points="20 6 9 17 4 12"/></svg>
-						{:else if tc.customFields?.[String(cf.id)] === false}
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground inline-block"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-						{/if}
-					{:else}
-						{cfVal}
-					{/if}
-				</span>
-			{/each}
-			<!-- Test Run columns -->
-			{#each selectedRuns as run (run.id)}
-				{@const exec = data.executionMap[tc.id]?.[run.id]}
-				<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-			<span class="w-16 shrink-0 text-center hidden lg:block" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
-					{#if exec}
-						<button
-							type="button"
-							data-status-dropdown
-							class="font-medium cursor-pointer {statusColor(exec.status)} hover:underline"
-							onclick={(e) => toggleDropdown(tc.id, run.id, e)}
-						>
-							{exec.status}
-						</button>
-					{:else if canEdit}
-						<AddCircleButton tip="Add to run" onclick={(e) => addExecution(tc.id, run.id, e)} />
-					{:else}
-						<span class="text-muted-foreground">-</span>
-					{/if}
-				</span>
 			{/each}
 		{/snippet}
 
@@ -1069,19 +1343,34 @@
 					/>
 				{/if}
 				{#if !dndDisabled}<span class="w-6 shrink-0 hidden sm:block"></span>{/if}
-				<span class="w-20 shrink-0 text-center hidden sm:block">{m.common_key()}</span>
-				<span class="flex-1 min-w-0 text-center">{m.common_title()}</span>
-				<span class="w-16 shrink-0 text-center hidden md:block">{m.common_priority()}</span>
-				{#if data.projectTags.length > 0}
-					<span class="w-28 shrink-0 text-center hidden lg:block">{m.tag_title()}</span>
-				{/if}
-				<span class="w-16 shrink-0 text-center hidden lg:block">{m.assignee_title()}</span>
-				<span class="w-20 shrink-0 text-center hidden xl:block">{m.tc_updated_by()}</span>
-				{#each visibleCustomFields as cf (cf.id)}
-					<span class="w-24 shrink-0 text-center truncate hidden xl:block" data-tip={cf.name}>{cf.name}</span>
-				{/each}
-				{#each selectedRuns as run (run.id)}
-					<span class="w-16 shrink-0 text-center truncate hidden lg:block" data-tip={run.name}>{run.name}</span>
+				{#each orderedColIds as colId (colId)}
+					{#if colId === 'key'}
+						<span class="w-20 shrink-0 text-center hidden sm:block">{m.common_key()}</span>
+					{:else if colId === 'title'}
+						<span class="flex-1 min-w-0 text-center">{m.common_title()}</span>
+					{:else if colId === 'priority'}
+						<span class="w-16 shrink-0 text-center hidden md:block">{m.common_priority()}</span>
+					{:else if colId === 'tags'}
+						{#if data.projectTags.length > 0 || canEdit}
+							<span class="w-28 shrink-0 text-center hidden lg:block">{m.tag_title()}</span>
+						{/if}
+					{:else if colId === 'assignees'}
+						<span class="w-16 shrink-0 text-center hidden lg:block">{m.assignee_title()}</span>
+					{:else if colId === 'updatedBy'}
+						<span class="w-20 shrink-0 text-center hidden xl:block">{m.tc_updated_by()}</span>
+					{:else if colId.startsWith('cf_')}
+						{@const cfId = Number(colId.slice(3))}
+						{@const cf = data.projectCustomFields.find((c) => c.id === cfId)}
+						{#if cf}
+							<span class="w-24 shrink-0 text-center truncate hidden xl:block" data-tip={cf.name}>{cf.name}</span>
+						{/if}
+					{:else if colId.startsWith('run_')}
+						{@const runId = Number(colId.slice(4))}
+						{@const run = selectedRuns.find((r) => r.id === runId)}
+						{#if run}
+							<span class="w-16 shrink-0 text-center truncate hidden lg:block" data-tip={run.name}>{run.name}</span>
+						{/if}
+					{/if}
 				{/each}
 			</div>
 
@@ -1444,6 +1733,75 @@
 		</div>
 	{/if}
 
+	<!-- Fixed-position tag popover -->
+	{#if tagPopover}
+		{@const tcForTagPopover = data.testCases.find((tc) => tc.id === tagPopover!.tcId)}
+		{@const filteredTags = tagSearchInput
+			? data.projectTags.filter((t) => t.name.toLowerCase().includes(tagSearchInput.toLowerCase()))
+			: data.projectTags}
+		{@const exactMatch = tagSearchInput && data.projectTags.some((t) => t.name.toLowerCase() === tagSearchInput.toLowerCase().trim())}
+		{@const canCreateNew = tagSearchInput.trim().length > 0 && !exactMatch}
+		<div
+			data-tag-popover
+			class="fixed z-[9999] bg-popover border rounded-md shadow-lg p-2 min-w-[200px] max-w-[240px]"
+			style="left: {tagPopover.x}px; top: {tagPopover.y}px; transform: translateX(-50%);"
+			role="listbox"
+			tabindex="-1"
+			aria-label="Manage tags"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
+		>
+			<input
+				type="text"
+				placeholder={m.tag_new_inline()}
+				class="w-full h-7 text-xs border rounded px-2 mb-1.5 bg-background outline-none focus:ring-1 focus:ring-ring"
+				bind:value={tagSearchInput}
+			/>
+			<div class="max-h-40 overflow-y-auto space-y-0.5">
+				{#each filteredTags as t (t.id)}
+					{@const isAssigned = tcForTagPopover?.tags?.some((tt) => tt.id === t.id) ?? false}
+					<button
+						type="button"
+						class="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-muted transition-colors rounded {isAssigned ? 'font-bold bg-muted/50' : ''}"
+						onclick={() => toggleTag(tagPopover!.tcId, t.id)}
+					>
+						<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {t.color}"></span>
+						<span class="truncate flex-1">{t.name}</span>
+						{#if isAssigned}
+							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-primary shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+						{/if}
+					</button>
+				{/each}
+			</div>
+			{#if canCreateNew}
+				<div class="border-t mt-1 pt-1">
+					<div class="flex items-center gap-1 mb-1.5">
+						{#each TAG_PALETTE as color (color)}
+							<button
+								type="button"
+								class="h-4 w-4 rounded-full border {newTagColor === color ? 'border-foreground scale-110' : 'border-transparent'}"
+								style="background-color: {color}"
+								aria-label="Select color {color}"
+								onclick={() => (newTagColor = color)}
+							></button>
+						{/each}
+					</div>
+					<button
+						type="button"
+						class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer font-medium"
+						onclick={() => createAndAssignTagInline(tagPopover!.tcId, tagSearchInput, newTagColor)}
+					>
+						<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {newTagColor}"></span>
+						{m.tag_create_inline({ name: tagSearchInput.trim() })}
+					</button>
+				</div>
+			{/if}
+			{#if filteredTags.length === 0 && !canCreateNew}
+				<p class="text-xs text-muted-foreground text-center py-2">{m.common_no_results()}</p>
+			{/if}
+		</div>
+	{/if}
+
 	<!-- Fixed-position priority popover -->
 	{#if priorityPopover}
 		<div
@@ -1463,6 +1821,91 @@
 					{/if}
 				</button>
 			{/each}
+		</div>
+	{/if}
+
+	{#if cfPopover}
+		<div
+			data-cf-popover
+			class="fixed z-[9999] bg-popover border rounded-md shadow-lg p-2 min-w-[160px]"
+			style="left: {cfPopover.x}px; top: {cfPopover.y}px; transform: translateX(-50%);"
+		>
+			{#if cfPopover.fieldType === 'TEXT' || cfPopover.fieldType === 'URL'}
+				<input
+					type={cfPopover.fieldType === 'URL' ? 'url' : 'text'}
+					class="w-full rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/30"
+					placeholder={cfPopover.fieldType === 'URL' ? 'https://...' : ''}
+					value={cfPopover.value ?? ''}
+					autofocus
+					onkeydown={(e) => {
+						if (e.key === 'Enter') {
+							saveCfValue(cfPopover!.tcId, cfPopover!.cfId, (e.currentTarget as HTMLInputElement).value || null);
+						} else if (e.key === 'Escape') {
+							cfPopover = null;
+						}
+					}}
+					onblur={(e) => saveCfValue(cfPopover!.tcId, cfPopover!.cfId, (e.currentTarget as HTMLInputElement).value || null)}
+				/>
+			{:else if cfPopover.fieldType === 'NUMBER'}
+				<input
+					type="number"
+					class="w-full rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/30"
+					value={cfPopover.value ?? ''}
+					autofocus
+					onkeydown={(e) => {
+						if (e.key === 'Enter') {
+							const v = (e.currentTarget as HTMLInputElement).value;
+							saveCfValue(cfPopover!.tcId, cfPopover!.cfId, v === '' ? null : Number(v));
+						} else if (e.key === 'Escape') {
+							cfPopover = null;
+						}
+					}}
+					onblur={(e) => {
+						const v = (e.currentTarget as HTMLInputElement).value;
+						saveCfValue(cfPopover!.tcId, cfPopover!.cfId, v === '' ? null : Number(v));
+					}}
+				/>
+			{:else if cfPopover.fieldType === 'DATE'}
+				<input
+					type="date"
+					class="w-full rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/30"
+					value={cfPopover.value ?? ''}
+					autofocus
+					onchange={(e) => saveCfValue(cfPopover!.tcId, cfPopover!.cfId, (e.currentTarget as HTMLInputElement).value || null)}
+				/>
+			{:else if cfPopover.fieldType === 'SELECT' && cfPopover.options}
+				{#each cfPopover.options as opt (opt)}
+					<button
+						type="button"
+						class="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-muted transition-colors rounded {cfPopover.value === opt ? 'font-bold bg-muted/50' : ''}"
+						onclick={() => saveCfValue(cfPopover!.tcId, cfPopover!.cfId, cfPopover!.value === opt ? null : opt)}
+					>
+						{opt}
+						{#if cfPopover.value === opt}
+							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-primary ml-auto"><polyline points="20 6 9 17 4 12"/></svg>
+						{/if}
+					</button>
+				{/each}
+			{:else if cfPopover.fieldType === 'MULTISELECT' && cfPopover.options}
+				{@const selected = (Array.isArray(cfPopover.value) ? cfPopover.value : []) as string[]}
+				{#each cfPopover.options as opt (opt)}
+					<label class="flex items-center gap-2 px-2 py-1 text-xs hover:bg-muted cursor-pointer rounded">
+						<input
+							type="checkbox"
+							class="h-3 w-3"
+							checked={selected.includes(opt)}
+							onchange={() => {
+								const cur = (Array.isArray(cfPopover!.value) ? [...cfPopover!.value] : []) as string[];
+								const idx = cur.indexOf(opt);
+								if (idx >= 0) cur.splice(idx, 1);
+								else cur.push(opt);
+								saveCfValue(cfPopover!.tcId, cfPopover!.cfId, cur.length > 0 ? cur : null);
+							}}
+						/>
+						{opt}
+					</label>
+				{/each}
+			{/if}
 		</div>
 	{/if}
 

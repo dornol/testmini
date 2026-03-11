@@ -18,8 +18,8 @@
 	const apiBase = $derived(`/api/projects/${projectId}/exploratory-sessions/${sessionId}`);
 
 	// Session state -- use $state with $effect sync for optimistic updates
-	let session: typeof data.session = $state(null as any);
-	let notes: typeof data.notes = $state([]);
+	let session: typeof data.session = $state(data.session);
+	let notes: typeof data.notes = $state(data.notes);
 
 	// Timer state
 	let timerDisplay = $state('00:00');

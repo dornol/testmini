@@ -782,6 +782,7 @@
 	"issue_link_sync_result": "{total}개 중 {synced}개 동기화 완료",
 
 	"tc_columns": "칼럼",
+	"tc_column_order": "순서",
 	"tc_custom_field_filter": "커스텀 필드",
 
 	"nav_traceability": "추적성",

@@ -20,7 +20,8 @@ export const createTestCaseSchema = z.object({
 	stepFormat: stepFormatSchema,
 	expectedResult: z.string().max(2000).default(''),
 	priority: z.string().min(1).max(30).default('MEDIUM'),
-	automationKey: z.string().max(200).optional().default('')
+	automationKey: z.string().max(200).optional().default(''),
+	customFields: z.record(z.string(), z.unknown()).optional().default({})
 });
 
 export const updateTestCaseSchema = createTestCaseSchema.extend({

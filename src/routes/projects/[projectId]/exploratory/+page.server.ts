@@ -16,31 +16,40 @@ export const load: PageServerLoad = async ({ params, url, parent }) => {
 
 	const where = and(...conditions);
 
-	const [sessions, totalResult] = await Promise.all([
-		db
-			.select({
-				id: exploratorySession.id,
-				title: exploratorySession.title,
-				charter: exploratorySession.charter,
-				status: exploratorySession.status,
-				startedAt: exploratorySession.startedAt,
-				pausedDuration: exploratorySession.pausedDuration,
-				completedAt: exploratorySession.completedAt,
-				environment: exploratorySession.environment,
-				tags: exploratorySession.tags,
-				createdBy: user.name,
-				noteCount: sql<number>`(select count(*) from session_note where session_id = ${exploratorySession.id})`.as('note_count')
-			})
-			.from(exploratorySession)
-			.innerJoin(user, eq(exploratorySession.createdBy, user.id))
-			.where(where)
-			.orderBy(desc(exploratorySession.startedAt)),
-		db.select({ total: count() }).from(exploratorySession).where(where)
-	]);
+	try {
+		const [sessions, totalResult] = await Promise.all([
+			db
+				.select({
+					id: exploratorySession.id,
+					title: exploratorySession.title,
+					charter: exploratorySession.charter,
+					status: exploratorySession.status,
+					startedAt: exploratorySession.startedAt,
+					pausedDuration: exploratorySession.pausedDuration,
+					completedAt: exploratorySession.completedAt,
+					environment: exploratorySession.environment,
+					tags: exploratorySession.tags,
+					createdBy: user.name,
+					noteCount: sql<number>`(select count(*) from session_note where session_id = ${exploratorySession.id})`.as('note_count')
+				})
+				.from(exploratorySession)
+				.innerJoin(user, eq(exploratorySession.createdBy, user.id))
+				.where(where)
+				.orderBy(desc(exploratorySession.startedAt)),
+			db.select({ total: count() }).from(exploratorySession).where(where)
+		]);
 
-	return {
-		sessions,
-		total: totalResult[0]?.total ?? 0,
-		statusFilter
-	};
+		return {
+			sessions,
+			total: totalResult[0]?.total ?? 0,
+			statusFilter
+		};
+	} catch (e) {
+		console.error('Failed to load exploratory sessions:', e);
+		return {
+			sessions: [],
+			total: 0,
+			statusFilter
+		};
+	}
 };

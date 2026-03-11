@@ -7,6 +7,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
 	import GherkinEditor from '$lib/components/GherkinEditor.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
@@ -65,6 +66,22 @@
 		$form.precondition = template.precondition ?? '';
 		$form.steps = template.steps.map((s) => ({ action: s.action, expected: s.expected }));
 		$form.priority = template.priority;
+	}
+
+	const customFieldDefs = $derived(data.customFieldDefs ?? []);
+
+	function getCustomFieldFormValues(): Record<string, unknown> {
+		return ($form.customFields ?? {}) as Record<string, unknown>;
+	}
+
+	function setCustomFieldValue(key: string, value: unknown) {
+		const current = getCustomFieldFormValues();
+		current[key] = value;
+		($form as Record<string, unknown>).customFields = { ...current };
+	}
+
+	function getCustomFieldValue(key: string): unknown {
+		return getCustomFieldFormValues()[key];
 	}
 </script>
 
@@ -176,6 +193,96 @@
 						rows={3}
 					/>
 				</div>
+
+				{#if customFieldDefs.length > 0}
+					<div class="space-y-3 border-t pt-4">
+						<h4 class="text-sm font-medium">{m.custom_field_title()}</h4>
+						{#each customFieldDefs as cf (cf.id)}
+							{@const fieldKey = String(cf.id)}
+							<div class="space-y-1">
+								<Label for="cf-{cf.id}">
+									{cf.name}
+									{#if cf.required}<span class="text-destructive">*</span>{/if}
+								</Label>
+								{#if cf.fieldType === 'TEXT'}
+									<Input
+										id="cf-{cf.id}"
+										value={(getCustomFieldValue(fieldKey) as string) ?? ''}
+										oninput={(e) => setCustomFieldValue(fieldKey, e.currentTarget.value)}
+									/>
+								{:else if cf.fieldType === 'NUMBER'}
+									<Input
+										id="cf-{cf.id}"
+										type="number"
+										value={(getCustomFieldValue(fieldKey) as string) ?? ''}
+										oninput={(e) => {
+											const v = e.currentTarget.value;
+											setCustomFieldValue(fieldKey, v === '' ? null : Number(v));
+										}}
+									/>
+								{:else if cf.fieldType === 'DATE'}
+									<Input
+										id="cf-{cf.id}"
+										type="date"
+										value={(getCustomFieldValue(fieldKey) as string) ?? ''}
+										oninput={(e) => setCustomFieldValue(fieldKey, e.currentTarget.value || null)}
+									/>
+								{:else if cf.fieldType === 'URL'}
+									<Input
+										id="cf-{cf.id}"
+										type="url"
+										value={(getCustomFieldValue(fieldKey) as string) ?? ''}
+										placeholder="https://..."
+										oninput={(e) => setCustomFieldValue(fieldKey, e.currentTarget.value || null)}
+									/>
+								{:else if cf.fieldType === 'CHECKBOX'}
+									<div class="flex items-center gap-2">
+										<Checkbox
+											id="cf-{cf.id}"
+											checked={!!getCustomFieldValue(fieldKey)}
+											onCheckedChange={(checked) => setCustomFieldValue(fieldKey, !!checked)}
+										/>
+									</div>
+								{:else if cf.fieldType === 'SELECT'}
+									<Select.Root
+										type="single"
+										value={(getCustomFieldValue(fieldKey) as string) ?? ''}
+										onValueChange={(v) => setCustomFieldValue(fieldKey, v || null)}
+									>
+										<Select.Trigger class="w-full">
+											{(getCustomFieldValue(fieldKey) as string) || '-'}
+										</Select.Trigger>
+										<Select.Content>
+											{#each cf.options ?? [] as opt (opt)}
+												<Select.Item value={opt} label={opt} />
+											{/each}
+										</Select.Content>
+									</Select.Root>
+								{:else if cf.fieldType === 'MULTISELECT'}
+									{@const selected = ((getCustomFieldValue(fieldKey) ?? []) as string[])}
+									<div class="flex flex-wrap gap-2">
+										{#each cf.options ?? [] as opt (opt)}
+											<label class="inline-flex items-center gap-1.5 text-sm cursor-pointer">
+												<Checkbox
+													checked={selected.includes(opt)}
+													onCheckedChange={(checked) => {
+														const cur = ((getCustomFieldValue(fieldKey) ?? []) as string[]);
+														if (checked) {
+															setCustomFieldValue(fieldKey, [...cur, opt]);
+														} else {
+															setCustomFieldValue(fieldKey, cur.filter((v) => v !== opt));
+														}
+													}}
+												/>
+												{opt}
+											</label>
+										{/each}
+									</div>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				{/if}
 
 				<div class="space-y-2">
 					<Label for="automationKey">{m.tc_automation_key_label()}</Label>

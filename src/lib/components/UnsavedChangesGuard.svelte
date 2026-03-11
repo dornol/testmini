@@ -8,9 +8,10 @@
 
 	let pendingNavigation = $state<{ to: { url: URL } | null; cancel: () => void } | null>(null);
 	let dialogOpen = $state(false);
+	let leaving = $state(false);
 
 	beforeNavigate((navigation) => {
-		if (dirty && !pendingNavigation) {
+		if (dirty && !leaving && !pendingNavigation) {
 			navigation.cancel();
 			pendingNavigation = navigation;
 			dialogOpen = true;
@@ -18,7 +19,7 @@
 	});
 
 	$effect(() => {
-		if (!dirty) return;
+		if (!dirty || leaving) return;
 		const handler = (e: BeforeUnloadEvent) => {
 			e.preventDefault();
 		};
@@ -28,6 +29,7 @@
 
 	function leave() {
 		const nav = pendingNavigation;
+		leaving = true;
 		dialogOpen = false;
 		pendingNavigation = null;
 		if (nav?.to?.url) {

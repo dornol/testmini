@@ -2,6 +2,7 @@
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import * as Popover from '$lib/components/ui/popover/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -95,6 +96,14 @@
 
 	let sheetLockHolder = $state<{ userName: string } | null>(null);
 	let sheetHeartbeatInterval: ReturnType<typeof setInterval> | undefined;
+
+	const TAG_PALETTE = [
+		'#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
+		'#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#6b7280'
+	];
+	let showTagCreator = $state(false);
+	let tagSearchInput = $state('');
+	let newTagColor = $state(TAG_PALETTE[0]);
 
 	function getPriorityColor(name: string): string {
 		return projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
@@ -219,18 +228,15 @@
 
 	async function assignTag(tagId: number) {
 		if (!selectedTcId) return;
-		const formData = new FormData();
-		formData.set('tagId', String(tagId));
 		try {
-			const res = await fetch(
-				`/projects/${projectId}/test-cases/${selectedTcId}?/assignTag`,
-				{ method: 'POST', body: formData }
-			);
-			if (res.ok) {
-				toast.success(m.tag_assigned());
-				await refresh(selectedTcId);
-				onchange();
-			}
+			await apiPost(`/api/projects/${projectId}/test-cases/bulk`, {
+				action: 'addTag',
+				testCaseIds: [selectedTcId],
+				tagId
+			});
+			toast.success(m.tag_assigned());
+			await refresh(selectedTcId);
+			onchange();
 		} catch {
 			toast.error(m.error_operation_failed());
 		}
@@ -238,37 +244,50 @@
 
 	async function removeTag(tagId: number) {
 		if (!selectedTcId) return;
-		const formData = new FormData();
-		formData.set('tagId', String(tagId));
 		try {
-			const res = await fetch(
-				`/projects/${projectId}/test-cases/${selectedTcId}?/removeTag`,
-				{ method: 'POST', body: formData }
-			);
-			if (res.ok) {
-				toast.success(m.tag_removed());
-				await refresh(selectedTcId);
-				onchange();
-			}
+			await apiPost(`/api/projects/${projectId}/test-cases/bulk`, {
+				action: 'removeTag',
+				testCaseIds: [selectedTcId],
+				tagId
+			});
+			toast.success(m.tag_removed());
+			await refresh(selectedTcId);
+			onchange();
 		} catch {
 			toast.error(m.error_remove_failed());
 		}
 	}
 
+	async function createAndAssignTag(name: string, color: string) {
+		if (!selectedTcId) return;
+		try {
+			await apiPost(`/api/projects/${projectId}/tags`, {
+				name: name.trim(),
+				color,
+				testCaseId: selectedTcId
+			});
+			toast.success(m.tag_created());
+			tagSearchInput = '';
+			showTagCreator = false;
+			newTagColor = TAG_PALETTE[0];
+			await refresh(selectedTcId);
+			onchange();
+		} catch {
+			toast.error(m.error_operation_failed());
+		}
+	}
+
 	async function assignAssignee(userId: string) {
 		if (!selectedTcId) return;
-		const formData = new FormData();
-		formData.set('userId', userId);
 		try {
-			const res = await fetch(
-				`/projects/${projectId}/test-cases/${selectedTcId}?/assignAssignee`,
-				{ method: 'POST', body: formData }
-			);
-			if (res.ok) {
-				toast.success(m.assignee_assigned());
-				await refresh(selectedTcId);
-				onchange();
-			}
+			await apiPost(`/api/projects/${projectId}/test-cases/bulk`, {
+				action: 'addAssignee',
+				testCaseIds: [selectedTcId],
+				userId
+			});
+			toast.success(m.assignee_assigned());
+			await refresh(selectedTcId);
+			onchange();
 		} catch {
 			toast.error(m.error_operation_failed());
 		}
@@ -276,18 +295,15 @@
 
 	async function removeAssignee(userId: string) {
 		if (!selectedTcId) return;
-		const formData = new FormData();
-		formData.set('userId', userId);
 		try {
-			const res = await fetch(
-				`/projects/${projectId}/test-cases/${selectedTcId}?/removeAssignee`,
-				{ method: 'POST', body: formData }
-			);
-			if (res.ok) {
-				toast.success(m.assignee_removed());
-				await refresh(selectedTcId);
-				onchange();
-			}
+			await apiPost(`/api/projects/${projectId}/test-cases/bulk`, {
+				action: 'removeAssignee',
+				testCaseIds: [selectedTcId],
+				userId
+			});
+			toast.success(m.assignee_removed());
+			await refresh(selectedTcId);
+			onchange();
 		} catch {
 			toast.error(m.error_remove_failed());
 		}
@@ -431,25 +447,66 @@
 							{@const unassignedTags = detailData.projectTags.filter(
 								(pt) => !detailData!.assignedTags.some((at) => at.id === pt.id)
 							)}
-							{#if unassignedTags.length > 0}
-								<DropdownMenu.Root>
-									<DropdownMenu.Trigger>
-										{#snippet child({ props })}
-											<button type="button" class="border-input bg-background h-6 rounded-md border px-2 text-xs hover:bg-muted/50 transition-colors cursor-pointer" {...props}>
-												+ {m.tag_assign()}
-											</button>
-										{/snippet}
-									</DropdownMenu.Trigger>
-									<DropdownMenu.Content align="start" class="min-w-[140px]">
-										{#each unassignedTags as t (t.id)}
-											<DropdownMenu.Item onclick={() => assignTag(t.id)} class="text-xs">
-												<span class="mr-1.5 inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
+							{@const filteredUnassigned = tagSearchInput
+								? unassignedTags.filter((t) => t.name.toLowerCase().includes(tagSearchInput.toLowerCase()))
+								: unassignedTags}
+							{@const exactMatch = tagSearchInput && detailData.projectTags.some((t) => t.name.toLowerCase() === tagSearchInput.toLowerCase().trim())}
+							{@const canCreateNew = tagSearchInput.trim().length > 0 && !exactMatch}
+							<Popover.Root bind:open={showTagCreator} onOpenChange={(open) => { if (!open) tagSearchInput = ''; }}>
+								<Popover.Trigger>
+									{#snippet child({ props })}
+										<button type="button" class="border-input bg-background h-6 rounded-md border px-2 text-xs hover:bg-muted/50 transition-colors cursor-pointer" {...props}>
+											+ {m.tag_assign()}
+										</button>
+									{/snippet}
+								</Popover.Trigger>
+								<Popover.Content class="w-56 p-2" align="start">
+									<Input
+										placeholder={m.tag_new_inline()}
+										class="h-7 text-xs mb-2"
+										bind:value={tagSearchInput}
+										autofocus
+									/>
+									<div class="max-h-40 overflow-y-auto space-y-0.5">
+										{#each filteredUnassigned as t (t.id)}
+											<button
+												type="button"
+												class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
+												onclick={() => { assignTag(t.id); tagSearchInput = ''; showTagCreator = false; }}
+											>
+												<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {t.color}"></span>
 												{t.name}
-											</DropdownMenu.Item>
+											</button>
 										{/each}
-									</DropdownMenu.Content>
-								</DropdownMenu.Root>
-							{/if}
+									</div>
+									{#if canCreateNew}
+										<div class="border-t mt-1 pt-1">
+											<div class="flex items-center gap-1 mb-1.5">
+												{#each TAG_PALETTE as color (color)}
+													<button
+														type="button"
+														class="h-4 w-4 rounded-full border {newTagColor === color ? 'border-foreground scale-110' : 'border-transparent'}"
+														style="background-color: {color}"
+														aria-label="Select color {color}"
+														onclick={() => (newTagColor = color)}
+													></button>
+												{/each}
+											</div>
+											<button
+												type="button"
+												class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer font-medium"
+												onclick={() => createAndAssignTag(tagSearchInput, newTagColor)}
+											>
+												<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {newTagColor}"></span>
+												{m.tag_create_inline({ name: tagSearchInput.trim() })}
+											</button>
+										</div>
+									{/if}
+									{#if filteredUnassigned.length === 0 && !canCreateNew}
+										<p class="text-xs text-muted-foreground text-center py-2">{m.common_no_results()}</p>
+									{/if}
+								</Popover.Content>
+							</Popover.Root>
 						{/if}
 					</div>
 				{/if}

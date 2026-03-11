@@ -106,7 +106,7 @@
 	bind:this={container}
 	role="list"
 	class={useWindowScroll ? '' : 'overflow-auto'}
-	style={useWindowScroll ? '' : `height: ${height};`}
+	style={useWindowScroll ? `min-height: ${totalHeight}px; position: relative;` : `height: ${height};`}
 	onscroll={useWindowScroll ? undefined : handleScroll}
 >
 	<div style="height: {topSpacer}px;"></div>

@@ -215,19 +215,19 @@
 	<Card.Root>
 		<Table.Root>
 			<Table.Header>
-				<Table.Row>
-					<Table.Head>{m.common_name()}</Table.Head>
-					<Table.Head>{m.common_email()}</Table.Head>
-					<Table.Head>{m.common_role()}</Table.Head>
-					<Table.Head class="w-24">{m.common_actions()}</Table.Head>
+				<Table.Row class="text-xs">
+					<Table.Head class="py-1 px-2">{m.common_name()}</Table.Head>
+					<Table.Head class="py-1 px-2">{m.common_email()}</Table.Head>
+					<Table.Head class="py-1 px-2">{m.common_role()}</Table.Head>
+					<Table.Head class="py-1 px-2 w-24">{m.common_actions()}</Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
 				{#each data.members as member}
-					<Table.Row>
-						<Table.Cell class="font-medium">{member.userName}</Table.Cell>
-						<Table.Cell class="text-muted-foreground">{member.userEmail}</Table.Cell>
-						<Table.Cell>
+					<Table.Row class="text-xs">
+						<Table.Cell class="py-1 px-2 font-medium">{member.userName}</Table.Cell>
+						<Table.Cell class="py-1 px-2 text-muted-foreground">{member.userEmail}</Table.Cell>
+						<Table.Cell class="py-1 px-2">
 							<form
 								method="POST"
 								action="?/updateRole"
@@ -254,7 +254,7 @@
 										confirmRoleChange(member.id, member.userName, v);
 									}}
 								>
-									<Select.Trigger size="sm" class="h-8" data-member-role={member.id}>
+									<Select.Trigger size="sm" class="h-7 text-xs" data-member-role={member.id}>
 										{member.role.replace('_', ' ')}
 									</Select.Trigger>
 									<Select.Content>
@@ -265,11 +265,11 @@
 								</Select.Root>
 							</form>
 						</Table.Cell>
-						<Table.Cell>
+						<Table.Cell class="py-1 px-2">
 							<Button
 								variant="ghost"
 								size="sm"
-								class="text-destructive hover:text-destructive"
+								class="text-destructive hover:text-destructive h-7 text-xs"
 								onclick={() => openRemoveDialog(member.id, member.userName)}
 							>
 								{m.members_remove()}

@@ -11,12 +11,18 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 
 	if (isNaN(sessionId)) error(400, 'Invalid session ID');
 
-	const session = await db.query.exploratorySession.findFirst({
-		where: and(
-			eq(exploratorySession.id, sessionId),
-			eq(exploratorySession.projectId, projectId)
-		)
-	});
+	let session;
+	try {
+		session = await db.query.exploratorySession.findFirst({
+			where: and(
+				eq(exploratorySession.id, sessionId),
+				eq(exploratorySession.projectId, projectId)
+			)
+		});
+	} catch (e) {
+		console.error('Failed to load exploratory session:', e);
+		error(500, 'Failed to load session');
+	}
 
 	if (!session) error(404, 'Session not found');
 

@@ -253,6 +253,13 @@
       "when": 1774541600000,
       "tag": "0036_column_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1774628000000,
+      "tag": "0037_test_run_indexes",
+      "breakpoints": true
     }
   ]
 }

@@ -643,6 +643,41 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ---
 
+## Phase 22: Performance & UX Improvements
+
+### 22.1 Query Parallelization -- Done
+
+- [x] Test plan detail page: 7 sequential queries → single `Promise.all` (`+page.server.ts`)
+- [x] Test plan API GET: 3 sequential queries → single `Promise.all` (`+server.ts`)
+- [x] Release detail page: 5 sequential queries → single `Promise.all` (`+page.server.ts`)
+
+### 22.2 Database Indexes -- Done
+
+- [x] `test_run(project_id, created_at)` -- optimizes test run list ordering
+- [x] `test_run(project_id, status)` -- optimizes status filtering on test run list
+- [x] Migration: `drizzle/0037_test_run_indexes.sql`
+
+### 22.3 Report Data Caching -- Done
+
+- [x] 5-minute TTL cache for `loadReportData()` results (12 parallel aggregate queries)
+- [x] Cache key based on projectId + date range
+
+### 22.x Test Coverage -- Done
+
+157 test files, 1982 tests (was 156 files, 1968 tests):
+
+- [x] Report data caching (5 new tests) -- cache hit returns data without DB query, cache miss stores result, cache key generation for allTime vs date range, TTL verification
+- [x] Release detail page server (10 new tests) -- 404, creator name, GO/NO_GO/CAUTION verdict logic, multi-run stats aggregation, empty creator fallback, 5 parallelized queries verification
+
+### 22.4 Console Statement Cleanup -- Done
+
+- [x] Removed 9 `console.error`/`console.warn` statements from production code
+- [x] Server-side: removed unused error variable captures in exploratory session handlers (3 files)
+- [x] Client-side: replaced `console.warn` with `toast.error()` for user-facing feedback (NotificationBell, FailureDetailsSheet, TestCaseDetailSheet)
+- [x] Polling failures kept silent (no toast for background refresh)
+
+---
+
 ## Future Considerations
 
 | Feature | Priority | Notes |

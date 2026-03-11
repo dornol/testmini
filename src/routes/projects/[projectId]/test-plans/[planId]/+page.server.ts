@@ -17,15 +17,17 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		error(404, 'Plan not found');
 	}
 
-	// Get creator name
-	const [creator] = await db
-		.select({ name: user.name })
-		.from(user)
-		.where(eq(user.id, plan.createdBy));
-
-	// Get items with test case info
-	const items = await db
-		.select({
+	const [
+		[creator],
+		items,
+		runs,
+		allTestCases,
+		signoffs,
+		[proj],
+		releases
+	] = await Promise.all([
+		db.select({ name: user.name }).from(user).where(eq(user.id, plan.createdBy)),
+		db.select({
 			id: testPlanTestCase.id,
 			testCaseId: testCase.id,
 			key: testCase.key,
@@ -33,63 +35,45 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 			priority: testCaseVersion.priority,
 			position: testPlanTestCase.position
 		})
-		.from(testPlanTestCase)
-		.innerJoin(testCase, eq(testPlanTestCase.testCaseId, testCase.id))
-		.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
-		.where(eq(testPlanTestCase.testPlanId, planId))
-		.orderBy(testPlanTestCase.position);
-
-	// Get linked runs
-	const runs = await db
-		.select({
+			.from(testPlanTestCase)
+			.innerJoin(testCase, eq(testPlanTestCase.testCaseId, testCase.id))
+			.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
+			.where(eq(testPlanTestCase.testPlanId, planId))
+			.orderBy(testPlanTestCase.position),
+		db.select({
 			id: testRun.id,
 			name: testRun.name,
 			status: testRun.status,
 			environment: testRun.environment,
 			createdAt: testRun.createdAt
 		})
-		.from(testRun)
-		.where(eq(testRun.testPlanId, planId))
-		.orderBy(testRun.createdAt);
-
-	// Get all test cases for "Add Cases" dialog
-	const allTestCases = await db
-		.select({
+			.from(testRun)
+			.where(eq(testRun.testPlanId, planId))
+			.orderBy(testRun.createdAt),
+		db.select({
 			id: testCase.id,
 			key: testCase.key,
 			title: testCaseVersion.title,
 			priority: testCaseVersion.priority
 		})
-		.from(testCase)
-		.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
-		.where(eq(testCase.projectId, projectId))
-		.orderBy(testCase.key);
-
-	// Sign-off history
-	const signoffs = await db
-		.select({
+			.from(testCase)
+			.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
+			.where(eq(testCase.projectId, projectId))
+			.orderBy(testCase.key),
+		db.select({
 			id: testPlanSignoff.id,
 			decision: testPlanSignoff.decision,
 			comment: testPlanSignoff.comment,
 			createdAt: testPlanSignoff.createdAt,
 			userName: user.name
 		})
-		.from(testPlanSignoff)
-		.innerJoin(user, eq(testPlanSignoff.userId, user.id))
-		.where(eq(testPlanSignoff.testPlanId, planId))
-		.orderBy(testPlanSignoff.createdAt);
-
-	// Project settings
-	const [proj] = await db
-		.select({ requireSignoff: project.requireSignoff })
-		.from(project)
-		.where(eq(project.id, projectId));
-
-	// Available releases for linking
-	const releases = await db
-		.select({ id: release.id, name: release.name, version: release.version })
-		.from(release)
-		.where(eq(release.projectId, projectId));
+			.from(testPlanSignoff)
+			.innerJoin(user, eq(testPlanSignoff.userId, user.id))
+			.where(eq(testPlanSignoff.testPlanId, planId))
+			.orderBy(testPlanSignoff.createdAt),
+		db.select({ requireSignoff: project.requireSignoff }).from(project).where(eq(project.id, projectId)),
+		db.select({ id: release.id, name: release.name, version: release.version }).from(release).where(eq(release.projectId, projectId))
+	]);
 
 	return {
 		plan: { ...plan, createdByName: creator?.name ?? '' },

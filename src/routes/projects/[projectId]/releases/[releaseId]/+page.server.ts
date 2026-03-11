@@ -14,23 +14,15 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 	});
 	if (!rel) error(404, 'Release not found');
 
-	const [creator] = await db
-		.select({ name: user.name })
-		.from(user)
-		.where(eq(user.id, rel.createdBy));
-
-	const plans = await db
-		.select({
+	const [[creator], plans, runs, availablePlans, availableRuns] = await Promise.all([
+		db.select({ name: user.name }).from(user).where(eq(user.id, rel.createdBy)),
+		db.select({
 			id: testPlan.id,
 			name: testPlan.name,
 			status: testPlan.status,
 			milestone: testPlan.milestone
-		})
-		.from(testPlan)
-		.where(eq(testPlan.releaseId, releaseId));
-
-	const runs = await db
-		.select({
+		}).from(testPlan).where(eq(testPlan.releaseId, releaseId)),
+		db.select({
 			id: testRun.id,
 			name: testRun.name,
 			status: testRun.status,
@@ -41,10 +33,14 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 			fail: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'FAIL')`.as('fail'),
 			blocked: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'BLOCKED')`.as('blocked'),
 			pending: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'PENDING')`.as('pending')
-		})
-		.from(testRun)
-		.where(eq(testRun.releaseId, releaseId))
-		.orderBy(testRun.createdAt);
+		}).from(testRun).where(eq(testRun.releaseId, releaseId)).orderBy(testRun.createdAt),
+		db.select({ id: testPlan.id, name: testPlan.name, status: testPlan.status })
+			.from(testPlan)
+			.where(and(eq(testPlan.projectId, projectId), sql`${testPlan.releaseId} IS NULL`)),
+		db.select({ id: testRun.id, name: testRun.name, status: testRun.status, environment: testRun.environment })
+			.from(testRun)
+			.where(and(eq(testRun.projectId, projectId), sql`${testRun.releaseId} IS NULL`))
+	]);
 
 	const totalExec = runs.reduce((s, r) => s + Number(r.total), 0);
 	const totalPass = runs.reduce((s, r) => s + Number(r.pass), 0);
@@ -56,17 +52,6 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 	let verdict: 'GO' | 'NO_GO' | 'CAUTION' = 'GO';
 	if (totalFail > 0 || totalBlocked > 0) verdict = 'NO_GO';
 	else if (totalPending > 0 || runs.length === 0) verdict = 'CAUTION';
-
-	// Get all unlinked plans and runs for linking
-	const availablePlans = await db
-		.select({ id: testPlan.id, name: testPlan.name, status: testPlan.status })
-		.from(testPlan)
-		.where(and(eq(testPlan.projectId, projectId), sql`${testPlan.releaseId} IS NULL`));
-
-	const availableRuns = await db
-		.select({ id: testRun.id, name: testRun.name, status: testRun.status, environment: testRun.environment })
-		.from(testRun)
-		.where(and(eq(testRun.projectId, projectId), sql`${testRun.releaseId} IS NULL`));
 
 	return {
 		release: { ...rel, createdByName: creator?.name ?? '' },

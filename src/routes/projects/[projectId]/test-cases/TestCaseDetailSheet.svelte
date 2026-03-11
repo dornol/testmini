@@ -136,7 +136,7 @@
 		try {
 			detailData = await apiFetch(`/api/projects/${projectId}/test-cases/${tcId}`);
 		} catch {
-			console.warn('Failed to refresh detail data');
+			toast.error('Failed to refresh detail data');
 		}
 	}
 

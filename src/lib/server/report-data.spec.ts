@@ -68,6 +68,12 @@ vi.mock('$lib/server/db/schema', () => ({
 	issueLink: { id: 'id', testCaseId: 'test_case_id' },
 	user: { id: 'id', name: 'name' }
 }));
+const mockCacheGet = vi.fn().mockReturnValue(undefined);
+const mockCacheSet = vi.fn();
+vi.mock('$lib/server/cache', () => ({
+	cacheGet: (...args: unknown[]) => mockCacheGet(...args),
+	cacheSet: (...args: unknown[]) => mockCacheSet(...args)
+}));
 vi.mock('drizzle-orm', () => {
 	const mockSql = Object.assign(
 		(strings: TemplateStringsArray, ...values: unknown[]) => ({
@@ -350,5 +356,67 @@ describe('loadReportData', () => {
 		const result = await loadReportData(1, range);
 
 		expect(Object.keys(result)).toHaveLength(12);
+	});
+
+	it('caches result after first load', async () => {
+		setupSelectMock();
+		const range: ReportDateRange = { from: null, to: null, allTime: true };
+		await loadReportData(1, range);
+
+		expect(mockCacheSet).toHaveBeenCalledWith(
+			'report:1:all',
+			expect.objectContaining({ envStats: expect.any(Array) }),
+			5 * 60 * 1000
+		);
+	});
+
+	it('returns cached result on cache hit without querying DB', async () => {
+		const cachedData = {
+			envStats: [{ env: 'QA', count: 5 }],
+			recentRuns: [],
+			priorityStats: [],
+			creatorStats: [],
+			assigneeStats: [],
+			dailyResults: [],
+			executorStats: [],
+			topFailingCases: [],
+			flakyTests: [],
+			staleTests: [],
+			slowestTests: [],
+			defectDensity: []
+		};
+		mockCacheGet.mockReturnValueOnce(cachedData);
+
+		const range: ReportDateRange = { from: null, to: null, allTime: true };
+		const result = await loadReportData(1, range);
+
+		expect(result).toBe(cachedData);
+		expect(mockDb.select).not.toHaveBeenCalled();
+	});
+
+	it('generates correct cache key for date range', async () => {
+		setupSelectMock();
+		const from = new Date('2025-01-01');
+		const to = new Date('2025-01-31');
+		const range: ReportDateRange = { from, to, allTime: false };
+		await loadReportData(42, range);
+
+		expect(mockCacheSet).toHaveBeenCalledWith(
+			`report:42:${from.getTime()}-${to.getTime()}`,
+			expect.any(Object),
+			5 * 60 * 1000
+		);
+	});
+
+	it('generates "all" cache key for allTime range', async () => {
+		setupSelectMock();
+		const range: ReportDateRange = { from: null, to: null, allTime: true };
+		await loadReportData(7, range);
+
+		expect(mockCacheSet).toHaveBeenCalledWith(
+			'report:7:all',
+			expect.any(Object),
+			expect.any(Number)
+		);
 	});
 });

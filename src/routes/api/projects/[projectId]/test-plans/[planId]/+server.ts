@@ -18,15 +18,9 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 		error(404, 'Plan not found');
 	}
 
-	// Get creator name
-	const [creator] = await db
-		.select({ name: user.name })
-		.from(user)
-		.where(eq(user.id, plan.createdBy));
-
-	// Get items with test case info
-	const items = await db
-		.select({
+	const [[creator], items, runs] = await Promise.all([
+		db.select({ name: user.name }).from(user).where(eq(user.id, plan.createdBy)),
+		db.select({
 			id: testPlanTestCase.id,
 			testCaseId: testCase.id,
 			key: testCase.key,
@@ -34,24 +28,22 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 			priority: testCaseVersion.priority,
 			position: testPlanTestCase.position
 		})
-		.from(testPlanTestCase)
-		.innerJoin(testCase, eq(testPlanTestCase.testCaseId, testCase.id))
-		.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
-		.where(eq(testPlanTestCase.testPlanId, planId))
-		.orderBy(testPlanTestCase.position);
-
-	// Get linked runs
-	const runs = await db
-		.select({
+			.from(testPlanTestCase)
+			.innerJoin(testCase, eq(testPlanTestCase.testCaseId, testCase.id))
+			.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
+			.where(eq(testPlanTestCase.testPlanId, planId))
+			.orderBy(testPlanTestCase.position),
+		db.select({
 			id: testRun.id,
 			name: testRun.name,
 			status: testRun.status,
 			environment: testRun.environment,
 			createdAt: testRun.createdAt
 		})
-		.from(testRun)
-		.where(eq(testRun.testPlanId, planId))
-		.orderBy(testRun.createdAt);
+			.from(testRun)
+			.where(eq(testRun.testPlanId, planId))
+			.orderBy(testRun.createdAt)
+	]);
 
 	return json({
 		...plan,

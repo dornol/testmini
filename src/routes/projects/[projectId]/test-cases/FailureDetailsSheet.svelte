@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as m from '$lib/paraglide/messages.js';
 	import { apiFetch } from '$lib/api-client';
+	import { toast } from 'svelte-sonner';
 
 	let { projectId, onaddfailure }: {
 		projectId: number;
@@ -58,8 +59,8 @@
 			if (sheetData && sheetData.executionId === executionId) {
 				sheetData.failures = data.failures;
 			}
-		} catch (e) {
-			console.warn('Failed to fetch failure details:', e);
+		} catch {
+			toast.error('Failed to fetch failure details');
 		} finally {
 			if (sheetData && sheetData.executionId === executionId) {
 				sheetData.loading = false;

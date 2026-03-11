@@ -44,8 +44,7 @@ export const load: PageServerLoad = async ({ params, url, parent }) => {
 			total: totalResult[0]?.total ?? 0,
 			statusFilter
 		};
-	} catch (e) {
-		console.error('Failed to load exploratory sessions:', e);
+	} catch {
 		return {
 			sessions: [],
 			total: 0,

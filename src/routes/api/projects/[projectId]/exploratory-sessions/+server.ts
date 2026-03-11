@@ -75,8 +75,7 @@ export const POST = withProjectRole(
 					createdBy: authUser.id
 				})
 				.returning();
-		} catch (e) {
-			console.error('Failed to create exploratory session:', e);
+		} catch {
 			error(500, 'Failed to create session. Please check that the database migration has been applied.');
 		}
 

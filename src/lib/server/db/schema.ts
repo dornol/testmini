@@ -340,7 +340,11 @@ export const testRun = pgTable(
 		releaseId: integer('release_id').references(() => release.id, { onDelete: 'set null' }),
 		retestOfRunId: integer('retest_of_run_id')
 	},
-	(table) => [index('test_run_project_idx').on(table.projectId)]
+	(table) => [
+		index('test_run_project_idx').on(table.projectId),
+		index('test_run_project_created_idx').on(table.projectId, table.createdAt),
+		index('test_run_project_status_idx').on(table.projectId, table.status)
+	]
 );
 
 export const testRunRelations = relations(testRun, ({ one, many }) => ({

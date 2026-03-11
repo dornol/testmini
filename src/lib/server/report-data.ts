@@ -1,3 +1,4 @@
+import { cacheGet, cacheSet } from '$lib/server/cache';
 import { db } from '$lib/server/db';
 import {
 	testRun,
@@ -46,7 +47,19 @@ export function parseDateRange(params: {
 	return { from: fromDate, to: toDate, allTime: false };
 }
 
+const REPORT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export async function loadReportData(projectId: number, range: ReportDateRange) {
+	const cacheKey = `report:${projectId}:${range.allTime ? 'all' : `${range.from?.getTime()}-${range.to?.getTime()}`}`;
+	const cached = cacheGet<Awaited<ReturnType<typeof loadReportDataInternal>>>(cacheKey);
+	if (cached) return cached;
+
+	const result = await loadReportDataInternal(projectId, range);
+	cacheSet(cacheKey, result, REPORT_CACHE_TTL);
+	return result;
+}
+
+async function loadReportDataInternal(projectId: number, range: ReportDateRange) {
 	function runDateCondition() {
 		const conditions = [eq(testRun.projectId, projectId)];
 		if (range.from) conditions.push(gte(testRun.createdAt, range.from));

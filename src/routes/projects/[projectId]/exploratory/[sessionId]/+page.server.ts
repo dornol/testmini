@@ -19,8 +19,7 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 				eq(exploratorySession.projectId, projectId)
 			)
 		});
-	} catch (e) {
-		console.error('Failed to load exploratory session:', e);
+	} catch {
 		error(500, 'Failed to load session');
 	}
 

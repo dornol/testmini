@@ -3,6 +3,7 @@
 	import { fly } from 'svelte/transition';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { apiFetch, apiPost } from '$lib/api-client';
+	import { toast } from 'svelte-sonner';
 
 	interface Notification {
 		id: number;
@@ -86,8 +87,8 @@
 			nextCursor = data.nextCursor;
 			hasMore = data.hasMore;
 			unreadCount = data.items.filter((n) => !n.isRead).length;
-		} catch (e) {
-			console.warn('Failed to load notifications:', e);
+		} catch {
+			toast.error('Failed to load notifications');
 		} finally {
 			loading = false;
 		}
@@ -100,8 +101,8 @@
 				{ silent: true }
 			);
 			unreadCount = data.items.filter((n) => !n.isRead).length;
-		} catch (e) {
-			console.warn('Failed to refresh unread count:', e);
+		} catch {
+			// silent — polling failure is not user-facing
 		}
 	}
 
@@ -111,8 +112,8 @@
 			await apiPost('/api/notifications/read', { ids });
 			notifications = notifications.map((n) => (ids.includes(n.id) ? { ...n, isRead: true } : n));
 			unreadCount = Math.max(0, unreadCount - ids.length);
-		} catch (e) {
-			console.warn('Failed to mark notifications as read:', e);
+		} catch {
+			toast.error('Failed to mark notifications as read');
 		}
 	}
 
@@ -121,8 +122,8 @@
 			await apiPost('/api/notifications/read', { all: true });
 			notifications = notifications.map((n) => ({ ...n, isRead: true }));
 			unreadCount = 0;
-		} catch (e) {
-			console.warn('Failed to mark all notifications as read:', e);
+		} catch {
+			toast.error('Failed to mark all notifications as read');
 		}
 	}
 

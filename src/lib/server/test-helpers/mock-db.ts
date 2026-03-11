@@ -63,6 +63,7 @@ export function createMockDb() {
 		query: {
 			testCase: { findFirst: vi.fn() },
 			testRun: { findFirst: vi.fn() },
+			testExecution: { findFirst: vi.fn() },
 			projectMember: { findFirst: vi.fn() },
 			testCaseGroup: { findFirst: vi.fn() },
 			priorityConfig: { findFirst: vi.fn() },

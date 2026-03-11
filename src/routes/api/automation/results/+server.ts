@@ -130,7 +130,9 @@ export const POST: RequestHandler = async ({ request }) => {
 					testCaseVersionId: tc.latestVersionId,
 					status: executionStatus,
 					executedAt: now,
-					executedBy: createdBy
+					executedBy: createdBy,
+					startedAt: now,
+					completedAt: now
 				})
 				.returning();
 

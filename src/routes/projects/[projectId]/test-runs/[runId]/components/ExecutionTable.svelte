@@ -27,6 +27,8 @@
 		testCasePriority: string;
 		versionNo: number;
 		executedBy: string | null;
+		startedAt: string | Date | null;
+		completedAt: string | Date | null;
 	}
 
 	interface Props {
@@ -347,6 +349,11 @@
 						scope="col"
 						class="text-foreground h-10 w-32 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
 						>{m.run_executed_by()}</th
+					>
+					<th
+						scope="col"
+						class="text-foreground h-10 w-20 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
+						>{m.exec_duration()}</th
 					>
 					<th scope="col" class="h-10 w-10 bg-clip-padding px-1"></th>
 				</tr>

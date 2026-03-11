@@ -28,6 +28,7 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 6. [Test Runs](#test-runs)
    - [CRUD](#test-run-crud)
    - [Clone](#clone-test-run)
+   - [Retest](#retest-test-run)
    - [Executions](#executions)
    - [Execution status](#execution-status)
    - [Failure details](#failure-details)
@@ -978,6 +979,35 @@ If `name` is omitted, the clone is named `"Copy of <original name>"`.
 
 ---
 
+### Retest Test Run
+
+#### `POST /api/projects/:projectId/test-runs/:runId/retest`
+
+Create a new test run containing only the FAIL and BLOCKED executions from the original run. The new run uses the latest version of each test case. All execution statuses are reset to `PENDING`. The new run is linked back to the original via `retestOfRunId`.
+
+**Auth:** Session + `PROJECT_ADMIN | QA | DEV`
+
+**Request body** (optional)
+```json
+{ "name": "Retest of Sprint 5" }
+```
+
+If `name` is omitted, the run is named `"Retest of <original name>"`.
+
+**Response 200**
+```json
+{ "id": 99 }
+```
+
+**Response 400** — no FAIL or BLOCKED executions to retest
+```json
+{ "error": "No failed or blocked executions to retest" }
+```
+
+**Response 404** — original test run not found
+
+---
+
 ### Executions
 
 #### `POST /api/projects/:projectId/test-runs/:runId/executions`
@@ -1005,6 +1035,8 @@ Add a single test case to an existing test run.
 #### `PUT /api/projects/:projectId/test-runs/:runId/executions/:executionId/status`
 
 Record the result of an execution. Automatically transitions the run from `CREATED` to `IN_PROGRESS` on the first non-`PENDING` result. Publishes a real-time event (via Redis pub/sub or in-memory bus) so other users viewing the run see the update immediately.
+
+**Duration tracking:** When an execution transitions from `PENDING` to any other status, `started_at` is set automatically. On every status change to a terminal state (`PASS`, `FAIL`, `BLOCKED`, `SKIPPED`), `completed_at` is updated. The difference between these timestamps represents the execution duration.
 
 **Auth:** Session + `PROJECT_ADMIN | QA | DEV`
 

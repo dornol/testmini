@@ -97,6 +97,8 @@ export const load: PageServerLoad = async ({ params, parent, url, locals }) => {
 			comment: testExecution.comment,
 			executedBy: user.name,
 			executedAt: testExecution.executedAt,
+			startedAt: testExecution.startedAt,
+			completedAt: testExecution.completedAt,
 			testCaseKey: testCase.key,
 			testCaseTitle: testCaseVersion.title,
 			testCasePriority: testCaseVersion.priority,
@@ -176,13 +178,21 @@ export const actions: Actions = {
 			return fail(404, { error: 'Execution not found' });
 		}
 
+		const now = new Date();
+		const durationUpdates: Record<string, Date> = {};
+		if (execution.status === 'PENDING') {
+			durationUpdates.startedAt = now;
+		}
+		durationUpdates.completedAt = now;
+
 		await db
 			.update(testExecution)
 			.set({
 				status: status as 'PASS' | 'FAIL' | 'BLOCKED' | 'SKIPPED',
 				comment,
 				executedBy: authUser.id,
-				executedAt: new Date()
+				executedAt: now,
+				...durationUpdates
 			})
 			.where(eq(testExecution.id, executionId));
 
@@ -227,12 +237,20 @@ export const actions: Actions = {
 
 		await db.transaction(async (tx) => {
 			// Set execution to FAIL
+			const now = new Date();
+			const durationUpdates: Record<string, Date> = {};
+			if (execution.status === 'PENDING') {
+				durationUpdates.startedAt = now;
+			}
+			durationUpdates.completedAt = now;
+
 			await tx
 				.update(testExecution)
 				.set({
 					status: 'FAIL',
 					executedBy: authUser.id,
-					executedAt: new Date()
+					executedAt: now,
+					...durationUpdates
 				})
 				.where(eq(testExecution.id, executionId));
 
@@ -373,12 +391,15 @@ export const actions: Actions = {
 			return fail(400, { error: 'No executions selected' });
 		}
 
+		const now = new Date();
 		await db
 			.update(testExecution)
 			.set({
 				status: 'PASS',
 				executedBy: authUser.id,
-				executedAt: new Date()
+				executedAt: now,
+				startedAt: now,
+				completedAt: now
 			})
 			.where(
 				and(

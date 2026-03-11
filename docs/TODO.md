@@ -546,6 +546,91 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ---
 
+## Phase 21: QA Workflow Enhancements
+
+### 21.1 Retest / Re-run Workflow -- Done
+
+- [x] "Retest Failed" action on test run: create new run with only FAIL/BLOCKED executions from the source run
+- [x] Link retest run back to original run (`retestOfRunId` foreign key)
+- [ ] Before/after comparison view: original result vs retest result side-by-side
+- [x] Retest badge/indicator on runs created via retest
+- [x] API endpoint: `POST /api/projects/:projectId/test-runs/:runId/retest`
+- [x] Retest button in run detail header and run list dropdown
+- [x] Retest dialog with FAIL/BLOCKED count display
+- [x] i18n messages (en/ko) for retest UI
+- [x] 15 unit tests for retest API (auth, 404, 400, success, name, retestOfRunId, environment, createdBy, null filter, execution records, malformed body, single execution, all null versions)
+
+### 21.2 Execution Duration Tracking -- Done
+
+- [x] Add `startedAt` and `completedAt` timestamps to `test_execution` table
+- [x] Auto-set `startedAt` on first status change from PENDING
+- [x] Auto-set `completedAt` on terminal status (PASS/FAIL/BLOCKED/SKIPPED)
+- [x] Display duration per execution in test run detail (Duration column)
+- [x] Duration tracking for automation results API
+- [x] 27 unit tests for page server (load, updateStatus, failWithDetail, bulkPass, updateRunStatus, deleteFailure -- covering duration tracking, SSE events, notifications, error cases)
+- [ ] Run-level duration summary (total time, avg per test)
+- [ ] Slowest tests report in analytics
+
+### 21.x Test Coverage -- Done
+
+149 test files, 1888 tests (was 147 files, 1846 tests):
+
+- [x] Retest API (15 tests) -- auth (401, 403), not found (404), no failures (400), success, default/custom name, retestOfRunId, environment preservation, createdBy, null version filter, execution records, malformed body, single execution, all-null versions
+- [x] Test run detail page server (27 tests) -- load (invalid ID, 404, stats+executions with duration), updateStatus (400, 404, 403, startedAt from PENDING, no startedAt when already started, SSE), failWithDetail (400, 404, startedAt+completedAt, no startedAt when started, dual SSE events), bulkPass (400, 403, startedAt+completedAt, SSE), updateRunStatus (400, IN_PROGRESS startedAt, COMPLETED finishedAt, member notifications, self-exclude, SSE), deleteFailure (400, success)
+
+### 21.3 Release / Milestone Management -- Medium Priority
+
+- [ ] `release` table (id, projectId, name, version, status: PLANNING/IN_PROGRESS/READY/RELEASED, targetDate, releaseDate)
+- [ ] Link test plans and test runs to releases
+- [ ] Release dashboard: aggregated pass rate across all linked runs
+- [ ] Release readiness view: "Go / No-Go" summary with blocking failures
+- [ ] Release history page with trend across versions
+
+### 21.4 Sign-off / Go-No-Go Workflow -- Medium Priority
+
+- [ ] Sign-off action on test plans (QA lead approval with comment)
+- [ ] `test_plan_signoff` table (planId, userId, decision: APPROVED/REJECTED, comment, createdAt)
+- [ ] Sign-off history and audit trail
+- [ ] Block plan status transition to COMPLETED without sign-off (configurable)
+- [ ] Sign-off notification to stakeholders
+
+### 21.5 Retest on Defect Fix (Issue Tracker Sync) -- Medium Priority
+
+- [ ] When linked issue status changes to "Fixed"/"Resolved", auto-mark related test cases as "Retest Needed"
+- [ ] Retest needed filter in test case list
+- [ ] Defect density report: defects per module/group
+- [ ] One-click "Create retest run" from retest-needed test cases
+
+### 21.6 Risk-Based Testing -- Low Priority
+
+- [ ] Risk level field on test cases (CRITICAL/HIGH/MEDIUM/LOW based on business impact × failure likelihood)
+- [ ] Risk matrix view: impact vs probability grid
+- [ ] Auto-suggest test execution order based on risk
+- [ ] Risk-based test selection: "run only HIGH+ risk tests" filter for run creation
+
+### 21.7 Test Cycle Management -- Low Priority
+
+- [ ] `test_cycle` entity (projectId, releaseId, name, cycleNumber, status, startDate, endDate)
+- [ ] Link test runs to cycles (multiple runs per cycle)
+- [ ] Cycle-over-cycle comparison: pass rate trend across cycles
+- [ ] Cycle report: progress, coverage, defects found per cycle
+
+### 21.8 Feature/Module Coverage Map -- Low Priority
+
+- [ ] `module` entity (projectId, name, parentModuleId for hierarchy)
+- [ ] Link test cases to modules (many-to-many)
+- [ ] Module coverage dashboard: per-module pass rate, test count, gap analysis
+- [ ] Module-based regression scope: "changed module → affected test cases"
+
+### 21.9 Environment Cross-Matrix -- Low Priority
+
+- [ ] Run same test cases across multiple environments in single run creation
+- [ ] Environment × test case matrix view (Chrome/Firefox/Safari × TC-001..TC-050)
+- [ ] Cross-environment pass rate comparison chart
+- [ ] Environment-specific failure patterns detection
+
+---
+
 ## Future Considerations
 
 | Feature | Priority | Notes |

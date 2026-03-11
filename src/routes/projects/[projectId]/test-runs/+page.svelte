@@ -33,6 +33,12 @@
 	let cloneRunName = $state('');
 	let cloneRunSaving = $state(false);
 
+	// Retest dialog state
+	let retestDialogOpen = $state(false);
+	let retestRunId = $state<number | null>(null);
+	let retestRunName = $state('');
+	let retestRunSaving = $state(false);
+
 	// Delete dialog state
 	let deleteDialogOpen = $state(false);
 	let deleteRunId = $state<number | null>(null);
@@ -78,6 +84,12 @@
 		cloneDialogOpen = true;
 	}
 
+	function openRetest(run: typeof data.runs[0]) {
+		retestRunId = run.id;
+		retestRunName = `Retest of ${run.name}`;
+		retestDialogOpen = true;
+	}
+
 	function openDelete(run: typeof data.runs[0]) {
 		deleteRunId = run.id;
 		deleteDialogOpen = true;
@@ -110,6 +122,21 @@
 			// error toast handled by apiPost
 		} finally {
 			cloneRunSaving = false;
+		}
+	}
+
+	async function handleRetest() {
+		if (!retestRunId) return;
+		retestRunSaving = true;
+		try {
+			const { id } = await apiPost<{ id: number }>(`/api/projects/${data.project.id}/test-runs/${retestRunId}/retest`, { name: retestRunName });
+			retestDialogOpen = false;
+			toast.success(m.tr_retested());
+			goto(`${basePath}/${id}`);
+		} catch {
+			// error toast handled by apiPost
+		} finally {
+			retestRunSaving = false;
 		}
 	}
 
@@ -257,7 +284,12 @@
 								/>
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs font-medium">
-								<div>{run.name}</div>
+								<div class="flex items-center gap-1.5">
+									{run.name}
+									{#if run.retestOfRunId}
+										<Badge variant="secondary" class="text-[9px] px-1 py-0">{m.tr_retest_badge()}</Badge>
+									{/if}
+								</div>
 								<div class="text-muted-foreground sm:hidden text-[10px]">
 									{run.environment} &middot; {pct}%
 								</div>
@@ -305,6 +337,9 @@
 											{/if}
 											<DropdownMenu.Item onclick={() => { openClone(run); }}>
 												{m.tr_clone()}
+											</DropdownMenu.Item>
+											<DropdownMenu.Item onclick={() => { openRetest(run); }}>
+												{m.tr_retest()}
 											</DropdownMenu.Item>
 											{#if isAdmin}
 												<DropdownMenu.Separator />
@@ -422,6 +457,38 @@
 						{m.common_creating()}
 					{:else}
 						{m.tr_clone()}
+					{/if}
+				</Button>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>
+
+<!-- Retest Run Dialog -->
+<Dialog.Root bind:open={retestDialogOpen}>
+	<Dialog.Portal>
+		<Dialog.Overlay />
+		<Dialog.Content class="sm:max-w-md">
+			<Dialog.Header>
+				<Dialog.Title>{m.tr_retest_title()}</Dialog.Title>
+			</Dialog.Header>
+			<div class="space-y-4 py-4">
+				<p class="text-muted-foreground text-sm">{m.tr_retest_desc()}</p>
+				<div class="space-y-2">
+					<Label for="retestName">{m.tr_retest_name_label()}</Label>
+					<Input id="retestName" bind:value={retestRunName} />
+				</div>
+			</div>
+			<Dialog.Footer>
+				<Button variant="outline" onclick={() => (retestDialogOpen = false)} disabled={retestRunSaving}>
+					{m.common_cancel()}
+				</Button>
+				<Button onclick={handleRetest} disabled={retestRunSaving || !retestRunName.trim()}>
+					{#if retestRunSaving}
+						<svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+						{m.common_creating()}
+					{:else}
+						{m.tr_retest()}
 					{/if}
 				</Button>
 			</Dialog.Footer>

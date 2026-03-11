@@ -324,7 +324,8 @@ export const testRun = pgTable(
 			.defaultNow()
 			.$onUpdate(() => new Date())
 			.notNull(),
-		testPlanId: integer('test_plan_id').references(() => testPlan.id, { onDelete: 'set null' })
+		testPlanId: integer('test_plan_id').references(() => testPlan.id, { onDelete: 'set null' }),
+		retestOfRunId: integer('retest_of_run_id')
 	},
 	(table) => [index('test_run_project_idx').on(table.projectId)]
 );
@@ -358,7 +359,9 @@ export const testExecution = pgTable(
 		dataSetId: integer('data_set_id').references(() => testCaseDataSet.id, { onDelete: 'set null' }),
 		parameterValues: jsonb('parameter_values').$type<Record<string, string>>(),
 		executedBy: text('executed_by').references(() => user.id),
-		executedAt: timestamp('executed_at')
+		executedAt: timestamp('executed_at'),
+		startedAt: timestamp('started_at'),
+		completedAt: timestamp('completed_at')
 	},
 	(table) => [
 		index('test_execution_run_status_idx').on(table.testRunId, table.status),

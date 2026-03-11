@@ -36,6 +36,23 @@
 		testCasePriority: string;
 		versionNo: number;
 		executedBy: string | null;
+		startedAt: string | Date | null;
+		completedAt: string | Date | null;
+	}
+
+	function formatDuration(startedAt: string | Date | null, completedAt: string | Date | null): string | null {
+		if (!startedAt || !completedAt) return null;
+		const ms = new Date(completedAt).getTime() - new Date(startedAt).getTime();
+		if (ms < 0) return null;
+		if (ms < 1000) return `${ms}ms`;
+		const seconds = Math.floor(ms / 1000);
+		if (seconds < 60) return `${seconds}s`;
+		const minutes = Math.floor(seconds / 60);
+		const remainSec = seconds % 60;
+		if (minutes < 60) return `${minutes}m ${remainSec}s`;
+		const hours = Math.floor(minutes / 60);
+		const remainMin = minutes % 60;
+		return `${hours}h ${remainMin}m`;
 	}
 
 	interface Props {
@@ -220,6 +237,9 @@
 	</td>
 	<td class="text-muted-foreground bg-clip-padding p-2 align-middle whitespace-nowrap text-sm">
 		{exec.executedBy ?? '-'}
+	</td>
+	<td class="text-muted-foreground bg-clip-padding p-2 align-middle whitespace-nowrap text-xs tabular-nums">
+		{formatDuration(exec.startedAt, exec.completedAt) ?? '-'}
 	</td>
 	<td class="bg-clip-padding p-1 align-middle whitespace-nowrap">
 		<button

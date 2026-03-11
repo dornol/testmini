@@ -20,6 +20,7 @@
 			name: string;
 			environment: string;
 			status: string;
+			retestOfRunId: number | null;
 		};
 		stats: {
 			total: number;
@@ -64,6 +65,11 @@
 	let cloneDialogOpen = $state(false);
 	let cloneRunName = $state('');
 	let cloneRunSaving = $state(false);
+
+	// Retest run dialog state
+	let retestDialogOpen = $state(false);
+	let retestRunName = $state('');
+	let retestRunSaving = $state(false);
 
 	// Delete run dialog state
 	let deleteRunDialogOpen = $state(false);
@@ -119,6 +125,27 @@
 		}
 	}
 
+	const hasFailures = $derived(stats.fail > 0 || stats.blocked > 0);
+
+	function openRetestRun() {
+		retestRunName = `Retest of ${run.name}`;
+		retestDialogOpen = true;
+	}
+
+	async function handleRetestRun() {
+		retestRunSaving = true;
+		try {
+			const { id } = await apiPost<{ id: number }>(`/api/projects/${projectId}/test-runs/${run.id}/retest`, { name: retestRunName });
+			retestDialogOpen = false;
+			toast.success(m.tr_retested());
+			goto(`${basePath}/${id}`);
+		} catch {
+			// error toast handled by apiPost
+		} finally {
+			retestRunSaving = false;
+		}
+	}
+
 	async function handleDeleteRun() {
 		deleteRunSaving = true;
 		try {
@@ -162,6 +189,11 @@
 			<h2 class="text-xl font-bold">{run.name}</h2>
 			<Badge variant="outline">{run.environment}</Badge>
 			<Badge variant={statusVariant(run.status)}>{run.status.replace('_', ' ')}</Badge>
+			{#if run.retestOfRunId}
+				<a href="{basePath}/{run.retestOfRunId}" class="no-underline">
+					<Badge variant="secondary" class="text-xs">{m.tr_retest_badge()}</Badge>
+				</a>
+			{/if}
 			{#if sseConnected}
 				<span class="flex items-center gap-1 text-xs text-green-600">
 					<span class="inline-block h-2 w-2 animate-pulse rounded-full bg-green-500"></span>
@@ -192,6 +224,11 @@
 			<Button variant="outline" size="sm" onclick={openCloneRun}>
 				{m.tr_clone()}
 			</Button>
+			{#if hasFailures}
+				<Button variant="outline" size="sm" onclick={openRetestRun}>
+					{m.tr_retest()}
+				</Button>
+			{/if}
 		{/if}
 		{#if isAdmin}
 			<Button
@@ -345,6 +382,36 @@
 				</Button>
 				<Button onclick={handleCloneRun} disabled={cloneRunSaving || !cloneRunName.trim()}>
 					{cloneRunSaving ? m.common_creating() : m.tr_clone()}
+				</Button>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>
+
+<!-- Retest Run Dialog -->
+<Dialog.Root bind:open={retestDialogOpen}>
+	<Dialog.Portal>
+		<Dialog.Overlay />
+		<Dialog.Content class="sm:max-w-md">
+			<Dialog.Header>
+				<Dialog.Title>{m.tr_retest_title()}</Dialog.Title>
+			</Dialog.Header>
+			<div class="space-y-4 py-4">
+				<p class="text-muted-foreground text-sm">{m.tr_retest_desc()}</p>
+				<p class="text-sm">
+					FAIL: {stats.fail}, BLOCKED: {stats.blocked}
+				</p>
+				<div class="space-y-2">
+					<Label for="retestRunName">{m.tr_retest_name_label()}</Label>
+					<Input id="retestRunName" bind:value={retestRunName} />
+				</div>
+			</div>
+			<Dialog.Footer>
+				<Button variant="outline" onclick={() => (retestDialogOpen = false)}>
+					{m.common_cancel()}
+				</Button>
+				<Button onclick={handleRetestRun} disabled={retestRunSaving || !retestRunName.trim()}>
+					{retestRunSaving ? m.common_creating() : m.tr_retest()}
 				</Button>
 			</Dialog.Footer>
 		</Dialog.Content>

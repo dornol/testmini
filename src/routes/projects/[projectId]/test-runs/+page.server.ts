@@ -32,6 +32,7 @@ export const load: PageServerLoad = async ({ params, url, parent }) => {
 				createdAt: testRun.createdAt,
 				startedAt: testRun.startedAt,
 				finishedAt: testRun.finishedAt,
+				retestOfRunId: testRun.retestOfRunId,
 				totalCount: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id})`.as('total_count'),
 				passedCount: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'PASS')`.as('passed_count')
 			})

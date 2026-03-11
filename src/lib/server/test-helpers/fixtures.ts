@@ -74,7 +74,8 @@ export const sampleTestRun = {
 	startedAt: null,
 	finishedAt: null,
 	createdBy: 'user-1',
-	createdAt: new Date('2025-01-01')
+	createdAt: new Date('2025-01-01'),
+	retestOfRunId: null
 };
 
 export const sampleExecution = {
@@ -84,5 +85,7 @@ export const sampleExecution = {
 	status: 'PENDING' as const,
 	comment: null,
 	executedBy: null,
-	executedAt: null
+	executedAt: null,
+	startedAt: null,
+	completedAt: null
 };

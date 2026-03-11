@@ -23,8 +23,21 @@ vi.mock('$lib/server/db', () => ({
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', name: 'name', description: 'description', active: 'active', createdBy: 'created_by', createdAt: 'created_at' },
 	projectMember: { projectId: 'project_id', userId: 'user_id', role: 'role' },
-	testSuite: { id: 'id', projectId: 'project_id' },
-	testPlan: { id: 'id', projectId: 'project_id' },
+	testSuite: { id: 'id', projectId: 'project_id', name: 'name', description: 'description', createdBy: 'created_by', createdAt: 'created_at' },
+	testSuiteItem: { id: 'id', suiteId: 'suite_id', testCaseId: 'test_case_id', addedAt: 'added_at' },
+	testPlan: { id: 'id', projectId: 'project_id', name: 'name', description: 'description', status: 'status', milestone: 'milestone', startDate: 'start_date', endDate: 'end_date', createdBy: 'created_by', createdAt: 'created_at', updatedAt: 'updated_at' },
+	testPlanTestCase: { id: 'id', testPlanId: 'test_plan_id', testCaseId: 'test_case_id', position: 'position', addedAt: 'added_at' },
+	testCaseTemplate: { id: 'id', projectId: 'project_id', name: 'name', description: 'description', precondition: 'precondition', steps: 'steps', priority: 'priority', createdBy: 'created_by', createdAt: 'created_at', updatedAt: 'updated_at' },
+	testCaseGroup: { id: 'id', projectId: 'project_id', name: 'name', sortOrder: 'sort_order', color: 'color', createdBy: 'created_by' },
+	customField: { id: 'id', projectId: 'project_id', name: 'name', fieldType: 'field_type', options: 'options', required: 'required', sortOrder: 'sort_order' },
+	requirement: { id: 'id', projectId: 'project_id', externalId: 'external_id', title: 'title', description: 'description', source: 'source', createdBy: 'created_by', createdAt: 'created_at' },
+	requirementTestCase: { id: 'id', requirementId: 'requirement_id', testCaseId: 'test_case_id', createdAt: 'created_at' },
+	issueLink: { id: 'id', projectId: 'project_id', testCaseId: 'test_case_id', testExecutionId: 'test_execution_id', externalUrl: 'external_url', externalKey: 'external_key', title: 'title', status: 'status', provider: 'provider', createdBy: 'created_by', createdAt: 'created_at' },
+	exploratorySession: { id: 'id', projectId: 'project_id', title: 'title', charter: 'charter', status: 'status', environment: 'environment', tags: 'tags', startedAt: 'started_at', completedAt: 'completed_at', pausedDuration: 'paused_duration', summary: 'summary', createdBy: 'created_by' },
+	sessionNote: { id: 'id', sessionId: 'session_id', content: 'content', noteType: 'note_type', timestamp: 'timestamp', createdAt: 'created_at' },
+	testCaseComment: { id: 'id', testCaseId: 'test_case_id', userId: 'user_id', content: 'content', parentId: 'parent_id', createdAt: 'created_at' },
+	executionComment: { id: 'id', testExecutionId: 'test_execution_id', userId: 'user_id', content: 'content', parentId: 'parent_id', createdAt: 'created_at' },
+	approvalHistory: { id: 'id', testCaseId: 'test_case_id', fromStatus: 'from_status', toStatus: 'to_status', userId: 'user_id', comment: 'comment', createdAt: 'created_at' },
 	environmentConfig: { projectId: 'project_id', name: 'name', color: 'color', sortOrder: 'sort_order' },
 	priorityConfig: { projectId: 'project_id', name: 'name', color: 'color', sortOrder: 'sort_order' },
 	testCase: {
@@ -34,6 +47,8 @@ vi.mock('$lib/server/db/schema', () => ({
 		automationKey: 'automation_key',
 		latestVersionId: 'latest_version_id',
 		sortOrder: 'sort_order',
+		groupId: 'group_id',
+		approvalStatus: 'approval_status',
 		createdBy: 'created_by',
 		createdAt: 'created_at'
 	},
@@ -74,7 +89,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		comment: 'comment',
 		createdBy: 'created_by'
 	},
-	tag: { id: 'id', name: 'name', color: 'color' },
+	tag: { id: 'id', projectId: 'project_id', name: 'name', color: 'color', createdBy: 'created_by', createdAt: 'created_at' },
 	testCaseTag: { testCaseId: 'test_case_id', tagId: 'tag_id' }
 }));
 vi.mock('drizzle-orm', () => ({
@@ -88,7 +103,8 @@ vi.mock('drizzle-orm', () => ({
 		{ raw: (s: string) => s }
 	),
 	inArray: vi.fn((a: unknown, b: unknown) => [a, b]),
-	count: vi.fn()
+	count: vi.fn(),
+	isNull: vi.fn((a: unknown) => a)
 }));
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -1223,36 +1239,952 @@ describe('MCP Server', () => {
 		});
 	});
 
+	// ── New Resources ────────────────────────────────────────
+
+	describe('resource: tags://list', () => {
+		it('should return tags as JSON', async () => {
+			const mockTags = [
+				{ id: 1, name: 'smoke', color: '#ff0000' },
+				{ id: 2, name: 'regression', color: '#00ff00' }
+			];
+			mockSelectResult(mockDb, mockTags);
+
+			const result = await client.readResource({ uri: 'tags://list' });
+
+			expect(result.contents).toHaveLength(1);
+			expect(result.contents[0].uri).toBe('tags://list');
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+			expect(parsed).toHaveLength(2);
+			expect(parsed[0].name).toBe('smoke');
+		});
+
+		it('should return empty array when no tags', async () => {
+			mockSelectResult(mockDb, []);
+
+			const result = await client.readResource({ uri: 'tags://list' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+			expect(parsed).toEqual([]);
+		});
+	});
+
+	describe('resource: test-suites://list', () => {
+		it('should return suites as JSON', async () => {
+			mockSelectResult(mockDb, [{ id: 1, name: 'Smoke Suite', description: 'Quick tests', createdAt: '2025-01-01' }]);
+
+			const result = await client.readResource({ uri: 'test-suites://list' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+			expect(parsed).toHaveLength(1);
+			expect(parsed[0].name).toBe('Smoke Suite');
+		});
+	});
+
+	describe('resource: test-plans://list', () => {
+		it('should return plans as JSON', async () => {
+			mockSelectResult(mockDb, [{ id: 1, name: 'Sprint 1 Plan', status: 'DRAFT', milestone: 'v1.0', startDate: null, endDate: null, createdAt: '2025-01-01' }]);
+
+			const result = await client.readResource({ uri: 'test-plans://list' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+			expect(parsed).toHaveLength(1);
+			expect(parsed[0].status).toBe('DRAFT');
+		});
+	});
+
+	describe('resource: templates://list', () => {
+		it('should return templates as JSON', async () => {
+			mockSelectResult(mockDb, [{ id: 1, name: 'API Test Template', description: 'For REST APIs', priority: 'MEDIUM', createdAt: '2025-01-01' }]);
+
+			const result = await client.readResource({ uri: 'templates://list' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+			expect(parsed).toHaveLength(1);
+			expect(parsed[0].name).toBe('API Test Template');
+		});
+	});
+
+	describe('resource: requirements://list', () => {
+		it('should return requirements as JSON', async () => {
+			mockSelectResult(mockDb, [{ id: 1, externalId: 'REQ-001', title: 'Login', description: null, source: 'Jira', createdAt: '2025-01-01' }]);
+
+			const result = await client.readResource({ uri: 'requirements://list' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+			expect(parsed).toHaveLength(1);
+			expect(parsed[0].externalId).toBe('REQ-001');
+		});
+	});
+
+	describe('resource: custom-fields://list', () => {
+		it('should return custom fields as JSON', async () => {
+			mockSelectResult(mockDb, [{ id: 1, name: 'Browser', fieldType: 'SELECT', options: ['Chrome', 'Firefox'], required: false, sortOrder: 0 }]);
+
+			const result = await client.readResource({ uri: 'custom-fields://list' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+			expect(parsed).toHaveLength(1);
+			expect(parsed[0].fieldType).toBe('SELECT');
+		});
+	});
+
+	describe('resource: exploratory-sessions://list', () => {
+		it('should return sessions as JSON', async () => {
+			mockSelectResult(mockDb, [{ id: 1, title: 'Login exploration', charter: 'Explore login', status: 'ACTIVE', environment: 'QA', tags: ['login'], startedAt: '2025-01-01', completedAt: null }]);
+
+			const result = await client.readResource({ uri: 'exploratory-sessions://list' });
+			const parsed = JSON.parse(getResourceText(result.contents[0]));
+			expect(parsed).toHaveLength(1);
+			expect(parsed[0].status).toBe('ACTIVE');
+		});
+	});
+
+	// ── New Tools ─────────────────────────────────────────
+
+	describe('tool: complete-test-run', () => {
+		it('should complete a test run', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+			};
+			mockDb.update.mockReturnValue(updateChain as never);
+
+			const result = await client.callTool({ name: 'complete-test-run', arguments: { runId: 50 } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.success).toBe(true);
+			expect(parsed.status).toBe('COMPLETED');
+		});
+
+		it('should return error when already completed', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue({ ...sampleTestRun, status: 'COMPLETED' });
+
+			const result = await client.callTool({ name: 'complete-test-run', arguments: { runId: 50 } });
+			expect(result.isError).toBe(true);
+		});
+
+		it('should return error when run not found', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'complete-test-run', arguments: { runId: 999 } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: delete-test-case', () => {
+		it('should delete by ID', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+
+			const result = await client.callTool({ name: 'delete-test-case', arguments: { id: 10 } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.success).toBe(true);
+			expect(parsed.deletedId).toBe(10);
+		});
+
+		it('should delete by key', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+
+			const result = await client.callTool({ name: 'delete-test-case', arguments: { key: 'TC-0001' } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.success).toBe(true);
+		});
+
+		it('should return error when not found', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'delete-test-case', arguments: { key: 'TC-9999' } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: create-tag', () => {
+		it('should create a tag with default color', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockInsertReturning(mockDb, [{ id: 1, projectId: 1, name: 'smoke', color: '#6b7280' }]);
+
+			const result = await client.callTool({ name: 'create-tag', arguments: { name: 'smoke' } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.name).toBe('smoke');
+		});
+
+		it('should create a tag with custom color', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockInsertReturning(mockDb, [{ id: 2, projectId: 1, name: 'critical', color: '#ef4444' }]);
+
+			const result = await client.callTool({ name: 'create-tag', arguments: { name: 'critical', color: '#ef4444' } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.color).toBe('#ef4444');
+		});
+	});
+
+	describe('tool: delete-tag', () => {
+		it('should delete a tag', async () => {
+			mockDb.query.tag.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'smoke', color: '#ff0000' });
+
+			const result = await client.callTool({ name: 'delete-tag', arguments: { tagId: 1 } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.success).toBe(true);
+		});
+
+		it('should return error when tag not found', async () => {
+			mockDb.query.tag.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'delete-tag', arguments: { tagId: 999 } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: add-tag-to-test-case', () => {
+		it('should add tag to test case', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDb.query.tag.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'smoke', color: '#ff0000' });
+
+			const result = await client.callTool({ name: 'add-tag-to-test-case', arguments: { testCaseId: 10, tagId: 1 } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.success).toBe(true);
+		});
+
+		it('should return error when test case not found', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'add-tag-to-test-case', arguments: { testCaseId: 999, tagId: 1 } });
+			expect(result.isError).toBe(true);
+		});
+
+		it('should return error when tag not found', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDb.query.tag.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'add-tag-to-test-case', arguments: { testCaseId: 10, tagId: 999 } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: remove-tag-from-test-case', () => {
+		it('should remove tag from test case', async () => {
+			const result = await client.callTool({ name: 'remove-tag-from-test-case', arguments: { testCaseId: 10, tagId: 1 } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.success).toBe(true);
+		});
+	});
+
+	describe('tool: list-groups', () => {
+		it('should list groups', async () => {
+			mockSelectResult(mockDb, [{ id: 1, name: 'Auth', sortOrder: 0, color: '#3b82f6' }]);
+
+			const result = await client.callTool({ name: 'list-groups', arguments: {} });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed).toHaveLength(1);
+			expect(parsed[0].name).toBe('Auth');
+		});
+	});
+
+	describe('tool: create-group', () => {
+		it('should create a group', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockInsertReturning(mockDb, [{ id: 1, projectId: 1, name: 'Auth', color: null }]);
+
+			const result = await client.callTool({ name: 'create-group', arguments: { name: 'Auth' } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.name).toBe('Auth');
+		});
+	});
+
+	describe('tool: delete-group', () => {
+		it('should delete a group', async () => {
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Auth' });
+
+			const result = await client.callTool({ name: 'delete-group', arguments: { groupId: 1 } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.success).toBe(true);
+		});
+
+		it('should return error when group not found', async () => {
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'delete-group', arguments: { groupId: 999 } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: get-test-suite', () => {
+		it('should return suite with items', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Smoke Suite', description: 'Quick tests' });
+			mockSelectResult(mockDb, [{ testCaseId: 10, testCaseKey: 'TC-0001', testCaseTitle: 'Login', addedAt: '2025-01-01' }]);
+
+			const result = await client.callTool({ name: 'get-test-suite', arguments: { suiteId: 1 } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.name).toBe('Smoke Suite');
+			expect(parsed.items).toHaveLength(1);
+		});
+
+		it('should return error when suite not found', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'get-test-suite', arguments: { suiteId: 999 } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: create-test-suite', () => {
+		it('should create a suite', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockInsertReturning(mockDb, [{ id: 1, projectId: 1, name: 'Regression', description: null }]);
+
+			const result = await client.callTool({ name: 'create-test-suite', arguments: { name: 'Regression' } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.name).toBe('Regression');
+		});
+	});
+
+	describe('tool: add-suite-items', () => {
+		it('should add items to suite', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Suite' });
+
+			const result = await client.callTool({ name: 'add-suite-items', arguments: { suiteId: 1, testCaseIds: [10, 11] } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.success).toBe(true);
+			expect(parsed.addedCount).toBe(2);
+		});
+
+		it('should return error when suite not found', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'add-suite-items', arguments: { suiteId: 999, testCaseIds: [10] } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: remove-suite-items', () => {
+		it('should remove items from suite', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Suite' });
+
+			const result = await client.callTool({ name: 'remove-suite-items', arguments: { suiteId: 1, testCaseIds: [10] } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.success).toBe(true);
+		});
+	});
+
+	describe('tool: get-test-plan', () => {
+		it('should return plan with items', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Sprint 1', status: 'DRAFT' });
+			mockSelectResult(mockDb, [{ testCaseId: 10, position: 0, testCaseKey: 'TC-0001', testCaseTitle: 'Login', addedAt: '2025-01-01' }]);
+
+			const result = await client.callTool({ name: 'get-test-plan', arguments: { planId: 1 } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.name).toBe('Sprint 1');
+			expect(parsed.items).toHaveLength(1);
+		});
+
+		it('should return error when plan not found', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'get-test-plan', arguments: { planId: 999 } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: create-test-plan', () => {
+		it('should create a plan', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockInsertReturning(mockDb, [{ id: 1, projectId: 1, name: 'Sprint 1', status: 'DRAFT', milestone: 'v1.0' }]);
+
+			const result = await client.callTool({ name: 'create-test-plan', arguments: { name: 'Sprint 1', milestone: 'v1.0' } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.name).toBe('Sprint 1');
+			expect(parsed.milestone).toBe('v1.0');
+		});
+	});
+
+	describe('tool: update-test-plan', () => {
+		it('should update plan status', async () => {
+			mockDb.query.testPlan.findFirst
+				.mockResolvedValueOnce({ id: 1, projectId: 1, name: 'Sprint 1', status: 'DRAFT' })
+				.mockResolvedValueOnce({ id: 1, projectId: 1, name: 'Sprint 1', status: 'ACTIVE' });
+
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+			};
+			mockDb.update.mockReturnValue(updateChain as never);
+
+			const result = await client.callTool({ name: 'update-test-plan', arguments: { planId: 1, status: 'ACTIVE' } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.status).toBe('ACTIVE');
+		});
+
+		it('should return error when plan not found', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'update-test-plan', arguments: { planId: 999, name: 'New' } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: add-plan-items', () => {
+		it('should add items to plan', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Plan' });
+			mockSelectResult(mockDb, [{ value: 2 }]); // max position
+
+			const result = await client.callTool({ name: 'add-plan-items', arguments: { planId: 1, testCaseIds: [10, 11] } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.success).toBe(true);
+			expect(parsed.addedCount).toBe(2);
+		});
+	});
+
+	describe('tool: remove-plan-items', () => {
+		it('should remove items from plan', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Plan' });
+
+			const result = await client.callTool({ name: 'remove-plan-items', arguments: { planId: 1, testCaseIds: [10] } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.success).toBe(true);
+		});
+	});
+
+	describe('tool: create-run-from-plan', () => {
+		it('should create a run from plan', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Sprint 1', status: 'ACTIVE' });
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+
+			let selectCallCount = 0;
+			mockDb.select.mockImplementation(() => {
+				selectCallCount++;
+				const data = selectCallCount === 1
+					? [{ testCaseId: 10 }, { testCaseId: 11 }] // plan items
+					: [{ id: 10, latestVersionId: 100 }, { id: 11, latestVersionId: 101 }]; // test cases
+				const chain = {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					orderBy: vi.fn().mockReturnThis(),
+					then: (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve)
+				};
+				return chain as never;
+			});
+
+			const createdRun = { id: 60, projectId: 1, name: 'Sprint 1', environment: 'QA', status: 'CREATED' };
+			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+				const tx = {
+					insert: vi.fn().mockImplementation(() => ({
+						values: vi.fn().mockReturnThis(),
+						returning: vi.fn().mockReturnThis(),
+						then: (resolve: (v: unknown) => void) => Promise.resolve([createdRun]).then(resolve)
+					}))
+				};
+				return fn(tx);
+			});
+
+			const result = await client.callTool({ name: 'create-run-from-plan', arguments: { planId: 1, environment: 'QA' } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.name).toBe('Sprint 1');
+			expect(parsed.executionCount).toBe(2);
+			expect(parsed.planId).toBe(1);
+		});
+
+		it('should return error when plan has no test cases', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Empty Plan' });
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockSelectResult(mockDb, []);
+
+			const result = await client.callTool({ name: 'create-run-from-plan', arguments: { planId: 1, environment: 'QA' } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: get-template', () => {
+		it('should return template', async () => {
+			mockDb.query.testCaseTemplate.findFirst.mockResolvedValue({
+				id: 1, projectId: 1, name: 'API Template', description: 'REST API test', priority: 'MEDIUM',
+				precondition: 'Auth required', steps: [{ order: 1, action: 'Send GET', expected: '200 OK' }]
+			});
+
+			const result = await client.callTool({ name: 'get-template', arguments: { templateId: 1 } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.name).toBe('API Template');
+			expect(parsed.steps).toHaveLength(1);
+		});
+
+		it('should return error when template not found', async () => {
+			mockDb.query.testCaseTemplate.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'get-template', arguments: { templateId: 999 } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: create-template', () => {
+		it('should create a template', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockInsertReturning(mockDb, [{ id: 1, projectId: 1, name: 'API Template', priority: 'HIGH', steps: [] }]);
+
+			const result = await client.callTool({ name: 'create-template', arguments: { name: 'API Template', priority: 'HIGH' } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.name).toBe('API Template');
+		});
+	});
+
+	describe('tool: create-test-case-from-template', () => {
+		it('should create test case from template', async () => {
+			mockDb.query.testCaseTemplate.findFirst.mockResolvedValue({
+				id: 1, projectId: 1, name: 'Template', precondition: 'Auth', steps: [{ order: 1, action: 'Click', expected: 'OK' }], priority: 'HIGH'
+			});
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockSelectResult(mockDb, [{ maxKey: 'TC-0003' }]);
+
+			const createdTc = { id: 14, projectId: 1, key: 'TC-0004' };
+			const createdVersion = { id: 140, testCaseId: 14, versionNo: 1, title: 'From template', priority: 'HIGH' };
+			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+				let insertCallCount = 0;
+				const tx = {
+					insert: vi.fn().mockImplementation(() => {
+						insertCallCount++;
+						return {
+							values: vi.fn().mockReturnThis(),
+							returning: vi.fn().mockReturnThis(),
+							then: (resolve: (v: unknown) => void) => Promise.resolve([insertCallCount === 1 ? createdTc : createdVersion]).then(resolve)
+						};
+					}),
+					update: vi.fn().mockReturnValue({
+						set: vi.fn().mockReturnThis(),
+						where: vi.fn().mockReturnThis(),
+						then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+					})
+				};
+				return fn(tx);
+			});
+
+			const result = await client.callTool({ name: 'create-test-case-from-template', arguments: { templateId: 1, title: 'From template' } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.key).toBe('TC-0004');
+			expect(parsed.latestVersion.title).toBe('From template');
+		});
+	});
+
+	describe('tool: create-requirement', () => {
+		it('should create a requirement', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockInsertReturning(mockDb, [{ id: 1, projectId: 1, title: 'User login', externalId: 'REQ-001', source: 'Jira' }]);
+
+			const result = await client.callTool({ name: 'create-requirement', arguments: { title: 'User login', externalId: 'REQ-001', source: 'Jira' } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.title).toBe('User login');
+			expect(parsed.externalId).toBe('REQ-001');
+		});
+	});
+
+	describe('tool: link-requirement-test-case', () => {
+		it('should link requirement to test case', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue({ id: 1, projectId: 1, title: 'Login' });
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+
+			const result = await client.callTool({ name: 'link-requirement-test-case', arguments: { requirementId: 1, testCaseId: 10 } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.success).toBe(true);
+		});
+
+		it('should return error when requirement not found', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'link-requirement-test-case', arguments: { requirementId: 999, testCaseId: 10 } });
+			expect(result.isError).toBe(true);
+		});
+
+		it('should return error when test case not found', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue({ id: 1, projectId: 1, title: 'Login' });
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'link-requirement-test-case', arguments: { requirementId: 1, testCaseId: 999 } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: get-traceability-matrix', () => {
+		it('should return matrix with coverage stats', async () => {
+			let selectCallCount = 0;
+			mockDb.select.mockImplementation(() => {
+				selectCallCount++;
+				const data = selectCallCount === 1
+					? [{ id: 1, externalId: 'REQ-001', title: 'Login', source: 'Jira' }, { id: 2, externalId: 'REQ-002', title: 'Signup', source: null }]
+					: [{ requirementId: 1, testCaseId: 10, testCaseKey: 'TC-0001', testCaseTitle: 'Login test' }];
+				const chain = {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					orderBy: vi.fn().mockReturnThis(),
+					innerJoin: vi.fn().mockReturnThis(),
+					leftJoin: vi.fn().mockReturnThis(),
+					then: (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve)
+				};
+				return chain as never;
+			});
+
+			const result = await client.callTool({ name: 'get-traceability-matrix', arguments: {} });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.summary.totalRequirements).toBe(2);
+			expect(parsed.summary.coveredRequirements).toBe(1);
+			expect(parsed.summary.uncoveredRequirements).toBe(1);
+			expect(parsed.summary.coveragePercent).toBe(50);
+			expect(parsed.matrix[0].covered).toBe(true);
+			expect(parsed.matrix[1].covered).toBe(false);
+		});
+	});
+
+	describe('tool: list-issue-links', () => {
+		it('should list issue links', async () => {
+			mockSelectResult(mockDb, [{ id: 1, testCaseId: 10, testExecutionId: null, externalUrl: 'https://jira.com/PROJ-1', externalKey: 'PROJ-1', title: 'Bug', status: 'OPEN', provider: 'jira', createdAt: '2025-01-01' }]);
+
+			const result = await client.callTool({ name: 'list-issue-links', arguments: {} });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed).toHaveLength(1);
+			expect(parsed[0].externalKey).toBe('PROJ-1');
+		});
+	});
+
+	describe('tool: create-issue-link', () => {
+		it('should create an issue link', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockInsertReturning(mockDb, [{ id: 1, projectId: 1, externalUrl: 'https://github.com/org/repo/issues/42', provider: 'github', externalKey: '#42' }]);
+
+			const result = await client.callTool({
+				name: 'create-issue-link',
+				arguments: { externalUrl: 'https://github.com/org/repo/issues/42', provider: 'github', externalKey: '#42', testCaseId: 10 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.externalKey).toBe('#42');
+		});
+	});
+
+	describe('tool: create-exploratory-session', () => {
+		it('should create a session', async () => {
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockInsertReturning(mockDb, [{ id: 1, projectId: 1, title: 'Login exploration', charter: 'Explore login', status: 'ACTIVE', environment: 'QA', tags: ['login'] }]);
+
+			const result = await client.callTool({
+				name: 'create-exploratory-session',
+				arguments: { title: 'Login exploration', charter: 'Explore login', environment: 'QA', tags: ['login'] }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.title).toBe('Login exploration');
+			expect(parsed.status).toBe('ACTIVE');
+		});
+	});
+
+	describe('tool: get-exploratory-session', () => {
+		it('should return session with notes', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue({
+				id: 1, projectId: 1, title: 'Session 1', status: 'ACTIVE', startedAt: '2025-01-01T10:00:00Z'
+			});
+			mockSelectResult(mockDb, [
+				{ id: 1, content: 'Found a bug', noteType: 'BUG', timestamp: 120, createdAt: '2025-01-01T10:02:00Z' }
+			]);
+
+			const result = await client.callTool({ name: 'get-exploratory-session', arguments: { sessionId: 1 } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.title).toBe('Session 1');
+			expect(parsed.notes).toHaveLength(1);
+			expect(parsed.notes[0].noteType).toBe('BUG');
+		});
+
+		it('should return error when session not found', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'get-exploratory-session', arguments: { sessionId: 999 } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: update-exploratory-session', () => {
+		it('should complete a session', async () => {
+			mockDb.query.exploratorySession.findFirst
+				.mockResolvedValueOnce({ id: 1, projectId: 1, status: 'ACTIVE' })
+				.mockResolvedValueOnce({ id: 1, projectId: 1, status: 'COMPLETED', summary: 'Done' });
+
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+			};
+			mockDb.update.mockReturnValue(updateChain as never);
+
+			const result = await client.callTool({
+				name: 'update-exploratory-session',
+				arguments: { sessionId: 1, status: 'COMPLETED', summary: 'Done' }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.status).toBe('COMPLETED');
+		});
+
+		it('should return error when session not found', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'update-exploratory-session', arguments: { sessionId: 999, status: 'PAUSED' } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: add-session-note', () => {
+		it('should add a note', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue({
+				id: 1, projectId: 1, status: 'ACTIVE', startedAt: new Date('2025-01-01T10:00:00Z')
+			});
+			mockInsertReturning(mockDb, [{ id: 1, sessionId: 1, content: 'Found issue', noteType: 'BUG', timestamp: 300 }]);
+
+			const result = await client.callTool({
+				name: 'add-session-note',
+				arguments: { sessionId: 1, content: 'Found issue', noteType: 'BUG', timestamp: 300 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.noteType).toBe('BUG');
+			expect(parsed.timestamp).toBe(300);
+		});
+
+		it('should return error when session not found', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'add-session-note', arguments: { sessionId: 999, content: 'Note' } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: add-test-case-comment', () => {
+		it('should add a comment', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockInsertReturning(mockDb, [{ id: 1, testCaseId: 10, userId: 'user-1', content: 'Needs review' }]);
+
+			const result = await client.callTool({ name: 'add-test-case-comment', arguments: { testCaseId: 10, content: 'Needs review' } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.content).toBe('Needs review');
+		});
+
+		it('should return error when test case not found', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'add-test-case-comment', arguments: { testCaseId: 999, content: 'Comment' } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: list-test-case-comments', () => {
+		it('should list comments', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockSelectResult(mockDb, [
+				{ id: 1, content: 'First comment', userId: 'user-1', parentId: null, createdAt: '2025-01-01' },
+				{ id: 2, content: 'Reply', userId: 'user-2', parentId: 1, createdAt: '2025-01-02' }
+			]);
+
+			const result = await client.callTool({ name: 'list-test-case-comments', arguments: { testCaseId: 10 } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed).toHaveLength(2);
+		});
+	});
+
+	describe('tool: add-execution-comment', () => {
+		it('should add execution comment', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testExecution = { findFirst: vi.fn().mockResolvedValue(sampleExecution) };
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+			mockInsertReturning(mockDb, [{ id: 1, testExecutionId: 200, userId: 'user-1', content: 'Flaky test' }]);
+
+			const result = await client.callTool({ name: 'add-execution-comment', arguments: { runId: 50, executionId: 200, content: 'Flaky test' } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.content).toBe('Flaky test');
+		});
+
+		it('should return error when run not found', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'add-execution-comment', arguments: { runId: 999, executionId: 200, content: 'Comment' } });
+			expect(result.isError).toBe(true);
+		});
+
+		it('should return error when execution not found', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testExecution = { findFirst: vi.fn().mockResolvedValue(null) };
+
+			const result = await client.callTool({ name: 'add-execution-comment', arguments: { runId: 50, executionId: 999, content: 'Comment' } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('tool: update-approval-status', () => {
+		it('should update approval status', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ ...sampleTestCase, approvalStatus: 'DRAFT' });
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
+
+			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+				const tx = {
+					update: vi.fn().mockReturnValue({
+						set: vi.fn().mockReturnThis(),
+						where: vi.fn().mockReturnThis(),
+						then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+					}),
+					insert: vi.fn().mockReturnValue({
+						values: vi.fn().mockReturnThis(),
+						returning: vi.fn().mockReturnThis(),
+						then: (resolve: (v: unknown) => void) => Promise.resolve([{}]).then(resolve)
+					})
+				};
+				return fn(tx);
+			});
+
+			const result = await client.callTool({ name: 'update-approval-status', arguments: { testCaseId: 10, toStatus: 'IN_REVIEW' } });
+
+			expect(result.isError).toBeFalsy();
+			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+			expect(parsed.success).toBe(true);
+			expect(parsed.fromStatus).toBe('DRAFT');
+			expect(parsed.toStatus).toBe('IN_REVIEW');
+		});
+
+		it('should return error when test case not found', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({ name: 'update-approval-status', arguments: { testCaseId: 999, toStatus: 'APPROVED' } });
+			expect(result.isError).toBe(true);
+		});
+	});
+
 	// ── Tool listing ─────────────────────────────────────────
 
 	describe('tool and resource listing', () => {
-		it('should list all 10 tools', async () => {
+		it('should list all 41 tools', async () => {
 			const result = await client.listTools();
 			const toolNames = result.tools.map((t) => t.name).sort();
 
 			expect(toolNames).toEqual([
+				'add-execution-comment',
+				'add-plan-items',
+				'add-session-note',
+				'add-suite-items',
+				'add-tag-to-test-case',
+				'add-test-case-comment',
+				'complete-test-run',
+				'create-exploratory-session',
+				'create-group',
+				'create-issue-link',
+				'create-requirement',
+				'create-run-from-plan',
+				'create-tag',
+				'create-template',
 				'create-test-case',
+				'create-test-case-from-template',
+				'create-test-plan',
 				'create-test-run',
+				'create-test-suite',
+				'delete-group',
+				'delete-tag',
+				'delete-test-case',
 				'export-run-results',
+				'get-exploratory-session',
 				'get-failures',
+				'get-template',
 				'get-test-case',
+				'get-test-plan',
 				'get-test-run',
+				'get-test-suite',
+				'get-traceability-matrix',
+				'link-requirement-test-case',
+				'list-groups',
+				'list-issue-links',
+				'list-test-case-comments',
 				'record-failure-detail',
+				'remove-plan-items',
+				'remove-suite-items',
+				'remove-tag-from-test-case',
 				'search-test-cases',
+				'update-approval-status',
 				'update-execution-status',
-				'update-test-case'
+				'update-exploratory-session',
+				'update-test-case',
+				'update-test-plan'
 			]);
 		});
 
-		it('should list all 4 resources', async () => {
+		it('should list all 11 resources', async () => {
 			const result = await client.listResources();
 			const uris = result.resources.map((r) => r.uri).sort();
 
 			expect(uris).toEqual([
+				'custom-fields://list',
+				'exploratory-sessions://list',
 				'projects://current',
 				'reports://summary',
+				'requirements://list',
+				'tags://list',
+				'templates://list',
 				'test-cases://list',
-				'test-runs://list'
+				'test-plans://list',
+				'test-runs://list',
+				'test-suites://list'
 			]);
 		});
 	});

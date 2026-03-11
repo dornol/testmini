@@ -467,10 +467,87 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ---
 
+## Phase 20: MCP Server Enhancement
+
+### 20.1 New Resources (7) -- Done
+
+- [x] `tags://list` -- list all project tags
+- [x] `test-suites://list` -- list all test suites
+- [x] `test-plans://list` -- list all test plans
+- [x] `templates://list` -- list all test case templates
+- [x] `requirements://list` -- list all requirements
+- [x] `custom-fields://list` -- list all custom field definitions
+- [x] `exploratory-sessions://list` -- list recent exploratory sessions
+
+### 20.2 New Tools (31) -- Done
+
+**Test Case Management:**
+- [x] `delete-test-case` -- delete by ID or key
+- [x] `complete-test-run` -- set run status to COMPLETED
+- [x] `update-approval-status` -- DRAFT → IN_REVIEW → APPROVED/REJECTED workflow
+
+**Tags (4):**
+- [x] `create-tag` -- create new tag
+- [x] `delete-tag` -- delete tag by ID
+- [x] `add-tag-to-test-case` -- tag a test case
+- [x] `remove-tag-from-test-case` -- untag a test case
+
+**Groups (3):**
+- [x] `list-groups` -- list test case groups/sections
+- [x] `create-group` -- create new group
+- [x] `delete-group` -- delete group (unassigns test cases)
+
+**Test Suites (4):**
+- [x] `get-test-suite` -- suite detail with test cases
+- [x] `create-test-suite` -- create new suite
+- [x] `add-suite-items` -- add test cases to suite
+- [x] `remove-suite-items` -- remove test cases from suite
+
+**Test Plans (6):**
+- [x] `get-test-plan` -- plan detail with test cases
+- [x] `create-test-plan` -- create plan with milestone/dates
+- [x] `update-test-plan` -- update name/status/milestone/dates
+- [x] `add-plan-items` -- add test cases to plan
+- [x] `remove-plan-items` -- remove test cases from plan
+- [x] `create-run-from-plan` -- generate test run from plan
+
+**Templates (3):**
+- [x] `get-template` -- template detail
+- [x] `create-template` -- create new template
+- [x] `create-test-case-from-template` -- create test case from template
+
+**Requirements & Traceability (3):**
+- [x] `create-requirement` -- create new requirement
+- [x] `link-requirement-test-case` -- link requirement to test case
+- [x] `get-traceability-matrix` -- coverage matrix with stats
+
+**Issue Links (2):**
+- [x] `list-issue-links` -- list issue links (filter by test case/execution)
+- [x] `create-issue-link` -- link external issue
+
+**Exploratory Sessions (4):**
+- [x] `create-exploratory-session` -- start new session
+- [x] `get-exploratory-session` -- session detail with notes
+- [x] `update-exploratory-session` -- pause/resume/complete
+- [x] `add-session-note` -- add note (NOTE/BUG/QUESTION/IDEA)
+
+**Comments (3):**
+- [x] `add-test-case-comment` -- comment on test case
+- [x] `list-test-case-comments` -- list test case comments
+- [x] `add-execution-comment` -- comment on test execution
+
+### 20.3 Test Coverage -- Done
+
+147 test files, 1846 tests (was 144 files, 1720 tests):
+
+- [x] MCP server tests expanded from 56 to 123 tests (67 new)
+  - 7 new resource tests (tags, suites, plans, templates, requirements, custom fields, exploratory sessions)
+  - 60 new tool tests covering all 31 new tools with success paths and error cases
+
+---
+
 ## Future Considerations
 
 | Feature | Priority | Notes |
 |---------|----------|-------|
 | Bulk execution via CLI | Low | `testmini exec --run 123` for headless execution recording |
-| GraphQL API | Low | Alternative to REST for flexible querying |
-| AI-assisted test case generation | Low | Generate test cases from requirements or code changes using LLM |

@@ -67,7 +67,13 @@ export function createMockDb() {
 			testCaseGroup: { findFirst: vi.fn() },
 			priorityConfig: { findFirst: vi.fn() },
 			tag: { findFirst: vi.fn() },
-			testCaseTag: { findFirst: vi.fn() }
+			testCaseTag: { findFirst: vi.fn() },
+			testSuite: { findFirst: vi.fn() },
+			testPlan: { findFirst: vi.fn() },
+			testCaseTemplate: { findFirst: vi.fn() },
+			requirement: { findFirst: vi.fn() },
+			exploratorySession: { findFirst: vi.fn() },
+			project: { findFirst: vi.fn() }
 		} as Record<string, { findFirst: ReturnType<typeof vi.fn> }>,
 		_chains: { select: selectChain, insert: insertChain, update: updateChain, delete: deleteChain }
 	};

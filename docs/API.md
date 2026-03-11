@@ -2313,7 +2313,7 @@ Authentication: Bearer API key (same as automation API).
 
 Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTransport`). Stateful sessions are managed via `mcp-session-id` header.
 
-### Resources
+### Resources (11)
 
 | Resource | URI | Description |
 |----------|-----|-------------|
@@ -2321,21 +2321,110 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `test-runs` | `test-runs://list` | Recent test runs (last 50) with status |
 | `summary` | `reports://summary` | Total test case count + recent 5 runs |
 | `project` | `projects://current` | Current project info with counts, members, environments, priorities |
+| `tags` | `tags://list` | All project tags with colors |
+| `test-suites` | `test-suites://list` | All test suites |
+| `test-plans` | `test-plans://list` | All test plans with status and milestone |
+| `templates` | `templates://list` | All test case templates |
+| `requirements` | `requirements://list` | All requirements |
+| `custom-fields` | `custom-fields://list` | All custom field definitions |
+| `exploratory-sessions` | `exploratory-sessions://list` | Recent exploratory sessions (last 50) |
 
-### Tools
+### Tools (41)
+
+#### Test Cases & Runs (Core)
 
 | Tool | Parameters | Description |
 |------|-----------|-------------|
 | `search-test-cases` | `query`, `limit?` | Full-text search across test cases |
 | `get-test-case` | `id?`, `key?` | Get test case detail with version and tags |
-| `get-test-run` | `runId` | Get test run with execution status counts |
-| `get-failures` | `runId` | Get failure details (error messages, stack traces) |
 | `create-test-case` | `title`, `priority?`, `precondition?`, `steps?`, `expectedResult?` | Create a new test case |
 | `update-test-case` | `id?`, `key?`, `title?`, `priority?`, `precondition?`, `steps?`, `expectedResult?` | Update test case (creates new version) |
+| `delete-test-case` | `id?`, `key?` | Delete a test case by ID or key |
+| `get-test-run` | `runId` | Get test run with execution status counts |
 | `create-test-run` | `name`, `environment`, `testCaseIds?` | Create test run with selected or all test cases |
+| `complete-test-run` | `runId` | Complete a test run (set status to COMPLETED) |
+| `update-execution-status` | `runId`, `executionId`, `status` | Update execution status (PASS/FAIL/BLOCKED/SKIPPED/PENDING) |
+| `get-failures` | `runId` | Get failure details (error messages, stack traces) |
 | `record-failure-detail` | `runId`, `executionId`, `errorMessage?`, `stackTrace?`, `failureEnvironment?`, `comment?` | Record failure details for execution |
 | `export-run-results` | `runId` | Export test run results as structured JSON |
-| `update-execution-status` | `runId`, `executionId`, `status` | Update execution status (PASS/FAIL/BLOCKED/SKIPPED/PENDING) |
+| `update-approval-status` | `testCaseId`, `toStatus`, `comment?` | Update approval status (DRAFT/IN_REVIEW/APPROVED/REJECTED) |
+
+#### Tags
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `create-tag` | `name`, `color?` | Create a new tag |
+| `delete-tag` | `tagId` | Delete a tag by ID |
+| `add-tag-to-test-case` | `testCaseId`, `tagId` | Add a tag to a test case |
+| `remove-tag-from-test-case` | `testCaseId`, `tagId` | Remove a tag from a test case |
+
+#### Groups
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `list-groups` | (none) | List test case groups/sections |
+| `create-group` | `name`, `color?` | Create a test case group |
+| `delete-group` | `groupId` | Delete a group (unassigns test cases) |
+
+#### Test Suites
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `get-test-suite` | `suiteId` | Get suite detail with test cases |
+| `create-test-suite` | `name`, `description?` | Create a new test suite |
+| `add-suite-items` | `suiteId`, `testCaseIds` | Add test cases to a suite |
+| `remove-suite-items` | `suiteId`, `testCaseIds` | Remove test cases from a suite |
+
+#### Test Plans
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `get-test-plan` | `planId` | Get plan detail with test cases |
+| `create-test-plan` | `name`, `description?`, `milestone?`, `startDate?`, `endDate?` | Create a new test plan |
+| `update-test-plan` | `planId`, `name?`, `description?`, `status?`, `milestone?`, `startDate?`, `endDate?` | Update plan properties and status |
+| `add-plan-items` | `planId`, `testCaseIds` | Add test cases to a plan |
+| `remove-plan-items` | `planId`, `testCaseIds` | Remove test cases from a plan |
+| `create-run-from-plan` | `planId`, `environment`, `runName?` | Generate a test run from a plan |
+
+#### Templates
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `get-template` | `templateId` | Get template detail |
+| `create-template` | `name`, `description?`, `priority?`, `precondition?`, `steps?` | Create a new template |
+| `create-test-case-from-template` | `templateId`, `title` | Create a test case from a template |
+
+#### Requirements & Traceability
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `create-requirement` | `title`, `externalId?`, `description?`, `source?` | Create a new requirement |
+| `link-requirement-test-case` | `requirementId`, `testCaseId` | Link requirement to test case |
+| `get-traceability-matrix` | (none) | Get coverage matrix with summary stats |
+
+#### Issue Links
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `list-issue-links` | `testCaseId?`, `executionId?` | List issue links (filter by test case/execution) |
+| `create-issue-link` | `externalUrl`, `provider`, `externalKey?`, `title?`, `testCaseId?`, `executionId?` | Link an external issue |
+
+#### Exploratory Sessions
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `create-exploratory-session` | `title`, `charter?`, `environment?`, `tags?` | Start a new session |
+| `get-exploratory-session` | `sessionId` | Get session detail with notes |
+| `update-exploratory-session` | `sessionId`, `status?`, `summary?` | Pause/resume/complete session |
+| `add-session-note` | `sessionId`, `content`, `noteType?`, `timestamp?` | Add note (NOTE/BUG/QUESTION/IDEA) |
+
+#### Comments
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `add-test-case-comment` | `testCaseId`, `content` | Comment on a test case |
+| `list-test-case-comments` | `testCaseId` | List test case comments |
+| `add-execution-comment` | `runId`, `executionId`, `content` | Comment on a test execution |
 
 ### Resource: `projects://current` Response
 

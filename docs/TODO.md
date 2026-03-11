@@ -425,6 +425,30 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ---
 
+## Phase 18: Column Settings, Custom Field Enhancements & Bug Fixes
+
+### 18.1 Column Settings -- Done
+
+- [x] Column visibility and order settings (project-wide, stored in DB)
+  - GET/PUT `/api/projects/:projectId/column-settings`
+  - Static columns, custom field columns (`cf_*`), test run columns (`run_*`)
+
+### 18.2 Custom Field Enhancements -- Done
+
+- [x] Inline custom field editing in test case list
+- [x] Custom fields in test case creation form
+  - `createTestCaseSchema` now includes `customFields`
+  - PATCH API supports `customFields` for inline editing (merged with existing values)
+
+### 18.3 Bug Fixes -- Done
+
+- [x] Fix: exploratory session detail page 500 error
+- [x] Fix: double unsaved-changes dialog
+- [x] Fix: VirtualList bottom cut-off
+- [x] Fix: member list table styling
+
+---
+
 ## Future Considerations
 
 | Feature | Priority | Notes |

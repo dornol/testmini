@@ -66,6 +66,7 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 33. [Exploratory Sessions](#exploratory-sessions)
 34. [Approval Workflow](#approval-workflow)
 35. [Teams](#teams)
+36. [Column Settings](#column-settings)
 
 ---
 
@@ -365,6 +366,7 @@ Partial update of a test case. Updating `title` or `priority` creates a new vers
 | `title` | string | Creates a new version |
 | `priority` | `string` (project-configured priority name, e.g. `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`) | Creates a new version |
 | `automationKey` | `string \| null` | Must be unique within the project |
+| `customFields` | object | Partial custom field update; merged with existing values, `null` entries are removed |
 
 **Response 200**
 ```json
@@ -3555,3 +3557,67 @@ Unique constraint on `(team_id, user_id)`.
 ### Project Assignment
 
 Projects are assigned to teams via `project.team_id` (nullable integer FK → team, set null on delete). This is backward compatible — projects without a team continue to work as before. When a project belongs to a team, it appears on the team dashboard and team members gain visibility into the project.
+
+---
+
+## Column Settings
+
+Project-wide column visibility and ordering for the test case list view.
+
+### Get Column Settings
+
+```
+GET /api/projects/:projectId/column-settings
+```
+
+**Auth:** Project member (any role)
+
+**Response:**
+```json
+{
+  "columnSettings": [
+    { "id": "key", "visible": true },
+    { "id": "title", "visible": true },
+    { "id": "priority", "visible": true },
+    { "id": "tags", "visible": false },
+    { "id": "assignees", "visible": true },
+    { "id": "updatedBy", "visible": true },
+    { "id": "cf_1", "visible": true },
+    { "id": "run_5", "visible": true }
+  ]
+}
+```
+
+Returns `null` if no settings have been configured yet (all columns visible by default).
+
+### Update Column Settings
+
+```
+PUT /api/projects/:projectId/column-settings
+```
+
+**Auth:** PROJECT_ADMIN, QA, DEV
+
+**Request body:**
+```json
+{
+  "columnSettings": [
+    { "id": "key", "visible": true },
+    { "id": "title", "visible": true },
+    { "id": "priority", "visible": false },
+    { "id": "tags", "visible": true }
+  ]
+}
+```
+
+**Column IDs:**
+- Static: `key`, `title`, `priority`, `tags`, `assignees`, `updatedBy`
+- Custom fields: `cf_{fieldId}` (e.g., `cf_1`, `cf_2`)
+- Test runs: `run_{runId}` (e.g., `run_5`, `run_12`)
+
+Array order determines display order. Settings are project-wide (shared across all members).
+
+**Response:**
+```json
+{ "success": true }
+```

@@ -27,10 +27,22 @@ export function buildTestCaseConditions(params: TestCaseFilterParams): SQL {
 	const conditions: SQL[] = [eq(testCase.projectId, params.projectId)];
 
 	if (params.search) {
-		const keyCondition = ilike(testCase.key, `%${params.search}%`);
-		const query = params.search.trim().split(/\s+/).join(' & ');
-		const ftsCondition = sql`test_case_version.search_vector @@ to_tsquery('english', ${query})`;
-		conditions.push(or(keyCondition, ftsCondition)!);
+		const term = params.search.trim();
+		const keyCondition = ilike(testCase.key, `%${term}%`);
+		const titleCondition = ilike(testCaseVersion.title, `%${term}%`);
+		// Also try full-text search for word-level matching (English tokenizer)
+		const words = term.split(/\s+/).filter(Boolean);
+		if (words.length > 0) {
+			const query = words.map((w) => w.replace(/[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ_-]/g, '')).filter(Boolean).join(' & ');
+			if (query) {
+				const ftsCondition = sql`test_case_version.search_vector @@ to_tsquery('english', ${query})`;
+				conditions.push(or(keyCondition, titleCondition, ftsCondition)!);
+			} else {
+				conditions.push(or(keyCondition, titleCondition)!);
+			}
+		} else {
+			conditions.push(or(keyCondition, titleCondition)!);
+		}
 	}
 
 	if (params.priority) {

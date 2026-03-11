@@ -14,9 +14,11 @@ vi.mock('$lib/server/db/schema', () => ({
 		key: 'key',
 		groupId: 'group_id',
 		createdBy: 'created_by',
-		approvalStatus: 'approval_status'
+		approvalStatus: 'approval_status',
+		retestNeeded: 'retest_needed'
 	},
 	testCaseVersion: {
+		title: 'title',
 		priority: 'priority',
 		customFields: 'custom_fields',
 		searchVector: 'search_vector'
@@ -74,12 +76,19 @@ describe('buildTestCaseConditions', () => {
 		});
 	});
 
-	// 2. search filter — should produce or(ilike, sql FTS)
-	it('should add search condition with or(ilike, fts)', () => {
+	// 2. search filter — should produce or(ilike key, ilike title, sql FTS)
+	it('should add search condition with or(ilike key, ilike title, fts)', () => {
 		buildTestCaseConditions({ projectId: 1, search: 'login' });
 
 		expect(mockIlike).toHaveBeenCalledWith('key', '%login%');
+		expect(mockIlike).toHaveBeenCalledWith('title', '%login%');
 		expect(mockOr).toHaveBeenCalledTimes(1);
+		// or() should receive 3 args: key ilike, title ilike, fts sql
+		const orArgs = mockOr.mock.calls[0];
+		expect(orArgs).toHaveLength(3);
+		expect(orArgs[0]).toEqual({ type: 'ilike', field: 'key', pattern: '%login%' });
+		expect(orArgs[1]).toEqual({ type: 'ilike', field: 'title', pattern: '%login%' });
+		expect(orArgs[2].type).toBe('sql');
 		// and() should be called with 2 conditions: projectId eq + or(search)
 		expect(mockAnd.mock.calls[0]).toHaveLength(2);
 	});
@@ -416,12 +425,55 @@ describe('buildTestCaseConditions', () => {
 		buildTestCaseConditions({ projectId: 1, search: 'login page test' });
 
 		expect(mockIlike).toHaveBeenCalledWith('key', '%login page test%');
+		expect(mockIlike).toHaveBeenCalledWith('title', '%login page test%');
 		expect(mockOr).toHaveBeenCalledTimes(1);
 
 		// The sql tagged template should receive the joined query
 		const orArgs = mockOr.mock.calls[0];
-		const ftsCondition = orArgs[1]; // second arg to or() is the FTS sql
+		expect(orArgs).toHaveLength(3); // key ilike, title ilike, fts sql
+		const ftsCondition = orArgs[2]; // third arg to or() is the FTS sql
 		expect(ftsCondition.type).toBe('sql');
 		expect(ftsCondition.values).toContain('login & page & test');
+	});
+
+	// 28. search with special characters only — should fall back to ilike without FTS
+	it('should use only ilike (no FTS) when search has only special characters', () => {
+		buildTestCaseConditions({ projectId: 1, search: '@#$%' });
+
+		expect(mockIlike).toHaveBeenCalledWith('key', '%@#$%%');
+		expect(mockIlike).toHaveBeenCalledWith('title', '%@#$%%');
+		expect(mockOr).toHaveBeenCalledTimes(1);
+		// or() should receive 2 args: key ilike, title ilike (no FTS)
+		const orArgs = mockOr.mock.calls[0];
+		expect(orArgs).toHaveLength(2);
+	});
+
+	// 29. search with whitespace only — should use ilike with empty pattern (no FTS)
+	it('should use ilike without FTS for whitespace-only search', () => {
+		buildTestCaseConditions({ projectId: 1, search: '   ' });
+
+		expect(mockIlike).toHaveBeenCalledWith('key', '%%');
+		expect(mockIlike).toHaveBeenCalledWith('title', '%%');
+		expect(mockOr).toHaveBeenCalledTimes(1);
+		// or() should have 2 args: key ilike, title ilike (no FTS since no words)
+		const orArgs = mockOr.mock.calls[0];
+		expect(orArgs).toHaveLength(2);
+	});
+
+	// 30. retestNeeded filter
+	it('should add eq condition for retestNeeded=true', () => {
+		buildTestCaseConditions({ projectId: 1, retestNeeded: 'true' });
+
+		expect(mockEq).toHaveBeenCalledWith('retest_needed', true);
+		expect(mockAnd.mock.calls[0]).toHaveLength(2);
+	});
+
+	// 31. retestNeeded filter — false value should not add condition
+	it('should not add condition for retestNeeded=false', () => {
+		buildTestCaseConditions({ projectId: 1, retestNeeded: 'false' });
+
+		// eq should only be called once for projectId
+		expect(mockEq).toHaveBeenCalledTimes(1);
+		expect(mockAnd.mock.calls[0]).toHaveLength(1);
 	});
 });

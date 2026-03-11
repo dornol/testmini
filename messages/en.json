@@ -144,6 +144,7 @@
 	"tc_detail_edit": "Edit Test Case",
 	"tc_detail_version_history": "Version History",
 	"tc_detail_hide_history": "Hide History",
+	"tc_detail_open_full_page": "Open Full Page",
 	"tc_detail_delete_title": "Delete Test Case",
 	"tc_detail_delete_confirm": "Are you sure you want to delete \"{key}\"? This action cannot be undone and will remove all version history.",
 	"tc_detail_untitled": "Untitled",

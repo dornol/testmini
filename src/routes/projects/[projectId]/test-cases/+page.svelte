@@ -1936,6 +1936,8 @@
 	{canEdit}
 	{canDelete}
 	projectPriorities={data.projectPriorities}
+	currentUserId={data.user?.id ?? ''}
+	userRole={data.userRole}
 	onchange={() => invalidateAll()}
 />
 

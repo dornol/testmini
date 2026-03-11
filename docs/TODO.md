@@ -687,6 +687,31 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ---
 
+## Phase 23: Search & Detail Sheet Enhancements
+
+### 23.1 Test Case Search Improvement -- Done
+
+- [x] Search now uses ILIKE contains matching for both key and title (was key-only)
+- [x] Combined with existing full-text search (FTS) via OR for best coverage
+- [x] Partial string matching works for non-English text (Korean, etc.)
+
+### 23.2 Test Case Detail Sheet Enhancement -- Done
+
+- [x] "Open Full Page" link button to navigate to full detail/edit page
+- [x] Approval status badge display in sheet header
+- [x] Automation key display section
+- [x] Gherkin/BDD step format rendering with keyword coloring (Given/When/Then/And/But)
+- [x] Tabbed Comments/Attachments section at bottom of sheet
+- [x] Custom fields display
+
+### 23.x Test Coverage -- Done
+
+161 test files, 2009 tests (was 161 files, 2005 tests):
+
+- [x] Test case filters updated (36 tests, was 27) -- title ILIKE in search, special char fallback, whitespace search, retestNeeded filter
+
+---
+
 ## Future Considerations
 
 | Feature | Priority | Notes |

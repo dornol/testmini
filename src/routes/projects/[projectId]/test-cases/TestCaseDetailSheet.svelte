@@ -11,16 +11,20 @@
 	import TagBadge from '$lib/components/TagBadge.svelte';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
+	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
+	import CommentSection from '$lib/components/CommentSection.svelte';
 	import VersionDiffDialog from './VersionDiffDialog.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
 	import { apiFetch, apiPut, apiDelete, apiPost } from '$lib/api-client';
 
-	let { projectId, canEdit, canDelete, projectPriorities, onchange }: {
+	let { projectId, canEdit, canDelete, projectPriorities, currentUserId, userRole, onchange }: {
 		projectId: number;
 		canEdit: boolean;
 		canDelete: boolean;
 		projectPriorities: { id: number; name: string; color: string; position: number; isDefault: boolean }[];
+		currentUserId: string;
+		userRole: string;
 		onchange: () => void;
 	} = $props();
 
@@ -33,14 +37,23 @@
 		priority: string;
 		precondition?: string | null;
 		expectedResult?: string | null;
+		stepFormat?: string | null;
 		steps?: { order: number; action: string; expected: string }[] | null;
 		revision?: number;
 		updatedBy?: string;
 		createdAt?: string;
+		customFields?: Record<string, unknown> | null;
 	}
 
 	let detailData: {
-		testCase: { id: number; key: string; createdAt: string; latestVersion: TestCaseVersion | null };
+		testCase: {
+			id: number;
+			key: string;
+			automationKey?: string | null;
+			approvalStatus?: string;
+			createdAt: string;
+			latestVersion: TestCaseVersion | null;
+		};
 		versions: TestCaseVersion[];
 		assignedTags: { id: number; name: string; color: string }[];
 		projectTags: { id: number; name: string; color: string }[];
@@ -57,6 +70,9 @@
 	let diffV1: TestCaseVersion | null = $state(null);
 	let diffV2: TestCaseVersion | null = $state(null);
 	let diffLoading = $state(false);
+
+	// Active tab for bottom sections
+	let activeTab = $state<'comments' | 'attachments'>('comments');
 
 	function toggleVersionSelect(versionNo: number) {
 		if (compareSelectedVersions.includes(versionNo)) {
@@ -109,6 +125,15 @@
 		return projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
 	}
 
+	function getApprovalBadgeClass(status: string): string {
+		switch (status) {
+			case 'IN_REVIEW': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+			case 'APPROVED': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+			case 'REJECTED': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+			default: return 'bg-muted text-muted-foreground';
+		}
+	}
+
 	export async function open(tcId: number) {
 		selectedTcId = tcId;
 		detailLoading = true;
@@ -116,6 +141,7 @@
 		showVersions = false;
 		sheetLockHolder = null;
 		compareSelectedVersions = [];
+		activeTab = 'comments';
 		sheetOpen = true;
 
 		try {
@@ -367,6 +393,11 @@
 								<PriorityBadge name={version.priority} color={getPriorityColor(version.priority)} />
 							{/if}
 							<span class="text-muted-foreground text-xs">v{version?.versionNo ?? 0}</span>
+							{#if tc.approvalStatus}
+								<span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium {getApprovalBadgeClass(tc.approvalStatus)}">
+									{tc.approvalStatus}
+								</span>
+							{/if}
 						</div>
 						<h3 class="text-lg font-semibold leading-tight">{version?.title ?? ''}</h3>
 						<p class="text-muted-foreground text-xs">
@@ -381,6 +412,10 @@
 					</div>
 				{/if}
 				<div class="flex items-center gap-2 mt-4">
+					<a href="/projects/{projectId}/test-cases/{tc.id}" class="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md h-7 text-xs px-3">
+						<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+						{m.tc_detail_open_full_page()}
+					</a>
 					{#if canEdit && !detailEditing}
 						<Button size="sm" class="h-7 text-xs" onclick={startDetailEdit}>
 							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
@@ -624,24 +659,49 @@
 								<div class="flex items-center gap-1.5">
 									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/></svg>
 									<h4 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{m.tc_detail_steps()}</h4>
+									{#if version.stepFormat === 'GHERKIN'}
+										<span class="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">BDD</span>
+									{/if}
 								</div>
-								<div class="space-y-2">
-									{#each version.steps as step (step.order)}
-										<div class="rounded-lg border p-3 hover:bg-muted/20 transition-colors">
-											<div class="flex items-center gap-2 mb-1.5">
-												<span class="bg-primary/10 text-primary text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center shrink-0">{step.order}</span>
-												<span class="text-xs font-medium text-muted-foreground">{m.tc_detail_action()}</span>
+								{#if version.stepFormat === 'GHERKIN'}
+									<div class="space-y-1 rounded-md border p-3">
+										{#each version.steps as step, i (i)}
+											{@const parts = step.action.split(' ')}
+											{@const keyword = parts[0]}
+											{@const stepText = parts.slice(1).join(' ')}
+											{@const isKeyword = ['Given', 'When', 'Then', 'And', 'But'].includes(keyword)}
+											<div class="text-sm">
+												{#if isKeyword}
+													<span class="font-bold {keyword === 'Given' ? 'text-blue-600 dark:text-blue-400' : keyword === 'When' ? 'text-amber-600 dark:text-amber-400' : keyword === 'Then' ? 'text-green-600 dark:text-green-400' : 'text-purple-600 dark:text-purple-400'}">{keyword}</span>
+													<span class="ml-1">{stepText}</span>
+												{:else}
+													<span>{step.action}</span>
+												{/if}
+												{#if step.expected}
+													<span class="text-muted-foreground text-xs ml-2">({step.expected})</span>
+												{/if}
 											</div>
-											<p class="text-sm pl-7">{step.action}</p>
-											{#if step.expected}
-												<div class="mt-2 pl-7 border-l-2 border-muted ml-2.5">
-													<span class="text-xs text-muted-foreground">{m.tc_detail_expected()}</span>
-													<p class="text-sm">{step.expected}</p>
+										{/each}
+									</div>
+								{:else}
+									<div class="space-y-2">
+										{#each version.steps as step (step.order)}
+											<div class="rounded-lg border p-3 hover:bg-muted/20 transition-colors">
+												<div class="flex items-center gap-2 mb-1.5">
+													<span class="bg-primary/10 text-primary text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center shrink-0">{step.order}</span>
+													<span class="text-xs font-medium text-muted-foreground">{m.tc_detail_action()}</span>
 												</div>
-											{/if}
-										</div>
-									{/each}
-								</div>
+												<p class="text-sm pl-7">{step.action}</p>
+												{#if step.expected}
+													<div class="mt-2 pl-7 border-l-2 border-muted ml-2.5">
+														<span class="text-xs text-muted-foreground">{m.tc_detail_expected()}</span>
+														<p class="text-sm">{step.expected}</p>
+													</div>
+												{/if}
+											</div>
+										{/each}
+									</div>
+								{/if}
 							</div>
 						{/if}
 
@@ -657,13 +717,59 @@
 							</div>
 						{/if}
 
-						{#if !version.precondition && (!version.steps || version.steps.length === 0) && !version.expectedResult}
+						<!-- Automation Key -->
+						{#if tc.automationKey}
+							<div class="space-y-1.5">
+								<div class="flex items-center gap-1.5">
+									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+									<h4 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{m.tc_automation_key_label()}</h4>
+								</div>
+								<p class="text-sm font-mono bg-muted/40 rounded-lg px-3 py-2">{tc.automationKey}</p>
+							</div>
+						{/if}
+
+						{#if !version.precondition && (!version.steps || version.steps.length === 0) && !version.expectedResult && !tc.automationKey}
 							<div class="text-center py-8">
 								<p class="text-muted-foreground text-sm">{m.common_no_results()}</p>
 								{#if canEdit}
 									<Button variant="outline" size="sm" class="mt-3" onclick={startDetailEdit}>{m.common_edit()}</Button>
 								{/if}
 							</div>
+						{/if}
+					</div>
+
+					<!-- Tabs: Comments / Attachments -->
+					<div class="border-t pt-4">
+						<div class="flex border-b mb-4">
+							<button
+								type="button"
+								class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'comments' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+								onclick={() => (activeTab = 'comments')}
+							>
+								{m.comment_title()}
+							</button>
+							<button
+								type="button"
+								class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'attachments' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+								onclick={() => (activeTab = 'attachments')}
+							>
+								{m.attachments_title()}
+							</button>
+						</div>
+
+						{#if activeTab === 'comments'}
+							<CommentSection
+								testCaseId={tc.id}
+								projectId={projectId}
+								{currentUserId}
+								{userRole}
+							/>
+						{:else if activeTab === 'attachments'}
+							<AttachmentManager
+								referenceType="TESTCASE"
+								referenceId={tc.id}
+								editable={canEdit}
+							/>
 						{/if}
 					</div>
 				{/if}

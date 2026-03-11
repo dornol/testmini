@@ -111,6 +111,17 @@ export const load: PageServerLoad = async ({ params, parent, url, locals }) => {
 		.where(and(...execConditions))
 		.orderBy(testCase.key);
 
+	// Duration summary
+	const completedExecs = executions.filter(e => e.startedAt && e.completedAt);
+	const durations = completedExecs.map(e => new Date(e.completedAt!).getTime() - new Date(e.startedAt!).getTime());
+	const durationSummary = {
+		totalDuration: durations.reduce((sum, d) => sum + d, 0),
+		avgDuration: durations.length > 0 ? Math.round(durations.reduce((sum, d) => sum + d, 0) / durations.length) : 0,
+		minDuration: durations.length > 0 ? Math.min(...durations) : 0,
+		maxDuration: durations.length > 0 ? Math.max(...durations) : 0,
+		completedCount: completedExecs.length
+	};
+
 	// Get failure details for all FAIL executions
 	const failExecutionIds = executions.filter((e) => e.status === 'FAIL').map((e) => e.id);
 	let failures: {
@@ -149,6 +160,7 @@ export const load: PageServerLoad = async ({ params, parent, url, locals }) => {
 		executions,
 		failures,
 		stats,
+		durationSummary,
 		statusFilter,
 		currentUserId: authUser.id
 	};

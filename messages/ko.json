@@ -1059,5 +1059,35 @@
 	"retest_filter": "재테스트 필요",
 	"retest_cleared": "재테스트 플래그가 초기화되었습니다",
 	"retest_no_cases": "재테스트가 필요한 테스트 케이스가 없습니다",
-	"retest_run_created": "{count}개 테스트 케이스로 재테스트 런이 생성되었습니다"
+	"retest_run_created": "{count}개 테스트 케이스로 재테스트 런이 생성되었습니다",
+
+	"comparison_title": "재테스트 비교",
+	"comparison_original": "원본",
+	"comparison_retest": "재테스트",
+	"comparison_improved": "개선됨",
+	"comparison_regressed": "악화됨",
+	"comparison_unchanged": "변경 없음",
+	"comparison_not_retest": "이 런은 재테스트 런이 아닙니다",
+	"comparison_summary": "{improved}개 개선, {regressed}개 악화, {unchanged}개 변경 없음",
+
+	"duration_summary": "소요 시간 요약",
+	"duration_total": "총 시간",
+	"duration_avg": "평균",
+	"duration_min": "최소",
+	"duration_max": "최대",
+	"duration_completed": "{count}건 완료",
+
+	"slowest_tests_title": "가장 느린 테스트",
+	"slowest_tests_desc": "평균 실행 시간이 가장 긴 테스트",
+	"slowest_avg": "평균 소요 시간",
+	"slowest_max": "최대 소요 시간",
+	"slowest_execs": "실행 횟수",
+
+	"defect_density_title": "그룹별 결함 밀도",
+	"defect_density_desc": "테스트 케이스 그룹별 연결된 결함 수",
+	"defect_group": "그룹",
+	"defect_cases": "테스트 케이스",
+	"defect_count": "결함 수",
+	"defect_density": "밀도",
+	"defect_ungrouped": "(미분류)"
 }

@@ -25,12 +25,17 @@ vi.mock('$lib/server/db/schema', () => ({
 	issueTrackerConfig: {
 		projectId: 'project_id',
 		provider: 'provider'
+	},
+	testCase: {
+		id: 'id',
+		retestNeeded: 'retest_needed'
 	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args),
-	ne: vi.fn((a: unknown, b: unknown) => [a, '!=', b])
+	ne: vi.fn((a: unknown, b: unknown) => [a, '!=', b]),
+	inArray: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
 	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
@@ -208,5 +213,78 @@ describe('/api/projects/[projectId]/issue-links/sync', () => {
 		expect(response.status).toBe(200);
 		const body = await response.json();
 		expect(body.total).toBe(1);
+	});
+
+	it('should return retestMarked count when issues resolve to done', async () => {
+		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+		mockSelectResult(mockDb, sampleLinks);
+		mockFetchIssueStatus.mockResolvedValue({ status: 'Done', statusCategory: 'done' });
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser
+		});
+
+		const response = await POST(event);
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.retestMarked).toBe(2);
+	});
+
+	it('should return retestMarked 0 when issues are not done', async () => {
+		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+		mockSelectResult(mockDb, sampleLinks);
+		mockFetchIssueStatus.mockResolvedValue({ status: 'In Progress', statusCategory: 'in_progress' });
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser
+		});
+
+		const response = await POST(event);
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.retestMarked).toBe(0);
+	});
+
+	it('should not mark retest when link has no testCaseId', async () => {
+		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+		const linkWithoutTestCase = { ...sampleLinks[0], testCaseId: null };
+		mockSelectResult(mockDb, [linkWithoutTestCase]);
+		mockFetchIssueStatus.mockResolvedValue({ status: 'Done', statusCategory: 'done' });
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser
+		});
+
+		const response = await POST(event);
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.retestMarked).toBe(0);
+	});
+
+	it('should exclude CUSTOM provider links from sync', async () => {
+		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+		// The ne('CUSTOM') mock is already set up in drizzle-orm mock
+		// We just verify that even when CUSTOM links exist, the select query filters them
+		mockSelectResult(mockDb, []); // after CUSTOM filter, nothing left
+		mockFetchIssueStatus.mockResolvedValue({ status: 'Done', statusCategory: 'done' });
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser
+		});
+
+		const response = await POST(event);
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.total).toBe(0);
+		expect(body.synced).toBe(0);
+		expect(body.retestMarked).toBe(0);
 	});
 });

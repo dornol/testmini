@@ -5,6 +5,8 @@ import {
 	testCaseVersion,
 	testCase,
 	testCaseAssignee,
+	testCaseGroup,
+	issueLink,
 	user
 } from '$lib/server/db/schema';
 import { eq, and, sql, desc, count, isNotNull, gte, lte, max } from 'drizzle-orm';
@@ -69,7 +71,9 @@ export async function loadReportData(projectId: number, range: ReportDateRange) 
 		executorStats,
 		topFailingCases,
 		flakyTests,
-		staleTests
+		staleTests,
+		slowestTests,
+		defectDensity
 	] = await Promise.all([
 		// Pass rate by environment
 		db
@@ -282,7 +286,42 @@ export async function loadReportData(projectId: number, range: ReportDateRange) 
 			.where(eq(testCase.projectId, projectId))
 			.groupBy(testCase.id, testCase.key, testCaseVersion.title, testCaseVersion.priority)
 			.orderBy(sql`max(${testExecution.executedAt}) ASC NULLS FIRST`)
-			.limit(20)
+			.limit(20),
+
+		// Slowest tests (by average execution duration)
+		db
+			.select({
+				testCaseId: testCase.id,
+				testCaseKey: testCase.key,
+				title: testCaseVersion.title,
+				priority: testCaseVersion.priority,
+				execCount: count(testExecution.id),
+				avgDuration: sql<number>`round(avg(extract(epoch from (${testExecution.completedAt} - ${testExecution.startedAt})) * 1000))`.as('avg_duration'),
+				maxDuration: sql<number>`round(max(extract(epoch from (${testExecution.completedAt} - ${testExecution.startedAt})) * 1000))`.as('max_duration')
+			})
+			.from(testExecution)
+			.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
+			.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
+			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
+			.where(and(execRunDateCondition(), isNotNull(testExecution.startedAt), isNotNull(testExecution.completedAt)))
+			.groupBy(testCase.id, testCase.key, testCaseVersion.title, testCaseVersion.priority)
+			.orderBy(desc(sql`avg(extract(epoch from (${testExecution.completedAt} - ${testExecution.startedAt})))`))
+			.limit(20),
+
+		// Defect density by group
+		db
+			.select({
+				groupId: testCaseGroup.id,
+				groupName: testCaseGroup.name,
+				caseCount: count(sql`distinct ${testCase.id}`),
+				defectCount: count(issueLink.id)
+			})
+			.from(testCase)
+			.leftJoin(testCaseGroup, eq(testCase.groupId, testCaseGroup.id))
+			.leftJoin(issueLink, eq(issueLink.testCaseId, testCase.id))
+			.where(eq(testCase.projectId, projectId))
+			.groupBy(testCaseGroup.id, testCaseGroup.name)
+			.orderBy(desc(count(issueLink.id)))
 	]);
 
 	return {
@@ -295,6 +334,8 @@ export async function loadReportData(projectId: number, range: ReportDateRange) 
 		executorStats,
 		topFailingCases,
 		flakyTests,
-		staleTests
+		staleTests,
+		slowestTests,
+		defectDensity
 	};
 }

@@ -148,6 +148,8 @@
 	const topFailingCases = $derived(data.topFailingCases);
 	const flakyTests = $derived(data.flakyTests);
 	const staleTests = $derived(data.staleTests);
+	const slowestTests = $derived(data.slowestTests);
+	const defectDensity = $derived(data.defectDensity);
 	const dateRange = $derived(data.dateRange);
 
 	// Active filter state — derived from server data.
@@ -332,6 +334,14 @@
 	function barWidth(value: number, total: number): string {
 		if (total === 0) return '0%';
 		return `${(value / total) * 100}%`;
+	}
+
+	function formatDuration(ms: number): string {
+		if (ms < 1000) return `${ms}ms`;
+		if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+		const mins = Math.floor(ms / 60000);
+		const secs = Math.round((ms % 60000) / 1000);
+		return `${mins}m ${secs}s`;
 	}
 </script>
 
@@ -803,6 +813,92 @@
 									{:else}
 										<span class="text-muted-foreground text-sm {daysAgo > 30 ? 'text-yellow-600 font-medium' : ''}">{m.stale_tests_days_ago({ days: daysAgo })}</span>
 									{/if}
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
+	<!-- Slowest Tests -->
+	{#if slowestTests.length > 0}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="text-sm font-medium">{m.slowest_tests_title()}</Card.Title>
+				<Card.Description>{m.slowest_tests_desc()}</Card.Description>
+			</Card.Header>
+			<Card.Content class="p-0">
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>{m.reports_test_case()}</Table.Head>
+							<Table.Head class="w-28">{m.common_priority()}</Table.Head>
+							<Table.Head class="w-28">{m.slowest_avg()}</Table.Head>
+							<Table.Head class="w-28">{m.slowest_max()}</Table.Head>
+							<Table.Head class="w-24">{m.slowest_execs()}</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each slowestTests as tc (tc.testCaseId)}
+							<Table.Row
+								class="cursor-pointer"
+								onclick={() => { window.location.href = `/projects/${data.project.id}/test-cases/${tc.testCaseId}`; }}
+							>
+								<Table.Cell>
+									<div>
+										<span class="text-muted-foreground text-xs">{tc.testCaseKey}</span>
+										<span class="ml-1 font-medium">{tc.title}</span>
+									</div>
+								</Table.Cell>
+								<Table.Cell>
+									<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
+								</Table.Cell>
+								<Table.Cell class="font-medium">{formatDuration(tc.avgDuration)}</Table.Cell>
+								<Table.Cell class="text-muted-foreground">{formatDuration(tc.maxDuration)}</Table.Cell>
+								<Table.Cell class="text-muted-foreground">{tc.execCount}</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
+	<!-- Defect Density by Group -->
+	{#if defectDensity.length > 0 && defectDensity.some(d => d.defectCount > 0)}
+		{@const maxDefects = Math.max(...defectDensity.map(d => d.defectCount))}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="text-sm font-medium">{m.defect_density_title()}</Card.Title>
+				<Card.Description>{m.defect_density_desc()}</Card.Description>
+			</Card.Header>
+			<Card.Content class="p-0">
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>{m.defect_group()}</Table.Head>
+							<Table.Head class="w-28">{m.defect_cases()}</Table.Head>
+							<Table.Head class="w-28">{m.defect_count()}</Table.Head>
+							<Table.Head class="w-28">{m.defect_density()}</Table.Head>
+							<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each defectDensity.filter(d => d.defectCount > 0) as dd (dd.groupId ?? 'ungrouped')}
+							{@const density = dd.caseCount > 0 ? (dd.defectCount / dd.caseCount).toFixed(2) : '0'}
+							<Table.Row>
+								<Table.Cell class="font-medium">
+									{dd.groupName ?? m.defect_ungrouped()}
+								</Table.Cell>
+								<Table.Cell>{dd.caseCount}</Table.Cell>
+								<Table.Cell class="text-red-600 font-medium">{dd.defectCount}</Table.Cell>
+								<Table.Cell>{density}</Table.Cell>
+								<Table.Cell>
+									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
+										<div class="bg-red-500" style="width: {barWidth(dd.defectCount, maxDefects)}"></div>
+									</div>
 								</Table.Cell>
 							</Table.Row>
 						{/each}

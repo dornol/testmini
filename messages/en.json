@@ -1059,5 +1059,35 @@
 	"retest_filter": "Retest Needed",
 	"retest_cleared": "Retest flags cleared",
 	"retest_no_cases": "No test cases need retesting",
-	"retest_run_created": "Retest run created with {count} test cases"
+	"retest_run_created": "Retest run created with {count} test cases",
+
+	"comparison_title": "Retest Comparison",
+	"comparison_original": "Original",
+	"comparison_retest": "Retest",
+	"comparison_improved": "Improved",
+	"comparison_regressed": "Regressed",
+	"comparison_unchanged": "Unchanged",
+	"comparison_not_retest": "This run is not a retest run",
+	"comparison_summary": "{improved} improved, {regressed} regressed, {unchanged} unchanged",
+
+	"duration_summary": "Duration Summary",
+	"duration_total": "Total",
+	"duration_avg": "Average",
+	"duration_min": "Min",
+	"duration_max": "Max",
+	"duration_completed": "{count} completed",
+
+	"slowest_tests_title": "Slowest Tests",
+	"slowest_tests_desc": "Tests with the highest average execution duration",
+	"slowest_avg": "Avg Duration",
+	"slowest_max": "Max Duration",
+	"slowest_execs": "Executions",
+
+	"defect_density_title": "Defect Density by Group",
+	"defect_density_desc": "Number of linked defects per test case group",
+	"defect_group": "Group",
+	"defect_cases": "Test Cases",
+	"defect_count": "Defects",
+	"defect_density": "Density",
+	"defect_ungrouped": "(Ungrouped)"
 }

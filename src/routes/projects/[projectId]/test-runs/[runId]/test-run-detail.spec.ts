@@ -179,6 +179,209 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			expect(result.executions[0].completedAt).toBeDefined();
 			expect(result.currentUserId).toBe(testUser.id);
 		});
+
+		// ─── durationSummary ─────────────────────────────────────
+
+		it('should compute durationSummary for completed executions', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+
+			const statsChain = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				groupBy: vi.fn().mockResolvedValue([{ status: 'PASS', cnt: 3 }])
+			};
+
+			const execChain = {
+				from: vi.fn().mockReturnThis(),
+				innerJoin: vi.fn().mockReturnThis(),
+				leftJoin: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				orderBy: vi.fn().mockResolvedValue([
+					{
+						id: 200, status: 'PASS', comment: null,
+						executedBy: 'User', executedAt: new Date(),
+						startedAt: new Date('2025-01-01T10:00:00'),
+						completedAt: new Date('2025-01-01T10:01:00'), // 60s
+						testCaseKey: 'TC-0001', testCaseTitle: 'A', testCasePriority: 'HIGH', versionNo: 1
+					},
+					{
+						id: 201, status: 'PASS', comment: null,
+						executedBy: 'User', executedAt: new Date(),
+						startedAt: new Date('2025-01-01T10:00:00'),
+						completedAt: new Date('2025-01-01T10:03:00'), // 180s
+						testCaseKey: 'TC-0002', testCaseTitle: 'B', testCasePriority: 'MEDIUM', versionNo: 1
+					},
+					{
+						id: 202, status: 'PASS', comment: null,
+						executedBy: 'User', executedAt: new Date(),
+						startedAt: new Date('2025-01-01T10:00:00'),
+						completedAt: new Date('2025-01-01T10:00:30'), // 30s
+						testCaseKey: 'TC-0003', testCaseTitle: 'C', testCasePriority: 'LOW', versionNo: 1
+					}
+				])
+			};
+
+			let selectCall = 0;
+			mockDb.select.mockImplementation(() => {
+				selectCall++;
+				if (selectCall === 1) return statsChain as never;
+				return execChain as never;
+			});
+
+			const event = createLoadEvent();
+			const result = await load(event as never) as Record<string, any>;
+
+			expect(result.durationSummary).toBeDefined();
+			expect(result.durationSummary.completedCount).toBe(3);
+			expect(result.durationSummary.totalDuration).toBe(270000); // 60+180+30 = 270s
+			expect(result.durationSummary.avgDuration).toBe(90000); // 270/3 = 90s
+			expect(result.durationSummary.minDuration).toBe(30000); // 30s
+			expect(result.durationSummary.maxDuration).toBe(180000); // 180s
+		});
+
+		it('should return zero durationSummary when no executions have timestamps', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+
+			const statsChain = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				groupBy: vi.fn().mockResolvedValue([{ status: 'PENDING', cnt: 2 }])
+			};
+
+			const execChain = {
+				from: vi.fn().mockReturnThis(),
+				innerJoin: vi.fn().mockReturnThis(),
+				leftJoin: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				orderBy: vi.fn().mockResolvedValue([
+					{
+						id: 200, status: 'PENDING', comment: null,
+						executedBy: null, executedAt: null,
+						startedAt: null, completedAt: null,
+						testCaseKey: 'TC-0001', testCaseTitle: 'A', testCasePriority: 'HIGH', versionNo: 1
+					},
+					{
+						id: 201, status: 'PENDING', comment: null,
+						executedBy: null, executedAt: null,
+						startedAt: null, completedAt: null,
+						testCaseKey: 'TC-0002', testCaseTitle: 'B', testCasePriority: 'MEDIUM', versionNo: 1
+					}
+				])
+			};
+
+			let selectCall = 0;
+			mockDb.select.mockImplementation(() => {
+				selectCall++;
+				if (selectCall === 1) return statsChain as never;
+				return execChain as never;
+			});
+
+			const event = createLoadEvent();
+			const result = await load(event as never) as Record<string, any>;
+
+			expect(result.durationSummary.completedCount).toBe(0);
+			expect(result.durationSummary.totalDuration).toBe(0);
+			expect(result.durationSummary.avgDuration).toBe(0);
+			expect(result.durationSummary.minDuration).toBe(0);
+			expect(result.durationSummary.maxDuration).toBe(0);
+		});
+
+		it('should only count executions with both startedAt and completedAt in durationSummary', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+
+			const statsChain = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				groupBy: vi.fn().mockResolvedValue([{ status: 'PASS', cnt: 2 }, { status: 'PENDING', cnt: 1 }])
+			};
+
+			const execChain = {
+				from: vi.fn().mockReturnThis(),
+				innerJoin: vi.fn().mockReturnThis(),
+				leftJoin: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				orderBy: vi.fn().mockResolvedValue([
+					{
+						id: 200, status: 'PASS', comment: null,
+						executedBy: 'User', executedAt: new Date(),
+						startedAt: new Date('2025-01-01T10:00:00'),
+						completedAt: new Date('2025-01-01T10:02:00'), // 120s — counted
+						testCaseKey: 'TC-0001', testCaseTitle: 'A', testCasePriority: 'HIGH', versionNo: 1
+					},
+					{
+						id: 201, status: 'PASS', comment: null,
+						executedBy: 'User', executedAt: new Date(),
+						startedAt: new Date('2025-01-01T10:00:00'),
+						completedAt: null, // started but not completed — skipped
+						testCaseKey: 'TC-0002', testCaseTitle: 'B', testCasePriority: 'MEDIUM', versionNo: 1
+					},
+					{
+						id: 202, status: 'PENDING', comment: null,
+						executedBy: null, executedAt: null,
+						startedAt: null, completedAt: null, // not started — skipped
+						testCaseKey: 'TC-0003', testCaseTitle: 'C', testCasePriority: 'LOW', versionNo: 1
+					}
+				])
+			};
+
+			let selectCall = 0;
+			mockDb.select.mockImplementation(() => {
+				selectCall++;
+				if (selectCall === 1) return statsChain as never;
+				return execChain as never;
+			});
+
+			const event = createLoadEvent();
+			const result = await load(event as never) as Record<string, any>;
+
+			expect(result.durationSummary.completedCount).toBe(1);
+			expect(result.durationSummary.totalDuration).toBe(120000);
+			expect(result.durationSummary.avgDuration).toBe(120000);
+			expect(result.durationSummary.minDuration).toBe(120000);
+			expect(result.durationSummary.maxDuration).toBe(120000);
+		});
+
+		it('should handle single execution durationSummary correctly', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+
+			const statsChain = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				groupBy: vi.fn().mockResolvedValue([{ status: 'PASS', cnt: 1 }])
+			};
+
+			const execChain = {
+				from: vi.fn().mockReturnThis(),
+				innerJoin: vi.fn().mockReturnThis(),
+				leftJoin: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				orderBy: vi.fn().mockResolvedValue([
+					{
+						id: 200, status: 'PASS', comment: null,
+						executedBy: 'User', executedAt: new Date(),
+						startedAt: new Date('2025-01-01T10:00:00'),
+						completedAt: new Date('2025-01-01T10:00:05'), // 5s
+						testCaseKey: 'TC-0001', testCaseTitle: 'Quick test', testCasePriority: 'HIGH', versionNo: 1
+					}
+				])
+			};
+
+			let selectCall = 0;
+			mockDb.select.mockImplementation(() => {
+				selectCall++;
+				if (selectCall === 1) return statsChain as never;
+				return execChain as never;
+			});
+
+			const event = createLoadEvent();
+			const result = await load(event as never) as Record<string, any>;
+
+			expect(result.durationSummary.completedCount).toBe(1);
+			expect(result.durationSummary.totalDuration).toBe(5000);
+			expect(result.durationSummary.avgDuration).toBe(5000);
+			expect(result.durationSummary.minDuration).toBe(5000);
+			expect(result.durationSummary.maxDuration).toBe(5000);
+		});
 	});
 
 	// ─── updateStatus ─────────────────────────────────────────────

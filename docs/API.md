@@ -71,6 +71,8 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 37. [Releases](#releases)
 38. [Test Plan Sign-off](#test-plan-sign-off)
 39. [Retest on Defect Fix](#retest-on-defect-fix)
+40. [Retest Comparison](#retest-comparison)
+41. [Reports Analytics](#reports-analytics)
 
 ---
 
@@ -3873,3 +3875,51 @@ When issue link sync endpoints (`POST .../issue-links/sync`, `POST .../issue-lin
 ### Filtering
 
 Test case list supports `?retestNeeded=true` URL parameter to filter only cases needing retest.
+
+---
+
+## Retest Comparison
+
+### Get Comparison
+
+`GET /api/projects/:projectId/test-runs/:runId/comparison`
+
+Returns a side-by-side comparison of execution results between an original run and its retest run. Only available for runs that have `retestOfRunId` set.
+
+**Response:**
+```json
+{
+  "originalRunId": 40,
+  "retestRunId": 50,
+  "summary": { "total": 5, "improved": 3, "regressed": 0, "unchanged": 2 },
+  "comparisons": [
+    {
+      "testCaseKey": "TC-0001",
+      "title": "Login test",
+      "priority": "HIGH",
+      "originalStatus": "FAIL",
+      "retestStatus": "PASS",
+      "improved": true
+    }
+  ]
+}
+```
+
+- **improved**: Status went from FAIL/BLOCKED to PASS
+- **regressed**: Status went from PASS to FAIL/BLOCKED
+
+---
+
+## Reports Analytics
+
+### Slowest Tests
+
+Included in the reports page data. Shows the top 20 test cases by average execution duration (computed from `startedAt` and `completedAt` timestamps). Fields: `testCaseKey`, `title`, `priority`, `execCount`, `avgDuration` (ms), `maxDuration` (ms).
+
+### Defect Density by Group
+
+Included in the reports page data. Shows defect (issue link) count per test case group. Fields: `groupId`, `groupName`, `caseCount`, `defectCount`. Density is computed client-side as `defectCount / caseCount`.
+
+### Run-level Duration Summary
+
+The test run detail page includes a duration summary card with `totalDuration`, `avgDuration`, `minDuration`, `maxDuration` (all in ms), and `completedCount` — computed from executions that have both `startedAt` and `completedAt`.

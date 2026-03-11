@@ -51,7 +51,9 @@ vi.mock('$lib/server/db/schema', () => ({
 		testCaseVersionId: 'tcv_id',
 		status: 'status',
 		executedAt: 'executed_at',
-		executedBy: 'executed_by'
+		executedBy: 'executed_by',
+		startedAt: 'started_at',
+		completedAt: 'completed_at'
 	},
 	testCaseVersion: { id: 'id', testCaseId: 'tc_id', title: 'title', priority: 'priority' },
 	testCase: {
@@ -62,6 +64,8 @@ vi.mock('$lib/server/db/schema', () => ({
 		createdBy: 'created_by'
 	},
 	testCaseAssignee: { testCaseId: 'tc_id', userId: 'user_id' },
+	testCaseGroup: { id: 'id', projectId: 'project_id', name: 'name' },
+	issueLink: { id: 'id', testCaseId: 'test_case_id' },
 	user: { id: 'id', name: 'name' }
 }));
 vi.mock('drizzle-orm', () => {
@@ -267,7 +271,7 @@ describe('loadReportData', () => {
 		});
 	}
 
-	it('returns all 10 stat objects', async () => {
+	it('returns all 12 stat objects', async () => {
 		setupSelectMock();
 		const range: ReportDateRange = { from: null, to: null, allTime: true };
 		const result = await loadReportData(1, range);
@@ -282,20 +286,22 @@ describe('loadReportData', () => {
 		expect(result).toHaveProperty('topFailingCases');
 		expect(result).toHaveProperty('flakyTests');
 		expect(result).toHaveProperty('staleTests');
+		expect(result).toHaveProperty('slowestTests');
+		expect(result).toHaveProperty('defectDensity');
 	});
 
-	it('calls db.select 10 times (one per parallel query)', async () => {
+	it('calls db.select 12 times (one per parallel query)', async () => {
 		setupSelectMock();
 		const range: ReportDateRange = { from: null, to: null, allTime: true };
 		await loadReportData(1, range);
 
-		expect(mockDb.select).toHaveBeenCalledTimes(10);
+		expect(mockDb.select).toHaveBeenCalledTimes(12);
 	});
 
 	it('reverses recentRuns array in output', async () => {
 		const mockRuns = [{ id: 1 }, { id: 2 }, { id: 3 }];
 		// recentRuns is the 2nd query (index 1)
-		const queryResults: unknown[][] = Array.from({ length: 10 }, () => []);
+		const queryResults: unknown[][] = Array.from({ length: 12 }, () => []);
 		queryResults[1] = mockRuns;
 		setupSelectMock(queryResults);
 
@@ -334,6 +340,8 @@ describe('loadReportData', () => {
 		expect(result.topFailingCases).toEqual([]);
 		expect(result.flakyTests).toEqual([]);
 		expect(result.staleTests).toEqual([]);
+		expect(result.slowestTests).toEqual([]);
+		expect(result.defectDensity).toEqual([]);
 	});
 
 	it('works with allTime range (no date conditions)', async () => {
@@ -341,6 +349,6 @@ describe('loadReportData', () => {
 		const range: ReportDateRange = { from: null, to: null, allTime: true };
 		const result = await loadReportData(1, range);
 
-		expect(Object.keys(result)).toHaveLength(10);
+		expect(Object.keys(result)).toHaveLength(12);
 	});
 });

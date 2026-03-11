@@ -552,7 +552,7 @@ Link test results to external issue trackers for end-to-end traceability.
 
 - [x] "Retest Failed" action on test run: create new run with only FAIL/BLOCKED executions from the source run
 - [x] Link retest run back to original run (`retestOfRunId` foreign key)
-- [ ] Before/after comparison view: original result vs retest result side-by-side
+- [x] Before/after comparison view: original result vs retest result side-by-side (API + dialog UI)
 - [x] Retest badge/indicator on runs created via retest
 - [x] API endpoint: `POST /api/projects/:projectId/test-runs/:runId/retest`
 - [x] Retest button in run detail header and run list dropdown
@@ -568,15 +568,18 @@ Link test results to external issue trackers for end-to-end traceability.
 - [x] Display duration per execution in test run detail (Duration column)
 - [x] Duration tracking for automation results API
 - [x] 27 unit tests for page server (load, updateStatus, failWithDetail, bulkPass, updateRunStatus, deleteFailure -- covering duration tracking, SSE events, notifications, error cases)
-- [ ] Run-level duration summary (total time, avg per test)
-- [ ] Slowest tests report in analytics
+- [x] Run-level duration summary (total time, avg per test) -- computed in page.server, displayed as card
+- [x] Slowest tests report in analytics -- top 20 by avg execution duration in reports page
 
 ### 21.x Test Coverage -- Done
 
-149 test files, 1888 tests (was 147 files, 1846 tests):
+156 test files, 1968 tests (was 147 files, 1846 tests):
 
 - [x] Retest API (15 tests) -- auth (401, 403), not found (404), no failures (400), success, default/custom name, retestOfRunId, environment preservation, createdBy, null version filter, execution records, malformed body, single execution, all-null versions
-- [x] Test run detail page server (27 tests) -- load (invalid ID, 404, stats+executions with duration), updateStatus (400, 404, 403, startedAt from PENDING, no startedAt when already started, SSE), failWithDetail (400, 404, startedAt+completedAt, no startedAt when started, dual SSE events), bulkPass (400, 403, startedAt+completedAt, SSE), updateRunStatus (400, IN_PROGRESS startedAt, COMPLETED finishedAt, member notifications, self-exclude, SSE), deleteFailure (400, success)
+- [x] Test run detail page server (31 tests) -- load (invalid ID, 404, stats+executions with duration, durationSummary computation, zero durations for PENDING, mixed timestamps, single execution), updateStatus (400, 404, 403, startedAt from PENDING, no startedAt when already started, SSE), failWithDetail (400, 404, startedAt+completedAt, no startedAt when started, dual SSE events), bulkPass (400, 403, startedAt+completedAt, SSE), updateRunStatus (400, IN_PROGRESS startedAt, COMPLETED finishedAt, member notifications, self-exclude, SSE), deleteFailure (400, success)
+- [x] Comparison API (7 tests) -- retest comparison data, 400 non-retest, 404 not found, empty comparisons, unchanged results, invalid ID, 401 unauthenticated
+- [x] Bulk sync retestMarked (11 tests) -- auth, 404 config, sync success, partial failures, empty links, testCaseId/testExecutionId scoping, retestMarked count on done, retestMarked 0 on non-done, no retest without testCaseId, CUSTOM provider exclusion
+- [x] Report data (21 tests) -- parseDateRange (12 tests: all preset, default 30d, start/end of day, custom dates, defaults for missing, invalid strings, null/empty, preset override, normalization), loadReportData (9 tests: 12 stat objects, 12 queries, reversed recentRuns, projectId passing, empty results, allTime range)
 
 ### 21.3 Release / Milestone Management -- Done
 
@@ -608,7 +611,7 @@ Link test results to external issue trackers for end-to-end traceability.
 - [x] One-click "Create retest run" API from retest-needed test cases (`POST /api/projects/:id/test-cases/retest-run`)
 - [x] Both single-link and bulk-sync endpoints updated to set retest flag
 - [x] i18n messages (en/ko) for retest UI
-- [ ] Defect density report: defects per module/group (deferred to analytics phase)
+- [x] Defect density report: defects per module/group -- linked issue count by test case group in reports page
 
 ### 21.6 Risk-Based Testing -- Low Priority
 

@@ -48,6 +48,7 @@ const {
 	loadUserTeams,
 	getNextPosition
 } = await import('./queries');
+const { priorityConfig, environmentConfig } = await import('$lib/server/db/schema');
 
 describe('queries', () => {
 	beforeEach(() => {
@@ -421,10 +422,7 @@ describe('queries', () => {
 		it('should return 0 when no existing items', async () => {
 			mockSelectResult(mockDb, []);
 
-			const result = await getNextPosition(
-				{ position: 'pc.position', projectId: 'pc.project_id' },
-				1
-			);
+			const result = await getNextPosition(priorityConfig, 1);
 
 			expect(result).toBe(0);
 		});
@@ -436,10 +434,7 @@ describe('queries', () => {
 				{ position: 2 }
 			]);
 
-			const result = await getNextPosition(
-				{ position: 'pc.position', projectId: 'pc.project_id' },
-				1
-			);
+			const result = await getNextPosition(priorityConfig, 1);
 
 			expect(result).toBe(3);
 		});
@@ -451,10 +446,7 @@ describe('queries', () => {
 				{ position: 10 }
 			]);
 
-			const result = await getNextPosition(
-				{ position: 'ec.position', projectId: 'ec.project_id' },
-				2
-			);
+			const result = await getNextPosition(environmentConfig, 2);
 
 			expect(result).toBe(11);
 		});
@@ -462,10 +454,7 @@ describe('queries', () => {
 		it('should call db.select with correct shape', async () => {
 			mockSelectResult(mockDb, []);
 
-			await getNextPosition(
-				{ position: 'pc.position', projectId: 'pc.project_id' },
-				1
-			);
+			await getNextPosition(priorityConfig, 1);
 
 			expect(mockDb.select).toHaveBeenCalledWith({
 				position: 'pc.position'
@@ -476,10 +465,7 @@ describe('queries', () => {
 			const { eq } = await import('drizzle-orm');
 			mockSelectResult(mockDb, []);
 
-			await getNextPosition(
-				{ position: 'pc.position', projectId: 'pc.project_id' },
-				42
-			);
+			await getNextPosition(priorityConfig, 42);
 
 			expect(eq).toHaveBeenCalledWith('pc.project_id', 42);
 		});
@@ -487,12 +473,77 @@ describe('queries', () => {
 		it('should handle a single item', async () => {
 			mockSelectResult(mockDb, [{ position: 7 }]);
 
-			const result = await getNextPosition(
-				{ position: 'pc.position', projectId: 'pc.project_id' },
-				1
-			);
+			const result = await getNextPosition(priorityConfig, 1);
 
 			expect(result).toBe(8);
+		});
+
+		it('should return correct next position with priorityConfig table', async () => {
+			mockSelectResult(mockDb, [
+				{ position: 0 },
+				{ position: 1 },
+				{ position: 2 },
+				{ position: 3 }
+			]);
+
+			const result = await getNextPosition(priorityConfig, 5);
+
+			expect(result).toBe(4);
+			expect(mockDb.select).toHaveBeenCalledWith({
+				position: 'pc.position'
+			});
+		});
+
+		it('should return correct next position with environmentConfig table', async () => {
+			mockSelectResult(mockDb, [
+				{ position: 0 },
+				{ position: 1 },
+				{ position: 2 }
+			]);
+
+			const result = await getNextPosition(environmentConfig, 5);
+
+			expect(result).toBe(3);
+			expect(mockDb.select).toHaveBeenCalledWith({
+				position: 'ec.position'
+			});
+		});
+
+		it('should return 0 for empty priorityConfig table', async () => {
+			mockSelectResult(mockDb, []);
+
+			const result = await getNextPosition(priorityConfig, 99);
+
+			expect(result).toBe(0);
+		});
+
+		it('should return 0 for empty environmentConfig table', async () => {
+			mockSelectResult(mockDb, []);
+
+			const result = await getNextPosition(environmentConfig, 99);
+
+			expect(result).toBe(0);
+		});
+
+		it('should filter environmentConfig by projectId', async () => {
+			const { eq } = await import('drizzle-orm');
+			mockSelectResult(mockDb, []);
+
+			await getNextPosition(environmentConfig, 77);
+
+			expect(eq).toHaveBeenCalledWith('ec.project_id', 77);
+		});
+
+		it('should handle large position values', async () => {
+			mockSelectResult(mockDb, [
+				{ position: 100 },
+				{ position: 500 },
+				{ position: 999 }
+			]);
+
+			const result = await getNextPosition(priorityConfig, 1);
+
+			expect(result).toBe(1000);
 		});
 	});
 });

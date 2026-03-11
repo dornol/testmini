@@ -23,8 +23,11 @@
 	let loading = $state(false);
 	let nextCursor = $state<string | null>(null);
 	let hasMore = $state(false);
-	// Writable derived: tracks prop initially, can be overridden locally (mark-as-read, polling)
-	let unreadCount = $derived(initialUnreadCount);
+	// Tracks prop initially, can be overridden locally (mark-as-read, polling)
+	let unreadCount = $state(initialUnreadCount);
+	$effect(() => {
+		unreadCount = initialUnreadCount;
+	});
 
 	const unreadInList = $derived(notifications.filter((n) => !n.isRead).length);
 

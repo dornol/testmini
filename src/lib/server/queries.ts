@@ -113,13 +113,14 @@ export async function loadProjectEnvironments(projectId: number): Promise<Enviro
 }
 
 /** Get the next position value for an orderable config table */
+type OrderableConfigTable = typeof priorityConfig | typeof environmentConfig;
 export async function getNextPosition(
-	table: { position: any; projectId: any },
+	table: OrderableConfigTable,
 	projectId: number
 ): Promise<number> {
 	const all = await db
 		.select({ position: table.position })
-		.from(table as any)
+		.from(table)
 		.where(eq(table.projectId, projectId))
 		.orderBy(asc(table.position));
 	return all.length > 0 ? Math.max(...all.map((p) => p.position)) + 1 : 0;

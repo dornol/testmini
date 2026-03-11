@@ -631,9 +631,14 @@ The connection pool is configured in `src/lib/server/db/pool-config.ts` (used by
 
    Or throw `error(statusCode, 'message')` from `@sveltejs/kit` for other HTTP errors.
 
-6. **Write a test file** next to the route: `+server.spec.ts` or `<name>.api.spec.ts`. Use the test helpers described in the [Testing Guide](#testing-guide).
+6. **Security checklist:**
+   - **Always** use `withProjectAccess`/`withProjectRole` for project-scoped endpoints — never rely on session auth alone for resource ownership checks
+   - **Allowlist fields** in PATCH endpoints to prevent mass assignment — do not spread the request body directly into an `update()` call
+   - **Always check `res.ok`** before parsing `fetch()` responses with `.json()` — unguarded parses throw on non-2xx responses
 
-7. **Document the endpoint** in `docs/API.md`.
+7. **Write a test file** next to the route: `+server.spec.ts` or `<name>.api.spec.ts`. Use the test helpers described in the [Testing Guide](#testing-guide).
+
+8. **Document the endpoint** in `docs/API.md`.
 
 ---
 

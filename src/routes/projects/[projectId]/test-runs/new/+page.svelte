@@ -32,8 +32,12 @@
 		if (!suiteId) return;
 		// Fetch suite items and merge into selection
 		fetch(`/api/projects/${data.project.id}/test-suites/${suiteId}`)
-			.then((r) => r.json())
+			.then((r) => {
+				if (!r.ok) return null;
+				return r.json();
+			})
 			.then((suiteData) => {
+				if (!suiteData) return;
 				const newSet = new Set(selectedIds);
 				for (const item of suiteData.items ?? []) {
 					newSet.add(item.testCaseId);

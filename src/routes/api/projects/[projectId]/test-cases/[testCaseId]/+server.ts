@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
-import { testCase, testCaseVersion, user } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, user, customField } from '$lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
@@ -110,6 +110,18 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ pa
 		// Merge custom fields: apply partial update over existing values
 		let mergedCustomFields = (latest.customFields as Record<string, unknown>) ?? {};
 		if (customFields !== undefined) {
+			// Validate custom field names against project-defined fields (prevent mass assignment)
+			const definedFields = await db
+				.select({ name: customField.name })
+				.from(customField)
+				.where(eq(customField.projectId, projectId));
+			const allowedFieldNames = new Set(definedFields.map((f) => f.name));
+
+			const invalidKeys = Object.keys(customFields).filter((k) => !allowedFieldNames.has(k));
+			if (invalidKeys.length > 0) {
+				return badRequest(`Unknown custom field(s): ${invalidKeys.join(', ')}`);
+			}
+
 			mergedCustomFields = { ...mergedCustomFields, ...customFields };
 			// Remove null entries
 			for (const [k, v] of Object.entries(mergedCustomFields)) {

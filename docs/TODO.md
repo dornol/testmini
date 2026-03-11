@@ -449,6 +449,24 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ---
 
+## Phase 19: Security Hardening & Bug Fixes
+
+### 19.1 Critical Security Fixes -- Done
+
+- [x] Attachment DELETE IDOR -- added `withProjectAccess` check so users can only delete attachments from projects they belong to
+- [x] Custom field PATCH mass assignment -- added allowlist validation so only permitted fields can be updated (prevents arbitrary column overwrites)
+
+### 19.2 High Priority Fixes -- Done
+
+- [x] `queries.ts` `as any` type cast replaced with proper union type for query return values
+
+### 19.3 Medium Priority Fixes -- Done
+
+- [x] Unguarded `fetch` JSON parse -- added `res.ok` checks before `res.json()` in test-run creation and test-case lock check
+- [x] `NotificationBell` `$derived` reassignment -- replaced with `$state` + `$effect` sync pattern (cannot reassign `$derived` values)
+
+---
+
 ## Future Considerations
 
 | Feature | Priority | Notes |

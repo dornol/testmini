@@ -71,7 +71,7 @@ export const GET = withAuth(async ({ params, user }) => {
 	});
 });
 
-export const DELETE = withAuth(async ({ params }) => {
+export const DELETE = withAuth(async ({ params, user }) => {
 
 	const attachmentId = Number(params.attachmentId);
 	if (isNaN(attachmentId)) {
@@ -85,6 +85,9 @@ export const DELETE = withAuth(async ({ params }) => {
 	if (!record) {
 		error(404, 'Attachment not found');
 	}
+
+	const projectId = await getProjectIdForAttachment(record);
+	await requireProjectAccess(user, projectId);
 
 	await deleteFile(record.objectKey);
 	await db.delete(attachment).where(eq(attachment.id, attachmentId));

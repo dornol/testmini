@@ -350,9 +350,12 @@
 	// Check lock status on load
 	$effect(() => {
 		fetch(lockUrl)
-			.then((r) => r.json())
+			.then((r) => {
+				if (!r.ok) return null;
+				return r.json();
+			})
 			.then((d) => {
-				if (d.locked) lockHolder = d.holder;
+				if (d?.locked) lockHolder = d.holder;
 			})
 			.catch(() => {});
 	});

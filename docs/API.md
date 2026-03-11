@@ -25,7 +25,8 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
    - [Lock](#test-case-lock)
    - [Comments](#test-case-comments)
 5. [Test Case Groups](#test-case-groups)
-6. [Test Runs](#test-runs)
+6. [Tags](#tags)
+7. [Test Runs](#test-runs)
    - [CRUD](#test-run-crud)
    - [Clone](#clone-test-run)
    - [Retest](#retest-test-run)
@@ -909,6 +910,45 @@ Update `sortOrder` for multiple groups in one transaction.
 ```json
 { "success": true }
 ```
+
+---
+
+## Tags
+
+### `POST /api/projects/:projectId/tags`
+
+Create a new tag in the project. Optionally assign it to a test case in the same request.
+
+**Auth:** Session + `PROJECT_ADMIN | QA | DEV`
+
+**Request body**
+```json
+{
+  "name": "Regression",
+  "color": "#ff6b6b",
+  "testCaseId": 10
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | Yes | Tag name (1–50 chars, trimmed) |
+| `color` | string | Yes | Hex color (`#RGB` or `#RRGGBB`) |
+| `testCaseId` | integer | No | If provided, assigns the tag to this test case |
+
+**Response 200** — Tag created (or reused if duplicate name with `testCaseId`)
+```json
+{
+  "tag": { "id": 1, "name": "Regression", "color": "#ff6b6b" },
+  "assigned": true
+}
+```
+
+**Response 400** — Validation error (invalid name or color)
+
+**Response 409** — Tag with same name already exists (when `testCaseId` not provided)
+
+> **Note:** Tag update and delete are managed via the project settings page (form actions at `/projects/:projectId/settings/tags`), not REST API endpoints.
 
 ---
 

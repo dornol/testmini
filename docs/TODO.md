@@ -706,9 +706,10 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ### 23.x Test Coverage -- Done
 
-161 test files, 2009 tests (was 161 files, 2005 tests):
+162 test files, 2019 tests (was 161 files, 2005 tests):
 
 - [x] Test case filters updated (36 tests, was 27) -- title ILIKE in search, special char fallback, whitespace search, retestNeeded filter
+- [x] Tags API endpoint (10 tests) -- create tag, assign to test case, duplicate handling, validation, auth, name trimming
 
 ---
 

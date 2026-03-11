@@ -55,6 +55,9 @@
 	let showDeleteDialog = $state(false);
 	let deleting = $state(false);
 
+	// Pause/resume
+	let actionSaving = $state(false);
+
 	function getElapsedSeconds(): number {
 		const start = new Date(session.startedAt).getTime();
 		const now = Date.now();
@@ -144,6 +147,8 @@
 	}
 
 	async function pauseSession() {
+		if (actionSaving) return;
+		actionSaving = true;
 		pausedAt = Date.now();
 		try {
 			await apiPatch(apiBase, {
@@ -154,10 +159,14 @@
 			toast.success(m.exploratory_paused());
 		} catch {
 			pausedAt = null;
+		} finally {
+			actionSaving = false;
 		}
 	}
 
 	async function resumeSession() {
+		if (actionSaving) return;
+		actionSaving = true;
 		if (pausedAt !== null) {
 			accumulatedPause += Math.floor((Date.now() - pausedAt) / 1000);
 			pausedAt = null;
@@ -171,6 +180,8 @@
 			toast.success(m.exploratory_resumed());
 		} catch {
 			// revert
+		} finally {
+			actionSaving = false;
 		}
 	}
 

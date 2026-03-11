@@ -664,10 +664,14 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ### 22.x Test Coverage -- Done
 
-157 test files, 1982 tests (was 156 files, 1968 tests):
+161 test files, 2005 tests (was 156 files, 1968 tests):
 
 - [x] Report data caching (5 new tests) -- cache hit returns data without DB query, cache miss stores result, cache key generation for allTime vs date range, TTL verification
 - [x] Release detail page server (10 new tests) -- 404, creator name, GO/NO_GO/CAUTION verdict logic, multi-run stats aggregation, empty creator fallback, 5 parallelized queries verification
+- [x] Test plan detail page server (7 new tests) -- 404, creator name, empty creator fallback, items/runs/signoffs/releases, requireSignoff true/false, 7 parallel queries
+- [x] Test plan list page server (3 new tests) -- plans list, empty plans, itemCount/runCount from subqueries
+- [x] Test run list page server (8 new tests) -- pagination meta, empty runs, status filter, custom page/limit, limit clamping (1-50), page clamping, totalPages calculation
+- [x] Exploratory session detail page server (5 new tests) -- invalid session ID 400, 404, session with notes/creator, empty notes, DB failure 500
 
 ### 22.4 Console Statement Cleanup -- Done
 
@@ -675,6 +679,11 @@ Link test results to external issue trackers for end-to-end traceability.
 - [x] Server-side: removed unused error variable captures in exploratory session handlers (3 files)
 - [x] Client-side: replaced `console.warn` with `toast.error()` for user-facing feedback (NotificationBell, FailureDetailsSheet, TestCaseDetailSheet)
 - [x] Polling failures kept silent (no toast for background refresh)
+
+### 22.5 UX Loading State Improvements -- Done
+
+- [x] Release detail page: link plan/run buttons disabled during save with loading text (`linkSaving` state)
+- [x] Exploratory session detail: pause/resume buttons disabled during save to prevent double-clicks (`actionSaving` state)
 
 ---
 

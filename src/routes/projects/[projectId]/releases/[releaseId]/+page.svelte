@@ -83,27 +83,34 @@
 	let linkPlanDialogOpen = $state(false);
 	let linkRunDialogOpen = $state(false);
 	let selectedLinkId = $state<number | null>(null);
+	let linkSaving = $state(false);
 
 	async function handleLinkPlan() {
 		if (!selectedLinkId) return;
+		linkSaving = true;
 		try {
 			await apiPatch(`/api/projects/${data.project.id}/test-plans/${selectedLinkId}`, { releaseId: data.release.id });
 			linkPlanDialogOpen = false;
 			selectedLinkId = null;
 			toast.success(m.rel_updated());
 			await invalidateAll();
-		} catch { /* handled */ }
+		} catch { /* handled */ } finally {
+			linkSaving = false;
+		}
 	}
 
 	async function handleLinkRun() {
 		if (!selectedLinkId) return;
+		linkSaving = true;
 		try {
 			await apiPatch(`/api/projects/${data.project.id}/test-runs/${selectedLinkId}`, { releaseId: data.release.id });
 			linkRunDialogOpen = false;
 			selectedLinkId = null;
 			toast.success(m.rel_updated());
 			await invalidateAll();
-		} catch { /* handled */ }
+		} catch { /* handled */ } finally {
+			linkSaving = false;
+		}
 	}
 
 	function formatDate(date: string | Date | null) {
@@ -331,7 +338,7 @@
 			</div>
 			<Dialog.Footer>
 				<Button variant="outline" onclick={() => (linkPlanDialogOpen = false)}>{m.common_cancel()}</Button>
-				<Button onclick={handleLinkPlan} disabled={!selectedLinkId}>{m.rel_link_plan()}</Button>
+				<Button onclick={handleLinkPlan} disabled={!selectedLinkId || linkSaving}>{linkSaving ? m.common_saving() : m.rel_link_plan()}</Button>
 			</Dialog.Footer>
 		</Dialog.Content>
 	</Dialog.Portal>
@@ -361,7 +368,7 @@
 			</div>
 			<Dialog.Footer>
 				<Button variant="outline" onclick={() => (linkRunDialogOpen = false)}>{m.common_cancel()}</Button>
-				<Button onclick={handleLinkRun} disabled={!selectedLinkId}>{m.rel_link_run()}</Button>
+				<Button onclick={handleLinkRun} disabled={!selectedLinkId || linkSaving}>{linkSaving ? m.common_saving() : m.rel_link_run()}</Button>
 			</Dialog.Footer>
 		</Dialog.Content>
 	</Dialog.Portal>

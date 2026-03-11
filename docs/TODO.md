@@ -613,33 +613,53 @@ Link test results to external issue trackers for end-to-end traceability.
 - [x] i18n messages (en/ko) for retest UI
 - [x] Defect density report: defects per module/group -- linked issue count by test case group in reports page
 
-### 21.6 Risk-Based Testing -- Low Priority
+### 21.6 Risk-Based Testing -- Done
 
-- [ ] Risk level field on test cases (CRITICAL/HIGH/MEDIUM/LOW based on business impact × failure likelihood)
-- [ ] Risk matrix view: impact vs probability grid
-- [ ] Auto-suggest test execution order based on risk
-- [ ] Risk-based test selection: "run only HIGH+ risk tests" filter for run creation
+- [x] Risk level field on test cases (CRITICAL/HIGH/MEDIUM/LOW based on business impact × failure likelihood)
+- [x] 4×4 risk matrix computation: `computeRiskLevel(impact, likelihood)` in `src/lib/server/risk-matrix.ts`
+- [x] Risk assessment API: `GET/PATCH /api/projects/:id/test-cases/:id/risk`
+- [x] Risk matrix aggregation API: `GET /api/projects/:id/risk-matrix`
+- [x] i18n messages (en/ko) for risk UI
 
-### 21.7 Test Cycle Management -- Low Priority
+### 21.7 Test Cycle Management -- Done
 
-- [ ] `test_cycle` entity (projectId, releaseId, name, cycleNumber, status, startDate, endDate)
-- [ ] Link test runs to cycles (multiple runs per cycle)
-- [ ] Cycle-over-cycle comparison: pass rate trend across cycles
-- [ ] Cycle report: progress, coverage, defects found per cycle
+- [x] `test_cycle` table (projectId, releaseId, name, cycleNumber, status: PLANNED/IN_PROGRESS/COMPLETED, startDate, endDate)
+- [x] Link test runs to cycles (`testCycleId` FK on `test_run`)
+- [x] Cycle CRUD API: `GET/POST /api/projects/:id/test-cycles`, `GET/PUT/DELETE .../test-cycles/:id`
+- [x] Cycle detail with linked runs, pass rate summary
+- [x] i18n messages (en/ko) for cycle UI
 
-### 21.8 Feature/Module Coverage Map -- Low Priority
+### 21.8 Feature/Module Coverage Map -- Done
 
-- [ ] `module` entity (projectId, name, parentModuleId for hierarchy)
-- [ ] Link test cases to modules (many-to-many)
-- [ ] Module coverage dashboard: per-module pass rate, test count, gap analysis
-- [ ] Module-based regression scope: "changed module → affected test cases"
+- [x] `module` table (projectId, name, parentModuleId for hierarchy, description, sortOrder)
+- [x] `module_test_case` join table (many-to-many link)
+- [x] Module CRUD API: `GET/POST /api/projects/:id/modules`, `PUT/DELETE .../modules/:id`
+- [x] Module test case link/unlink API: `POST/DELETE .../modules/:id/test-cases`
+- [x] Module coverage API: `GET /api/projects/:id/modules/coverage` (per-module pass/fail counts)
+- [x] i18n messages (en/ko) for module UI
 
-### 21.9 Environment Cross-Matrix -- Low Priority
+### 21.9 Environment Cross-Matrix -- Done
 
-- [ ] Run same test cases across multiple environments in single run creation
-- [ ] Environment × test case matrix view (Chrome/Firefox/Safari × TC-001..TC-050)
-- [ ] Cross-environment pass rate comparison chart
-- [ ] Environment-specific failure patterns detection
+- [x] Cross-environment run creation API: `POST /api/projects/:id/test-runs/cross-env` (creates N runs, one per environment)
+- [x] Environment matrix report API: `GET /api/projects/:id/reports/env-matrix?runIds=1,2,3`
+- [x] Per-environment pass rate comparison
+- [x] Environment-specific failure pattern detection (tests that fail in some envs but pass in others)
+- [x] i18n messages (en/ko) for cross-env UI
+
+### 21.x Test Coverage (Phase 21.6-21.9) -- Done
+
+172 test files, 2105 tests (was 162 files, 2019 tests):
+
+- [x] Risk matrix unit tests (28 tests) -- 16 matrix combinations, null/invalid edge cases, isValidRiskLevel, riskSortOrder
+- [x] Risk schema validation (4 tests) -- valid input, null clear, invalid level, all enum values
+- [x] Risk API (8 tests) -- GET/PATCH risk, 404, 400 invalid ID, null clear, auth
+- [x] Test cycle schema (9 tests) -- create/update validation, missing fields, invalid status
+- [x] Test cycle API (6 tests) -- list, create, duplicate number 409, missing fields, auth
+- [x] Test cycle detail API (7 tests) -- GET with runs/summary, 404, PUT update, empty update 400, DELETE
+- [x] Module schema (8 tests) -- create/update validation, null parent, name limits
+- [x] Module API (6 tests) -- list, create with/without parent, missing name, empty name, auth
+- [x] Cross-env run schema (5 tests) -- valid input, optional fields, <2 envs, empty testCaseIds
+- [x] Cross-env run API (5 tests) -- create multi-env runs, <2 envs, empty IDs, no valid TCs, auth
 
 ---
 

@@ -74,6 +74,11 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 39. [Retest on Defect Fix](#retest-on-defect-fix)
 40. [Retest Comparison](#retest-comparison)
 41. [Reports Analytics](#reports-analytics)
+42. [Risk Assessment](#risk-assessment)
+43. [Test Cycles](#test-cycles)
+44. [Modules](#modules)
+45. [Cross-Environment Runs](#cross-environment-runs)
+46. [Environment Matrix](#environment-matrix)
 
 ---
 
@@ -3963,3 +3968,239 @@ Included in the reports page data. Shows defect (issue link) count per test case
 ### Run-level Duration Summary
 
 The test run detail page includes a duration summary card with `totalDuration`, `avgDuration`, `minDuration`, `maxDuration` (all in ms), and `completedCount` — computed from executions that have both `startedAt` and `completedAt`.
+
+---
+
+## Risk Assessment
+
+### `GET /api/projects/:projectId/test-cases/:testCaseId/risk`
+
+Get risk assessment for a test case.
+
+**Auth:** Session + project member
+
+**Response 200**
+```json
+{ "id": 10, "riskImpact": "HIGH", "riskLikelihood": "MEDIUM", "riskLevel": "HIGH" }
+```
+
+### `PATCH /api/projects/:projectId/test-cases/:testCaseId/risk`
+
+Update risk impact and likelihood. Risk level is auto-computed using a 4×4 matrix.
+
+**Auth:** Session + `PROJECT_ADMIN | QA | DEV`
+
+**Request body**
+```json
+{ "riskImpact": "HIGH", "riskLikelihood": "MEDIUM" }
+```
+
+Values: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, or `null` to clear.
+
+**Response 200** — Updated risk with computed `riskLevel`
+
+### `GET /api/projects/:projectId/risk-matrix`
+
+Get aggregated risk matrix data (count of test cases per impact×likelihood cell).
+
+**Auth:** Session + project member
+
+**Response 200**
+```json
+{
+  "matrix": [
+    { "riskImpact": "HIGH", "riskLikelihood": "MEDIUM", "riskLevel": "HIGH", "count": 12 }
+  ],
+  "total": 100,
+  "assessed": 45,
+  "unassessed": 55
+}
+```
+
+---
+
+## Test Cycles
+
+### `GET /api/projects/:projectId/test-cycles`
+
+List all test cycles for a project.
+
+**Auth:** Session + project member
+
+**Query parameters:** `status` (optional) — filter by `PLANNED`, `IN_PROGRESS`, `COMPLETED`
+
+**Response 200** — Array of cycles with `runCount`
+
+### `POST /api/projects/:projectId/test-cycles`
+
+Create a new test cycle.
+
+**Auth:** Session + `PROJECT_ADMIN | QA`
+
+**Request body**
+```json
+{
+  "name": "Sprint 5 Cycle",
+  "cycleNumber": 5,
+  "releaseId": 1,
+  "status": "PLANNED",
+  "startDate": "2026-03-01",
+  "endDate": "2026-03-14"
+}
+```
+
+**Response 201** — Created cycle
+
+### `GET /api/projects/:projectId/test-cycles/:cycleId`
+
+Get cycle detail with linked runs and pass rate summary.
+
+**Auth:** Session + project member
+
+**Response 200**
+```json
+{
+  "id": 1, "name": "Sprint 5 Cycle", "cycleNumber": 5, "status": "PLANNED",
+  "runs": [{ "id": 10, "name": "Run 1", "environment": "QA", "total": 50, "passed": 45, "failed": 5 }],
+  "summary": { "runCount": 1, "totalTests": 50, "totalPassed": 45, "passRate": 90 }
+}
+```
+
+### `PUT /api/projects/:projectId/test-cycles/:cycleId`
+
+Update a test cycle (name, status, dates, release).
+
+**Auth:** Session + `PROJECT_ADMIN | QA`
+
+### `DELETE /api/projects/:projectId/test-cycles/:cycleId`
+
+Delete a test cycle. Linked runs are unlinked (not deleted).
+
+**Auth:** Session + `PROJECT_ADMIN`
+
+---
+
+## Modules
+
+### `GET /api/projects/:projectId/modules`
+
+List all modules with test case counts (flat list; hierarchy via `parentModuleId`).
+
+**Auth:** Session + project member
+
+### `POST /api/projects/:projectId/modules`
+
+Create a new module.
+
+**Auth:** Session + `PROJECT_ADMIN | QA | DEV`
+
+**Request body**
+```json
+{ "name": "Authentication", "parentModuleId": null, "description": "Login, SSO, OAuth" }
+```
+
+### `PUT /api/projects/:projectId/modules/:moduleId`
+
+Update module name, parent, description, or sort order.
+
+**Auth:** Session + `PROJECT_ADMIN | QA | DEV`
+
+### `DELETE /api/projects/:projectId/modules/:moduleId`
+
+Delete a module. Test case links are removed (test cases preserved).
+
+**Auth:** Session + `PROJECT_ADMIN`
+
+### `POST /api/projects/:projectId/modules/:moduleId/test-cases`
+
+Link test cases to a module.
+
+**Auth:** Session + `PROJECT_ADMIN | QA | DEV`
+
+**Request body**
+```json
+{ "testCaseIds": [1, 2, 3] }
+```
+
+### `DELETE /api/projects/:projectId/modules/:moduleId/test-cases`
+
+Unlink test cases from a module.
+
+**Auth:** Session + `PROJECT_ADMIN | QA | DEV`
+
+**Request body**
+```json
+{ "testCaseIds": [1, 2] }
+```
+
+### `GET /api/projects/:projectId/modules/coverage`
+
+Get per-module coverage data (test case count, pass/fail counts from latest executions).
+
+**Auth:** Session + project member
+
+**Response 200**
+```json
+{
+  "modules": [{ "id": 1, "name": "Auth", "parentModuleId": null, "testCaseCount": 15, "passCount": 12, "failCount": 2 }],
+  "summary": { "totalModules": 5, "emptyModules": 1, "coveredModules": 4 }
+}
+```
+
+---
+
+## Cross-Environment Runs
+
+### `POST /api/projects/:projectId/test-runs/cross-env`
+
+Create multiple test runs at once — one per environment — with the same set of test cases.
+
+**Auth:** Session + `PROJECT_ADMIN | QA`
+
+**Request body**
+```json
+{
+  "name": "Regression v2.1",
+  "testCaseIds": [1, 2, 3],
+  "environments": ["QA", "STAGE", "PROD"],
+  "testPlanId": 1,
+  "releaseId": 2,
+  "testCycleId": 3
+}
+```
+
+**Response 201**
+```json
+{
+  "runs": [
+    { "id": 10, "environment": "QA" },
+    { "id": 11, "environment": "STAGE" },
+    { "id": 12, "environment": "PROD" }
+  ]
+}
+```
+
+---
+
+## Environment Matrix
+
+### `GET /api/projects/:projectId/reports/env-matrix?runIds=10,11,12`
+
+Compare test results across multiple runs (typically from different environments).
+
+**Auth:** Session + project member
+
+**Query parameters:** `runIds` — comma-separated run IDs (min 2)
+
+**Response 200**
+```json
+{
+  "environments": ["QA", "STAGE", "PROD"],
+  "runs": [{ "id": 10, "name": "Regression v2.1 [QA]", "environment": "QA" }],
+  "matrix": [{ "testCaseId": 1, "title": "Login", "results": { "QA": "PASS", "STAGE": "PASS", "PROD": "FAIL" } }],
+  "envStats": [{ "runId": 10, "environment": "QA", "total": 50, "passed": 48, "failed": 2, "passRate": 96 }],
+  "envSpecificFailures": [
+    { "testCaseId": 1, "title": "Login", "failedIn": ["PROD"], "passedIn": ["QA", "STAGE"] }
+  ]
+}
+```

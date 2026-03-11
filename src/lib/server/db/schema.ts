@@ -188,6 +188,9 @@ export const testCase = pgTable(
 		sortOrder: integer('sort_order').notNull().default(0),
 		approvalStatus: text('approval_status').notNull().default('DRAFT'),
 		retestNeeded: boolean('retest_needed').default(false).notNull(),
+		riskImpact: text('risk_impact'),
+		riskLikelihood: text('risk_likelihood'),
+		riskLevel: text('risk_level'),
 		createdBy: text('created_by')
 			.notNull()
 			.references(() => user.id),
@@ -197,7 +200,8 @@ export const testCase = pgTable(
 		index('test_case_project_idx').on(table.projectId),
 		unique('test_case_key_unique').on(table.projectId, table.key),
 		index('test_case_group_sort_idx').on(table.projectId, table.groupId, table.sortOrder),
-		index('test_case_automation_key_idx').on(table.projectId, table.automationKey)
+		index('test_case_automation_key_idx').on(table.projectId, table.automationKey),
+		index('test_case_risk_level_idx').on(table.projectId, table.riskLevel)
 	]
 );
 
@@ -338,6 +342,7 @@ export const testRun = pgTable(
 			.notNull(),
 		testPlanId: integer('test_plan_id').references(() => testPlan.id, { onDelete: 'set null' }),
 		releaseId: integer('release_id').references(() => release.id, { onDelete: 'set null' }),
+		testCycleId: integer('test_cycle_id').references(() => testCycle.id, { onDelete: 'set null' }),
 		retestOfRunId: integer('retest_of_run_id')
 	},
 	(table) => [
@@ -359,6 +364,10 @@ export const testRunRelations = relations(testRun, ({ one, many }) => ({
 	release: one(release, {
 		fields: [testRun.releaseId],
 		references: [release.id]
+	}),
+	testCycle: one(testCycle, {
+		fields: [testRun.testCycleId],
+		references: [testCycle.id]
 	}),
 	executions: many(testExecution)
 }));
@@ -1655,6 +1664,117 @@ export const testPlanSignoffRelations = relations(testPlanSignoff, ({ one }) => 
 	user: one(user, {
 		fields: [testPlanSignoff.userId],
 		references: [user.id]
+	})
+}));
+
+// ── TestCycle ─────────────────────────────────────────
+
+export const testCycle = pgTable(
+	'test_cycle',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		releaseId: integer('release_id').references(() => release.id, { onDelete: 'set null' }),
+		name: text('name').notNull(),
+		cycleNumber: integer('cycle_number').notNull(),
+		status: text('status').notNull().default('PLANNED'),
+		startDate: timestamp('start_date'),
+		endDate: timestamp('end_date'),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at')
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		index('test_cycle_project_idx').on(table.projectId),
+		unique('test_cycle_project_number_unique').on(table.projectId, table.cycleNumber)
+	]
+);
+
+export const testCycleRelations = relations(testCycle, ({ one, many }) => ({
+	project: one(project, {
+		fields: [testCycle.projectId],
+		references: [project.id]
+	}),
+	release: one(release, {
+		fields: [testCycle.releaseId],
+		references: [release.id]
+	}),
+	creator: one(user, {
+		fields: [testCycle.createdBy],
+		references: [user.id]
+	}),
+	runs: many(testRun)
+}));
+
+// ── Module ────────────────────────────────────────────
+
+export const module = pgTable(
+	'module',
+	{
+		id: serial('id').primaryKey(),
+		projectId: integer('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		parentModuleId: integer('parent_module_id'),
+		description: text('description'),
+		sortOrder: integer('sort_order').notNull().default(0),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [index('module_project_idx').on(table.projectId)]
+);
+
+export const moduleRelations = relations(module, ({ one, many }) => ({
+	project: one(project, {
+		fields: [module.projectId],
+		references: [project.id]
+	}),
+	parent: one(module, {
+		fields: [module.parentModuleId],
+		references: [module.id],
+		relationName: 'parentChild'
+	}),
+	children: many(module, { relationName: 'parentChild' }),
+	testCases: many(moduleTestCase)
+}));
+
+export const moduleTestCase = pgTable(
+	'module_test_case',
+	{
+		id: serial('id').primaryKey(),
+		moduleId: integer('module_id')
+			.notNull()
+			.references(() => module.id, { onDelete: 'cascade' }),
+		testCaseId: integer('test_case_id')
+			.notNull()
+			.references(() => testCase.id, { onDelete: 'cascade' }),
+		addedAt: timestamp('added_at').defaultNow().notNull()
+	},
+	(table) => [
+		unique('module_test_case_unique').on(table.moduleId, table.testCaseId),
+		index('module_test_case_module_idx').on(table.moduleId),
+		index('module_test_case_tc_idx').on(table.testCaseId)
+	]
+);
+
+export const moduleTestCaseRelations = relations(moduleTestCase, ({ one }) => ({
+	module: one(module, {
+		fields: [moduleTestCase.moduleId],
+		references: [module.id]
+	}),
+	testCase: one(testCase, {
+		fields: [moduleTestCase.testCaseId],
+		references: [testCase.id]
 	})
 }));
 

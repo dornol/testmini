@@ -94,5 +94,60 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions', () => {
 			});
 			await expect(POST(event)).rejects.toThrow();
 		});
+
+		it('should return 403 when run is COMPLETED', async () => {
+			mockDb.query.testRun.findFirst = vi.fn().mockResolvedValue({
+				...sampleTestRun,
+				status: 'COMPLETED'
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { testCaseId: 10 },
+				user: adminUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(403);
+			expect(body.error).toMatch(/completed/i);
+		});
+
+		it('should return 400 when testCaseId is missing', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: {},
+				user: adminUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/testCaseId/i);
+		});
+
+		it('should return 409 when execution already exists', async () => {
+			const existingChain = {
+				from: vi.fn().mockReturnThis(),
+				innerJoin: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (resolve: (v: unknown) => void) => Promise.resolve([{ id: 999 }]).then(resolve)
+			};
+			mockDb.select.mockReturnValue(existingChain as never);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { testCaseId: 10 },
+				user: adminUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(409);
+			expect(body.error).toMatch(/already exists/i);
+		});
 	});
 });

@@ -133,5 +133,59 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/f
 			});
 			await expect(POST(event)).rejects.toThrow();
 		});
+
+		it('should return 403 when run is COMPLETED', async () => {
+			mockDb.query.testRun.findFirst = vi.fn().mockResolvedValue({
+				...sampleTestRun,
+				status: 'COMPLETED'
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { errorMessage: 'Error' },
+				user: adminUser
+			});
+			await expect(POST(event)).rejects.toThrow();
+		});
+
+		it('should return 404 when execution not found', async () => {
+			mockDb.query.testExecution = { findFirst: vi.fn().mockResolvedValue(null) };
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { errorMessage: 'Error' },
+				user: adminUser
+			});
+			await expect(POST(event)).rejects.toThrow();
+		});
+	});
+
+	describe('GET edge cases', () => {
+		it('should return empty array when no failures exist', async () => {
+			mockSelectResult(mockDb, []);
+
+			const event = createMockEvent({ params: PARAMS, user: testUser });
+			const response = await GET(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(body.failures).toHaveLength(0);
+		});
+
+		it('should return 404 when run not found', async () => {
+			mockDb.query.testRun.findFirst = vi.fn().mockResolvedValue(null);
+
+			const event = createMockEvent({ params: PARAMS, user: testUser });
+			await expect(GET(event)).rejects.toThrow();
+		});
+
+		it('should return 404 when execution not found', async () => {
+			mockDb.query.testExecution = { findFirst: vi.fn().mockResolvedValue(null) };
+
+			const event = createMockEvent({ params: PARAMS, user: testUser });
+			await expect(GET(event)).rejects.toThrow();
+		});
 	});
 });

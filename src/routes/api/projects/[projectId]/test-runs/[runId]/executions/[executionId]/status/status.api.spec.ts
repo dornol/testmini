@@ -127,5 +127,81 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 			});
 			await expect(PUT(event)).rejects.toThrow();
 		});
+
+		it('should return 403 when run is COMPLETED', async () => {
+			mockDb.query.testRun.findFirst = vi.fn().mockResolvedValue({
+				...sampleTestRun,
+				status: 'COMPLETED'
+			});
+
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { status: 'PASS' },
+				user: adminUser
+			});
+			await expect(PUT(event)).rejects.toThrow();
+		});
+
+		it('should return 404 when run not found', async () => {
+			mockDb.query.testRun.findFirst = vi.fn().mockResolvedValue(null);
+
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { status: 'PASS' },
+				user: adminUser
+			});
+			await expect(PUT(event)).rejects.toThrow();
+		});
+
+		it('should return 404 when execution not found', async () => {
+			mockDb.query.testExecution = { findFirst: vi.fn().mockResolvedValue(null) };
+
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { status: 'PASS' },
+				user: adminUser
+			});
+			await expect(PUT(event)).rejects.toThrow();
+		});
+
+		it('should accept all valid statuses', async () => {
+			const validStatuses = ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING'];
+			for (const status of validStatuses) {
+				vi.clearAllMocks();
+				mockDb.query.testRun.findFirst = vi.fn().mockResolvedValue(sampleTestRun);
+				mockDb.query.testExecution = { findFirst: vi.fn().mockResolvedValue(sampleExecution) };
+				mockDb.query.testCaseVersion = { findFirst: vi.fn().mockResolvedValue({ id: 1, testCaseId: 10 }) };
+				mockDb.query.testCase = { findFirst: vi.fn().mockResolvedValue({ id: 10, key: 'TC-0001' }) };
+
+				const updateChain = {
+					set: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+				};
+				mockDb.update.mockReturnValue(updateChain as never);
+
+				const selectChain = {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (resolve: (v: unknown) => void) => Promise.resolve([]).then(resolve)
+				};
+				mockDb.select.mockReturnValue(selectChain as never);
+
+				const event = createMockEvent({
+					method: 'PUT',
+					params: PARAMS,
+					body: { status },
+					user: adminUser
+				});
+				const response = await PUT(event);
+				const body = await response.json();
+
+				expect(response.status).toBe(200);
+				expect(body.status).toBe(status);
+			}
+		});
 	});
 });

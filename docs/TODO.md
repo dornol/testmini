@@ -763,6 +763,13 @@ Link test results to external issue trackers for end-to-end traceability.
 
 - [x] New messages (en/ko): `common_saved`, `dashboard_layout_saved`, `req_unlink_confirm`, `admin_confirm_toggle_title`, `admin_confirm_activate`, `admin_confirm_deactivate`
 
+### 24.6 Traceability Dialog Fixes -- Done
+
+- [x] Remove double Portal/Overlay wrapping from all traceability page dialogs (Create, Edit, Delete, Unlink, Link Test Case)
+- [x] Link test case dialog: widen to `max-w-2xl` with `max-h-[85vh]` overflow containment
+- [x] Link test case dialog: add infinite scroll (load 50 more on scroll) replacing fixed 50-item limit
+- [x] Add traceability page server load test (6 tests)
+
 ---
 
 ## Future Considerations

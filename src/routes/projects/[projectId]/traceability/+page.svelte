@@ -95,6 +95,7 @@
 	let linkReqId = $state<number | null>(null);
 	let linkSearch = $state('');
 	let linkLoading = $state(false);
+	let linkDisplayCount = $state(50);
 
 	const filteredTestCases = $derived(
 		data.allTestCases.filter(
@@ -220,7 +221,17 @@
 	function openLinkDialog(reqId: number) {
 		linkReqId = reqId;
 		linkSearch = '';
+		linkDisplayCount = 50;
 		linkDialogOpen = true;
+	}
+
+	function handleLinkListScroll(e: Event) {
+		const el = e.currentTarget as HTMLElement;
+		if (el.scrollTop + el.clientHeight >= el.scrollHeight - 40) {
+			if (linkDisplayCount < filteredTestCases.length) {
+				linkDisplayCount += 50;
+			}
+		}
 	}
 
 	async function linkTestCase(testCaseId: number) {
@@ -482,9 +493,7 @@
 
 <!-- Create Requirement Dialog -->
 <Dialog.Root bind:open={createDialogOpen}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-md">
+	<Dialog.Content class="sm:max-w-md">
 			<Dialog.Header>
 				<Dialog.Title>{m.req_new()}</Dialog.Title>
 			</Dialog.Header>
@@ -523,14 +532,11 @@
 				</Button>
 			</Dialog.Footer>
 		</Dialog.Content>
-	</Dialog.Portal>
 </Dialog.Root>
 
 <!-- Edit Requirement Dialog -->
 <Dialog.Root bind:open={editDialogOpen}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-md">
+	<Dialog.Content class="sm:max-w-md">
 			<Dialog.Header>
 				<Dialog.Title>{m.req_edit()}</Dialog.Title>
 			</Dialog.Header>
@@ -569,14 +575,11 @@
 				</Button>
 			</Dialog.Footer>
 		</Dialog.Content>
-	</Dialog.Portal>
 </Dialog.Root>
 
 <!-- Delete Requirement Dialog -->
 <AlertDialog.Root bind:open={deleteDialogOpen}>
-	<AlertDialog.Portal>
-		<AlertDialog.Overlay />
-		<AlertDialog.Content>
+	<AlertDialog.Content>
 			<AlertDialog.Header>
 				<AlertDialog.Title>{m.req_delete()}</AlertDialog.Title>
 				<AlertDialog.Description>{m.req_delete_confirm()}</AlertDialog.Description>
@@ -588,14 +591,11 @@
 				</Button>
 			</AlertDialog.Footer>
 		</AlertDialog.Content>
-	</AlertDialog.Portal>
 </AlertDialog.Root>
 
 <!-- Unlink Confirmation Dialog -->
 <AlertDialog.Root bind:open={unlinkDialogOpen}>
-	<AlertDialog.Portal>
-		<AlertDialog.Overlay />
-		<AlertDialog.Content>
+	<AlertDialog.Content>
 			<AlertDialog.Header>
 				<AlertDialog.Title>{m.req_unlink_test_case()}</AlertDialog.Title>
 				<AlertDialog.Description>
@@ -609,24 +609,23 @@
 				</Button>
 			</AlertDialog.Footer>
 		</AlertDialog.Content>
-	</AlertDialog.Portal>
 </AlertDialog.Root>
 
 <!-- Link Test Case Dialog -->
 <Dialog.Root bind:open={linkDialogOpen}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-lg">
+	<Dialog.Content class="sm:max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
 			<Dialog.Header>
 				<Dialog.Title>{m.req_link_test_case()}</Dialog.Title>
 			</Dialog.Header>
-			<div class="space-y-4 py-4">
+			<div class="space-y-4 py-4 flex-1 overflow-hidden flex flex-col">
 				<Input
 					bind:value={linkSearch}
+					oninput={() => (linkDisplayCount = 50)}
 					placeholder={m.req_search_test_cases()}
+					class="shrink-0"
 				/>
-				<div class="max-h-60 overflow-y-auto space-y-1">
-					{#each filteredTestCases.slice(0, 50) as tc (tc.id)}
+				<div class="flex-1 overflow-y-auto space-y-1" onscroll={handleLinkListScroll}>
+					{#each filteredTestCases.slice(0, linkDisplayCount) as tc (tc.id)}
 						<div class="flex items-center justify-between rounded px-2 py-1 hover:bg-muted text-sm">
 							<div class="flex gap-2 items-center min-w-0">
 								<span class="font-mono text-xs text-muted-foreground shrink-0">{tc.key}</span>
@@ -656,5 +655,4 @@
 				</Button>
 			</Dialog.Footer>
 		</Dialog.Content>
-	</Dialog.Portal>
 </Dialog.Root>

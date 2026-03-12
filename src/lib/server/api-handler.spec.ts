@@ -16,7 +16,7 @@ vi.mock('@sveltejs/kit', () => ({
 	}
 }));
 
-import { withProjectRole, withProjectAccess, withAuth } from './api-handler';
+import { withProjectRole, withProjectAccess, withAuth, getActionContext } from './api-handler';
 
 const fakeUser = { id: 'user-1', name: 'Test', role: 'user' };
 
@@ -161,5 +161,80 @@ describe('withAuth', () => {
 
 		await expect(wrapped(makeEvent())).rejects.toMatchObject({ status: 401 });
 		expect(handler).not.toHaveBeenCalled();
+	});
+});
+
+// ── getActionContext ──────────────────────────────────
+describe('getActionContext', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockRequireAuth.mockReturnValue(fakeUser);
+		mockRequireProjectRole.mockResolvedValue({ role: 'ADMIN' });
+		mockRequireProjectAccess.mockResolvedValue({ role: 'MEMBER' });
+	});
+
+	it('returns user and projectId with role check', async () => {
+		const result = await getActionContext(
+			{ user: fakeUser } as App.Locals,
+			{ projectId: '42' },
+			['ADMIN']
+		);
+
+		expect(result).toEqual({ user: fakeUser, projectId: 42 });
+		expect(mockRequireProjectRole).toHaveBeenCalledWith(fakeUser, 42, ['ADMIN']);
+		expect(mockRequireProjectAccess).not.toHaveBeenCalled();
+	});
+
+	it('falls back to access check when no roles specified', async () => {
+		const result = await getActionContext(
+			{ user: fakeUser } as App.Locals,
+			{ projectId: '42' }
+		);
+
+		expect(result).toEqual({ user: fakeUser, projectId: 42 });
+		expect(mockRequireProjectAccess).toHaveBeenCalledWith(fakeUser, 42);
+		expect(mockRequireProjectRole).not.toHaveBeenCalled();
+	});
+
+	it('throws 401 when not authenticated', async () => {
+		mockRequireAuth.mockImplementation(() => {
+			throw { status: 401, body: { message: 'Authentication required' } };
+		});
+
+		await expect(
+			getActionContext({ user: null } as App.Locals, { projectId: '42' })
+		).rejects.toMatchObject({ status: 401 });
+	});
+
+	it.each([
+		['NaN', 'abc'],
+		['Infinity', 'Infinity'],
+		['special chars', 'foo-bar']
+	])('throws 400 for invalid projectId (%s)', async (_label, id) => {
+		await expect(
+			getActionContext({ user: fakeUser } as App.Locals, { projectId: id })
+		).rejects.toMatchObject({ status: 400 });
+	});
+
+	it('throws 403 when role check fails', async () => {
+		mockRequireProjectRole.mockRejectedValue({
+			status: 403,
+			body: { message: 'Forbidden' }
+		});
+
+		await expect(
+			getActionContext({ user: fakeUser } as App.Locals, { projectId: '42' }, ['ADMIN'])
+		).rejects.toMatchObject({ status: 403 });
+	});
+
+	it('throws 403 when access check fails', async () => {
+		mockRequireProjectAccess.mockRejectedValue({
+			status: 403,
+			body: { message: 'No access' }
+		});
+
+		await expect(
+			getActionContext({ user: fakeUser } as App.Locals, { projectId: '42' })
+		).rejects.toMatchObject({ status: 403 });
 	});
 });

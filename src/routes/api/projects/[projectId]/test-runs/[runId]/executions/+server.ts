@@ -29,6 +29,10 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 			return notFound('Test run not found');
 		}
 
+		if (run.status === 'COMPLETED') {
+			return json({ error: 'Cannot modify executions in a completed run' }, { status: 403 });
+		}
+
 		// Verify test case belongs to project and get latest version
 		const tc = await db.query.testCase.findFirst({
 			where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))

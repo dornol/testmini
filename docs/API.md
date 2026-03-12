@@ -1062,7 +1062,7 @@ If `name` is omitted, the run is named `"Retest of <original name>"`.
 
 #### `POST /api/projects/:projectId/test-runs/:runId/executions`
 
-Add a single test case to an existing test run.
+Add a single test case to an existing test run. Returns **403** if the test run is `COMPLETED`.
 
 **Auth:** Session + `PROJECT_ADMIN | QA | DEV`
 
@@ -1076,6 +1076,7 @@ Add a single test case to an existing test run.
 { "executionId": 200, "status": "PENDING" }
 ```
 
+**Response 403** — test run is `COMPLETED`
 **Response 409** — test case is already in the run
 
 ---
@@ -1137,7 +1138,7 @@ List all failure details recorded for an execution.
 
 #### `POST /api/projects/:projectId/test-runs/:runId/executions/:executionId/failures`
 
-Record a failure detail. Also sets the execution status to `FAIL`.
+Record a failure detail. Also sets the execution status to `FAIL`. Returns **403** if the test run is `COMPLETED`.
 
 **Auth:** Session + `PROJECT_ADMIN | QA | DEV`
 
@@ -2141,7 +2142,7 @@ Environment configuration is managed through the project settings UI at `/projec
 
 Environment values in test runs are stored as plain text strings that reference environment names from this configuration. The automation API (`POST /api/automation/results`) also accepts any string as the environment value.
 
-**Viewing environment details:** When an environment has detail fields (baseUrl, credentials, memo), the environment badge on the test run detail page becomes clickable and shows a popover with the configured information. This allows QA testers to quickly access login credentials and URLs without navigating to the settings page.
+**Viewing environment details:** When an environment has detail fields (baseUrl, credentials, memo), the environment badge on the test run detail page becomes clickable and shows a popover with the configured information. On the test cases page, test run column headers also show a clickable info icon (ℹ) when environment details exist — clicking it opens a popover with the same information. This allows QA testers to quickly access login credentials and URLs without navigating to the settings page.
 
 ---
 

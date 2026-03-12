@@ -1257,18 +1257,23 @@
 					{@const run = selectedRuns.find((r) => r.id === runId)}
 					{#if run}
 						{@const exec = data.executionMap[tc.id]?.[run.id]}
+						{@const isRunCompleted = run.status === 'COMPLETED'}
 						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 						<span class="w-16 shrink-0 text-center hidden lg:block" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
 							{#if exec}
-								<button
-									type="button"
-									data-status-dropdown
-									class="font-medium cursor-pointer {statusColor(exec.status)} hover:underline"
-									onclick={(e) => toggleDropdown(tc.id, run.id, e)}
-								>
-									{exec.status}
-								</button>
-							{:else if canEdit}
+								{#if isRunCompleted}
+									<span class="font-medium {statusColor(exec.status)}" title="Completed run (read-only)">{exec.status}</span>
+								{:else}
+									<button
+										type="button"
+										data-status-dropdown
+										class="font-medium cursor-pointer {statusColor(exec.status)} hover:underline"
+										onclick={(e) => toggleDropdown(tc.id, run.id, e)}
+									>
+										{exec.status}
+									</button>
+								{/if}
+							{:else if canEdit && !isRunCompleted}
 								<AddCircleButton tip="Add to run" onclick={(e) => addExecution(tc.id, run.id, e)} />
 							{:else}
 								<span class="text-muted-foreground">-</span>
@@ -1370,7 +1375,48 @@
 						{@const runId = Number(colId.slice(4))}
 						{@const run = selectedRuns.find((r) => r.id === runId)}
 						{#if run}
-							<span class="w-16 shrink-0 text-center truncate hidden lg:block" data-tip={run.name}>{run.name}</span>
+							{@const envConfig = data.projectEnvironments.find(e => e.name === run.environment)}
+							{@const hasEnvInfo = envConfig?.baseUrl || envConfig?.credentials || envConfig?.memo}
+							{#if hasEnvInfo}
+								<Popover.Root>
+									<Popover.Trigger class="w-16 shrink-0 text-center truncate hidden lg:block cursor-pointer hover:text-primary transition-colors" title={run.name}>
+										<span class="inline-flex items-center gap-0.5">
+											{run.name}
+											<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+										</span>
+									</Popover.Trigger>
+									<Popover.Content class="w-72 text-left" align="start">
+										<div class="space-y-2">
+											<div class="font-medium text-sm flex items-center gap-2">
+												{#if envConfig?.color}
+													<span class="h-2.5 w-2.5 rounded-full shrink-0" style="background-color: {envConfig.color}"></span>
+												{/if}
+												{run.environment}
+											</div>
+											{#if envConfig?.baseUrl}
+												<div>
+													<div class="text-xs font-medium text-muted-foreground">{m.env_base_url()}</div>
+													<div class="text-xs break-all">{envConfig.baseUrl}</div>
+												</div>
+											{/if}
+											{#if envConfig?.credentials}
+												<div>
+													<div class="text-xs font-medium text-muted-foreground">{m.env_credentials()}</div>
+													<div class="text-xs whitespace-pre-wrap">{envConfig.credentials}</div>
+												</div>
+											{/if}
+											{#if envConfig?.memo}
+												<div>
+													<div class="text-xs font-medium text-muted-foreground">{m.env_memo()}</div>
+													<div class="text-xs whitespace-pre-wrap">{envConfig.memo}</div>
+												</div>
+											{/if}
+										</div>
+									</Popover.Content>
+								</Popover.Root>
+							{:else}
+								<span class="w-16 shrink-0 text-center truncate hidden lg:block" title={run.name}>{run.name}</span>
+							{/if}
 						{/if}
 					{/if}
 				{/each}

@@ -62,6 +62,10 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 		error(404, 'Test run not found');
 	}
 
+	if (run.status === 'COMPLETED') {
+		error(403, 'Cannot modify executions in a completed run');
+	}
+
 	const execution = await db.query.testExecution.findFirst({
 		where: and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId))
 	});

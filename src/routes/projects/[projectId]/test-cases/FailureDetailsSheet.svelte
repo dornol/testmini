@@ -132,6 +132,9 @@
 									<div class="text-sm">{f.comment}</div>
 								</div>
 							{/if}
+							{#if !f.errorMessage && !f.testMethod && !f.failureEnvironment && !f.stackTrace && !f.comment}
+								<div class="text-sm text-muted-foreground italic">{m.fail_no_details()}</div>
+							{/if}
 							<div class="text-xs text-muted-foreground pt-1 border-t">
 								{f.createdByName ?? f.createdBy} &middot; {new Date(f.createdAt).toLocaleString()}
 							</div>

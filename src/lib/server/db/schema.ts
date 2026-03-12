@@ -576,6 +576,9 @@ export const environmentConfig = pgTable(
 		color: text('color').notNull(),
 		position: integer('position').notNull().default(0),
 		isDefault: boolean('is_default').notNull().default(false),
+		baseUrl: text('base_url'),
+		credentials: text('credentials'),
+		memo: text('memo'),
 		createdBy: text('created_by')
 			.notNull()
 			.references(() => user.id),

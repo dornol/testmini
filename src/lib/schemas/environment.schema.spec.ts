@@ -88,8 +88,64 @@ describe('createEnvironmentSchema', () => {
 		const result = createEnvironmentSchema.safeParse({ name: 'Production', color: '#abcdef', isDefault: true });
 		expect(result.success).toBe(true);
 		if (result.success) {
-			expect(result.data).toEqual({ name: 'Production', color: '#abcdef', isDefault: true });
+			expect(result.data).toEqual({ name: 'Production', color: '#abcdef', isDefault: true, baseUrl: '', credentials: '', memo: '' });
 		}
+	});
+
+	it('should accept baseUrl, credentials, and memo', () => {
+		const result = createEnvironmentSchema.safeParse({
+			name: 'QA', color: '#ff0000',
+			baseUrl: 'https://qa.example.com',
+			credentials: 'admin@test.com / pass123',
+			memo: 'VPN required'
+		});
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.baseUrl).toBe('https://qa.example.com');
+			expect(result.data.credentials).toBe('admin@test.com / pass123');
+			expect(result.data.memo).toBe('VPN required');
+		}
+	});
+
+	it('should default detail fields to empty string when not provided', () => {
+		const result = createEnvironmentSchema.safeParse({ name: 'QA', color: '#ff0000' });
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.baseUrl).toBe('');
+			expect(result.data.credentials).toBe('');
+			expect(result.data.memo).toBe('');
+		}
+	});
+
+	it('should reject baseUrl exceeding 500 characters', () => {
+		const result = createEnvironmentSchema.safeParse({
+			name: 'QA', color: '#ff0000', baseUrl: 'https://' + 'a'.repeat(500)
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject credentials exceeding 1000 characters', () => {
+		const result = createEnvironmentSchema.safeParse({
+			name: 'QA', color: '#ff0000', credentials: 'a'.repeat(1001)
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject memo exceeding 2000 characters', () => {
+		const result = createEnvironmentSchema.safeParse({
+			name: 'QA', color: '#ff0000', memo: 'a'.repeat(2001)
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('should accept detail fields at max length', () => {
+		const result = createEnvironmentSchema.safeParse({
+			name: 'QA', color: '#ff0000',
+			baseUrl: 'a'.repeat(500),
+			credentials: 'a'.repeat(1000),
+			memo: 'a'.repeat(2000)
+		});
+		expect(result.success).toBe(true);
 	});
 });
 
@@ -205,7 +261,53 @@ describe('updateEnvironmentSchema', () => {
 		const result = updateEnvironmentSchema.safeParse({ environmentId: 42, name: 'Prod', color: '#abcdef', isDefault: true });
 		expect(result.success).toBe(true);
 		if (result.success) {
-			expect(result.data).toEqual({ environmentId: 42, name: 'Prod', color: '#abcdef', isDefault: true });
+			expect(result.data).toEqual({ environmentId: 42, name: 'Prod', color: '#abcdef', isDefault: true, baseUrl: '', credentials: '', memo: '' });
 		}
+	});
+
+	it('should accept detail fields (baseUrl, credentials, memo)', () => {
+		const result = updateEnvironmentSchema.safeParse({
+			environmentId: 1, name: 'QA', color: '#ff0000',
+			baseUrl: 'https://qa.example.com',
+			credentials: 'admin / pass',
+			memo: 'Reset daily'
+		});
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.baseUrl).toBe('https://qa.example.com');
+			expect(result.data.credentials).toBe('admin / pass');
+			expect(result.data.memo).toBe('Reset daily');
+		}
+	});
+
+	it('should default detail fields to empty string when not provided', () => {
+		const result = updateEnvironmentSchema.safeParse({ environmentId: 1, name: 'QA', color: '#ff0000' });
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.baseUrl).toBe('');
+			expect(result.data.credentials).toBe('');
+			expect(result.data.memo).toBe('');
+		}
+	});
+
+	it('should reject baseUrl exceeding 500 characters', () => {
+		const result = updateEnvironmentSchema.safeParse({
+			environmentId: 1, name: 'QA', color: '#ff0000', baseUrl: 'a'.repeat(501)
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject credentials exceeding 1000 characters', () => {
+		const result = updateEnvironmentSchema.safeParse({
+			environmentId: 1, name: 'QA', color: '#ff0000', credentials: 'a'.repeat(1001)
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject memo exceeding 2000 characters', () => {
+		const result = updateEnvironmentSchema.safeParse({
+			environmentId: 1, name: 'QA', color: '#ff0000', memo: 'a'.repeat(2001)
+		});
+		expect(result.success).toBe(false);
 	});
 });

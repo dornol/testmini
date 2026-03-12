@@ -90,7 +90,7 @@ export async function loadProjectPriorities(projectId: number): Promise<Priority
 }
 
 /** Load all environment configs for a project */
-type EnvironmentRow = { id: number; name: string; color: string; position: number; isDefault: boolean };
+type EnvironmentRow = { id: number; name: string; color: string; position: number; isDefault: boolean; baseUrl: string | null; credentials: string | null; memo: string | null };
 export async function loadProjectEnvironments(projectId: number): Promise<EnvironmentRow[]> {
 	const cacheKey = `project:${projectId}:environments`;
 	const cached = cacheGet<EnvironmentRow[]>(cacheKey);
@@ -102,7 +102,10 @@ export async function loadProjectEnvironments(projectId: number): Promise<Enviro
 			name: environmentConfig.name,
 			color: environmentConfig.color,
 			position: environmentConfig.position,
-			isDefault: environmentConfig.isDefault
+			isDefault: environmentConfig.isDefault,
+			baseUrl: environmentConfig.baseUrl,
+			credentials: environmentConfig.credentials,
+			memo: environmentConfig.memo
 		})
 		.from(environmentConfig)
 		.where(eq(environmentConfig.projectId, projectId))

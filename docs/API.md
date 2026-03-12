@@ -2124,6 +2124,9 @@ Environment configuration is managed through the project settings UI at `/projec
 | `color` | varchar(7) | Hex color (e.g. `#3b82f6`) |
 | `position` | integer | Display order (0-based) |
 | `isDefault` | boolean | Whether this is the default environment for new test runs |
+| `baseUrl` | text (nullable) | Base URL of the test environment (e.g. `https://qa.example.com`) |
+| `credentials` | text (nullable) | Login credentials or account info for QA testers |
+| `memo` | text (nullable) | Additional notes (e.g. VPN required, data reset schedule) |
 | `createdBy` | varchar | FK to `user` |
 | `createdAt` | timestamp | — |
 
@@ -2131,12 +2134,14 @@ Environment configuration is managed through the project settings UI at `/projec
 
 | Action | Description | Auth |
 |---|---|---|
-| `create` | Add a new environment | PROJECT_ADMIN, QA, DEV |
-| `update` | Edit name/color/default; propagates name changes to `test_run.environment` | PROJECT_ADMIN, QA, DEV |
+| `create` | Add a new environment (with optional detail fields: baseUrl, credentials, memo) | PROJECT_ADMIN, QA, DEV |
+| `update` | Edit name/color/default/details; propagates name changes to `test_run.environment` | PROJECT_ADMIN, QA, DEV |
 | `delete` | Remove an environment | PROJECT_ADMIN, QA, DEV |
 | `reorder` | Reorder environment display positions | PROJECT_ADMIN, QA, DEV |
 
 Environment values in test runs are stored as plain text strings that reference environment names from this configuration. The automation API (`POST /api/automation/results`) also accepts any string as the environment value.
+
+**Viewing environment details:** When an environment has detail fields (baseUrl, credentials, memo), the environment badge on the test run detail page becomes clickable and shows a popover with the configured information. This allows QA testers to quickly access login credentials and URLs without navigating to the settings page.
 
 ---
 

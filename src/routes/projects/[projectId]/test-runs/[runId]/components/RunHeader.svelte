@@ -12,6 +12,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as m from '$lib/paraglide/messages.js';
 
 	interface Props {
@@ -36,7 +37,7 @@
 		isAdmin: boolean;
 		sseConnected: boolean;
 		completedPct: number;
-		projectEnvironments: Array<{ id: number; name: string; color: string }>;
+		projectEnvironments: Array<{ id: number; name: string; color: string; baseUrl?: string | null; credentials?: string | null; memo?: string | null }>;
 		onresult: (result: { type: string; data?: Record<string, unknown> }) => void;
 	}
 
@@ -54,6 +55,8 @@
 	}: Props = $props();
 
 	const environments = $derived(projectEnvironments.length > 0 ? projectEnvironments : [{ id: 0, name: run.environment, color: '#6b7280' }]);
+	const currentEnv = $derived(projectEnvironments.find(e => e.name === run.environment));
+	const hasEnvDetails = $derived(currentEnv?.baseUrl || currentEnv?.credentials || currentEnv?.memo);
 
 	// Edit run dialog state
 	let editRunDialogOpen = $state(false);
@@ -187,7 +190,41 @@
 		>
 		<div class="mt-1 flex items-center gap-3">
 			<h2 class="text-xl font-bold">{run.name}</h2>
-			<Badge variant="outline">{run.environment}</Badge>
+			{#if hasEnvDetails}
+				<Popover.Root>
+					<Popover.Trigger>
+						<Badge variant="outline" class="cursor-pointer hover:bg-accent">
+							{run.environment}
+							<svg class="ml-1 inline h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+						</Badge>
+					</Popover.Trigger>
+					<Popover.Content class="w-80">
+						<div class="space-y-2 text-sm">
+							<p class="font-semibold">{run.environment} {m.env_details()}</p>
+							{#if currentEnv?.baseUrl}
+								<div>
+									<span class="text-muted-foreground font-medium">{m.env_base_url()}</span>
+									<p class="font-mono text-xs break-all">{currentEnv.baseUrl}</p>
+								</div>
+							{/if}
+							{#if currentEnv?.credentials}
+								<div>
+									<span class="text-muted-foreground font-medium">{m.env_credentials()}</span>
+									<p class="font-mono text-xs break-all">{currentEnv.credentials}</p>
+								</div>
+							{/if}
+							{#if currentEnv?.memo}
+								<div>
+									<span class="text-muted-foreground font-medium">{m.env_memo()}</span>
+									<p class="whitespace-pre-wrap text-xs">{currentEnv.memo}</p>
+								</div>
+							{/if}
+						</div>
+					</Popover.Content>
+				</Popover.Root>
+			{:else}
+				<Badge variant="outline">{run.environment}</Badge>
+			{/if}
 			<Badge variant={statusVariant(run.status)}>{run.status.replace('_', ' ')}</Badge>
 			{#if run.retestOfRunId}
 				<a href="{basePath}/{run.retestOfRunId}" class="no-underline">

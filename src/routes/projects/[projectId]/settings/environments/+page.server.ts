@@ -18,6 +18,9 @@ export const load: PageServerLoad = async ({ params }) => {
 			color: environmentConfig.color,
 			position: environmentConfig.position,
 			isDefault: environmentConfig.isDefault,
+			baseUrl: environmentConfig.baseUrl,
+			credentials: environmentConfig.credentials,
+			memo: environmentConfig.memo,
 			createdAt: environmentConfig.createdAt
 		})
 		.from(environmentConfig)
@@ -37,8 +40,11 @@ export const actions: Actions = {
 		const name = (formData.get('name') as string)?.trim();
 		const color = formData.get('color') as string;
 		const isDefault = formData.get('isDefault') === 'true';
+		const baseUrl = (formData.get('baseUrl') as string)?.trim() ?? '';
+		const credentials = (formData.get('credentials') as string)?.trim() ?? '';
+		const memo = (formData.get('memo') as string)?.trim() ?? '';
 
-		const parsed = createEnvironmentSchema.safeParse({ name, color, isDefault });
+		const parsed = createEnvironmentSchema.safeParse({ name, color, isDefault, baseUrl, credentials, memo });
 		if (!parsed.success) {
 			const errors = parsed.error.flatten().fieldErrors;
 			return fail(400, { errors, name, color });
@@ -68,6 +74,9 @@ export const actions: Actions = {
 				color: parsed.data.color,
 				position: nextPos,
 				isDefault: parsed.data.isDefault,
+				baseUrl: parsed.data.baseUrl || null,
+				credentials: parsed.data.credentials || null,
+				memo: parsed.data.memo || null,
 				createdBy: authUser.id
 			});
 		});
@@ -86,8 +95,11 @@ export const actions: Actions = {
 		const name = (formData.get('name') as string)?.trim();
 		const color = formData.get('color') as string;
 		const isDefault = formData.get('isDefault') === 'true';
+		const baseUrl = (formData.get('baseUrl') as string)?.trim() ?? '';
+		const credentials = (formData.get('credentials') as string)?.trim() ?? '';
+		const memo = (formData.get('memo') as string)?.trim() ?? '';
 
-		const parsed = updateEnvironmentSchema.safeParse({ environmentId, name, color, isDefault });
+		const parsed = updateEnvironmentSchema.safeParse({ environmentId, name, color, isDefault, baseUrl, credentials, memo });
 		if (!parsed.success) {
 			return fail(400, { errors: parsed.error.flatten().fieldErrors });
 		}
@@ -129,7 +141,10 @@ export const actions: Actions = {
 				.set({
 					name: parsed.data.name,
 					color: parsed.data.color,
-					isDefault: parsed.data.isDefault
+					isDefault: parsed.data.isDefault,
+					baseUrl: parsed.data.baseUrl || null,
+					credentials: parsed.data.credentials || null,
+					memo: parsed.data.memo || null
 				})
 				.where(eq(environmentConfig.id, environmentId));
 		});

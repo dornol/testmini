@@ -14,6 +14,9 @@ vi.mock('$lib/server/db/schema', () => ({
 		color: 'color',
 		position: 'position',
 		isDefault: 'is_default',
+		baseUrl: 'base_url',
+		credentials: 'credentials',
+		memo: 'memo',
 		createdAt: 'created_at',
 		createdBy: 'created_by'
 	},
@@ -42,9 +45,9 @@ const authUtils = await import('$lib/server/auth-utils');
 const PARAMS = { projectId: '1' };
 
 const sampleEnvironments = [
-	{ id: 1, projectId: 1, name: 'Development', color: '#3b82f6', position: 0, isDefault: true, createdBy: 'user-1', createdAt: new Date('2025-01-01') },
-	{ id: 2, projectId: 1, name: 'Staging', color: '#f97316', position: 1, isDefault: false, createdBy: 'user-1', createdAt: new Date('2025-01-01') },
-	{ id: 3, projectId: 1, name: 'Production', color: '#ef4444', position: 2, isDefault: false, createdBy: 'user-1', createdAt: new Date('2025-01-01') }
+	{ id: 1, projectId: 1, name: 'Development', color: '#3b82f6', position: 0, isDefault: true, baseUrl: 'http://dev.example.com', credentials: 'dev@test.com / dev123', memo: 'Local dev server', createdBy: 'user-1', createdAt: new Date('2025-01-01') },
+	{ id: 2, projectId: 1, name: 'Staging', color: '#f97316', position: 1, isDefault: false, baseUrl: null, credentials: null, memo: null, createdBy: 'user-1', createdAt: new Date('2025-01-01') },
+	{ id: 3, projectId: 1, name: 'Production', color: '#ef4444', position: 2, isDefault: false, baseUrl: 'https://prod.example.com', credentials: null, memo: 'VPN required', createdBy: 'user-1', createdAt: new Date('2025-01-01') }
 ];
 
 function makeFormData(entries: Record<string, string>): FormData {
@@ -464,6 +467,154 @@ describe('environments settings page server', () => {
 
 			expect(result).toEqual({ deleted: true });
 			expect(mockDb.delete).toHaveBeenCalled();
+		});
+	});
+
+	describe('actions.create (detail fields)', () => {
+		it('should create an environment with baseUrl, credentials, and memo', async () => {
+			mockDb.query.environmentConfig.findFirst.mockResolvedValue(null);
+			mockSelectResult(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({
+					name: 'QA',
+					color: '#10b981',
+					isDefault: 'false',
+					baseUrl: 'https://qa.example.com',
+					credentials: 'qa@test.com / pass123',
+					memo: 'Resets daily at 9am'
+				}),
+				user: testUser
+			});
+
+			const result = await actions.create(event);
+
+			expect(result).toEqual({ created: true });
+			expect(mockDb.transaction).toHaveBeenCalled();
+		});
+
+		it('should create an environment with empty detail fields', async () => {
+			mockDb.query.environmentConfig.findFirst.mockResolvedValue(null);
+			mockSelectResult(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({
+					name: 'QA',
+					color: '#10b981',
+					isDefault: 'false',
+					baseUrl: '',
+					credentials: '',
+					memo: ''
+				}),
+				user: testUser
+			});
+
+			const result = await actions.create(event);
+
+			expect(result).toEqual({ created: true });
+		});
+
+		it('should create an environment without detail fields (backwards compat)', async () => {
+			mockDb.query.environmentConfig.findFirst.mockResolvedValue(null);
+			mockSelectResult(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({
+					name: 'QA',
+					color: '#10b981',
+					isDefault: 'false'
+				}),
+				user: testUser
+			});
+
+			const result = await actions.create(event);
+
+			expect(result).toEqual({ created: true });
+		});
+	});
+
+	describe('actions.update (detail fields)', () => {
+		it('should update detail fields successfully', async () => {
+			mockDb.query.environmentConfig.findFirst
+				.mockResolvedValueOnce(sampleEnvironments[0])
+				.mockResolvedValueOnce(null);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({
+					environmentId: '1',
+					name: 'Development',
+					color: '#3b82f6',
+					isDefault: 'true',
+					baseUrl: 'https://new-dev.example.com',
+					credentials: 'newadmin@test.com / newpass',
+					memo: 'Updated memo'
+				}),
+				user: testUser
+			});
+
+			const result = await actions.update(event);
+
+			expect(result).toEqual({ updated: true });
+			expect(mockDb.transaction).toHaveBeenCalled();
+		});
+
+		it('should clear detail fields when empty strings are provided', async () => {
+			mockDb.query.environmentConfig.findFirst
+				.mockResolvedValueOnce(sampleEnvironments[0])
+				.mockResolvedValueOnce(null);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({
+					environmentId: '1',
+					name: 'Development',
+					color: '#3b82f6',
+					isDefault: 'true',
+					baseUrl: '',
+					credentials: '',
+					memo: ''
+				}),
+				user: testUser
+			});
+
+			const result = await actions.update(event);
+
+			expect(result).toEqual({ updated: true });
+			expect(mockDb.transaction).toHaveBeenCalled();
+		});
+
+		it('should update only memo while keeping other detail fields', async () => {
+			mockDb.query.environmentConfig.findFirst
+				.mockResolvedValueOnce(sampleEnvironments[2])
+				.mockResolvedValueOnce(null);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({
+					environmentId: '3',
+					name: 'Production',
+					color: '#ef4444',
+					isDefault: 'false',
+					baseUrl: 'https://prod.example.com',
+					credentials: '',
+					memo: 'VPN required, contact IT for access'
+				}),
+				user: testUser
+			});
+
+			const result = await actions.update(event);
+
+			expect(result).toEqual({ updated: true });
 		});
 	});
 

@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS "test_cycle" (
   "created_at" timestamp DEFAULT now() NOT NULL,
   "updated_at" timestamp DEFAULT now() NOT NULL
 );
-CREATE INDEX "test_cycle_project_idx" ON "test_cycle" ("project_id");
-CREATE UNIQUE INDEX "test_cycle_project_number_unique" ON "test_cycle" ("project_id", "cycle_number");
+CREATE INDEX IF NOT EXISTS "test_cycle_project_idx" ON "test_cycle" ("project_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "test_cycle_project_number_unique" ON "test_cycle" ("project_id", "cycle_number");
 
-ALTER TABLE "test_run" ADD COLUMN "test_cycle_id" integer REFERENCES "test_cycle"("id") ON DELETE SET NULL;
+ALTER TABLE "test_run" ADD COLUMN IF NOT EXISTS "test_cycle_id" integer REFERENCES "test_cycle"("id") ON DELETE SET NULL;

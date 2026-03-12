@@ -9,6 +9,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { apiFetch, apiPost, apiPatch, apiDelete } from '$lib/api-client';
 	import * as m from '$lib/paraglide/messages.js';
 
@@ -412,42 +413,28 @@
 								{/if}
 							</Table.Cell>
 							{#if canManage}
-								<Table.Cell class="py-1 px-2 text-xs">
-									<div class="flex gap-1">
-										<Button
-											variant="ghost"
-											size="sm"
-											class="h-6 px-1 text-xs"
-											onclick={(e: MouseEvent) => {
-												e.stopPropagation();
-												openLinkDialog(req.id);
-											}}
-										>
-											+
-										</Button>
-										<Button
-											variant="ghost"
-											size="sm"
-											class="h-6 px-1 text-xs"
-											onclick={(e: MouseEvent) => {
-												e.stopPropagation();
-												openEdit(req);
-											}}
-										>
-											{m.common_edit()}
-										</Button>
-										<Button
-											variant="ghost"
-											size="sm"
-											class="h-6 px-1 text-xs text-destructive"
-											onclick={(e: MouseEvent) => {
-												e.stopPropagation();
-												openDelete(req.id);
-											}}
-										>
-											{m.common_delete()}
-										</Button>
-									</div>
+								<Table.Cell class="py-1 px-2">
+									<DropdownMenu.Root>
+										<DropdownMenu.Trigger>
+											{#snippet child({ props })}
+												<Button variant="ghost" size="sm" class="h-6 w-6 p-0" {...props} onclick={(e: MouseEvent) => e.stopPropagation()} aria-label={m.common_actions()}>
+													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+												</Button>
+											{/snippet}
+										</DropdownMenu.Trigger>
+										<DropdownMenu.Content align="end">
+											<DropdownMenu.Item onclick={() => openLinkDialog(req.id)}>
+												{m.req_link_test_case()}
+											</DropdownMenu.Item>
+											<DropdownMenu.Item onclick={() => openEdit(req)}>
+												{m.common_edit()}
+											</DropdownMenu.Item>
+											<DropdownMenu.Separator />
+											<DropdownMenu.Item class="text-destructive" onclick={() => openDelete(req.id)}>
+												{m.common_delete()}
+											</DropdownMenu.Item>
+										</DropdownMenu.Content>
+									</DropdownMenu.Root>
 								</Table.Cell>
 							{/if}
 						</Table.Row>

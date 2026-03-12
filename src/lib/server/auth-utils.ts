@@ -67,8 +67,13 @@ export async function parseJsonBody(request: Request): Promise<unknown> {
 		error(413, 'Request body must not exceed 1MB');
 	}
 	try {
-		return await request.json();
-	} catch {
+		const text = await request.text();
+		if (text.length > MAX_JSON_BODY_SIZE) {
+			error(413, 'Request body must not exceed 1MB');
+		}
+		return JSON.parse(text);
+	} catch (e) {
+		if (e && typeof e === 'object' && 'status' in e) throw e;
 		error(400, 'Invalid request body');
 	}
 }

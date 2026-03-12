@@ -62,7 +62,8 @@ const { GET } = await import('./+server');
 
 const baseProvider = {
 	id: 'provider-1', slug: 'test-idp', clientId: 'client-123', clientSecretEncrypted: 'encrypted-secret',
-	tokenUrl: 'https://idp.example.com/token', jwksUri: null, issuerUrl: null, userinfoUrl: null,
+	tokenUrl: 'https://idp.example.com/token', jwksUri: null, issuerUrl: null,
+	userinfoUrl: 'https://idp.example.com/userinfo',
 	autoRegister: true, enabled: true
 };
 
@@ -84,11 +85,17 @@ function setupMocks(selectResults: unknown[][]) {
 	mockDb.select.mockImplementation(() => resolveChain(selectResults[selectIdx++] ?? []) as never);
 	mockDb.insert.mockImplementation(() => resolveChain([]) as never);
 
-	mockFetch.mockResolvedValue(
-		new Response(JSON.stringify({ id_token: 'header.eyJ0ZXN0IjoidGVzdCJ9.sig', access_token: 'at-123' }), {
-			status: 200, headers: { 'Content-Type': 'application/json' }
-		})
-	);
+	mockFetch
+		.mockResolvedValueOnce(
+			new Response(JSON.stringify({ id_token: 'header.eyJ0ZXN0IjoidGVzdCJ9.sig', access_token: 'at-123' }), {
+				status: 200, headers: { 'Content-Type': 'application/json' }
+			})
+		)
+		.mockResolvedValueOnce(
+			new Response(JSON.stringify({ sub: 'oidc-sub-123', email: 'new@example.com', name: 'New User' }), {
+				status: 200, headers: { 'Content-Type': 'application/json' }
+			})
+		);
 }
 
 async function runCallback(selectResults: unknown[][]) {

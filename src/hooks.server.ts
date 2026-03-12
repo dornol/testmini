@@ -135,6 +135,13 @@ const RATE_LIMIT_RULES: RateLimitRule[] = [
 		limit: 20,
 		windowMs: 60_000
 	},
+	// Shared report token lookup — prevent enumeration
+	{
+		label: 'shared:token',
+		match: (p) => p.startsWith('/shared/'),
+		limit: 30,
+		windowMs: 60_000
+	},
 	// General API catch-all
 	{
 		label: 'api:general',
@@ -190,6 +197,7 @@ const handleSecurityHeaders: Handle = async ({ event, resolve }) => {
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('X-XSS-Protection', '1; mode=block');
+	response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 	return response;
 };
 

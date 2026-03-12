@@ -6,7 +6,7 @@ import { user, session } from '$lib/server/db/auth.schema';
 import { and, eq } from 'drizzle-orm';
 import { randomUUID, createHmac } from 'crypto';
 import { decrypt } from '$lib/server/crypto';
-import { verifyIdToken, parseIdTokenPayload } from '$lib/server/oidc-jwt';
+import { verifyIdToken } from '$lib/server/oidc-jwt';
 import { env } from '$env/dynamic/private';
 import { childLogger } from '$lib/server/logger';
 import { logAudit } from '$lib/server/audit';
@@ -82,15 +82,10 @@ async function resolveUserInfo(
 				callbackLog.warn({ warning: result.warning }, 'ID token verification failed');
 			}
 		} else {
-			callbackLog.warn(
-				'Provider has no jwksUri configured — ID token signature is NOT verified. Set jwksUri via the discovery endpoint.'
+			callbackLog.error(
+				'Provider has no jwksUri configured — refusing to accept unverified ID token. Configure jwksUri via the discovery endpoint.'
 			);
-			const payload = parseIdTokenPayload(tokenData.id_token as string);
-			if (payload) {
-				sub = payload.sub;
-				email = payload.email;
-				name = payload.name;
-			}
+			// Do not trust unverified ID tokens — fall through to userinfo endpoint below
 		}
 	}
 

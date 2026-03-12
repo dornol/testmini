@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { sharedReport } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import crypto from 'crypto';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 export const GET = withProjectAccess(async ({ projectId }) => {
 	const reports = await db
@@ -16,7 +17,7 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 });
 
 export const POST = withProjectAccess(async ({ request, projectId, user }) => {
-	const body = await request.json();
+	const body = await parseJsonBody(request);
 	const { name, config, expiresInDays } = body as {
 		name: string;
 		config: { from?: string; to?: string; preset?: string };

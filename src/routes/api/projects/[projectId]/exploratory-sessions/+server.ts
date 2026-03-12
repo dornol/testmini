@@ -4,6 +4,7 @@ import { exploratorySession, sessionNote, user } from '$lib/server/db/schema';
 import { eq, and, desc, count, sql } from 'drizzle-orm';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 export const GET = withProjectAccess(async ({ projectId, url }) => {
 	const status = url.searchParams.get('status') ?? '';
@@ -53,7 +54,7 @@ export const POST = withProjectRole(
 	async ({ request, user: authUser, projectId }) => {
 		let body: { title?: string; charter?: string; environment?: string; tags?: string[] };
 		try {
-			body = await request.json();
+			body = await parseJsonBody(request) as typeof body;
 		} catch {
 			error(400, 'Invalid JSON');
 		}

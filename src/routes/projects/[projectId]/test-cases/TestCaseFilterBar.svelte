@@ -10,6 +10,7 @@
 	import { toast } from 'svelte-sonner';
 	import { apiPost } from '$lib/api-client';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
+	import { statusColorText } from '$lib/execution-status';
 	import SavedFilterSelector from './SavedFilterSelector.svelte';
 
 	interface Props {
@@ -93,16 +94,6 @@
 		if (idx >= 0) values.splice(idx, 1);
 		else values.push(option);
 		setCfFilter(fieldId, values.join(','));
-	}
-
-	function statusColor(status: string): string {
-		switch (status) {
-			case 'PASS': return 'text-green-600 dark:text-green-400';
-			case 'FAIL': return 'text-red-600 dark:text-red-400';
-			case 'BLOCKED': return 'text-yellow-600 dark:text-yellow-400';
-			case 'SKIPPED': return 'text-gray-500';
-			default: return 'text-muted-foreground';
-		}
 	}
 
 	function handleSearch() {
@@ -261,7 +252,7 @@
 				{#each execStatusOptions as st}
 					<label class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer">
 						<Checkbox checked={selectedExecStatuses.includes(st)} onCheckedChange={() => toggleFilter('execStatus', st)} />
-						<span class={statusColor(st)}>{st}</span>
+						<span class={statusColorText(st)}>{st}</span>
 					</label>
 				{/each}
 			</Popover.Content>

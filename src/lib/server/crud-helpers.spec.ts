@@ -22,9 +22,17 @@ vi.mock('$lib/server/errors', () => ({
 }));
 
 // drizzle-orm stubs
-vi.mock('drizzle-orm', () => ({
-	eq: vi.fn((_col: unknown, val: unknown) => ({ _type: 'eq', val })),
-	and: vi.fn((...args: unknown[]) => ({ _type: 'and', args }))
+vi.mock('drizzle-orm', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('drizzle-orm')>();
+	return {
+		...actual,
+		eq: vi.fn((_col: unknown, val: unknown) => ({ _type: 'eq', val })),
+		and: vi.fn((...args: unknown[]) => ({ _type: 'and', args }))
+	};
+});
+
+vi.mock('$lib/server/db/schema', () => ({
+	testRun: { id: 'id', projectId: 'project_id', status: 'status' }
 }));
 
 // Mock $lib/server/db with a factory that uses inline mock creation

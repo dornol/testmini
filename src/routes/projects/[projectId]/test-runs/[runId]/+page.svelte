@@ -10,6 +10,8 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { apiFetch } from '$lib/api-client';
+	import { formatDuration } from '$lib/format-utils';
+	import { statusColorText } from '$lib/execution-status';
 	import RunHeader from './components/RunHeader.svelte';
 	import ExecutionFilters from './components/ExecutionFilters.svelte';
 	import ExecutionTable from './components/ExecutionTable.svelte';
@@ -131,15 +133,6 @@
 		if (scrollContainer) scrollContainer.scrollTop = savedScroll;
 	}
 
-	// Duration formatting
-	function formatDuration(ms: number): string {
-		if (ms < 1000) return `${ms}ms`;
-		if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-		const mins = Math.floor(ms / 60000);
-		const secs = Math.round((ms % 60000) / 1000);
-		return `${mins}m ${secs}s`;
-	}
-
 	const durationSummary = $derived(data.durationSummary);
 
 	// Comparison dialog
@@ -161,15 +154,6 @@
 		comparisonLoading = false;
 	}
 
-	function statusColor(s: string): string {
-		switch (s) {
-			case 'PASS': return 'text-green-600';
-			case 'FAIL': return 'text-red-600';
-			case 'BLOCKED': return 'text-orange-600';
-			case 'SKIPPED': return 'text-gray-500';
-			default: return 'text-muted-foreground';
-		}
-	}
 </script>
 
 <div class="space-y-6">
@@ -299,10 +283,10 @@
 										<span class="ml-1">{c.title}</span>
 									</Table.Cell>
 									<Table.Cell>
-										<span class="font-medium {statusColor(c.originalStatus)}">{c.originalStatus}</span>
+										<span class="font-medium {statusColorText(c.originalStatus)}">{c.originalStatus}</span>
 									</Table.Cell>
 									<Table.Cell>
-										<span class="font-medium {statusColor(c.retestStatus)}">{c.retestStatus}</span>
+										<span class="font-medium {statusColorText(c.retestStatus)}">{c.retestStatus}</span>
 									</Table.Cell>
 									<Table.Cell>
 										{#if c.improved}

@@ -7,6 +7,8 @@
 	import { toast } from 'svelte-sonner';
 	import { apiPost, apiDelete } from '$lib/api-client';
 	import * as m from '$lib/paraglide/messages.js';
+	import { formatDurationFromDates } from '$lib/format-utils';
+	import { statusColorBg } from '$lib/execution-status';
 
 	interface IssueLinkRecord {
 		id: number;
@@ -38,21 +40,6 @@
 		executedBy: string | null;
 		startedAt: string | Date | null;
 		completedAt: string | Date | null;
-	}
-
-	function formatDuration(startedAt: string | Date | null, completedAt: string | Date | null): string | null {
-		if (!startedAt || !completedAt) return null;
-		const ms = new Date(completedAt).getTime() - new Date(startedAt).getTime();
-		if (ms < 0) return null;
-		if (ms < 1000) return `${ms}ms`;
-		const seconds = Math.floor(ms / 1000);
-		if (seconds < 60) return `${seconds}s`;
-		const minutes = Math.floor(seconds / 60);
-		const remainSec = seconds % 60;
-		if (minutes < 60) return `${minutes}m ${remainSec}s`;
-		const hours = Math.floor(minutes / 60);
-		const remainMin = minutes % 60;
-		return `${hours}h ${remainMin}m`;
 	}
 
 	interface Props {
@@ -156,21 +143,6 @@
 		`/api/projects/${projectId}/test-runs/${runId}/executions/${exec.id}/comments`
 	);
 
-	function statusColor(s: string): string {
-		switch (s) {
-			case 'PASS':
-				return 'text-green-600 bg-green-50 dark:bg-green-950 dark:text-green-400';
-			case 'FAIL':
-				return 'text-red-600 bg-red-50 dark:bg-red-950 dark:text-red-400';
-			case 'BLOCKED':
-				return 'text-orange-600 bg-orange-50 dark:bg-orange-950 dark:text-orange-400';
-			case 'SKIPPED':
-				return 'text-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-gray-400';
-			default:
-				return 'text-muted-foreground';
-		}
-	}
-
 </script>
 
 <tr class="hover:bg-muted/50 border-b transition-colors">
@@ -202,7 +174,7 @@
 			<button
 				type="button"
 				data-status-dropdown
-				class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:ring-1 hover:ring-ring/30 transition-all {statusColor(exec.status)}"
+				class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:ring-1 hover:ring-ring/30 transition-all {statusColorBg(exec.status)}"
 				class:underline={exec.status === 'FAIL' && failures.length > 0}
 				class:opacity-50={isUpdating}
 				disabled={isUpdating}
@@ -219,7 +191,7 @@
 		{:else}
 			<button
 				type="button"
-				class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium {statusColor(exec.status)}"
+				class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium {statusColorBg(exec.status)}"
 				onclick={() => {
 					if (exec.status === 'FAIL') {
 						onToggleViewFailures(exec.id);
@@ -239,7 +211,7 @@
 		{exec.executedBy ?? '-'}
 	</td>
 	<td class="text-muted-foreground bg-clip-padding p-2 align-middle whitespace-nowrap text-xs tabular-nums">
-		{formatDuration(exec.startedAt, exec.completedAt) ?? '-'}
+		{formatDurationFromDates(exec.startedAt, exec.completedAt) ?? '-'}
 	</td>
 	<td class="bg-clip-padding p-1 align-middle whitespace-nowrap">
 		<button

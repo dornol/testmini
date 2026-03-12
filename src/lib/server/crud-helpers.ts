@@ -1,5 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
+import { testRun } from '$lib/server/db/schema';
 import { eq, and, type SQL, type Table } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { badRequest } from '$lib/server/errors';
@@ -61,6 +62,20 @@ export function buildUpdates<T extends Record<string, unknown>>(
 }
 
 /**
+ * Validate comment content: required, non-empty string, max 10000 chars.
+ * Returns trimmed content or a 400 Response.
+ */
+export function validateCommentContent(content: unknown): string | Response {
+	if (!content || typeof content !== 'string' || content.trim().length === 0) {
+		return badRequest('Content is required');
+	}
+	if (content.trim().length > 10000) {
+		return badRequest('Content is too long (max 10000 characters)');
+	}
+	return content.trim();
+}
+
+/**
  * Standard delete handler: verify existence then delete.
  */
 export async function deleteResource(
@@ -75,4 +90,21 @@ export async function deleteResource(
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	await (db.delete(table as any) as any).where(and(eq(idCol, resourceId), eq(projectIdCol, projectId)));
 	return json({ success: true });
+}
+
+/**
+ * Verify a run belongs to the project and is not COMPLETED.
+ * Returns the run or throws 404/403.
+ */
+export async function requireEditableRun(runId: number, projectId: number) {
+	const run = await db.query.testRun.findFirst({
+		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
+	});
+	if (!run) {
+		error(404, 'Test run not found');
+	}
+	if (run.status === 'COMPLETED') {
+		error(403, 'Cannot modify executions in a completed run');
+	}
+	return run;
 }

@@ -5,6 +5,7 @@ import { projectApiKey } from '$lib/server/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { generateApiKey, hashApiKey } from '$lib/server/api-key-auth';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'], async ({ projectId }) => {
 
@@ -28,7 +29,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 
 	let body: { name?: string };
 	try {
-		body = await request.json();
+		body = await parseJsonBody(request) as typeof body;
 	} catch {
 		error(400, 'Invalid request body');
 	}

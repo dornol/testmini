@@ -6,6 +6,7 @@ import { project, projectMember, testCase, testRun, testExecution, testFailureDe
 import { eq, and, inArray } from 'drizzle-orm';
 import { authenticateApiKey } from '$lib/server/api-key-auth';
 import { createNotification } from '$lib/server/notifications';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 interface AutomationResult {
 	automationKey: string;
@@ -30,7 +31,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	let body: AutomationResultsRequest;
 	try {
-		body = await request.json();
+		body = await parseJsonBody(request) as typeof body;
 	} catch {
 		return badRequest('Invalid request body');
 	}

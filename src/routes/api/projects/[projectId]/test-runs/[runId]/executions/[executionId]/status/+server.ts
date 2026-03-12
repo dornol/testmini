@@ -4,6 +4,7 @@ import { testExecution, testRun, testCaseVersion, testCase, testCaseAssignee } f
 import { eq, and, sql } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
+import { requireEditableRun } from '$lib/server/crud-helpers';
 import { publish } from '$lib/server/redis';
 import { createNotification } from '$lib/server/notifications';
 import type { RunEvent } from '$lib/types/events';
@@ -19,18 +20,7 @@ export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ para
 		error(400, 'Invalid status');
 	}
 
-	// Verify run belongs to project
-	const run = await db.query.testRun.findFirst({
-		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
-	});
-
-	if (!run) {
-		error(404, 'Test run not found');
-	}
-
-	if (run.status === 'COMPLETED') {
-		error(403, 'Cannot modify executions in a completed run');
-	}
+	const run = await requireEditableRun(runId, projectId);
 
 	// Verify execution belongs to run
 	const execution = await db.query.testExecution.findFirst({

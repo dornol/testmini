@@ -18,6 +18,7 @@
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
 	import { apiFetch, apiPut, apiDelete, apiPost } from '$lib/api-client';
+	import { TAG_PALETTE } from '$lib/constants';
 
 	let { projectId, canEdit, canDelete, projectPriorities, customFieldDefs, currentUserId, userRole, onchange }: {
 		projectId: number;
@@ -115,10 +116,6 @@
 	let sheetLockHolder = $state<{ userName: string } | null>(null);
 	let sheetHeartbeatInterval: ReturnType<typeof setInterval> | undefined;
 
-	const TAG_PALETTE = [
-		'#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
-		'#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#6b7280'
-	];
 	let showTagCreator = $state(false);
 	let tagSearchInput = $state('');
 	let newTagColor = $state(TAG_PALETTE[0]);

@@ -5,12 +5,13 @@ import { reportSchedule } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import cron from 'node-cron';
 import { registerJob, removeJob } from '$lib/server/report-scheduler';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params, projectId }) => {
 	const scheduleId = Number(params.scheduleId);
 	if (!Number.isFinite(scheduleId)) error(400, 'Invalid schedule ID');
 
-	const body = await request.json();
+	const body = await parseJsonBody(request);
 	const { name, cronExpression, recipientEmails, reportRange, enabled } = body as {
 		name?: string;
 		cronExpression?: string;

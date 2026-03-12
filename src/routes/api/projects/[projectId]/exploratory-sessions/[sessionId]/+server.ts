@@ -4,6 +4,7 @@ import { exploratorySession, sessionNote, user } from '$lib/server/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 async function findSession(projectId: number, sessionId: number) {
 	return db.query.exploratorySession.findFirst({
@@ -53,7 +54,7 @@ export const PATCH = withProjectRole(
 			tags?: string[];
 		};
 		try {
-			body = await request.json();
+			body = await parseJsonBody(request) as typeof body;
 		} catch {
 			error(400, 'Invalid JSON');
 		}

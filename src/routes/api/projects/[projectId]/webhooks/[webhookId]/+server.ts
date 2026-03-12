@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { projectWebhook } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 const VALID_EVENTS = [
 	'TEST_RUN_COMPLETED',
@@ -23,7 +24,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params
 
 	let body: { name?: string; url?: string; secret?: string; events?: string[]; enabled?: boolean };
 	try {
-		body = await request.json();
+		body = await parseJsonBody(request) as typeof body;
 	} catch {
 		error(400, 'Invalid request body');
 	}

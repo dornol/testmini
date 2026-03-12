@@ -6,6 +6,7 @@ import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
 import { createNotification } from '$lib/server/notifications';
+import { validateCommentContent } from '$lib/server/crud-helpers';
 
 /** Extract @mentioned names from comment content */
 function extractMentions(content: string): string[] {
@@ -64,15 +65,11 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 	}
 
 	const body = await parseJsonBody(request);
-	const { content, parentId } = body as { content?: string; parentId?: number };
+	const { content: rawContent, parentId } = body as { content?: string; parentId?: number };
 
-	if (!content || typeof content !== 'string' || content.trim().length === 0) {
-		return badRequest('Content is required');
-	}
-
-	if (content.trim().length > 10000) {
-		return badRequest('Content is too long (max 10000 characters)');
-	}
+	const contentOrError = validateCommentContent(rawContent);
+	if (contentOrError instanceof Response) return contentOrError;
+	const content = contentOrError;
 
 	// If parentId given, verify it's a top-level comment on this test case
 	if (parentId != null) {
@@ -94,7 +91,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 		.values({
 			testCaseId,
 			userId: user.id,
-			content: content.trim(),
+			content,
 			parentId: parentId ?? null
 		})
 		.returning();

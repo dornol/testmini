@@ -9,18 +9,14 @@
 	import { toast } from 'svelte-sonner';
 	import TagBadge from '$lib/components/TagBadge.svelte';
 	import * as m from '$lib/paraglide/messages.js';
+	import { TAG_PALETTE } from '$lib/constants';
 
 	let { data } = $props();
 
 	const canEdit = $derived(data.userRole !== 'VIEWER');
 
-	const PALETTE = [
-		'#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
-		'#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#6b7280'
-	];
-
 	let newName = $state('');
-	let newColor = $state(PALETTE[0]);
+	let newColor = $state(TAG_PALETTE[0]);
 	let editingId = $state<number | null>(null);
 	let editName = $state('');
 	let editColor = $state('');
@@ -59,7 +55,7 @@
 							if (result.type === 'success') {
 								toast.success(m.tag_created());
 								newName = '';
-								newColor = PALETTE[0];
+								newColor = TAG_PALETTE[0];
 								await update();
 							} else if (result.type === 'failure' && result.data?.duplicate) {
 								toast.error(m.tag_duplicate());
@@ -81,7 +77,7 @@
 					<div class="space-y-2">
 						<Label>{m.tag_color()}</Label>
 						<div class="flex gap-1">
-							{#each PALETTE as color (color)}
+							{#each TAG_PALETTE as color (color)}
 								<button
 									type="button"
 									class="h-7 w-7 rounded-full border-2 transition-transform {newColor === color ? 'scale-110 border-foreground' : 'border-transparent'}"
@@ -134,7 +130,7 @@
 										required
 									/>
 									<div class="flex gap-1">
-										{#each PALETTE as color (color)}
+										{#each TAG_PALETTE as color (color)}
 											<button
 												type="button"
 												class="h-6 w-6 rounded-full border-2 {editColor === color ? 'border-foreground' : 'border-transparent'}"

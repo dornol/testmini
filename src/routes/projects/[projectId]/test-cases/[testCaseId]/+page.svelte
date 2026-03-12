@@ -28,6 +28,7 @@
 	import * as m from '$lib/paraglide/messages.js';
 	import { apiPost, apiDelete } from '$lib/api-client';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
+	import { TAG_PALETTE } from '$lib/constants';
 	import ApprovalSection from './ApprovalSection.svelte';
 	import VersionHistoryPanel from './VersionHistoryPanel.svelte';
 
@@ -169,10 +170,6 @@
 	let tagSearchInput = $state('');
 	let showTagCreator = $state(false);
 
-	const TAG_PALETTE = [
-		'#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
-		'#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#6b7280'
-	];
 	let newTagColor = $state(TAG_PALETTE[0]);
 
 	const validators = zodValidators(updateTestCaseSchema);

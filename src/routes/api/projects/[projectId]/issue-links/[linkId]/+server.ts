@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { issueLink } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 export const PATCH = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
@@ -17,7 +18,7 @@ export const PATCH = withProjectRole(
 
 		let body: { title?: string; status?: string };
 		try {
-			body = await request.json();
+			body = await parseJsonBody(request) as typeof body;
 		} catch {
 			error(400, 'Invalid request body');
 		}

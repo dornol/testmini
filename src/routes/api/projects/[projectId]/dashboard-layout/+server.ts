@@ -5,6 +5,7 @@ import type { WidgetConfig } from '$lib/server/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { DEFAULT_LAYOUT, WIDGET_DEFINITIONS } from '$lib/dashboard-widgets';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 export const GET = withProjectAccess(async ({ user, projectId }) => {
 
@@ -43,7 +44,7 @@ export const PUT = withProjectAccess(async ({ request, user, projectId }) => {
 
 	let body: unknown;
 	try {
-		body = await request.json();
+		body = await parseJsonBody(request);
 	} catch {
 		error(400, 'Invalid JSON');
 	}

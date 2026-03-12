@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { testRun, testExecution, testCaseVersion, testCase } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, user, projectId }) => {
 	const runId = Number(params.runId);
@@ -15,7 +16,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ req
 		error(404, 'Test run not found');
 	}
 
-	const body = await request.json().catch(() => ({}));
+	const body = await parseJsonBody(request).catch(() => ({}));
 	const name = (body as { name?: string }).name || `Retest of ${originalRun.name}`;
 
 	// Get only FAIL and BLOCKED executions from the original run

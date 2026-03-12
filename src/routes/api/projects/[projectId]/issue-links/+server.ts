@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { issueLink, issueTrackerConfig } from '$lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { withProjectRole, withProjectAccess } from '$lib/server/api-handler';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 export const GET = withProjectAccess(async ({ url, projectId }) => {
 	const testCaseId = url.searchParams.get('testCaseId');
@@ -48,7 +49,7 @@ export const POST = withProjectRole(
 			title?: string;
 		};
 		try {
-			body = await request.json();
+			body = await parseJsonBody(request) as typeof body;
 		} catch {
 			error(400, 'Invalid request body');
 		}

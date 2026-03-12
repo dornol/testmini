@@ -5,6 +5,7 @@ import { reportSchedule } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import cron from 'node-cron';
 import { registerJob } from '$lib/server/report-scheduler';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 export const GET = withProjectRole(['PROJECT_ADMIN'], async ({ projectId }) => {
 	const schedules = await db
@@ -17,7 +18,7 @@ export const GET = withProjectRole(['PROJECT_ADMIN'], async ({ projectId }) => {
 });
 
 export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, projectId, user }) => {
-	const body = await request.json();
+	const body = await parseJsonBody(request);
 	const { name, cronExpression, recipientEmails, reportRange, enabled } = body as {
 		name: string;
 		cronExpression: string;

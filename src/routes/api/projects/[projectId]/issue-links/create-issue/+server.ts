@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { createExternalIssue } from '$lib/server/issue-tracker';
 import { env } from '$env/dynamic/private';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
@@ -17,7 +18,7 @@ export const POST = withProjectRole(
 			description?: string;
 		};
 		try {
-			body = await request.json();
+			body = await parseJsonBody(request) as typeof body;
 		} catch {
 			error(400, 'Invalid request body');
 		}

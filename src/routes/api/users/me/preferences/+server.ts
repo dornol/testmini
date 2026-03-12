@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { userPreference } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { withAuth } from '$lib/server/api-handler';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 export const GET = withAuth(async ({ user }) => {
 	const pref = await db.query.userPreference.findFirst({
@@ -19,7 +20,7 @@ export const PUT = withAuth(async ({ request, user }) => {
 
 	let body: unknown;
 	try {
-		body = await request.json();
+		body = await parseJsonBody(request);
 	} catch {
 		error(400, 'Invalid JSON');
 	}

@@ -4,12 +4,13 @@ import { notification } from '$lib/server/db/schema';
 import { withAuth } from '$lib/server/api-handler';
 import { and, eq, inArray } from 'drizzle-orm';
 import { cacheDelete } from '$lib/server/cache';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 export const POST = withAuth(async ({ user, request }) => {
 
 	let body: unknown;
 	try {
-		body = await request.json();
+		body = await parseJsonBody(request);
 	} catch {
 		error(400, 'Invalid JSON body');
 	}

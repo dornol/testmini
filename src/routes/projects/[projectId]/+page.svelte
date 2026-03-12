@@ -12,6 +12,7 @@
 	import { flip } from 'svelte/animate';
 	import { untrack } from 'svelte';
 	import { WIDGET_DEFINITIONS, DEFAULT_LAYOUT, SIZE_COLS } from '$lib/dashboard-widgets';
+	import { statusColorText } from '$lib/execution-status';
 	import type { WidgetConfig } from '$lib/server/db/schema';
 
 	let { data } = $props();
@@ -188,21 +189,6 @@
 				return 'secondary';
 			default:
 				return 'outline';
-		}
-	}
-
-	function statusColor(s: string): string {
-		switch (s) {
-			case 'PASS':
-				return 'text-green-600';
-			case 'FAIL':
-				return 'text-red-600';
-			case 'BLOCKED':
-				return 'text-orange-600';
-			case 'SKIPPED':
-				return 'text-gray-500';
-			default:
-				return 'text-muted-foreground';
 		}
 	}
 
@@ -751,7 +737,7 @@
 										? 'bg-orange-500'
 										: 'bg-gray-400'}"
 						></span>
-						<span class="font-medium {statusColor(activity.status)}">{activity.status}</span>
+						<span class="font-medium {statusColorText(activity.status)}">{activity.status}</span>
 						<span class="text-muted-foreground">
 							{activity.executedBy ?? '?'} &middot; {activity.testRunName}
 						</span>

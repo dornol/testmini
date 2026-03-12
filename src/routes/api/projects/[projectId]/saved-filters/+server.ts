@@ -4,6 +4,7 @@ import { savedFilter } from '$lib/server/db/schema';
 import { and, eq, asc } from 'drizzle-orm';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { badRequest, conflict } from '$lib/server/errors';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 export const GET = withProjectAccess(async ({ user, projectId, url }) => {
 	const filterType = url.searchParams.get('type') ?? 'test_cases';
@@ -26,7 +27,7 @@ export const GET = withProjectAccess(async ({ user, projectId, url }) => {
 export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 	let body: { name?: string; filterType?: string; filters?: Record<string, unknown> };
 	try {
-		body = await request.json();
+		body = await parseJsonBody(request) as typeof body;
 	} catch {
 		error(400, 'Invalid JSON');
 	}

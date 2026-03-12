@@ -26,6 +26,7 @@
 	import TestCaseFilterBar from './TestCaseFilterBar.svelte';
 	import TestCaseBulkActionBar from './TestCaseBulkActionBar.svelte';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
+	import { TAG_PALETTE } from '$lib/constants';
 
 	let { data } = $props();
 
@@ -54,11 +55,6 @@
 	let tagPopover: { tcId: number; x: number; y: number } | null = $state(null);
 	let tagSearchInput = $state('');
 	let newTagColor = $state('#ef4444');
-	const TAG_PALETTE = [
-		'#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
-		'#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#6b7280'
-	];
-
 	// Component references
 	let detailSheet: TestCaseDetailSheet;
 	let failureSheet: FailureDetailsSheet;

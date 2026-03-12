@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { customField } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ params, request, projectId }) => {
 	const fieldId = Number(params.fieldId);
@@ -13,7 +14,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ params, request
 	});
 	if (!existing) error(404, 'Custom field not found');
 
-	const body = await request.json();
+	const body = await parseJsonBody(request) as Record<string, unknown>;
 	const updates: Record<string, unknown> = {};
 
 	if (body.name !== undefined) {

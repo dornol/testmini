@@ -5,6 +5,7 @@
 	import { toast } from 'svelte-sonner';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as m from '$lib/paraglide/messages.js';
+	import { statusColorBg } from '$lib/execution-status';
 	import ExecutionRow from './ExecutionRow.svelte';
 
 	interface FailureRecord {
@@ -179,21 +180,6 @@
 
 	function getFailures(executionId: number) {
 		return failures.filter((f) => f.testExecutionId === executionId);
-	}
-
-	function statusColor(s: string): string {
-		switch (s) {
-			case 'PASS':
-				return 'text-green-600 bg-green-50 dark:bg-green-950 dark:text-green-400';
-			case 'FAIL':
-				return 'text-red-600 bg-red-50 dark:bg-red-950 dark:text-red-400';
-			case 'BLOCKED':
-				return 'text-orange-600 bg-orange-50 dark:bg-orange-950 dark:text-orange-400';
-			case 'SKIPPED':
-				return 'text-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-gray-400';
-			default:
-				return 'text-muted-foreground';
-		}
 	}
 
 	function toggleStatusDropdown(exec: Execution, event: MouseEvent) {
@@ -406,7 +392,7 @@
 			<button
 				type="button"
 				role="menuitem"
-				class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted {statusColor(s)} {s === statusDropdown.currentStatus ? 'font-bold bg-muted/50' : ''}"
+				class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted {statusColorBg(s)} {s === statusDropdown.currentStatus ? 'font-bold bg-muted/50' : ''}"
 				onclick={() => changeExecutionStatus(statusDropdown!.execId, s, statusDropdown!.tcKey)}
 			>
 				{s}

@@ -12,6 +12,7 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { apiFetch, apiPost, apiPatch, apiDelete } from '$lib/api-client';
 	import * as m from '$lib/paraglide/messages.js';
+	import { statusColorBadge } from '$lib/execution-status';
 
 	let { data } = $props();
 
@@ -285,23 +286,6 @@
 		window.open(`/api/projects/${projectId}/requirements/matrix/export`, '_blank');
 	}
 
-	function statusColor(status: string | null): string {
-		switch (status) {
-			case 'PASS':
-				return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-			case 'FAIL':
-				return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-			case 'BLOCKED':
-				return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
-			case 'SKIPPED':
-				return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
-			case 'PENDING':
-				return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-			default:
-				return 'bg-muted text-muted-foreground';
-		}
-	}
-
 	onMount(() => {
 		loadRequirements();
 	});
@@ -464,7 +448,7 @@
 												<div class="flex items-center gap-2 text-xs py-0.5">
 													<span class="font-mono text-muted-foreground">{tc.key}</span>
 													<span>{tc.title}</span>
-													<Badge class="text-[10px] {statusColor(tc.latestStatus)}">
+													<Badge class="text-[10px] {statusColorBadge(tc.latestStatus)}">
 														{tc.latestStatus ?? 'N/A'}
 													</Badge>
 													{#if canManage}

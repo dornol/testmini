@@ -8,6 +8,7 @@
 	import Chart from '$lib/components/Chart.svelte';
 	import type { ChartConfiguration } from 'chart.js';
 	import { SvelteSet } from 'svelte/reactivity';
+	import { formatDuration } from '$lib/format-utils';
 
 	let {
 		projectId,
@@ -224,13 +225,6 @@
 		return `${(value / total) * 100}%`;
 	}
 
-	function formatDuration(ms: number): string {
-		if (ms < 1000) return `${ms}ms`;
-		if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-		const mins = Math.floor(ms / 60000);
-		const secs = Math.round((ms % 60000) / 1000);
-		return `${mins}m ${secs}s`;
-	}
 </script>
 
 <!-- Pass Rate Trend (bar chart) -->

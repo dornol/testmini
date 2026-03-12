@@ -4,6 +4,7 @@ import { savedFilter } from '$lib/server/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 async function findOwnedFilter(userId: string, projectId: number, filterId: number) {
 	return db.query.savedFilter.findFirst({
@@ -24,7 +25,7 @@ export const PATCH = withProjectAccess(async ({ request, user, projectId, params
 
 	let body: { name?: string; filters?: Record<string, unknown> };
 	try {
-		body = await request.json();
+		body = await parseJsonBody(request) as typeof body;
 	} catch {
 		error(400, 'Invalid JSON');
 	}

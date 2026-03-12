@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { customField } from '$lib/server/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 export const GET = withProjectAccess(async ({ projectId }) => {
 	const fields = await db
@@ -17,7 +18,7 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 const VALID_TYPES = ['TEXT', 'NUMBER', 'SELECT', 'MULTISELECT', 'DATE', 'CHECKBOX', 'URL'];
 
 export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, projectId }) => {
-	const body = await request.json();
+	const body = await parseJsonBody(request);
 	const { name, fieldType, options, required } = body as {
 		name?: string;
 		fieldType?: string;

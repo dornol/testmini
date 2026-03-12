@@ -3,6 +3,7 @@ import { json } from '@sveltejs/kit';
 import { unauthorized, badRequest } from '$lib/server/errors';
 import { authenticateApiKey } from '$lib/server/api-key-auth';
 import { childLogger } from '$lib/server/logger';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 const log = childLogger('webhook');
 
@@ -67,7 +68,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	let body: unknown;
 	try {
-		body = await request.json();
+		body = await parseJsonBody(request);
 	} catch {
 		return badRequest('Invalid request body');
 	}

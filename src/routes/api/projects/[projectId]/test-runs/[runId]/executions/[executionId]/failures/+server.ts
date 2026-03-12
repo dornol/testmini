@@ -7,6 +7,7 @@ import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { createFailureSchema } from '$lib/schemas/failure.schema';
 import { badRequest } from '$lib/server/errors';
+import { requireEditableRun } from '$lib/server/crud-helpers';
 
 export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'], async ({ params, projectId }) => {
 	const runId = Number(params.runId);
@@ -54,17 +55,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 	const runId = Number(params.runId);
 	const executionId = Number(params.executionId);
 
-	const run = await db.query.testRun.findFirst({
-		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
-	});
-
-	if (!run) {
-		error(404, 'Test run not found');
-	}
-
-	if (run.status === 'COMPLETED') {
-		error(403, 'Cannot modify executions in a completed run');
-	}
+	await requireEditableRun(runId, projectId);
 
 	const execution = await db.query.testExecution.findFirst({
 		where: and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId))

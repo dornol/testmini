@@ -5,6 +5,7 @@ import { eq, and, asc, isNull } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
+import { validateCommentContent } from '$lib/server/crud-helpers';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const runId = Number(params.runId);
@@ -64,14 +65,11 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 	if (exec.length === 0) error(404, 'Execution not found');
 
 	const body = await parseJsonBody(request);
-	const { content, parentId } = body as { content?: string; parentId?: number };
+	const { content: rawContent, parentId } = body as { content?: string; parentId?: number };
 
-	if (!content || typeof content !== 'string' || content.trim().length === 0) {
-		return badRequest('Content is required');
-	}
-	if (content.trim().length > 10000) {
-		return badRequest('Content is too long (max 10000 characters)');
-	}
+	const contentOrError = validateCommentContent(rawContent);
+	if (contentOrError instanceof Response) return contentOrError;
+	const content = contentOrError;
 
 	if (parentId != null) {
 		const parent = await db.query.executionComment.findFirst({
@@ -89,7 +87,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 		.values({
 			testExecutionId: executionId,
 			userId: user.id,
-			content: content.trim(),
+			content,
 			parentId: parentId ?? null
 		})
 		.returning();

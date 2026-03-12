@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { issueTrackerConfig } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { withProjectRole, withProjectAccess } from '$lib/server/api-handler';
+import { parseJsonBody } from '$lib/server/auth-utils';
 
 const VALID_PROVIDERS = ['JIRA', 'GITHUB', 'GITLAB', 'CUSTOM'];
 
@@ -45,7 +46,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 		enabled?: boolean;
 	};
 	try {
-		body = await request.json();
+		body = await parseJsonBody(request) as typeof body;
 	} catch {
 		error(400, 'Invalid request body');
 	}

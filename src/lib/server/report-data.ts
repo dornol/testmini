@@ -67,12 +67,6 @@ async function loadReportDataInternal(projectId: number, range: ReportDateRange)
 		return and(...conditions);
 	}
 
-	function execRunDateCondition() {
-		const conditions = [eq(testRun.projectId, projectId)];
-		if (range.from) conditions.push(gte(testRun.createdAt, range.from));
-		if (range.to) conditions.push(lte(testRun.createdAt, range.to));
-		return and(...conditions);
-	}
 
 	const [
 		envStats,
@@ -151,7 +145,7 @@ async function loadReportDataInternal(projectId: number, range: ReportDateRange)
 			.from(testExecution)
 			.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
-			.where(execRunDateCondition())
+			.where(runDateCondition())
 			.groupBy(testCaseVersion.priority),
 
 		// Test cases by creator
@@ -210,7 +204,7 @@ async function loadReportDataInternal(projectId: number, range: ReportDateRange)
 			})
 			.from(testExecution)
 			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
-			.where(and(execRunDateCondition(), isNotNull(testExecution.executedAt)))
+			.where(and(runDateCondition(), isNotNull(testExecution.executedAt)))
 			.groupBy(sql`to_char(${testExecution.executedAt}, 'YYYY-MM-DD')`)
 			.orderBy(sql`to_char(${testExecution.executedAt}, 'YYYY-MM-DD')`),
 
@@ -230,7 +224,7 @@ async function loadReportDataInternal(projectId: number, range: ReportDateRange)
 			.from(testExecution)
 			.innerJoin(user, eq(testExecution.executedBy, user.id))
 			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
-			.where(execRunDateCondition())
+			.where(runDateCondition())
 			.groupBy(user.id, user.name)
 			.orderBy(desc(count(testExecution.id))),
 
@@ -252,7 +246,7 @@ async function loadReportDataInternal(projectId: number, range: ReportDateRange)
 			.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 			.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
 			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
-			.where(execRunDateCondition())
+			.where(runDateCondition())
 			.groupBy(testCase.id, testCase.key, testCaseVersion.title)
 			.having(sql`count(case when ${testExecution.status} = 'FAIL' then 1 end) > 0`)
 			.orderBy(desc(sql`count(case when ${testExecution.status} = 'FAIL' then 1 end)`))
@@ -276,7 +270,7 @@ async function loadReportDataInternal(projectId: number, range: ReportDateRange)
 			.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 			.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
 			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
-			.where(execRunDateCondition())
+			.where(runDateCondition())
 			.groupBy(testCase.id, testCase.key, testCaseVersion.title)
 			.having(
 				sql`count(case when ${testExecution.status} = 'PASS' then 1 end) > 0 AND count(case when ${testExecution.status} = 'FAIL' then 1 end) > 0`
@@ -316,7 +310,7 @@ async function loadReportDataInternal(projectId: number, range: ReportDateRange)
 			.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 			.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
 			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
-			.where(and(execRunDateCondition(), isNotNull(testExecution.startedAt), isNotNull(testExecution.completedAt)))
+			.where(and(runDateCondition(), isNotNull(testExecution.startedAt), isNotNull(testExecution.completedAt)))
 			.groupBy(testCase.id, testCase.key, testCaseVersion.title, testCaseVersion.priority)
 			.orderBy(desc(sql`avg(extract(epoch from (${testExecution.completedAt} - ${testExecution.startedAt})))`))
 			.limit(20),

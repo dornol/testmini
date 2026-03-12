@@ -274,6 +274,27 @@
       "when": 1774800800000,
       "tag": "0039_release_signoff_retest",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1774887200000,
+      "tag": "0040_risk_based_testing",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1774973600000,
+      "tag": "0041_test_cycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1775060000000,
+      "tag": "0042_module_coverage",
+      "breakpoints": true
     }
   ]
 }

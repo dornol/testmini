@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
+	import { goto } from '$app/navigation';
 	import { apiPut } from '$lib/api-client';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
@@ -50,6 +51,7 @@
 	async function saveLayout() {
 		try {
 			await apiPut(`/api/projects/${proj.id}/dashboard-layout`, { layout: $state.snapshot(layout) });
+			toast.success(m.dashboard_layout_saved());
 		} catch {
 			// error toast handled by apiPut
 		}
@@ -580,6 +582,7 @@
 			{:else if widget.id === 'recent_runs'}
 				{#if recentRuns.length > 0}
 					<Card.Root class="h-full">
+
 						<Card.Header>
 							<div class="flex items-center justify-between">
 								<Card.Title class="text-sm font-medium">{m.dashboard_recent_runs()}</Card.Title>
@@ -610,9 +613,7 @@
 												: 0}
 										<Table.Row
 											class="cursor-pointer"
-											onclick={() => {
-												window.location.href = `/projects/${proj.id}/test-runs/${run.id}`;
-											}}
+											onclick={() => goto(`/projects/${proj.id}/test-runs/${run.id}`)}
 										>
 											<Table.Cell class="font-medium">{run.name}</Table.Cell>
 											<Table.Cell class="hidden sm:table-cell">
@@ -654,6 +655,15 @@
 									{/each}
 								</Table.Body>
 							</Table.Root>
+						</Card.Content>
+					</Card.Root>
+				{:else}
+					<Card.Root class="h-full">
+						<Card.Header>
+							<Card.Title class="text-sm font-medium">{m.dashboard_recent_runs()}</Card.Title>
+						</Card.Header>
+						<Card.Content>
+							<p class="text-muted-foreground text-sm text-center py-8">{m.dashboard_no_chart_data()}</p>
 						</Card.Content>
 					</Card.Root>
 				{/if}

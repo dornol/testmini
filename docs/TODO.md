@@ -733,6 +733,38 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ---
 
+## Phase 24: UX Audit & Polish
+
+### 24.1 Navigation & Feedback Improvements -- Done
+
+- [x] Dashboard: replace `window.location.href` with SvelteKit `goto()` for client-side navigation (recent runs table)
+- [x] Dashboard: add toast notification on layout save (was silently saving with no feedback)
+- [x] Dashboard: add empty state card for "Recent Runs" widget when no runs exist (was rendering nothing)
+
+### 24.2 Confirmation Dialogs for Destructive Actions -- Done
+
+- [x] Admin projects: add `AlertDialog` confirmation before activating/deactivating projects (was direct form submit)
+- [x] Traceability: add `AlertDialog` confirmation before unlinking a test case from a requirement (was instant with no undo)
+
+### 24.3 UI Consistency -- Done
+
+- [x] Exploratory sessions: replace raw `<table>` with shadcn `Table.*` components (matching all other list pages)
+- [x] Exploratory sessions: add responsive column hiding (`hidden sm:table-cell`, `hidden md:table-cell`, `hidden lg:table-cell`)
+- [x] Exploratory sessions: improve empty state with icon, styled dashed border container, and CTA button (matching test-runs, test-suites, releases pattern)
+- [x] Traceability: add loading spinner to page loading state (was plain text only)
+
+### 24.4 Accessibility -- Done
+
+- [x] Add `aria-label` and `aria-hidden="true"` to all dropdown menu action trigger buttons (test-runs, test-plans, test-suites, releases -- 4 pages)
+- [x] Add `aria-label` to column reorder buttons in test case list (up/down move buttons)
+- [x] svelte-check warnings reduced from 12 to 6 (all remaining are pre-existing autofocus/state_referenced_locally)
+
+### 24.5 i18n -- Done
+
+- [x] New messages (en/ko): `common_saved`, `dashboard_layout_saved`, `req_unlink_confirm`, `admin_confirm_toggle_title`, `admin_confirm_activate`, `admin_confirm_deactivate`
+
+---
+
 ## Future Considerations
 
 | Feature | Priority | Notes |

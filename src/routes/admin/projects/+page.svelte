@@ -5,6 +5,7 @@
 	import { toast } from 'svelte-sonner';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -15,6 +16,26 @@
 	$effect(() => {
 		searchInput = data.search;
 	});
+
+	// Toggle confirmation state
+	let confirmDialogOpen = $state(false);
+	let confirmProjectId = $state<number | null>(null);
+	let confirmProjectName = $state('');
+	let confirmProjectActive = $state(false);
+	let confirmFormRef = $state<HTMLFormElement | null>(null);
+
+	function openToggleConfirm(proj: typeof data.projects[0], formEl: HTMLFormElement) {
+		confirmProjectId = proj.id;
+		confirmProjectName = proj.name;
+		confirmProjectActive = proj.active;
+		confirmFormRef = formEl;
+		confirmDialogOpen = true;
+	}
+
+	function handleConfirmToggle() {
+		confirmFormRef?.requestSubmit();
+		confirmDialogOpen = false;
+	}
 
 	function doSearch() {
 		const params = new URLSearchParams();
@@ -100,7 +121,17 @@
 							{new Date(proj.createdAt).toLocaleDateString()}
 						</Table.Cell>
 						<Table.Cell>
-							<form method="POST" action="?/toggleActive" use:enhance={handleResult}>
+							<form
+								method="POST"
+								action="?/toggleActive"
+								use:enhance={handleResult}
+								onsubmit={(e) => {
+									if (!confirmDialogOpen) {
+										e.preventDefault();
+										openToggleConfirm(proj, e.currentTarget as HTMLFormElement);
+									}
+								}}
+							>
 								<input type="hidden" name="projectId" value={proj.id} />
 								<input type="hidden" name="active" value={proj.active ? 'false' : 'true'} />
 								<Button
@@ -164,3 +195,27 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Toggle Active Confirmation Dialog -->
+<AlertDialog.Root bind:open={confirmDialogOpen}>
+	<AlertDialog.Portal>
+		<AlertDialog.Overlay />
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>{m.admin_confirm_toggle_title()}</AlertDialog.Title>
+				<AlertDialog.Description>
+					{confirmProjectActive ? m.admin_confirm_deactivate() : m.admin_confirm_activate()}
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+				<Button
+					variant={confirmProjectActive ? 'destructive' : 'default'}
+					onclick={handleConfirmToggle}
+				>
+					{confirmProjectActive ? m.admin_projects_deactivate() : m.admin_projects_activate()}
+				</Button>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Portal>
+</AlertDialog.Root>

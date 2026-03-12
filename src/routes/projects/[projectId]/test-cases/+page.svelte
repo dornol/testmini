@@ -924,16 +924,18 @@
 								class="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
 								disabled={visIdx === 0}
 								onclick={() => moveCol(visIdx, -1)}
+								aria-label="Move column up"
 							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
 							</button>
 							<button
 								type="button"
 								class="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
 								disabled={visIdx === orderedColIds.length - 1}
 								onclick={() => moveCol(visIdx, 1)}
+								aria-label="Move column down"
 							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
 							</button>
 						{/if}
 					</div>

@@ -82,6 +82,13 @@
 	let deleteId = $state<number | null>(null);
 	let deleteSaving = $state(false);
 
+	// Unlink confirmation dialog
+	let unlinkDialogOpen = $state(false);
+	let unlinkReqId = $state<number | null>(null);
+	let unlinkTestCaseId = $state<number | null>(null);
+	let unlinkTestCaseKey = $state('');
+	let unlinkSaving = $state(false);
+
 	// Link test case dialog
 	let linkDialogOpen = $state(false);
 	let linkReqId = $state<number | null>(null);
@@ -237,16 +244,28 @@
 		}
 	}
 
-	async function unlinkTestCase(reqId: number, testCaseId: number) {
+	function openUnlink(reqId: number, tc: LinkedTestCase) {
+		unlinkReqId = reqId;
+		unlinkTestCaseId = tc.id;
+		unlinkTestCaseKey = tc.key;
+		unlinkDialogOpen = true;
+	}
+
+	async function handleUnlink() {
+		if (!unlinkReqId || !unlinkTestCaseId) return;
+		unlinkSaving = true;
 		try {
 			await apiDelete(
-				`/api/projects/${projectId}/requirements/${reqId}/test-cases?testCaseId=${testCaseId}`
+				`/api/projects/${projectId}/requirements/${unlinkReqId}/test-cases?testCaseId=${unlinkTestCaseId}`
 			);
+			unlinkDialogOpen = false;
 			toast.success(m.req_unlinked());
-			expandedTestCases = expandedTestCases.filter((tc) => tc.id !== testCaseId);
+			expandedTestCases = expandedTestCases.filter((tc) => tc.id !== unlinkTestCaseId);
 			await loadRequirements();
 		} catch {
-			// error toast handled
+			// error toast handled by apiDelete
+		} finally {
+			unlinkSaving = false;
 		}
 	}
 
@@ -295,7 +314,8 @@
 	</div>
 
 	{#if loading}
-		<div class="flex items-center justify-center p-8">
+		<div class="flex items-center justify-center gap-2 p-8">
+			<svg class="h-4 w-4 animate-spin text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
 			<p class="text-muted-foreground text-sm">{m.common_loading()}</p>
 		</div>
 	{:else if requirements.length === 0}
@@ -454,7 +474,7 @@
 															variant="ghost"
 															size="sm"
 															class="h-5 px-1 text-[10px] text-destructive ml-auto"
-															onclick={() => unlinkTestCase(req.id, tc.id)}
+															onclick={() => openUnlink(req.id, tc)}
 														>
 															{m.req_unlink_test_case()}
 														</Button>
@@ -578,6 +598,27 @@
 				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
 				<Button variant="destructive" onclick={handleDelete} disabled={deleteSaving}>
 					{deleteSaving ? m.common_saving() : m.common_delete()}
+				</Button>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Portal>
+</AlertDialog.Root>
+
+<!-- Unlink Confirmation Dialog -->
+<AlertDialog.Root bind:open={unlinkDialogOpen}>
+	<AlertDialog.Portal>
+		<AlertDialog.Overlay />
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>{m.req_unlink_test_case()}</AlertDialog.Title>
+				<AlertDialog.Description>
+					{m.req_unlink_confirm({ key: unlinkTestCaseKey })}
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+				<Button variant="destructive" onclick={handleUnlink} disabled={unlinkSaving}>
+					{unlinkSaving ? m.common_saving() : m.req_unlink_test_case()}
 				</Button>
 			</AlertDialog.Footer>
 		</AlertDialog.Content>

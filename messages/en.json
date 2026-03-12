@@ -1156,5 +1156,11 @@
 	"cross_env_specific_failures": "Environment-Specific Failures",
 	"cross_env_failed_in": "Failed In",
 	"cross_env_passed_in": "Passed In",
-	"cross_env_no_data": "Select at least 2 runs to compare"
+	"cross_env_no_data": "Select at least 2 runs to compare",
+	"common_saved": "Saved",
+	"dashboard_layout_saved": "Dashboard layout saved",
+	"req_unlink_confirm": "Are you sure you want to unlink test case {key} from this requirement?",
+	"admin_confirm_toggle_title": "Confirm Status Change",
+	"admin_confirm_activate": "Are you sure you want to activate this project?",
+	"admin_confirm_deactivate": "Are you sure you want to deactivate this project? Members will no longer be able to access it."
 }

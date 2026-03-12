@@ -158,7 +158,7 @@ testmini/
 │       │   ├── health/
 │       │   ├── mcp/               # MCP Streamable HTTP endpoint
 │       │   ├── notifications/
-│       │   ├── projects/          # Includes webhooks/, exploratory-sessions/, approval/, test-plans/ endpoints
+│       │   ├── projects/          # Includes webhooks/, exploratory-sessions/, approval/, test-plans/, releases/, test-cycles/, modules/ endpoints
 │       │   └── users/
 │       ├── auth/                   # Login, pending approval, OAuth callback pages
 │       ├── admin/                  # Admin panel pages (global admin only)
@@ -172,6 +172,8 @@ testmini/
 │               ├── test-plans/
 │               ├── test-suites/
 │               ├── exploratory/
+│               ├── traceability/
+│               ├── releases/
 │               ├── reports/
 │               └── settings/
 │

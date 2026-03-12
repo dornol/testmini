@@ -5,6 +5,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as Table from '$lib/components/ui/table/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import * as m from '$lib/paraglide/messages.js';
@@ -114,47 +115,56 @@
 	</div>
 
 	{#if data.sessions.length === 0}
-		<div class="text-muted-foreground py-12 text-center">
-			<p class="font-medium">{m.exploratory_empty()}</p>
-			<p class="mt-1 text-sm">{m.exploratory_empty_hint()}</p>
+		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+			<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground mb-4">
+				<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+			</svg>
+			<h3 class="text-lg font-semibold">{m.exploratory_empty()}</h3>
+			<p class="text-muted-foreground mt-1 text-sm">{m.exploratory_empty_hint()}</p>
+			<Button class="mt-4" size="sm" onclick={() => (showNewDialog = true)}>{m.exploratory_new()}</Button>
 		</div>
 	{:else}
-		<div class="border rounded-md">
-			<table class="w-full text-sm">
-				<thead>
-					<tr class="border-b bg-muted/50">
-						<th class="px-3 py-2 text-left font-medium">{m.common_title()}</th>
-						<th class="px-3 py-2 text-left font-medium">{m.exploratory_charter()}</th>
-						<th class="px-3 py-2 text-left font-medium">{m.common_status()}</th>
-						<th class="px-3 py-2 text-left font-medium">{m.exploratory_duration()}</th>
-						<th class="px-3 py-2 text-left font-medium">{m.exploratory_notes()}</th>
-						<th class="px-3 py-2 text-left font-medium">{m.tr_created_by()}</th>
-						<th class="px-3 py-2 text-left font-medium">{m.common_date()}</th>
-					</tr>
-				</thead>
-				<tbody>
+		<div class="border rounded-md overflow-hidden">
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head class="py-1 px-2 text-xs">{m.common_title()}</Table.Head>
+						<Table.Head class="py-1 px-2 text-xs hidden md:table-cell">{m.exploratory_charter()}</Table.Head>
+						<Table.Head class="w-24 py-1 px-2 text-xs">{m.common_status()}</Table.Head>
+						<Table.Head class="w-20 py-1 px-2 text-xs hidden sm:table-cell">{m.exploratory_duration()}</Table.Head>
+						<Table.Head class="w-16 py-1 px-2 text-xs hidden sm:table-cell">{m.exploratory_notes()}</Table.Head>
+						<Table.Head class="w-24 py-1 px-2 text-xs hidden lg:table-cell">{m.tr_created_by()}</Table.Head>
+						<Table.Head class="w-28 py-1 px-2 text-xs hidden lg:table-cell">{m.common_date()}</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
 					{#each data.sessions as session (session.id)}
-						<tr
-							class="border-b hover:bg-muted/30 cursor-pointer transition-colors"
+						<Table.Row
+							class="cursor-pointer hover:bg-muted/50"
 							onclick={() => goto(`/projects/${projectId}/exploratory/${session.id}`)}
 						>
-							<td class="px-3 py-2 font-medium">{session.title}</td>
-							<td class="px-3 py-2 text-muted-foreground max-w-[200px] truncate">
+							<Table.Cell class="py-1 px-2 text-xs font-medium">
+								{session.title}
+								<div class="text-muted-foreground md:hidden text-[10px] truncate max-w-[200px]">
+									{session.charter ?? ''}
+								</div>
+							</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs max-w-[200px] truncate hidden md:table-cell">
 								{session.charter ?? '-'}
-							</td>
-							<td class="px-3 py-2">
-								<Badge variant={statusVariant(session.status)}>{statusLabel(session.status)}</Badge>
-							</td>
-							<td class="px-3 py-2 text-muted-foreground">{formatDuration(session)}</td>
-							<td class="px-3 py-2 text-muted-foreground">{session.noteCount}</td>
-							<td class="px-3 py-2 text-muted-foreground">{session.createdBy}</td>
-							<td class="px-3 py-2 text-muted-foreground">
+							</Table.Cell>
+							<Table.Cell class="py-1 px-2 text-xs">
+								<Badge variant={statusVariant(session.status)} class="text-[10px] px-1.5 py-0">{statusLabel(session.status)}</Badge>
+							</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden sm:table-cell">{formatDuration(session)}</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden sm:table-cell">{session.noteCount}</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden lg:table-cell">{session.createdBy}</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden lg:table-cell">
 								{new Date(session.startedAt).toLocaleDateString()}
-							</td>
-						</tr>
+							</Table.Cell>
+						</Table.Row>
 					{/each}
-				</tbody>
-			</table>
+				</Table.Body>
+			</Table.Root>
 		</div>
 		<p class="text-muted-foreground text-sm">{m.common_total_count({ count: data.total })}</p>
 	{/if}

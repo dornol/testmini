@@ -45,3 +45,28 @@ export function withAuth(
 		return handler(Object.assign(event, { user }));
 	};
 }
+
+/**
+ * Extract authenticated user, projectId, and verify project role from a page action event.
+ * Reduces boilerplate in page.server.ts form actions.
+ *
+ * Usage:
+ *   const { user, projectId } = await getActionContext(locals, params, ['PROJECT_ADMIN', 'QA']);
+ */
+export async function getActionContext(
+	locals: App.Locals,
+	params: Record<string, string>,
+	allowedRoles?: string[]
+): Promise<{ user: AuthUser; projectId: number }> {
+	const user = requireAuth(locals);
+	const projectId = Number(params.projectId);
+	if (!Number.isFinite(projectId)) error(400, 'Invalid project ID');
+
+	if (allowedRoles) {
+		await requireProjectRole(user, projectId, allowedRoles);
+	} else {
+		await requireProjectAccess(user, projectId);
+	}
+
+	return { user, projectId };
+}

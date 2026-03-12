@@ -1984,6 +1984,7 @@
 	{canEdit}
 	{canDelete}
 	projectPriorities={data.projectPriorities}
+	customFieldDefs={data.projectCustomFields}
 	currentUserId={data.user?.id ?? ''}
 	userRole={data.userRole}
 	onchange={() => invalidateAll()}

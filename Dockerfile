@@ -16,8 +16,11 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 FROM deps AS build
 
 COPY . .
-# Dummy DATABASE_URL for SvelteKit build (not used at runtime)
-RUN DATABASE_URL="postgres://build:build@localhost:5432/build" pnpm build
+# Dummy env vars for SvelteKit postbuild analyse (not used at runtime)
+RUN DATABASE_URL="postgres://build:build@localhost:5432/build" \
+    BETTER_AUTH_SECRET="build-only-dummy-secret-not-used-at-runtime" \
+    ORIGIN="http://localhost:3000" \
+    pnpm build
 
 # Use pnpm deploy to create a minimal production-only node_modules
 # (more efficient than install + prune: copies only prod deps, no symlinks)

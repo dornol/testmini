@@ -16,6 +16,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		projectKey: 'project_key',
 		customTemplate: 'custom_template',
 		enabled: 'enabled',
+		webhookSecret: 'webhook_secret',
 		createdBy: 'created_by',
 		createdAt: 'created_at'
 	}
@@ -49,6 +50,7 @@ const sampleConfig = {
 	projectKey: 'PROJ',
 	customTemplate: null,
 	enabled: true,
+	webhookSecret: null,
 	createdBy: 'user-1',
 	createdAt: new Date('2025-01-01')
 };
@@ -105,6 +107,18 @@ describe('/api/projects/[projectId]/issue-tracker', () => {
 			const response = await GET(event);
 			const body = await response.json();
 			expect(body.hasApiToken).toBe(false);
+		});
+
+		it('should return hasWebhookSecret in response', async () => {
+			mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue({
+				...sampleConfig,
+				webhookSecret: 'secret123'
+			});
+			const event = createMockEvent({ params: PARAMS, user: testUser });
+
+			const response = await GET(event);
+			const body = await response.json();
+			expect(body.hasWebhookSecret).toBe(true);
 		});
 	});
 
@@ -249,7 +263,7 @@ describe('/api/projects/[projectId]/issue-tracker', () => {
 		});
 
 		it('should accept all valid providers', async () => {
-			for (const provider of ['JIRA', 'GITHUB', 'GITLAB', 'CUSTOM']) {
+			for (const provider of ['JIRA', 'GITHUB', 'GITLAB', 'GITEA', 'CUSTOM']) {
 				mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(null);
 				mockInsertReturning(mockDb, [{ ...sampleConfig, provider }]);
 
@@ -263,6 +277,42 @@ describe('/api/projects/[projectId]/issue-tracker', () => {
 				const response = await POST(event);
 				expect(response.status).toBe(201);
 			}
+		});
+
+		it('should accept GITEA provider', async () => {
+			mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(null);
+			mockInsertReturning(mockDb, [{ ...sampleConfig, provider: 'GITEA' }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { provider: 'GITEA', baseUrl: 'https://gitea.example.com' }
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(201);
+			const body = await response.json();
+			expect(body.provider).toBe('GITEA');
+		});
+
+		it('should save webhookSecret when provided', async () => {
+			mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(null);
+			mockInsertReturning(mockDb, [{ ...sampleConfig, webhookSecret: 'my-secret' }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					provider: 'JIRA',
+					baseUrl: 'https://company.atlassian.net',
+					webhookSecret: 'my-secret'
+				}
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(201);
 		});
 	});
 

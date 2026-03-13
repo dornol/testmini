@@ -26,6 +26,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			customTemplate: config.customTemplate,
 			enabled: config.enabled,
 			hasApiToken: !!config.apiToken,
+			hasWebhookSecret: !!config.webhookSecret,
 			createdAt: config.createdAt
 		}
 	};

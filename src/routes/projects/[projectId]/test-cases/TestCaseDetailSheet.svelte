@@ -20,7 +20,7 @@
 	import { apiFetch, apiPut, apiDelete, apiPost } from '$lib/api-client';
 	import { TAG_PALETTE } from '$lib/constants';
 
-	let { projectId, canEdit, canDelete, projectPriorities, customFieldDefs, currentUserId, userRole, onchange }: {
+	let { projectId, canEdit, canDelete, projectPriorities, customFieldDefs, currentUserId, userRole, hasIssueTracker, onchange }: {
 		projectId: number;
 		canEdit: boolean;
 		canDelete: boolean;
@@ -28,6 +28,7 @@
 		customFieldDefs: { id: number; name: string; fieldType: string; options: string[] | null }[];
 		currentUserId: string;
 		userRole: string;
+		hasIssueTracker: boolean;
 		onchange: () => void;
 	} = $props();
 
@@ -145,10 +146,13 @@
 
 		try {
 			detailData = await apiFetch(`/api/projects/${projectId}/test-cases/${tcId}`);
-			const lockData = await apiFetch<{ locked: boolean; holder?: { userName: string } }>(
-				`/api/projects/${projectId}/test-cases/${tcId}/lock`,
-				{ silent: true }
-			);
+			const [lockData] = await Promise.all([
+				apiFetch<{ locked: boolean; holder?: { userName: string } }>(
+					`/api/projects/${projectId}/test-cases/${tcId}/lock`,
+					{ silent: true }
+				),
+				hasIssueTracker ? loadIssueLinks(tcId) : Promise.resolve()
+			]);
 			if (lockData.locked && lockData.holder) sheetLockHolder = lockData.holder;
 		} catch {
 			sheetOpen = false;
@@ -350,12 +354,95 @@
 		}
 	}
 
+	// Issue links
+	interface IssueLinkRecord {
+		id: number;
+		externalUrl: string;
+		externalKey: string | null;
+		title: string | null;
+		status: string | null;
+		provider: string;
+	}
+	let issueLinks = $state<IssueLinkRecord[]>([]);
+	let creatingIssue = $state(false);
+	let showLinkForm = $state(false);
+	let newIssueUrl = $state('');
+	let linkingIssue = $state(false);
+
+	async function loadIssueLinks(tcId: number) {
+		try {
+			issueLinks = await apiFetch<IssueLinkRecord[]>(
+				`/api/projects/${projectId}/issue-links?testCaseId=${tcId}`,
+				{ silent: true }
+			);
+		} catch {
+			issueLinks = [];
+		}
+	}
+
+	async function handleCreateIssue() {
+		if (creatingIssue || !selectedTcId || !detailData) return;
+		creatingIssue = true;
+		const version = detailData.testCase.latestVersion;
+		try {
+			const created = await apiPost<IssueLinkRecord>(
+				`/api/projects/${projectId}/issue-links/create-issue`,
+				{
+					testCaseId: selectedTcId,
+					title: `[${detailData.testCase.key}] ${version?.title ?? 'Test failure'}`,
+					description: `Test case ${detailData.testCase.key}\n\nTitle: ${version?.title ?? ''}\nPriority: ${version?.priority ?? ''}`
+				}
+			);
+			issueLinks = [created, ...issueLinks];
+			toast.success(m.issue_link_created());
+			onchange();
+		} catch {
+			// error toast handled by apiPost
+		} finally {
+			creatingIssue = false;
+		}
+	}
+
+	async function handleLinkIssue() {
+		if (linkingIssue || !newIssueUrl.trim() || !selectedTcId) return;
+		linkingIssue = true;
+		try {
+			const created = await apiPost<IssueLinkRecord>(
+				`/api/projects/${projectId}/issue-links`,
+				{ testCaseId: selectedTcId, externalUrl: newIssueUrl.trim() }
+			);
+			issueLinks = [created, ...issueLinks];
+			newIssueUrl = '';
+			showLinkForm = false;
+			toast.success(m.issue_link_linked());
+			onchange();
+		} catch {
+			// handled
+		} finally {
+			linkingIssue = false;
+		}
+	}
+
+	async function handleRemoveIssueLink(linkId: number) {
+		try {
+			await apiDelete(`/api/projects/${projectId}/issue-links/${linkId}`);
+			issueLinks = issueLinks.filter((l) => l.id !== linkId);
+			toast.success(m.issue_link_removed());
+			onchange();
+		} catch {
+			// handled
+		}
+	}
+
 	function handleSheetClose(isOpen: boolean) {
 		if (!isOpen) {
 			if (detailEditing) releaseSheetLock();
 			detailEditing = false;
 			detailData = null;
 			selectedTcId = null;
+			issueLinks = [];
+			showLinkForm = false;
+			newIssueUrl = '';
 		}
 	}
 </script>
@@ -692,6 +779,73 @@
 							customFieldValues={(version.customFields ?? {}) as Record<string, unknown>}
 						/>
 					{/if}
+				{/if}
+
+				<!-- Issue Links Section -->
+				{#if hasIssueTracker && !detailEditing}
+					<div class="border-t pt-4">
+						<div class="flex items-center justify-between mb-3">
+							<h4 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+								{m.issue_link_title()}
+							</h4>
+							{#if canEdit}
+								<div class="flex gap-1">
+									<Button variant="outline" size="sm" class="h-6 text-[10px] px-2" disabled={creatingIssue} onclick={handleCreateIssue}>
+										{creatingIssue ? m.common_loading() : m.issue_link_create()}
+									</Button>
+									<Button variant="outline" size="sm" class="h-6 text-[10px] px-2" onclick={() => (showLinkForm = !showLinkForm)}>
+										{m.issue_link_add()}
+									</Button>
+								</div>
+							{/if}
+						</div>
+						{#if showLinkForm}
+							<form
+								onsubmit={(e) => { e.preventDefault(); handleLinkIssue(); }}
+								class="mb-3 flex gap-2"
+							>
+								<Input
+									placeholder={m.issue_link_url_placeholder()}
+									type="url"
+									bind:value={newIssueUrl}
+									required
+									class="flex-1 h-7 text-xs"
+								/>
+								<Button type="submit" size="sm" class="h-7 text-xs" disabled={linkingIssue || !newIssueUrl.trim()}>
+									{linkingIssue ? m.common_loading() : m.issue_link_add()}
+								</Button>
+							</form>
+						{/if}
+						{#if issueLinks.length === 0}
+							<p class="text-muted-foreground text-xs">{m.issue_link_empty()}</p>
+						{:else}
+							<div class="space-y-1.5">
+								{#each issueLinks as link (link.id)}
+									<div class="flex items-center justify-between gap-2 rounded border px-2.5 py-1.5 text-xs">
+										<div class="min-w-0 flex-1">
+											<div class="flex items-center gap-1.5">
+												{#if link.externalKey}
+													<span class="font-mono font-medium shrink-0">{link.externalKey}</span>
+												{/if}
+												{#if link.status}
+													<span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium {link.status === 'closed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">
+														{link.status}
+													</span>
+												{/if}
+											</div>
+											<a href={link.externalUrl} target="_blank" rel="noopener noreferrer" class="text-primary hover:underline truncate block">
+												{link.title || link.externalUrl}
+											</a>
+										</div>
+										{#if canEdit}
+											<button type="button" class="text-muted-foreground hover:text-destructive shrink-0" onclick={() => handleRemoveIssueLink(link.id)}>&times;</button>
+										{/if}
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
 				{/if}
 
 				<!-- Version History (collapsible) -->

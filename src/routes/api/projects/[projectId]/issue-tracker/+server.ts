@@ -5,8 +5,11 @@ import { issueTrackerConfig } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { withProjectRole, withProjectAccess } from '$lib/server/api-handler';
 import { parseJsonBody } from '$lib/server/auth-utils';
+import { childLogger } from '$lib/server/logger';
 
-const VALID_PROVIDERS = ['JIRA', 'GITHUB', 'GITLAB', 'CUSTOM'];
+const log = childLogger('issue-tracker-config');
+
+const VALID_PROVIDERS = ['JIRA', 'GITHUB', 'GITLAB', 'GITEA', 'CUSTOM'];
 
 export const GET = withProjectAccess(async ({ projectId }) => {
 	const config = await db.query.issueTrackerConfig.findFirst({
@@ -25,6 +28,7 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 		customTemplate: config.customTemplate,
 		enabled: config.enabled,
 		hasApiToken: !!config.apiToken,
+		hasWebhookSecret: !!config.webhookSecret,
 		createdAt: config.createdAt
 	});
 });
@@ -44,6 +48,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 		projectKey?: string;
 		customTemplate?: Record<string, unknown>;
 		enabled?: boolean;
+		webhookSecret?: string;
 	};
 	try {
 		body = await parseJsonBody(request) as typeof body;
@@ -82,6 +87,9 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 
 		if (body.apiToken !== undefined) {
 			updates.apiToken = body.apiToken?.trim() || null;
+			log.info({ projectId, tokenLength: (body.apiToken?.trim() || '').length }, 'Updating API token');
+		} else {
+			log.info({ projectId }, 'API token not included in payload, keeping existing');
 		}
 		if (body.projectKey !== undefined) {
 			updates.projectKey = body.projectKey?.trim() || null;
@@ -91,6 +99,9 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 		}
 		if (body.enabled !== undefined) {
 			updates.enabled = body.enabled;
+		}
+		if (body.webhookSecret !== undefined) {
+			updates.webhookSecret = body.webhookSecret?.trim() || null;
 		}
 
 		await db
@@ -110,6 +121,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 			customTemplate: updated!.customTemplate,
 			enabled: updated!.enabled,
 			hasApiToken: !!updated!.apiToken,
+			hasWebhookSecret: !!updated!.webhookSecret,
 			createdAt: updated!.createdAt
 		});
 	}
@@ -125,6 +137,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 			projectKey: body.projectKey?.trim() || null,
 			customTemplate: body.customTemplate ?? null,
 			enabled: body.enabled ?? true,
+			webhookSecret: body.webhookSecret?.trim() || null,
 			createdBy: user.id
 		})
 		.returning();
@@ -138,6 +151,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 			customTemplate: created.customTemplate,
 			enabled: created.enabled,
 			hasApiToken: !!created.apiToken,
+			hasWebhookSecret: !!created.webhookSecret,
 			createdAt: created.createdAt
 		},
 		{ status: 201 }

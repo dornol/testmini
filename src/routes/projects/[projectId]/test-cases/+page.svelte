@@ -91,6 +91,7 @@
 		assignees: { userId: string; userName: string }[];
 		approvalStatus: string;
 		customFields: Record<string, unknown> | null;
+		issueLinkCount: number;
 		[SHADOW_ITEM_MARKER_PROPERTY_NAME]?: boolean;
 	};
 	type GroupItem = {
@@ -1118,6 +1119,13 @@
 							{/if}
 						{/if}
 					</span>
+					<!-- Issue link indicator -->
+					{#if tc.issueLinkCount > 0}
+						<span class="shrink-0 inline-flex items-center gap-0.5 text-muted-foreground" title="{tc.issueLinkCount} linked issue(s)">
+							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+							<span class="text-[10px]">{tc.issueLinkCount}</span>
+						</span>
+					{/if}
 					<!-- Approval Status (always after title) -->
 					{#if tc.approvalStatus && tc.approvalStatus !== 'DRAFT'}
 						<span class="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none {tc.approvalStatus === 'IN_REVIEW' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : tc.approvalStatus === 'APPROVED' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : tc.approvalStatus === 'REJECTED' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : ''}">
@@ -1720,14 +1728,14 @@
 					<button
 						type="button"
 						class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted text-muted-foreground"
-						onclick={() => { openDropdown = null; failureSheet.open(runId, exec.executionId); }}
+						onclick={() => { const r = runId, e = exec.executionId, k = tcKey; openDropdown = null; failureSheet.open(r, e, k); }}
 					>
 						{m.fail_details()}
 					</button>
 					<button
 						type="button"
 						class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted text-muted-foreground"
-						onclick={() => { openDropdown = null; failDialog.open(runId, exec.executionId, tcKey); }}
+						onclick={() => { const r = runId, e = exec.executionId, k = tcKey; openDropdown = null; failDialog.open(r, e, k); }}
 					>
 						{m.fail_add_detail()}
 					</button>
@@ -1983,6 +1991,7 @@
 	customFieldDefs={data.projectCustomFields}
 	currentUserId={data.user?.id ?? ''}
 	userRole={data.userRole}
+	hasIssueTracker={data.hasIssueTracker}
 	onchange={() => invalidateAll()}
 />
 

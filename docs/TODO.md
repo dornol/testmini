@@ -32,12 +32,12 @@ The following core capabilities are **already implemented**:
 | 20 | In-App Notifications | Done | Bell UI, polling, mark as read; triggered by key events |
 | 21 | MCP Server | Done | Resources + tools via Streamable HTTP, API key auth |
 | 22 | Outgoing Webhooks | Done | Per-project webhook config, Slack/generic HTTP, HMAC signing, event filtering |
-| 23 | Issue Tracker Integration | Done | Jira, GitHub, GitLab, Custom webhook; link/create issues from test cases/executions |
+| 23 | Issue Tracker Integration | Done | Jira, GitHub, GitLab, Gitea, Custom webhook; link/create issues from test cases/executions |
 | 24 | Custom Fields | Done | Per-project field definitions (text/number/select/date/checkbox/URL), JSONB storage |
 | 25 | Execution Comments | Done | Comments on test run executions, inline in execution table |
 | 26 | Traceability Matrix | Done | Requirements ↔ test cases mapping, coverage gap analysis, CSV export |
 | 27 | Saved Filters & Views | Done | Per-user saved filter presets, quick switching in test case list |
-| 28 | Issue Status Sync | Done | Fetch/sync issue status from Jira/GitHub/GitLab, bidirectional links |
+| 28 | Issue Status Sync | Done | Fetch/sync issue status from Jira/GitHub/GitLab/Gitea, bidirectional links, inbound webhooks |
 | 29 | Report Export | Done | PDF generation, shareable links with tokens, scheduled report emails |
 | 30 | Parameterized Tests | Done | Parameters, data sets, CSV import, test run expansion, shared data library |
 | 31 | BDD/Gherkin Support | Done | Given/When/Then syntax editor, auto-parse into steps, format toggle |
@@ -97,12 +97,14 @@ Link test results to external issue trackers for end-to-end traceability.
   - Jira: base URL, API token, project key
   - GitHub Issues: repo, token
   - GitLab Issues: project, token
+  - Gitea Issues: base URL, repo, token
   - Generic webhook: configurable URL + payload template
 - [x] Auto-create issue on test failure (one-click from failure detail)
   - Pre-fill title, description with test case info, failure details, environment
 - [x] Link existing issue to test case or execution
   - Store external issue URL/key in separate `issue_link` table
 - [x] Display linked issue status (sync from external tracker)
+- [x] Inbound issue webhooks: real-time status sync from GitHub/GitLab/Gitea with signature verification
 - [x] Bidirectional link: external issue links back to test run/case
 
 ### 6.2 Traceability Matrix
@@ -769,6 +771,41 @@ Link test results to external issue trackers for end-to-end traceability.
 - [x] Link test case dialog: widen to `max-w-2xl` with `max-h-[85vh]` overflow containment
 - [x] Link test case dialog: add infinite scroll (load 50 more on scroll) replacing fixed 50-item limit
 - [x] Add traceability page server load test (6 tests)
+
+---
+
+## Phase 25: Gitea Integration & Inbound Issue Webhooks
+
+### 25.1 Gitea Issue Tracker Integration -- Done
+
+- [x] Gitea API v1 integration module (`src/lib/server/integrations/gitea.ts`)
+  - Connection test, issue creation, status fetch
+  - `Authorization: token <apiToken>` authentication
+- [x] Issue tracker router updated (`createExternalIssue`, `fetchIssueStatus`, `testConnection`)
+- [x] Settings UI: Gitea provider option with URL + repository fields
+- [x] API: GITEA accepted as valid provider in issue tracker config
+- [x] i18n messages (en/ko) for Gitea provider label and URL field
+
+### 25.2 Inbound Issue Webhooks -- Done
+
+- [x] `POST /api/webhooks/issues` endpoint for real-time issue status sync
+  - GitHub: `X-GitHub-Event: issues` + `X-Hub-Signature-256` HMAC-SHA256
+  - GitLab: `X-Gitlab-Event: Issue Hook` + `X-Gitlab-Token` plain token
+  - Gitea: `X-Gitea-Event: issues` + `X-Gitea-Signature` HMAC-SHA256
+- [x] Auto-match incoming events to `issue_link` records by provider + URL/key
+- [x] Auto-update `issueLink.status` + `statusSyncedAt` on state change
+- [x] Auto-mark `testCase.retestNeeded = true` when issue is closed
+- [x] `webhookSecret` column on `issue_tracker_config` for signature verification
+- [x] Settings UI: webhook URL (click-to-copy) and secret input in issue tracker config
+- [x] DB migration: `drizzle/0044_gitea_webhook_secret.sql`
+
+### 25.x Test Coverage -- Done
+
+186 test files, 2462 tests (was 184 files, 2419 tests):
+
+- [x] Gitea integration unit tests (15 tests) -- testGiteaConnection (4: ok, missing token, missing projectKey, HTTP error), createGiteaIssue (5: success, backlink, missing token, missing projectKey, HTTP error), fetchGiteaIssueStatus (6: open, closed→done, missing token, missing projectKey, URL mismatch, HTTP error)
+- [x] Inbound issue webhook API (25 tests) -- invalid JSON, body size limit, GitHub ping, unhandled events, GitHub/GitLab/Gitea issue processing, no matching config, signature verification (GitHub HMAC, GitLab token, invalid signatures), retestNeeded marking on close, no retest on open, multiple matching configs, no matching issue links
+- [x] Issue tracker config API (3 new tests) -- GITEA valid provider, hasWebhookSecret response, webhookSecret persistence
 
 ---
 

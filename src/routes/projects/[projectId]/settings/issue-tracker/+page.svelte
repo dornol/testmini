@@ -10,7 +10,7 @@
 	import { apiPost, apiDelete } from '$lib/api-client';
 	import * as m from '$lib/paraglide/messages.js';
 
-	const PROVIDERS = ['JIRA', 'GITHUB', 'GITLAB', 'CUSTOM'] as const;
+	const PROVIDERS = ['JIRA', 'GITHUB', 'GITLAB', 'GITEA', 'CUSTOM'] as const;
 	type Provider = (typeof PROVIDERS)[number];
 
 	interface TrackerConfig {
@@ -21,6 +21,7 @@
 		customTemplate: Record<string, unknown> | null;
 		enabled: boolean;
 		hasApiToken: boolean;
+		hasWebhookSecret: boolean;
 		createdAt: string;
 	}
 
@@ -45,13 +46,23 @@
 	// For GitLab
 	let gitlabUrl = $state('');
 	let gitlabProjectId = $state('');
+	// For Gitea
+	let giteaUrl = $state('');
+	let giteaRepo = $state('');
 	// For Custom
 	let customEndpoint = $state('');
 	let customHeaders = $state('');
+	// Webhook secret (shared across providers)
+	let webhookSecret = $state('');
 
-	// Sync from data (reactive)
+	// Track which data snapshot we've synced from, to avoid re-running on the same reference
+	let syncedConfigId = $state<number | null>(null);
+
+	// Sync from data (reactive) — only when the server config actually changes
 	$effect(() => {
 		const c = data.issueTrackerConfig as TrackerConfig | null;
+		if (c?.id === syncedConfigId && syncedConfigId !== null) return;
+		syncedConfigId = c?.id ?? null;
 		config = c;
 		provider = (c?.provider as Provider) ?? 'JIRA';
 		baseUrl = c?.provider === 'JIRA' || c?.provider === 'GITLAB' ? c.baseUrl : '';
@@ -60,10 +71,13 @@
 		repository = c?.provider === 'GITHUB' ? (c.projectKey ?? '') : '';
 		gitlabUrl = c?.provider === 'GITLAB' ? c.baseUrl : '';
 		gitlabProjectId = c?.provider === 'GITLAB' ? (c.projectKey ?? '') : '';
+		giteaUrl = c?.provider === 'GITEA' ? c.baseUrl : '';
+		giteaRepo = c?.provider === 'GITEA' ? (c.projectKey ?? '') : '';
 		customEndpoint = c?.provider === 'CUSTOM' ? c.baseUrl : '';
 		customHeaders = c?.provider === 'CUSTOM' && c.customTemplate
 			? JSON.stringify((c.customTemplate as Record<string, unknown>).headers ?? {}, null, 2)
 			: '';
+		webhookSecret = '';
 	});
 
 	let saving = $state(false);
@@ -75,6 +89,7 @@
 			JIRA: m.issue_tracker_provider_JIRA,
 			GITHUB: m.issue_tracker_provider_GITHUB,
 			GITLAB: m.issue_tracker_provider_GITLAB,
+			GITEA: m.issue_tracker_provider_GITEA,
 			CUSTOM: m.issue_tracker_provider_CUSTOM
 		};
 		return labels[p]?.() ?? p;
@@ -99,6 +114,11 @@
 				payload.projectKey = gitlabProjectId.trim();
 				if (apiToken.trim()) payload.apiToken = apiToken.trim();
 				break;
+			case 'GITEA':
+				payload.baseUrl = giteaUrl.trim();
+				payload.projectKey = giteaRepo.trim();
+				if (apiToken.trim()) payload.apiToken = apiToken.trim();
+				break;
 			case 'CUSTOM':
 				payload.baseUrl = customEndpoint.trim();
 				if (apiToken.trim()) payload.apiToken = apiToken.trim();
@@ -111,6 +131,8 @@
 				break;
 		}
 
+		if (webhookSecret.trim()) payload.webhookSecret = webhookSecret.trim();
+
 		return payload;
 	}
 
@@ -118,13 +140,21 @@
 		if (saving) return;
 		saving = true;
 		try {
+			const payload = buildPayload();
+			const tokenIncluded = 'apiToken' in payload;
 			const result = await apiPost<TrackerConfig>(
 				`/api/projects/${projectId}/issue-tracker`,
-				buildPayload()
+				payload
 			);
 			config = result;
+			syncedConfigId = result.id;
 			apiToken = '';
-			toast.success(m.issue_tracker_saved());
+			webhookSecret = '';
+			toast.success(
+				tokenIncluded
+					? m.issue_tracker_saved()
+					: `${m.issue_tracker_saved()} (API token unchanged)`
+			);
 		} catch {
 			// handled by api client
 		} finally {
@@ -163,8 +193,11 @@
 			repository = '';
 			gitlabUrl = '';
 			gitlabProjectId = '';
+			giteaUrl = '';
+			giteaRepo = '';
 			customEndpoint = '';
 			customHeaders = '';
+			webhookSecret = '';
 			toast.success(m.issue_tracker_deleted());
 		} catch {
 			// handled
@@ -293,6 +326,38 @@
 							required={!config}
 						/>
 					</div>
+				{:else if provider === 'GITEA'}
+					<div class="grid gap-4 sm:grid-cols-2">
+						<div class="space-y-2">
+							<Label for="it-gitea-url">{m.issue_tracker_gitea_url()}</Label>
+							<Input
+								id="it-gitea-url"
+								type="url"
+								placeholder="https://gitea.example.com"
+								bind:value={giteaUrl}
+								required
+							/>
+						</div>
+						<div class="space-y-2">
+							<Label for="it-gitea-repo">{m.issue_tracker_repo()}</Label>
+							<Input
+								id="it-gitea-repo"
+								placeholder={m.issue_tracker_repo_placeholder()}
+								bind:value={giteaRepo}
+								required
+							/>
+						</div>
+					</div>
+					<div class="space-y-2">
+						<Label for="it-token">{m.issue_tracker_api_token()}</Label>
+						<Input
+							id="it-token"
+							type="password"
+							placeholder={config?.hasApiToken ? '********' : ''}
+							bind:value={apiToken}
+							required={!config}
+						/>
+					</div>
 				{:else if provider === 'CUSTOM'}
 					<div class="space-y-2">
 						<Label for="it-endpoint">{m.issue_tracker_custom_endpoint()}</Label>
@@ -321,6 +386,41 @@
 							bind:value={customHeaders}
 							rows={3}
 						/>
+					</div>
+				{/if}
+
+				{#if provider !== 'CUSTOM'}
+					<div class="border-t pt-4 mt-2 space-y-3">
+						<div>
+							<h4 class="text-sm font-medium">{m.issue_tracker_webhook_title()}</h4>
+							<p class="text-muted-foreground text-xs">{m.issue_tracker_webhook_desc()}</p>
+						</div>
+						<div class="grid gap-4 sm:grid-cols-2">
+							<div class="space-y-2">
+								<Label for="it-webhook-url">{m.issue_tracker_webhook_url()}</Label>
+								<Input
+									id="it-webhook-url"
+									readonly
+									value={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/webhooks/issues`}
+									onclick={(e) => {
+										const input = e.currentTarget as HTMLInputElement;
+										input.select();
+										navigator.clipboard.writeText(input.value);
+										toast.success(m.common_copied());
+									}}
+								/>
+							</div>
+							<div class="space-y-2">
+								<Label for="it-webhook-secret">{m.issue_tracker_webhook_secret()}</Label>
+								<Input
+									id="it-webhook-secret"
+									type="password"
+									placeholder={config?.hasWebhookSecret ? '********' : m.issue_tracker_webhook_secret_placeholder()}
+									bind:value={webhookSecret}
+								/>
+							</div>
+						</div>
+						<p class="text-muted-foreground text-xs">{m.issue_tracker_webhook_hint()}</p>
 					</div>
 				{/if}
 

@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testFailureDetail, testExecution, testRun } from '$lib/server/db/schema';
+import { testFailureDetail, testExecution, testRun, testCaseVersion, issueLink, issueTrackerConfig } from '$lib/server/db/schema';
 import { user } from '$lib/server/db/auth.schema';
 import { eq, and } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
@@ -8,6 +8,10 @@ import { withProjectRole } from '$lib/server/api-handler';
 import { createFailureSchema } from '$lib/schemas/failure.schema';
 import { badRequest } from '$lib/server/errors';
 import { requireEditableRun } from '$lib/server/crud-helpers';
+import { addIssueComment } from '$lib/server/issue-tracker';
+import { childLogger } from '$lib/server/logger';
+
+const log = childLogger('failure-issue-sync');
 
 export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'], async ({ params, projectId }) => {
 	const runId = Number(params.runId);
@@ -92,5 +96,61 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 		});
 	});
 
+	// Resolve testCaseId from testCaseVersion, then sync failure to linked issues (fire-and-forget)
+	const version = await db.query.testCaseVersion.findFirst({
+		where: eq(testCaseVersion.id, execution.testCaseVersionId),
+		columns: { testCaseId: true }
+	});
+	if (version?.testCaseId) {
+		syncFailureToIssues(projectId, version.testCaseId, parsed.data).catch((err) => {
+			log.error({ err, testCaseId: version.testCaseId }, 'Failed to sync failure to external issues');
+		});
+	}
+
 	return json({ success: true });
 });
+
+async function syncFailureToIssues(
+	projectId: number,
+	testCaseId: number,
+	failure: { errorMessage?: string; testMethod?: string; failureEnvironment?: string; stackTrace?: string; comment?: string }
+) {
+	// Find linked issues for this test case
+	const links = await db
+		.select()
+		.from(issueLink)
+		.where(and(eq(issueLink.projectId, projectId), eq(issueLink.testCaseId, testCaseId)));
+
+	if (links.length === 0) return;
+
+	// Load issue tracker config
+	const config = await db.query.issueTrackerConfig.findFirst({
+		where: and(eq(issueTrackerConfig.projectId, projectId), eq(issueTrackerConfig.enabled, true))
+	});
+
+	if (!config) return;
+
+	const lines = ['**Test Failure Reported**'];
+	if (failure.errorMessage) lines.push(`**Error:** ${failure.errorMessage}`);
+	if (failure.testMethod) lines.push(`**Method:** ${failure.testMethod}`);
+	if (failure.failureEnvironment) lines.push(`**Environment:** ${failure.failureEnvironment}`);
+	if (failure.comment) lines.push(`**Comment:** ${failure.comment}`);
+	if (failure.stackTrace) lines.push('', '```', failure.stackTrace.slice(0, 2000), '```');
+	const commentBody = lines.join('\n');
+
+	const trackerConfig = {
+		provider: config.provider,
+		baseUrl: config.baseUrl,
+		apiToken: config.apiToken,
+		projectKey: config.projectKey,
+		customTemplate: config.customTemplate as Record<string, unknown> | null
+	};
+
+	for (const link of links) {
+		try {
+			await addIssueComment(trackerConfig, link.externalUrl, commentBody);
+		} catch (err) {
+			log.warn({ err, linkId: link.id }, 'Failed to add comment to external issue');
+		}
+	}
+}

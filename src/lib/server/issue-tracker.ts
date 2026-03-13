@@ -1,7 +1,8 @@
 import type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult } from './integrations/types';
 import { createJiraIssue, fetchJiraIssueStatus, testJiraConnection } from './integrations/jira';
-import { createGithubIssue, fetchGithubIssueStatus, testGithubConnection } from './integrations/github';
+import { createGithubIssue, fetchGithubIssueStatus, testGithubConnection, addGithubIssueComment } from './integrations/github';
 import { createGitlabIssue, fetchGitlabIssueStatus, testGitlabConnection } from './integrations/gitlab';
+import { createGiteaIssue, fetchGiteaIssueStatus, testGiteaConnection, addGiteaIssueComment } from './integrations/gitea';
 import { createCustomIssue } from './integrations/custom';
 
 // Re-export types for backwards compat
@@ -20,6 +21,8 @@ export async function createExternalIssue(
 			return createGithubIssue(config, title, description, backlink);
 		case 'GITLAB':
 			return createGitlabIssue(config, title, description, backlink);
+		case 'GITEA':
+			return createGiteaIssue(config, title, description, backlink);
 		case 'CUSTOM':
 			return createCustomIssue(config, title, description, backlink);
 		default:
@@ -39,8 +42,26 @@ export async function fetchIssueStatus(
 			return fetchGithubIssueStatus(config, externalUrl);
 		case 'GITLAB':
 			return fetchGitlabIssueStatus(config, externalUrl);
+		case 'GITEA':
+			return fetchGiteaIssueStatus(config, externalUrl);
 		default:
 			return { status: 'unknown', statusCategory: 'unknown' };
+	}
+}
+
+export async function addIssueComment(
+	config: IssueTrackerConfig,
+	externalUrl: string,
+	comment: string
+): Promise<void> {
+	switch (config.provider) {
+		case 'GITHUB':
+			return addGithubIssueComment(config, externalUrl, comment);
+		case 'GITEA':
+			return addGiteaIssueComment(config, externalUrl, comment);
+		// GitLab, JIRA, CUSTOM: not yet supported
+		default:
+			break;
 	}
 }
 
@@ -55,6 +76,8 @@ export async function testConnection(
 				return await testGithubConnection(config);
 			case 'GITLAB':
 				return await testGitlabConnection(config);
+			case 'GITEA':
+				return await testGiteaConnection(config);
 			case 'CUSTOM':
 				return { ok: true, message: 'Custom provider configured (no connection test available)' };
 			default:

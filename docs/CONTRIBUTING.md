@@ -126,7 +126,7 @@ testmini/
 │   │   │   ├── api-handler.ts     # withProjectAccess / withProjectRole wrappers
 │   │   │   ├── email.ts           # SMTP email sending (nodemailer)
 │   │   │   ├── errors.ts          # badRequest, notFound, conflict helpers
-│   │   │   ├── issue-tracker.ts   # External issue tracker (Jira/GitHub/GitLab)
+│   │   │   ├── issue-tracker.ts   # External issue tracker (Jira/GitHub/GitLab/Gitea)
 │   │   │   ├── mcp/               # MCP (Model Context Protocol) server
 │   │   │   │   └── server.ts      # MCP server factory (scoped per project)
 │   │   │   ├── notifications.ts    # Notification creation helpers (also triggers webhooks)

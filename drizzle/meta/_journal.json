@@ -302,6 +302,13 @@
       "when": 1775146400000,
       "tag": "0043_environment_details",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1775232800000,
+      "tag": "0044_gitea_webhook_secret",
+      "breakpoints": true
     }
   ]
 }

@@ -15,7 +15,9 @@ import {
 	testSuite,
 	customField,
 	savedFilter,
-	project
+	project,
+	issueLink,
+	issueTrackerConfig
 } from '$lib/server/db/schema';
 import { eq, and, desc, asc, sql, inArray } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
@@ -252,6 +254,24 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		loadBatchAssignees(tcIdSet)
 	]);
 
+	// Load issue link counts per test case
+	const issueLinkCounts = tcIdSet.size > 0 ? await db
+		.select({ testCaseId: issueLink.testCaseId, count: sql<number>`count(*)`.as('count') })
+		.from(issueLink)
+		.where(inArray(issueLink.testCaseId, [...tcIdSet]))
+		.groupBy(issueLink.testCaseId) : [];
+	const issueLinkMap: Record<number, number> = {};
+	for (const r of issueLinkCounts) {
+		if (r.testCaseId) issueLinkMap[r.testCaseId] = Number(r.count);
+	}
+
+	// Check if project has an issue tracker configured
+	const issueTrackerRow = await db.query.issueTrackerConfig.findFirst({
+		where: eq(issueTrackerConfig.projectId, projectId),
+		columns: { id: true }
+	});
+	const hasIssueTracker = !!issueTrackerRow;
+
 	// Load project tags for filter UI
 	const projectTags = await loadProjectTags(projectId);
 
@@ -313,7 +333,8 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		testCases: filteredTestCases.map((tc) => ({
 			...tc,
 			tags: tagsByTestCase[tc.id] ?? [],
-			assignees: assigneesByTestCase[tc.id] ?? []
+			assignees: assigneesByTestCase[tc.id] ?? [],
+			issueLinkCount: issueLinkMap[tc.id] ?? 0
 		})),
 		search,
 		priority,
@@ -334,7 +355,8 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		projectCustomFields,
 		customFieldFilters,
 		savedFilters,
-		columnSettings
+		columnSettings,
+		hasIssueTracker
 	};
 };
 

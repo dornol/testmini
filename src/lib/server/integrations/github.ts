@@ -57,6 +57,29 @@ export async function createGithubIssue(
 	};
 }
 
+export async function addGithubIssueComment(
+	config: IssueTrackerConfig,
+	externalUrl: string,
+	comment: string
+): Promise<void> {
+	if (!config.apiToken || !config.projectKey) return;
+
+	const match = externalUrl.match(/\/issues\/(\d+)/);
+	if (!match) return;
+
+	const issueNumber = match[1];
+	const url = `https://api.github.com/repos/${config.projectKey}/issues/${issueNumber}/comments`;
+	await fetch(url, {
+		method: 'POST',
+		headers: {
+			Authorization: `Bearer ${config.apiToken}`,
+			'Content-Type': 'application/json',
+			Accept: 'application/vnd.github+json'
+		},
+		body: JSON.stringify({ body: comment })
+	});
+}
+
 export async function fetchGithubIssueStatus(
 	config: IssueTrackerConfig,
 	externalUrl: string

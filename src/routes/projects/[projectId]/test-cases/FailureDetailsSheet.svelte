@@ -14,6 +14,7 @@
 	let sheetData: {
 		executionId: number;
 		runId: number;
+		tcKey: string;
 		failures: Array<{
 			id: number;
 			errorMessage: string | null;
@@ -28,8 +29,8 @@
 		loading: boolean;
 	} | null = $state(null);
 
-	export function open(runId: number, executionId: number) {
-		sheetData = { executionId, runId, failures: [], loading: true };
+	export function open(runId: number, executionId: number, tcKey: string = '') {
+		sheetData = { executionId, runId, tcKey, failures: [], loading: true };
 		sheetOpen = true;
 		fetchFailures(runId, executionId);
 	}
@@ -85,7 +86,7 @@
 					size="sm"
 					onclick={() => {
 						if (sheetData) {
-							onaddfailure(sheetData.runId, sheetData.executionId, '');
+							onaddfailure(sheetData.runId, sheetData.executionId, sheetData.tcKey);
 						}
 					}}
 				>

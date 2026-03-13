@@ -1141,6 +1141,7 @@ export const issueTrackerConfig = pgTable(
 		projectKey: text('project_key'),
 		customTemplate: jsonb('custom_template').$type<Record<string, unknown>>(),
 		enabled: boolean('enabled').default(true).notNull(),
+		webhookSecret: text('webhook_secret'),
 		createdBy: text('created_by')
 			.notNull()
 			.references(() => user.id),

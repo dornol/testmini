@@ -58,24 +58,25 @@ This document is the authoritative reference for all HTTP API endpoints exposed 
 26. [Report Export & Sharing](#report-export--sharing)
 27. [Report Schedules](#report-schedules)
 28. [Issue Link Status Sync](#issue-link-status-sync)
-29. [Parameterized Tests](#parameterized-tests)
+29. [Inbound Issue Webhooks](#inbound-issue-webhooks)
+30. [Parameterized Tests](#parameterized-tests)
     - [Parameters](#test-case-parameters)
     - [Data Sets](#test-case-data-sets)
     - [Shared Data Sets](#shared-data-sets)
-30. [Custom Fields](#custom-fields)
-31. [Execution Comments](#execution-comments)
-32. [Branding](#branding)
-33. [Exploratory Sessions](#exploratory-sessions)
-34. [Approval Workflow](#approval-workflow)
-35. [Teams](#teams)
-36. [Column Settings](#column-settings)
-37. [Releases](#releases)
-38. [Test Plan Sign-off](#test-plan-sign-off)
-39. [Retest on Defect Fix](#retest-on-defect-fix)
-40. [Retest Comparison](#retest-comparison)
-41. [Reports Analytics](#reports-analytics)
-42. [Risk Assessment](#risk-assessment)
-43. [Test Cycles](#test-cycles)
+31. [Custom Fields](#custom-fields)
+32. [Execution Comments](#execution-comments)
+33. [Branding](#branding)
+34. [Exploratory Sessions](#exploratory-sessions)
+35. [Approval Workflow](#approval-workflow)
+36. [Teams](#teams)
+37. [Column Settings](#column-settings)
+38. [Releases](#releases)
+39. [Test Plan Sign-off](#test-plan-sign-off)
+40. [Retest on Defect Fix](#retest-on-defect-fix)
+41. [Retest Comparison](#retest-comparison)
+42. [Reports Analytics](#reports-analytics)
+43. [Risk Assessment](#risk-assessment)
+44. [Test Cycles](#test-cycles)
 44. [Modules](#modules)
 45. [Cross-Environment Runs](#cross-environment-runs)
 46. [Environment Matrix](#environment-matrix)
@@ -2654,7 +2655,7 @@ If a signing secret is configured, the request includes an `X-Webhook-Signature`
 
 ## Issue Tracker
 
-Per-project external issue tracker configuration. Supports Jira, GitHub Issues, GitLab Issues, and custom webhook providers.
+Per-project external issue tracker configuration. Supports Jira, GitHub Issues, GitLab Issues, Gitea Issues, and custom webhook providers.
 
 ### `GET /api/projects/:projectId/issue-tracker`
 
@@ -2673,11 +2674,12 @@ Returns the issue tracker configuration for the project, or `null` if not config
   "customTemplate": null,
   "enabled": true,
   "hasApiToken": true,
+  "hasWebhookSecret": false,
   "createdAt": "2025-03-08T00:00:00.000Z"
 }
 ```
 
-> Note: The raw `apiToken` is never returned. Only `hasApiToken` (boolean) indicates whether a token is stored.
+> Note: The raw `apiToken` and `webhookSecret` are never returned. Only `hasApiToken` / `hasWebhookSecret` (boolean) indicate whether values are stored.
 
 ### `POST /api/projects/:projectId/issue-tracker`
 
@@ -2689,12 +2691,13 @@ Creates or updates the issue tracker configuration. If a config already exists f
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `provider` | `string` | Yes | One of: `JIRA`, `GITHUB`, `GITLAB`, `CUSTOM` |
+| `provider` | `string` | Yes | One of: `JIRA`, `GITHUB`, `GITLAB`, `GITEA`, `CUSTOM` |
 | `baseUrl` | `string` | Yes | Must be a valid `http` or `https` URL |
 | `apiToken` | `string` | No | Stored securely. Omit to keep existing token on update |
-| `projectKey` | `string` | No | Jira project key, GitHub `owner/repo`, or GitLab project ID |
+| `projectKey` | `string` | No | Jira project key, GitHub/Gitea `owner/repo`, or GitLab project ID |
 | `customTemplate` | `object` | No | Custom provider template (e.g., `{ "headers": {...} }`) |
 | `enabled` | `boolean` | No | Default `true` |
+| `webhookSecret` | `string` | No | Secret for verifying inbound issue webhooks. Omit to keep existing |
 
 **Response:** `201 Created` (new) or `200 OK` (update) — same shape as GET
 
@@ -3091,7 +3094,7 @@ Requires PROJECT_ADMIN role.
 
 `POST /api/projects/:projectId/issue-links/:linkId/sync`
 
-Fetches the current status from the external issue tracker (Jira/GitHub/GitLab) and updates the status in the database. Not available for CUSTOM provider.
+Fetches the current status from the external issue tracker (Jira/GitHub/GitLab/Gitea) and updates the status in the database. Not available for CUSTOM provider.
 
 Requires PROJECT_ADMIN, QA, or DEV role.
 
@@ -3102,6 +3105,80 @@ Requires PROJECT_ADMIN, QA, or DEV role.
 Syncs all issue links for the project (or scoped to a test case/execution). Returns `{ synced, failed, total }`.
 
 Optional query params: `testCaseId`, `testExecutionId`.
+
+---
+
+## Inbound Issue Webhooks
+
+Real-time issue status sync via webhooks from GitHub, GitLab, or Gitea. When an issue's state changes on the external platform, the webhook updates matching `issue_link` records and optionally marks linked test cases for retest.
+
+### `POST /api/webhooks/issues`
+
+**Auth:** None (public endpoint — use webhook secret for signature verification)
+
+**Platform Detection Headers:**
+
+| Header | Value | Provider |
+|---|---|---|
+| `X-GitHub-Event` | `issues` | GitHub |
+| `X-Gitlab-Event` | `Issue Hook` | GitLab |
+| `X-Gitea-Event` | `issues` | Gitea |
+
+**Signature Verification:**
+
+If `webhookSecret` is configured on the issue tracker config, the endpoint verifies the payload signature:
+
+| Provider | Header | Format |
+|---|---|---|
+| GitHub | `X-Hub-Signature-256` | `sha256=<HMAC-SHA256 hex>` |
+| GitLab | `X-Gitlab-Token` | Plain token string |
+| Gitea | `X-Gitea-Signature` | `<HMAC-SHA256 hex>` |
+
+**Matching Logic:**
+1. Finds `issueTrackerConfig` records matching the provider + repository key (`projectKey`)
+2. Finds `issueLink` records matching the project + provider + issue URL or key (`#<number>`)
+3. Updates `status` and `statusSyncedAt` on matching links
+4. If the issue is closed, sets `retestNeeded = true` on linked test cases
+
+**GitHub example body:**
+```json
+{
+  "action": "closed",
+  "issue": {
+    "number": 42,
+    "state": "closed",
+    "title": "Login button broken",
+    "html_url": "https://github.com/org/repo/issues/42"
+  },
+  "repository": { "full_name": "org/repo" }
+}
+```
+
+**Gitea example body:**
+```json
+{
+  "action": "closed",
+  "number": 42,
+  "issue": {
+    "number": 42,
+    "state": "closed",
+    "title": "Login button broken",
+    "html_url": "https://gitea.example.com/org/repo/issues/42"
+  },
+  "repository": { "full_name": "org/repo" }
+}
+```
+
+**Response `200 OK`:**
+```json
+{
+  "received": true,
+  "updated": 2,
+  "retestMarked": 1
+}
+```
+
+> **Setup:** Configure the webhook URL (`https://your-domain/api/webhooks/issues`) in your GitHub/GitLab/Gitea repository settings. Select "Issues" events only. Optionally set a secret that matches the `webhookSecret` in testmini's issue tracker configuration.
 
 ---
 
@@ -3921,7 +3998,7 @@ All fields are optional. If `testCaseIds` is omitted, all retest-needed cases ar
 
 ### Auto-marking retest needed
 
-When issue link sync endpoints (`POST .../issue-links/sync`, `POST .../issue-links/:id/sync`) detect that an issue's `statusCategory` changed to `"done"`, the linked test case's `retestNeeded` flag is automatically set to `true`.
+When issue link sync endpoints (`POST .../issue-links/sync`, `POST .../issue-links/:id/sync`) or inbound issue webhooks (`POST /api/webhooks/issues`) detect that an issue's state changed to `"closed"` / `statusCategory` changed to `"done"`, the linked test case's `retestNeeded` flag is automatically set to `true`.
 
 ### Filtering
 

@@ -489,9 +489,9 @@
 							<Popover.Root bind:open={showTagCreator} onOpenChange={(open) => { if (!open) tagSearchInput = ''; }}>
 								<Popover.Trigger>
 									{#snippet child({ props })}
-										<button type="button" class="border-input bg-background h-6 rounded-md border px-2 text-xs hover:bg-muted/50 transition-colors cursor-pointer" {...props}>
+										<Button variant="outline" size="sm" class="h-6 px-2 text-xs" {...props}>
 											+ {m.tag_assign()}
-										</button>
+										</Button>
 									{/snippet}
 								</Popover.Trigger>
 								<Popover.Content class="w-56 p-2" align="start">

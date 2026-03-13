@@ -232,7 +232,7 @@
 		<!-- Unread badge -->
 		{#if unreadCount > 0}
 			<span
-				class="bg-destructive text-destructive-foreground absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[10px] font-bold leading-none"
+				class="bg-destructive text-destructive-foreground absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-0.5 text-[9px] font-bold leading-none"
 				aria-label="{unreadCount} unread notifications"
 			>
 				{unreadCount > 99 ? '99+' : unreadCount}

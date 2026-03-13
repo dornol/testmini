@@ -22,10 +22,19 @@ RUN DATABASE_URL="postgres://build:build@localhost:5432/build" \
     ORIGIN="http://localhost:3000" \
     pnpm build
 
-# Remove devDependencies for smaller runtime image
-RUN pnpm prune --prod
+# ---- Stage 3: Production dependencies ----
+FROM node:24-alpine AS prod-deps
 
-# ---- Stage 3: Runtime ----
+RUN corepack enable && corepack prepare pnpm@10 --activate
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml ./
+
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --prod
+
+# ---- Stage 4: Runtime ----
 FROM node:24-alpine AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/dornol/testmini"
@@ -36,7 +45,7 @@ RUN apk add --no-cache tini
 WORKDIR /app
 
 # Copy production-only dependencies
-COPY --from=build /app/node_modules ./node_modules
+COPY --from=prod-deps /app/node_modules ./node_modules
 
 # Copy build output (adapter-node)
 COPY --from=build /app/build ./build

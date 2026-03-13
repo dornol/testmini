@@ -1,4 +1,4 @@
-import type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult } from './types';
+import type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult, IssueDetail } from './types';
 
 export async function testGiteaConnection(config: IssueTrackerConfig): Promise<{ ok: boolean; message: string }> {
 	if (!config.apiToken) return { ok: false, message: 'API token is required for Gitea' };
@@ -77,6 +77,55 @@ export async function addGiteaIssueComment(
 		},
 		body: JSON.stringify({ body: comment })
 	});
+}
+
+export async function fetchGiteaIssueDetail(
+	config: IssueTrackerConfig,
+	externalUrl: string
+): Promise<IssueDetail | null> {
+	if (!config.apiToken || !config.projectKey) return null;
+
+	const match = externalUrl.match(/\/issues\/(\d+)/);
+	if (!match) return null;
+
+	const issueNumber = match[1];
+	const headers = {
+		Authorization: `token ${config.apiToken}`,
+		Accept: 'application/json'
+	};
+
+	const [issueRes, commentsRes] = await Promise.all([
+		fetch(`${config.baseUrl}/api/v1/repos/${config.projectKey}/issues/${issueNumber}`, { headers }),
+		fetch(`${config.baseUrl}/api/v1/repos/${config.projectKey}/issues/${issueNumber}/comments?limit=50`, { headers })
+	]);
+
+	if (!issueRes.ok) throw new Error(`Gitea returned ${issueRes.status}`);
+
+	const issue = await issueRes.json();
+	const comments = commentsRes.ok ? await commentsRes.json() : [];
+
+	return {
+		title: issue.title,
+		body: issue.body ?? '',
+		state: issue.state,
+		stateCategory: issue.state === 'closed' ? 'done' : 'open',
+		author: issue.user?.login ?? issue.user?.full_name ?? '',
+		authorAvatar: issue.user?.avatar_url,
+		labels: (issue.labels ?? []).map((l: { name: string; color: string }) => ({
+			name: l.name,
+			color: l.color?.startsWith('#') ? l.color : `#${l.color}`
+		})),
+		createdAt: issue.created_at,
+		updatedAt: issue.updated_at,
+		closedAt: issue.closed_at,
+		comments: comments.map((c: { id: number; body: string; user?: { login: string; full_name?: string; avatar_url?: string }; created_at: string }) => ({
+			id: c.id,
+			body: c.body,
+			author: c.user?.login ?? c.user?.full_name ?? '',
+			authorAvatar: c.user?.avatar_url,
+			createdAt: c.created_at
+		}))
+	};
 }
 
 export async function fetchGiteaIssueStatus(

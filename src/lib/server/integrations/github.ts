@@ -1,4 +1,4 @@
-import type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult } from './types';
+import type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult, IssueDetail } from './types';
 
 export async function testGithubConnection(config: IssueTrackerConfig): Promise<{ ok: boolean; message: string }> {
 	if (!config.apiToken) return { ok: false, message: 'API token is required for GitHub' };
@@ -78,6 +78,55 @@ export async function addGithubIssueComment(
 		},
 		body: JSON.stringify({ body: comment })
 	});
+}
+
+export async function fetchGithubIssueDetail(
+	config: IssueTrackerConfig,
+	externalUrl: string
+): Promise<IssueDetail | null> {
+	if (!config.apiToken || !config.projectKey) return null;
+
+	const match = externalUrl.match(/github\.com\/[^/]+\/[^/]+\/issues\/(\d+)/);
+	if (!match) return null;
+
+	const issueNumber = match[1];
+	const headers = {
+		Authorization: `Bearer ${config.apiToken}`,
+		Accept: 'application/vnd.github+json'
+	};
+
+	const [issueRes, commentsRes] = await Promise.all([
+		fetch(`https://api.github.com/repos/${config.projectKey}/issues/${issueNumber}`, { headers }),
+		fetch(`https://api.github.com/repos/${config.projectKey}/issues/${issueNumber}/comments?per_page=50`, { headers })
+	]);
+
+	if (!issueRes.ok) throw new Error(`GitHub returned ${issueRes.status}`);
+
+	const issue = await issueRes.json();
+	const comments = commentsRes.ok ? await commentsRes.json() : [];
+
+	return {
+		title: issue.title,
+		body: issue.body ?? '',
+		state: issue.state,
+		stateCategory: issue.state === 'closed' ? 'done' : 'open',
+		author: issue.user?.login ?? '',
+		authorAvatar: issue.user?.avatar_url,
+		labels: (issue.labels ?? []).map((l: { name: string; color: string }) => ({
+			name: l.name,
+			color: `#${l.color}`
+		})),
+		createdAt: issue.created_at,
+		updatedAt: issue.updated_at,
+		closedAt: issue.closed_at,
+		comments: comments.map((c: { id: number; body: string; user?: { login: string; avatar_url?: string }; created_at: string }) => ({
+			id: c.id,
+			body: c.body,
+			author: c.user?.login ?? '',
+			authorAvatar: c.user?.avatar_url,
+			createdAt: c.created_at
+		}))
+	};
 }
 
 export async function fetchGithubIssueStatus(

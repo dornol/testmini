@@ -1,12 +1,12 @@
-import type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult } from './integrations/types';
+import type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult, IssueDetail } from './integrations/types';
 import { createJiraIssue, fetchJiraIssueStatus, testJiraConnection } from './integrations/jira';
-import { createGithubIssue, fetchGithubIssueStatus, testGithubConnection, addGithubIssueComment } from './integrations/github';
+import { createGithubIssue, fetchGithubIssueStatus, testGithubConnection, addGithubIssueComment, fetchGithubIssueDetail } from './integrations/github';
 import { createGitlabIssue, fetchGitlabIssueStatus, testGitlabConnection } from './integrations/gitlab';
-import { createGiteaIssue, fetchGiteaIssueStatus, testGiteaConnection, addGiteaIssueComment } from './integrations/gitea';
+import { createGiteaIssue, fetchGiteaIssueStatus, testGiteaConnection, addGiteaIssueComment, fetchGiteaIssueDetail } from './integrations/gitea';
 import { createCustomIssue } from './integrations/custom';
 
 // Re-export types for backwards compat
-export type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult };
+export type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult, IssueDetail };
 
 export async function createExternalIssue(
 	config: IssueTrackerConfig,
@@ -46,6 +46,21 @@ export async function fetchIssueStatus(
 			return fetchGiteaIssueStatus(config, externalUrl);
 		default:
 			return { status: 'unknown', statusCategory: 'unknown' };
+	}
+}
+
+export async function fetchIssueDetail(
+	config: IssueTrackerConfig,
+	externalUrl: string
+): Promise<IssueDetail | null> {
+	switch (config.provider) {
+		case 'GITHUB':
+			return fetchGithubIssueDetail(config, externalUrl);
+		case 'GITEA':
+			return fetchGiteaIssueDetail(config, externalUrl);
+		// JIRA, GitLab, CUSTOM: not yet supported
+		default:
+			return null;
 	}
 }
 

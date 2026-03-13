@@ -76,7 +76,7 @@
 	let diffLoading = $state(false);
 
 	// Active tab for content sections
-	let contentTab = $state<'steps' | 'comments' | 'customFields'>('steps');
+	let contentTab = $state<'steps' | 'comments' | 'issues' | 'customFields'>('steps');
 
 	function toggleVersionSelect(versionNo: number) {
 		if (compareSelectedVersions.includes(versionNo)) {
@@ -363,11 +363,38 @@
 		status: string | null;
 		provider: string;
 	}
+	interface IssueComment {
+		id: number;
+		body: string;
+		author: string;
+		authorAvatar?: string;
+		createdAt: string;
+	}
+	interface IssueDetailData {
+		title: string;
+		body: string;
+		state: string;
+		stateCategory: string;
+		author: string;
+		authorAvatar?: string;
+		labels: { name: string; color: string }[];
+		createdAt: string;
+		updatedAt: string;
+		closedAt: string | null;
+		comments: IssueComment[];
+	}
+
 	let issueLinks = $state<IssueLinkRecord[]>([]);
 	let creatingIssue = $state(false);
 	let showLinkForm = $state(false);
 	let newIssueUrl = $state('');
 	let linkingIssue = $state(false);
+	let syncingAll = $state(false);
+
+	// Issue detail expansion
+	let expandedLinkId = $state<number | null>(null);
+	let issueDetail = $state<IssueDetailData | null>(null);
+	let detailFetching = $state(false);
 
 	async function loadIssueLinks(tcId: number) {
 		try {
@@ -427,11 +454,63 @@
 		try {
 			await apiDelete(`/api/projects/${projectId}/issue-links/${linkId}`);
 			issueLinks = issueLinks.filter((l) => l.id !== linkId);
+			if (expandedLinkId === linkId) {
+				expandedLinkId = null;
+				issueDetail = null;
+			}
 			toast.success(m.issue_link_removed());
 			onchange();
 		} catch {
 			// handled
 		}
+	}
+
+	async function toggleIssueDetail(linkId: number) {
+		if (expandedLinkId === linkId) {
+			expandedLinkId = null;
+			issueDetail = null;
+			return;
+		}
+		expandedLinkId = linkId;
+		issueDetail = null;
+		detailFetching = true;
+		try {
+			issueDetail = await apiFetch<IssueDetailData>(
+				`/api/projects/${projectId}/issue-links/${linkId}/detail`
+			);
+			// Update local status from fetched detail
+			const link = issueLinks.find((l) => l.id === linkId);
+			if (link && issueDetail) {
+				link.status = issueDetail.state;
+			}
+		} catch {
+			issueDetail = null;
+		} finally {
+			detailFetching = false;
+		}
+	}
+
+	async function syncAllIssues() {
+		if (syncingAll || !selectedTcId) return;
+		syncingAll = true;
+		try {
+			const result = await apiPost<{ synced: number; failed: number }>(
+				`/api/projects/${projectId}/issue-links/sync?testCaseId=${selectedTcId}`,
+				{}
+			);
+			toast.success(`${result.synced} issue(s) synced`);
+			await loadIssueLinks(selectedTcId);
+			onchange();
+		} catch {
+			// handled
+		} finally {
+			syncingAll = false;
+		}
+	}
+
+	function formatDate(dateStr: string): string {
+		const d = new Date(dateStr);
+		return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 	}
 
 	function handleSheetClose(isOpen: boolean) {
@@ -443,6 +522,8 @@
 			issueLinks = [];
 			showLinkForm = false;
 			newIssueUrl = '';
+			expandedLinkId = null;
+			issueDetail = null;
 		}
 	}
 </script>
@@ -743,6 +824,18 @@
 							>
 								{m.comment_title()}
 							</button>
+							{#if hasIssueTracker}
+								<button
+									type="button"
+									class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab === 'issues' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+									onclick={() => (contentTab = 'issues')}
+								>
+									{m.issue_link_title()}
+									{#if issueLinks.length > 0}
+										<span class="ml-1 inline-flex items-center justify-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium leading-none">{issueLinks.length}</span>
+									{/if}
+								</button>
+							{/if}
 							{#if customFieldDefs.length > 0}
 								<button
 									type="button"
@@ -773,79 +866,184 @@
 							{userRole}
 							{canEdit}
 						/>
+					{:else if contentTab === 'issues'}
+						<div>
+							<!-- Action buttons -->
+							<div class="flex gap-2 mb-4">
+								{#if canEdit}
+									<Button variant="outline" size="sm" class="h-7 text-xs" disabled={creatingIssue} onclick={handleCreateIssue}>
+										<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+										{creatingIssue ? m.common_loading() : m.issue_link_create()}
+									</Button>
+									<Button variant="outline" size="sm" class="h-7 text-xs" onclick={() => (showLinkForm = !showLinkForm)}>
+										<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+										{m.issue_link_add()}
+									</Button>
+								{/if}
+								{#if issueLinks.length > 0}
+									<Button variant="outline" size="sm" class="h-7 text-xs ml-auto" disabled={syncingAll} onclick={syncAllIssues}>
+										<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 {syncingAll ? 'animate-spin' : ''}"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+										{syncingAll ? m.common_loading() : m.common_refresh()}
+									</Button>
+								{/if}
+							</div>
+							{#if showLinkForm}
+								<form
+									onsubmit={(e) => { e.preventDefault(); handleLinkIssue(); }}
+									class="mb-4 flex gap-2"
+								>
+									<Input
+										placeholder={m.issue_link_url_placeholder()}
+										type="url"
+										bind:value={newIssueUrl}
+										required
+										class="flex-1 h-8 text-xs"
+									/>
+									<Button type="submit" size="sm" class="h-8 text-xs" disabled={linkingIssue || !newIssueUrl.trim()}>
+										{linkingIssue ? m.common_loading() : m.issue_link_add()}
+									</Button>
+								</form>
+							{/if}
+							{#if issueLinks.length === 0}
+								<div class="flex flex-col items-center justify-center py-8 text-center">
+									<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground/40 mb-3"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+									<p class="text-muted-foreground text-sm">{m.issue_link_empty()}</p>
+								</div>
+							{:else}
+								<div class="space-y-2">
+									{#each issueLinks as link (link.id)}
+										{@const isExpanded = expandedLinkId === link.id}
+										<div class="rounded-lg border {isExpanded ? 'border-primary/30' : ''} transition-colors">
+											<!-- Issue row header -->
+											<button
+												type="button"
+												class="flex items-center justify-between gap-2 w-full px-3 py-2.5 text-sm hover:bg-muted/30 transition-colors text-left cursor-pointer"
+												onclick={() => toggleIssueDetail(link.id)}
+											>
+												<div class="min-w-0 flex-1">
+													<div class="flex items-center gap-2 mb-0.5">
+														<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 transition-transform {isExpanded ? 'rotate-90' : ''}"><polyline points="9 18 15 12 9 6"/></svg>
+														{#if link.externalKey}
+															<span class="font-mono text-xs font-medium shrink-0">{link.externalKey}</span>
+														{/if}
+														{#if link.status}
+															<span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium {link.status === 'closed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}">
+																{link.status}
+															</span>
+														{/if}
+														<span class="text-[10px] text-muted-foreground uppercase">{link.provider}</span>
+													</div>
+													<span class="text-xs truncate block pl-5">
+														{link.title || link.externalUrl}
+													</span>
+												</div>
+												<div class="flex items-center gap-1 shrink-0" onclick={(e) => e.stopPropagation()}>
+													<a href={link.externalUrl} target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-primary p-1" title="Open in new tab">
+														<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+													</a>
+													{#if canEdit}
+														<button type="button" class="text-muted-foreground hover:text-destructive p-1" onclick={() => handleRemoveIssueLink(link.id)}>
+															<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+														</button>
+													{/if}
+												</div>
+											</button>
+
+											<!-- Expanded detail -->
+											{#if isExpanded}
+												<div class="border-t px-4 py-3">
+													{#if detailFetching}
+														<div class="space-y-2 py-2">
+															<div class="h-4 w-3/4 bg-muted animate-pulse rounded"></div>
+															<div class="h-3 w-1/2 bg-muted animate-pulse rounded"></div>
+															<div class="h-16 w-full bg-muted animate-pulse rounded mt-3"></div>
+														</div>
+													{:else if issueDetail}
+														<!-- Issue header info -->
+														<div class="space-y-3">
+															<div class="flex items-start justify-between gap-2">
+																<h5 class="text-sm font-semibold leading-tight">{issueDetail.title}</h5>
+																<span class="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {issueDetail.state === 'closed' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}">
+																	{issueDetail.state}
+																</span>
+															</div>
+
+															<!-- Meta -->
+															<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+																<span class="flex items-center gap-1">
+																	{#if issueDetail.authorAvatar}
+																		<img src={issueDetail.authorAvatar} alt="" class="h-4 w-4 rounded-full" />
+																	{/if}
+																	{issueDetail.author}
+																</span>
+																<span>{formatDate(issueDetail.createdAt)}</span>
+																{#if issueDetail.closedAt}
+																	<span>Closed {formatDate(issueDetail.closedAt)}</span>
+																{/if}
+															</div>
+
+															<!-- Labels -->
+															{#if issueDetail.labels.length > 0}
+																<div class="flex flex-wrap gap-1">
+																	{#each issueDetail.labels as label (label.name)}
+																		<span
+																			class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border"
+																			style="background-color: {label.color}20; color: {label.color}; border-color: {label.color}40"
+																		>
+																			{label.name}
+																		</span>
+																	{/each}
+																</div>
+															{/if}
+
+															<!-- Body -->
+															{#if issueDetail.body}
+																<div class="rounded bg-muted/40 p-3 text-xs whitespace-pre-wrap break-words max-h-40 overflow-y-auto leading-relaxed">
+																	{issueDetail.body}
+																</div>
+															{/if}
+
+															<!-- Comments -->
+															{#if issueDetail.comments.length > 0}
+																<div class="space-y-2 pt-2">
+																	<h6 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+																		Comments ({issueDetail.comments.length})
+																	</h6>
+																	<div class="space-y-2 max-h-64 overflow-y-auto">
+																		{#each issueDetail.comments as comment (comment.id)}
+																			<div class="rounded border p-2.5 text-xs">
+																				<div class="flex items-center gap-2 mb-1.5 text-muted-foreground">
+																					{#if comment.authorAvatar}
+																						<img src={comment.authorAvatar} alt="" class="h-4 w-4 rounded-full" />
+																					{/if}
+																					<span class="font-medium text-foreground">{comment.author}</span>
+																					<span>{formatDate(comment.createdAt)}</span>
+																				</div>
+																				<div class="whitespace-pre-wrap break-words leading-relaxed">{comment.body}</div>
+																			</div>
+																		{/each}
+																	</div>
+																</div>
+															{:else}
+																<p class="text-xs text-muted-foreground pt-1">No comments</p>
+															{/if}
+														</div>
+													{:else}
+														<p class="text-xs text-muted-foreground py-2">Failed to load issue details</p>
+													{/if}
+												</div>
+											{/if}
+										</div>
+									{/each}
+								</div>
+							{/if}
+						</div>
 					{:else if contentTab === 'customFields'}
 						<DetailSheetCustomFieldsTab
 							{customFieldDefs}
 							customFieldValues={(version.customFields ?? {}) as Record<string, unknown>}
 						/>
 					{/if}
-				{/if}
-
-				<!-- Issue Links Section -->
-				{#if hasIssueTracker && !detailEditing}
-					<div class="border-t pt-4">
-						<div class="flex items-center justify-between mb-3">
-							<h4 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-								{m.issue_link_title()}
-							</h4>
-							{#if canEdit}
-								<div class="flex gap-1">
-									<Button variant="outline" size="sm" class="h-6 text-[10px] px-2" disabled={creatingIssue} onclick={handleCreateIssue}>
-										{creatingIssue ? m.common_loading() : m.issue_link_create()}
-									</Button>
-									<Button variant="outline" size="sm" class="h-6 text-[10px] px-2" onclick={() => (showLinkForm = !showLinkForm)}>
-										{m.issue_link_add()}
-									</Button>
-								</div>
-							{/if}
-						</div>
-						{#if showLinkForm}
-							<form
-								onsubmit={(e) => { e.preventDefault(); handleLinkIssue(); }}
-								class="mb-3 flex gap-2"
-							>
-								<Input
-									placeholder={m.issue_link_url_placeholder()}
-									type="url"
-									bind:value={newIssueUrl}
-									required
-									class="flex-1 h-7 text-xs"
-								/>
-								<Button type="submit" size="sm" class="h-7 text-xs" disabled={linkingIssue || !newIssueUrl.trim()}>
-									{linkingIssue ? m.common_loading() : m.issue_link_add()}
-								</Button>
-							</form>
-						{/if}
-						{#if issueLinks.length === 0}
-							<p class="text-muted-foreground text-xs">{m.issue_link_empty()}</p>
-						{:else}
-							<div class="space-y-1.5">
-								{#each issueLinks as link (link.id)}
-									<div class="flex items-center justify-between gap-2 rounded border px-2.5 py-1.5 text-xs">
-										<div class="min-w-0 flex-1">
-											<div class="flex items-center gap-1.5">
-												{#if link.externalKey}
-													<span class="font-mono font-medium shrink-0">{link.externalKey}</span>
-												{/if}
-												{#if link.status}
-													<span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium {link.status === 'closed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">
-														{link.status}
-													</span>
-												{/if}
-											</div>
-											<a href={link.externalUrl} target="_blank" rel="noopener noreferrer" class="text-primary hover:underline truncate block">
-												{link.title || link.externalUrl}
-											</a>
-										</div>
-										{#if canEdit}
-											<button type="button" class="text-muted-foreground hover:text-destructive shrink-0" onclick={() => handleRemoveIssueLink(link.id)}>&times;</button>
-										{/if}
-									</div>
-								{/each}
-							</div>
-						{/if}
-					</div>
 				{/if}
 
 				<!-- Version History (collapsible) -->

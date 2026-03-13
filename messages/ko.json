@@ -1175,6 +1175,7 @@
 	"cross_env_passed_in": "성공 환경",
 	"cross_env_no_data": "비교할 런을 2개 이상 선택하세요",
 	"common_saved": "저장되었습니다",
+	"common_refresh": "새로고침",
 	"dashboard_layout_saved": "대시보드 레이아웃이 저장되었습니다",
 	"req_unlink_confirm": "테스트케이스 {key}의 연결을 해제하시겠습니까?",
 	"admin_confirm_toggle_title": "상태 변경 확인",

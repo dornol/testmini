@@ -1175,6 +1175,7 @@
 	"cross_env_passed_in": "Passed In",
 	"cross_env_no_data": "Select at least 2 runs to compare",
 	"common_saved": "Saved",
+	"common_refresh": "Refresh",
 	"dashboard_layout_saved": "Dashboard layout saved",
 	"req_unlink_confirm": "Are you sure you want to unlink test case {key} from this requirement?",
 	"admin_confirm_toggle_title": "Confirm Status Change",

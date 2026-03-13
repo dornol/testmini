@@ -1,8 +1,8 @@
 import type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult, IssueDetail } from './integrations/types';
 import { createJiraIssue, fetchJiraIssueStatus, testJiraConnection } from './integrations/jira';
-import { createGithubIssue, fetchGithubIssueStatus, testGithubConnection, addGithubIssueComment, fetchGithubIssueDetail } from './integrations/github';
+import { createGithubIssue, fetchGithubIssueStatus, testGithubConnection, addGithubIssueComment, fetchGithubIssueDetail, updateGithubIssueState } from './integrations/github';
 import { createGitlabIssue, fetchGitlabIssueStatus, testGitlabConnection } from './integrations/gitlab';
-import { createGiteaIssue, fetchGiteaIssueStatus, testGiteaConnection, addGiteaIssueComment, fetchGiteaIssueDetail } from './integrations/gitea';
+import { createGiteaIssue, fetchGiteaIssueStatus, testGiteaConnection, addGiteaIssueComment, fetchGiteaIssueDetail, updateGiteaIssueState } from './integrations/gitea';
 import { createCustomIssue } from './integrations/custom';
 
 // Re-export types for backwards compat
@@ -77,6 +77,21 @@ export async function addIssueComment(
 		// GitLab, JIRA, CUSTOM: not yet supported
 		default:
 			break;
+	}
+}
+
+export async function updateIssueState(
+	config: IssueTrackerConfig,
+	externalUrl: string,
+	state: 'open' | 'closed'
+): Promise<void> {
+	switch (config.provider) {
+		case 'GITHUB':
+			return updateGithubIssueState(config, externalUrl, state);
+		case 'GITEA':
+			return updateGiteaIssueState(config, externalUrl, state);
+		default:
+			throw new Error(`State change not supported for provider: ${config.provider}`);
 	}
 }
 

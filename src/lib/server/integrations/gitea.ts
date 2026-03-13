@@ -128,6 +128,31 @@ export async function fetchGiteaIssueDetail(
 	};
 }
 
+export async function updateGiteaIssueState(
+	config: IssueTrackerConfig,
+	externalUrl: string,
+	state: 'open' | 'closed'
+): Promise<void> {
+	if (!config.apiToken || !config.projectKey) return;
+
+	const match = externalUrl.match(/\/issues\/(\d+)/);
+	if (!match) return;
+
+	const issueNumber = match[1];
+	const res = await fetch(`${config.baseUrl}/api/v1/repos/${config.projectKey}/issues/${issueNumber}`, {
+		method: 'PATCH',
+		headers: {
+			Authorization: `token ${config.apiToken}`,
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({ state })
+	});
+
+	if (!res.ok) {
+		throw new Error(`Gitea returned ${res.status}: ${await res.text()}`);
+	}
+}
+
 export async function fetchGiteaIssueStatus(
 	config: IssueTrackerConfig,
 	externalUrl: string

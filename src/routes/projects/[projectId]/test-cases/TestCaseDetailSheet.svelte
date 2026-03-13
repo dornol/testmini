@@ -396,6 +396,11 @@
 	let issueDetail = $state<IssueDetailData | null>(null);
 	let detailFetching = $state(false);
 
+	// Issue actions
+	let newComment = $state('');
+	let postingComment = $state(false);
+	let togglingState = $state(false);
+
 	async function loadIssueLinks(tcId: number) {
 		try {
 			issueLinks = await apiFetch<IssueLinkRecord[]>(
@@ -516,6 +521,47 @@
 		}
 	}
 
+	async function postComment() {
+		if (postingComment || !expandedLinkId || !newComment.trim()) return;
+		postingComment = true;
+		try {
+			await apiPost(`/api/projects/${projectId}/issue-links/${expandedLinkId}/comment`, {
+				comment: newComment.trim()
+			});
+			newComment = '';
+			toast.success(m.comment_added());
+			await loadIssueDetail(expandedLinkId);
+		} catch {
+			// handled by apiPost
+		} finally {
+			postingComment = false;
+		}
+	}
+
+	async function toggleIssueState() {
+		if (togglingState || !expandedLinkId || !issueDetail) return;
+		const newState = issueDetail.state === 'closed' ? 'open' : 'closed';
+		togglingState = true;
+		try {
+			await apiPost(`/api/projects/${projectId}/issue-links/${expandedLinkId}/state`, {
+				state: newState
+			});
+			toast.success(newState === 'closed' ? 'Issue closed' : 'Issue reopened');
+			await loadIssueDetail(expandedLinkId);
+			// Update list status
+			const link = issueLinks.find((l) => l.id === expandedLinkId);
+			if (link) {
+				link.status = newState;
+				issueLinks = issueLinks;
+			}
+			onchange();
+		} catch {
+			// handled
+		} finally {
+			togglingState = false;
+		}
+	}
+
 	function formatDate(dateStr: string): string {
 		const d = new Date(dateStr);
 		return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -532,6 +578,7 @@
 			newIssueUrl = '';
 			expandedLinkId = null;
 			issueDetail = null;
+			newComment = '';
 		}
 	}
 </script>
@@ -1034,6 +1081,44 @@
 																</div>
 															{:else}
 																<p class="text-xs text-muted-foreground pt-1">No comments</p>
+															{/if}
+
+															<!-- Add comment form -->
+															{#if canEdit}
+																<div class="pt-3 border-t mt-3">
+																	<form
+																		onsubmit={(e) => { e.preventDefault(); postComment(); }}
+																		class="space-y-2"
+																	>
+																		<Textarea
+																			placeholder={m.comment_placeholder()}
+																			bind:value={newComment}
+																			rows={2}
+																			class="text-xs"
+																		/>
+																		<div class="flex items-center justify-between">
+																			<Button
+																				type="button"
+																				variant={issueDetail.state === 'closed' ? 'outline' : 'destructive'}
+																				size="sm"
+																				class="h-7 text-xs"
+																				disabled={togglingState}
+																				onclick={toggleIssueState}
+																			>
+																				{#if togglingState}
+																					{m.common_loading()}
+																				{:else if issueDetail.state === 'closed'}
+																					Reopen
+																				{:else}
+																					Close Issue
+																				{/if}
+																			</Button>
+																			<Button type="submit" size="sm" class="h-7 text-xs" disabled={postingComment || !newComment.trim()}>
+																				{postingComment ? m.common_loading() : m.comment_submit()}
+																			</Button>
+																		</div>
+																	</form>
+																</div>
 															{/if}
 														</div>
 													{:else}

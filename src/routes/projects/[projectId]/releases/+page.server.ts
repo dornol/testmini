@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
+import { db, col } from '$lib/server/db';
 import { release, user } from '$lib/server/db/schema';
 import { eq, sql } from 'drizzle-orm';
 
@@ -18,8 +18,8 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 			releaseDate: release.releaseDate,
 			createdBy: user.name,
 			createdAt: release.createdAt,
-			planCount: sql<number>`(select count(*) from test_plan where release_id = ${release.id})`.as('plan_count'),
-			runCount: sql<number>`(select count(*) from test_run where release_id = ${release.id})`.as('run_count')
+			planCount: sql<number>`(select count(*)::int from test_plan where release_id = ${col(release.id)})`.as('plan_count'),
+			runCount: sql<number>`(select count(*)::int from test_run where release_id = ${col(release.id)})`.as('run_count')
 		})
 		.from(release)
 		.innerJoin(user, eq(release.createdBy, user.id))

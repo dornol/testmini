@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, col } from '$lib/server/db';
 import { module, moduleTestCase } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
@@ -16,7 +16,7 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 			description: module.description,
 			sortOrder: module.sortOrder,
 			createdAt: module.createdAt,
-			testCaseCount: sql<number>`(select count(*) from module_test_case where module_id = ${module.id})::int`.as('test_case_count')
+			testCaseCount: sql<number>`(select count(*)::int from module_test_case where module_id = ${col(module.id)})::int`.as('test_case_count')
 		})
 		.from(module)
 		.where(eq(module.projectId, projectId))

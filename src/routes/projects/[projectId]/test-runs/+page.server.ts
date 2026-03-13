@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
+import { db, col } from '$lib/server/db';
 import { testRun, testExecution, user } from '$lib/server/db/schema';
 import { eq, count, and, sql, desc } from 'drizzle-orm';
 
@@ -33,8 +33,8 @@ export const load: PageServerLoad = async ({ params, url, parent }) => {
 				startedAt: testRun.startedAt,
 				finishedAt: testRun.finishedAt,
 				retestOfRunId: testRun.retestOfRunId,
-				totalCount: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id})`.as('total_count'),
-				passedCount: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'PASS')`.as('passed_count')
+				totalCount: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)})`.as('total_count'),
+				passedCount: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'PASS')`.as('passed_count')
 			})
 			.from(testRun)
 			.innerJoin(user, eq(testRun.createdBy, user.id))

@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, col } from '$lib/server/db';
 import { team, teamMember, project } from '$lib/server/db/schema';
 import { eq, count, sql } from 'drizzle-orm';
 import { isGlobalAdmin } from '$lib/server/auth-utils';
@@ -21,10 +21,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 				name: team.name,
 				description: team.description,
 				createdAt: team.createdAt,
-				memberCount: sql<number>`(select count(*) from team_member where team_id = ${team.id})`.as(
+				memberCount: sql<number>`(select count(*)::int from team_member where team_id = ${col(team.id)})`.as(
 					'member_count'
 				),
-				projectCount: sql<number>`(select count(*) from project where team_id = ${team.id})`.as(
+				projectCount: sql<number>`(select count(*)::int from project where team_id = ${col(team.id)})`.as(
 					'project_count'
 				)
 			})
@@ -37,10 +37,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 				name: team.name,
 				description: team.description,
 				createdAt: team.createdAt,
-				memberCount: sql<number>`(select count(*) from team_member where team_id = ${team.id})`.as(
+				memberCount: sql<number>`(select count(*)::int from team_member where team_id = ${col(team.id)})`.as(
 					'member_count'
 				),
-				projectCount: sql<number>`(select count(*) from project where team_id = ${team.id})`.as(
+				projectCount: sql<number>`(select count(*)::int from project where team_id = ${col(team.id)})`.as(
 					'project_count'
 				)
 			})

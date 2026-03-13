@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, col } from '$lib/server/db';
 import { release, testPlan, testRun, user } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
@@ -28,18 +28,18 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 			status: testRun.status,
 			environment: testRun.environment,
 			createdAt: testRun.createdAt,
-			total: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id})`.as('total'),
-			pass: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'PASS')`.as('pass'),
-			fail: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'FAIL')`.as('fail'),
-			blocked: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'BLOCKED')`.as('blocked'),
-			pending: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'PENDING')`.as('pending')
+			total: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)})`.as('total'),
+			pass: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'PASS')`.as('pass'),
+			fail: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'FAIL')`.as('fail'),
+			blocked: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'BLOCKED')`.as('blocked'),
+			pending: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'PENDING')`.as('pending')
 		}).from(testRun).where(eq(testRun.releaseId, releaseId)).orderBy(testRun.createdAt),
 		db.select({ id: testPlan.id, name: testPlan.name, status: testPlan.status })
 			.from(testPlan)
-			.where(and(eq(testPlan.projectId, projectId), sql`${testPlan.releaseId} IS NULL`)),
+			.where(and(eq(testPlan.projectId, projectId), sql`${col(testPlan.releaseId)} IS NULL`)),
 		db.select({ id: testRun.id, name: testRun.name, status: testRun.status, environment: testRun.environment })
 			.from(testRun)
-			.where(and(eq(testRun.projectId, projectId), sql`${testRun.releaseId} IS NULL`))
+			.where(and(eq(testRun.projectId, projectId), sql`${col(testRun.releaseId)} IS NULL`))
 	]);
 
 	const totalExec = runs.reduce((s, r) => s + Number(r.total), 0);

@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, col } from '$lib/server/db';
 import { release, testPlan, testRun, testExecution, user, testPlanTestCase, testCase, testCaseVersion } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
@@ -28,7 +28,7 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 			name: testPlan.name,
 			status: testPlan.status,
 			milestone: testPlan.milestone,
-			itemCount: sql<number>`(select count(*) from test_plan_test_case where test_plan_id = ${testPlan.id})`.as('item_count')
+			itemCount: sql<number>`(select count(*)::int from test_plan_test_case where test_plan_id = ${col(testPlan.id)})`.as('item_count')
 		})
 		.from(testPlan)
 		.where(eq(testPlan.releaseId, releaseId));
@@ -41,10 +41,10 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 			status: testRun.status,
 			environment: testRun.environment,
 			createdAt: testRun.createdAt,
-			total: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id})`.as('total'),
-			pass: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'PASS')`.as('pass'),
-			fail: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'FAIL')`.as('fail'),
-			blocked: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'BLOCKED')`.as('blocked')
+			total: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)})`.as('total'),
+			pass: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'PASS')`.as('pass'),
+			fail: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'FAIL')`.as('fail'),
+			blocked: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'BLOCKED')`.as('blocked')
 		})
 		.from(testRun)
 		.where(eq(testRun.releaseId, releaseId));

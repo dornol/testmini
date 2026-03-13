@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, col } from '$lib/server/db';
 import { exploratorySession, sessionNote, user } from '$lib/server/db/schema';
 import { eq, and, desc, count, sql } from 'drizzle-orm';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
@@ -32,7 +32,7 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 				tags: exploratorySession.tags,
 				createdBy: user.name,
 				createdById: exploratorySession.createdBy,
-				noteCount: sql<number>`(select count(*) from session_note where session_id = ${exploratorySession.id})`.as('note_count')
+				noteCount: sql<number>`(select count(*)::int from session_note where session_id = ${col(exploratorySession.id)})`.as('note_count')
 			})
 			.from(exploratorySession)
 			.innerJoin(user, eq(exploratorySession.createdBy, user.id))

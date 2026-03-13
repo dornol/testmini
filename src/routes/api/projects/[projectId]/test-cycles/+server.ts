@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, col } from '$lib/server/db';
 import { testCycle, testRun, user } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
@@ -26,7 +26,7 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 			endDate: testCycle.endDate,
 			createdBy: user.name,
 			createdAt: testCycle.createdAt,
-			runCount: sql<number>`(select count(*) from test_run where test_cycle_id = ${testCycle.id})::int`.as('run_count')
+			runCount: sql<number>`(select count(*)::int from test_run where test_cycle_id = ${col(testCycle.id)})::int`.as('run_count')
 		})
 		.from(testCycle)
 		.innerJoin(user, eq(testCycle.createdBy, user.id))

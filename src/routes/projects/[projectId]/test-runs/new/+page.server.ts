@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, col } from '$lib/server/db';
 import { testCase, testCaseVersion, testRun, testExecution, tag, testCaseTag, testSuite, testSuiteItem, testCaseDataSet } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
@@ -66,7 +66,7 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		.select({
 			id: testSuite.id,
 			name: testSuite.name,
-			itemCount: sql<number>`(select count(*) from test_suite_item where suite_id = ${testSuite.id})`.as('item_count')
+			itemCount: sql<number>`(select count(*)::int from test_suite_item where suite_id = ${col(testSuite.id)})`.as('item_count')
 		})
 		.from(testSuite)
 		.where(eq(testSuite.projectId, projectId))

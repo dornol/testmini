@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, col } from '$lib/server/db';
 import { release, testRun, testExecution, testCaseVersion, testCase } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { withProjectAccess } from '$lib/server/api-handler';
@@ -20,11 +20,11 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 			id: testRun.id,
 			name: testRun.name,
 			status: testRun.status,
-			total: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id})`.as('total'),
-			pass: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'PASS')`.as('pass'),
-			fail: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'FAIL')`.as('fail'),
-			blocked: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'BLOCKED')`.as('blocked'),
-			pending: sql<number>`(select count(*) from test_execution where test_run_id = ${testRun.id} and status = 'PENDING')`.as('pending')
+			total: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)})`.as('total'),
+			pass: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'PASS')`.as('pass'),
+			fail: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'FAIL')`.as('fail'),
+			blocked: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'BLOCKED')`.as('blocked'),
+			pending: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'PENDING')`.as('pending')
 		})
 		.from(testRun)
 		.where(eq(testRun.releaseId, releaseId));

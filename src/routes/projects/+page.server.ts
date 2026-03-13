@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, col } from '$lib/server/db';
 import { project, projectMember } from '$lib/server/db/schema';
 import { and, eq, ilike, count, inArray, sql } from 'drizzle-orm';
 import { isGlobalAdmin } from '$lib/server/auth-utils';
@@ -41,7 +41,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				description: project.description,
 				active: project.active,
 				createdAt: project.createdAt,
-				memberCount: sql<number>`(select count(*) from project_member where project_id = ${project.id})`.as(
+				memberCount: sql<number>`(select count(*)::int from project_member where project_id = ${col(project.id)})`.as(
 					'member_count'
 				)
 			})

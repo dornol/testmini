@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, col } from '$lib/server/db';
 import { project, projectMember, priorityConfig, environmentConfig } from '$lib/server/db/schema';
 import { isGlobalAdmin, parseJsonBody } from '$lib/server/auth-utils';
 import { createProjectSchema } from '$lib/schemas/project.schema';
@@ -41,7 +41,7 @@ export const GET = withAuth(async ({ user, url }) => {
 				active: project.active,
 				createdBy: project.createdBy,
 				createdAt: project.createdAt,
-				memberCount: sql<number>`(select count(*) from project_member where project_id = ${project.id})`.as(
+				memberCount: sql<number>`(select count(*)::int from project_member where project_id = ${col(project.id)})`.as(
 					'member_count'
 				)
 			})

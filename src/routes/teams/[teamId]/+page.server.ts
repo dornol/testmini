@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
+import { db, col } from '$lib/server/db';
 import { project, teamMember, user } from '$lib/server/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { loadTeamMembers } from '$lib/server/queries';
@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ params }) => {
 				description: project.description,
 				active: project.active,
 				createdAt: project.createdAt,
-				memberCount: sql<number>`(select count(*) from project_member where project_id = ${project.id})`.as(
+				memberCount: sql<number>`(select count(*)::int from project_member where project_id = ${col(project.id)})`.as(
 					'member_count'
 				)
 			})

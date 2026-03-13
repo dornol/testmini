@@ -1,11 +1,21 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, sql, getTableName, type Column } from 'drizzle-orm';
 import * as schema from './schema';
 import { env } from '$env/dynamic/private';
 import { childLogger } from '../logger';
 import { QueryLogger } from './query-logger';
 import { resolvePoolConfig } from './pool-config';
+
+/**
+ * Returns a table-qualified column reference for use in raw SQL subqueries.
+ * Drizzle's sql`` template renders column refs without table qualifier,
+ * which breaks correlated subqueries.
+ */
+export function col(column: Column) {
+	const tableName = getTableName(column.table);
+	return sql.raw(`"${tableName}"."${column.name}"`);
+}
 
 if (!env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
 

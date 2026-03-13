@@ -1,6 +1,6 @@
 import type { LayoutServerLoad } from './$types';
 import { redirect, error } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, col } from '$lib/server/db';
 import { project, projectMember } from '$lib/server/db/schema';
 import { eq, and, count, sql } from 'drizzle-orm';
 import { requireAuth, requireProjectAccess } from '$lib/server/auth-utils';
@@ -24,7 +24,7 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 			active: project.active,
 			createdBy: project.createdBy,
 			createdAt: project.createdAt,
-			memberCount: sql<number>`(select count(*) from project_member where project_id = ${project.id})`.as(
+			memberCount: sql<number>`(select count(*)::int from project_member where project_id = ${col(project.id)})`.as(
 				'member_count'
 			)
 		})

@@ -32,7 +32,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --prod
+    pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # ---- Stage 4: Runtime ----
 FROM node:24-alpine AS runtime

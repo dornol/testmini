@@ -26,7 +26,7 @@
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import ParameterDataSection from '$lib/components/ParameterDataSection.svelte';
 	import * as m from '$lib/paraglide/messages.js';
-	import { apiPost, apiDelete } from '$lib/api-client';
+	import { apiFetch, apiPost, apiDelete } from '$lib/api-client';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import { TAG_PALETTE } from '$lib/constants';
 	import ApprovalSection from './ApprovalSection.svelte';
@@ -62,6 +62,34 @@
 	let deleteIssueLinkId = $state<number | null>(null);
 	let syncingLinkId = $state<number | null>(null);
 	let syncingAll = $state(false);
+
+	// Issue detail expansion
+	interface IssueComment {
+		id: number;
+		body: string;
+		author: string;
+		authorAvatar?: string;
+		createdAt: string;
+	}
+	interface IssueDetailData {
+		title: string;
+		body: string;
+		state: string;
+		stateCategory: string;
+		author: string;
+		authorAvatar?: string;
+		labels: { name: string; color: string }[];
+		createdAt: string;
+		updatedAt: string;
+		closedAt: string | null;
+		comments: IssueComment[];
+	}
+	let expandedLinkId = $state<number | null>(null);
+	let issueDetailData = $state<IssueDetailData | null>(null);
+	let detailFetching = $state(false);
+	let newIssueComment = $state('');
+	let postingComment = $state(false);
+	let togglingState = $state(false);
 
 	function issueStatusClass(status: string | null): string {
 		if (!status) return '';
@@ -164,6 +192,79 @@
 		} finally {
 			deleteIssueLinkId = null;
 		}
+	}
+
+	async function loadIssueDetailData(linkId: number) {
+		detailFetching = true;
+		issueDetailData = null;
+		try {
+			issueDetailData = await apiFetch<IssueDetailData>(
+				`/api/projects/${data.project.id}/issue-links/${linkId}/detail`
+			);
+			const link = issueLinks.find((l) => l.id === linkId);
+			if (link && issueDetailData) {
+				link.status = issueDetailData.state;
+				issueLinks = issueLinks;
+			}
+		} catch {
+			issueDetailData = null;
+		} finally {
+			detailFetching = false;
+		}
+	}
+
+	async function toggleIssueDetail(linkId: number) {
+		if (expandedLinkId === linkId) {
+			expandedLinkId = null;
+			issueDetailData = null;
+			return;
+		}
+		expandedLinkId = linkId;
+		await loadIssueDetailData(linkId);
+	}
+
+	async function postIssueComment() {
+		if (postingComment || !expandedLinkId || !newIssueComment.trim()) return;
+		postingComment = true;
+		try {
+			await apiPost(`/api/projects/${data.project.id}/issue-links/${expandedLinkId}/comment`, {
+				comment: newIssueComment.trim()
+			});
+			newIssueComment = '';
+			toast.success(m.comment_added());
+			await loadIssueDetailData(expandedLinkId);
+		} catch {
+			// handled
+		} finally {
+			postingComment = false;
+		}
+	}
+
+	async function toggleIssueState() {
+		if (togglingState || !expandedLinkId || !issueDetailData) return;
+		const newState = issueDetailData.state === 'closed' ? 'open' : 'closed';
+		togglingState = true;
+		try {
+			await apiPost(`/api/projects/${data.project.id}/issue-links/${expandedLinkId}/state`, {
+				state: newState
+			});
+			toast.success(newState === 'closed' ? 'Issue closed' : 'Issue reopened');
+			await loadIssueDetailData(expandedLinkId);
+			const link = issueLinks.find((l) => l.id === expandedLinkId);
+			if (link) {
+				link.status = newState;
+				issueLinks = issueLinks;
+			}
+		} catch {
+			// handled
+		} finally {
+			togglingState = false;
+		}
+	}
+
+	function formatIssueDate(dateStr: string): string {
+		const d = new Date(dateStr);
+		return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 	}
 
 	// Inline tag creation
@@ -1062,50 +1163,180 @@
 					{:else}
 						<div class="space-y-2">
 							{#each issueLinks as link (link.id)}
-								<div class="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
-									<div class="min-w-0 flex-1">
-										<div class="flex items-center gap-2">
-											{#if link.externalKey}
-												<span class="text-xs font-mono font-medium">{link.externalKey}</span>
+								{@const isExpanded = expandedLinkId === link.id}
+								<div class="rounded-lg border {isExpanded ? 'border-primary/30' : ''} transition-colors">
+									<!-- Issue row -->
+									<div class="flex items-center justify-between gap-3 px-3 py-2">
+										<button
+											type="button"
+											class="min-w-0 flex-1 text-left cursor-pointer"
+											onclick={() => toggleIssueDetail(link.id)}
+										>
+											<div class="flex items-center gap-2">
+												<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 transition-transform {isExpanded ? 'rotate-90' : ''}"><polyline points="9 18 15 12 9 6"/></svg>
+												{#if link.externalKey}
+													<span class="text-xs font-mono font-medium">{link.externalKey}</span>
+												{/if}
+												{#if link.status}
+													<span class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium {issueStatusClass(link.status)}">
+														{link.status}
+													</span>
+												{/if}
+												<span class="text-[10px] text-muted-foreground uppercase">{link.provider}</span>
+											</div>
+											<span class="text-sm truncate block pl-5">
+												{link.title || link.externalUrl}
+											</span>
+										</button>
+										<div class="flex items-center gap-1 shrink-0">
+											<a href={link.externalUrl} target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-primary p-1" title="Open in new tab">
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+											</a>
+											{#if canEdit && link.provider !== 'CUSTOM' && data.hasIssueTracker}
+												<Button
+													variant="ghost"
+													size="sm"
+													class="h-7 px-2 text-xs"
+													disabled={syncingLinkId === link.id}
+													onclick={() => handleSyncIssueLink(link.id)}
+												>
+													{syncingLinkId === link.id ? m.common_loading() : m.issue_link_sync()}
+												</Button>
 											{/if}
-											{#if link.status}
-												<span class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium {issueStatusClass(link.status)}">
-													{link.status}
-												</span>
+											{#if canEdit}
+												<Button
+													variant="ghost"
+													size="sm"
+													class="text-destructive hover:text-destructive h-7 px-2 text-xs"
+													onclick={() => (deleteIssueLinkId = link.id)}
+												>
+													{m.common_delete()}
+												</Button>
 											{/if}
 										</div>
-										<a
-											href={link.externalUrl}
-											target="_blank"
-											rel="noopener noreferrer"
-											class="text-primary text-sm hover:underline truncate block"
-										>
-											{link.title || link.externalUrl}
-										</a>
 									</div>
-									<div class="flex items-center gap-1 shrink-0">
-										{#if canEdit && link.provider !== 'CUSTOM' && data.hasIssueTracker}
-											<Button
-												variant="ghost"
-												size="sm"
-												class="h-7 px-2 text-xs"
-												disabled={syncingLinkId === link.id}
-												onclick={() => handleSyncIssueLink(link.id)}
-											>
-												{syncingLinkId === link.id ? m.common_loading() : m.issue_link_sync()}
-											</Button>
-										{/if}
-										{#if canEdit}
-											<Button
-												variant="ghost"
-												size="sm"
-												class="text-destructive hover:text-destructive h-7 px-2 text-xs"
-												onclick={() => (deleteIssueLinkId = link.id)}
-											>
-												{m.common_delete()}
-											</Button>
-										{/if}
-									</div>
+
+									<!-- Expanded detail -->
+									{#if isExpanded}
+										<div class="border-t px-4 py-3">
+											{#if detailFetching}
+												<div class="space-y-2 py-2">
+													<div class="h-4 w-3/4 bg-muted animate-pulse rounded"></div>
+													<div class="h-3 w-1/2 bg-muted animate-pulse rounded"></div>
+													<div class="h-16 w-full bg-muted animate-pulse rounded mt-3"></div>
+												</div>
+											{:else if issueDetailData}
+												<div class="space-y-3">
+													<!-- Title & state -->
+													<div class="flex items-start justify-between gap-2">
+														<h5 class="text-sm font-semibold leading-tight">{issueDetailData.title}</h5>
+														<span class="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {issueDetailData.state === 'closed' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}">
+															{issueDetailData.state}
+														</span>
+													</div>
+
+													<!-- Meta -->
+													<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+														<span class="flex items-center gap-1">
+															{#if issueDetailData.authorAvatar}
+																<img src={issueDetailData.authorAvatar} alt="" class="h-4 w-4 rounded-full" />
+															{/if}
+															{issueDetailData.author}
+														</span>
+														<span>{formatIssueDate(issueDetailData.createdAt)}</span>
+														{#if issueDetailData.closedAt}
+															<span>Closed {formatIssueDate(issueDetailData.closedAt)}</span>
+														{/if}
+													</div>
+
+													<!-- Labels -->
+													{#if issueDetailData.labels.length > 0}
+														<div class="flex flex-wrap gap-1">
+															{#each issueDetailData.labels as label (label.name)}
+																<span
+																	class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border"
+																	style="background-color: {label.color}20; color: {label.color}; border-color: {label.color}40"
+																>
+																	{label.name}
+																</span>
+															{/each}
+														</div>
+													{/if}
+
+													<!-- Body -->
+													{#if issueDetailData.body}
+														<div class="rounded bg-muted/40 p-3 text-xs whitespace-pre-wrap break-words max-h-48 overflow-y-auto leading-relaxed">
+															{issueDetailData.body}
+														</div>
+													{/if}
+
+													<!-- Comments -->
+													{#if issueDetailData.comments.length > 0}
+														<div class="space-y-2 pt-2">
+															<h6 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+																Comments ({issueDetailData.comments.length})
+															</h6>
+															<div class="space-y-2 max-h-72 overflow-y-auto">
+																{#each issueDetailData.comments as comment (comment.id)}
+																	<div class="rounded border p-2.5 text-xs">
+																		<div class="flex items-center gap-2 mb-1.5 text-muted-foreground">
+																			{#if comment.authorAvatar}
+																				<img src={comment.authorAvatar} alt="" class="h-4 w-4 rounded-full" />
+																			{/if}
+																			<span class="font-medium text-foreground">{comment.author}</span>
+																			<span>{formatIssueDate(comment.createdAt)}</span>
+																		</div>
+																		<div class="whitespace-pre-wrap break-words leading-relaxed">{comment.body}</div>
+																	</div>
+																{/each}
+															</div>
+														</div>
+													{:else}
+														<p class="text-xs text-muted-foreground pt-1">No comments</p>
+													{/if}
+
+													<!-- Add comment & state toggle -->
+													{#if canEdit}
+														<div class="pt-3 border-t mt-3">
+															<form
+																onsubmit={(e) => { e.preventDefault(); postIssueComment(); }}
+																class="space-y-2"
+															>
+																<Textarea
+																	placeholder={m.comment_placeholder()}
+																	bind:value={newIssueComment}
+																	rows={2}
+																	class="text-sm"
+																/>
+																<div class="flex items-center justify-between">
+																	<Button
+																		type="button"
+																		variant={issueDetailData.state === 'closed' ? 'outline' : 'destructive'}
+																		size="sm"
+																		disabled={togglingState}
+																		onclick={toggleIssueState}
+																	>
+																		{#if togglingState}
+																			{m.common_loading()}
+																		{:else if issueDetailData.state === 'closed'}
+																			Reopen
+																		{:else}
+																			Close Issue
+																		{/if}
+																	</Button>
+																	<Button type="submit" size="sm" disabled={postingComment || !newIssueComment.trim()}>
+																		{postingComment ? m.common_loading() : m.comment_submit()}
+																	</Button>
+																</div>
+															</form>
+														</div>
+													{/if}
+												</div>
+											{:else}
+												<p class="text-sm text-muted-foreground py-2">Failed to load issue details</p>
+											{/if}
+										</div>
+									{/if}
 								</div>
 							{/each}
 						</div>

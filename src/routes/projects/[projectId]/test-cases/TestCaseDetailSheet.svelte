@@ -121,6 +121,28 @@
 	let tagSearchInput = $state('');
 	let newTagColor = $state(TAG_PALETTE[0]);
 
+	// Resizable sheet
+	let sheetWidth = $state(720);
+	let isResizing = $state(false);
+
+	function startResize(e: MouseEvent) {
+		e.preventDefault();
+		isResizing = true;
+		const startX = e.clientX;
+		const startWidth = sheetWidth;
+		function onMouseMove(ev: MouseEvent) {
+			const delta = startX - ev.clientX;
+			sheetWidth = Math.max(480, Math.min(startWidth + delta, window.innerWidth * 0.85));
+		}
+		function onMouseUp() {
+			isResizing = false;
+			window.removeEventListener('mousemove', onMouseMove);
+			window.removeEventListener('mouseup', onMouseUp);
+		}
+		window.addEventListener('mousemove', onMouseMove);
+		window.addEventListener('mouseup', onMouseUp);
+	}
+
 	function getPriorityColor(name: string): string {
 		return projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
 	}
@@ -143,6 +165,7 @@
 		compareSelectedVersions = [];
 		contentTab = 'steps';
 		sheetOpen = true;
+		checkCooldown(tcId);
 
 		try {
 			detailData = await apiFetch(`/api/projects/${projectId}/test-cases/${tcId}`);
@@ -386,6 +409,41 @@
 
 	let issueLinks = $state<IssueLinkRecord[]>([]);
 	let creatingIssue = $state(false);
+	const issueCooldownMap = new Map<number, number>(); // tcId -> expiry timestamp
+	let issueCreateCooldown = $state(0);
+	let cooldownTimer: ReturnType<typeof setInterval> | undefined;
+
+	function startCooldown() {
+		if (!selectedTcId) return;
+		const expiry = Date.now() + 60_000;
+		issueCooldownMap.set(selectedTcId, expiry);
+		resumeCooldownTimer(expiry);
+	}
+
+	function resumeCooldownTimer(expiry: number) {
+		clearInterval(cooldownTimer);
+		issueCreateCooldown = Math.ceil((expiry - Date.now()) / 1000);
+		if (issueCreateCooldown <= 0) { issueCreateCooldown = 0; return; }
+		cooldownTimer = setInterval(() => {
+			issueCreateCooldown = Math.ceil((expiry - Date.now()) / 1000);
+			if (issueCreateCooldown <= 0) {
+				issueCreateCooldown = 0;
+				clearInterval(cooldownTimer);
+				if (selectedTcId) issueCooldownMap.delete(selectedTcId);
+			}
+		}, 1000);
+	}
+
+	function checkCooldown(tcId: number) {
+		const expiry = issueCooldownMap.get(tcId);
+		if (expiry && expiry > Date.now()) {
+			resumeCooldownTimer(expiry);
+		} else {
+			issueCreateCooldown = 0;
+			clearInterval(cooldownTimer);
+			if (expiry) issueCooldownMap.delete(tcId);
+		}
+	}
 	let showLinkForm = $state(false);
 	let newIssueUrl = $state('');
 	let linkingIssue = $state(false);
@@ -413,7 +471,7 @@
 	}
 
 	async function handleCreateIssue() {
-		if (creatingIssue || !selectedTcId || !detailData) return;
+		if (creatingIssue || issueCreateCooldown > 0 || !selectedTcId || !detailData) return;
 		creatingIssue = true;
 		const version = detailData.testCase.latestVersion;
 		try {
@@ -427,6 +485,7 @@
 			);
 			issueLinks = [created, ...issueLinks];
 			toast.success(m.issue_link_created());
+			startCooldown();
 			onchange();
 		} catch {
 			// error toast handled by apiPost
@@ -470,21 +529,24 @@
 		}
 	}
 
-	async function loadIssueDetail(linkId: number) {
-		detailFetching = true;
-		issueDetail = null;
+	async function loadIssueDetail(linkId: number, silent = false) {
+		if (!silent) {
+			detailFetching = true;
+			issueDetail = null;
+		}
 		try {
-			issueDetail = await apiFetch<IssueDetailData>(
+			const data = await apiFetch<IssueDetailData>(
 				`/api/projects/${projectId}/issue-links/${linkId}/detail`
 			);
+			issueDetail = data;
 			// Update local status from fetched detail
 			const link = issueLinks.find((l) => l.id === linkId);
-			if (link && issueDetail) {
-				link.status = issueDetail.state;
+			if (link && data && link.status !== data.state) {
+				link.status = data.state;
 				issueLinks = issueLinks; // trigger reactivity
 			}
 		} catch {
-			issueDetail = null;
+			if (!silent) issueDetail = null;
 		} finally {
 			detailFetching = false;
 		}
@@ -530,7 +592,7 @@
 			});
 			newComment = '';
 			toast.success(m.comment_added());
-			await loadIssueDetail(expandedLinkId);
+			await loadIssueDetail(expandedLinkId, true);
 		} catch {
 			// handled by apiPost
 		} finally {
@@ -547,7 +609,7 @@
 				state: newState
 			});
 			toast.success(newState === 'closed' ? 'Issue closed' : 'Issue reopened');
-			await loadIssueDetail(expandedLinkId);
+			await loadIssueDetail(expandedLinkId, true);
 			// Update list status
 			const link = issueLinks.find((l) => l.id === expandedLinkId);
 			if (link) {
@@ -579,12 +641,19 @@
 			expandedLinkId = null;
 			issueDetail = null;
 			newComment = '';
+			clearInterval(cooldownTimer);
 		}
 	}
 </script>
 
 <Sheet.Root bind:open={sheetOpen} onOpenChange={handleSheetClose}>
-	<Sheet.Content side="right" class="sm:max-w-2xl w-full overflow-y-auto p-0 data-[state=open]:duration-300 data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-end data-[state=closed]:slide-out-to-end">
+	<Sheet.Content side="right" class="!max-w-none overflow-y-auto p-0 data-[state=open]:duration-300 data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-end data-[state=closed]:slide-out-to-end {isResizing ? 'select-none' : ''}" style="width: {sheetWidth}px !important">
+		<!-- Resize handle -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors z-50"
+			onmousedown={startResize}
+		></div>
 		{#if detailLoading}
 			<div class="p-6 space-y-6">
 				<div class="space-y-2">
@@ -682,132 +751,139 @@
 						</AlertDialog.Root>
 					{/if}
 				</div>
+				{#if !detailEditing}
+					<div class="mt-3 space-y-1.5">
+						<!-- Tags row -->
+						<div class="flex items-center gap-1.5">
+							<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground shrink-0"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+							<div class="flex-1 min-w-0 overflow-x-auto detail-thin-scroll">
+								<div class="flex items-center gap-1 w-max">
+									{#each detailData.assignedTags as t (t.id)}
+										{#if canEdit}
+											<span class="inline-flex items-center gap-1 rounded-full border px-1.5 text-[11px] font-medium hover:bg-muted/50 transition-colors leading-5 whitespace-nowrap">
+												<span class="h-1.5 w-1.5 rounded-full shrink-0" style="background-color: {t.color}"></span>
+												{t.name}
+												<button type="button" class="text-muted-foreground hover:text-destructive transition-colors" aria-label="Remove" onclick={() => removeTag(t.id)}>&times;</button>
+											</span>
+										{:else}
+											<TagBadge name={t.name} color={t.color} />
+										{/if}
+									{/each}
+									{#if canEdit}
+										{@const unassignedTags = detailData.projectTags.filter(
+											(pt) => !detailData!.assignedTags.some((at) => at.id === pt.id)
+										)}
+										{@const filteredUnassigned = tagSearchInput
+											? unassignedTags.filter((t) => t.name.toLowerCase().includes(tagSearchInput.toLowerCase()))
+											: unassignedTags}
+										{@const exactMatch = tagSearchInput && detailData.projectTags.some((t) => t.name.toLowerCase() === tagSearchInput.toLowerCase().trim())}
+										{@const canCreateNew = tagSearchInput.trim().length > 0 && !exactMatch}
+										<Popover.Root bind:open={showTagCreator} onOpenChange={(open) => { if (!open) tagSearchInput = ''; }}>
+											<Popover.Trigger>
+												{#snippet child({ props })}
+													<button type="button" class="text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-0.5 shrink-0" title={m.tag_assign()} {...props}>
+														<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+													</button>
+												{/snippet}
+											</Popover.Trigger>
+											<Popover.Content class="w-56 p-2" align="start">
+												<Input
+													placeholder={m.tag_new_inline()}
+													class="h-7 text-xs mb-2"
+													bind:value={tagSearchInput}
+													autofocus
+												/>
+												<div class="max-h-40 overflow-y-auto space-y-0.5">
+													{#each filteredUnassigned as t (t.id)}
+														<button
+															type="button"
+															class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
+															onclick={() => { assignTag(t.id); tagSearchInput = ''; showTagCreator = false; }}
+														>
+															<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {t.color}"></span>
+															{t.name}
+														</button>
+													{/each}
+												</div>
+												{#if canCreateNew}
+													<div class="border-t mt-1 pt-1">
+														<div class="flex items-center gap-1 mb-1.5">
+															{#each TAG_PALETTE as color (color)}
+																<button
+																	type="button"
+																	class="h-4 w-4 rounded-full border {newTagColor === color ? 'border-foreground scale-110' : 'border-transparent'}"
+																	style="background-color: {color}"
+																	aria-label="Select color {color}"
+																	onclick={() => (newTagColor = color)}
+																></button>
+															{/each}
+														</div>
+														<button
+															type="button"
+															class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer font-medium"
+															onclick={() => createAndAssignTag(tagSearchInput, newTagColor)}
+														>
+															<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {newTagColor}"></span>
+															{m.tag_create_inline({ name: tagSearchInput.trim() })}
+														</button>
+													</div>
+												{/if}
+												{#if filteredUnassigned.length === 0 && !canCreateNew}
+													<p class="text-xs text-muted-foreground text-center py-2">{m.common_no_results()}</p>
+												{/if}
+											</Popover.Content>
+										</Popover.Root>
+									{/if}
+								</div>
+							</div>
+						</div>
+						<!-- Assignees row -->
+						<div class="flex items-center gap-1.5">
+							<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground shrink-0"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+							<div class="flex-1 min-w-0 overflow-x-auto detail-thin-scroll">
+								<div class="flex items-center gap-1 w-max">
+									{#each detailData.assignedAssignees as a (a.userId)}
+										{#if canEdit}
+											<span class="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1.5 text-[11px] font-medium hover:bg-muted transition-colors leading-5 whitespace-nowrap">
+												{a.userName}
+												<button type="button" class="text-muted-foreground hover:text-destructive transition-colors" aria-label="Remove" onclick={() => removeAssignee(a.userId)}>&times;</button>
+											</span>
+										{:else}
+											<Badge variant="outline" class="text-xs">{a.userName}</Badge>
+										{/if}
+									{/each}
+									{#if canEdit && detailData.projectMembers}
+										{@const unassignedMembers = detailData.projectMembers.filter(
+											(pm) => !detailData!.assignedAssignees.some((a) => a.userId === pm.userId)
+										)}
+										{#if unassignedMembers.length > 0}
+											<DropdownMenu.Root>
+												<DropdownMenu.Trigger>
+													{#snippet child({ props })}
+														<button type="button" class="text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-0.5 shrink-0" title={m.assignee_assign()} {...props}>
+															<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+														</button>
+													{/snippet}
+												</DropdownMenu.Trigger>
+												<DropdownMenu.Content align="start" class="min-w-[140px]">
+													{#each unassignedMembers as member (member.userId)}
+														<DropdownMenu.Item onclick={() => assignAssignee(member.userId)} class="text-xs">
+															{member.userName}
+														</DropdownMenu.Item>
+													{/each}
+												</DropdownMenu.Content>
+											</DropdownMenu.Root>
+										{/if}
+									{/if}
+								</div>
+							</div>
+						</div>
+					</div>
+				{/if}
 			</div>
 
 			<!-- Content area -->
-			<div class="px-6 py-5 space-y-5">
-				<!-- Tags section -->
-				{#if !detailEditing && (detailData.assignedTags.length > 0 || canEdit)}
-					<div class="flex flex-wrap items-center gap-1.5">
-						{#each detailData.assignedTags as t (t.id)}
-							{#if canEdit}
-								<span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium hover:bg-muted/50 transition-colors">
-									<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {t.color}"></span>
-									{t.name}
-									<button type="button" class="text-muted-foreground hover:text-destructive ml-0.5 transition-colors" aria-label="Remove" onclick={() => removeTag(t.id)}>&times;</button>
-								</span>
-							{:else}
-								<TagBadge name={t.name} color={t.color} />
-							{/if}
-						{/each}
-						{#if canEdit}
-							{@const unassignedTags = detailData.projectTags.filter(
-								(pt) => !detailData!.assignedTags.some((at) => at.id === pt.id)
-							)}
-							{@const filteredUnassigned = tagSearchInput
-								? unassignedTags.filter((t) => t.name.toLowerCase().includes(tagSearchInput.toLowerCase()))
-								: unassignedTags}
-							{@const exactMatch = tagSearchInput && detailData.projectTags.some((t) => t.name.toLowerCase() === tagSearchInput.toLowerCase().trim())}
-							{@const canCreateNew = tagSearchInput.trim().length > 0 && !exactMatch}
-							<Popover.Root bind:open={showTagCreator} onOpenChange={(open) => { if (!open) tagSearchInput = ''; }}>
-								<Popover.Trigger>
-									{#snippet child({ props })}
-										<Button variant="outline" size="sm" class="h-6 px-2 text-xs" {...props}>
-											+ {m.tag_assign()}
-										</Button>
-									{/snippet}
-								</Popover.Trigger>
-								<Popover.Content class="w-56 p-2" align="start">
-									<Input
-										placeholder={m.tag_new_inline()}
-										class="h-7 text-xs mb-2"
-										bind:value={tagSearchInput}
-										autofocus
-									/>
-									<div class="max-h-40 overflow-y-auto space-y-0.5">
-										{#each filteredUnassigned as t (t.id)}
-											<button
-												type="button"
-												class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
-												onclick={() => { assignTag(t.id); tagSearchInput = ''; showTagCreator = false; }}
-											>
-												<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {t.color}"></span>
-												{t.name}
-											</button>
-										{/each}
-									</div>
-									{#if canCreateNew}
-										<div class="border-t mt-1 pt-1">
-											<div class="flex items-center gap-1 mb-1.5">
-												{#each TAG_PALETTE as color (color)}
-													<button
-														type="button"
-														class="h-4 w-4 rounded-full border {newTagColor === color ? 'border-foreground scale-110' : 'border-transparent'}"
-														style="background-color: {color}"
-														aria-label="Select color {color}"
-														onclick={() => (newTagColor = color)}
-													></button>
-												{/each}
-											</div>
-											<button
-												type="button"
-												class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer font-medium"
-												onclick={() => createAndAssignTag(tagSearchInput, newTagColor)}
-											>
-												<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {newTagColor}"></span>
-												{m.tag_create_inline({ name: tagSearchInput.trim() })}
-											</button>
-										</div>
-									{/if}
-									{#if filteredUnassigned.length === 0 && !canCreateNew}
-										<p class="text-xs text-muted-foreground text-center py-2">{m.common_no_results()}</p>
-									{/if}
-								</Popover.Content>
-							</Popover.Root>
-						{/if}
-					</div>
-				{/if}
-
-				<!-- Assignees section -->
-				{#if !detailEditing && detailData.assignedAssignees}
-					<div class="flex flex-wrap items-center gap-1.5">
-						<span class="text-xs font-medium text-muted-foreground mr-1">{m.assignee_title()}:</span>
-						{#each detailData.assignedAssignees as a (a.userId)}
-							{#if canEdit}
-								<span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium hover:bg-muted/50 transition-colors">
-									{a.userName}
-									<button type="button" class="text-muted-foreground hover:text-destructive ml-0.5 transition-colors" aria-label="Remove" onclick={() => removeAssignee(a.userId)}>&times;</button>
-								</span>
-							{:else}
-								<Badge variant="outline" class="text-xs">{a.userName}</Badge>
-							{/if}
-						{/each}
-						{#if canEdit && detailData.projectMembers}
-							{@const unassignedMembers = detailData.projectMembers.filter(
-								(pm) => !detailData!.assignedAssignees.some((a) => a.userId === pm.userId)
-							)}
-							{#if unassignedMembers.length > 0}
-								<DropdownMenu.Root>
-									<DropdownMenu.Trigger>
-										{#snippet child({ props })}
-											<button type="button" class="border-input bg-background h-6 rounded-md border px-2 text-xs hover:bg-muted/50 transition-colors cursor-pointer" {...props}>
-												+ {m.assignee_assign()}
-											</button>
-										{/snippet}
-									</DropdownMenu.Trigger>
-									<DropdownMenu.Content align="start" class="min-w-[140px]">
-										{#each unassignedMembers as member (member.userId)}
-											<DropdownMenu.Item onclick={() => assignAssignee(member.userId)} class="text-xs">
-												{member.userName}
-											</DropdownMenu.Item>
-										{/each}
-									</DropdownMenu.Content>
-								</DropdownMenu.Root>
-							{/if}
-						{/if}
-					</div>
-				{/if}
-
+			<div class="px-6 py-3 flex flex-col flex-1 min-h-0">
 				{#if detailEditing}
 					<!-- Edit Mode -->
 					<div class="space-y-5">
@@ -926,9 +1002,15 @@
 							<!-- Action buttons -->
 							<div class="flex gap-2 mb-4">
 								{#if canEdit}
-									<Button variant="outline" size="sm" class="h-7 text-xs" disabled={creatingIssue} onclick={handleCreateIssue}>
+									<Button variant="outline" size="sm" class="h-7 text-xs" disabled={creatingIssue || issueCreateCooldown > 0} onclick={handleCreateIssue}>
 										<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
-										{creatingIssue ? m.common_loading() : m.issue_link_create()}
+										{#if creatingIssue}
+											{m.common_loading()}
+										{:else if issueCreateCooldown > 0}
+											{m.issue_link_create()} ({issueCreateCooldown}s)
+										{:else}
+											{m.issue_link_create()}
+										{/if}
 									</Button>
 									<Button variant="outline" size="sm" class="h-7 text-xs" onclick={() => (showLinkForm = !showLinkForm)}>
 										<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
@@ -1053,7 +1135,7 @@
 
 															<!-- Body -->
 															{#if issueDetail.body}
-																<div class="rounded bg-muted/40 p-3 text-xs whitespace-pre-wrap break-words max-h-40 overflow-y-auto leading-relaxed">
+																<div class="rounded bg-muted/40 p-3 text-xs whitespace-pre-wrap break-words leading-relaxed">
 																	{issueDetail.body}
 																</div>
 															{/if}
@@ -1064,7 +1146,7 @@
 																	<h6 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
 																		Comments ({issueDetail.comments.length})
 																	</h6>
-																	<div class="space-y-2 max-h-64 overflow-y-auto">
+																	<div class="space-y-2">
 																		{#each issueDetail.comments as comment (comment.id)}
 																			<div class="rounded border p-2.5 text-xs">
 																				<div class="flex items-center gap-2 mb-1.5 text-muted-foreground">
@@ -1197,3 +1279,26 @@
 </Sheet.Root>
 
 <VersionDiffDialog bind:open={diffDialogOpen} v1={diffV1} v2={diffV2} {projectPriorities} />
+
+<style>
+	.detail-thin-scroll {
+		scrollbar-width: thin;
+		scrollbar-color: transparent transparent;
+	}
+	.detail-thin-scroll:hover {
+		scrollbar-color: rgba(128, 128, 128, 0.35) transparent;
+	}
+	.detail-thin-scroll::-webkit-scrollbar {
+		height: 3px;
+	}
+	.detail-thin-scroll::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	.detail-thin-scroll::-webkit-scrollbar-thumb {
+		background: transparent;
+		border-radius: 3px;
+	}
+	.detail-thin-scroll:hover::-webkit-scrollbar-thumb {
+		background: rgba(128, 128, 128, 0.35);
+	}
+</style>

@@ -187,6 +187,28 @@ The Dockerfile uses a 3-stage build for minimal image size and fast rebuilds:
 
 Health checks use Node.js `fetch()` instead of wget/curl, eliminating an extra package dependency.
 
+#### Docker Image (GHCR)
+
+Pre-built images are published to GitHub Container Registry on every version tag (`v*.*.*`).
+
+```bash
+# Pull the latest release
+docker pull ghcr.io/dornol/testmini:latest
+
+# Pull a specific version
+docker pull ghcr.io/dornol/testmini:0.0.1
+```
+
+`compose.prod.yaml` uses the GHCR image by default (`APP_IMAGE` variable). To build locally instead:
+
+```bash
+# Use GHCR image (default)
+docker compose -f compose.prod.yaml up -d
+
+# Build locally
+docker compose -f compose.prod.yaml up -d --build
+```
+
 #### Architecture
 
 ```

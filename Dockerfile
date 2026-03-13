@@ -25,6 +25,8 @@ RUN pnpm deploy --prod --filter=testmini /app/prod
 # ---- Stage 3: Runtime ----
 FROM node:24-alpine AS runtime
 
+LABEL org.opencontainers.image.source="https://github.com/dornol/testmini"
+
 # tini for proper PID 1 signal handling
 RUN apk add --no-cache tini
 

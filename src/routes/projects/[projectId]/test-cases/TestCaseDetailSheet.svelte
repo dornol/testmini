@@ -465,15 +465,9 @@
 		}
 	}
 
-	async function toggleIssueDetail(linkId: number) {
-		if (expandedLinkId === linkId) {
-			expandedLinkId = null;
-			issueDetail = null;
-			return;
-		}
-		expandedLinkId = linkId;
-		issueDetail = null;
+	async function loadIssueDetail(linkId: number) {
 		detailFetching = true;
+		issueDetail = null;
 		try {
 			issueDetail = await apiFetch<IssueDetailData>(
 				`/api/projects/${projectId}/issue-links/${linkId}/detail`
@@ -482,12 +476,23 @@
 			const link = issueLinks.find((l) => l.id === linkId);
 			if (link && issueDetail) {
 				link.status = issueDetail.state;
+				issueLinks = issueLinks; // trigger reactivity
 			}
 		} catch {
 			issueDetail = null;
 		} finally {
 			detailFetching = false;
 		}
+	}
+
+	async function toggleIssueDetail(linkId: number) {
+		if (expandedLinkId === linkId) {
+			expandedLinkId = null;
+			issueDetail = null;
+			return;
+		}
+		expandedLinkId = linkId;
+		await loadIssueDetail(linkId);
 	}
 
 	async function syncAllIssues() {
@@ -500,6 +505,9 @@
 			);
 			toast.success(`${result.synced} issue(s) synced`);
 			await loadIssueLinks(selectedTcId);
+			if (expandedLinkId) {
+				await loadIssueDetail(expandedLinkId);
+			}
 			onchange();
 		} catch {
 			// handled

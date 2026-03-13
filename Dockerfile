@@ -22,9 +22,8 @@ RUN DATABASE_URL="postgres://build:build@localhost:5432/build" \
     ORIGIN="http://localhost:3000" \
     pnpm build
 
-# Use pnpm deploy to create a minimal production-only node_modules
-# (more efficient than install + prune: copies only prod deps, no symlinks)
-RUN pnpm deploy --prod --filter=testmini /app/prod
+# Remove devDependencies for smaller runtime image
+RUN pnpm prune --prod
 
 # ---- Stage 3: Runtime ----
 FROM node:24-alpine AS runtime
@@ -36,8 +35,8 @@ RUN apk add --no-cache tini
 
 WORKDIR /app
 
-# Copy production-only dependencies (from pnpm deploy)
-COPY --from=build /app/prod/node_modules ./node_modules
+# Copy production-only dependencies
+COPY --from=build /app/node_modules ./node_modules
 
 # Copy build output (adapter-node)
 COPY --from=build /app/build ./build

@@ -1040,7 +1040,7 @@ export const projectWebhook = pgTable(
 	]
 );
 
-export const projectWebhookRelations = relations(projectWebhook, ({ one }) => ({
+export const projectWebhookRelations = relations(projectWebhook, ({ one, many }) => ({
 	project: one(project, {
 		fields: [projectWebhook.projectId],
 		references: [project.id]
@@ -1048,6 +1048,40 @@ export const projectWebhookRelations = relations(projectWebhook, ({ one }) => ({
 	creator: one(user, {
 		fields: [projectWebhook.createdBy],
 		references: [user.id]
+	}),
+	deliveryLogs: many(webhookDeliveryLog)
+}));
+
+// ── WebhookDeliveryLog ───────────────────────────────
+
+export const webhookDeliveryLog = pgTable(
+	'webhook_delivery_log',
+	{
+		id: serial('id').primaryKey(),
+		webhookId: integer('webhook_id')
+			.notNull()
+			.references(() => projectWebhook.id, { onDelete: 'cascade' }),
+		event: text('event').notNull(),
+		url: text('url').notNull(),
+		requestBody: text('request_body'),
+		statusCode: integer('status_code'),
+		responseBody: text('response_body'),
+		success: boolean('success').notNull(),
+		errorMessage: text('error_message'),
+		attempt: integer('attempt').notNull().default(1),
+		duration: integer('duration'),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		index('webhook_delivery_log_webhook_idx').on(table.webhookId),
+		index('webhook_delivery_log_created_idx').on(table.createdAt)
+	]
+);
+
+export const webhookDeliveryLogRelations = relations(webhookDeliveryLog, ({ one }) => ({
+	webhook: one(projectWebhook, {
+		fields: [webhookDeliveryLog.webhookId],
+		references: [projectWebhook.id]
 	})
 }));
 

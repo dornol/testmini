@@ -16,6 +16,20 @@ vi.mock('$lib/server/db/schema', () => ({
 		enabled: 'enabled',
 		createdBy: 'created_by',
 		createdAt: 'created_at'
+	},
+	webhookDeliveryLog: {
+		id: 'id',
+		webhookId: 'webhook_id',
+		event: 'event',
+		url: 'url',
+		requestBody: 'request_body',
+		statusCode: 'status_code',
+		responseBody: 'response_body',
+		success: 'success',
+		errorMessage: 'error_message',
+		attempt: 'attempt',
+		duration: 'duration',
+		createdAt: 'created_at'
 	}
 }));
 vi.mock('drizzle-orm', () => ({
@@ -26,7 +40,16 @@ vi.mock('$lib/server/logger', () => ({
 	childLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })
 }));
 
-const { sendProjectWebhooks } = await import('./webhooks');
+// Mock db.insert for delivery log writes
+const mockInsertValues = vi.fn().mockReturnValue({ returning: vi.fn().mockResolvedValue([]) });
+mockDb.insert = vi.fn().mockReturnValue({ values: mockInsertValues });
+
+const { sendProjectWebhooks, RETRY_DELAYS } = await import('./webhooks');
+
+// Zero out retry delays for fast tests
+RETRY_DELAYS[0] = 0;
+RETRY_DELAYS[1] = 0;
+RETRY_DELAYS[2] = 0;
 
 const sampleWebhook = {
 	id: 1,
@@ -47,6 +70,8 @@ describe('sendProjectWebhooks', () => {
 		vi.clearAllMocks();
 		fetchSpy = vi.fn().mockResolvedValue(new Response('ok', { status: 200 }));
 		vi.stubGlobal('fetch', fetchSpy);
+		// Re-setup insert mock after clearAllMocks
+		mockDb.insert = vi.fn().mockReturnValue({ values: vi.fn().mockResolvedValue([]) });
 	});
 
 	afterEach(() => {
@@ -144,22 +169,28 @@ describe('sendProjectWebhooks', () => {
 		expect(opts.headers['X-Webhook-Signature']).toBeUndefined();
 	});
 
-	it('should not throw when fetch fails (fire-and-forget)', async () => {
+	it('should not throw when fetch fails (fire-and-forget, retries exhausted)', async () => {
 		mockSelectResult(mockDb, [sampleWebhook]);
 		fetchSpy.mockRejectedValue(new Error('Network error'));
 
 		await expect(
 			sendProjectWebhooks(1, 'TEST_FAILED', { title: 'Fail', message: 'Failed' })
 		).resolves.toBeUndefined();
+
+		// 3 attempts (initial + 2 retries)
+		expect(fetchSpy).toHaveBeenCalledTimes(3);
 	});
 
-	it('should not throw when fetch returns non-ok response', async () => {
+	it('should not throw when fetch returns non-ok response (retries exhausted)', async () => {
 		mockSelectResult(mockDb, [sampleWebhook]);
 		fetchSpy.mockResolvedValue(new Response('Internal Server Error', { status: 500 }));
 
 		await expect(
 			sendProjectWebhooks(1, 'TEST_FAILED', { title: 'Fail', message: 'Failed' })
 		).resolves.toBeUndefined();
+
+		// 3 attempts
+		expect(fetchSpy).toHaveBeenCalledTimes(3);
 	});
 
 	it('should not throw when DB query fails', async () => {
@@ -200,6 +231,28 @@ describe('sendProjectWebhooks', () => {
 			}
 			return Promise.resolve(new Response('ok', { status: 200 }));
 		});
+
+		await sendProjectWebhooks(1, 'TEST_FAILED', { title: 'Fail', message: 'Failed' });
+
+		// hook1: 3 retries (all fail), hook2: 1 success = 4 total
+		expect(fetchSpy).toHaveBeenCalledTimes(4);
+	});
+
+	it('should log delivery to database', async () => {
+		mockSelectResult(mockDb, [sampleWebhook]);
+
+		await sendProjectWebhooks(1, 'TEST_RUN_COMPLETED', { title: 'Done', message: 'Done' });
+
+		expect(mockDb.insert).toHaveBeenCalled();
+	});
+
+	it('should stop retrying after first success', async () => {
+		mockSelectResult(mockDb, [sampleWebhook]);
+
+		// First call fails, second succeeds
+		fetchSpy
+			.mockRejectedValueOnce(new Error('Temporary'))
+			.mockResolvedValueOnce(new Response('ok', { status: 200 }));
 
 		await sendProjectWebhooks(1, 'TEST_FAILED', { title: 'Fail', message: 'Failed' });
 

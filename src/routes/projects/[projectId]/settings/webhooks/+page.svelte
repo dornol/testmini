@@ -5,8 +5,9 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { toast } from 'svelte-sonner';
-	import { apiPost, apiPatch, apiDelete } from '$lib/api-client';
+	import { apiFetch, apiPost, apiPatch, apiDelete } from '$lib/api-client';
 	import * as m from '$lib/paraglide/messages.js';
 
 	interface Webhook {
@@ -15,6 +16,17 @@
 		url: string;
 		events: string[];
 		enabled: boolean;
+		createdAt: string | Date;
+	}
+
+	interface DeliveryLog {
+		id: number;
+		event: string;
+		statusCode: number | null;
+		success: boolean;
+		errorMessage: string | null;
+		attempt: number;
+		duration: number | null;
 		createdAt: string | Date;
 	}
 
@@ -47,6 +59,11 @@
 
 	// Delete dialog
 	let deleteWebhook = $state<Webhook | null>(null);
+
+	// Delivery logs
+	let expandedWebhookId = $state<number | null>(null);
+	let deliveryLogs = $state<DeliveryLog[]>([]);
+	let loadingLogs = $state(false);
 
 	function eventLabel(event: string): string {
 		const labels: Record<string, () => string> = {
@@ -115,6 +132,7 @@
 		try {
 			await apiDelete(`/api/projects/${projectId}/webhooks/${id}`);
 			webhooks = webhooks.filter((w) => w.id !== id);
+			if (expandedWebhookId === id) expandedWebhookId = null;
 			toast.success(m.webhook_deleted());
 		} catch {
 			// handled
@@ -127,9 +145,45 @@
 		try {
 			await apiPost(`/api/projects/${projectId}/webhooks/${webhook.id}/test`, {});
 			toast.success(m.webhook_test_sent());
+			// Refresh logs if this webhook's logs are expanded
+			if (expandedWebhookId === webhook.id) {
+				await loadDeliveryLogs(webhook.id);
+			}
 		} catch {
 			// handled
 		}
+	}
+
+	async function toggleLogs(webhookId: number) {
+		if (expandedWebhookId === webhookId) {
+			expandedWebhookId = null;
+			return;
+		}
+		await loadDeliveryLogs(webhookId);
+	}
+
+	async function loadDeliveryLogs(webhookId: number) {
+		loadingLogs = true;
+		expandedWebhookId = webhookId;
+		try {
+			deliveryLogs = await apiFetch<DeliveryLog[]>(
+				`/api/projects/${projectId}/webhooks/${webhookId}/logs`
+			);
+		} catch {
+			deliveryLogs = [];
+		} finally {
+			loadingLogs = false;
+		}
+	}
+
+	function formatTime(date: string | Date): string {
+		return new Date(date).toLocaleString();
+	}
+
+	function formatDuration(ms: number | null): string {
+		if (ms === null) return '-';
+		if (ms < 1000) return `${ms}ms`;
+		return `${(ms / 1000).toFixed(1)}s`;
 	}
 </script>
 
@@ -137,6 +191,7 @@
 	<div>
 		<h3 class="text-lg font-semibold">{m.webhook_title()}</h3>
 		<p class="text-muted-foreground text-sm">{m.webhook_desc()}</p>
+		<p class="text-muted-foreground mt-1 text-xs">{m.webhook_logs_retry_info()}</p>
 	</div>
 
 	{#if !showCreateForm}
@@ -225,50 +280,99 @@
 			<Card.Content class="pt-6">
 				<div class="space-y-3">
 					{#each webhooks as webhook (webhook.id)}
-						<div
-							class="flex items-center justify-between gap-4 rounded-md border px-4 py-3 {webhook.enabled
-								? ''
-								: 'opacity-50'}"
-						>
-							<div class="min-w-0 flex-1">
-								<div class="flex items-center gap-2">
-									<p class="truncate text-sm font-medium">{webhook.name}</p>
-									{#if webhook.events.length > 0}
-										<span class="text-muted-foreground text-xs">
-											({webhook.events.length} events)
-										</span>
-									{:else}
-										<span class="text-muted-foreground text-xs">
-											({m.webhook_events_all()})
-										</span>
-									{/if}
+						<div class="rounded-md border {webhook.enabled ? '' : 'opacity-50'}">
+							<div class="flex items-center justify-between gap-4 px-4 py-3">
+								<div class="min-w-0 flex-1">
+									<div class="flex items-center gap-2">
+										<p class="truncate text-sm font-medium">{webhook.name}</p>
+										{#if webhook.events.length > 0}
+											<span class="text-muted-foreground text-xs">
+												({webhook.events.length} events)
+											</span>
+										{:else}
+											<span class="text-muted-foreground text-xs">
+												({m.webhook_events_all()})
+											</span>
+										{/if}
+									</div>
+									<p class="truncate text-xs text-muted-foreground">{webhook.url}</p>
 								</div>
-								<p class="truncate text-xs text-muted-foreground">{webhook.url}</p>
+
+								<div class="flex shrink-0 items-center gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={() => toggleLogs(webhook.id)}
+									>
+										{m.webhook_logs_show()}
+									</Button>
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={() => handleTest(webhook)}
+									>
+										{m.webhook_test()}
+									</Button>
+									<Button
+										variant={webhook.enabled ? 'default' : 'outline'}
+										size="sm"
+										onclick={() => handleToggleEnabled(webhook)}
+									>
+										{m.webhook_enabled()}
+									</Button>
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={() => (deleteWebhook = webhook)}
+									>
+										{m.common_delete()}
+									</Button>
+								</div>
 							</div>
 
-							<div class="flex shrink-0 items-center gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onclick={() => handleTest(webhook)}
-								>
-									{m.webhook_test()}
-								</Button>
-								<Button
-									variant={webhook.enabled ? 'default' : 'outline'}
-									size="sm"
-									onclick={() => handleToggleEnabled(webhook)}
-								>
-									{m.webhook_enabled()}
-								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									onclick={() => (deleteWebhook = webhook)}
-								>
-									{m.common_delete()}
-								</Button>
-							</div>
+							{#if expandedWebhookId === webhook.id}
+								<div class="border-t px-4 py-3">
+									<h4 class="mb-2 text-sm font-medium">{m.webhook_logs()}</h4>
+									{#if loadingLogs}
+										<p class="text-muted-foreground text-xs">...</p>
+									{:else if deliveryLogs.length === 0}
+										<p class="text-muted-foreground text-xs">{m.webhook_logs_empty()}</p>
+									{:else}
+										<div class="overflow-x-auto">
+											<table class="w-full text-xs">
+												<thead>
+													<tr class="text-muted-foreground border-b text-left">
+														<th class="pb-1.5 pr-3 font-medium">{m.webhook_logs_time()}</th>
+														<th class="pb-1.5 pr-3 font-medium">{m.webhook_logs_event()}</th>
+														<th class="pb-1.5 pr-3 font-medium">{m.webhook_logs_status()}</th>
+														<th class="pb-1.5 pr-3 font-medium">{m.webhook_logs_attempt()}</th>
+														<th class="pb-1.5 pr-3 font-medium">{m.webhook_logs_duration()}</th>
+														<th class="pb-1.5 font-medium">{m.webhook_logs_error()}</th>
+													</tr>
+												</thead>
+												<tbody>
+													{#each deliveryLogs as log (log.id)}
+														<tr class="border-b last:border-0">
+															<td class="whitespace-nowrap py-1.5 pr-3">{formatTime(log.createdAt)}</td>
+															<td class="py-1.5 pr-3">{eventLabel(log.event)}</td>
+															<td class="py-1.5 pr-3">
+																{#if log.success}
+																	<Badge variant="default" class="bg-green-600 text-xs">{log.statusCode ?? m.webhook_logs_success()}</Badge>
+																{:else}
+																	<Badge variant="destructive" class="text-xs">{log.statusCode ?? m.webhook_logs_failed()}</Badge>
+																{/if}
+															</td>
+															<td class="py-1.5 pr-3">{log.attempt}/3</td>
+															<td class="py-1.5 pr-3">{formatDuration(log.duration)}</td>
+															<td class="text-destructive max-w-[200px] truncate py-1.5">{log.errorMessage ?? '-'}</td>
+														</tr>
+													{/each}
+												</tbody>
+											</table>
+										</div>
+									{/if}
+								</div>
+							{/if}
 						</div>
 					{/each}
 				</div>

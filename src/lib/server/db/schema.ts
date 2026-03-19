@@ -157,7 +157,11 @@ export const testCaseGroup = pgTable(
 		createdBy: text('created_by')
 			.notNull()
 			.references(() => user.id),
-		createdAt: timestamp('created_at').defaultNow().notNull()
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at')
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull()
 	},
 	(table) => [
 		unique('test_case_group_project_name_unique').on(table.projectId, table.name),
@@ -195,7 +199,11 @@ export const testCase = pgTable(
 		createdBy: text('created_by')
 			.notNull()
 			.references(() => user.id),
-		createdAt: timestamp('created_at').defaultNow().notNull()
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at')
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull()
 	},
 	(table) => [
 		index('test_case_project_idx').on(table.projectId),
@@ -384,7 +392,7 @@ export const testExecution = pgTable(
 			.references(() => testRun.id, { onDelete: 'cascade' }),
 		testCaseVersionId: integer('test_case_version_id')
 			.notNull()
-			.references(() => testCaseVersion.id),
+			.references(() => testCaseVersion.id, { onDelete: 'cascade' }),
 		status: executionStatusEnum('status').default('PENDING').notNull(),
 		comment: text('comment'),
 		dataSetId: integer('data_set_id').references(() => testCaseDataSet.id, { onDelete: 'set null' }),
@@ -399,7 +407,8 @@ export const testExecution = pgTable(
 		index('test_execution_case_version_idx').on(table.testCaseVersionId),
 		index('test_execution_executed_by_idx').on(table.executedBy),
 		index('test_execution_executed_at_idx').on(table.executedAt),
-		index('test_execution_version_id_desc_idx').on(table.testCaseVersionId, table.id)
+		index('test_execution_version_id_desc_idx').on(table.testCaseVersionId, table.id),
+		index('test_execution_data_set_idx').on(table.dataSetId)
 	]
 );
 
@@ -1002,6 +1011,7 @@ export const projectApiKey = pgTable(
 	(table) => [
 		unique('project_api_key_hash_unique').on(table.keyHash),
 		index('project_api_key_project_idx').on(table.projectId),
+		index('project_api_key_prefix_idx').on(table.prefix),
 		index('project_api_key_hash_idx').on(table.keyHash)
 	]
 );
@@ -1762,13 +1772,17 @@ export const module = pgTable(
 			.notNull()
 			.references(() => project.id, { onDelete: 'cascade' }),
 		name: text('name').notNull(),
-		parentModuleId: integer('parent_module_id'),
+		parentModuleId: integer('parent_module_id').references(() => module.id, { onDelete: 'set null' }),
 		description: text('description'),
 		sortOrder: integer('sort_order').notNull().default(0),
 		createdBy: text('created_by')
 			.notNull()
 			.references(() => user.id),
-		createdAt: timestamp('created_at').defaultNow().notNull()
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at')
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull()
 	},
 	(table) => [index('module_project_idx').on(table.projectId)]
 );

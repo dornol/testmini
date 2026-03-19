@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { badRequest } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { issueLink, issueTrackerConfig } from '$lib/server/db/schema';
@@ -41,18 +41,13 @@ export const GET = withProjectAccess(async ({ url, projectId }) => {
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ request, user, projectId }) => {
-		let body: {
+		const body = await parseJsonBody(request) as {
 			testCaseId?: number;
 			testExecutionId?: number;
 			externalUrl?: string;
 			externalKey?: string;
 			title?: string;
 		};
-		try {
-			body = await parseJsonBody(request) as typeof body;
-		} catch {
-			error(400, 'Invalid request body');
-		}
 
 		const externalUrl = (body.externalUrl ?? '').trim();
 		if (!externalUrl) {

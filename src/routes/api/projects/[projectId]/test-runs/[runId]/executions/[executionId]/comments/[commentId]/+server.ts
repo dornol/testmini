@@ -3,7 +3,7 @@ import { db } from '$lib/server/db';
 import { executionComment } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { parseJsonBody, requireAuth } from '$lib/server/auth-utils';
-import { badRequest } from '$lib/server/errors';
+import { validateCommentContent } from '$lib/server/crud-helpers';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export async function PATCH(event: RequestEvent) {
@@ -22,18 +22,15 @@ export async function PATCH(event: RequestEvent) {
 	}
 
 	const body = await parseJsonBody(event.request);
-	const { content } = body as { content?: string };
+	const { content: rawContent } = body as { content?: string };
 
-	if (!content || typeof content !== 'string' || content.trim().length === 0) {
-		return badRequest('Content is required');
-	}
-	if (content.trim().length > 10000) {
-		return badRequest('Content is too long (max 10000 characters)');
-	}
+	const contentOrError = validateCommentContent(rawContent);
+	if (contentOrError instanceof Response) return contentOrError;
+	const content = contentOrError;
 
 	const [updated] = await db
 		.update(executionComment)
-		.set({ content: content.trim() })
+		.set({ content })
 		.where(eq(executionComment.id, commentId))
 		.returning();
 

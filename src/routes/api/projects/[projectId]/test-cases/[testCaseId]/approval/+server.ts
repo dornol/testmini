@@ -3,9 +3,10 @@ import { db } from '$lib/server/db';
 import { testCase, approvalHistory, projectMember } from '$lib/server/db/schema';
 import { user as userTable } from '$lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
-import { badRequest, forbidden, notFound } from '$lib/server/errors';
+import { requireTestCase } from '$lib/server/queries';
+import { badRequest, forbidden } from '$lib/server/errors';
 import { createNotification } from '$lib/server/notifications';
 
 const VALID_TRANSITIONS: Record<string, { from: string[]; to: string }> = {
@@ -16,15 +17,8 @@ const VALID_TRANSITIONS: Record<string, { from: string[]; to: string }> = {
 };
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
-	const testCaseId = Number(params.testCaseId);
-
-	const tc = await db.query.testCase.findFirst({
-		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
-	});
-
-	if (!tc) {
-		error(404, 'Test case not found');
-	}
+	const testCaseId = parseId(params.testCaseId, 'test case ID');
+	const tc = await requireTestCase(testCaseId, projectId);
 
 	const history = await db
 		.select({
@@ -50,7 +44,7 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ params, request, user, projectId }) => {
-		const testCaseId = Number(params.testCaseId);
+		const testCaseId = parseId(params.testCaseId, 'test case ID');
 
 		const body = await parseJsonBody(request);
 		const { action, comment } = body as { action: string; comment?: string };
@@ -61,13 +55,7 @@ export const POST = withProjectRole(
 
 		const transition = VALID_TRANSITIONS[action];
 
-		const tc = await db.query.testCase.findFirst({
-			where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
-		});
-
-		if (!tc) {
-			return notFound('Test case not found');
-		}
+		const tc = await requireTestCase(testCaseId, projectId);
 
 		// Validate current status allows this transition
 		if (!transition.from.includes(tc.approvalStatus)) {

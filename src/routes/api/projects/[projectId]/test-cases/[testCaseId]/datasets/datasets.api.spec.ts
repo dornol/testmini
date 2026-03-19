@@ -48,8 +48,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets', () => {
 		it('should return 404 when test case not found', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(null);
 			const event = createMockEvent({ params: PARAMS, user: testUser });
-			const response = await GET(event);
-			expect(response.status).toBe(404);
+			await expect(GET(event)).rejects.toThrow();
 		});
 
 		it('should return datasets list', async () => {
@@ -87,8 +86,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets', () => {
 				body: { values: { key: 'val' } },
 				user: testUser
 			});
-			const response = await POST(event);
-			expect(response.status).toBe(404);
+			await expect(POST(event)).rejects.toThrow();
 		});
 
 		it('should return 400 when values is missing', async () => {

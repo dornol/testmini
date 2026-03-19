@@ -3,12 +3,11 @@ import { fail, redirect, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { oidcProvider, oidcAccount } from '$lib/server/db/schema';
 import { eq, and, ne, count } from 'drizzle-orm';
-import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
+import { requireAuth, isGlobalAdmin, parseId } from '$lib/server/auth-utils';
 import { encrypt } from '$lib/server/crypto';
 
 export const load: PageServerLoad = async ({ params }) => {
-	const providerId = Number(params.providerId);
-	if (isNaN(providerId)) error(400, 'Invalid provider ID');
+	const providerId = parseId(params.providerId, 'provider ID');
 
 	const [provider] = await db
 		.select({

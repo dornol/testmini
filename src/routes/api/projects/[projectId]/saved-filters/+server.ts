@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { savedFilter } from '$lib/server/db/schema';
 import { and, eq, asc } from 'drizzle-orm';
@@ -25,12 +25,7 @@ export const GET = withProjectAccess(async ({ user, projectId, url }) => {
 });
 
 export const POST = withProjectAccess(async ({ request, user, projectId }) => {
-	let body: { name?: string; filterType?: string; filters?: Record<string, unknown> };
-	try {
-		body = await parseJsonBody(request) as typeof body;
-	} catch {
-		error(400, 'Invalid JSON');
-	}
+	const body = await parseJsonBody(request) as { name?: string; filterType?: string; filters?: Record<string, unknown> };
 
 	const name = (body.name ?? '').trim();
 	if (!name) return badRequest('Name is required');

@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { badRequest } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { projectApiKey } from '$lib/server/db/schema';
@@ -26,13 +26,7 @@ export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'], asy
 });
 
 export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, projectId }) => {
-
-	let body: { name?: string };
-	try {
-		body = await parseJsonBody(request) as typeof body;
-	} catch {
-		error(400, 'Invalid request body');
-	}
+	const body = await parseJsonBody(request) as { name?: string };
 
 	const name = (body.name ?? '').trim();
 	if (!name) {

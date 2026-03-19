@@ -16,12 +16,7 @@ export const PATCH = withProjectRole(
 		});
 		if (!existing) error(404, 'Issue link not found');
 
-		let body: { title?: string; status?: string };
-		try {
-			body = await parseJsonBody(request) as typeof body;
-		} catch {
-			error(400, 'Invalid request body');
-		}
+		const body = await parseJsonBody(request) as { title?: string; status?: string };
 
 		const updates: Record<string, unknown> = {};
 

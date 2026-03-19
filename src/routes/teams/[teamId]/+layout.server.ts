@@ -3,15 +3,11 @@ import { error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { team, teamMember } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
+import { requireAuth, isGlobalAdmin, parseId } from '$lib/server/auth-utils';
 
 export const load: LayoutServerLoad = async ({ locals, params }) => {
 	const user = requireAuth(locals);
-	const teamId = Number(params.teamId);
-
-	if (isNaN(teamId)) {
-		error(400, 'Invalid team ID');
-	}
+	const teamId = parseId(params.teamId, 'team ID');
 
 	const teamData = await db.query.team.findFirst({
 		where: eq(team.id, teamId)

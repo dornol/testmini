@@ -3,16 +3,12 @@ import { redirect, error } from '@sveltejs/kit';
 import { db, col } from '$lib/server/db';
 import { project, projectMember } from '$lib/server/db/schema';
 import { eq, and, count, sql } from 'drizzle-orm';
-import { requireAuth, requireProjectAccess } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectAccess, parseId } from '$lib/server/auth-utils';
 import { loadProjectPriorities, loadProjectEnvironments } from '$lib/server/queries';
 
 export const load: LayoutServerLoad = async ({ locals, params }) => {
 	const user = requireAuth(locals);
-	const projectId = Number(params.projectId);
-
-	if (isNaN(projectId)) {
-		error(400, 'Invalid project ID');
-	}
+	const projectId = parseId(params.projectId, 'project ID');
 
 	const { role: userRole } = await requireProjectAccess(user, projectId);
 

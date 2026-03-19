@@ -1,9 +1,10 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testCase, testCaseComment, testCaseAssignee, projectMember, user as userTable } from '$lib/server/db/schema';
+import { testCaseComment, testCaseAssignee, projectMember, user as userTable } from '$lib/server/db/schema';
 import { eq, and, asc, isNull } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
+import { requireTestCase } from '$lib/server/queries';
 import { badRequest } from '$lib/server/errors';
 import { createNotification } from '$lib/server/notifications';
 import { validateCommentContent } from '$lib/server/crud-helpers';
@@ -16,20 +17,8 @@ function extractMentions(content: string): string[] {
 }
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
-	const testCaseId = Number(params.testCaseId);
-
-	if (isNaN(projectId) || isNaN(testCaseId)) {
-		error(400, 'Invalid parameters');
-	}
-
-	// Verify test case belongs to project
-	const tc = await db.query.testCase.findFirst({
-		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
-	});
-
-	if (!tc) {
-		error(404, 'Test case not found');
-	}
+	const testCaseId = parseId(params.testCaseId, 'test case ID');
+	await requireTestCase(testCaseId, projectId);
 
 	const comments = await db
 		.select({
@@ -53,16 +42,8 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 });
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, user, projectId }) => {
-	const testCaseId = Number(params.testCaseId);
-
-	// Verify test case belongs to project
-	const tc = await db.query.testCase.findFirst({
-		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
-	});
-
-	if (!tc) {
-		error(404, 'Test case not found');
-	}
+	const testCaseId = parseId(params.testCaseId, 'test case ID');
+	const tc = await requireTestCase(testCaseId, projectId);
 
 	const body = await parseJsonBody(request);
 	const { content: rawContent, parentId } = body as { content?: string; parentId?: number };

@@ -1,7 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testRun } from '$lib/server/db/schema';
-import { eq, and, type SQL, type Table } from 'drizzle-orm';
+import { eq, and, type Column } from 'drizzle-orm';
+import type { AnyPgTable } from 'drizzle-orm/pg-core';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { badRequest } from '$lib/server/errors';
 
@@ -9,15 +10,14 @@ import { badRequest } from '$lib/server/errors';
  * Find a project-scoped resource by ID, or throw 404.
  */
 export async function findOrFail(
-	table: Table,
-	idCol: SQL,
-	projectIdCol: SQL,
+	table: AnyPgTable,
+	idCol: Column,
+	projectIdCol: Column,
 	resourceId: number,
 	projectId: number,
 	label: string
 ) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const result = await (db.select().from(table as any) as any)
+	const result = await db.select().from(table)
 		.where(and(eq(idCol, resourceId), eq(projectIdCol, projectId)))
 		.limit(1);
 
@@ -79,16 +79,15 @@ export function validateCommentContent(content: unknown): string | Response {
  * Standard delete handler: verify existence then delete.
  */
 export async function deleteResource(
-	table: Table,
-	idCol: SQL,
-	projectIdCol: SQL,
+	table: AnyPgTable,
+	idCol: Column,
+	projectIdCol: Column,
 	resourceId: number,
 	projectId: number,
 	label: string
 ): Promise<Response> {
 	await findOrFail(table, idCol, projectIdCol, resourceId, projectId, label);
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	await (db.delete(table as any) as any).where(and(eq(idCol, resourceId), eq(projectIdCol, projectId)));
+	await db.delete(table).where(and(eq(idCol, resourceId), eq(projectIdCol, projectId)));
 	return json({ success: true });
 }
 

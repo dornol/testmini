@@ -6,9 +6,6 @@ import {
 	testCaseVersion,
 	testCaseGroup,
 	user,
-	tag,
-	testCaseTag,
-	testCaseAssignee,
 	testRun,
 	testExecution,
 	projectMember,
@@ -21,70 +18,8 @@ import {
 } from '$lib/server/db/schema';
 import { eq, and, desc, asc, sql, inArray } from 'drizzle-orm';
 import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
-import { loadProjectTags } from '$lib/server/queries';
+import { loadProjectTags, loadBatchTags, loadBatchAssignees } from '$lib/server/queries';
 import { buildTestCaseConditions } from '$lib/server/test-case-filters';
-
-async function loadBatchTags(
-	projectId: number,
-	tcIds: Set<number>
-): Promise<Record<number, { id: number; name: string; color: string }[]>> {
-	const tagsByTestCase: Record<number, { id: number; name: string; color: string }[]> = {};
-	if (tcIds.size === 0) return tagsByTestCase;
-
-	const tcTags = await db
-		.select({
-			testCaseId: testCaseTag.testCaseId,
-			tagId: tag.id,
-			tagName: tag.name,
-			tagColor: tag.color
-		})
-		.from(testCaseTag)
-		.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
-		.where(eq(tag.projectId, projectId))
-		.orderBy(tag.name);
-
-	for (const row of tcTags) {
-		if (!tcIds.has(row.testCaseId)) continue;
-		if (!tagsByTestCase[row.testCaseId]) {
-			tagsByTestCase[row.testCaseId] = [];
-		}
-		tagsByTestCase[row.testCaseId].push({
-			id: row.tagId,
-			name: row.tagName,
-			color: row.tagColor
-		});
-	}
-	return tagsByTestCase;
-}
-
-async function loadBatchAssignees(
-	tcIds: Set<number>
-): Promise<Record<number, { userId: string; userName: string }[]>> {
-	const assigneesByTestCase: Record<number, { userId: string; userName: string }[]> = {};
-	if (tcIds.size === 0) return assigneesByTestCase;
-
-	const tcAssignees = await db
-		.select({
-			testCaseId: testCaseAssignee.testCaseId,
-			userId: testCaseAssignee.userId,
-			userName: user.name
-		})
-		.from(testCaseAssignee)
-		.innerJoin(user, eq(testCaseAssignee.userId, user.id))
-		.orderBy(user.name);
-
-	for (const row of tcAssignees) {
-		if (!tcIds.has(row.testCaseId)) continue;
-		if (!assigneesByTestCase[row.testCaseId]) {
-			assigneesByTestCase[row.testCaseId] = [];
-		}
-		assigneesByTestCase[row.testCaseId].push({
-			userId: row.userId,
-			userName: row.userName
-		});
-	}
-	return assigneesByTestCase;
-}
 
 async function loadExecutionMap(
 	selectedRunIds: number[],

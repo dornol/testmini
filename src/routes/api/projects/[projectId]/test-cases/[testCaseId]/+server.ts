@@ -2,13 +2,13 @@ import { json, error } from '@sveltejs/kit';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
 import { testCase, testCaseVersion, user, customField } from '$lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
-import { loadTestCaseMetadata } from '$lib/server/queries';
+import { loadTestCaseMetadata, requireTestCase } from '$lib/server/queries';
 import { badRequest, conflict } from '$lib/server/errors';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
-	const testCaseId = Number(params.testCaseId);
+	const testCaseId = parseId(params.testCaseId, 'test case ID');
 
 	const tc = await findTestCaseWithLatestVersion(testCaseId, projectId);
 
@@ -51,7 +51,7 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 });
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, user, projectId }) => {
-	const testCaseId = Number(params.testCaseId);
+	const testCaseId = parseId(params.testCaseId, 'test case ID');
 
 	const body = await parseJsonBody(request);
 	const { key, title, priority, automationKey, customFields } = body as {
@@ -156,7 +156,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ pa
 });
 
 export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, user, projectId }) => {
-	const testCaseId = Number(params.testCaseId);
+	const testCaseId = parseId(params.testCaseId, 'test case ID');
 
 	const body = await parseJsonBody(request);
 	const { title, precondition, steps, expectedResult, priority, revision, stepFormat } = body as {
@@ -223,15 +223,8 @@ export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ para
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
-	const testCaseId = Number(params.testCaseId);
-
-	const tc = await db.query.testCase.findFirst({
-		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
-	});
-
-	if (!tc) {
-		error(404, 'Test case not found');
-	}
+	const testCaseId = parseId(params.testCaseId, 'test case ID');
+	await requireTestCase(testCaseId, projectId);
 
 	await db.delete(testCase).where(eq(testCase.id, testCaseId));
 

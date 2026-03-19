@@ -1,6 +1,7 @@
+import { error } from '@sveltejs/kit';
 import { db } from './db';
-import { tag, testCaseTag, testCaseAssignee, projectMember, user, priorityConfig, environmentConfig, team, teamMember } from './db/schema';
-import { eq, asc } from 'drizzle-orm';
+import { tag, testCaseTag, testCaseAssignee, projectMember, user, priorityConfig, environmentConfig, team, teamMember, testCase } from './db/schema';
+import { eq, and, asc, sql } from 'drizzle-orm';
 import { cacheGet, cacheSet } from './cache';
 
 /** Load tags assigned to a specific test case */
@@ -163,6 +164,70 @@ export async function loadUserTeams(userId: string) {
 		.orderBy(asc(team.name));
 }
 
+/** Load tags for a batch of test cases in a project */
+export async function loadBatchTags(
+	projectId: number,
+	tcIds: Set<number>
+): Promise<Record<number, { id: number; name: string; color: string }[]>> {
+	const tagsByTestCase: Record<number, { id: number; name: string; color: string }[]> = {};
+	if (tcIds.size === 0) return tagsByTestCase;
+
+	const tcTags = await db
+		.select({
+			testCaseId: testCaseTag.testCaseId,
+			tagId: tag.id,
+			tagName: tag.name,
+			tagColor: tag.color
+		})
+		.from(testCaseTag)
+		.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
+		.where(eq(tag.projectId, projectId))
+		.orderBy(tag.name);
+
+	for (const row of tcTags) {
+		if (!tcIds.has(row.testCaseId)) continue;
+		if (!tagsByTestCase[row.testCaseId]) {
+			tagsByTestCase[row.testCaseId] = [];
+		}
+		tagsByTestCase[row.testCaseId].push({
+			id: row.tagId,
+			name: row.tagName,
+			color: row.tagColor
+		});
+	}
+	return tagsByTestCase;
+}
+
+/** Load assignees for a batch of test cases */
+export async function loadBatchAssignees(
+	tcIds: Set<number>
+): Promise<Record<number, { userId: string; userName: string }[]>> {
+	const assigneesByTestCase: Record<number, { userId: string; userName: string }[]> = {};
+	if (tcIds.size === 0) return assigneesByTestCase;
+
+	const tcAssignees = await db
+		.select({
+			testCaseId: testCaseAssignee.testCaseId,
+			userId: testCaseAssignee.userId,
+			userName: user.name
+		})
+		.from(testCaseAssignee)
+		.innerJoin(user, eq(testCaseAssignee.userId, user.id))
+		.orderBy(user.name);
+
+	for (const row of tcAssignees) {
+		if (!tcIds.has(row.testCaseId)) continue;
+		if (!assigneesByTestCase[row.testCaseId]) {
+			assigneesByTestCase[row.testCaseId] = [];
+		}
+		assigneesByTestCase[row.testCaseId].push({
+			userId: row.userId,
+			userName: row.userName
+		});
+	}
+	return assigneesByTestCase;
+}
+
 /** Load all metadata for a test case detail view (tags, assignees, project tags, project members) */
 export async function loadTestCaseMetadata(testCaseId: number, projectId: number) {
 	const [assignedTags, projectTags, assignedAssignees, projectMembers] = await Promise.all([
@@ -172,4 +237,44 @@ export async function loadTestCaseMetadata(testCaseId: number, projectId: number
 		loadProjectMembers(projectId)
 	]);
 	return { assignedTags, projectTags, assignedAssignees, projectMembers };
+}
+
+/**
+ * Batch-fetch the latest execution status for a set of test case IDs within a project.
+ * Returns a Map from testCaseId to status string (e.g. 'PASS', 'FAIL').
+ */
+export async function loadLatestTestCaseExecutionMap(
+	projectId: number,
+	testCaseIds: number[]
+): Promise<Map<number, string>> {
+	const map = new Map<number, string>();
+	if (testCaseIds.length === 0) return map;
+
+	const latestExecs = await db.execute<{ test_case_id: number; status: string }>(sql`
+		SELECT DISTINCT ON (tcv.test_case_id)
+			tcv.test_case_id, te.status
+		FROM test_execution te
+		JOIN test_case_version tcv ON te.test_case_version_id = tcv.id
+		JOIN test_run tr ON te.test_run_id = tr.id
+		WHERE tr.project_id = ${projectId}
+			AND tcv.test_case_id IN ${sql`(${sql.join(testCaseIds.map(id => sql`${id}`), sql`, `)})`}
+		ORDER BY tcv.test_case_id, te.id DESC
+	`);
+	for (const row of latestExecs) {
+		map.set(row.test_case_id, row.status);
+	}
+	return map;
+}
+
+/**
+ * Look up a test case scoped to a project, throwing 404 if not found.
+ */
+export async function requireTestCase(testCaseId: number, projectId: number) {
+	const tc = await db.query.testCase.findFirst({
+		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
+	});
+	if (!tc) {
+		error(404, 'Test case not found');
+	}
+	return tc;
 }

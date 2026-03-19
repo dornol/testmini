@@ -22,12 +22,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params
 	});
 	if (!existing) error(404, 'Webhook not found');
 
-	let body: { name?: string; url?: string; secret?: string; events?: string[]; enabled?: boolean };
-	try {
-		body = await parseJsonBody(request) as typeof body;
-	} catch {
-		error(400, 'Invalid request body');
-	}
+	const body = await parseJsonBody(request) as { name?: string; url?: string; secret?: string; events?: string[]; enabled?: boolean };
 
 	const updates: Record<string, unknown> = {};
 

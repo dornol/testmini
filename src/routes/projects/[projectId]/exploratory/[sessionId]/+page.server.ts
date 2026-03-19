@@ -3,13 +3,12 @@ import { db } from '$lib/server/db';
 import { exploratorySession, sessionNote, user } from '$lib/server/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
+import { parseId } from '$lib/server/auth-utils';
 
 export const load: PageServerLoad = async ({ params, parent }) => {
 	await parent();
 	const projectId = Number(params.projectId);
-	const sessionId = Number(params.sessionId);
-
-	if (isNaN(sessionId)) error(400, 'Invalid session ID');
+	const sessionId = parseId(params.sessionId, 'session ID');
 
 	let session;
 	try {

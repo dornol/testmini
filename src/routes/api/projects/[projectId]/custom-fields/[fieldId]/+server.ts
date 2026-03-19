@@ -3,11 +3,10 @@ import { db } from '$lib/server/db';
 import { customField } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ params, request, projectId }) => {
-	const fieldId = Number(params.fieldId);
-	if (isNaN(fieldId)) error(400, 'Invalid field ID');
+	const fieldId = parseId(params.fieldId, 'field ID');
 
 	const existing = await db.query.customField.findFirst({
 		where: and(eq(customField.id, fieldId), eq(customField.projectId, projectId))
@@ -41,8 +40,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ params, request
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
-	const fieldId = Number(params.fieldId);
-	if (isNaN(fieldId)) error(400, 'Invalid field ID');
+	const fieldId = parseId(params.fieldId, 'field ID');
 
 	const existing = await db.query.customField.findFirst({
 		where: and(eq(customField.id, fieldId), eq(customField.projectId, projectId))

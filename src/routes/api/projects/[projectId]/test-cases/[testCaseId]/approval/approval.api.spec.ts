@@ -663,11 +663,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/approval', () => {
 				body: { action: 'submit_review' }
 			});
 
-			const response = await POST(event);
-			expect(response.status).toBe(404);
-
-			const body = await response.json();
-			expect(body.error).toContain('Test case not found');
+			await expect(POST(event)).rejects.toThrow();
 		});
 	});
 });

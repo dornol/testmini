@@ -23,12 +23,7 @@ export const PATCH = withProjectAccess(async ({ request, user, projectId, params
 	const existing = await findOwnedFilter(user.id, projectId, filterId);
 	if (!existing) return notFound('Saved filter not found');
 
-	let body: { name?: string; filters?: Record<string, unknown> };
-	try {
-		body = await parseJsonBody(request) as typeof body;
-	} catch {
-		error(400, 'Invalid JSON');
-	}
+	const body = await parseJsonBody(request) as { name?: string; filters?: Record<string, unknown> };
 
 	const updates: Record<string, unknown> = {};
 

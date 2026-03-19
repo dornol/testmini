@@ -1,9 +1,11 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testCase, testCaseParameter, testCaseDataSet } from '$lib/server/db/schema';
-import { eq, and, asc } from 'drizzle-orm';
+import { testCaseParameter, testCaseDataSet } from '$lib/server/db/schema';
+import { eq, asc } from 'drizzle-orm';
+import { parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
-import { badRequest, notFound } from '$lib/server/errors';
+import { requireTestCase } from '$lib/server/queries';
+import { badRequest } from '$lib/server/errors';
 
 function parseCsvLine(line: string): string[] {
 	const result: string[] = [];
@@ -36,12 +38,8 @@ function parseCsvLine(line: string): string[] {
 }
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, projectId }) => {
-	const testCaseId = Number(params.testCaseId);
-
-	const tc = await db.query.testCase.findFirst({
-		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
-	});
-	if (!tc) return notFound('Test case not found');
+	const testCaseId = parseId(params.testCaseId, 'test case ID');
+	await requireTestCase(testCaseId, projectId);
 
 	const formData = await request.formData();
 	const file = formData.get('file') as File | null;

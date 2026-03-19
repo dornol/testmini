@@ -59,6 +59,17 @@ export async function requireProjectRole(
 	return { role: member.role };
 }
 
+/**
+ * Parse a route param as a numeric ID, throwing 400 if invalid.
+ */
+export function parseId(raw: string | undefined, label: string): number {
+	const id = Number(raw);
+	if (!Number.isFinite(id)) {
+		error(400, `Invalid ${label}`);
+	}
+	return id;
+}
+
 const MAX_JSON_BODY_SIZE = 1024 * 1024; // 1MB
 
 export async function parseJsonBody(request: Request): Promise<unknown> {

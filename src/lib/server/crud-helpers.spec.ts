@@ -44,15 +44,16 @@ vi.mock('$lib/server/db', async () => {
 import { db } from '$lib/server/db';
 import { findOrFail, parseAndValidate, buildUpdates, deleteResource } from './crud-helpers';
 import { mockSelectResult } from './test-helpers/mock-db';
-import type { SQL, Table } from 'drizzle-orm';
+import type { Column } from 'drizzle-orm';
+import type { AnyPgTable } from 'drizzle-orm/pg-core';
 
 // Cast the mocked db for use with test helpers
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockDb = db as any;
 
-const fakeTable = {} as Table;
-const fakeIdCol = {} as SQL;
-const fakeProjectIdCol = {} as SQL;
+const fakeTable = {} as AnyPgTable;
+const fakeIdCol = {} as Column;
+const fakeProjectIdCol = {} as Column;
 
 // ── findOrFail ───────────────────────────────────────
 describe('findOrFail', () => {

@@ -1,11 +1,13 @@
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testCase, testCaseVersion, user } from '$lib/server/db/schema';
+import { testCaseVersion, user } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { parseId } from '$lib/server/auth-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
+import { requireTestCase } from '$lib/server/queries';
 
 export const GET = withProjectAccess(async ({ params, url, projectId }) => {
-	const testCaseId = Number(params.testCaseId);
+	const testCaseId = parseId(params.testCaseId, 'test case ID');
 
 	const v1 = Number(url.searchParams.get('v1'));
 	const v2 = Number(url.searchParams.get('v2'));
@@ -14,11 +16,7 @@ export const GET = withProjectAccess(async ({ params, url, projectId }) => {
 		error(400, 'Provide two different version numbers v1 and v2');
 	}
 
-	// Verify test case belongs to project
-	const tc = await db.query.testCase.findFirst({
-		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
-	});
-	if (!tc) error(404, 'Test case not found');
+	await requireTestCase(testCaseId, projectId);
 
 	const [ver1Row] = await db
 		.select({

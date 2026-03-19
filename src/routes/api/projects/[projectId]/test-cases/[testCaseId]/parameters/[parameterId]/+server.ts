@@ -1,19 +1,16 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testCase, testCaseParameter } from '$lib/server/db/schema';
+import { testCaseParameter } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
+import { requireTestCase } from '$lib/server/queries';
 import { badRequest, notFound } from '$lib/server/errors';
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, projectId }) => {
-	const testCaseId = Number(params.testCaseId);
-	const parameterId = Number(params.parameterId);
-
-	const tc = await db.query.testCase.findFirst({
-		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
-	});
-	if (!tc) return notFound('Test case not found');
+	const testCaseId = parseId(params.testCaseId, 'test case ID');
+	const parameterId = parseId(params.parameterId, 'parameter ID');
+	await requireTestCase(testCaseId, projectId);
 
 	const param = await db.query.testCaseParameter.findFirst({
 		where: and(eq(testCaseParameter.id, parameterId), eq(testCaseParameter.testCaseId, testCaseId))
@@ -46,13 +43,9 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ pa
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, projectId }) => {
-	const testCaseId = Number(params.testCaseId);
-	const parameterId = Number(params.parameterId);
-
-	const tc = await db.query.testCase.findFirst({
-		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
-	});
-	if (!tc) return notFound('Test case not found');
+	const testCaseId = parseId(params.testCaseId, 'test case ID');
+	const parameterId = parseId(params.parameterId, 'parameter ID');
+	await requireTestCase(testCaseId, projectId);
 
 	const param = await db.query.testCaseParameter.findFirst({
 		where: and(eq(testCaseParameter.id, parameterId), eq(testCaseParameter.testCaseId, testCaseId))

@@ -2,10 +2,11 @@ import { json, error } from '@sveltejs/kit';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
 import { testCase, testCaseVersion, testCaseTag } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
+import { parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, user, projectId }) => {
-	const testCaseId = Number(params.testCaseId);
+	const testCaseId = parseId(params.testCaseId, 'test case ID');
 
 	const tc = await findTestCaseWithLatestVersion(testCaseId, projectId);
 

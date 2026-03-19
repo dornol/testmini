@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { attachment, testCase, testExecution, testFailureDetail } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { requireProjectAccess } from '$lib/server/auth-utils';
+import { requireProjectAccess, parseId } from '$lib/server/auth-utils';
 import { withAuth } from '$lib/server/api-handler';
 import { getFile, deleteFile } from '$lib/server/storage';
 
@@ -42,11 +42,7 @@ async function getProjectIdForAttachment(record: { referenceType: string; refere
 }
 
 export const GET = withAuth(async ({ params, user }) => {
-
-	const attachmentId = Number(params.attachmentId);
-	if (isNaN(attachmentId)) {
-		error(400, 'Invalid attachment ID');
-	}
+	const attachmentId = parseId(params.attachmentId, 'attachment ID');
 
 	const record = await db.query.attachment.findFirst({
 		where: eq(attachment.id, attachmentId)
@@ -72,11 +68,7 @@ export const GET = withAuth(async ({ params, user }) => {
 });
 
 export const DELETE = withAuth(async ({ params, user }) => {
-
-	const attachmentId = Number(params.attachmentId);
-	if (isNaN(attachmentId)) {
-		error(400, 'Invalid attachment ID');
-	}
+	const attachmentId = parseId(params.attachmentId, 'attachment ID');
 
 	const record = await db.query.attachment.findFirst({
 		where: eq(attachment.id, attachmentId)

@@ -10,16 +10,13 @@ import {
 } from '$lib/server/db/schema';
 import { eq, and, gt, inArray } from 'drizzle-orm';
 import { formatCsvRow } from '$lib/server/csv-utils';
+import { parseId } from '$lib/server/auth-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
 
 const BATCH_SIZE = 100;
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
-	const runId = Number(params.runId);
-
-	if (isNaN(runId)) {
-		error(400, 'Invalid run ID');
-	}
+	const runId = parseId(params.runId, 'run ID');
 
 	const run = await db.query.testRun.findFirst({
 		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))

@@ -8,6 +8,7 @@ import {
 import { eq, sql, desc, inArray } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
+import { loadLatestTestCaseExecutionMap } from '$lib/server/queries';
 
 export const GET = withProjectAccess(async ({ projectId }) => {
 	// Get all requirements with test case count
@@ -41,25 +42,9 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 		.from(requirementTestCase)
 		.where(inArray(requirementTestCase.requirementId, reqIds));
 
-	// Batch: get latest execution status per test case using DISTINCT ON
+	// Batch: get latest execution status per test case
 	const allTestCaseIds = [...new Set(allLinks.map((l) => l.testCaseId))];
-
-	const latestExecMap = new Map<number, string>();
-	if (allTestCaseIds.length > 0) {
-		const latestExecs = await db.execute(sql`
-			SELECT DISTINCT ON (tcv.test_case_id)
-				tcv.test_case_id, te.status
-			FROM test_execution te
-			JOIN test_case_version tcv ON te.test_case_version_id = tcv.id
-			JOIN test_run tr ON te.test_run_id = tr.id
-			WHERE tr.project_id = ${projectId}
-				AND tcv.test_case_id IN ${sql`(${sql.join(allTestCaseIds.map(id => sql`${id}`), sql`, `)})`}
-			ORDER BY tcv.test_case_id, te.id DESC
-		`);
-		for (const row of latestExecs as unknown as { test_case_id: number; status: string }[]) {
-			latestExecMap.set(row.test_case_id, row.status);
-		}
-	}
+	const latestExecMap = await loadLatestTestCaseExecutionMap(projectId, allTestCaseIds);
 
 	// Build per-requirement link map
 	const linksByReq = new Map<number, number[]>();

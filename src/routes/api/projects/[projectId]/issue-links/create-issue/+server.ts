@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { badRequest, notFound } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { issueTrackerConfig, issueLink } from '$lib/server/db/schema';
@@ -11,17 +11,12 @@ import { parseJsonBody } from '$lib/server/auth-utils';
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ request, user, projectId }) => {
-		let body: {
+		const body = await parseJsonBody(request) as {
 			testCaseId?: number;
 			testExecutionId?: number;
 			title?: string;
 			description?: string;
 		};
-		try {
-			body = await parseJsonBody(request) as typeof body;
-		} catch {
-			error(400, 'Invalid request body');
-		}
 
 		const title = (body.title ?? '').trim();
 		if (!title) {

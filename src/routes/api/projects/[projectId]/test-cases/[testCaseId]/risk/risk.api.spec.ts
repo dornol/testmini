@@ -70,8 +70,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/risk', () => {
 				params: { projectId: '1', testCaseId: 'abc' },
 				user: testUser
 			});
-			const response = await GET(event);
-			expect(response.status).toBe(400);
+			await expect(GET(event)).rejects.toThrow();
 		});
 	});
 

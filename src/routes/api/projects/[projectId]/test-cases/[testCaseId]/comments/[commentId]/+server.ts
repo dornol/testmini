@@ -2,9 +2,9 @@ import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCase, testCaseComment, projectMember } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { isGlobalAdmin, parseJsonBody } from '$lib/server/auth-utils';
+import { isGlobalAdmin, parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
-import { badRequest } from '$lib/server/errors';
+import { validateCommentContent } from '$lib/server/crud-helpers';
 
 async function resolveComment(
 	testCaseId: number,
@@ -38,12 +38,8 @@ async function getMemberRole(userId: string, projectId: number): Promise<string 
 }
 
 export const PATCH = withProjectAccess(async ({ params, request, user, projectId }) => {
-	const testCaseId = Number(params.testCaseId);
-	const commentId = Number(params.commentId);
-
-	if (isNaN(projectId) || isNaN(testCaseId) || isNaN(commentId)) {
-		error(400, 'Invalid parameters');
-	}
+	const testCaseId = parseId(params.testCaseId, 'test case ID');
+	const commentId = parseId(params.commentId, 'comment ID');
 
 	const comment = await resolveComment(testCaseId, projectId, commentId);
 
@@ -58,19 +54,15 @@ export const PATCH = withProjectAccess(async ({ params, request, user, projectId
 	}
 
 	const body = await parseJsonBody(request);
-	const { content } = body as { content?: string };
+	const { content: rawContent } = body as { content?: string };
 
-	if (!content || typeof content !== 'string' || content.trim().length === 0) {
-		return badRequest('Content is required');
-	}
-
-	if (content.trim().length > 10000) {
-		return badRequest('Content is too long (max 10000 characters)');
-	}
+	const contentOrError = validateCommentContent(rawContent);
+	if (contentOrError instanceof Response) return contentOrError;
+	const content = contentOrError;
 
 	const [updated] = await db
 		.update(testCaseComment)
-		.set({ content: content.trim() })
+		.set({ content })
 		.where(eq(testCaseComment.id, commentId))
 		.returning();
 
@@ -78,12 +70,8 @@ export const PATCH = withProjectAccess(async ({ params, request, user, projectId
 });
 
 export const DELETE = withProjectAccess(async ({ params, user, projectId }) => {
-	const testCaseId = Number(params.testCaseId);
-	const commentId = Number(params.commentId);
-
-	if (isNaN(projectId) || isNaN(testCaseId) || isNaN(commentId)) {
-		error(400, 'Invalid parameters');
-	}
+	const testCaseId = parseId(params.testCaseId, 'test case ID');
+	const commentId = parseId(params.commentId, 'comment ID');
 
 	const comment = await resolveComment(testCaseId, projectId, commentId);
 

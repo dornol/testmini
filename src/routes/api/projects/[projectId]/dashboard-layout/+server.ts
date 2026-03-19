@@ -42,12 +42,7 @@ const VALID_SIZES = new Set<string>(['sm', 'md', 'lg']);
 
 export const PUT = withProjectAccess(async ({ request, user, projectId }) => {
 
-	let body: unknown;
-	try {
-		body = await parseJsonBody(request);
-	} catch {
-		error(400, 'Invalid JSON');
-	}
+	const body = await parseJsonBody(request);
 
 	const { layout } = body as { layout?: unknown };
 

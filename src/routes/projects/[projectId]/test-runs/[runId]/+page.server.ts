@@ -11,7 +11,7 @@ import {
 	user
 } from '$lib/server/db/schema';
 import { eq, and, inArray, count, sql } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { createFailureSchema, type CreateFailureInput } from '$lib/schemas/failure.schema';
 import { publish } from '$lib/server/redis';
 import { createNotification } from '$lib/server/notifications';
@@ -53,11 +53,7 @@ export const load: PageServerLoad = async ({ params, parent, url, locals }) => {
 	await parent();
 	const authUser = requireAuth(locals);
 	const projectId = Number(params.projectId);
-	const runId = Number(params.runId);
-
-	if (isNaN(runId)) {
-		error(400, 'Invalid run ID');
-	}
+	const runId = parseId(params.runId, 'run ID');
 
 	const run = await db.query.testRun.findFirst({
 		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))

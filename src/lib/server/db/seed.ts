@@ -47,7 +47,7 @@ export async function seedAdminUser() {
 	logger.info('  Admin account created');
 	logger.info(`  Email:    ${email}`);
 	if (isDefault) {
-		logger.warn('  Using default password — change it immediately or set ADMIN_PASSWORD env var');
+		logger.error('  Using default password — change it immediately or set ADMIN_PASSWORD env var');
 	}
 	logger.info('='.repeat(50));
 }

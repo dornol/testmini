@@ -91,6 +91,8 @@
 	let postingComment = $state(false);
 	let togglingState = $state(false);
 
+	// These status keywords match against external issue tracker API responses (e.g. Jira, GitHub Issues).
+	// They are classification constants for styling, not user-facing display strings — no i18n needed.
 	function issueStatusClass(status: string | null): string {
 		if (!status) return '';
 		const lower = status.toLowerCase();

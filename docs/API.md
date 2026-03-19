@@ -3922,20 +3922,46 @@ Array order determines display order. Settings are project-wide (shared across a
 
 ## Releases
 
-### List Releases
+### `GET /api/projects/:projectId/releases`
 
-`GET /api/projects/:projectId/releases`
+List all releases for the project with linked plan and run counts.
 
-Query params: `?status=PLANNING|IN_PROGRESS|READY|RELEASED`
+**Auth:** Session + project member
 
-Returns all releases for the project with plan/run counts.
+**Query parameters**
 
-### Create Release
+| Parameter | Type | Description |
+|---|---|---|
+| `status` | string | Optional. Filter by status: `PLANNING`, `IN_PROGRESS`, `READY`, `RELEASED` |
 
-`POST /api/projects/:projectId/releases`
+**Response 200**
+```json
+[
+  {
+    "id": 1,
+    "name": "v1.0.0 Sprint 42",
+    "version": "1.0.0",
+    "description": "First release",
+    "status": "PLANNING",
+    "targetDate": "2025-06-01T00:00:00.000Z",
+    "releaseDate": null,
+    "createdBy": "John Doe",
+    "createdAt": "2025-05-01T10:00:00.000Z",
+    "planCount": 2,
+    "runCount": 5
+  }
+]
+```
 
-Roles: PROJECT_ADMIN, QA
+---
 
+### `POST /api/projects/:projectId/releases`
+
+Create a new release.
+
+**Auth:** Session + `PROJECT_ADMIN | QA`
+
+**Request body**
 ```json
 {
   "name": "v1.0.0 Sprint 42",
@@ -3947,42 +3973,102 @@ Roles: PROJECT_ADMIN, QA
 }
 ```
 
-### Get Release Detail
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | Yes | Release name |
+| `version` | string | No | Version label |
+| `description` | string | No | Description |
+| `status` | string | No | `PLANNING` (default), `IN_PROGRESS`, `READY`, `RELEASED` |
+| `targetDate` | string | No | ISO 8601 date |
+| `releaseDate` | string | No | ISO 8601 date |
 
-`GET /api/projects/:projectId/releases/:releaseId`
+**Response 201** — Created release object
 
-Returns release with linked plans, runs, and aggregated execution stats.
+---
 
-### Update Release
+### `GET /api/projects/:projectId/releases/:releaseId`
 
-`PATCH /api/projects/:projectId/releases/:releaseId`
+Get release detail including linked test plans, linked test runs with execution statistics, and aggregated stats.
 
-Roles: PROJECT_ADMIN, QA
+**Auth:** Session + project member
 
-### Delete Release
-
-`DELETE /api/projects/:projectId/releases/:releaseId`
-
-Roles: PROJECT_ADMIN. Linked plans/runs are unlinked (SET NULL).
-
-### Release Readiness
-
-`GET /api/projects/:projectId/releases/:releaseId/readiness`
-
-Returns Go/No-Go verdict based on linked run execution stats:
-
+**Response 200**
 ```json
 {
-  "verdict": "GO | NO_GO | CAUTION",
+  "id": 1,
+  "name": "v1.0.0 Sprint 42",
+  "version": "1.0.0",
+  "description": "First release",
+  "status": "PLANNING",
+  "targetDate": "2025-06-01T00:00:00.000Z",
+  "releaseDate": null,
+  "createdByName": "John Doe",
+  "plans": [
+    { "id": 1, "name": "Sprint 12 Plan", "status": "ACTIVE", "milestone": "v2.5", "itemCount": 15 }
+  ],
+  "runs": [
+    { "id": 10, "name": "Run 1", "status": "COMPLETED", "environment": "QA", "createdAt": "...", "total": 50, "pass": 45, "fail": 3, "blocked": 2 }
+  ],
+  "stats": { "total": 50, "pass": 45, "fail": 3, "blocked": 2, "passRate": 90 }
+}
+```
+
+---
+
+### `PATCH /api/projects/:projectId/releases/:releaseId`
+
+Update release fields. All fields are optional; at least one must be provided.
+
+**Auth:** Session + `PROJECT_ADMIN | QA`
+
+**Request body**
+```json
+{
+  "name": "Updated Release",
+  "version": "1.1.0",
+  "status": "IN_PROGRESS",
+  "targetDate": "2025-07-01T00:00:00.000Z"
+}
+```
+
+**Response 200** — Updated release object
+
+---
+
+### `DELETE /api/projects/:projectId/releases/:releaseId`
+
+Delete a release. Linked test plans and runs are unlinked (FK set to null), not deleted.
+
+**Auth:** Session + `PROJECT_ADMIN`
+
+**Response 200**
+```json
+{ "success": true }
+```
+
+---
+
+### `GET /api/projects/:projectId/releases/:releaseId/readiness`
+
+Get release readiness verdict based on linked test run execution statistics.
+
+**Auth:** Session + project member
+
+**Response 200**
+```json
+{
+  "verdict": "NO_GO",
   "stats": { "total": 100, "pass": 95, "fail": 3, "blocked": 2, "pending": 0, "passRate": 95 },
   "runCount": 3,
   "blockingRuns": [{ "id": 1, "name": "Run 1", "fail": 2, "blocked": 1 }]
 }
 ```
 
-- **GO**: All tests pass, no failures or blocked
-- **NO_GO**: Any failures or blocked executions exist
-- **CAUTION**: No runs linked or pending executions remain
+**Verdict logic:**
+
+- **GO** — All tests pass, no failures or blocked executions
+- **NO_GO** — Any failures or blocked executions exist
+- **CAUTION** — No runs linked or pending executions remain
 
 ---
 
@@ -4148,17 +4234,39 @@ Get aggregated risk matrix data (count of test cases per impact×likelihood cell
 
 ### `GET /api/projects/:projectId/test-cycles`
 
-List all test cycles for a project.
+List all test cycles for a project, ordered by cycle number.
 
 **Auth:** Session + project member
 
-**Query parameters:** `status` (optional) — filter by `PLANNED`, `IN_PROGRESS`, `COMPLETED`
+**Query parameters**
 
-**Response 200** — Array of cycles with `runCount`
+| Parameter | Type | Description |
+|---|---|---|
+| `status` | string | Optional. Filter by status: `PLANNED`, `IN_PROGRESS`, `COMPLETED` |
+
+**Response 200**
+```json
+[
+  {
+    "id": 1,
+    "name": "Sprint 5 Cycle",
+    "cycleNumber": 5,
+    "status": "PLANNED",
+    "releaseId": 1,
+    "startDate": "2026-03-01T00:00:00.000Z",
+    "endDate": "2026-03-14T00:00:00.000Z",
+    "createdBy": "John Doe",
+    "createdAt": "2026-02-28T10:00:00.000Z",
+    "runCount": 3
+  }
+]
+```
+
+---
 
 ### `POST /api/projects/:projectId/test-cycles`
 
-Create a new test cycle.
+Create a new test cycle. The `cycleNumber` must be unique within the project.
 
 **Auth:** Session + `PROJECT_ADMIN | QA`
 
@@ -4174,44 +4282,108 @@ Create a new test cycle.
 }
 ```
 
-**Response 201** — Created cycle
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | Yes | Cycle name |
+| `cycleNumber` | integer | Yes | Unique cycle number within the project |
+| `releaseId` | integer | No | Link to a release |
+| `status` | string | No | `PLANNED` (default), `IN_PROGRESS`, `COMPLETED` |
+| `startDate` | string | No | ISO 8601 date |
+| `endDate` | string | No | ISO 8601 date |
+
+**Response 201** — Created cycle object
+
+**Response 409** — Cycle number already exists
+
+---
 
 ### `GET /api/projects/:projectId/test-cycles/:cycleId`
 
-Get cycle detail with linked runs and pass rate summary.
+Get cycle detail with linked test runs (including execution statistics) and a pass rate summary.
 
 **Auth:** Session + project member
 
 **Response 200**
 ```json
 {
-  "id": 1, "name": "Sprint 5 Cycle", "cycleNumber": 5, "status": "PLANNED",
-  "runs": [{ "id": 10, "name": "Run 1", "environment": "QA", "total": 50, "passed": 45, "failed": 5 }],
+  "id": 1,
+  "name": "Sprint 5 Cycle",
+  "cycleNumber": 5,
+  "status": "PLANNED",
+  "releaseId": 1,
+  "startDate": "2026-03-01T00:00:00.000Z",
+  "endDate": "2026-03-14T00:00:00.000Z",
+  "createdBy": "John Doe",
+  "createdAt": "2026-02-28T10:00:00.000Z",
+  "runs": [
+    { "id": 10, "name": "Run 1", "environment": "QA", "status": "COMPLETED", "createdAt": "...", "total": 50, "passed": 45, "failed": 5 }
+  ],
   "summary": { "runCount": 1, "totalTests": 50, "totalPassed": 45, "passRate": 90 }
 }
 ```
 
+---
+
 ### `PUT /api/projects/:projectId/test-cycles/:cycleId`
 
-Update a test cycle (name, status, dates, release).
+Update a test cycle. All fields are optional; at least one must be provided.
 
 **Auth:** Session + `PROJECT_ADMIN | QA`
 
+**Request body**
+```json
+{
+  "name": "Updated Cycle Name",
+  "status": "IN_PROGRESS",
+  "releaseId": 2,
+  "startDate": "2026-03-05",
+  "endDate": "2026-03-20"
+}
+```
+
+**Response 200** — Updated cycle object
+
+---
+
 ### `DELETE /api/projects/:projectId/test-cycles/:cycleId`
 
-Delete a test cycle. Linked runs are unlinked (not deleted).
+Delete a test cycle. Linked test runs are unlinked (not deleted).
 
 **Auth:** Session + `PROJECT_ADMIN`
+
+**Response 200**
+```json
+{ "success": true }
+```
 
 ---
 
 ## Modules
 
+Modules provide a hierarchical grouping mechanism for test cases. A module can have a parent module (via `parentModuleId`) to form a tree structure.
+
 ### `GET /api/projects/:projectId/modules`
 
-List all modules with test case counts (flat list; hierarchy via `parentModuleId`).
+List all modules for a project with test case counts. Returns a flat list; hierarchy is represented via `parentModuleId`.
 
 **Auth:** Session + project member
+
+**Response 200**
+```json
+[
+  {
+    "id": 1,
+    "name": "Authentication",
+    "parentModuleId": null,
+    "description": "Login, SSO, OAuth",
+    "sortOrder": 0,
+    "createdAt": "2026-01-15T10:00:00.000Z",
+    "testCaseCount": 15
+  }
+]
+```
+
+---
 
 ### `POST /api/projects/:projectId/modules`
 
@@ -4224,21 +4396,52 @@ Create a new module.
 { "name": "Authentication", "parentModuleId": null, "description": "Login, SSO, OAuth" }
 ```
 
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | Yes | Module name |
+| `parentModuleId` | integer | No | Parent module ID for nesting |
+| `description` | string | No | Description |
+
+**Response 201** — Created module object
+
+---
+
 ### `PUT /api/projects/:projectId/modules/:moduleId`
 
-Update module name, parent, description, or sort order.
+Update module name, parent, description, or sort order. All fields are optional; at least one must be provided.
 
 **Auth:** Session + `PROJECT_ADMIN | QA | DEV`
 
+**Request body**
+```json
+{
+  "name": "Updated Name",
+  "parentModuleId": 2,
+  "description": "Updated description",
+  "sortOrder": 5
+}
+```
+
+**Response 200** — Updated module object
+
+---
+
 ### `DELETE /api/projects/:projectId/modules/:moduleId`
 
-Delete a module. Test case links are removed (test cases preserved).
+Delete a module. Test case links (`module_test_case` rows) are removed; test cases themselves are preserved.
 
 **Auth:** Session + `PROJECT_ADMIN`
 
+**Response 200**
+```json
+{ "success": true }
+```
+
+---
+
 ### `POST /api/projects/:projectId/modules/:moduleId/test-cases`
 
-Link test cases to a module.
+Link test cases to a module. Duplicates are silently skipped (conflict do nothing).
 
 **Auth:** Session + `PROJECT_ADMIN | QA | DEV`
 
@@ -4246,6 +4449,13 @@ Link test cases to a module.
 ```json
 { "testCaseIds": [1, 2, 3] }
 ```
+
+**Response 200**
+```json
+{ "added": 3 }
+```
+
+---
 
 ### `DELETE /api/projects/:projectId/modules/:moduleId/test-cases`
 
@@ -4258,16 +4468,25 @@ Unlink test cases from a module.
 { "testCaseIds": [1, 2] }
 ```
 
+**Response 200**
+```json
+{ "removed": 2 }
+```
+
+---
+
 ### `GET /api/projects/:projectId/modules/coverage`
 
-Get per-module coverage data (test case count, pass/fail counts from latest executions).
+Get per-module coverage data including test case count and pass/fail counts from the latest execution of each test case.
 
 **Auth:** Session + project member
 
 **Response 200**
 ```json
 {
-  "modules": [{ "id": 1, "name": "Auth", "parentModuleId": null, "testCaseCount": 15, "passCount": 12, "failCount": 2 }],
+  "modules": [
+    { "id": 1, "name": "Auth", "parentModuleId": null, "testCaseCount": 15, "passCount": 12, "failCount": 2 }
+  ],
   "summary": { "totalModules": 5, "emptyModules": 1, "coveredModules": 4 }
 }
 ```

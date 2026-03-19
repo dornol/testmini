@@ -4,6 +4,14 @@ import { tag, testCaseTag, testCaseAssignee, projectMember, user, priorityConfig
 import { eq, and, asc, sql } from 'drizzle-orm';
 import { cacheGet, cacheSet } from './cache';
 
+/** Look up a project member's role, returning null if not a member. */
+export async function getMemberRole(userId: string, projectId: number): Promise<string | null> {
+	const member = await db.query.projectMember.findFirst({
+		where: and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userId))
+	});
+	return member?.role ?? null;
+}
+
 /** Load tags assigned to a specific test case */
 export function loadTestCaseTags(testCaseId: number) {
 	return db

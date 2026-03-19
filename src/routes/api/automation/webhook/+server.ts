@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { unauthorized, badRequest } from '$lib/server/errors';
+import { unauthorized, badRequest, payloadTooLarge, MAX_WEBHOOK_BODY_SIZE } from '$lib/server/errors';
 import { authenticateApiKey } from '$lib/server/api-key-auth';
 import { childLogger } from '$lib/server/logger';
 import { parseJsonBody } from '$lib/server/auth-utils';
@@ -62,8 +62,8 @@ export const POST: RequestHandler = async ({ request }) => {
 	let message = 'Webhook received';
 
 	const contentLength = Number(request.headers.get('content-length') ?? 0);
-	if (contentLength > 1024 * 1024) {
-		return json({ error: 'Request body must not exceed 1MB' }, { status: 413 });
+	if (contentLength > MAX_WEBHOOK_BODY_SIZE) {
+		return payloadTooLarge();
 	}
 
 	let body: unknown;

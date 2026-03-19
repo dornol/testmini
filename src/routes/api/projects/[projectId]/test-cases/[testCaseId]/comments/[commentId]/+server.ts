@@ -1,10 +1,11 @@
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testCase, testCaseComment, projectMember } from '$lib/server/db/schema';
+import { testCase, testCaseComment } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { isGlobalAdmin, parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { validateCommentContent } from '$lib/server/crud-helpers';
+import { getMemberRole } from '$lib/server/queries';
 
 async function resolveComment(
 	testCaseId: number,
@@ -28,13 +29,6 @@ async function resolveComment(
 	}
 
 	return comment;
-}
-
-async function getMemberRole(userId: string, projectId: number): Promise<string | null> {
-	const member = await db.query.projectMember.findFirst({
-		where: and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userId))
-	});
-	return member?.role ?? null;
 }
 
 export const PATCH = withProjectAccess(async ({ params, request, user, projectId }) => {

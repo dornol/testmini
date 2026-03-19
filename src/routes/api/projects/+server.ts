@@ -3,6 +3,7 @@ import { db, col } from '$lib/server/db';
 import { project, projectMember, priorityConfig, environmentConfig } from '$lib/server/db/schema';
 import { isGlobalAdmin, parseJsonBody } from '$lib/server/auth-utils';
 import { createProjectSchema } from '$lib/schemas/project.schema';
+import { validationError } from '$lib/server/errors';
 import { and, eq, ilike, count, inArray, sql } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
 import { withAuth } from '$lib/server/api-handler';
@@ -72,7 +73,7 @@ export const POST = withAuth(async ({ user, request }) => {
 	const result = createProjectSchema.safeParse(body);
 
 	if (!result.success) {
-		return json({ error: result.error.flatten().fieldErrors }, { status: 400 });
+		return validationError('Validation failed', result.error.flatten().fieldErrors as Record<string, string[]>);
 	}
 
 	const { name, description } = result.data;

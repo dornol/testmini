@@ -1,5 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
+import { badRequest, payloadTooLarge, MAX_WEBHOOK_BODY_SIZE } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { issueLink, issueTrackerConfig, testCase } from '$lib/server/db/schema';
 import { eq, and, or, inArray } from 'drizzle-orm';
@@ -142,8 +143,8 @@ function stateToCategory(state: string): 'open' | 'done' {
 
 export const POST: RequestHandler = async ({ request }) => {
 	const contentLength = Number(request.headers.get('content-length') ?? 0);
-	if (contentLength > 1024 * 1024) {
-		return json({ error: 'Request body must not exceed 1MB' }, { status: 413 });
+	if (contentLength > MAX_WEBHOOK_BODY_SIZE) {
+		return payloadTooLarge();
 	}
 
 	// Read raw body for signature verification
@@ -153,7 +154,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		body = JSON.parse(rawBody);
 	} catch {
-		return json({ error: 'Invalid JSON' }, { status: 400 });
+		return badRequest('Invalid JSON');
 	}
 
 	// Ping events (webhook setup verification)

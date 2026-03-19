@@ -4,6 +4,7 @@ import { project, projectMember } from '$lib/server/db/schema';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { updateProjectSchema } from '$lib/schemas/project.schema';
+import { validationError } from '$lib/server/errors';
 import { eq, count, sql } from 'drizzle-orm';
 
 export const GET = withProjectAccess(async ({ projectId }) => {
@@ -36,7 +37,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, projec
 	const result = updateProjectSchema.safeParse(body);
 
 	if (!result.success) {
-		return json({ error: result.error.flatten().fieldErrors }, { status: 400 });
+		return validationError('Validation failed', result.error.flatten().fieldErrors as Record<string, string[]>);
 	}
 
 	const [updated] = await db

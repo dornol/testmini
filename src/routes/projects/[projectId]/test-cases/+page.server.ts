@@ -162,15 +162,20 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 	const approvalStatus = url.searchParams.get('approvalStatus') ?? '';
 	const retestNeeded = url.searchParams.get('retestNeeded') ?? '';
 
-	// Parse selected run IDs: URL param takes priority, otherwise fall back to cookie
-	const cookieKey = `tc_runIds_${projectId}`;
-	const runIdsParam = url.searchParams.has('runIds')
-		? url.searchParams.get('runIds')!
-		: (cookies.get(cookieKey) ?? '');
-	const selectedRunIds = runIdsParam
-		.split(',')
-		.map(Number)
-		.filter((id) => !isNaN(id) && id > 0);
+	// Parse selected run IDs: URL param takes priority, otherwise fall back to project setting
+	let selectedRunIds: number[];
+	if (url.searchParams.has('runIds')) {
+		selectedRunIds = url.searchParams.get('runIds')!
+			.split(',')
+			.map(Number)
+			.filter((id) => !isNaN(id) && id > 0);
+	} else {
+		const proj = await db.query.project.findFirst({
+			where: eq(project.id, projectId),
+			columns: { selectedRunIds: true }
+		});
+		selectedRunIds = (proj?.selectedRunIds ?? []) as number[];
+	}
 
 	// Parse custom field filters from URL params (cf_<fieldId>=value)
 	const customFieldFilters: { fieldId: number; value: string }[] = [];
@@ -307,11 +312,11 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 
 	const executionMap = await loadExecutionMap(selectedRunIds, projectId, tcIdSet);
 
-	// Persist selected run IDs to cookie
-	if (selectedRunIds.length > 0) {
-		cookies.set(cookieKey, selectedRunIds.join(','), { path: '/', maxAge: 60 * 60 * 24 * 365 });
-	} else {
-		cookies.delete(cookieKey, { path: '/' });
+	// Persist selected run IDs to project setting
+	if (url.searchParams.has('runIds')) {
+		await db.update(project)
+			.set({ selectedRunIds })
+			.where(eq(project.id, projectId));
 	}
 
 	// Load saved filters for the current user

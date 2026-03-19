@@ -78,6 +78,7 @@ export const project = pgTable('project', {
 	description: text('description'),
 	active: boolean('active').default(true).notNull(),
 	columnSettings: jsonb('column_settings').$type<{ id: string; visible: boolean }[]>(),
+	selectedRunIds: jsonb('selected_run_ids').$type<number[]>().default([]),
 	requireSignoff: boolean('require_signoff').default(false).notNull(),
 	teamId: integer('team_id').references(() => team.id, { onDelete: 'set null' }),
 	createdBy: text('created_by')

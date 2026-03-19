@@ -1,6 +1,6 @@
 {
-  "id": "6a0a8201-7406-4eaa-84c6-e55082af8496",
-  "prevId": "74a449ed-05dc-4e12-adab-357c9a26510d",
+  "id": "e956b09c-33cf-4b35-93e9-4ac9767c422c",
+  "prevId": "08098b19-6d23-49b2-a36d-81deef9499fa",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2136,13 +2136,6 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
-        },
-        "selected_run_ids": {
-          "name": "selected_run_ids",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'[]'::jsonb"
         },
         "require_signoff": {
           "name": "require_signoff",

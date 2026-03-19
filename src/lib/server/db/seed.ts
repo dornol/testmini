@@ -13,9 +13,9 @@ export async function seedAdminUser() {
 	const [{ value }] = await db.select({ value: count() }).from(user);
 	if (value > 0) return;
 
-	const email = env.ADMIN_EMAIL ?? 'admin@admin.local';
-	const password = env.ADMIN_PASSWORD ?? 'admin1234';
-	const name = env.ADMIN_NAME ?? 'admin';
+	const email = env.ADMIN_EMAIL || 'admin@admin.local';
+	const password = env.ADMIN_PASSWORD || 'admin1234';
+	const name = env.ADMIN_NAME || 'admin';
 
 	const userId = generateRandomString(32);
 	const accountId = generateRandomString(32);
@@ -42,7 +42,7 @@ export async function seedAdminUser() {
 		updatedAt: now
 	});
 
-	const isDefault = !env.ADMIN_PASSWORD;
+	const isDefault = !password || password === 'admin1234';
 	logger.info('='.repeat(50));
 	logger.info('  Admin account created');
 	logger.info(`  Email:    ${email}`);

@@ -3,15 +3,39 @@ name: Build and Push Docker Image
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # --- Validate tag format and version consistency ---
+  validate-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate semver tag format
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if ! echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Invalid tag format: ${TAG}. Expected: v<major>.<minor>.<patch> (e.g., v1.2.3)"
+            exit 1
+          fi
+
+      - name: Verify tag matches package.json version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag version (${TAG_VERSION}) does not match package.json version (${PKG_VERSION})"
+            exit 1
+          fi
+
   # --- Verify before building ---
   verify:
+    needs: validate-tag
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

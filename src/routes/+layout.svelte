@@ -81,7 +81,10 @@
 	});
 </script>
 
-<svelte:head><link rel="icon" href={data.branding?.faviconUrl || favicon} /></svelte:head>
+<svelte:head>
+	<title>{data.branding?.appName || 'testmini'}</title>
+	<link rel="icon" href={data.branding?.faviconUrl || favicon} />
+</svelte:head>
 
 <ModeWatcher />
 <Toaster />

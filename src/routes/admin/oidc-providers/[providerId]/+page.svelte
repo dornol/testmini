@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages.js';
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import { apiPost } from '$lib/api-client';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -83,11 +83,12 @@
 			result,
 			update
 		}: {
-			result: { type: string; data?: Record<string, unknown> };
+			result: { type: string; location?: string; data?: Record<string, unknown> };
 			update: () => Promise<void>;
 		}) => {
 			if (result.type === 'redirect') {
 				toast.success(m.oidc_provider_deleted());
+				goto(result.location ?? '/admin/oidc-providers');
 				return;
 			}
 			if (result.type === 'failure') {

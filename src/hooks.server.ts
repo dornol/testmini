@@ -16,14 +16,27 @@ import { db } from '$lib/server/db';
 import { user as userTable } from '$lib/server/db/auth.schema';
 import { eq } from 'drizzle-orm';
 
+async function startupWithRetry(maxRetries = 5, baseDelayMs = 2000): Promise<void> {
+	for (let attempt = 1; attempt <= maxRetries; attempt++) {
+		try {
+			await runMigrations();
+			await seedAdminUser();
+			await initReportScheduler();
+			return;
+		} catch (err) {
+			if (attempt === maxRetries) {
+				logger.fatal({ err, attempt }, 'Startup failed after all retries');
+				process.exit(1);
+			}
+			const delayMs = baseDelayMs * Math.pow(2, attempt - 1);
+			logger.warn({ err, attempt, nextRetryMs: delayMs }, 'Startup failed, retrying...');
+			await new Promise((resolve) => setTimeout(resolve, delayMs));
+		}
+	}
+}
+
 if (!building) {
-	runMigrations()
-		.then(() => seedAdminUser())
-		.then(() => initReportScheduler())
-		.catch((err) => {
-			logger.fatal({ err }, 'Startup failed — migration or seed error');
-			process.exit(1);
-		});
+	startupWithRetry();
 
 	// Log cache stats every 5 minutes for monitoring
 	setInterval(() => {

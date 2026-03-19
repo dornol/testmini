@@ -85,6 +85,12 @@ cp .env.example .env
 | `SMTP_USER` | SMTP authentication username | — | `noreply@example.com` |
 | `SMTP_PASS` | SMTP authentication password | — | `password` |
 | `SMTP_FROM` | Email sender address | `SMTP_USER` value | `noreply@example.com` |
+| `ADMIN_EMAIL` | Initial admin account email (first startup only) | `admin@admin.local` | `admin@company.com` |
+| `ADMIN_PASSWORD` | Initial admin account password | `admin1234` | Output of `openssl rand -base64 16` |
+| `ADMIN_NAME` | Initial admin display name | `admin` | `Admin` |
+| `DB_POOL_MAX` | Max database connections in pool | `20` (prod) / `10` (dev) | `20` |
+| `DB_IDLE_TIMEOUT` | Idle connection timeout (seconds) | `30` | `30` |
+| `DB_CONNECT_TIMEOUT` | Connection timeout (seconds) | `10` | `10` |
 
 ### Docker Compose Only Variables (`compose.prod.yaml`)
 

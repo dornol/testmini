@@ -60,7 +60,7 @@ describe('/api/health', () => {
 			expect(data.components.redis.status).toBe('healthy');
 		});
 
-		it('should return 503 with degraded when DB fails', async () => {
+		it('should return 503 when DB fails', async () => {
 			mockDb.execute = vi.fn().mockRejectedValue(new Error('Connection refused'));
 
 			const event = createMockEvent({ method: 'GET' });
@@ -68,12 +68,12 @@ describe('/api/health', () => {
 			const data = await response.json();
 
 			expect(response.status).toBe(503);
-			expect(data.status).toBe('degraded');
+			expect(data.status).toBe('unhealthy');
 			expect(data.components.database.status).toBe('unhealthy');
 			expect(data.components.database.message).toBe('Connection failed');
 		});
 
-		it('should return 200 when Redis fails but DB works', async () => {
+		it('should return 200 (ok_degraded) when Redis fails but DB works', async () => {
 			mockDb.execute = vi.fn().mockResolvedValue([{ '?column?': 1 }]);
 			mockPing.mockRejectedValue(new Error('ECONNREFUSED'));
 			mockRedis = { ping: mockPing };
@@ -82,9 +82,9 @@ describe('/api/health', () => {
 			const response = await GET(event);
 			const data = await response.json();
 
-			// Redis unhealthy makes overall status degraded (503)
-			expect(response.status).toBe(503);
-			expect(data.status).toBe('degraded');
+			// Redis is optional — unhealthy Redis should not cause 503
+			expect(response.status).toBe(200);
+			expect(data.status).toBe('ok_degraded');
 			expect(data.components.database.status).toBe('healthy');
 			expect(data.components.redis.status).toBe('unhealthy');
 			expect(data.components.redis.message).toBe('Connection failed');

@@ -27,16 +27,17 @@ export const GET: RequestHandler = async () => {
 		components.redis = { status: 'unhealthy', message: 'Connection failed' };
 	}
 
-	const allHealthy = Object.values(components).every(
-		(c) => c.status === 'healthy' || c.status === 'not_configured'
-	);
+	// Database is the only hard dependency; Redis is optional
+	const dbHealthy = components.database.status === 'healthy';
+	const redisOk = components.redis.status !== 'unhealthy';
+	const status = dbHealthy ? (redisOk ? 'ok' : 'ok_degraded') : 'unhealthy';
 
 	return json(
 		{
-			status: allHealthy ? 'ok' : 'degraded',
+			status,
 			timestamp: new Date().toISOString(),
 			components
 		},
-		{ status: allHealthy ? 200 : 503 }
+		{ status: dbHealthy ? 200 : 503 }
 	);
 };

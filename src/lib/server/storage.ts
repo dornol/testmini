@@ -24,6 +24,19 @@ export function isS3Enabled(): boolean {
 	return !!(env.S3_BUCKET && env.S3_ENDPOINT);
 }
 
+// Validate S3 config at startup — fail fast if partially configured
+if (isS3Enabled()) {
+	const missing: string[] = [];
+	if (!env.S3_ACCESS_KEY_ID) missing.push('S3_ACCESS_KEY_ID');
+	if (!env.S3_SECRET_ACCESS_KEY) missing.push('S3_SECRET_ACCESS_KEY');
+	if (missing.length > 0) {
+		throw new Error(
+			`S3 storage is enabled (S3_BUCKET and S3_ENDPOINT are set) but missing: ${missing.join(', ')}. ` +
+			`Set these variables or remove S3_BUCKET/S3_ENDPOINT to use local filesystem.`
+		);
+	}
+}
+
 async function initS3(): Promise<void> {
 	if (s3Client) return;
 	const { S3Client } = await import('@aws-sdk/client-s3');

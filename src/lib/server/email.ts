@@ -4,6 +4,16 @@ import { env } from '$env/dynamic/private';
 
 const log = childLogger('email');
 
+// Warn at startup if SMTP is partially configured
+{
+	const smtpVars = { SMTP_HOST: env.SMTP_HOST, SMTP_USER: env.SMTP_USER, SMTP_PASS: env.SMTP_PASS };
+	const set = Object.entries(smtpVars).filter(([, v]) => !!v).map(([k]) => k);
+	const missing = Object.entries(smtpVars).filter(([, v]) => !v).map(([k]) => k);
+	if (set.length > 0 && missing.length > 0) {
+		log.error({ set, missing }, 'SMTP partially configured — email will be DISABLED. Set all of: SMTP_HOST, SMTP_USER, SMTP_PASS');
+	}
+}
+
 function createTransport() {
 	const host = env.SMTP_HOST;
 	const port = Number(env.SMTP_PORT ?? '587');

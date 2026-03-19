@@ -44,7 +44,6 @@ function checkMigrationIntegrity(migrationsFolder: string) {
  */
 export async function runMigrations() {
 	if (g[key]) return;
-	g[key] = true;
 
 	if (!env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
 
@@ -56,6 +55,7 @@ export async function runMigrations() {
 	try {
 		const migrationDb = drizzle(migrationClient);
 		await migrate(migrationDb, { migrationsFolder });
+		g[key] = true;
 		logger.info('Database migrations applied successfully');
 	} catch (error) {
 		logger.error({ err: error }, 'Database migration failed');

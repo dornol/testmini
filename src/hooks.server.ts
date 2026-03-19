@@ -13,6 +13,7 @@ import { seedAdminUser } from '$lib/server/db/seed';
 import { initReportScheduler } from '$lib/server/report-scheduler';
 import { cacheStats } from '$lib/server/cache';
 import { db } from '$lib/server/db';
+import { redis } from '$lib/server/redis';
 import { user as userTable } from '$lib/server/db/auth.schema';
 import { eq } from 'drizzle-orm';
 
@@ -45,6 +46,17 @@ if (!building) {
 			logger.info({ ...stats, hitRate: Math.round(stats.hitRate * 100) + '%' }, 'cache stats');
 		}
 	}, 5 * 60 * 1000).unref();
+
+	// Graceful shutdown — drain connections on SIGTERM/SIGINT
+	const shutdown = async (signal: string) => {
+		logger.info({ signal }, 'Shutting down gracefully...');
+		try {
+			if (redis) await redis.quit();
+		} catch { /* ignore */ }
+		process.exit(0);
+	};
+	process.on('SIGTERM', () => shutdown('SIGTERM'));
+	process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 const handleParaglide: Handle = ({ event, resolve }) => paraglideMiddleware(event.request, ({ request, locale }) => {

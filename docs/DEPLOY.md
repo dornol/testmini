@@ -91,6 +91,10 @@ cp .env.example .env
 | `DB_POOL_MAX` | Max database connections in pool | `20` (prod) / `10` (dev) | `20` |
 | `DB_IDLE_TIMEOUT` | Idle connection timeout (seconds) | `30` | `30` |
 | `DB_CONNECT_TIMEOUT` | Connection timeout (seconds) | `10` | `10` |
+| `APP_MEMORY_LIMIT` | App container memory limit | `512M` | `1G` |
+| `DB_MEMORY_LIMIT` | DB container memory limit | `1G` | `2G` |
+
+> **Multi-instance deployments:** PostgreSQL defaults to `max_connections = 100`. Each app instance uses up to `DB_POOL_MAX` connections. When running N instances, set `DB_POOL_MAX` ≤ `100 / N` (e.g., 3 instances → `DB_POOL_MAX=30`). Alternatively, increase PostgreSQL `max_connections` or use PgBouncer.
 
 ### Docker Compose Only Variables (`compose.prod.yaml`)
 
@@ -108,6 +112,11 @@ cp .env.example .env
 | `S3_REGION` | S3 region (optional) | `us-east-1` |
 | `S3_ACCESS_KEY_ID` | S3/MinIO access key (optional) | `minioadmin` |
 | `S3_SECRET_ACCESS_KEY` | S3/MinIO secret key (optional) | `minioadmin` |
+| `DATABASE_URL` | Full DB URL (overrides POSTGRES_PASSWORD assembly) | `postgres://user:pw@ext-host:5432/testmini` |
+| `REDIS_URL` | Full Redis URL (overrides REDIS_PASSWORD assembly) | `redis://:pw@ext-host:6379` |
+| `POSTGRES_HOST` | DB host for backup service | `db` (default) or external host |
+| `APP_MEMORY_LIMIT` | App container memory limit | `512M` |
+| `DB_MEMORY_LIMIT` | DB container memory limit | `1G` |
 
 > **Warning:** If `BETTER_AUTH_SECRET` is leaked, session token forgery becomes possible. Never commit it to Git.
 

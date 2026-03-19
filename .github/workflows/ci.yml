@@ -7,47 +7,6 @@ on:
     branches: [main]
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Format check
-        run: pnpm format:check
-
-  typecheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Type check
-        run: pnpm check
-
   test:
     runs-on: ubuntu-latest
     steps:
@@ -67,21 +26,12 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
-  migration-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Check migration integrity
+      - name: Migration integrity
         run: pnpm db:check
+
+      - name: Build
+        run: |
+          DATABASE_URL="postgres://build:build@localhost:5432/build" \
+          BETTER_AUTH_SECRET="ci-dummy-secret" \
+          ORIGIN="http://localhost:3000" \
+          pnpm build

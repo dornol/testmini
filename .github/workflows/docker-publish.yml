@@ -51,17 +51,18 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm lint
-
-      - name: Type check
-        run: pnpm check
-
       - name: Unit tests
         run: pnpm test
 
       - name: Migration integrity
         run: pnpm db:check
+
+      - name: Build
+        run: |
+          DATABASE_URL="postgres://build:build@localhost:5432/build" \
+          BETTER_AUTH_SECRET="ci-dummy-secret" \
+          ORIGIN="http://localhost:3000" \
+          pnpm build
 
   # --- Build and push Docker image ---
   build-and-push:

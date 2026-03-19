@@ -285,9 +285,21 @@ export const handleError: HandleServerError = ({ error, event, status, message }
 			method: event.request.method.toUpperCase(),
 			path: new URL(event.request.url).pathname,
 			status,
-			err: error instanceof Error
-				? { message: error.message, stack: error.stack, name: error.name }
-				: error
+			err: (() => {
+				if (error instanceof Error) {
+					const info: Record<string, unknown> = {
+						message: error.message,
+						stack: error.stack,
+						name: error.name
+					};
+					if (error.cause) info.cause = error.cause instanceof Error
+						? { message: error.cause.message, name: error.cause.name }
+						: String(error.cause);
+					return info;
+				}
+				// Drizzle and other libs may throw non-Error objects
+				try { return JSON.parse(JSON.stringify(error)); } catch { return { raw: String(error) }; }
+			})()
 		},
 		message ?? 'Unexpected server error'
 	);

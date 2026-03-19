@@ -48,22 +48,28 @@ export const actions: Actions = {
 
 		const clientSecretEncrypted = encrypt(clientSecret);
 
-		await db.insert(oidcProvider).values({
-			name,
-			slug,
-			providerType,
-			clientId,
-			clientSecretEncrypted,
-			issuerUrl,
-			jwksUri,
-			authorizationUrl,
-			tokenUrl,
-			userinfoUrl,
-			scopes,
-			autoRegister,
-			iconUrl,
-			displayOrder
-		});
+		try {
+			await db.insert(oidcProvider).values({
+				name,
+				slug,
+				providerType,
+				clientId,
+				clientSecretEncrypted,
+				issuerUrl,
+				jwksUri,
+				authorizationUrl,
+				tokenUrl,
+				userinfoUrl,
+				scopes,
+				autoRegister,
+				iconUrl,
+				displayOrder
+			});
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			const cause = err instanceof Error && err.cause ? String(err.cause) : '';
+			return fail(500, { error: `Failed to create OIDC provider: ${cause || message}` });
+		}
 
 		redirect(302, '/admin/oidc-providers');
 	}

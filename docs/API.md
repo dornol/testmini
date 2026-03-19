@@ -2632,6 +2632,48 @@ Sends a test payload to the webhook URL.
 
 **Response:** `200 OK` `{ "success": true }`
 
+### Webhook delivery logs
+
+```
+GET /api/projects/:projectId/webhooks/:webhookId/logs
+```
+
+Returns recent delivery logs for a specific webhook. Requires `PROJECT_ADMIN` role.
+
+**Query parameters:**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `limit` | `number` | `20` | Number of logs to return (max 100) |
+
+**Response:** `200 OK`
+
+```json
+[
+  {
+    "id": 1,
+    "event": "TEST_RUN_COMPLETED",
+    "statusCode": 200,
+    "success": true,
+    "errorMessage": null,
+    "attempt": 1,
+    "duration": 342,
+    "createdAt": "2026-03-10T02:00:05.000Z"
+  }
+]
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `number` | Delivery log ID |
+| `event` | `string` | Event type that triggered the delivery |
+| `statusCode` | `number \| null` | HTTP status code from the target URL |
+| `success` | `boolean` | Whether the delivery was successful |
+| `errorMessage` | `string \| null` | Error message if delivery failed |
+| `attempt` | `number` | Delivery attempt number |
+| `duration` | `number \| null` | Request duration in milliseconds |
+| `createdAt` | `string` | ISO 8601 timestamp |
+
 ### Webhook payload format
 
 All webhook deliveries use `POST` with `Content-Type: application/json`:

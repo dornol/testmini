@@ -58,6 +58,9 @@ COPY --from=build /app/package.json ./package.json
 # Create data directory for file uploads
 RUN mkdir -p data/uploads && chown -R node:node /app
 
+# Declare volume so uploads persist across container recreations
+VOLUME /app/data/uploads
+
 USER node
 
 ENV NODE_ENV=production

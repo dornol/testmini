@@ -10,7 +10,38 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # --- Verify before building ---
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm check
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Migration integrity
+        run: pnpm db:check
+
+  # --- Build and push Docker image ---
   build-and-push:
+    needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -56,9 +87,13 @@ jobs:
       - name: Generate release notes
         id: notes
         run: |
-          # Find the previous tag
-          PREV_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
-          VERSION=${GITHUB_REF_NAME#v}
+          # Find previous semver tag (skip pre-releases and current tag)
+          CURRENT="${GITHUB_REF_NAME}"
+          PREV_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname \
+            | grep -vE '[-+]' \
+            | grep -v "^${CURRENT}$" \
+            | head -n 1)
+          VERSION=${CURRENT#v}
 
           {
             echo "notes<<RELEASE_EOF"
@@ -71,9 +106,9 @@ jobs:
             echo "## Changes"
             echo ""
             if [ -n "$PREV_TAG" ]; then
-              git log "${PREV_TAG}..${GITHUB_REF_NAME}" --pretty=format:"- %s" --no-merges
+              git log "${PREV_TAG}..${CURRENT}" --pretty=format:"- %s (%h)" --no-merges
             else
-              git log "${GITHUB_REF_NAME}" --pretty=format:"- %s" --no-merges | head -20
+              echo "Initial release"
             fi
             echo ""
             echo "RELEASE_EOF"

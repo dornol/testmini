@@ -2,14 +2,13 @@ import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { executionComment } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { parseJsonBody, requireAuth } from '$lib/server/auth-utils';
+import { parseJsonBody, requireAuth, parseId } from '$lib/server/auth-utils';
 import { validateCommentContent } from '$lib/server/crud-helpers';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export async function PATCH(event: RequestEvent) {
 	const user = requireAuth(event.locals);
-	const commentId = Number(event.params.commentId);
-	if (isNaN(commentId)) error(400, 'Invalid comment ID');
+	const commentId = parseId(event.params.commentId, 'comment ID');
 
 	const existing = await db.query.executionComment.findFirst({
 		where: eq(executionComment.id, commentId)
@@ -39,8 +38,7 @@ export async function PATCH(event: RequestEvent) {
 
 export async function DELETE(event: RequestEvent) {
 	const user = requireAuth(event.locals);
-	const commentId = Number(event.params.commentId);
-	if (isNaN(commentId)) error(400, 'Invalid comment ID');
+	const commentId = parseId(event.params.commentId, 'comment ID');
 
 	const existing = await db.query.executionComment.findFirst({
 		where: eq(executionComment.id, commentId)

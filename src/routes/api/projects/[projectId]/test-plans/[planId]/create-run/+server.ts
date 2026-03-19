@@ -6,7 +6,7 @@ import {
 	testRun, testExecution
 } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { z } from 'zod';
 
@@ -16,7 +16,7 @@ const createRunFromPlanSchema = z.object({
 });
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, projectId, user: authUser }) => {
-	const planId = Number(params.planId);
+	const planId = parseId(params.planId, 'plan ID');
 
 	const plan = await db.query.testPlan.findFirst({
 		where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))

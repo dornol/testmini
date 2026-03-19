@@ -6,7 +6,7 @@ import { zodAdapter } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { team, teamMember, project } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
+import { requireAuth, isGlobalAdmin, parseId } from '$lib/server/auth-utils';
 
 const adapter = zodAdapter(updateTeamSchema);
 
@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 export const actions: Actions = {
 	update: async ({ request, locals, params }) => {
 		const user = requireAuth(locals);
-		const teamId = Number(params.teamId);
+		const teamId = parseId(params.teamId, 'team ID');
 
 		// Check OWNER or ADMIN
 		if (!isGlobalAdmin(user)) {
@@ -55,7 +55,7 @@ export const actions: Actions = {
 
 	delete: async ({ locals, params }) => {
 		const user = requireAuth(locals);
-		const teamId = Number(params.teamId);
+		const teamId = parseId(params.teamId, 'team ID');
 
 		// Only OWNER can delete
 		if (!isGlobalAdmin(user)) {

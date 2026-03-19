@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, tag, testCaseTag } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { loadProjectTags } from '$lib/server/queries';
+import { parseId } from '$lib/server/auth-utils';
 
 export const load: PageServerLoad = async ({ params, parent }) => {
 	const { userRole } = await parent();
@@ -11,7 +12,7 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		redirect(303, '../test-plans');
 	}
 
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 
 	// Get all test cases with latest version for selection
 	const testCases = await db

@@ -1,10 +1,10 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { savedFilter } from '$lib/server/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 
 async function findOwnedFilter(userId: string, projectId: number, filterId: number) {
 	return db.query.savedFilter.findFirst({
@@ -17,8 +17,7 @@ async function findOwnedFilter(userId: string, projectId: number, filterId: numb
 }
 
 export const PATCH = withProjectAccess(async ({ request, user, projectId, params }) => {
-	const filterId = Number(params.filterId);
-	if (!Number.isFinite(filterId)) error(400, 'Invalid filter ID');
+	const filterId = parseId(params.filterId, 'filter ID');
 
 	const existing = await findOwnedFilter(user.id, projectId, filterId);
 	if (!existing) return notFound('Saved filter not found');
@@ -55,8 +54,7 @@ export const PATCH = withProjectAccess(async ({ request, user, projectId, params
 });
 
 export const DELETE = withProjectAccess(async ({ user, projectId, params }) => {
-	const filterId = Number(params.filterId);
-	if (!Number.isFinite(filterId)) error(400, 'Invalid filter ID');
+	const filterId = parseId(params.filterId, 'filter ID');
 
 	const existing = await findOwnedFilter(user.id, projectId, filterId);
 	if (!existing) return notFound('Saved filter not found');

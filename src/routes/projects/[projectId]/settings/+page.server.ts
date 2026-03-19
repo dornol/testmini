@@ -6,7 +6,7 @@ import { zodAdapter } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { project } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 
 const adapter = zodAdapter(updateProjectSchema);
 
@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ parent, params }) => {
 		adapter
 	);
 
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 	const [projSettings] = await db
 		.select({ requireSignoff: project.requireSignoff })
 		.from(project)
@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({ parent, params }) => {
 export const actions: Actions = {
 	update: async ({ request, locals, params }) => {
 		const user = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(user, projectId, ['PROJECT_ADMIN']);
 
 		const form = await superValidate(request, adapter);
@@ -52,7 +52,7 @@ export const actions: Actions = {
 
 	toggleSignoff: async ({ locals, params }) => {
 		const user = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(user, projectId, ['PROJECT_ADMIN']);
 
 		const [proj] = await db
@@ -70,7 +70,7 @@ export const actions: Actions = {
 
 	deactivate: async ({ locals, params }) => {
 		const user = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(user, projectId, ['PROJECT_ADMIN']);
 
 		await db.update(project).set({ active: false }).where(eq(project.id, projectId));

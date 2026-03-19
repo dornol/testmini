@@ -2,13 +2,13 @@ import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testRun } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { updateTestRunSchema } from '$lib/schemas/test-run.schema';
 import { badRequest, conflict, validationError } from '$lib/server/errors';
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, projectId }) => {
-	const runId = Number(params.runId);
+	const runId = parseId(params.runId, 'run ID');
 
 	const run = await db.query.testRun.findFirst({
 		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
@@ -48,7 +48,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ re
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
-	const runId = Number(params.runId);
+	const runId = parseId(params.runId, 'run ID');
 
 	const run = await db.query.testRun.findFirst({
 		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))

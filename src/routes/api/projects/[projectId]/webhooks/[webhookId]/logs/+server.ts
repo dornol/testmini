@@ -3,9 +3,10 @@ import { db } from '$lib/server/db';
 import { projectWebhook, webhookDeliveryLog } from '$lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
+import { parseId } from '$lib/server/auth-utils';
 
 export const GET = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId, url }) => {
-	const webhookId = Number(params.webhookId);
+	const webhookId = parseId(params.webhookId, 'webhook ID');
 
 	const existing = await db.query.projectWebhook.findFirst({
 		where: and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId))

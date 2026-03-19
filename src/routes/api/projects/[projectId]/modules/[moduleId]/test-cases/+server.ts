@@ -3,12 +3,11 @@ import { db } from '$lib/server/db';
 import { moduleTestCase, module } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { badRequest, notFound } from '$lib/server/errors';
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, projectId }) => {
-	const moduleId = Number(params.moduleId);
-	if (!Number.isFinite(moduleId)) return badRequest('Invalid module ID');
+	const moduleId = parseId(params.moduleId, 'module ID');
 
 	// Verify module belongs to project
 	const mod = await db.query.module.findFirst({
@@ -29,8 +28,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ req
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, projectId }) => {
-	const moduleId = Number(params.moduleId);
-	if (!Number.isFinite(moduleId)) return badRequest('Invalid module ID');
+	const moduleId = parseId(params.moduleId, 'module ID');
 
 	const mod = await db.query.module.findFirst({
 		where: and(eq(module.id, moduleId), eq(module.projectId, projectId))

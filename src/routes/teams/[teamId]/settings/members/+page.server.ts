@@ -6,7 +6,7 @@ import { emptyForm, validateForm } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { teamMember, user } from '$lib/server/db/schema';
 import { eq, and, count } from 'drizzle-orm';
-import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
+import { requireAuth, isGlobalAdmin, parseId } from '$lib/server/auth-utils';
 import { loadTeamMembers } from '$lib/server/queries';
 
 async function requireTeamAdmin(authUser: NonNullable<App.Locals['user']>, teamId: number) {
@@ -20,7 +20,7 @@ async function requireTeamAdmin(authUser: NonNullable<App.Locals['user']>, teamI
 }
 
 export const load: PageServerLoad = async ({ params }) => {
-	const teamId = Number(params.teamId);
+	const teamId = parseId(params.teamId, 'team ID');
 
 	const members = await loadTeamMembers(teamId);
 
@@ -32,7 +32,7 @@ export const load: PageServerLoad = async ({ params }) => {
 export const actions: Actions = {
 	addMember: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const teamId = Number(params.teamId);
+		const teamId = parseId(params.teamId, 'team ID');
 		await requireTeamAdmin(authUser, teamId);
 
 		const form = await validateForm(addTeamMemberSchema, request);
@@ -66,7 +66,7 @@ export const actions: Actions = {
 
 	updateRole: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const teamId = Number(params.teamId);
+		const teamId = parseId(params.teamId, 'team ID');
 		await requireTeamAdmin(authUser, teamId);
 
 		const formData = await request.formData();
@@ -109,7 +109,7 @@ export const actions: Actions = {
 
 	removeMember: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const teamId = Number(params.teamId);
+		const teamId = parseId(params.teamId, 'team ID');
 		await requireTeamAdmin(authUser, teamId);
 
 		const formData = await request.formData();

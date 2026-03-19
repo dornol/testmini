@@ -8,6 +8,7 @@ import {
 	testCase
 } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { parseId } from '$lib/server/auth-utils';
 
 type ComparisonRow = {
 	testCaseId: number;
@@ -20,7 +21,7 @@ type ComparisonRow = {
 
 export const load: PageServerLoad = async ({ params, url, parent }) => {
 	await parent();
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 
 	const runAId = Number(url.searchParams.get('runA'));
 	const runBId = Number(url.searchParams.get('runB'));

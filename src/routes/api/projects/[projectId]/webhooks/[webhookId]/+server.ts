@@ -4,7 +4,7 @@ import { db } from '$lib/server/db';
 import { projectWebhook } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 
 const VALID_EVENTS = [
 	'TEST_RUN_COMPLETED',
@@ -15,7 +15,7 @@ const VALID_EVENTS = [
 ];
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params, projectId }) => {
-	const webhookId = Number(params.webhookId);
+	const webhookId = parseId(params.webhookId, 'webhook ID');
 
 	const existing = await db.query.projectWebhook.findFirst({
 		where: and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId))
@@ -82,7 +82,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
-	const webhookId = Number(params.webhookId);
+	const webhookId = parseId(params.webhookId, 'webhook ID');
 
 	const existing = await db.query.projectWebhook.findFirst({
 		where: and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId))

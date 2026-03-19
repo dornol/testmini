@@ -2,12 +2,12 @@ import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { sharedDataSet, testCase, testCaseParameter, testCaseDataSet } from '$lib/server/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, projectId }) => {
-	const datasetId = Number(params.datasetId);
+	const datasetId = parseId(params.datasetId, 'dataset ID');
 
 	const ds = await db.query.sharedDataSet.findFirst({
 		where: and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId))

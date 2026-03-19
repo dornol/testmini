@@ -3,11 +3,11 @@ import { badRequest } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { requirement, requirementTestCase } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, params, projectId }) => {
-	const requirementId = Number(params.requirementId);
+	const requirementId = parseId(params.requirementId, 'requirement ID');
 
 	const existing = await db.query.requirement.findFirst({
 		where: and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId))
@@ -37,7 +37,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, p
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ url, params, projectId }) => {
-	const requirementId = Number(params.requirementId);
+	const requirementId = parseId(params.requirementId, 'requirement ID');
 
 	const existing = await db.query.requirement.findFirst({
 		where: and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId))

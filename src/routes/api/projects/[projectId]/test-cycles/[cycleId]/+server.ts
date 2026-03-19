@@ -3,13 +3,12 @@ import { db } from '$lib/server/db';
 import { testCycle, testRun, testExecution, user } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { updateTestCycleSchema } from '$lib/schemas/test-cycle.schema';
 import { notFound, badRequest } from '$lib/server/errors';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
-	const cycleId = Number(params.cycleId);
-	if (!Number.isFinite(cycleId)) return badRequest('Invalid cycle ID');
+	const cycleId = parseId(params.cycleId, 'cycle ID');
 
 	const [cycle] = await db
 		.select({
@@ -63,8 +62,7 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 });
 
 export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, params, projectId }) => {
-	const cycleId = Number(params.cycleId);
-	if (!Number.isFinite(cycleId)) return badRequest('Invalid cycle ID');
+	const cycleId = parseId(params.cycleId, 'cycle ID');
 
 	const body = await parseJsonBody(request);
 	const parsed = updateTestCycleSchema.safeParse(body);
@@ -90,8 +88,7 @@ export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, pa
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
-	const cycleId = Number(params.cycleId);
-	if (!Number.isFinite(cycleId)) return badRequest('Invalid cycle ID');
+	const cycleId = parseId(params.cycleId, 'cycle ID');
 
 	const [deleted] = await db
 		.delete(testCycle)

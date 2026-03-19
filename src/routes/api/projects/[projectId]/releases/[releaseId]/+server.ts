@@ -1,15 +1,14 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { db, col } from '$lib/server/db';
-import { release, testPlan, testRun, testExecution, user, testPlanTestCase, testCase, testCaseVersion } from '$lib/server/db/schema';
+import { release, testPlan, testRun, user } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { updateReleaseSchema } from '$lib/schemas/release.schema';
 import { badRequest, notFound, validationError } from '$lib/server/errors';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
-	const releaseId = Number(params.releaseId);
-	if (!Number.isFinite(releaseId)) error(400, 'Invalid release ID');
+	const releaseId = parseId(params.releaseId, 'release ID');
 
 	const rel = await db.query.release.findFirst({
 		where: and(eq(release.id, releaseId), eq(release.projectId, projectId))
@@ -66,8 +65,7 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 });
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, params, projectId }) => {
-	const releaseId = Number(params.releaseId);
-	if (!Number.isFinite(releaseId)) error(400, 'Invalid release ID');
+	const releaseId = parseId(params.releaseId, 'release ID');
 
 	const rel = await db.query.release.findFirst({
 		where: and(eq(release.id, releaseId), eq(release.projectId, projectId))
@@ -102,8 +100,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, 
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
-	const releaseId = Number(params.releaseId);
-	if (!Number.isFinite(releaseId)) error(400, 'Invalid release ID');
+	const releaseId = parseId(params.releaseId, 'release ID');
 
 	const rel = await db.query.release.findFirst({
 		where: and(eq(release.id, releaseId), eq(release.projectId, projectId))

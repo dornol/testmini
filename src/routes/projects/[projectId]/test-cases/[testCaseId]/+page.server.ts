@@ -7,21 +7,17 @@ import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
 import { testCase, testCaseVersion, user, tag, testCaseTag, testCaseAssignee, projectMember, customField, issueLink, issueTrackerConfig, testCaseParameter, testCaseDataSet } from '$lib/server/db/schema';
 import { createTagSchema } from '$lib/schemas/tag.schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { loadTestCaseMetadata } from '$lib/server/queries';
 import { cacheDelete } from '$lib/server/cache';
 
 export const load: PageServerLoad = async ({ params, parent, locals }) => {
 	await parent();
 	const authUser = requireAuth(locals);
-	const testCaseId = Number(params.testCaseId);
-
-	if (isNaN(testCaseId)) {
-		error(400, 'Invalid test case ID');
-	}
+	const testCaseId = parseId(params.testCaseId, 'test case ID');
 
 	// Get test case with latest version
-	const tc = await findTestCaseWithLatestVersion(testCaseId, Number(params.projectId));
+	const tc = await findTestCaseWithLatestVersion(testCaseId, parseId(params.projectId, 'project ID'));
 
 	if (!tc) {
 		error(404, 'Test case not found');
@@ -59,7 +55,7 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 		zodAdapter(updateTestCaseSchema)
 	);
 
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 
 	// Load project tags, assigned tags, assignees, and project members
 	const { assignedTags, projectTags, assignedAssignees, projectMembers } =
@@ -125,8 +121,8 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 export const actions: Actions = {
 	update: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
-		const testCaseId = Number(params.testCaseId);
+		const projectId = parseId(params.projectId, 'project ID');
+		const testCaseId = parseId(params.testCaseId, 'test case ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const form = await validateForm(updateTestCaseSchema, request);
@@ -211,8 +207,8 @@ export const actions: Actions = {
 
 	createTag: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
-		const testCaseId = Number(params.testCaseId);
+		const projectId = parseId(params.projectId, 'project ID');
+		const testCaseId = parseId(params.testCaseId, 'test case ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
@@ -259,8 +255,8 @@ export const actions: Actions = {
 
 	assignTag: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
-		const testCaseId = Number(params.testCaseId);
+		const projectId = parseId(params.projectId, 'project ID');
+		const testCaseId = parseId(params.testCaseId, 'test case ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
@@ -293,8 +289,8 @@ export const actions: Actions = {
 
 	removeTag: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
-		const testCaseId = Number(params.testCaseId);
+		const projectId = parseId(params.projectId, 'project ID');
+		const testCaseId = parseId(params.testCaseId, 'test case ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
@@ -313,8 +309,8 @@ export const actions: Actions = {
 
 	assignAssignee: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
-		const testCaseId = Number(params.testCaseId);
+		const projectId = parseId(params.projectId, 'project ID');
+		const testCaseId = parseId(params.testCaseId, 'test case ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
@@ -347,8 +343,8 @@ export const actions: Actions = {
 
 	removeAssignee: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
-		const testCaseId = Number(params.testCaseId);
+		const projectId = parseId(params.projectId, 'project ID');
+		const testCaseId = parseId(params.testCaseId, 'test case ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
@@ -367,8 +363,8 @@ export const actions: Actions = {
 
 	delete: async ({ locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
-		const testCaseId = Number(params.testCaseId);
+		const projectId = parseId(params.projectId, 'project ID');
+		const testCaseId = parseId(params.testCaseId, 'test case ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
 
 		const tc = await db.query.testCase.findFirst({

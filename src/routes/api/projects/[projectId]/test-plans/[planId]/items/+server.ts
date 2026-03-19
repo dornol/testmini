@@ -3,7 +3,7 @@ import { badRequest, validationError } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { testPlan, testPlanTestCase, testCase } from '$lib/server/db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { z } from 'zod';
 
@@ -12,7 +12,7 @@ const itemsSchema = z.object({
 });
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, projectId }) => {
-	const planId = Number(params.planId);
+	const planId = parseId(params.planId, 'plan ID');
 
 	const plan = await db.query.testPlan.findFirst({
 		where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
@@ -62,7 +62,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ req
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, projectId }) => {
-	const planId = Number(params.planId);
+	const planId = parseId(params.planId, 'plan ID');
 
 	const plan = await db.query.testPlan.findFirst({
 		where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))

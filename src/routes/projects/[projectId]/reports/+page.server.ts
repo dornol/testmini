@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { parseDateRange, loadReportData } from '$lib/server/report-data';
+import { parseId } from '$lib/server/auth-utils';
 
 function toDateString(date: Date): string {
 	return date.toISOString().slice(0, 10);
@@ -7,7 +8,7 @@ function toDateString(date: Date): string {
 
 export const load: PageServerLoad = async ({ params, parent, url }) => {
 	await parent();
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 
 	const range = parseDateRange({
 		from: url.searchParams.get('from'),

@@ -154,10 +154,9 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 			expect(result).toMatchObject({ status: 403, data: { error: 'Admin access required' } });
 		});
 
-		it('should return 400 for invalid provider ID', async () => {
+		it('should throw 400 for invalid provider ID', async () => {
 			const event = createActionEvent(adminUser, validUpdateData, { providerId: 'abc' });
-			const result = await actions.update(event);
-			expect(result).toMatchObject({ status: 400, data: { error: 'Invalid provider ID' } });
+			await expect(actions.update(event)).rejects.toMatchObject({ status: 400 });
 		});
 
 		it('should return 400 when required fields are missing', async () => {
@@ -219,10 +218,9 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 			expect(result).toMatchObject({ status: 403, data: { error: 'Admin access required' } });
 		});
 
-		it('should return 400 for invalid provider ID', async () => {
+		it('should throw 400 for invalid provider ID', async () => {
 			const event = createActionEvent(adminUser, {}, { providerId: 'abc' });
-			const result = await actions.deleteProvider(event);
-			expect(result).toMatchObject({ status: 400, data: { error: 'Invalid provider ID' } });
+			await expect(actions.deleteProvider(event)).rejects.toMatchObject({ status: 400 });
 		});
 
 		it('should disable provider when accounts are linked', async () => {

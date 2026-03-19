@@ -22,7 +22,8 @@ vi.mock('drizzle-orm', () => ({
 }));
 vi.mock('$lib/server/auth-utils', () => ({
 	requireAuth: vi.fn().mockReturnValue(testUser),
-	requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' })
+	requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
+	parseId: vi.fn((raw: string) => Number(raw))
 }));
 
 const { load } = await import('./+page.server');

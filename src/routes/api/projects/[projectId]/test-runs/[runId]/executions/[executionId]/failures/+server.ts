@@ -3,7 +3,7 @@ import { db } from '$lib/server/db';
 import { testFailureDetail, testExecution, testRun, testCaseVersion, issueLink, issueTrackerConfig } from '$lib/server/db/schema';
 import { user } from '$lib/server/db/auth.schema';
 import { eq, and } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { createFailureSchema } from '$lib/schemas/failure.schema';
 import { badRequest } from '$lib/server/errors';
@@ -14,8 +14,8 @@ import { childLogger } from '$lib/server/logger';
 const log = childLogger('failure-issue-sync');
 
 export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'], async ({ params, projectId }) => {
-	const runId = Number(params.runId);
-	const executionId = Number(params.executionId);
+	const runId = parseId(params.runId, 'run ID');
+	const executionId = parseId(params.executionId, 'execution ID');
 
 	// Verify run belongs to project
 	const run = await db.query.testRun.findFirst({
@@ -56,8 +56,8 @@ export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'], asy
 });
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, user, projectId }) => {
-	const runId = Number(params.runId);
-	const executionId = Number(params.executionId);
+	const runId = parseId(params.runId, 'run ID');
+	const executionId = parseId(params.executionId, 'execution ID');
 
 	await requireEditableRun(runId, projectId);
 

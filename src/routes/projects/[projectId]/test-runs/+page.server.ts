@@ -2,10 +2,11 @@ import type { PageServerLoad } from './$types';
 import { db, col } from '$lib/server/db';
 import { testRun, testExecution, user } from '$lib/server/db/schema';
 import { eq, count, and, sql, desc } from 'drizzle-orm';
+import { parseId } from '$lib/server/auth-utils';
 
 export const load: PageServerLoad = async ({ params, url, parent }) => {
 	await parent();
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 
 	const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'));
 	const limit = Math.min(50, Math.max(1, Number(url.searchParams.get('limit') ?? '20')));

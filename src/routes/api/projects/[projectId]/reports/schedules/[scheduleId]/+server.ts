@@ -5,11 +5,10 @@ import { reportSchedule } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import cron from 'node-cron';
 import { registerJob, removeJob } from '$lib/server/report-scheduler';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params, projectId }) => {
-	const scheduleId = Number(params.scheduleId);
-	if (!Number.isFinite(scheduleId)) error(400, 'Invalid schedule ID');
+	const scheduleId = parseId(params.scheduleId, 'schedule ID');
 
 	const body = await parseJsonBody(request);
 	const { name, cronExpression, recipientEmails, reportRange, enabled } = body as {
@@ -52,8 +51,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
-	const scheduleId = Number(params.scheduleId);
-	if (!Number.isFinite(scheduleId)) error(400, 'Invalid schedule ID');
+	const scheduleId = parseId(params.scheduleId, 'schedule ID');
 
 	const [deleted] = await db
 		.delete(reportSchedule)

@@ -4,6 +4,7 @@ import { testCase, testRun, testExecution, user, dashboardLayout } from '$lib/se
 import { eq, and, sql, desc, count } from 'drizzle-orm';
 import { DEFAULT_LAYOUT } from '$lib/dashboard-widgets';
 import { cacheGet, cacheSet } from '$lib/server/cache';
+import { parseId } from '$lib/server/auth-utils';
 
 interface RecentRun {
 	id: number;
@@ -171,7 +172,7 @@ async function loadDashboardStats(projectId: number): Promise<DashboardStats> {
 }
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 	const currentUser = locals.user;
 
 	const dashboardData = await loadDashboardStats(projectId);

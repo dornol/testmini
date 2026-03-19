@@ -4,11 +4,11 @@ import { issueLink, issueTrackerConfig } from '$lib/server/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { notFound, badRequest } from '$lib/server/errors';
+import { parseId } from '$lib/server/auth-utils';
 import { fetchIssueDetail } from '$lib/server/issue-tracker';
 
 export const GET = withProjectAccess(async ({ projectId, params }) => {
-	const linkId = Number(params.linkId);
-	if (!Number.isFinite(linkId)) error(400, 'Invalid link ID');
+	const linkId = parseId(params.linkId, 'link ID');
 
 	const link = await db.query.issueLink.findFirst({
 		where: and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId))

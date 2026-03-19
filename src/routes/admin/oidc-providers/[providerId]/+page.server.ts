@@ -45,8 +45,7 @@ export const actions: Actions = {
 		const authUser = requireAuth(locals);
 		if (!isGlobalAdmin(authUser)) return fail(403, { error: 'Admin access required' });
 
-		const providerId = Number(params.providerId);
-		if (isNaN(providerId)) return fail(400, { error: 'Invalid provider ID' });
+		const providerId = parseId(params.providerId, 'provider ID');
 
 		const formData = await request.formData();
 		const name = (formData.get('name') as string)?.trim();
@@ -110,8 +109,7 @@ export const actions: Actions = {
 		const authUser = requireAuth(locals);
 		if (!isGlobalAdmin(authUser)) return fail(403, { error: 'Admin access required' });
 
-		const providerId = Number(params.providerId);
-		if (isNaN(providerId)) return fail(400, { error: 'Invalid provider ID' });
+		const providerId = parseId(params.providerId, 'provider ID');
 
 		const [accountCount] = await db
 			.select({ count: count() })

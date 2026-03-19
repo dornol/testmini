@@ -4,10 +4,11 @@ import { testExecution, testFailureDetail } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { requireEditableRun } from '$lib/server/crud-helpers';
+import { parseId } from '$lib/server/auth-utils';
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, projectId }) => {
-	const runId = Number(params.runId);
-	const executionId = Number(params.executionId);
+	const runId = parseId(params.runId, 'run ID');
+	const executionId = parseId(params.executionId, 'execution ID');
 
 	await requireEditableRun(runId, projectId);
 

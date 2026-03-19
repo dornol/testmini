@@ -21,8 +21,8 @@ import type { RunEvent } from '$lib/types/events';
 
 async function getActionContext(locals: App.Locals, params: Record<string, string>) {
 	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
-	const runId = Number(params.runId);
+	const projectId = parseId(params.projectId, 'project ID');
+	const runId = parseId(params.runId, 'run ID');
 	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 	return { authUser, projectId, runId };
 }
@@ -52,7 +52,7 @@ function parseFailureFormData(formData: FormData): CreateFailureInput {
 export const load: PageServerLoad = async ({ params, parent, url, locals }) => {
 	await parent();
 	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 	const runId = parseId(params.runId, 'run ID');
 
 	const run = await db.query.testRun.findFirst({

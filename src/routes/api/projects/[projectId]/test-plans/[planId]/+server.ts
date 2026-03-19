@@ -3,12 +3,12 @@ import { badRequest, validationError } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { testPlan, testPlanTestCase, testCase, testCaseVersion, testRun, user, project, testPlanSignoff } from '$lib/server/db/schema';
 import { eq, and, sql, desc } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { updateTestPlanSchema } from '$lib/schemas/test-plan.schema';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
-	const planId = Number(params.planId);
+	const planId = parseId(params.planId, 'plan ID');
 
 	const plan = await db.query.testPlan.findFirst({
 		where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
@@ -54,7 +54,7 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 });
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, projectId }) => {
-	const planId = Number(params.planId);
+	const planId = parseId(params.planId, 'plan ID');
 
 	const plan = await db.query.testPlan.findFirst({
 		where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
@@ -117,7 +117,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ re
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
-	const planId = Number(params.planId);
+	const planId = parseId(params.planId, 'plan ID');
 
 	const plan = await db.query.testPlan.findFirst({
 		where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))

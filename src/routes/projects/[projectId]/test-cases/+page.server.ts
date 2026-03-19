@@ -17,7 +17,7 @@ import {
 	issueTrackerConfig
 } from '$lib/server/db/schema';
 import { eq, and, desc, asc, sql, inArray } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { loadProjectTags, loadBatchTags, loadBatchAssignees } from '$lib/server/queries';
 import { buildTestCaseConditions } from '$lib/server/test-case-filters';
 
@@ -84,7 +84,7 @@ function applyExecStatusFilter<T extends { id: number }>(
 
 export const load: PageServerLoad = async ({ params, url, parent, cookies, locals }) => {
 	await parent();
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 
 	const search = url.searchParams.get('search') ?? '';
 	const priority = url.searchParams.get('priority') ?? '';
@@ -303,7 +303,7 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 export const actions: Actions = {
 	quickCreate: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();

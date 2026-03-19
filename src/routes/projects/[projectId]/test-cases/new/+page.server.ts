@@ -5,7 +5,7 @@ import { emptyForm, validateForm } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, customField } from '$lib/server/db/schema';
 import { eq, and, sql, asc } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 
 export const load: PageServerLoad = async ({ parent, params }) => {
 	const { userRole } = await parent();
@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ parent, params }) => {
 		redirect(303, '../test-cases');
 	}
 
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 	const [form, customFieldDefs] = await Promise.all([
 		emptyForm(createTestCaseSchema),
 		db.select({
@@ -30,7 +30,7 @@ export const load: PageServerLoad = async ({ parent, params }) => {
 export const actions: Actions = {
 	default: async ({ request, locals, params }) => {
 		const user = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const form = await validateForm(createTestCaseSchema, request);

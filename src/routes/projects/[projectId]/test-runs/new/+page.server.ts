@@ -3,7 +3,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { db, col } from '$lib/server/db';
 import { testCase, testCaseVersion, testRun, testExecution, tag, testCaseTag, testSuite, testSuiteItem, testCaseDataSet } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { loadProjectTags } from '$lib/server/queries';
 import { createTestRunSchema, type CreateTestRunInput } from '$lib/schemas/test-run.schema';
 
@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		redirect(303, '../test-runs');
 	}
 
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 
 	// Get all test cases with latest version for selection
 	const testCases = await db
@@ -98,7 +98,7 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 export const actions: Actions = {
 	default: async ({ request, locals, params }) => {
 		const user = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();

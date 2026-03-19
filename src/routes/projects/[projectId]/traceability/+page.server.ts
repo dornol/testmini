@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { requireAuth, requireProjectAccess } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectAccess, parseId } from '$lib/server/auth-utils';
 import { db } from '$lib/server/db';
 import { testCase, testCaseVersion } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 export const load: PageServerLoad = async ({ params, locals, parent }) => {
 	await parent();
 	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 	await requireProjectAccess(authUser, projectId);
 
 	// Load all test cases for the "Link Test Case" dialog

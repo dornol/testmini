@@ -3,13 +3,12 @@ import { db } from '$lib/server/db';
 import { module } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { updateModuleSchema } from '$lib/schemas/module.schema';
 import { notFound, badRequest } from '$lib/server/errors';
 
 export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, projectId }) => {
-	const moduleId = Number(params.moduleId);
-	if (!Number.isFinite(moduleId)) return badRequest('Invalid module ID');
+	const moduleId = parseId(params.moduleId, 'module ID');
 
 	const body = await parseJsonBody(request);
 	const parsed = updateModuleSchema.safeParse(body);
@@ -34,8 +33,7 @@ export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ requ
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
-	const moduleId = Number(params.moduleId);
-	if (!Number.isFinite(moduleId)) return badRequest('Invalid module ID');
+	const moduleId = parseId(params.moduleId, 'module ID');
 
 	const [deleted] = await db
 		.delete(module)

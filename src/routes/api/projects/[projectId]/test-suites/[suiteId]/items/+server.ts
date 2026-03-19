@@ -3,12 +3,12 @@ import { badRequest, validationError } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { testSuite, testSuiteItem, testCase } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { suiteItemsSchema } from '$lib/schemas/test-suite.schema';
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, params, projectId }) => {
-	const suiteId = Number(params.suiteId);
+	const suiteId = parseId(params.suiteId, 'suite ID');
 
 	const suite = await db.query.testSuite.findFirst({
 		where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
@@ -51,7 +51,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, p
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, params, projectId }) => {
-	const suiteId = Number(params.suiteId);
+	const suiteId = parseId(params.suiteId, 'suite ID');
 
 	const suite = await db.query.testSuite.findFirst({
 		where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))

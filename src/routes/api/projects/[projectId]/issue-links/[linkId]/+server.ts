@@ -4,12 +4,12 @@ import { db } from '$lib/server/db';
 import { issueLink } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 
 export const PATCH = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ request, params, projectId }) => {
-		const linkId = Number(params.linkId);
+		const linkId = parseId(params.linkId, 'link ID');
 
 		const existing = await db.query.issueLink.findFirst({
 			where: and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId))
@@ -54,7 +54,7 @@ export const PATCH = withProjectRole(
 export const DELETE = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ params, projectId }) => {
-		const linkId = Number(params.linkId);
+		const linkId = parseId(params.linkId, 'link ID');
 
 		const existing = await db.query.issueLink.findFirst({
 			where: and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId))

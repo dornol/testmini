@@ -2,11 +2,11 @@ import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { projectWebhook } from '$lib/server/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const authUser = requireAuth(locals);
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 	await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
 
 	const webhooks = await db

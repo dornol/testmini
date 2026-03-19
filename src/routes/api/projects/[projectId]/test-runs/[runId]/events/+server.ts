@@ -1,8 +1,9 @@
 import { createSubscriber } from '$lib/server/redis';
 import { withProjectRole } from '$lib/server/api-handler';
+import { parseId } from '$lib/server/auth-utils';
 
 export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'], async ({ params, request }) => {
-	const runId = Number(params.runId);
+	const runId = parseId(params.runId, 'run ID');
 
 	const channel = `run:${runId}:events`;
 	const subscriber = createSubscriber();

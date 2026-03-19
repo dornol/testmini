@@ -3,11 +3,12 @@ import { error } from '@sveltejs/kit';
 import { db, col } from '$lib/server/db';
 import { release, testPlan, testRun, user } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
+import { parseId } from '$lib/server/auth-utils';
 
 export const load: PageServerLoad = async ({ params, parent }) => {
 	await parent();
-	const projectId = Number(params.projectId);
-	const releaseId = Number(params.releaseId);
+	const projectId = parseId(params.projectId, 'project ID');
+	const releaseId = parseId(params.releaseId, 'release ID');
 
 	const rel = await db.query.release.findFirst({
 		where: and(eq(release.id, releaseId), eq(release.projectId, projectId))

@@ -2,13 +2,13 @@ import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, testExecution } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { badRequest, conflict } from '$lib/server/errors';
 import { requireEditableRun } from '$lib/server/crud-helpers';
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, projectId }) => {
-	const runId = Number(params.runId);
+	const runId = parseId(params.runId, 'run ID');
 
 	const body = await parseJsonBody(request);
 	const { testCaseId } = body as { testCaseId: number };

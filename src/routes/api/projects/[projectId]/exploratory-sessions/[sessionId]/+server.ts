@@ -4,7 +4,7 @@ import { exploratorySession, sessionNote, user } from '$lib/server/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 
 async function findSession(projectId: number, sessionId: number) {
 	return db.query.exploratorySession.findFirst({
@@ -16,8 +16,7 @@ async function findSession(projectId: number, sessionId: number) {
 }
 
 export const GET = withProjectAccess(async ({ projectId, params }) => {
-	const sessionId = Number(params.sessionId);
-	if (!Number.isFinite(sessionId)) error(400, 'Invalid session ID');
+	const sessionId = parseId(params.sessionId, 'session ID');
 
 	const session = await findSession(projectId, sessionId);
 	if (!session) return notFound('Session not found');
@@ -39,8 +38,7 @@ export const GET = withProjectAccess(async ({ projectId, params }) => {
 export const PATCH = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ request, projectId, params }) => {
-		const sessionId = Number(params.sessionId);
-		if (!Number.isFinite(sessionId)) error(400, 'Invalid session ID');
+		const sessionId = parseId(params.sessionId, 'session ID');
 
 		const session = await findSession(projectId, sessionId);
 		if (!session) return notFound('Session not found');
@@ -124,8 +122,7 @@ export const PATCH = withProjectRole(
 export const DELETE = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ projectId, params }) => {
-		const sessionId = Number(params.sessionId);
-		if (!Number.isFinite(sessionId)) error(400, 'Invalid session ID');
+		const sessionId = parseId(params.sessionId, 'session ID');
 
 		const session = await findSession(projectId, sessionId);
 		if (!session) return notFound('Session not found');

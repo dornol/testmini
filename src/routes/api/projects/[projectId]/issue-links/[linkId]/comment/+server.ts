@@ -5,13 +5,12 @@ import { and, eq } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { notFound, badRequest } from '$lib/server/errors';
 import { addIssueComment } from '$lib/server/issue-tracker';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ request, projectId, params }) => {
-		const linkId = Number(params.linkId);
-		if (!Number.isFinite(linkId)) error(400, 'Invalid link ID');
+		const linkId = parseId(params.linkId, 'link ID');
 
 		let body: { comment?: string };
 		try {

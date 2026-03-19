@@ -3,10 +3,10 @@ import { db } from '$lib/server/db';
 import { testRun, testExecution, testCaseVersion, testCase } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, user, projectId }) => {
-	const runId = Number(params.runId);
+	const runId = parseId(params.runId, 'run ID');
 
 	const originalRun = await db.query.testRun.findFirst({
 		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))

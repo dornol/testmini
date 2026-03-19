@@ -3,11 +3,11 @@ import { badRequest, conflict } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { testCaseGroup } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, projectId }) => {
-	const groupId = Number(params.groupId);
+	const groupId = parseId(params.groupId, 'group ID');
 
 	const body = await parseJsonBody(request);
 	const { name, color } = body as { name?: string; color?: string | null };
@@ -60,7 +60,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ pa
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
-	const groupId = Number(params.groupId);
+	const groupId = parseId(params.groupId, 'group ID');
 
 	const group = await db.query.testCaseGroup.findFirst({
 		where: and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId))

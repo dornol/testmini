@@ -3,9 +3,10 @@ import { db, col } from '$lib/server/db';
 import { project, teamMember, user } from '$lib/server/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { loadTeamMembers } from '$lib/server/queries';
+import { parseId } from '$lib/server/auth-utils';
 
 export const load: PageServerLoad = async ({ params }) => {
-	const teamId = Number(params.teamId);
+	const teamId = parseId(params.teamId, 'team ID');
 
 	const [teamProjects, members] = await Promise.all([
 		db

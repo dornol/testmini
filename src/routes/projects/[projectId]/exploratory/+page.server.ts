@@ -2,10 +2,11 @@ import type { PageServerLoad } from './$types';
 import { db, col } from '$lib/server/db';
 import { exploratorySession, user } from '$lib/server/db/schema';
 import { eq, and, desc, count, sql } from 'drizzle-orm';
+import { parseId } from '$lib/server/auth-utils';
 
 export const load: PageServerLoad = async ({ params, url, parent }) => {
 	await parent();
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 
 	const statusFilter = url.searchParams.get('status') ?? '';
 

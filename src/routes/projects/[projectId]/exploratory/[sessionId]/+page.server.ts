@@ -7,7 +7,7 @@ import { parseId } from '$lib/server/auth-utils';
 
 export const load: PageServerLoad = async ({ params, parent }) => {
 	await parent();
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 	const sessionId = parseId(params.sessionId, 'session ID');
 
 	let session;

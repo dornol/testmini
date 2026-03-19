@@ -2,14 +2,14 @@ import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { executionComment, testExecution, testRun, user as userTable } from '$lib/server/db/schema';
 import { eq, and, asc, isNull } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
 import { validateCommentContent } from '$lib/server/crud-helpers';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
-	const runId = Number(params.runId);
-	const executionId = Number(params.executionId);
+	const runId = parseId(params.runId, 'run ID');
+	const executionId = parseId(params.executionId, 'execution ID');
 
 	// Verify execution belongs to run in this project
 	const exec = await db
@@ -47,8 +47,8 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 });
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, user, projectId }) => {
-	const runId = Number(params.runId);
-	const executionId = Number(params.executionId);
+	const runId = parseId(params.runId, 'run ID');
+	const executionId = parseId(params.executionId, 'execution ID');
 
 	// Verify execution belongs to run in this project
 	const exec = await db

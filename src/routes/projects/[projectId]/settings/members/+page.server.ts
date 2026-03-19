@@ -6,13 +6,13 @@ import { emptyForm, validateForm } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { projectMember, user } from '$lib/server/db/schema';
 import { eq, and, count } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { logAudit } from '$lib/server/audit';
 import { createNotification } from '$lib/server/notifications';
 import { cacheDelete } from '$lib/server/cache';
 
 export const load: PageServerLoad = async ({ params }) => {
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 
 	const members = await db
 		.select({
@@ -36,7 +36,7 @@ export const load: PageServerLoad = async ({ params }) => {
 export const actions: Actions = {
 	addMember: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
 
 		const form = await validateForm(addMemberSchema, request);
@@ -92,7 +92,7 @@ export const actions: Actions = {
 
 	updateRole: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
 
 		const formData = await request.formData();
@@ -146,7 +146,7 @@ export const actions: Actions = {
 
 	removeMember: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
 
 		const formData = await request.formData();

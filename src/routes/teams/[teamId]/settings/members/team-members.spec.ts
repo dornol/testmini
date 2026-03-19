@@ -26,7 +26,8 @@ vi.mock('$lib/server/auth-utils', () => ({
 		if (!locals.user) throw new Error('Authentication required');
 		return locals.user;
 	}),
-	isGlobalAdmin: vi.fn((user: { role?: string }) => user.role === 'admin')
+	isGlobalAdmin: vi.fn((user: { role?: string }) => user.role === 'admin'),
+	parseId: vi.fn((raw: string) => Number(raw))
 }));
 
 const mockLoadTeamMembers = vi.fn();

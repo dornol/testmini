@@ -3,11 +3,11 @@ import { badRequest } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { testCaseTemplate, type TestStep } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
-	const templateId = Number(params.templateId);
+	const templateId = parseId(params.templateId, 'template ID');
 
 	const template = await db.query.testCaseTemplate.findFirst({
 		where: and(
@@ -24,7 +24,7 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 });
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, projectId }) => {
-	const templateId = Number(params.templateId);
+	const templateId = parseId(params.templateId, 'template ID');
 
 	const template = await db.query.testCaseTemplate.findFirst({
 		where: and(
@@ -89,7 +89,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ re
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
-	const templateId = Number(params.templateId);
+	const templateId = parseId(params.templateId, 'template ID');
 
 	const template = await db.query.testCaseTemplate.findFirst({
 		where: and(

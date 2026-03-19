@@ -3,10 +3,10 @@ import { withProjectAccess } from '$lib/server/api-handler';
 import { db } from '$lib/server/db';
 import { sharedReport } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { parseId } from '$lib/server/auth-utils';
 
 export const DELETE = withProjectAccess(async ({ params, projectId }) => {
-	const shareId = Number(params.shareId);
-	if (!Number.isFinite(shareId)) error(400, 'Invalid share ID');
+	const shareId = parseId(params.shareId, 'share ID');
 
 	const [deleted] = await db
 		.delete(sharedReport)

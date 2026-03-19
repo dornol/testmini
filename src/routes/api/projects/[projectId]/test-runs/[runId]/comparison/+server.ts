@@ -4,10 +4,10 @@ import { testRun, testExecution, testCaseVersion, testCase } from '$lib/server/d
 import { eq, and, inArray } from 'drizzle-orm';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
+import { parseId } from '$lib/server/auth-utils';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
-	const runId = Number(params.runId);
-	if (!Number.isFinite(runId)) error(400, 'Invalid run ID');
+	const runId = parseId(params.runId, 'run ID');
 
 	const run = await db.query.testRun.findFirst({
 		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))

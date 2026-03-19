@@ -4,14 +4,14 @@ import { exploratorySession, sessionNote } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
+import { parseId } from '$lib/server/auth-utils';
 import { saveFile } from '$lib/server/storage';
 import { randomUUID } from 'node:crypto';
 
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ request, projectId, params }) => {
-		const sessionId = Number(params.sessionId);
-		if (!Number.isFinite(sessionId)) error(400, 'Invalid session ID');
+		const sessionId = parseId(params.sessionId, 'session ID');
 
 		const session = await db.query.exploratorySession.findFirst({
 			where: and(

@@ -4,10 +4,10 @@ import { release, testRun, testExecution, testCaseVersion, testCase } from '$lib
 import { eq, and, sql } from 'drizzle-orm';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { notFound } from '$lib/server/errors';
+import { parseId } from '$lib/server/auth-utils';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
-	const releaseId = Number(params.releaseId);
-	if (!Number.isFinite(releaseId)) error(400, 'Invalid release ID');
+	const releaseId = parseId(params.releaseId, 'release ID');
 
 	const rel = await db.query.release.findFirst({
 		where: and(eq(release.id, releaseId), eq(release.projectId, projectId))

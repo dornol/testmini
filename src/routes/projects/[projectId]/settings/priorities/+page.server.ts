@@ -3,13 +3,13 @@ import { fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { priorityConfig, testCaseVersion, testCase, testCaseTemplate } from '$lib/server/db/schema';
 import { eq, and, asc, sql } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { createPrioritySchema, updatePrioritySchema } from '$lib/schemas/priority.schema';
 import { cacheDelete } from '$lib/server/cache';
 import { getNextPosition } from '$lib/server/queries';
 
 export const load: PageServerLoad = async ({ params }) => {
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 
 	const priorities = await db
 		.select({
@@ -30,7 +30,7 @@ export const load: PageServerLoad = async ({ params }) => {
 export const actions: Actions = {
 	create: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
@@ -80,7 +80,7 @@ export const actions: Actions = {
 
 	update: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
@@ -158,7 +158,7 @@ export const actions: Actions = {
 
 	delete: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
@@ -184,7 +184,7 @@ export const actions: Actions = {
 
 	reorder: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();

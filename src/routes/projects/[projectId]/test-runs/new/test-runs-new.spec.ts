@@ -33,7 +33,8 @@ vi.mock('drizzle-orm', () => ({
 }));
 vi.mock('$lib/server/auth-utils', () => ({
 	requireAuth: (...args: unknown[]) => mockRequireAuth(...args),
-	requireProjectRole: (...args: unknown[]) => mockRequireProjectRole(...args)
+	requireProjectRole: (...args: unknown[]) => mockRequireProjectRole(...args),
+	parseId: vi.fn((raw: string) => Number(raw))
 }));
 vi.mock('$lib/server/queries', () => ({
 	loadProjectTags: (...args: unknown[]) => mockLoadProjectTags(...args)

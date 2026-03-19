@@ -3,12 +3,12 @@ import { fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { tag } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, requireProjectRole } from '$lib/server/auth-utils';
+import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { createTagSchema, updateTagSchema } from '$lib/schemas/tag.schema';
 import { cacheDelete } from '$lib/server/cache';
 
 export const load: PageServerLoad = async ({ params }) => {
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 
 	const tags = await db
 		.select({
@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ params }) => {
 export const actions: Actions = {
 	create: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
@@ -62,7 +62,7 @@ export const actions: Actions = {
 
 	update: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
@@ -103,7 +103,7 @@ export const actions: Actions = {
 
 	delete: async ({ request, locals, params }) => {
 		const authUser = requireAuth(locals);
-		const projectId = Number(params.projectId);
+		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();

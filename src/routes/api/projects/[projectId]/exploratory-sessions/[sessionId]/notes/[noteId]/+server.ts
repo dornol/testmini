@@ -4,15 +4,14 @@ import { exploratorySession, sessionNote } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { notFound } from '$lib/server/errors';
+import { parseId } from '$lib/server/auth-utils';
 import { deleteFile } from '$lib/server/storage';
 
 export const DELETE = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ projectId, params }) => {
-		const sessionId = Number(params.sessionId);
-		const noteId = Number(params.noteId);
-		if (!Number.isFinite(sessionId)) error(400, 'Invalid session ID');
-		if (!Number.isFinite(noteId)) error(400, 'Invalid note ID');
+		const sessionId = parseId(params.sessionId, 'session ID');
+		const noteId = parseId(params.noteId, 'note ID');
 
 		// Verify session belongs to project
 		const session = await db.query.exploratorySession.findFirst({

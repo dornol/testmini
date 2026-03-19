@@ -2,15 +2,14 @@ import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testPlan, testPlanSignoff, user, projectMember } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { createSignoffSchema } from '$lib/schemas/signoff.schema';
 import { notFound, validationError } from '$lib/server/errors';
 import { createNotification } from '$lib/server/notifications';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
-	const planId = Number(params.planId);
-	if (!Number.isFinite(planId)) error(400, 'Invalid plan ID');
+	const planId = parseId(params.planId, 'plan ID');
 
 	const plan = await db.query.testPlan.findFirst({
 		where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
@@ -37,8 +36,7 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA'],
 	async ({ request, params, projectId, user: currentUser }) => {
-		const planId = Number(params.planId);
-		if (!Number.isFinite(planId)) error(400, 'Invalid plan ID');
+		const planId = parseId(params.planId, 'plan ID');
 
 		const plan = await db.query.testPlan.findFirst({
 			where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))

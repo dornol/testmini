@@ -2,12 +2,12 @@ import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { sharedDataSet } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { notFound } from '$lib/server/errors';
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, projectId }) => {
-	const datasetId = Number(params.datasetId);
+	const datasetId = parseId(params.datasetId, 'dataset ID');
 
 	const ds = await db.query.sharedDataSet.findFirst({
 		where: and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId))
@@ -34,7 +34,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ pa
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, projectId }) => {
-	const datasetId = Number(params.datasetId);
+	const datasetId = parseId(params.datasetId, 'dataset ID');
 
 	const ds = await db.query.sharedDataSet.findFirst({
 		where: and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId))

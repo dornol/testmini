@@ -2,10 +2,11 @@ import type { PageServerLoad } from './$types';
 import { db, col } from '$lib/server/db';
 import { release, user } from '$lib/server/db/schema';
 import { eq, sql } from 'drizzle-orm';
+import { parseId } from '$lib/server/auth-utils';
 
 export const load: PageServerLoad = async ({ params, parent }) => {
 	await parent();
-	const projectId = Number(params.projectId);
+	const projectId = parseId(params.projectId, 'project ID');
 
 	const releases = await db
 		.select({

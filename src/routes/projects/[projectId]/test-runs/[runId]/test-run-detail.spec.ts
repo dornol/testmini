@@ -41,7 +41,8 @@ vi.mock('drizzle-orm', () => ({
 }));
 vi.mock('$lib/server/auth-utils', () => ({
 	requireAuth: vi.fn().mockReturnValue(testUser),
-	requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' })
+	requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' }),
+	parseId: vi.fn((raw: string) => Number(raw))
 }));
 vi.mock('$lib/server/redis', () => ({
 	publish: (...args: unknown[]) => mockPublish(...args)

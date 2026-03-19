@@ -61,7 +61,9 @@
 	// Sync from data (reactive) — only when the server config actually changes
 	$effect(() => {
 		const c = data.issueTrackerConfig as TrackerConfig | null;
+		// Skip if we already synced this config, or if server data is stale (null) but we have a local save
 		if (c?.id === syncedConfigId && syncedConfigId !== null) return;
+		if (c === null && syncedConfigId !== null) return;
 		syncedConfigId = c?.id ?? null;
 		config = c;
 		provider = (c?.provider as Provider) ?? 'JIRA';

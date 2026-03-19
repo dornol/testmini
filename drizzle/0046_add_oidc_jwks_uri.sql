@@ -1,0 +1,1 @@
+ALTER TABLE "oidc_provider" ADD COLUMN IF NOT EXISTS "jwks_uri" text;

@@ -11,15 +11,15 @@ const key = Symbol.for('__drizzle_migrated');
 const g = globalThis as Record<symbol, boolean>;
 
 /**
- * Verify that every .sql file in the drizzle folder has a matching journal entry.
- * Catches the common mistake of manually creating SQL files without `pnpm db:generate`.
+ * Verify that every .sql file in the drizzle folder has a matching journal entry,
+ * and that journal timestamps are strictly ascending (drizzle skips migrations
+ * whose `when` is <= the last applied migration's created_at).
  */
 function checkMigrationIntegrity(migrationsFolder: string) {
 	const journalPath = resolve(migrationsFolder, 'meta', '_journal.json');
 	const journal = JSON.parse(readFileSync(journalPath, 'utf-8'));
-	const registeredTags = new Set<string>(
-		journal.entries.map((e: { tag: string }) => e.tag)
-	);
+	const entries = journal.entries as { tag: string; when: number; idx: number }[];
+	const registeredTags = new Set<string>(entries.map((e) => e.tag));
 
 	const sqlFiles = readdirSync(migrationsFolder)
 		.filter((f) => f.endsWith('.sql'))
@@ -33,6 +33,18 @@ function checkMigrationIntegrity(migrationsFolder: string) {
 			`or add entries to drizzle/meta/_journal.json manually.`;
 		logger.error(msg);
 		throw new Error(msg);
+	}
+
+	// Verify timestamps are strictly ascending — drizzle compares `when` against
+	// the last DB migration's created_at and silently skips if when <= created_at
+	for (let i = 1; i < entries.length; i++) {
+		if (entries[i].when <= entries[i - 1].when) {
+			const msg = `Migration timestamp order violation: ${entries[i].tag} (when=${entries[i].when}) ` +
+				`<= ${entries[i - 1].tag} (when=${entries[i - 1].when}). ` +
+				`Drizzle will silently skip this migration. Fix the "when" value in _journal.json.`;
+			logger.error(msg);
+			throw new Error(msg);
+		}
 	}
 }
 
@@ -55,8 +67,23 @@ export async function runMigrations() {
 	try {
 		const migrationDb = drizzle(migrationClient);
 		await migrate(migrationDb, { migrationsFolder });
+
+		// Verify: DB migration count must match journal entry count
+		const journalPath = resolve(migrationsFolder, 'meta', '_journal.json');
+		const journal = JSON.parse(readFileSync(journalPath, 'utf-8'));
+		const expectedCount = journal.entries.length;
+		const [{ count }] = await migrationClient`
+			SELECT count(*)::int as count FROM drizzle.__drizzle_migrations
+		`;
+		if (count < expectedCount) {
+			const msg = `Migration verification failed: DB has ${count} migrations but journal has ${expectedCount} entries. ` +
+				`Some migrations were silently skipped. Check journal "when" timestamps are strictly ascending.`;
+			logger.error(msg);
+			throw new Error(msg);
+		}
+
 		g[key] = true;
-		logger.info('Database migrations applied successfully');
+		logger.info({ applied: expectedCount }, 'Database migrations applied successfully');
 	} catch (error) {
 		logger.error({ err: error }, 'Database migration failed');
 		throw error;

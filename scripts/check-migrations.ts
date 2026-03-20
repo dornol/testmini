@@ -36,6 +36,17 @@ if (orphaned.length > 0) {
 	failed = true;
 }
 
+// Check that journal timestamps are strictly ascending
+const entries = journal.entries as { tag: string; when: number }[];
+for (let i = 1; i < entries.length; i++) {
+	if (entries[i].when <= entries[i - 1].when) {
+		console.error(`ERROR: Timestamp order violation: ${entries[i].tag} (when=${entries[i].when}) <= ${entries[i - 1].tag} (when=${entries[i - 1].when})`);
+		console.error('Drizzle silently skips migrations whose "when" is <= the last applied migration.');
+		console.error('Fix: Ensure all "when" values in _journal.json are strictly ascending.\n');
+		failed = true;
+	}
+}
+
 if (!failed) {
 	console.log(`OK: All ${sqlFiles.length} migrations are registered in the journal.`);
 } else {

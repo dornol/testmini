@@ -921,7 +921,7 @@
 								class="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
 								disabled={visIdx === 0}
 								onclick={() => moveCol(visIdx, -1)}
-								aria-label="Move column up"
+								aria-label={m.aria_move_column_up()}
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
 							</button>
@@ -930,7 +930,7 @@
 								class="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
 								disabled={visIdx === orderedColIds.length - 1}
 								onclick={() => moveCol(visIdx, 1)}
-								aria-label="Move column down"
+								aria-label={m.aria_move_column_down()}
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
 							</button>
@@ -1024,7 +1024,7 @@
 	{:else}
 		<!-- ===== GROUPED VIEW ===== -->
 		{#if hasActiveFilters}
-			<p class="text-xs text-muted-foreground italic">Drag & drop is disabled while filters are active.</p>
+			<p class="text-xs text-muted-foreground italic">{m.tc_dnd_disabled_filters()}</p>
 		{/if}
 
 		{#snippet avatarStack(assignees: { userId: string; userName: string }[])}
@@ -1057,7 +1057,7 @@
 				/>
 			{/if}
 			{#if !dndDisabled}
-				<span use:dragHandle data-drag-handle-tc class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 hidden sm:flex justify-center" role="button" tabindex="0" aria-label="Drag to reorder" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+				<span use:dragHandle data-drag-handle-tc class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 hidden sm:flex justify-center" role="button" tabindex="0" aria-label={m.aria_drag_reorder()} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
 					<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
 				</span>
 			{/if}
@@ -1082,7 +1082,7 @@
 							{#if canEdit}
 								<button
 									type="button"
-									aria-label="Edit key"
+									aria-label={m.aria_edit_key()}
 									class="opacity-0 group-hover/key:opacity-100 text-muted-foreground hover:text-foreground transition-opacity shrink-0 p-0.5 -m-0.5 rounded hover:bg-muted"
 									onclick={(e) => startInlineEdit(tc.id, 'key', tc.key, e)}
 								>
@@ -1110,7 +1110,7 @@
 							{#if canEdit}
 								<button
 									type="button"
-									aria-label="Edit title"
+									aria-label={m.aria_edit_title()}
 									class="opacity-0 group-hover/title:opacity-100 text-muted-foreground hover:text-foreground transition-opacity shrink-0 p-0.5 -m-0.5 rounded hover:bg-muted"
 									onclick={(e) => startInlineEdit(tc.id, 'title', tc.title, e)}
 								>
@@ -1121,7 +1121,7 @@
 					</span>
 					<!-- Issue link indicator -->
 					{#if tc.issueLinkCount > 0}
-						<span class="shrink-0 inline-flex items-center gap-0.5 text-muted-foreground" title="{tc.issueLinkCount} linked issue(s)">
+						<span class="shrink-0 inline-flex items-center gap-0.5 text-muted-foreground" title={m.tc_linked_issues({ count: tc.issueLinkCount })}>
 							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
 							<span class="text-[10px]">{tc.issueLinkCount}</span>
 						</span>
@@ -1266,7 +1266,7 @@
 						<span class="w-16 shrink-0 text-center hidden lg:block" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
 							{#if exec}
 								{#if isRunCompleted}
-									<span class="font-medium {statusColor(exec.status)}" title="Completed run (read-only)">{exec.status}</span>
+									<span class="font-medium {statusColor(exec.status)}" title={m.tc_completed_run_readonly()}>{exec.status}</span>
 								{:else}
 									<button
 										type="button"
@@ -1474,8 +1474,8 @@
 										<button
 											type="button"
 											class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"
-											title="Edit name"
-											aria-label="Edit name"
+											title={m.aria_edit_name()}
+											aria-label={m.aria_edit_name()}
 											onclick={() => startEditGroupName(group.id, group.name)}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
@@ -1485,8 +1485,8 @@
 										<button
 											type="button"
 											class="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted transition-colors"
-											title="Delete group"
-											aria-label="Delete group"
+											title={m.aria_delete_group()}
+											aria-label={m.aria_delete_group()}
 											onclick={() => { deleteGroupId = group.id; deleteGroupOpen = true; }}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
@@ -1541,8 +1541,8 @@
 							<!-- Group separator row -->
 							<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 text-sm font-semibold">
 								{#if !dndDisabled}
-									<span use:dragHandle data-drag-handle-group class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 flex justify-center" title="Drag to reorder"
-									aria-label="Drag to reorder">
+									<span use:dragHandle data-drag-handle-group class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 flex justify-center" title={m.aria_drag_reorder()}
+									aria-label={m.aria_drag_reorder()}>
 										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
 									</span>
 								{/if}
@@ -1585,8 +1585,8 @@
 										<button
 											type="button"
 											class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"
-											title="Edit name"
-											aria-label="Edit name"
+											title={m.aria_edit_name()}
+											aria-label={m.aria_edit_name()}
 											onclick={() => startEditGroupName(group.id, group.name)}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
@@ -1596,8 +1596,8 @@
 										<button
 											type="button"
 											class="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted transition-colors"
-											title="Delete group"
-											aria-label="Delete group"
+											title={m.aria_delete_group()}
+											aria-label={m.aria_delete_group()}
 											onclick={() => { deleteGroupId = group.id; deleteGroupOpen = true; }}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
@@ -1761,7 +1761,7 @@
 			style="left: {assigneePopover.x}px; top: {assigneePopover.y}px; transform: translateX(-50%);"
 			role="listbox"
 			tabindex="-1"
-			aria-label="Assign members"
+			aria-label={m.aria_assign_members()}
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 		>
@@ -1799,7 +1799,7 @@
 			style="left: {tagPopover.x}px; top: {tagPopover.y}px; transform: translateX(-50%);"
 			role="listbox"
 			tabindex="-1"
-			aria-label="Manage tags"
+			aria-label={m.aria_manage_tags()}
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 		>
@@ -1833,7 +1833,7 @@
 								type="button"
 								class="h-4 w-4 rounded-full border {newTagColor === color ? 'border-foreground scale-110' : 'border-transparent'}"
 								style="background-color: {color}"
-								aria-label="Select color {color}"
+								aria-label={m.aria_select_color({ color })}
 								onclick={() => (newTagColor = color)}
 							></button>
 						{/each}

@@ -197,12 +197,12 @@
 		const now = new Date();
 		const diffMs = now.getTime() - d.getTime();
 		const diffMin = Math.floor(diffMs / 60000);
-		if (diffMin < 1) return 'just now';
-		if (diffMin < 60) return `${diffMin}m ago`;
+		if (diffMin < 1) return m.dashboard_time_just_now();
+		if (diffMin < 60) return m.dashboard_time_minutes_ago({ count: diffMin });
 		const diffHr = Math.floor(diffMin / 60);
-		if (diffHr < 24) return `${diffHr}h ago`;
+		if (diffHr < 24) return m.dashboard_time_hours_ago({ count: diffHr });
 		const diffDay = Math.floor(diffHr / 24);
-		return `${diffDay}d ago`;
+		return m.dashboard_time_days_ago({ count: diffDay });
 	}
 
 	function widgetLabel(id: string): string {
@@ -222,7 +222,7 @@
 		onclick={() => (customizeOpen = !customizeOpen)}
 		class="text-muted-foreground hover:text-foreground hover:bg-accent flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors"
 		aria-expanded={customizeOpen}
-		aria-label="Customize dashboard layout"
+		aria-label={m.dashboard_customize_layout()}
 	>
 		<!-- Gear icon -->
 		<svg
@@ -242,7 +242,7 @@
 			/>
 			<circle cx="12" cy="12" r="3" />
 		</svg>
-		Customize
+		{m.dashboard_customize()}
 	</button>
 </div>
 
@@ -251,23 +251,23 @@
 	<div
 		class="bg-card border-border mb-6 rounded-lg border p-4 shadow-sm"
 		role="region"
-		aria-label="Dashboard customization panel"
+		aria-label={m.dashboard_widgets()}
 	>
 		<div class="mb-3 flex items-center justify-between">
-			<h2 class="text-sm font-semibold">Dashboard Widgets</h2>
+			<h2 class="text-sm font-semibold">{m.dashboard_widgets()}</h2>
 			<div class="flex items-center gap-2">
 				<button
 					type="button"
 					onclick={resetLayout}
 					class="text-muted-foreground hover:text-foreground rounded px-2 py-1 text-xs transition-colors hover:underline"
 				>
-					Reset to default
+					{m.dashboard_reset_default()}
 				</button>
 				<button
 					type="button"
 					onclick={() => (customizeOpen = false)}
 					class="text-muted-foreground hover:text-foreground rounded p-1 transition-colors"
-					aria-label="Close customize panel"
+					aria-label={m.dashboard_close_panel()}
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
@@ -288,7 +288,7 @@
 		</div>
 
 		<p class="text-muted-foreground mb-3 text-xs">
-			Drag rows to reorder. Toggle visibility and choose a column size per widget.
+			{m.dashboard_customize_hint()}
 		</p>
 
 		<ul class="space-y-1" role="list" aria-label="Widget list">
@@ -658,7 +658,7 @@
 			{:else if widget.id === 'priority_breakdown'}
 				<Card.Root class="h-full">
 					<Card.Header>
-						<Card.Title class="text-sm font-medium">Priority Breakdown</Card.Title>
+						<Card.Title class="text-sm font-medium">{m.dashboard_priority_breakdown()}</Card.Title>
 					</Card.Header>
 					<Card.Content>
 						<div class="space-y-2 text-sm">
@@ -669,7 +669,7 @@
 								</div>
 							{/each}
 							<p class="text-muted-foreground pt-1 text-xs">
-								Detailed priority data available in test cases view.
+								{m.dashboard_priority_hint()}
 							</p>
 						</div>
 					</Card.Content>
@@ -679,7 +679,7 @@
 			{:else if widget.id === 'top_failing'}
 				<Card.Root class="h-full">
 					<Card.Header>
-						<Card.Title class="text-sm font-medium">Top Failing</Card.Title>
+						<Card.Title class="text-sm font-medium">{m.dashboard_top_failing()}</Card.Title>
 					</Card.Header>
 					<Card.Content>
 						{#if activityLog.filter((a) => a.status === 'FAIL').length > 0}
@@ -697,7 +697,7 @@
 								{/each}
 							</ul>
 						{:else}
-							<p class="text-muted-foreground text-sm">No recent failures.</p>
+							<p class="text-muted-foreground text-sm">{m.dashboard_no_recent_failures()}</p>
 						{/if}
 					</Card.Content>
 				</Card.Root>

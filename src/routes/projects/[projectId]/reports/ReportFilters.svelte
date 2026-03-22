@@ -62,10 +62,10 @@
 
 	const activeDateLabel = $derived(
 		isAllTime
-			? 'All time'
+			? m.filter_all_time()
 			: dateRange.from && dateRange.to
 				? `${formatDisplayDate(dateRange.from)} – ${formatDisplayDate(dateRange.to)}`
-				: 'Last 30 days'
+				: m.filter_last_30_days()
 	);
 
 	function presetFromDate(days: number): string {
@@ -92,7 +92,7 @@
 		<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
 			<!-- Preset buttons -->
 			<div class="flex flex-wrap gap-1.5">
-				{#each ([['7', 'Last 7 days'], ['30', 'Last 30 days'], ['90', 'Last 90 days'], ['all', 'All time']] as const) as [preset, label] (preset)}
+				{#each [['7', m.filter_last_7_days()], ['30', m.filter_last_30_days()], ['90', m.filter_last_90_days()], ['all', m.filter_all_time()]] as [preset, label] (preset)}
 					<button
 						type="button"
 						onclick={() => applyPreset(preset === 'all' ? 'all' : Number(preset))}
@@ -109,7 +109,7 @@
 			<!-- Custom date inputs -->
 			<div class="flex items-end gap-2">
 				<div class="flex flex-col gap-1">
-					<label for="date-from" class="text-muted-foreground text-xs">From</label>
+					<label for="date-from" class="text-muted-foreground text-xs">{m.filter_from()}</label>
 					<input
 						id="date-from"
 						type="date"
@@ -120,7 +120,7 @@
 					/>
 				</div>
 				<div class="flex flex-col gap-1">
-					<label for="date-to" class="text-muted-foreground text-xs">To</label>
+					<label for="date-to" class="text-muted-foreground text-xs">{m.filter_to()}</label>
 					<input
 						id="date-to"
 						type="date"
@@ -131,7 +131,7 @@
 					/>
 				</div>
 				<Button size="sm" class="h-[34px] text-xs" onclick={applyDateRange} disabled={!pendingFrom && !pendingTo && !fromInput && !toInput}>
-					Apply
+					{m.filter_apply()}
 				</Button>
 			</div>
 		</div>
@@ -139,7 +139,7 @@
 		<!-- Active range label + action buttons -->
 		<div class="mt-2 flex items-center justify-between">
 			<p class="text-muted-foreground text-xs">
-				Showing data for: <span class="text-foreground font-medium">{activeDateLabel}</span>
+				{m.filter_showing_data_for()} <span class="text-foreground font-medium">{activeDateLabel}</span>
 			</p>
 			<div class="flex gap-2">
 				<Button size="sm" variant="outline" class="h-7 text-xs" onclick={onExportPdf}>

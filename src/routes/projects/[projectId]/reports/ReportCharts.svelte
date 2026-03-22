@@ -515,7 +515,7 @@
 						>
 							<Table.Cell>
 								<div class="flex items-center gap-2">
-									<Badge variant="outline" class="bg-yellow-50 text-yellow-700 border-yellow-300 text-xs">Flaky</Badge>
+									<Badge variant="outline" class="bg-yellow-50 text-yellow-700 border-yellow-300 text-xs">{m.common_flaky()}</Badge>
 									<div>
 										<span class="text-muted-foreground text-xs">{tc.testCaseKey}</span>
 										<span class="ml-1 font-medium">{tc.title}</span>

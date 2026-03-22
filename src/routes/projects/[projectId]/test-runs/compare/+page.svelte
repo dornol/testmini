@@ -12,7 +12,7 @@
 
 	function exportCsv() {
 		const BOM = '\uFEFF';
-		const headers = ['Key', 'Title', 'Priority', 'Run A Status', 'Run B Status'];
+		const headers = [m.compare_csv_key(), m.compare_csv_title(), m.compare_csv_priority(), m.compare_csv_run_a_status(), m.compare_csv_run_b_status()];
 		const rows = filteredRows.map((r) => [
 			r.key,
 			`"${(r.title ?? '').replace(/"/g, '""')}"`,
@@ -72,14 +72,14 @@
 	<div class="grid grid-cols-2 gap-4">
 		<Card.Root>
 			<Card.Content class="p-4">
-				<div class="text-xs text-muted-foreground mb-1">Run A</div>
+				<div class="text-xs text-muted-foreground mb-1">{m.compare_run_a()}</div>
 				<div class="font-medium">{data.runA.name}</div>
 				<Badge variant="outline" class="mt-1 text-[10px]">{data.runA.environment}</Badge>
 			</Card.Content>
 		</Card.Root>
 		<Card.Root>
 			<Card.Content class="p-4">
-				<div class="text-xs text-muted-foreground mb-1">Run B</div>
+				<div class="text-xs text-muted-foreground mb-1">{m.compare_run_b()}</div>
 				<div class="font-medium">{data.runB.name}</div>
 				<Badge variant="outline" class="mt-1 text-[10px]">{data.runB.environment}</Badge>
 			</Card.Content>
@@ -157,8 +157,8 @@
 						<Table.Head class="py-1 px-2 text-xs w-24">{m.common_key()}</Table.Head>
 						<Table.Head class="py-1 px-2 text-xs">{m.common_title()}</Table.Head>
 						<Table.Head class="py-1 px-2 text-xs w-20">{m.common_priority()}</Table.Head>
-						<Table.Head class="py-1 px-2 text-xs w-24">Run A</Table.Head>
-						<Table.Head class="py-1 px-2 text-xs w-24">Run B</Table.Head>
+						<Table.Head class="py-1 px-2 text-xs w-24">{m.compare_run_a()}</Table.Head>
+						<Table.Head class="py-1 px-2 text-xs w-24">{m.compare_run_b()}</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>

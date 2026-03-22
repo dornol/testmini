@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
@@ -154,7 +155,7 @@
 					checked={isSelected}
 					onchange={() => onToggleSelect(exec.id)}
 					class="rounded"
-					aria-label="Select {exec.testCaseKey}"
+					aria-label={m.aria_select_item({ item: exec.testCaseKey })}
 				/>
 			{/if}
 		</td>
@@ -328,7 +329,7 @@
 									<button
 										type="button"
 										class="text-destructive hover:text-destructive/80 shrink-0"
-										aria-label="Remove"
+										aria-label={m.aria_remove()}
 										onclick={() => handleRemoveExecIssueLink(link.id)}
 									>
 										&times;

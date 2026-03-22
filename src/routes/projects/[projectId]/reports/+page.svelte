@@ -199,7 +199,7 @@
 
 			<!-- Existing share links -->
 			{#if shareLoading}
-				<p class="text-muted-foreground text-sm">Loading...</p>
+				<p class="text-muted-foreground text-sm">{m.common_loading()}</p>
 			{:else if sharedLinks.length === 0}
 				<p class="text-muted-foreground text-sm">{m.report_share_empty()}</p>
 			{:else}
@@ -209,7 +209,7 @@
 							<div>
 								<p class="text-sm font-medium">{link.name}</p>
 								<p class="text-muted-foreground text-xs">
-									{link.expiresAt ? `Expires: ${new Date(link.expiresAt).toLocaleDateString()}` : m.report_share_never_expires()}
+									{link.expiresAt ? m.common_expires({ date: new Date(link.expiresAt).toLocaleDateString() }) : m.report_share_never_expires()}
 								</p>
 							</div>
 							<div class="flex gap-1">
@@ -257,15 +257,15 @@
 							bind:value={newScheduleRange}
 							class="border-input bg-background rounded-md border px-2 py-1 text-sm"
 						>
-							<option value="last_7_days">Last 7 days</option>
-							<option value="last_30_days">Last 30 days</option>
-							<option value="all">All time</option>
+							<option value="last_7_days">{m.filter_last_7_days()}</option>
+							<option value="last_30_days">{m.filter_last_30_days()}</option>
+							<option value="all">{m.filter_all_time()}</option>
 						</select>
 					</div>
 					<input
 						type="text"
 						bind:value={newScheduleEmails}
-						placeholder={m.report_schedule_recipients() + ' (comma-separated)'}
+						placeholder={m.report_schedule_recipients() + ' ' + m.common_comma_separated()}
 						class="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
 					/>
 					<Button size="sm" onclick={createSchedule} disabled={!newScheduleName.trim() || !newScheduleEmails.trim()}>
@@ -275,7 +275,7 @@
 
 				<!-- Existing schedules -->
 				{#if scheduleLoading}
-					<p class="text-muted-foreground text-sm">Loading...</p>
+					<p class="text-muted-foreground text-sm">{m.common_loading()}</p>
 				{:else if schedules.length === 0}
 					<p class="text-muted-foreground text-sm">{m.report_schedule_empty()}</p>
 				{:else}
@@ -285,7 +285,7 @@
 								<div>
 									<p class="text-sm font-medium">{sched.name}</p>
 									<p class="text-muted-foreground text-xs">
-										{sched.cronExpression} &middot; {sched.recipientEmails.length} recipients
+										{sched.cronExpression} &middot; {m.common_recipients({ count: sched.recipientEmails.length })}
 										{#if sched.lastSentAt}
 											&middot; {m.report_schedule_last_sent()}: {new Date(sched.lastSentAt).toLocaleDateString()}
 										{/if}

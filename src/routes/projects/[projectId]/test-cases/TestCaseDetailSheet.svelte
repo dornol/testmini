@@ -763,7 +763,7 @@
 											<span class="inline-flex items-center gap-1 rounded-full border px-1.5 text-[11px] font-medium hover:bg-muted/50 transition-colors leading-5 whitespace-nowrap">
 												<span class="h-1.5 w-1.5 rounded-full shrink-0" style="background-color: {t.color}"></span>
 												{t.name}
-												<button type="button" class="text-muted-foreground hover:text-destructive transition-colors" aria-label="Remove" onclick={() => removeTag(t.id)}>&times;</button>
+												<button type="button" class="text-muted-foreground hover:text-destructive transition-colors" aria-label={m.aria_remove()} onclick={() => removeTag(t.id)}>&times;</button>
 											</span>
 										{:else}
 											<TagBadge name={t.name} color={t.color} />
@@ -813,7 +813,7 @@
 																	type="button"
 																	class="h-4 w-4 rounded-full border {newTagColor === color ? 'border-foreground scale-110' : 'border-transparent'}"
 																	style="background-color: {color}"
-																	aria-label="Select color {color}"
+																	aria-label={m.aria_select_color({ color })}
 																	onclick={() => (newTagColor = color)}
 																></button>
 															{/each}
@@ -846,7 +846,7 @@
 										{#if canEdit}
 											<span class="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1.5 text-[11px] font-medium hover:bg-muted transition-colors leading-5 whitespace-nowrap">
 												{a.userName}
-												<button type="button" class="text-muted-foreground hover:text-destructive transition-colors" aria-label="Remove" onclick={() => removeAssignee(a.userId)}>&times;</button>
+												<button type="button" class="text-muted-foreground hover:text-destructive transition-colors" aria-label={m.aria_remove()} onclick={() => removeAssignee(a.userId)}>&times;</button>
 											</span>
 										{:else}
 											<Badge variant="outline" class="text-xs">{a.userName}</Badge>
@@ -1075,7 +1075,7 @@
 													</span>
 												</div>
 												<div class="flex items-center gap-1 shrink-0" onclick={(e) => e.stopPropagation()}>
-													<a href={link.externalUrl} target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-primary p-1" title="Open in new tab">
+													<a href={link.externalUrl} target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-primary p-1" title={m.aria_open_new_tab()}>
 														<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
 													</a>
 													{#if canEdit}
@@ -1115,7 +1115,7 @@
 																</span>
 																<span>{formatDate(issueDetail.createdAt)}</span>
 																{#if issueDetail.closedAt}
-																	<span>Closed {formatDate(issueDetail.closedAt)}</span>
+																	<span>{m.issue_closed({ date: formatDate(issueDetail.closedAt) })}</span>
 																{/if}
 															</div>
 
@@ -1144,7 +1144,7 @@
 															{#if issueDetail.comments.length > 0}
 																<div class="space-y-2 pt-2">
 																	<h6 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-																		Comments ({issueDetail.comments.length})
+																		{m.issue_comments({ count: issueDetail.comments.length })}
 																	</h6>
 																	<div class="space-y-2">
 																		{#each issueDetail.comments as comment (comment.id)}
@@ -1162,7 +1162,7 @@
 																	</div>
 																</div>
 															{:else}
-																<p class="text-xs text-muted-foreground pt-1">No comments</p>
+																<p class="text-xs text-muted-foreground pt-1">{m.issue_no_comments()}</p>
 															{/if}
 
 															<!-- Add comment form -->
@@ -1190,9 +1190,9 @@
 																				{#if togglingState}
 																					{m.common_loading()}
 																				{:else if issueDetail.state === 'closed'}
-																					Reopen
+																					{m.issue_reopen()}
 																				{:else}
-																					Close Issue
+																					{m.issue_close()}
 																				{/if}
 																			</Button>
 																			<Button type="submit" size="sm" class="h-7 text-xs" disabled={postingComment || !newComment.trim()}>
@@ -1204,7 +1204,7 @@
 															{/if}
 														</div>
 													{:else}
-														<p class="text-xs text-muted-foreground py-2">Failed to load issue details</p>
+														<p class="text-xs text-muted-foreground py-2">{m.issue_load_failed()}</p>
 													{/if}
 												</div>
 											{/if}

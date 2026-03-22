@@ -36,8 +36,10 @@ async function startupWithRetry(maxRetries = 5, baseDelayMs = 2000): Promise<voi
 	}
 }
 
+let startupPromise: Promise<void> | null = null;
+
 if (!building) {
-	startupWithRetry();
+	startupPromise = startupWithRetry();
 
 	// Log cache stats every 5 minutes for monitoring
 	setInterval(() => {
@@ -231,6 +233,14 @@ const SKIP_LOGGING_PREFIXES = ['/_app/', '/favicon', '/robots.txt', '/health'];
 
 const SLOW_REQUEST_THRESHOLD_MS = 1000;
 
+const handleStartupGate: Handle = async ({ event, resolve }) => {
+	if (startupPromise) {
+		await startupPromise;
+		startupPromise = null;
+	}
+	return resolve(event);
+};
+
 const handleRequestLogging: Handle = async ({ event, resolve }) => {
 	const { pathname } = new URL(event.request.url);
 
@@ -269,6 +279,7 @@ const handleRequestLogging: Handle = async ({ event, resolve }) => {
 };
 
 export const handle: Handle = sequence(
+	handleStartupGate,
 	handleRequestLogging,
 	handleParaglide,
 	handleRateLimit,

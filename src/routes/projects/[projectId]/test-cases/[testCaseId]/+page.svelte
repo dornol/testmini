@@ -430,7 +430,7 @@
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
 		<div>
-			<nav class="flex items-center gap-1 text-sm text-muted-foreground" aria-label="Breadcrumb">
+			<nav class="flex items-center gap-1 text-sm text-muted-foreground" aria-label={m.aria_breadcrumb()}>
 				<a href="/projects" class="hover:text-foreground">{m.breadcrumb_home()}</a>
 				<span>/</span>
 				<a href={`/projects/${data.project.id}`} class="hover:text-foreground">{data.project.name}</a>
@@ -628,7 +628,7 @@
 													type="button"
 													class="h-4 w-4 rounded-full border {newTagColor === color ? 'border-foreground scale-110' : 'border-transparent'}"
 													style="background-color: {color}"
-													aria-label="Select color {color}"
+													aria-label={m.aria_select_color({ color })}
 													onclick={() => (newTagColor = color)}
 												></button>
 											{/each}
@@ -1191,7 +1191,7 @@
 											</span>
 										</button>
 										<div class="flex items-center gap-1 shrink-0">
-											<a href={link.externalUrl} target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-primary p-1" title="Open in new tab">
+											<a href={link.externalUrl} target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-primary p-1" title={m.aria_open_new_tab()}>
 												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
 											</a>
 											{#if canEdit && link.provider !== 'CUSTOM' && data.hasIssueTracker}
@@ -1247,7 +1247,7 @@
 														</span>
 														<span>{formatIssueDate(issueDetailData.createdAt)}</span>
 														{#if issueDetailData.closedAt}
-															<span>Closed {formatIssueDate(issueDetailData.closedAt)}</span>
+															<span>{m.issue_closed({ date: formatIssueDate(issueDetailData.closedAt) })}</span>
 														{/if}
 													</div>
 
@@ -1276,7 +1276,7 @@
 													{#if issueDetailData.comments.length > 0}
 														<div class="space-y-2 pt-2">
 															<h6 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-																Comments ({issueDetailData.comments.length})
+																{m.issue_comments({ count: issueDetailData.comments.length })}
 															</h6>
 															<div class="space-y-2 max-h-72 overflow-y-auto">
 																{#each issueDetailData.comments as comment (comment.id)}
@@ -1294,7 +1294,7 @@
 															</div>
 														</div>
 													{:else}
-														<p class="text-xs text-muted-foreground pt-1">No comments</p>
+														<p class="text-xs text-muted-foreground pt-1">{m.issue_no_comments()}</p>
 													{/if}
 
 													<!-- Add comment & state toggle -->
@@ -1321,9 +1321,9 @@
 																		{#if togglingState}
 																			{m.common_loading()}
 																		{:else if issueDetailData.state === 'closed'}
-																			Reopen
+																			{m.issue_reopen()}
 																		{:else}
-																			Close Issue
+																			{m.issue_close()}
 																		{/if}
 																	</Button>
 																	<Button type="submit" size="sm" disabled={postingComment || !newIssueComment.trim()}>
@@ -1335,7 +1335,7 @@
 													{/if}
 												</div>
 											{:else}
-												<p class="text-sm text-muted-foreground py-2">Failed to load issue details</p>
+												<p class="text-sm text-muted-foreground py-2">{m.issue_load_failed()}</p>
 											{/if}
 										</div>
 									{/if}

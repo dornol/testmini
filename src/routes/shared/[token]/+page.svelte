@@ -4,6 +4,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import Chart from '$lib/components/Chart.svelte';
 	import type { ChartConfiguration } from 'chart.js';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -25,10 +26,10 @@
 
 	const activeDateLabel = $derived(
 		dateRange.allTime
-			? 'All time'
+			? m.filter_all_time()
 			: dateRange.from && dateRange.to
 				? `${formatDisplayDate(dateRange.from)} – ${formatDisplayDate(dateRange.to)}`
-				: 'Last 30 days'
+				: m.filter_last_30_days()
 	);
 
 	function passRate(pass: number, total: number): string {
@@ -49,22 +50,22 @@
 			),
 			datasets: [
 				{
-					label: 'Pass',
+					label: m.shared_pass(),
 					data: recentRuns.map((r) => r.passCount),
 					backgroundColor: '#22c55e'
 				},
 				{
-					label: 'Fail',
+					label: m.shared_fail(),
 					data: recentRuns.map((r) => r.failCount),
 					backgroundColor: '#ef4444'
 				},
 				{
-					label: 'Blocked',
+					label: m.shared_blocked(),
 					data: recentRuns.map((r) => r.blockedCount),
 					backgroundColor: '#f97316'
 				},
 				{
-					label: 'Skipped',
+					label: m.shared_skipped(),
 					data: recentRuns.map((r) => r.skippedCount),
 					backgroundColor: '#9ca3af'
 				}
@@ -86,22 +87,22 @@
 			labels: dailyResults.map((d) => d.date),
 			datasets: [
 				{
-					label: 'Pass',
+					label: m.shared_pass(),
 					data: dailyResults.map((d) => d.passCount),
 					backgroundColor: '#22c55e'
 				},
 				{
-					label: 'Fail',
+					label: m.shared_fail(),
 					data: dailyResults.map((d) => d.failCount),
 					backgroundColor: '#ef4444'
 				},
 				{
-					label: 'Blocked',
+					label: m.shared_blocked(),
 					data: dailyResults.map((d) => d.blockedCount),
 					backgroundColor: '#f97316'
 				},
 				{
-					label: 'Skipped',
+					label: m.shared_skipped(),
 					data: dailyResults.map((d) => d.skippedCount),
 					backgroundColor: '#9ca3af'
 				}
@@ -131,7 +132,7 @@
 	{#if envStats.length > 0}
 		<Card.Root>
 			<Card.Header>
-				<Card.Title class="text-sm font-medium">Environment Summary</Card.Title>
+				<Card.Title class="text-sm font-medium">{m.shared_env_summary()}</Card.Title>
 			</Card.Header>
 			<Card.Content>
 				<div class="grid gap-4 sm:grid-cols-2">
@@ -168,8 +169,8 @@
 									{/if}
 								</div>
 								<div class="text-muted-foreground flex justify-between text-xs">
-									<span>{env.totalRuns} runs</span>
-									<span>{env.passCount} pass / {env.failCount} fail</span>
+									<span>{m.shared_runs({ count: env.totalRuns })}</span>
+									<span>{m.shared_pass_fail({ pass: env.passCount, fail: env.failCount })}</span>
 								</div>
 							</div>
 						</div>
@@ -183,7 +184,7 @@
 	{#if recentRuns.length > 0}
 		<Card.Root>
 			<Card.Header>
-				<Card.Title class="text-sm font-medium">Pass Rate Trend</Card.Title>
+				<Card.Title class="text-sm font-medium">{m.shared_pass_rate_trend()}</Card.Title>
 			</Card.Header>
 			<Card.Content>
 				<Chart config={trendBarConfig} />
@@ -195,7 +196,7 @@
 	{#if dailyResults.length > 0}
 		<Card.Root>
 			<Card.Header>
-				<Card.Title class="text-sm font-medium">Daily Test Results</Card.Title>
+				<Card.Title class="text-sm font-medium">{m.shared_daily_results()}</Card.Title>
 			</Card.Header>
 			<Card.Content>
 				<Chart config={dailyBarConfig} />
@@ -207,17 +208,17 @@
 	{#if priorityStats.length > 0}
 		<Card.Root>
 			<Card.Header>
-				<Card.Title class="text-sm font-medium">Priority Breakdown</Card.Title>
+				<Card.Title class="text-sm font-medium">{m.shared_priority_breakdown()}</Card.Title>
 			</Card.Header>
 			<Card.Content class="p-0">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
-							<Table.Head>Priority</Table.Head>
-							<Table.Head class="w-28">Total</Table.Head>
-							<Table.Head class="w-28">Pass</Table.Head>
-							<Table.Head class="w-28">Fail</Table.Head>
-							<Table.Head class="w-28">Pass Rate</Table.Head>
+							<Table.Head>{m.common_priority()}</Table.Head>
+							<Table.Head class="w-28">{m.shared_total()}</Table.Head>
+							<Table.Head class="w-28">{m.shared_pass()}</Table.Head>
+							<Table.Head class="w-28">{m.shared_fail()}</Table.Head>
+							<Table.Head class="w-28">{m.shared_pass_rate()}</Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
@@ -244,16 +245,16 @@
 	{#if topFailingCases.length > 0}
 		<Card.Root>
 			<Card.Header>
-				<Card.Title class="text-sm font-medium">Top Failing Test Cases</Card.Title>
+				<Card.Title class="text-sm font-medium">{m.shared_top_failing()}</Card.Title>
 			</Card.Header>
 			<Card.Content class="p-0">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
-							<Table.Head>Test Case</Table.Head>
-							<Table.Head class="w-28">Total</Table.Head>
-							<Table.Head class="w-28">Failures</Table.Head>
-							<Table.Head class="w-28">Pass Rate</Table.Head>
+							<Table.Head>{m.shared_test_case()}</Table.Head>
+							<Table.Head class="w-28">{m.shared_total()}</Table.Head>
+							<Table.Head class="w-28">{m.shared_failures()}</Table.Head>
+							<Table.Head class="w-28">{m.shared_pass_rate()}</Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
@@ -280,17 +281,17 @@
 	{#if recentRuns.length > 0}
 		<Card.Root>
 			<Card.Header>
-				<Card.Title class="text-sm font-medium">Recent Completed Runs</Card.Title>
+				<Card.Title class="text-sm font-medium">{m.shared_recent_runs()}</Card.Title>
 			</Card.Header>
 			<Card.Content class="p-0">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
-							<Table.Head>Name</Table.Head>
-							<Table.Head class="w-24">Environment</Table.Head>
-							<Table.Head class="w-20">Pass</Table.Head>
-							<Table.Head class="w-20">Fail</Table.Head>
-							<Table.Head class="w-28">Pass Rate</Table.Head>
+							<Table.Head>{m.shared_name()}</Table.Head>
+							<Table.Head class="w-24">{m.shared_environment()}</Table.Head>
+							<Table.Head class="w-20">{m.shared_pass()}</Table.Head>
+							<Table.Head class="w-20">{m.shared_fail()}</Table.Head>
+							<Table.Head class="w-28">{m.shared_pass_rate()}</Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
@@ -323,6 +324,6 @@
 	{/if}
 
 	<p class="text-muted-foreground text-center text-xs">
-		Shared report generated by testmini
+		{m.shared_generated_by()}
 	</p>
 </div>

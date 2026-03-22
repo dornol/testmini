@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages.js';
 	import { invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
 	import { SvelteMap } from 'svelte/reactivity';
@@ -307,7 +308,7 @@
 								checked={allPendingSelected}
 								onchange={onTogglePendingAll}
 								class="rounded"
-								aria-label="Select all"
+								aria-label={m.aria_select_all()}
 							/>
 						</th>
 					{/if}
@@ -382,7 +383,7 @@
 	<div
 		data-status-dropdown
 		role="menu"
-		aria-label="Status options"
+		aria-label={m.aria_status_options()}
 		tabindex="-1"
 		class="fixed z-[9999] bg-popover border rounded-md shadow-lg py-1 min-w-[120px]"
 		style="left: {statusDropdown.x}px; top: {statusDropdown.y}px; transform: translateX(-50%);"

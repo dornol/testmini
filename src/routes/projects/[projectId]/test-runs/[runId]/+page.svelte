@@ -257,7 +257,7 @@
 				<Dialog.Title>{m.comparison_title()}</Dialog.Title>
 			</Dialog.Header>
 			{#if comparisonLoading}
-				<p class="text-muted-foreground py-4 text-sm">Loading...</p>
+				<p class="text-muted-foreground py-4 text-sm">{m.common_loading()}</p>
 			{:else if comparisonData}
 				<div class="space-y-4 py-2">
 					<div class="flex gap-4 text-sm">

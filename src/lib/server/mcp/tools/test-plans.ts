@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, testCase, testCaseVersion, testRun, testExecution, testPlan, testPlanTestCase } from '$lib/server/db/schema';
+import { project, testCase, testCaseVersion, testRun, testExecution, testPlan, testPlanTestCase, testPlanSignoff } from '$lib/server/db/schema';
 import { eq, and, sql, inArray } from 'drizzle-orm';
 
 export function registerTestPlanTools(server: McpServer, projectId: number) {
@@ -214,6 +214,24 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			});
 
 			return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+		}
+	);
+
+	server.tool(
+		'list-plan-signoffs',
+		'List signoff decisions for a test plan',
+		{ planId: z.number().describe('Test plan ID') },
+		async ({ planId }) => {
+			const plan = await db.query.testPlan.findFirst({
+				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
+			});
+			if (!plan) return { content: [{ type: 'text' as const, text: 'Test plan not found' }], isError: true };
+
+			const signoffs = await db.query.testPlanSignoff.findMany({
+				where: eq(testPlanSignoff.testPlanId, planId)
+			});
+
+			return { content: [{ type: 'text' as const, text: JSON.stringify(signoffs, null, 2) }] };
 		}
 	);
 }

@@ -18,6 +18,11 @@ import { registerTestCycleTools } from './tools/test-cycles';
 import { registerReportTools } from './tools/reports';
 import { registerSharedDataSetTools } from './tools/shared-datasets';
 import { registerEnvironmentTools } from './tools/environments';
+import { registerWebhookTools } from './tools/webhooks';
+import { registerCustomFieldTools } from './tools/custom-fields';
+import { registerSavedFilterTools } from './tools/saved-filters';
+import { registerNotificationTools } from './tools/notifications';
+import { registerAuditLogTools } from './tools/audit-logs';
 
 /**
  * Creates an MCP server scoped to a specific project (authenticated via API key).
@@ -50,6 +55,11 @@ export function createMcpServer(projectId: number) {
 	registerReportTools(server, projectId);
 	registerSharedDataSetTools(server, projectId);
 	registerEnvironmentTools(server, projectId);
+	registerWebhookTools(server, projectId);
+	registerCustomFieldTools(server, projectId);
+	registerSavedFilterTools(server, projectId);
+	registerNotificationTools(server, projectId);
+	registerAuditLogTools(server, projectId);
 
 	return server;
 }

@@ -244,4 +244,108 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, deletedId: tcId }) }] };
 		}
 	);
+
+	server.tool(
+		'clone-test-case',
+		'Clone (duplicate) a test case with all its data',
+		{
+			id: z.number().optional().describe('Test case ID'),
+			key: z.string().optional().describe('Test case key (e.g., TC-0001)')
+		},
+		async ({ id, key }) => {
+			let tcId = id;
+			if (!tcId && key) {
+				const found = await db.query.testCase.findFirst({
+					where: and(eq(testCase.key, key), eq(testCase.projectId, projectId))
+				});
+				tcId = found?.id;
+			}
+			if (!tcId) return { content: [{ type: 'text' as const, text: 'Test case not found' }], isError: true };
+
+			const tc = await findTestCaseWithLatestVersion(tcId, projectId);
+			if (!tc?.latestVersion) return { content: [{ type: 'text' as const, text: 'Test case not found' }], isError: true };
+
+			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
+			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+
+			const [maxResult] = await db
+				.select({ maxKey: sql<string>`max(key)`.as('max_key') })
+				.from(testCase)
+				.where(eq(testCase.projectId, projectId));
+			const maxNum = maxResult?.maxKey ? parseInt(maxResult.maxKey.replace(/\D/g, ''), 10) : 0;
+			const newKey = `TC-${String(maxNum + 1).padStart(4, '0')}`;
+
+			const result = await db.transaction(async (tx) => {
+				const [newTc] = await tx
+					.insert(testCase)
+					.values({
+						projectId,
+						key: newKey,
+						groupId: tc.groupId,
+						createdBy: proj.createdBy
+					})
+					.returning();
+
+				const lv = tc.latestVersion!;
+				const [newVer] = await tx
+					.insert(testCaseVersion)
+					.values({
+						testCaseId: newTc.id,
+						versionNo: 1,
+						title: `${lv.title} (copy)`,
+						precondition: lv.precondition,
+						steps: lv.steps,
+						expectedResult: lv.expectedResult,
+						priority: lv.priority,
+						updatedBy: proj.createdBy
+					})
+					.returning();
+
+				await tx.update(testCase).set({ latestVersionId: newVer.id }).where(eq(testCase.id, newTc.id));
+
+				// Copy tags
+				const tags = await tx.select().from(testCaseTag).where(eq(testCaseTag.testCaseId, tcId!));
+				if (tags.length > 0) {
+					await tx.insert(testCaseTag).values(tags.map((t) => ({ testCaseId: newTc.id, tagId: t.tagId }))).onConflictDoNothing();
+				}
+
+				return { ...newTc, key: newKey, title: newVer.title };
+			});
+
+			return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+		}
+	);
+
+	server.tool(
+		'get-test-case-versions',
+		'Get version history of a test case',
+		{
+			id: z.number().optional().describe('Test case ID'),
+			key: z.string().optional().describe('Test case key (e.g., TC-0001)')
+		},
+		async ({ id, key }) => {
+			let tcId = id;
+			if (!tcId && key) {
+				const found = await db.query.testCase.findFirst({
+					where: and(eq(testCase.key, key), eq(testCase.projectId, projectId))
+				});
+				tcId = found?.id;
+			}
+			if (!tcId) return { content: [{ type: 'text' as const, text: 'Test case not found' }], isError: true };
+
+			const versions = await db
+				.select({
+					id: testCaseVersion.id,
+					versionNo: testCaseVersion.versionNo,
+					title: testCaseVersion.title,
+					priority: testCaseVersion.priority,
+					createdAt: testCaseVersion.createdAt
+				})
+				.from(testCaseVersion)
+				.where(eq(testCaseVersion.testCaseId, tcId))
+				.orderBy(desc(testCaseVersion.versionNo));
+
+			return { content: [{ type: 'text' as const, text: JSON.stringify(versions, null, 2) }] };
+		}
+	);
 }

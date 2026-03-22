@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { testCase, testRun, testExecution } from '$lib/server/db/schema';
-import { eq, and, count, sql } from 'drizzle-orm';
+import { eq, and, count, sql, isNotNull } from 'drizzle-orm';
 
 export function registerReportTools(server: McpServer, projectId: number) {
 	server.tool(
@@ -129,6 +129,44 @@ export function registerReportTools(server: McpServer, projectId: number) {
 					isError: true
 				};
 			}
+		}
+	);
+
+	server.tool(
+		'get-risk-matrix',
+		'Get risk assessment matrix showing test cases grouped by risk impact and likelihood',
+		{},
+		async () => {
+			const rows = await db
+				.select({
+					riskImpact: testCase.riskImpact,
+					riskLikelihood: testCase.riskLikelihood,
+					riskLevel: testCase.riskLevel,
+					count: sql<number>`count(*)::int`
+				})
+				.from(testCase)
+				.where(and(eq(testCase.projectId, projectId), isNotNull(testCase.riskLevel)))
+				.groupBy(testCase.riskImpact, testCase.riskLikelihood, testCase.riskLevel);
+
+			const [totals] = await db
+				.select({
+					total: sql<number>`count(*)::int`,
+					assessed: sql<number>`count(${testCase.riskLevel})::int`
+				})
+				.from(testCase)
+				.where(eq(testCase.projectId, projectId));
+
+			return {
+				content: [{
+					type: 'text' as const,
+					text: JSON.stringify({
+						matrix: rows,
+						total: totals?.total ?? 0,
+						assessed: totals?.assessed ?? 0,
+						unassessed: (totals?.total ?? 0) - (totals?.assessed ?? 0)
+					}, null, 2)
+				}]
+			};
 		}
 	);
 }

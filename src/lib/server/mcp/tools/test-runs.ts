@@ -314,4 +314,34 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, runId, status: 'COMPLETED' }) }] };
 		}
 	);
+
+	server.tool(
+		'bulk-update-execution-status',
+		'Update multiple execution statuses at once in a test run',
+		{
+			runId: z.number().describe('Test run ID'),
+			updates: z.array(z.object({
+				executionId: z.number().describe('Execution ID'),
+				status: z.enum(['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING']).describe('New status')
+			})).describe('Array of { executionId, status } updates')
+		},
+		async ({ runId, updates }) => {
+			const run = await db.query.testRun.findFirst({
+				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
+			});
+			if (!run) return { content: [{ type: 'text' as const, text: 'Test run not found' }], isError: true };
+			if (run.status === 'COMPLETED') return { content: [{ type: 'text' as const, text: 'Cannot modify completed run' }], isError: true };
+
+			let updated = 0;
+			for (const u of updates) {
+				const result = await db
+					.update(testExecution)
+					.set({ status: u.status, executedAt: new Date() })
+					.where(and(eq(testExecution.id, u.executionId), eq(testExecution.testRunId, runId)));
+				updated++;
+			}
+
+			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, runId, updatedCount: updated }) }] };
+		}
+	);
 }

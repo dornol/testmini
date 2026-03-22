@@ -2418,30 +2418,41 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `custom-fields` | `custom-fields://list` | All custom field definitions |
 | `exploratory-sessions` | `exploratory-sessions://list` | Recent exploratory sessions (last 50) |
 
-### Tools (41)
+### Tools (73)
 
-#### Test Cases & Runs (Core)
+#### Test Cases (Core)
 
 | Tool | Parameters | Description |
 |------|-----------|-------------|
+| `list-test-cases` | `limit?`, `groupId?` | List all test cases with key, title, priority |
 | `search-test-cases` | `query`, `limit?` | Full-text search across test cases |
 | `get-test-case` | `id?`, `key?` | Get test case detail with version and tags |
 | `create-test-case` | `title`, `priority?`, `precondition?`, `steps?`, `expectedResult?` | Create a new test case |
 | `update-test-case` | `id?`, `key?`, `title?`, `priority?`, `precondition?`, `steps?`, `expectedResult?` | Update test case (creates new version) |
 | `delete-test-case` | `id?`, `key?` | Delete a test case by ID or key |
+| `clone-test-case` | `id?`, `key?` | Clone (duplicate) a test case with tags |
+| `get-test-case-versions` | `id?`, `key?` | Get version history of a test case |
+| `update-approval-status` | `testCaseId`, `toStatus`, `comment?` | Update approval status (DRAFT/IN_REVIEW/APPROVED/REJECTED) |
+
+#### Test Runs & Executions
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `list-test-runs` | `status?`, `limit?` | List all test runs for the project |
 | `get-test-run` | `runId` | Get test run with execution status counts |
 | `create-test-run` | `name`, `environment`, `testCaseIds?` | Create test run with selected or all test cases |
 | `complete-test-run` | `runId` | Complete a test run (set status to COMPLETED) |
-| `update-execution-status` | `runId`, `executionId`, `status` | Update execution status (PASS/FAIL/BLOCKED/SKIPPED/PENDING) |
+| `update-execution-status` | `runId`, `executionId`, `status` | Update single execution status |
+| `bulk-update-execution-status` | `runId`, `updates[]` | Batch update multiple execution statuses |
 | `get-failures` | `runId` | Get failure details (error messages, stack traces) |
 | `record-failure-detail` | `runId`, `executionId`, `errorMessage?`, `stackTrace?`, `failureEnvironment?`, `comment?` | Record failure details for execution |
 | `export-run-results` | `runId` | Export test run results as structured JSON |
-| `update-approval-status` | `testCaseId`, `toStatus`, `comment?` | Update approval status (DRAFT/IN_REVIEW/APPROVED/REJECTED) |
 
 #### Tags
 
 | Tool | Parameters | Description |
 |------|-----------|-------------|
+| `list-tags` | (none) | List all tags for the project |
 | `create-tag` | `name`, `color?` | Create a new tag |
 | `delete-tag` | `tagId` | Delete a tag by ID |
 | `add-tag-to-test-case` | `testCaseId`, `tagId` | Add a tag to a test case |
@@ -2474,6 +2485,7 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `add-plan-items` | `planId`, `testCaseIds` | Add test cases to a plan |
 | `remove-plan-items` | `planId`, `testCaseIds` | Remove test cases from a plan |
 | `create-run-from-plan` | `planId`, `environment`, `runName?` | Generate a test run from a plan |
+| `list-plan-signoffs` | `planId` | List signoff decisions for a plan |
 
 #### Templates
 
@@ -2515,6 +2527,72 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `list-test-case-comments` | `testCaseId` | List test case comments |
 | `add-execution-comment` | `runId`, `executionId`, `content` | Comment on a test execution |
 
+#### Environments
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `list-environments` | (none) | List all environments for the project |
+| `create-environment` | `name`, `color?`, `isDefault?`, `baseUrl?`, `memo?` | Create a new environment |
+| `delete-environment` | `environmentId` | Delete an environment |
+
+#### Modules
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `list-modules` | (none) | List all modules for the project |
+| `create-module` | `name`, `description?`, `parentModuleId?` | Create a module (supports nesting) |
+| `delete-module` | `moduleId` | Delete a module |
+| `get-module-coverage` | (none) | Get test case count per module |
+
+#### Releases
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `list-releases` | (none) | List all releases |
+| `create-release` | `name`, `version?`, `description?`, `releaseDate?` | Create a release |
+| `update-release` | `releaseId`, `name?`, `version?`, `description?`, `status?`, `releaseDate?` | Update release properties/status |
+| `delete-release` | `releaseId` | Delete a release |
+
+#### Test Cycles
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `list-test-cycles` | (none) | List all test cycles |
+| `create-test-cycle` | `name`, `startDate?`, `endDate?` | Create a test cycle (auto-increments number) |
+| `delete-test-cycle` | `testCycleId` | Delete a test cycle |
+
+#### Reports & Analytics
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `get-project-stats` | (none) | Project statistics (case/run counts, execution breakdown, pass rate) |
+| `get-trends` | `limit?` | Pass rate trend from recent completed runs |
+| `get-risk-matrix` | (none) | Risk assessment matrix by impact/likelihood |
+
+#### Shared Datasets
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `list-shared-datasets` | (none) | List all shared datasets |
+| `create-shared-dataset` | `name`, `parameters`, `rows?` | Create a shared dataset |
+| `delete-shared-dataset` | `datasetId` | Delete a shared dataset |
+
+#### Settings & Configuration
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `list-webhooks` | (none) | List all webhooks |
+| `create-webhook` | `name`, `url`, `events?`, `secret?` | Create a webhook |
+| `delete-webhook` | `webhookId` | Delete a webhook |
+| `list-custom-fields` | (none) | List all custom fields |
+| `create-custom-field` | `name`, `fieldType`, `options?`, `required?` | Create a custom field |
+| `delete-custom-field` | `fieldId` | Delete a custom field |
+| `list-saved-filters` | (none) | List all saved filters |
+| `create-saved-filter` | `name`, `filterType?`, `filters` | Create a saved filter |
+| `delete-saved-filter` | `filterId` | Delete a saved filter |
+| `list-notifications` | `unreadOnly?`, `limit?` | List project notifications |
+| `list-audit-logs` | `limit?`, `action?` | List project audit logs |
+
 ### Resource: `projects://current` Response
 
 ```json
@@ -2545,6 +2623,17 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 
 ### MCP Client Configuration
 
+**Claude Code (CLI):**
+
+```bash
+claude mcp add testmini --transport http https://your-instance.example.com/api/mcp \
+  -H "Authorization: Bearer tmk_your_api_key"
+```
+
+**Cursor / Windsurf (JSON config):**
+
+Add to `.cursor/mcp.json` or `.windsurf/mcp.json`:
+
 ```json
 {
   "mcpServers": {
@@ -2557,6 +2646,8 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
   }
 }
 ```
+
+> Tip: When generating an API key in Settings > API Keys, the MCP connection command is shown with a copy button for each supported agent.
 
 ---
 

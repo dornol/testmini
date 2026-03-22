@@ -62,18 +62,22 @@ Expose project data via [Model Context Protocol (MCP)](https://modelcontextproto
 - [x] `summary` -- dashboard summary (total test cases, recent runs)
 - [x] `projects` -- current project info with counts, members, environments, priorities
 
-### MCP Tools (actions)
+### MCP Tools (73 total)
 
-- [x] `search-test-cases` -- full-text search across test cases
-- [x] `get-test-case` -- get test case detail by ID or key (includes tags)
-- [x] `get-test-run` -- get test run with execution status counts
-- [x] `get-failures` -- get failure details for a run
-- [x] `create-test-case` -- create a new test case with title, steps, priority
-- [x] `update-execution-status` -- change execution status (PASS/FAIL/BLOCKED/SKIPPED)
-- [x] `update-test-case` -- update an existing test case (creates new version)
-- [x] `create-test-run` -- create a test run with selected test cases and environment
-- [x] `record-failure-detail` -- record failure environment, error message, stack trace
-- [x] `export-run-results` -- export test run results as structured data
+- [x] Core: search/list/get/create/update/delete test cases, clone, versions, approval
+- [x] Runs: list/get/create/complete runs, update/bulk-update execution status, failures, export
+- [x] Organization: tags (list/CRUD), groups (list/CRUD), test suites, test plans + signoffs
+- [x] Templates: get/create template, create test case from template
+- [x] Traceability: requirements, issue links, traceability matrix
+- [x] Exploratory: sessions (create/get/update), notes
+- [x] Comments: test case comments, execution comments
+- [x] Environments: list/create/delete
+- [x] Modules: list/create/delete, coverage stats
+- [x] Releases: list/create/update/delete
+- [x] Test Cycles: list/create/delete
+- [x] Reports: project stats, trends, risk matrix
+- [x] Data: shared datasets (list/create/delete)
+- [x] Settings: webhooks, custom fields, saved filters, notifications, audit logs
 
 ### Implementation
 

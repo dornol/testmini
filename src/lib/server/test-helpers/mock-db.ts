@@ -75,11 +75,17 @@ export function createMockDb() {
 			requirement: { findFirst: vi.fn() },
 			exploratorySession: { findFirst: vi.fn() },
 			project: { findFirst: vi.fn() },
-			release: { findFirst: vi.fn() },
-			testPlanSignoff: { findFirst: vi.fn() },
-			testCycle: { findFirst: vi.fn() },
-			module: { findFirst: vi.fn() }
-		} as Record<string, { findFirst: ReturnType<typeof vi.fn> }>,
+			release: { findFirst: vi.fn(), findMany: vi.fn().mockResolvedValue([]) },
+			testPlanSignoff: { findFirst: vi.fn(), findMany: vi.fn().mockResolvedValue([]) },
+			testCycle: { findFirst: vi.fn(), findMany: vi.fn().mockResolvedValue([]) },
+			module: { findFirst: vi.fn(), findMany: vi.fn().mockResolvedValue([]) },
+			environmentConfig: { findFirst: vi.fn() },
+			customField: { findFirst: vi.fn() },
+			savedFilter: { findFirst: vi.fn() },
+			projectWebhook: { findFirst: vi.fn() },
+			sharedDataSet: { findFirst: vi.fn() },
+			issueLink: { findFirst: vi.fn() }
+		} as Record<string, { findFirst: ReturnType<typeof vi.fn>; findMany?: ReturnType<typeof vi.fn> }>,
 		_chains: { select: selectChain, insert: insertChain, update: updateChain, delete: deleteChain }
 	};
 

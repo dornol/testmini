@@ -7,7 +7,6 @@
 	import CommentSection from '$lib/components/CommentSection.svelte';
 	import { toast } from 'svelte-sonner';
 	import { apiPost, apiDelete } from '$lib/api-client';
-	import * as m from '$lib/paraglide/messages.js';
 	import { formatDurationFromDates } from '$lib/format-utils';
 	import { statusColorBg } from '$lib/execution-status';
 

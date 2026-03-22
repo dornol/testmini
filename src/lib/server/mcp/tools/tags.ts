@@ -98,4 +98,27 @@ export function registerTagTools(server: McpServer, projectId: number) {
 			return ok({ success: true, testCaseId, tagId });
 		}
 	);
+
+	server.tool(
+		'update-tag',
+		'Update a tag name or color',
+		{
+			tagId: z.number().describe('Tag ID'),
+			name: z.string().optional().describe('New name'),
+			color: z.string().optional().describe('New color hex')
+		},
+		async ({ tagId, name, color }) => {
+			const t = await db.query.tag.findFirst({
+				where: and(eq(tag.id, tagId), eq(tag.projectId, projectId))
+			});
+			if (!t) return err('Tag not found');
+
+			const updates: Record<string, unknown> = {};
+			if (name !== undefined) updates.name = name;
+			if (color !== undefined) updates.color = color;
+
+			const [updated] = await db.update(tag).set(updates).where(eq(tag.id, tagId)).returning();
+			return ok(updated);
+		}
+	);
 }

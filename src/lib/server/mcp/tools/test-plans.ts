@@ -235,4 +235,42 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			return ok(signoffs);
 		}
 	);
+
+	server.tool(
+		'delete-test-plan',
+		'Delete a test plan',
+		{ planId: z.number().describe('Test plan ID') },
+		async ({ planId }) => {
+			const plan = await db.query.testPlan.findFirst({
+				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
+			});
+			if (!plan) return err('Test plan not found');
+
+			await db.delete(testPlanTestCase).where(eq(testPlanTestCase.testPlanId, planId));
+			await db.delete(testPlan).where(eq(testPlan.id, planId));
+			return ok({ success: true, deletedId: planId });
+		}
+	);
+
+	server.tool(
+		'list-test-plans',
+		'List all test plans for the project',
+		{},
+		async () => {
+			const plans = await db
+				.select({
+					id: testPlan.id,
+					name: testPlan.name,
+					status: testPlan.status,
+					milestone: testPlan.milestone,
+					startDate: testPlan.startDate,
+					endDate: testPlan.endDate,
+					createdAt: testPlan.createdAt
+				})
+				.from(testPlan)
+				.where(eq(testPlan.projectId, projectId));
+
+			return ok(plans);
+		}
+	);
 }

@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
-import { testCase, testCaseVersion, tag, testCaseTag } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, tag, testCaseTag, testCaseAssignee, testCaseGroup } from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and, sql, desc } from 'drizzle-orm';
 
@@ -347,6 +347,94 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				.orderBy(desc(testCaseVersion.versionNo));
 
 			return ok(versions);
+		}
+	);
+
+	server.tool(
+		'move-test-case-to-group',
+		'Move a test case to a group (or remove from group by passing null)',
+		{
+			testCaseId: z.number().describe('Test case ID'),
+			groupId: z.number().nullable().describe('Target group ID (null to ungroup)')
+		},
+		async ({ testCaseId, groupId }) => {
+			const tc = await db.query.testCase.findFirst({
+				where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
+			});
+			if (!tc) return err('Test case not found');
+
+			if (groupId !== null) {
+				const group = await db.query.testCaseGroup.findFirst({
+					where: and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId))
+				});
+				if (!group) return err('Group not found');
+			}
+
+			await db.update(testCase).set({ groupId }).where(eq(testCase.id, testCaseId));
+			return ok({ success: true, testCaseId, groupId });
+		}
+	);
+
+	server.tool(
+		'assign-test-case',
+		'Assign a user to a test case',
+		{
+			testCaseId: z.number().describe('Test case ID'),
+			userId: z.string().describe('User ID to assign')
+		},
+		async ({ testCaseId, userId }) => {
+			const tc = await db.query.testCase.findFirst({
+				where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
+			});
+			if (!tc) return err('Test case not found');
+
+			await db.insert(testCaseAssignee).values({ testCaseId, userId }).onConflictDoNothing();
+			return ok({ success: true, testCaseId, userId });
+		}
+	);
+
+	server.tool(
+		'unassign-test-case',
+		'Remove a user assignment from a test case',
+		{
+			testCaseId: z.number().describe('Test case ID'),
+			userId: z.string().describe('User ID to unassign')
+		},
+		async ({ testCaseId, userId }) => {
+			await db.delete(testCaseAssignee)
+				.where(and(eq(testCaseAssignee.testCaseId, testCaseId), eq(testCaseAssignee.userId, userId)));
+			return ok({ success: true, testCaseId, userId });
+		}
+	);
+
+	server.tool(
+		'update-test-case-risk',
+		'Set risk assessment for a test case',
+		{
+			testCaseId: z.number().describe('Test case ID'),
+			riskImpact: z.enum(['LOW', 'MEDIUM', 'HIGH']).nullable().describe('Risk impact level'),
+			riskLikelihood: z.enum(['LOW', 'MEDIUM', 'HIGH']).nullable().describe('Risk likelihood level')
+		},
+		async ({ testCaseId, riskImpact, riskLikelihood }) => {
+			const tc = await db.query.testCase.findFirst({
+				where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
+			});
+			if (!tc) return err('Test case not found');
+
+			let riskLevel: string | null = null;
+			if (riskImpact && riskLikelihood) {
+				const matrix: Record<string, Record<string, string>> = {
+					HIGH: { HIGH: 'CRITICAL', MEDIUM: 'HIGH', LOW: 'MEDIUM' },
+					MEDIUM: { HIGH: 'HIGH', MEDIUM: 'MEDIUM', LOW: 'LOW' },
+					LOW: { HIGH: 'MEDIUM', MEDIUM: 'LOW', LOW: 'LOW' }
+				};
+				riskLevel = matrix[riskImpact][riskLikelihood];
+			}
+
+			await db.update(testCase)
+				.set({ riskImpact, riskLikelihood, riskLevel })
+				.where(eq(testCase.id, testCaseId));
+			return ok({ success: true, testCaseId, riskImpact, riskLikelihood, riskLevel });
 		}
 	);
 }

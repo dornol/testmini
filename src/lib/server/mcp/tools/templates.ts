@@ -119,4 +119,48 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 			return ok(result);
 		}
 	);
+
+	server.tool(
+		'update-template',
+		'Update a test case template',
+		{
+			templateId: z.number().describe('Template ID'),
+			name: z.string().optional().describe('New name'),
+			description: z.string().optional().describe('New description'),
+			priority: z.string().optional().describe('New priority'),
+			precondition: z.string().optional().describe('New precondition'),
+			steps: z.array(z.object({ action: z.string(), expected: z.string().optional() })).optional().describe('New steps')
+		},
+		async ({ templateId, name, description, priority, precondition, steps }) => {
+			const t = await db.query.testCaseTemplate.findFirst({
+				where: and(eq(testCaseTemplate.id, templateId), eq(testCaseTemplate.projectId, projectId))
+			});
+			if (!t) return err('Template not found');
+
+			const updates: Record<string, unknown> = {};
+			if (name !== undefined) updates.name = name;
+			if (description !== undefined) updates.description = description;
+			if (priority !== undefined) updates.priority = priority;
+			if (precondition !== undefined) updates.precondition = precondition;
+			if (steps !== undefined) updates.steps = steps.map((s, i) => ({ order: i + 1, ...s }));
+
+			const [updated] = await db.update(testCaseTemplate).set(updates).where(eq(testCaseTemplate.id, templateId)).returning();
+			return ok(updated);
+		}
+	);
+
+	server.tool(
+		'delete-template',
+		'Delete a test case template',
+		{ templateId: z.number().describe('Template ID') },
+		async ({ templateId }) => {
+			const t = await db.query.testCaseTemplate.findFirst({
+				where: and(eq(testCaseTemplate.id, templateId), eq(testCaseTemplate.projectId, projectId))
+			});
+			if (!t) return err('Template not found');
+
+			await db.delete(testCaseTemplate).where(eq(testCaseTemplate.id, templateId));
+			return ok({ success: true, deletedId: templateId });
+		}
+	);
 }

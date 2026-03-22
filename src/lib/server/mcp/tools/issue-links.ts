@@ -60,4 +60,19 @@ export function registerIssueLinkTools(server: McpServer, projectId: number) {
 			return ok(created);
 		}
 	);
+
+	server.tool(
+		'delete-issue-link',
+		'Delete an issue link',
+		{ linkId: z.number().describe('Issue link ID') },
+		async ({ linkId }) => {
+			const link = await db.query.issueLink.findFirst({
+				where: and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId))
+			});
+			if (!link) return err('Issue link not found');
+
+			await db.delete(issueLink).where(eq(issueLink.id, linkId));
+			return ok({ success: true, deletedId: linkId });
+		}
+	);
 }

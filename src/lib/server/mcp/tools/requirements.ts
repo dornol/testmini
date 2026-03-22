@@ -134,4 +134,61 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 			return ok(result);
 		}
 	);
+
+	server.tool(
+		'update-requirement',
+		'Update a requirement',
+		{
+			requirementId: z.number().describe('Requirement ID'),
+			title: z.string().optional().describe('New title'),
+			description: z.string().optional().describe('New description'),
+			externalId: z.string().optional().describe('New external ID'),
+			source: z.string().optional().describe('New source')
+		},
+		async ({ requirementId, title, description, externalId, source }) => {
+			const r = await db.query.requirement.findFirst({
+				where: and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId))
+			});
+			if (!r) return err('Requirement not found');
+
+			const updates: Record<string, unknown> = {};
+			if (title !== undefined) updates.title = title;
+			if (description !== undefined) updates.description = description;
+			if (externalId !== undefined) updates.externalId = externalId;
+			if (source !== undefined) updates.source = source;
+
+			const [updated] = await db.update(requirement).set(updates).where(eq(requirement.id, requirementId)).returning();
+			return ok(updated);
+		}
+	);
+
+	server.tool(
+		'delete-requirement',
+		'Delete a requirement',
+		{ requirementId: z.number().describe('Requirement ID') },
+		async ({ requirementId }) => {
+			const r = await db.query.requirement.findFirst({
+				where: and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId))
+			});
+			if (!r) return err('Requirement not found');
+
+			await db.delete(requirementTestCase).where(eq(requirementTestCase.requirementId, requirementId));
+			await db.delete(requirement).where(eq(requirement.id, requirementId));
+			return ok({ success: true, deletedId: requirementId });
+		}
+	);
+
+	server.tool(
+		'unlink-requirement-test-case',
+		'Remove link between a requirement and a test case',
+		{
+			requirementId: z.number().describe('Requirement ID'),
+			testCaseId: z.number().describe('Test case ID')
+		},
+		async ({ requirementId, testCaseId }) => {
+			await db.delete(requirementTestCase)
+				.where(and(eq(requirementTestCase.requirementId, requirementId), eq(requirementTestCase.testCaseId, testCaseId)));
+			return ok({ success: true, requirementId, testCaseId });
+		}
+	);
 }

@@ -63,14 +63,34 @@ export function registerTestCycleTools(server: McpServer, projectId: number) {
 			if (!c) return err('Test cycle not found');
 
 			await db.delete(testCycle).where(eq(testCycle.id, testCycleId));
-			return {
-				content: [
-					{
-						type: 'text' as const,
-						text: JSON.stringify({ success: true, deletedId: testCycleId })
-					}
-				]
-			};
+			return ok({ success: true, deletedId: testCycleId });
+		}
+	);
+
+	server.tool(
+		'update-test-cycle',
+		'Update a test cycle',
+		{
+			testCycleId: z.number().describe('Test cycle ID'),
+			name: z.string().optional().describe('New name'),
+			status: z.string().optional().describe('New status'),
+			startDate: z.string().optional().describe('New start date (ISO)'),
+			endDate: z.string().optional().describe('New end date (ISO)')
+		},
+		async ({ testCycleId, name, status, startDate, endDate }) => {
+			const c = await db.query.testCycle.findFirst({
+				where: and(eq(testCycle.id, testCycleId), eq(testCycle.projectId, projectId))
+			});
+			if (!c) return err('Test cycle not found');
+
+			const updates: Record<string, unknown> = {};
+			if (name !== undefined) updates.name = name;
+			if (status !== undefined) updates.status = status;
+			if (startDate !== undefined) updates.startDate = new Date(startDate);
+			if (endDate !== undefined) updates.endDate = new Date(endDate);
+
+			const [updated] = await db.update(testCycle).set(updates).where(eq(testCycle.id, testCycleId)).returning();
+			return ok(updated);
 		}
 	);
 }

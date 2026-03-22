@@ -66,4 +66,27 @@ export function registerGroupTools(server: McpServer, projectId: number) {
 			return ok({ success: true, deletedId: groupId });
 		}
 	);
+
+	server.tool(
+		'update-group',
+		'Update a test case group name or color',
+		{
+			groupId: z.number().describe('Group ID'),
+			name: z.string().optional().describe('New name'),
+			color: z.string().optional().describe('New color hex')
+		},
+		async ({ groupId, name, color }) => {
+			const g = await db.query.testCaseGroup.findFirst({
+				where: and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId))
+			});
+			if (!g) return err('Group not found');
+
+			const updates: Record<string, unknown> = {};
+			if (name !== undefined) updates.name = name;
+			if (color !== undefined) updates.color = color;
+
+			const [updated] = await db.update(testCaseGroup).set(updates).where(eq(testCaseGroup.id, groupId)).returning();
+			return ok(updated);
+		}
+	);
 }

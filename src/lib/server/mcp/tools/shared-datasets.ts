@@ -69,4 +69,29 @@ export function registerSharedDataSetTools(server: McpServer, projectId: number)
 			return ok({ success: true, deletedId: datasetId });
 		}
 	);
+
+	server.tool(
+		'update-shared-dataset',
+		'Update a shared dataset',
+		{
+			datasetId: z.number().describe('Dataset ID'),
+			name: z.string().optional().describe('New name'),
+			parameters: z.array(z.string()).optional().describe('New parameter names'),
+			rows: z.array(z.record(z.string(), z.string())).optional().describe('New data rows')
+		},
+		async ({ datasetId, name, parameters, rows }) => {
+			const ds = await db.query.sharedDataSet.findFirst({
+				where: and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId))
+			});
+			if (!ds) return err('Shared dataset not found');
+
+			const updates: Record<string, unknown> = {};
+			if (name !== undefined) updates.name = name;
+			if (parameters !== undefined) updates.parameters = parameters;
+			if (rows !== undefined) updates.rows = rows;
+
+			const [updated] = await db.update(sharedDataSet).set(updates).where(eq(sharedDataSet.id, datasetId)).returning();
+			return ok(updated);
+		}
+	);
 }

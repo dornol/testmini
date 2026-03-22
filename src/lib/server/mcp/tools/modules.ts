@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { module, moduleTestCase, testCase } from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator } from '../helpers';
+import { inArray } from 'drizzle-orm';
 import { eq, and, sql } from 'drizzle-orm';
 
 export function registerModuleTools(server: McpServer, projectId: number) {
@@ -90,6 +91,62 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 				.groupBy(module.id, module.name);
 
 			return ok(rows);
+		}
+	);
+
+	server.tool(
+		'update-module',
+		'Update a module name or description',
+		{
+			moduleId: z.number().describe('Module ID'),
+			name: z.string().optional().describe('New name'),
+			description: z.string().optional().describe('New description')
+		},
+		async ({ moduleId, name, description }) => {
+			const m = await db.query.module.findFirst({
+				where: and(eq(module.id, moduleId), eq(module.projectId, projectId))
+			});
+			if (!m) return err('Module not found');
+
+			const updates: Record<string, unknown> = {};
+			if (name !== undefined) updates.name = name;
+			if (description !== undefined) updates.description = description;
+
+			const [updated] = await db.update(module).set(updates).where(eq(module.id, moduleId)).returning();
+			return ok(updated);
+		}
+	);
+
+	server.tool(
+		'add-module-test-cases',
+		'Add test cases to a module',
+		{
+			moduleId: z.number().describe('Module ID'),
+			testCaseIds: z.array(z.number()).describe('Test case IDs to add')
+		},
+		async ({ moduleId, testCaseIds }) => {
+			const m = await db.query.module.findFirst({
+				where: and(eq(module.id, moduleId), eq(module.projectId, projectId))
+			});
+			if (!m) return err('Module not found');
+
+			const values = testCaseIds.map((tcId) => ({ moduleId, testCaseId: tcId }));
+			await db.insert(moduleTestCase).values(values).onConflictDoNothing();
+			return ok({ success: true, moduleId, addedCount: testCaseIds.length });
+		}
+	);
+
+	server.tool(
+		'remove-module-test-cases',
+		'Remove test cases from a module',
+		{
+			moduleId: z.number().describe('Module ID'),
+			testCaseIds: z.array(z.number()).describe('Test case IDs to remove')
+		},
+		async ({ moduleId, testCaseIds }) => {
+			await db.delete(moduleTestCase)
+				.where(and(eq(moduleTestCase.moduleId, moduleId), inArray(moduleTestCase.testCaseId, testCaseIds)));
+			return ok({ success: true, moduleId, removedCount: testCaseIds.length });
 		}
 	);
 }

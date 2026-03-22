@@ -361,4 +361,42 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			return ok({ success: true, runId, updatedCount: updates.length });
 		}
 	);
+
+	server.tool(
+		'update-test-run',
+		'Update a test run name or environment',
+		{
+			runId: z.number().describe('Test run ID'),
+			name: z.string().optional().describe('New name'),
+			environment: z.string().optional().describe('New environment')
+		},
+		async ({ runId, name, environment }) => {
+			const run = await db.query.testRun.findFirst({
+				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
+			});
+			if (!run) return err('Test run not found');
+
+			const updates: Record<string, unknown> = {};
+			if (name !== undefined) updates.name = name;
+			if (environment !== undefined) updates.environment = environment;
+
+			const [updated] = await db.update(testRun).set(updates).where(eq(testRun.id, runId)).returning();
+			return ok(updated);
+		}
+	);
+
+	server.tool(
+		'delete-test-run',
+		'Delete a test run and all its executions',
+		{ runId: z.number().describe('Test run ID') },
+		async ({ runId }) => {
+			const run = await db.query.testRun.findFirst({
+				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
+			});
+			if (!run) return err('Test run not found');
+
+			await db.delete(testRun).where(eq(testRun.id, runId));
+			return ok({ success: true, deletedId: runId });
+		}
+	);
 }

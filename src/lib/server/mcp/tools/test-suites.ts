@@ -95,4 +95,43 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 			return ok({ success: true, suiteId, removedCount: testCaseIds.length });
 		}
 	);
+
+	server.tool(
+		'update-test-suite',
+		'Update a test suite name or description',
+		{
+			suiteId: z.number().describe('Suite ID'),
+			name: z.string().optional().describe('New name'),
+			description: z.string().optional().describe('New description')
+		},
+		async ({ suiteId, name, description }) => {
+			const s = await db.query.testSuite.findFirst({
+				where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
+			});
+			if (!s) return err('Test suite not found');
+
+			const updates: Record<string, unknown> = {};
+			if (name !== undefined) updates.name = name;
+			if (description !== undefined) updates.description = description;
+
+			const [updated] = await db.update(testSuite).set(updates).where(eq(testSuite.id, suiteId)).returning();
+			return ok(updated);
+		}
+	);
+
+	server.tool(
+		'delete-test-suite',
+		'Delete a test suite',
+		{ suiteId: z.number().describe('Suite ID') },
+		async ({ suiteId }) => {
+			const s = await db.query.testSuite.findFirst({
+				where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
+			});
+			if (!s) return err('Test suite not found');
+
+			await db.delete(testSuiteItem).where(eq(testSuiteItem.suiteId, suiteId));
+			await db.delete(testSuite).where(eq(testSuite.id, suiteId));
+			return ok({ success: true, deletedId: suiteId });
+		}
+	);
 }

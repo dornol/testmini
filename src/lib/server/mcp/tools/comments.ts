@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { testCase, testRun, testExecution, testCaseComment, executionComment } from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator } from '../helpers';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 
 export function registerCommentTools(server: McpServer, projectId: number) {
 	server.tool(
@@ -95,6 +95,57 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 				.returning();
 
 			return ok(created);
+		}
+	);
+
+	server.tool(
+		'update-test-case-comment',
+		'Update a test case comment',
+		{
+			testCaseId: z.number().describe('Test case ID'),
+			commentId: z.number().describe('Comment ID'),
+			content: z.string().describe('Updated content')
+		},
+		async ({ testCaseId, commentId, content }) => {
+			const [updated] = await db
+				.update(testCaseComment)
+				.set({ content })
+				.where(and(eq(testCaseComment.id, commentId), eq(testCaseComment.testCaseId, testCaseId)))
+				.returning();
+			if (!updated) return err('Comment not found');
+			return ok(updated);
+		}
+	);
+
+	server.tool(
+		'delete-test-case-comment',
+		'Delete a test case comment',
+		{
+			testCaseId: z.number().describe('Test case ID'),
+			commentId: z.number().describe('Comment ID')
+		},
+		async ({ testCaseId, commentId }) => {
+			await db.delete(testCaseComment)
+				.where(and(eq(testCaseComment.id, commentId), eq(testCaseComment.testCaseId, testCaseId)));
+			return ok({ success: true, deletedId: commentId });
+		}
+	);
+
+	server.tool(
+		'list-execution-comments',
+		'List comments on a test execution',
+		{
+			runId: z.number().describe('Test run ID'),
+			executionId: z.number().describe('Execution ID')
+		},
+		async ({ runId, executionId }) => {
+			const comments = await db
+				.select()
+				.from(executionComment)
+				.where(eq(executionComment.testExecutionId, executionId))
+				.orderBy(desc(executionComment.createdAt));
+
+			return ok(comments);
 		}
 	);
 }

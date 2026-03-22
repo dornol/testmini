@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { exploratorySession, sessionNote } from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator } from '../helpers';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 
 export function registerExploratoryTools(server: McpServer, projectId: number) {
 	server.tool(
@@ -117,6 +117,52 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 				.returning();
 
 			return ok(created);
+		}
+	);
+
+	server.tool(
+		'list-exploratory-sessions',
+		'List exploratory testing sessions',
+		{
+			status: z.enum(['ACTIVE', 'PAUSED', 'COMPLETED']).optional().describe('Filter by status'),
+			limit: z.number().optional().describe('Max results (default 20)')
+		},
+		async ({ status, limit }) => {
+			const conditions = [eq(exploratorySession.projectId, projectId)];
+			if (status) conditions.push(eq(exploratorySession.status, status));
+
+			const sessions = await db
+				.select({
+					id: exploratorySession.id,
+					title: exploratorySession.title,
+					charter: exploratorySession.charter,
+					environment: exploratorySession.environment,
+					status: exploratorySession.status,
+					tags: exploratorySession.tags,
+					startedAt: exploratorySession.startedAt
+				})
+				.from(exploratorySession)
+				.where(and(...conditions))
+				.orderBy(desc(exploratorySession.startedAt))
+				.limit(limit ?? 20);
+
+			return ok(sessions);
+		}
+	);
+
+	server.tool(
+		'delete-exploratory-session',
+		'Delete an exploratory session and its notes',
+		{ sessionId: z.number().describe('Session ID') },
+		async ({ sessionId }) => {
+			const s = await db.query.exploratorySession.findFirst({
+				where: and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
+			});
+			if (!s) return err('Session not found');
+
+			await db.delete(sessionNote).where(eq(sessionNote.sessionId, sessionId));
+			await db.delete(exploratorySession).where(eq(exploratorySession.id, sessionId));
+			return ok({ success: true, deletedId: sessionId });
 		}
 	);
 }

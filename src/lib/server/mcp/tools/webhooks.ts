@@ -70,4 +70,31 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 			return ok({ success: true, deletedId: webhookId });
 		}
 	);
+
+	server.tool(
+		'update-webhook',
+		'Update a webhook',
+		{
+			webhookId: z.number().describe('Webhook ID'),
+			name: z.string().optional().describe('New name'),
+			url: z.string().optional().describe('New URL'),
+			events: z.array(z.string()).optional().describe('New events'),
+			enabled: z.boolean().optional().describe('Enable/disable')
+		},
+		async ({ webhookId, name, url, events, enabled }) => {
+			const wh = await db.query.projectWebhook.findFirst({
+				where: and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId))
+			});
+			if (!wh) return err('Webhook not found');
+
+			const updates: Record<string, unknown> = {};
+			if (name !== undefined) updates.name = name;
+			if (url !== undefined) updates.url = url;
+			if (events !== undefined) updates.events = events;
+			if (enabled !== undefined) updates.enabled = enabled;
+
+			const [updated] = await db.update(projectWebhook).set(updates).where(eq(projectWebhook.id, webhookId)).returning();
+			return ok(updated);
+		}
+	);
 }

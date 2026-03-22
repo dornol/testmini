@@ -74,4 +74,33 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 			return ok({ success: true, deletedId: environmentId });
 		}
 	);
+
+	server.tool(
+		'update-environment',
+		'Update an environment',
+		{
+			environmentId: z.number().describe('Environment ID'),
+			name: z.string().optional().describe('New name'),
+			color: z.string().optional().describe('New color hex'),
+			isDefault: z.boolean().optional().describe('Set as default'),
+			baseUrl: z.string().optional().describe('Base URL'),
+			memo: z.string().optional().describe('Notes')
+		},
+		async ({ environmentId, name, color, isDefault, baseUrl, memo }) => {
+			const env = await db.query.environmentConfig.findFirst({
+				where: and(eq(environmentConfig.id, environmentId), eq(environmentConfig.projectId, projectId))
+			});
+			if (!env) return err('Environment not found');
+
+			const updates: Record<string, unknown> = {};
+			if (name !== undefined) updates.name = name;
+			if (color !== undefined) updates.color = color;
+			if (isDefault !== undefined) updates.isDefault = isDefault;
+			if (baseUrl !== undefined) updates.baseUrl = baseUrl;
+			if (memo !== undefined) updates.memo = memo;
+
+			const [updated] = await db.update(environmentConfig).set(updates).where(eq(environmentConfig.id, environmentId)).returning();
+			return ok(updated);
+		}
+	);
 }

@@ -5,7 +5,6 @@
 	import { SvelteMap } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import * as m from '$lib/paraglide/messages.js';
 	import { statusColorBg } from '$lib/execution-status';
 	import ExecutionRow from './ExecutionRow.svelte';
 

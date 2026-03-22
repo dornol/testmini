@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { exploratorySession, sessionNote } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator } from '../helpers';
+import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
 import { eq, and, desc } from 'drizzle-orm';
 
 export function registerExploratoryTools(server: McpServer, projectId: number) {

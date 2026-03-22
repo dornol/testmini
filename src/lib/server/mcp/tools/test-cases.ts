@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
 import { testCase, testCaseVersion, tag, testCaseTag, testCaseAssignee, testCaseGroup } from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator } from '../helpers';
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { eq, and, sql, desc, inArray } from 'drizzle-orm';
 
 export function registerTestCaseTools(server: McpServer, projectId: number) {
 	server.tool(
@@ -435,6 +435,109 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				.set({ riskImpact, riskLikelihood, riskLevel })
 				.where(eq(testCase.id, testCaseId));
 			return ok({ success: true, testCaseId, riskImpact, riskLikelihood, riskLevel });
+		}
+	);
+
+	server.tool(
+		'batch-create-test-cases',
+		'Create multiple test cases at once with optional group, tags, and requirement links. Ideal for bulk creation from specs or planning docs.',
+		{
+			groupId: z.number().optional().describe('Group ID to assign all created TCs to'),
+			tagIds: z.array(z.number()).optional().describe('Tag IDs to attach to all created TCs'),
+			requirementId: z.number().optional().describe('Requirement ID to link all created TCs to'),
+			testCases: z.array(z.object({
+				title: z.string().describe('Test case title'),
+				priority: z.string().optional().describe('Priority (default: MEDIUM)'),
+				precondition: z.string().optional().describe('Precondition'),
+				steps: z.array(z.object({
+					action: z.string(),
+					expected: z.string().optional()
+				})).optional().describe('Test steps'),
+				expectedResult: z.string().optional().describe('Expected result')
+			})).describe('Array of test cases to create')
+		},
+		async ({ groupId, tagIds, requirementId, testCases: tcList }) => {
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
+
+			if (tcList.length === 0) return err('testCases array is empty');
+			if (tcList.length > 100) return err('Maximum 100 test cases per batch');
+
+			// Validate group exists
+			if (groupId) {
+				const group = await db.query.testCaseGroup.findFirst({
+					where: and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId))
+				});
+				if (!group) return err('Group not found');
+			}
+
+			// Validate tags exist
+			if (tagIds && tagIds.length > 0) {
+				const existingTags = await db
+					.select({ id: tag.id })
+					.from(tag)
+					.where(and(eq(tag.projectId, projectId), inArray(tag.id, tagIds)));
+				if (existingTags.length !== tagIds.length) return err('One or more tags not found');
+			}
+
+			const created: Array<{ id: number; key: string; title: string }> = [];
+
+			// Get starting key number
+			const [maxResult] = await db
+				.select({ maxKey: sql<string>`max(key)`.as('max_key') })
+				.from(testCase)
+				.where(eq(testCase.projectId, projectId));
+			let nextNum = maxResult?.maxKey ? parseInt(maxResult.maxKey.replace(/^TC-/, ''), 10) + 1 : 1;
+			if (isNaN(nextNum)) nextNum = 1;
+
+			for (const tc of tcList) {
+				const key = `TC-${String(nextNum++).padStart(4, '0')}`;
+				const steps = tc.steps?.map((s, i) => ({ order: i + 1, action: s.action, expected: s.expected ?? '' }));
+
+				const result = await db.transaction(async (tx) => {
+					const [newTc] = await tx
+						.insert(testCase)
+						.values({ projectId, key, groupId: groupId ?? null, createdBy: creator })
+						.returning();
+
+					const [newVer] = await tx
+						.insert(testCaseVersion)
+						.values({
+							testCaseId: newTc.id,
+							versionNo: 1,
+							title: tc.title,
+							precondition: tc.precondition ?? null,
+							steps: steps ?? [],
+							expectedResult: tc.expectedResult ?? null,
+							priority: tc.priority ?? 'MEDIUM',
+							updatedBy: creator
+						})
+						.returning();
+
+					await tx.update(testCase).set({ latestVersionId: newVer.id }).where(eq(testCase.id, newTc.id));
+
+					// Tags
+					if (tagIds && tagIds.length > 0) {
+						await tx.insert(testCaseTag)
+							.values(tagIds.map((tagId) => ({ testCaseId: newTc.id, tagId })))
+							.onConflictDoNothing();
+					}
+
+					return { id: newTc.id, key, title: newVer.title };
+				});
+
+				created.push(result);
+			}
+
+			// Link to requirement (outside transaction since it's optional)
+			if (requirementId && created.length > 0) {
+				const { requirementTestCase } = await import('$lib/server/db/schema');
+				await db.insert(requirementTestCase)
+					.values(created.map((tc) => ({ requirementId, testCaseId: tc.id })))
+					.onConflictDoNothing();
+			}
+
+			return ok({ createdCount: created.length, testCases: created });
 		}
 	);
 }

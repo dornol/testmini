@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, testCaseTemplate } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator } from '../helpers';
+import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
 import { eq, and, sql } from 'drizzle-orm';
 
 export function registerTemplateTools(server: McpServer, projectId: number) {

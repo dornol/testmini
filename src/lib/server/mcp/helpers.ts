@@ -34,6 +34,20 @@ export async function requireProjectCreator(projectId: number): Promise<string |
 	return creator;
 }
 
+// ── Update helpers ───────────────────────────────────────
+
+/**
+ * Build a partial update object from optional fields.
+ * Filters out undefined values so only provided fields are updated.
+ */
+export function buildUpdates(fields: Record<string, unknown>): Record<string, unknown> {
+	const updates: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(fields)) {
+		if (value !== undefined) updates[key] = value;
+	}
+	return updates;
+}
+
 // ── Key generation ───────────────────────────────────────
 
 /** Generate next TC-XXXX key for a project. */

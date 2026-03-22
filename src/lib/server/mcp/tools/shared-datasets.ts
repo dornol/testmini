@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { sharedDataSet } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { ok, err, requireProjectCreator } from '../helpers';
+import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
 
 export function registerSharedDataSetTools(server: McpServer, projectId: number) {
 	server.tool(

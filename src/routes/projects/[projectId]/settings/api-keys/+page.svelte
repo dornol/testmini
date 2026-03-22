@@ -77,9 +77,25 @@
 		}
 	}
 
-	async function copyKey(key: string) {
+	function copyToClipboard(text: string): boolean {
+		if (navigator.clipboard) {
+			navigator.clipboard.writeText(text);
+			return true;
+		}
+		const textarea = document.createElement('textarea');
+		textarea.value = text;
+		textarea.style.position = 'fixed';
+		textarea.style.opacity = '0';
+		document.body.appendChild(textarea);
+		textarea.select();
+		const ok = document.execCommand('copy');
+		document.body.removeChild(textarea);
+		return ok;
+	}
+
+	function copyKey(key: string) {
 		try {
-			await navigator.clipboard.writeText(key);
+			copyToClipboard(key);
 			keyCopied = true;
 			toast.success(m.api_key_copied());
 		} catch {
@@ -89,22 +105,23 @@
 
 	const origin = $derived(typeof window !== 'undefined' ? window.location.origin : '');
 	const mcpEndpoint = $derived(`${origin}/api/mcp`);
+	const mcpName = $derived(data.project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'project');
 
 	interface McpAgent {
 		name: string;
 		command: (key: string) => string;
 	}
 
-	const mcpAgents: McpAgent[] = [
+	const mcpAgents = $derived<McpAgent[]>([
 		{
 			name: 'Claude Code',
-			command: (key) => `claude mcp add testmini --transport http ${mcpEndpoint} -H "Authorization: Bearer ${key}"`
+			command: (key) => `claude mcp add ${mcpName} --transport http ${mcpEndpoint} -H "Authorization: Bearer ${key}"`
 		},
 		{
 			name: 'Cursor',
 			command: (key) => JSON.stringify({
 				mcpServers: {
-					testmini: {
+					[mcpName]: {
 						url: mcpEndpoint,
 						headers: { Authorization: `Bearer ${key}` }
 					}
@@ -115,21 +132,21 @@
 			name: 'Windsurf',
 			command: (key) => JSON.stringify({
 				mcpServers: {
-					testmini: {
+					[mcpName]: {
 						serverUrl: mcpEndpoint,
 						headers: { Authorization: `Bearer ${key}` }
 					}
 				}
 			}, null, 2)
 		}
-	];
+	]);
 
 	let selectedAgent = $state(0);
 
-	async function copyMcpCommand() {
+	function copyMcpCommand() {
 		if (!generatedKey) return;
 		try {
-			await navigator.clipboard.writeText(mcpAgents[selectedAgent].command(generatedKey));
+			copyToClipboard(mcpAgents[selectedAgent].command(generatedKey));
 			toast.success(m.mcp_copied());
 		} catch {
 			toast.error(m.error_operation_failed());

@@ -12,6 +12,12 @@ import { registerIssueLinkTools } from './tools/issue-links';
 import { registerExploratoryTools } from './tools/exploratory';
 import { registerCommentTools } from './tools/comments';
 import { registerApprovalTools } from './tools/approval';
+import { registerModuleTools } from './tools/modules';
+import { registerReleaseTools } from './tools/releases';
+import { registerTestCycleTools } from './tools/test-cycles';
+import { registerReportTools } from './tools/reports';
+import { registerSharedDataSetTools } from './tools/shared-datasets';
+import { registerEnvironmentTools } from './tools/environments';
 
 /**
  * Creates an MCP server scoped to a specific project (authenticated via API key).
@@ -38,6 +44,12 @@ export function createMcpServer(projectId: number) {
 	registerExploratoryTools(server, projectId);
 	registerCommentTools(server, projectId);
 	registerApprovalTools(server, projectId);
+	registerModuleTools(server, projectId);
+	registerReleaseTools(server, projectId);
+	registerTestCycleTools(server, projectId);
+	registerReportTools(server, projectId);
+	registerSharedDataSetTools(server, projectId);
+	registerEnvironmentTools(server, projectId);
 
 	return server;
 }

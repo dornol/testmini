@@ -6,6 +6,20 @@ import { eq, and } from 'drizzle-orm';
 
 export function registerTagTools(server: McpServer, projectId: number) {
 	server.tool(
+		'list-tags',
+		'List all tags for the project',
+		{},
+		async () => {
+			const tags = await db
+				.select({ id: tag.id, name: tag.name, color: tag.color })
+				.from(tag)
+				.where(eq(tag.projectId, projectId));
+
+			return { content: [{ type: 'text' as const, text: JSON.stringify(tags, null, 2) }] };
+		}
+	);
+
+	server.tool(
 		'create-tag',
 		'Create a new tag',
 		{

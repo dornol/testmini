@@ -2,9 +2,38 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { project, testCase, testCaseVersion, testRun, testExecution, testFailureDetail } from '$lib/server/db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, desc } from 'drizzle-orm';
 
 export function registerTestRunTools(server: McpServer, projectId: number) {
+	server.tool(
+		'list-test-runs',
+		'List all test runs for the project',
+		{
+			status: z.enum(['CREATED', 'IN_PROGRESS', 'COMPLETED']).optional().describe('Filter by status'),
+			limit: z.number().optional().describe('Max results (default 50)')
+		},
+		async ({ status, limit }) => {
+			const conditions = [eq(testRun.projectId, projectId)];
+			if (status) conditions.push(eq(testRun.status, status));
+
+			const runs = await db
+				.select({
+					id: testRun.id,
+					name: testRun.name,
+					environment: testRun.environment,
+					status: testRun.status,
+					createdAt: testRun.createdAt,
+					finishedAt: testRun.finishedAt
+				})
+				.from(testRun)
+				.where(and(...conditions))
+				.orderBy(desc(testRun.createdAt))
+				.limit(limit ?? 50);
+
+			return { content: [{ type: 'text' as const, text: JSON.stringify(runs, null, 2) }] };
+		}
+	);
+
 	server.tool(
 		'get-test-run',
 		'Get test run details with execution results',

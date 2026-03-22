@@ -87,6 +87,55 @@
 		}
 	}
 
+	const origin = $derived(typeof window !== 'undefined' ? window.location.origin : '');
+	const mcpEndpoint = $derived(`${origin}/api/mcp`);
+
+	interface McpAgent {
+		name: string;
+		command: (key: string) => string;
+	}
+
+	const mcpAgents: McpAgent[] = [
+		{
+			name: 'Claude Code',
+			command: (key) => `claude mcp add testmini --transport http ${mcpEndpoint} -H "Authorization: Bearer ${key}"`
+		},
+		{
+			name: 'Cursor',
+			command: (key) => JSON.stringify({
+				mcpServers: {
+					testmini: {
+						url: mcpEndpoint,
+						headers: { Authorization: `Bearer ${key}` }
+					}
+				}
+			}, null, 2)
+		},
+		{
+			name: 'Windsurf',
+			command: (key) => JSON.stringify({
+				mcpServers: {
+					testmini: {
+						serverUrl: mcpEndpoint,
+						headers: { Authorization: `Bearer ${key}` }
+					}
+				}
+			}, null, 2)
+		}
+	];
+
+	let selectedAgent = $state(0);
+
+	async function copyMcpCommand() {
+		if (!generatedKey) return;
+		try {
+			await navigator.clipboard.writeText(mcpAgents[selectedAgent].command(generatedKey));
+			toast.success(m.mcp_copied());
+		} catch {
+			toast.error(m.error_operation_failed());
+		}
+	}
+
 	function tryCloseGeneratedKey(open: boolean) {
 		if (open || !generatedKey) return;
 		if (!keyCopied) {
@@ -231,6 +280,46 @@
 					</div>
 				</div>
 			</div>
+			<!-- MCP Connection Guide -->
+			<div class="space-y-3 border-t pt-4">
+				<div>
+					<h4 class="text-sm font-semibold">{m.mcp_connect_title()}</h4>
+					<p class="text-muted-foreground text-xs mt-0.5">{m.mcp_connect_desc()}</p>
+				</div>
+				<div class="flex gap-1">
+					{#each mcpAgents as agent, i (agent.name)}
+						<button
+							type="button"
+							class="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors
+								{selectedAgent === i
+									? 'bg-primary text-primary-foreground border-primary'
+									: 'bg-background hover:bg-accent border-input'}"
+							onclick={() => { selectedAgent = i; }}
+						>
+							{agent.name}
+						</button>
+					{/each}
+				</div>
+				<div class="relative">
+					<pre class="bg-muted rounded-md p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all max-h-36">{generatedKey ? mcpAgents[selectedAgent].command(generatedKey) : ''}</pre>
+					<Button
+						variant="outline"
+						size="sm"
+						class="absolute top-1.5 right-1.5 h-6 px-2 text-[10px]"
+						onclick={copyMcpCommand}
+					>
+						{m.api_key_copy()}
+					</Button>
+				</div>
+				{#if selectedAgent === 0}
+					<p class="text-muted-foreground text-[11px]">{m.mcp_hint_terminal()}</p>
+				{:else}
+					<p class="text-muted-foreground text-[11px]">
+						{m.mcp_hint_config({ file: selectedAgent === 1 ? '.cursor/mcp.json' : '.windsurf/mcp.json' })}
+					</p>
+				{/if}
+			</div>
+
 			<Dialog.Footer>
 				<Button onclick={() => tryCloseGeneratedKey(false)}>{m.common_close()}</Button>
 			</Dialog.Footer>

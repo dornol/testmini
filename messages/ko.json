@@ -1194,6 +1194,12 @@
 	"admin_confirm_activate": "이 프로젝트를 활성화하시겠습니까?",
 	"admin_confirm_deactivate": "이 프로젝트를 비활성화하시겠습니까? 멤버들이 더 이상 접근할 수 없게 됩니다.",
 
+	"mcp_connect_title": "MCP 연결",
+	"mcp_connect_desc": "아래 명령어를 복사하여 AI 에이전트에서 이 프로젝트에 MCP로 연결하세요.",
+	"mcp_copied": "명령어가 복사되었습니다!",
+	"mcp_hint_terminal": "터미널에서 이 명령어를 실행하세요.",
+	"mcp_hint_config": "{file}에 추가하세요.",
+
 	"error_go_home": "홈으로",
 	"error_something_went_wrong": "문제가 발생했습니다",
 

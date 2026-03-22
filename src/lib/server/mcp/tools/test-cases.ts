@@ -2,9 +2,40 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
 import { project, testCase, testCaseVersion, tag, testCaseTag } from '$lib/server/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, desc } from 'drizzle-orm';
 
 export function registerTestCaseTools(server: McpServer, projectId: number) {
+	server.tool(
+		'list-test-cases',
+		'List all test cases for the project',
+		{
+			limit: z.number().optional().describe('Max results (default 50)'),
+			groupId: z.number().optional().describe('Filter by group ID')
+		},
+		async ({ limit, groupId }) => {
+			const conditions = [eq(testCase.projectId, projectId)];
+			if (groupId !== undefined) conditions.push(eq(testCase.groupId, groupId));
+
+			const cases = await db
+				.select({
+					id: testCase.id,
+					key: testCase.key,
+					title: testCaseVersion.title,
+					priority: testCaseVersion.priority,
+					groupId: testCase.groupId,
+					approvalStatus: testCase.approvalStatus,
+					createdAt: testCase.createdAt
+				})
+				.from(testCase)
+				.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
+				.where(and(...conditions))
+				.orderBy(desc(testCase.createdAt))
+				.limit(limit ?? 50);
+
+			return { content: [{ type: 'text' as const, text: JSON.stringify(cases, null, 2) }] };
+		}
+	);
+
 	server.tool(
 		'search-test-cases',
 		'Search test cases by keyword in title, key, or steps',

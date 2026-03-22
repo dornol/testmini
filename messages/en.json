@@ -1194,6 +1194,12 @@
 	"admin_confirm_activate": "Are you sure you want to activate this project?",
 	"admin_confirm_deactivate": "Are you sure you want to deactivate this project? Members will no longer be able to access it.",
 
+	"mcp_connect_title": "Connect via MCP",
+	"mcp_connect_desc": "Copy the command below to connect your AI agent to this project via MCP.",
+	"mcp_copied": "Command copied!",
+	"mcp_hint_terminal": "Run this command in your terminal.",
+	"mcp_hint_config": "Add to {file}",
+
 	"error_go_home": "Go home",
 	"error_something_went_wrong": "Something went wrong",
 

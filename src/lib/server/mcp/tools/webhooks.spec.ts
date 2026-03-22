@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockInsertReturning, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockInsertReturning, mockSelectResult, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -157,6 +157,37 @@ describe('MCP webhook tools', () => {
 			const result = await client.callTool({
 				name: 'delete-webhook',
 				arguments: { webhookId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Webhook not found');
+		});
+	});
+
+	// ── update-webhook ──────────────────────────────────
+
+	describe('update-webhook', () => {
+		it('should update a webhook', async () => {
+			mockDb.query.projectWebhook.findFirst.mockResolvedValue(sampleWebhook);
+			mockUpdateReturning(mockDb, [{ ...sampleWebhook, name: 'Updated Hook', enabled: false }]);
+
+			const result = await client.callTool({
+				name: 'update-webhook',
+				arguments: { webhookId: 1, name: 'Updated Hook', enabled: false }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.name).toBe('Updated Hook');
+			expect(parsed.enabled).toBe(false);
+		});
+
+		it('should return error when webhook not found', async () => {
+			mockDb.query.projectWebhook.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'update-webhook',
+				arguments: { webhookId: 999, name: 'Updated' }
 			});
 
 			expect(result.isError).toBe(true);

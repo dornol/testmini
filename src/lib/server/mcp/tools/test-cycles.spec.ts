@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockInsertReturning, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockInsertReturning, mockSelectResult, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -131,6 +131,37 @@ describe('MCP test cycle tools', () => {
 			const result = await client.callTool({
 				name: 'delete-test-cycle',
 				arguments: { testCycleId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Test cycle not found');
+		});
+	});
+
+	// ── update-test-cycle ───────────────────────────────
+
+	describe('update-test-cycle', () => {
+		it('should update a test cycle', async () => {
+			mockDb.query.testCycle.findFirst.mockResolvedValue(sampleCycle);
+			mockUpdateReturning(mockDb, [{ ...sampleCycle, name: 'Updated Cycle', status: 'COMPLETED' }]);
+
+			const result = await client.callTool({
+				name: 'update-test-cycle',
+				arguments: { testCycleId: 1, name: 'Updated Cycle', status: 'COMPLETED' }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.name).toBe('Updated Cycle');
+			expect(parsed.status).toBe('COMPLETED');
+		});
+
+		it('should return error when not found', async () => {
+			mockDb.query.testCycle.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'update-test-cycle',
+				arguments: { testCycleId: 999, name: 'Updated' }
 			});
 
 			expect(result.isError).toBe(true);

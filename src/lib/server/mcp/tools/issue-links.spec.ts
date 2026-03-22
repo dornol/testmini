@@ -102,6 +102,37 @@ describe('MCP issue-link tools', () => {
 		});
 	});
 
+	// ── delete-issue-link ───────────────────────────────
+
+	describe('delete-issue-link', () => {
+		it('should delete an issue link', async () => {
+			mockDb.query.issueLink.findFirst.mockResolvedValue(sampleIssueLink);
+
+			const result = await client.callTool({
+				name: 'delete-issue-link',
+				arguments: { linkId: 1 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.deletedId).toBe(1);
+			expect(mockDb.delete).toHaveBeenCalledTimes(1);
+		});
+
+		it('should return error when issue link not found', async () => {
+			mockDb.query.issueLink.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'delete-issue-link',
+				arguments: { linkId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Issue link not found');
+		});
+	});
+
 	// ── create-issue-link ───────────────────────────────
 
 	describe('create-issue-link', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockSelectResult, mockInsertReturning, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -176,6 +176,68 @@ describe('MCP test-suite tools', () => {
 			const result = await client.callTool({
 				name: 'remove-suite-items',
 				arguments: { suiteId: 999, testCaseIds: [10] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Test suite not found');
+		});
+	});
+
+	// ── update-test-suite ───────────────────────────────
+
+	describe('update-test-suite', () => {
+		it('should update a suite', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
+			mockUpdateReturning(mockDb, [{ ...sampleSuite, name: 'Updated Suite', description: 'New desc' }]);
+
+			const result = await client.callTool({
+				name: 'update-test-suite',
+				arguments: { suiteId: 1, name: 'Updated Suite', description: 'New desc' }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.name).toBe('Updated Suite');
+			expect(parsed.description).toBe('New desc');
+		});
+
+		it('should return error when suite not found', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'update-test-suite',
+				arguments: { suiteId: 999, name: 'Updated' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Test suite not found');
+		});
+	});
+
+	// ── delete-test-suite ───────────────────────────────
+
+	describe('delete-test-suite', () => {
+		it('should delete a suite', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
+
+			const result = await client.callTool({
+				name: 'delete-test-suite',
+				arguments: { suiteId: 1 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.deletedId).toBe(1);
+			expect(mockDb.delete).toHaveBeenCalledTimes(2);
+		});
+
+		it('should return error when suite not found', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'delete-test-suite',
+				arguments: { suiteId: 999 }
 			});
 
 			expect(result.isError).toBe(true);

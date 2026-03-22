@@ -62,15 +62,15 @@ Expose project data via [Model Context Protocol (MCP)](https://modelcontextproto
 - [x] `summary` -- dashboard summary (total test cases, recent runs)
 - [x] `projects` -- current project info with counts, members, environments, priorities
 
-### MCP Tools (73 total)
+### MCP Tools (114 total)
 
-- [x] Core: search/list/get/create/update/delete test cases, clone, versions, approval
-- [x] Runs: list/get/create/complete runs, update/bulk-update execution status, failures, export
-- [x] Organization: tags (list/CRUD), groups (list/CRUD), test suites, test plans + signoffs
-- [x] Templates: get/create template, create test case from template
-- [x] Traceability: requirements, issue links, traceability matrix
-- [x] Exploratory: sessions (create/get/update), notes
-- [x] Comments: test case comments, execution comments
+- [x] Core: full CRUD + clone, versions, approval, batch-create, group assign, user assign, risk
+- [x] Runs: full CRUD + bulk-update execution status, failures, export
+- [x] Organization: tags/groups/suites/plans full CRUD + signoffs
+- [x] Templates: full CRUD + create TC from template
+- [x] Traceability: requirements full CRUD + link/unlink TC, traceability matrix
+- [x] Exploratory: sessions full CRUD + notes
+- [x] Comments: TC/execution comments full CRUD
 - [x] Environments: list/create/delete
 - [x] Modules: list/create/delete, coverage stats
 - [x] Releases: list/create/update/delete

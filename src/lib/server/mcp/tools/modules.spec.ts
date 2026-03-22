@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockInsertReturning, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockInsertReturning, mockSelectResult, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -14,7 +14,8 @@ vi.mock('$lib/server/db/schema', () => ({
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args),
-	sql: vi.fn()
+	sql: vi.fn(),
+	inArray: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('../helpers', async () => {
 	const actual = await vi.importActual('../helpers') as Record<string, unknown>;
@@ -60,6 +61,7 @@ describe('MCP module tools', () => {
 	let close: () => Promise<void>;
 
 	beforeEach(async () => {
+		vi.clearAllMocks();
 		const c = await createClient();
 		client = c.client;
 		close = c.close;
@@ -168,6 +170,74 @@ describe('MCP module tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed).toHaveLength(2);
 			expect(parsed[0].testCaseCount).toBe(5);
+		});
+	});
+
+	// ── update-module ───────────────────────────────────
+
+	describe('update-module', () => {
+		it('should update name and description', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
+			mockUpdateReturning(mockDb, [{ ...sampleModule, name: 'Updated Module', description: 'New desc' }]);
+
+			const result = await client.callTool({
+				name: 'update-module',
+				arguments: { moduleId: 1, name: 'Updated Module', description: 'New desc' }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.name).toBe('Updated Module');
+			expect(parsed.description).toBe('New desc');
+		});
+
+		it('should return error when not found', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'update-module',
+				arguments: { moduleId: 999, name: 'Nope' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Module not found');
+		});
+	});
+
+	// ── add-module-test-cases ───────────────────────────
+
+	describe('add-module-test-cases', () => {
+		it('should add test cases to module', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'add-module-test-cases',
+				arguments: { moduleId: 1, testCaseIds: [10, 20] }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.moduleId).toBe(1);
+			expect(parsed.addedCount).toBe(2);
+		});
+	});
+
+	// ── remove-module-test-cases ────────────────────────
+
+	describe('remove-module-test-cases', () => {
+		it('should remove test cases from module', async () => {
+			const result = await client.callTool({
+				name: 'remove-module-test-cases',
+				arguments: { moduleId: 1, testCaseIds: [10, 20] }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.moduleId).toBe(1);
+			expect(parsed.removedCount).toBe(2);
 		});
 	});
 });

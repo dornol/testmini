@@ -301,4 +301,57 @@ describe('MCP test-plan tools', () => {
 			expect(result.isError).toBe(true);
 		});
 	});
+
+	// ── delete-test-plan ────────────────────────────────
+
+	describe('delete-test-plan', () => {
+		it('should delete a test plan', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue(samplePlan);
+
+			const result = await client.callTool({
+				name: 'delete-test-plan',
+				arguments: { planId: 1 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.deletedId).toBe(1);
+			expect(mockDb.delete).toHaveBeenCalledTimes(2);
+		});
+
+		it('should return error when plan not found', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'delete-test-plan',
+				arguments: { planId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Test plan not found');
+		});
+	});
+
+	// ── list-test-plans ─────────────────────────────────
+
+	describe('list-test-plans', () => {
+		it('should return plans array', async () => {
+			mockSelectResult(mockDb, [
+				{ id: 1, name: 'Sprint 1 Plan', status: 'DRAFT', milestone: null, startDate: null, endDate: null, createdAt: new Date('2025-01-01') },
+				{ id: 2, name: 'Sprint 2 Plan', status: 'ACTIVE', milestone: 'v1.0', startDate: null, endDate: null, createdAt: new Date('2025-02-01') }
+			]);
+
+			const result = await client.callTool({
+				name: 'list-test-plans',
+				arguments: {}
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed).toHaveLength(2);
+			expect(parsed[0].name).toBe('Sprint 1 Plan');
+			expect(parsed[1].status).toBe('ACTIVE');
+		});
+	});
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockSelectResult, mockInsertReturning, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { sampleProject, sampleTestCase, sampleTestRun, sampleExecution } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -15,7 +15,8 @@ vi.mock('$lib/server/db/schema', () => ({
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
-	and: vi.fn((...args: unknown[]) => args)
+	and: vi.fn((...args: unknown[]) => args),
+	desc: vi.fn((a: unknown) => a)
 }));
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -133,6 +134,59 @@ describe('MCP comment tools', () => {
 
 			expect(result.isError).toBe(true);
 			expect((result.content as ContentArray)[0].text).toBe('Test case not found');
+		});
+	});
+
+	// ── update-test-case-comment ────────────────────────
+
+	describe('update-test-case-comment', () => {
+		it('should update a comment', async () => {
+			mockUpdateReturning(mockDb, [{ id: 1, testCaseId: 10, userId: 'user-1', content: 'Updated content', parentId: null, createdAt: '2025-01-01' }]);
+
+			const result = await client.callTool({
+				name: 'update-test-case-comment',
+				arguments: { testCaseId: 10, commentId: 1, content: 'Updated content' }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.content).toBe('Updated content');
+		});
+	});
+
+	// ── delete-test-case-comment ────────────────────────
+
+	describe('delete-test-case-comment', () => {
+		it('should delete a comment', async () => {
+			const result = await client.callTool({
+				name: 'delete-test-case-comment',
+				arguments: { testCaseId: 10, commentId: 1 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.deletedId).toBe(1);
+		});
+	});
+
+	// ── list-execution-comments ─────────────────────────
+
+	describe('list-execution-comments', () => {
+		it('should return comments array', async () => {
+			mockSelectResult(mockDb, [
+				{ id: 5, testExecutionId: 200, userId: 'user-1', content: 'Execution comment', parentId: null, createdAt: '2025-01-01' }
+			]);
+
+			const result = await client.callTool({
+				name: 'list-execution-comments',
+				arguments: { runId: 50, executionId: 200 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed).toHaveLength(1);
+			expect(parsed[0].content).toBe('Execution comment');
 		});
 	});
 

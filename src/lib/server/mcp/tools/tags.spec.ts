@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockInsertReturning, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { sampleProject, sampleTestCase } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -199,6 +199,36 @@ describe('MCP tag tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.testCaseId).toBe(10);
 			expect(parsed.tagId).toBe(1);
+		});
+	});
+
+	// ── update-tag ──────────────────────────────────────
+
+	describe('update-tag', () => {
+		it('should update name', async () => {
+			mockDb.query.tag.findFirst.mockResolvedValue(sampleTag);
+			mockUpdateReturning(mockDb, [{ ...sampleTag, name: 'critical' }]);
+
+			const result = await client.callTool({
+				name: 'update-tag',
+				arguments: { tagId: 1, name: 'critical' }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.name).toBe('critical');
+		});
+
+		it('should return error when tag not found', async () => {
+			mockDb.query.tag.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'update-tag',
+				arguments: { tagId: 999, name: 'nope' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Tag not found');
 		});
 	});
 });

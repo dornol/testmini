@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockInsertReturning, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockInsertReturning, mockSelectResult, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -154,6 +154,37 @@ describe('MCP environment tools', () => {
 			const result = await client.callTool({
 				name: 'delete-environment',
 				arguments: { environmentId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Environment not found');
+		});
+	});
+
+	// ── update-environment ──────────────────────────────
+
+	describe('update-environment', () => {
+		it('should update name and color', async () => {
+			mockDb.query.environmentConfig.findFirst.mockResolvedValue(sampleEnv);
+			mockUpdateReturning(mockDb, [{ ...sampleEnv, name: 'STAGING', color: '#f59e0b' }]);
+
+			const result = await client.callTool({
+				name: 'update-environment',
+				arguments: { environmentId: 1, name: 'STAGING', color: '#f59e0b' }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.name).toBe('STAGING');
+			expect(parsed.color).toBe('#f59e0b');
+		});
+
+		it('should return error when not found', async () => {
+			mockDb.query.environmentConfig.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'update-environment',
+				arguments: { environmentId: 999, name: 'Nope' }
 			});
 
 			expect(result.isError).toBe(true);

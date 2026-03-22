@@ -2418,7 +2418,7 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `custom-fields` | `custom-fields://list` | All custom field definitions |
 | `exploratory-sessions` | `exploratory-sessions://list` | Recent exploratory sessions (last 50) |
 
-### Tools (73)
+### Tools (114)
 
 #### Test Cases (Core)
 
@@ -2432,6 +2432,11 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `delete-test-case` | `id?`, `key?` | Delete a test case by ID or key |
 | `clone-test-case` | `id?`, `key?` | Clone (duplicate) a test case with tags |
 | `get-test-case-versions` | `id?`, `key?` | Get version history of a test case |
+| `batch-create-test-cases` | `testCases[]`, `groupId?`, `tagIds?`, `requirementId?` | Bulk-create TCs with group/tag/requirement in one call |
+| `move-test-case-to-group` | `testCaseId`, `groupId` (nullable) | Move TC to a group or ungroup |
+| `assign-test-case` | `testCaseId`, `userId` | Assign a user to a test case |
+| `unassign-test-case` | `testCaseId`, `userId` | Remove user assignment |
+| `update-test-case-risk` | `testCaseId`, `riskImpact?`, `riskLikelihood?` | Set risk assessment (auto-calculates risk level) |
 | `update-approval-status` | `testCaseId`, `toStatus`, `comment?` | Update approval status (DRAFT/IN_REVIEW/APPROVED/REJECTED) |
 
 #### Test Runs & Executions
@@ -2447,6 +2452,8 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `get-failures` | `runId` | Get failure details (error messages, stack traces) |
 | `record-failure-detail` | `runId`, `executionId`, `errorMessage?`, `stackTrace?`, `failureEnvironment?`, `comment?` | Record failure details for execution |
 | `export-run-results` | `runId` | Export test run results as structured JSON |
+| `update-test-run` | `runId`, `name?`, `environment?` | Update run name or environment |
+| `delete-test-run` | `runId` | Delete a test run and all executions |
 
 #### Tags
 
@@ -2457,6 +2464,7 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `delete-tag` | `tagId` | Delete a tag by ID |
 | `add-tag-to-test-case` | `testCaseId`, `tagId` | Add a tag to a test case |
 | `remove-tag-from-test-case` | `testCaseId`, `tagId` | Remove a tag from a test case |
+| `update-tag` | `tagId`, `name?`, `color?` | Update tag name or color |
 
 #### Groups
 
@@ -2465,6 +2473,7 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `list-groups` | (none) | List test case groups/sections |
 | `create-group` | `name`, `color?` | Create a test case group |
 | `delete-group` | `groupId` | Delete a group (unassigns test cases) |
+| `update-group` | `groupId`, `name?`, `color?` | Update group name or color |
 
 #### Test Suites
 
@@ -2474,6 +2483,8 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `create-test-suite` | `name`, `description?` | Create a new test suite |
 | `add-suite-items` | `suiteId`, `testCaseIds` | Add test cases to a suite |
 | `remove-suite-items` | `suiteId`, `testCaseIds` | Remove test cases from a suite |
+| `update-test-suite` | `suiteId`, `name?`, `description?` | Update suite name or description |
+| `delete-test-suite` | `suiteId` | Delete a test suite |
 
 #### Test Plans
 
@@ -2486,6 +2497,8 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `remove-plan-items` | `planId`, `testCaseIds` | Remove test cases from a plan |
 | `create-run-from-plan` | `planId`, `environment`, `runName?` | Generate a test run from a plan |
 | `list-plan-signoffs` | `planId` | List signoff decisions for a plan |
+| `delete-test-plan` | `planId` | Delete a test plan |
+| `list-test-plans` | (none) | List all test plans |
 
 #### Templates
 
@@ -2494,6 +2507,8 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `get-template` | `templateId` | Get template detail |
 | `create-template` | `name`, `description?`, `priority?`, `precondition?`, `steps?` | Create a new template |
 | `create-test-case-from-template` | `templateId`, `title` | Create a test case from a template |
+| `update-template` | `templateId`, `name?`, `description?`, `priority?`, `precondition?`, `steps?` | Update a template |
+| `delete-template` | `templateId` | Delete a template |
 
 #### Requirements & Traceability
 
@@ -2502,6 +2517,9 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `create-requirement` | `title`, `externalId?`, `description?`, `source?` | Create a new requirement |
 | `link-requirement-test-case` | `requirementId`, `testCaseId` | Link requirement to test case |
 | `get-traceability-matrix` | (none) | Get coverage matrix with summary stats |
+| `update-requirement` | `requirementId`, `title?`, `description?`, `externalId?`, `source?` | Update a requirement |
+| `delete-requirement` | `requirementId` | Delete a requirement |
+| `unlink-requirement-test-case` | `requirementId`, `testCaseId` | Remove requirement-TC link |
 
 #### Issue Links
 
@@ -2509,6 +2527,7 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 |------|-----------|-------------|
 | `list-issue-links` | `testCaseId?`, `executionId?` | List issue links (filter by test case/execution) |
 | `create-issue-link` | `externalUrl`, `provider`, `externalKey?`, `title?`, `testCaseId?`, `executionId?` | Link an external issue |
+| `delete-issue-link` | `linkId` | Delete an issue link |
 
 #### Exploratory Sessions
 
@@ -2518,6 +2537,8 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `get-exploratory-session` | `sessionId` | Get session detail with notes |
 | `update-exploratory-session` | `sessionId`, `status?`, `summary?` | Pause/resume/complete session |
 | `add-session-note` | `sessionId`, `content`, `noteType?`, `timestamp?` | Add note (NOTE/BUG/QUESTION/IDEA) |
+| `list-exploratory-sessions` | `status?`, `limit?` | List exploratory sessions |
+| `delete-exploratory-session` | `sessionId` | Delete a session and its notes |
 
 #### Comments
 
@@ -2526,6 +2547,9 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `add-test-case-comment` | `testCaseId`, `content` | Comment on a test case |
 | `list-test-case-comments` | `testCaseId` | List test case comments |
 | `add-execution-comment` | `runId`, `executionId`, `content` | Comment on a test execution |
+| `update-test-case-comment` | `testCaseId`, `commentId`, `content` | Update a comment |
+| `delete-test-case-comment` | `testCaseId`, `commentId` | Delete a comment |
+| `list-execution-comments` | `runId`, `executionId` | List comments on an execution |
 
 #### Environments
 
@@ -2534,6 +2558,7 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `list-environments` | (none) | List all environments for the project |
 | `create-environment` | `name`, `color?`, `isDefault?`, `baseUrl?`, `memo?` | Create a new environment |
 | `delete-environment` | `environmentId` | Delete an environment |
+| `update-environment` | `environmentId`, `name?`, `color?`, `isDefault?`, `baseUrl?`, `memo?` | Update an environment |
 
 #### Modules
 
@@ -2543,6 +2568,9 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `create-module` | `name`, `description?`, `parentModuleId?` | Create a module (supports nesting) |
 | `delete-module` | `moduleId` | Delete a module |
 | `get-module-coverage` | (none) | Get test case count per module |
+| `update-module` | `moduleId`, `name?`, `description?` | Update module name/description |
+| `add-module-test-cases` | `moduleId`, `testCaseIds` | Add TCs to a module |
+| `remove-module-test-cases` | `moduleId`, `testCaseIds` | Remove TCs from a module |
 
 #### Releases
 
@@ -2560,6 +2588,7 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `list-test-cycles` | (none) | List all test cycles |
 | `create-test-cycle` | `name`, `startDate?`, `endDate?` | Create a test cycle (auto-increments number) |
 | `delete-test-cycle` | `testCycleId` | Delete a test cycle |
+| `update-test-cycle` | `testCycleId`, `name?`, `status?`, `startDate?`, `endDate?` | Update a test cycle |
 
 #### Reports & Analytics
 
@@ -2576,6 +2605,7 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `list-shared-datasets` | (none) | List all shared datasets |
 | `create-shared-dataset` | `name`, `parameters`, `rows?` | Create a shared dataset |
 | `delete-shared-dataset` | `datasetId` | Delete a shared dataset |
+| `update-shared-dataset` | `datasetId`, `name?`, `parameters?`, `rows?` | Update a shared dataset |
 
 #### Settings & Configuration
 
@@ -2584,6 +2614,7 @@ Uses the MCP Streamable HTTP transport (`WebStandardStreamableHTTPServerTranspor
 | `list-webhooks` | (none) | List all webhooks |
 | `create-webhook` | `name`, `url`, `events?`, `secret?` | Create a webhook |
 | `delete-webhook` | `webhookId` | Delete a webhook |
+| `update-webhook` | `webhookId`, `name?`, `url?`, `events?`, `enabled?` | Update a webhook |
 | `list-custom-fields` | (none) | List all custom fields |
 | `create-custom-field` | `name`, `fieldType`, `options?`, `required?` | Create a custom field |
 | `delete-custom-field` | `fieldId` | Delete a custom field |

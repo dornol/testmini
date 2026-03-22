@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockSelectResult, mockInsertReturning, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -161,6 +161,37 @@ describe('MCP group tools', () => {
 			const result = await client.callTool({
 				name: 'delete-group',
 				arguments: { groupId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Group not found');
+		});
+	});
+
+	// ── update-group ─────────────────────────────────────
+
+	describe('update-group', () => {
+		it('should update name and color', async () => {
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(sampleGroup);
+			mockUpdateReturning(mockDb, [{ ...sampleGroup, name: 'Updated', color: '#ff0000' }]);
+
+			const result = await client.callTool({
+				name: 'update-group',
+				arguments: { groupId: 1, name: 'Updated', color: '#ff0000' }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.name).toBe('Updated');
+			expect(parsed.color).toBe('#ff0000');
+		});
+
+		it('should return error when group not found', async () => {
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'update-group',
+				arguments: { groupId: 999, name: 'Nope' }
 			});
 
 			expect(result.isError).toBe(true);

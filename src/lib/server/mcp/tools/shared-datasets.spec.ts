@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockInsertReturning, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockInsertReturning, mockSelectResult, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -158,6 +158,37 @@ describe('MCP shared-dataset tools', () => {
 			const result = await client.callTool({
 				name: 'delete-shared-dataset',
 				arguments: { datasetId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Shared dataset not found');
+		});
+	});
+
+	// ── update-shared-dataset ───────────────────────────
+
+	describe('update-shared-dataset', () => {
+		it('should update a shared dataset', async () => {
+			mockDb.query.sharedDataSet.findFirst.mockResolvedValue(sampleDataset);
+			mockUpdateReturning(mockDb, [{ ...sampleDataset, name: 'Updated Dataset', parameters: ['email', 'password'] }]);
+
+			const result = await client.callTool({
+				name: 'update-shared-dataset',
+				arguments: { datasetId: 1, name: 'Updated Dataset', parameters: ['email', 'password'] }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.name).toBe('Updated Dataset');
+			expect(parsed.parameters).toEqual(['email', 'password']);
+		});
+
+		it('should return error when shared dataset not found', async () => {
+			mockDb.query.sharedDataSet.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'update-shared-dataset',
+				arguments: { datasetId: 999, name: 'Updated' }
 			});
 
 			expect(result.isError).toBe(true);

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockSelectResult, mockInsertReturning, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -198,6 +198,68 @@ describe('MCP template tools', () => {
 
 			expect(result.isError).toBe(true);
 			expect((result.content as ContentArray)[0].text).toBe('Project not found');
+		});
+	});
+
+	// ── update-template ─────────────────────────────────
+
+	describe('update-template', () => {
+		it('should update a template', async () => {
+			mockDb.query.testCaseTemplate.findFirst.mockResolvedValue(sampleTemplate);
+			mockUpdateReturning(mockDb, [{ ...sampleTemplate, name: 'Updated Template', priority: 'LOW' }]);
+
+			const result = await client.callTool({
+				name: 'update-template',
+				arguments: { templateId: 1, name: 'Updated Template', priority: 'LOW' }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.name).toBe('Updated Template');
+			expect(parsed.priority).toBe('LOW');
+		});
+
+		it('should return error when template not found', async () => {
+			mockDb.query.testCaseTemplate.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'update-template',
+				arguments: { templateId: 999, name: 'Updated' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Template not found');
+		});
+	});
+
+	// ── delete-template ─────────────────────────────────
+
+	describe('delete-template', () => {
+		it('should delete a template', async () => {
+			mockDb.query.testCaseTemplate.findFirst.mockResolvedValue(sampleTemplate);
+
+			const result = await client.callTool({
+				name: 'delete-template',
+				arguments: { templateId: 1 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.deletedId).toBe(1);
+			expect(mockDb.delete).toHaveBeenCalledTimes(1);
+		});
+
+		it('should return error when template not found', async () => {
+			mockDb.query.testCaseTemplate.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'delete-template',
+				arguments: { templateId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Template not found');
 		});
 	});
 });

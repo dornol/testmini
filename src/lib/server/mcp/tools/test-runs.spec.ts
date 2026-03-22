@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockSelectResult, mockInsertReturning, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { sampleProject, sampleTestRun, sampleExecution } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -300,6 +300,68 @@ describe('MCP test-run tools', () => {
 			const result = await client.callTool({ name: 'complete-test-run', arguments: { runId: 999 } });
 
 			expect(result.isError).toBe(true);
+		});
+	});
+
+	// ── update-test-run ─────────────────────────────────
+
+	describe('update-test-run', () => {
+		it('should update a test run', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockUpdateReturning(mockDb, [{ ...sampleTestRun, name: 'Updated Run', environment: 'PROD' }]);
+
+			const result = await client.callTool({
+				name: 'update-test-run',
+				arguments: { runId: 50, name: 'Updated Run', environment: 'PROD' }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.name).toBe('Updated Run');
+			expect(parsed.environment).toBe('PROD');
+		});
+
+		it('should return error when run not found', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'update-test-run',
+				arguments: { runId: 999, name: 'Updated' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Test run not found');
+		});
+	});
+
+	// ── delete-test-run ─────────────────────────────────
+
+	describe('delete-test-run', () => {
+		it('should delete a test run', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+
+			const result = await client.callTool({
+				name: 'delete-test-run',
+				arguments: { runId: 50 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.deletedId).toBe(50);
+			expect(mockDb.delete).toHaveBeenCalledTimes(1);
+		});
+
+		it('should return error when run not found', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'delete-test-run',
+				arguments: { runId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Test run not found');
 		});
 	});
 

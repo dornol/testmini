@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockSelectResult, mockInsertReturning, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { sampleProject, sampleTestCase } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -210,6 +210,84 @@ describe('MCP requirement tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.summary.totalRequirements).toBe(0);
 			expect(parsed.summary.coveragePercent).toBe(0);
+		});
+	});
+
+	// ── update-requirement ──────────────────────────────
+
+	describe('update-requirement', () => {
+		it('should update title', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockUpdateReturning(mockDb, [{ ...sampleRequirement, title: 'Updated Title' }]);
+
+			const result = await client.callTool({
+				name: 'update-requirement',
+				arguments: { requirementId: 1, title: 'Updated Title' }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.title).toBe('Updated Title');
+		});
+
+		it('should return error when not found', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'update-requirement',
+				arguments: { requirementId: 999, title: 'Nope' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Requirement not found');
+		});
+	});
+
+	// ── delete-requirement ──────────────────────────────
+
+	describe('delete-requirement', () => {
+		it('should delete requirement and its links', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+
+			const result = await client.callTool({
+				name: 'delete-requirement',
+				arguments: { requirementId: 1 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.deletedId).toBe(1);
+			expect(mockDb.delete).toHaveBeenCalledTimes(2);
+		});
+
+		it('should return error when not found', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'delete-requirement',
+				arguments: { requirementId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Requirement not found');
+		});
+	});
+
+	// ── unlink-requirement-test-case ────────────────────
+
+	describe('unlink-requirement-test-case', () => {
+		it('should unlink requirement from test case', async () => {
+			const result = await client.callTool({
+				name: 'unlink-requirement-test-case',
+				arguments: { requirementId: 1, testCaseId: 10 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.requirementId).toBe(1);
+			expect(parsed.testCaseId).toBe(10);
 		});
 	});
 });

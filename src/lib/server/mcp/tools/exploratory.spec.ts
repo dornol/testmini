@@ -12,7 +12,8 @@ vi.mock('$lib/server/db/schema', () => ({
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
-	and: vi.fn((...args: unknown[]) => args)
+	and: vi.fn((...args: unknown[]) => args),
+	desc: vi.fn((a: unknown) => a)
 }));
 vi.mock('../helpers', async () => {
 	const actual = await vi.importActual('../helpers') as Record<string, unknown>;
@@ -167,6 +168,57 @@ describe('MCP exploratory tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.content).toBe('Found a weird behavior');
 			expect(parsed.noteType).toBe('NOTE');
+		});
+	});
+
+	// ── list-exploratory-sessions ───────────────────────
+
+	describe('list-exploratory-sessions', () => {
+		it('should return sessions', async () => {
+			mockSelectResult(mockDb, [
+				{ id: 1, title: 'Explore login flow', charter: 'Test edge cases', environment: 'Chrome', status: 'ACTIVE', tags: ['login'], startedAt: new Date('2025-01-01') }
+			]);
+
+			const result = await client.callTool({
+				name: 'list-exploratory-sessions',
+				arguments: {}
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed).toHaveLength(1);
+			expect(parsed[0].title).toBe('Explore login flow');
+		});
+	});
+
+	// ── delete-exploratory-session ──────────────────────
+
+	describe('delete-exploratory-session', () => {
+		it('should delete a session', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+			const result = await client.callTool({
+				name: 'delete-exploratory-session',
+				arguments: { sessionId: 1 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.deletedId).toBe(1);
+			expect(mockDb.delete).toHaveBeenCalledTimes(2);
+		});
+
+		it('should return error when session not found', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'delete-exploratory-session',
+				arguments: { sessionId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect((result.content as ContentArray)[0].text).toBe('Session not found');
 		});
 	});
 });

@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, release } from '$lib/server/db/schema';
+import { release } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerReleaseTools(server: McpServer, projectId: number) {
@@ -14,7 +15,7 @@ export function registerReleaseTools(server: McpServer, projectId: number) {
 				where: eq(release.projectId, projectId)
 			});
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(releases, null, 2) }] };
+			return ok(releases);
 		}
 	);
 
@@ -28,8 +29,8 @@ export function registerReleaseTools(server: McpServer, projectId: number) {
 			releaseDate: z.string().optional().describe('Release date (ISO 8601)')
 		},
 		async ({ name, version, description, releaseDate }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [created] = await db
 				.insert(release)
@@ -39,11 +40,11 @@ export function registerReleaseTools(server: McpServer, projectId: number) {
 					version,
 					description,
 					releaseDate: releaseDate ? new Date(releaseDate) : null,
-					createdBy: proj.createdBy
+					createdBy: creator
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 
@@ -65,7 +66,7 @@ export function registerReleaseTools(server: McpServer, projectId: number) {
 			const r = await db.query.release.findFirst({
 				where: and(eq(release.id, releaseId), eq(release.projectId, projectId))
 			});
-			if (!r) return { content: [{ type: 'text' as const, text: 'Release not found' }], isError: true };
+			if (!r) return err('Release not found');
 
 			const updates: Record<string, unknown> = {};
 			if (name !== undefined) updates.name = name;
@@ -80,7 +81,7 @@ export function registerReleaseTools(server: McpServer, projectId: number) {
 				.where(eq(release.id, releaseId))
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(updated, null, 2) }] };
+			return ok(updated);
 		}
 	);
 
@@ -92,7 +93,7 @@ export function registerReleaseTools(server: McpServer, projectId: number) {
 			const r = await db.query.release.findFirst({
 				where: and(eq(release.id, releaseId), eq(release.projectId, projectId))
 			});
-			if (!r) return { content: [{ type: 'text' as const, text: 'Release not found' }], isError: true };
+			if (!r) return err('Release not found');
 
 			await db.delete(release).where(eq(release.id, releaseId));
 			return {

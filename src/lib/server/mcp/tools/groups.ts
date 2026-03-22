@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, testCase, testCaseGroup } from '$lib/server/db/schema';
+import { testCase, testCaseGroup } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerGroupTools(server: McpServer, projectId: number) {
@@ -21,7 +22,7 @@ export function registerGroupTools(server: McpServer, projectId: number) {
 				.where(eq(testCaseGroup.projectId, projectId))
 				.orderBy(testCaseGroup.sortOrder);
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(groups, null, 2) }] };
+			return ok(groups);
 		}
 	);
 
@@ -33,15 +34,15 @@ export function registerGroupTools(server: McpServer, projectId: number) {
 			color: z.string().optional().describe('Group color hex')
 		},
 		async ({ name, color }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [created] = await db
 				.insert(testCaseGroup)
-				.values({ projectId, name, color: color ?? null, createdBy: proj.createdBy })
+				.values({ projectId, name, color: color ?? null, createdBy: creator })
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 
@@ -53,7 +54,7 @@ export function registerGroupTools(server: McpServer, projectId: number) {
 			const g = await db.query.testCaseGroup.findFirst({
 				where: and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId))
 			});
-			if (!g) return { content: [{ type: 'text' as const, text: 'Group not found' }], isError: true };
+			if (!g) return err('Group not found');
 
 			// Unassign test cases from this group
 			await db
@@ -62,7 +63,7 @@ export function registerGroupTools(server: McpServer, projectId: number) {
 				.where(and(eq(testCase.projectId, projectId), eq(testCase.groupId, groupId)));
 
 			await db.delete(testCaseGroup).where(eq(testCaseGroup.id, groupId));
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, deletedId: groupId }) }] };
+			return ok({ success: true, deletedId: groupId });
 		}
 	);
 }

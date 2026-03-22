@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { notification } from '$lib/server/db/schema';
+import { ok } from '../helpers';
 import { eq, and, desc } from 'drizzle-orm';
 
 export function registerNotificationTools(server: McpServer, projectId: number) {
@@ -31,7 +32,7 @@ export function registerNotificationTools(server: McpServer, projectId: number) 
 				.orderBy(desc(notification.createdAt))
 				.limit(limit ?? 20);
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(notes, null, 2) }] };
+			return ok(notes);
 		}
 	);
 }

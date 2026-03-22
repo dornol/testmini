@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, testCycle } from '$lib/server/db/schema';
+import { testCycle } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and, sql } from 'drizzle-orm';
 
 export function registerTestCycleTools(server: McpServer, projectId: number) {
@@ -14,7 +15,7 @@ export function registerTestCycleTools(server: McpServer, projectId: number) {
 				where: eq(testCycle.projectId, projectId)
 			});
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(cycles, null, 2) }] };
+			return ok(cycles);
 		}
 	);
 
@@ -27,8 +28,8 @@ export function registerTestCycleTools(server: McpServer, projectId: number) {
 			endDate: z.string().optional().describe('End date (ISO 8601)')
 		},
 		async ({ name, startDate, endDate }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [maxRow] = await db
 				.select({ maxNum: sql<number>`coalesce(max(${testCycle.cycleNumber}), 0)` })
@@ -43,11 +44,11 @@ export function registerTestCycleTools(server: McpServer, projectId: number) {
 					cycleNumber: (maxRow?.maxNum ?? 0) + 1,
 					startDate: startDate ? new Date(startDate) : null,
 					endDate: endDate ? new Date(endDate) : null,
-					createdBy: proj.createdBy
+					createdBy: creator
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 
@@ -59,11 +60,7 @@ export function registerTestCycleTools(server: McpServer, projectId: number) {
 			const c = await db.query.testCycle.findFirst({
 				where: and(eq(testCycle.id, testCycleId), eq(testCycle.projectId, projectId))
 			});
-			if (!c)
-				return {
-					content: [{ type: 'text' as const, text: 'Test cycle not found' }],
-					isError: true
-				};
+			if (!c) return err('Test cycle not found');
 
 			await db.delete(testCycle).where(eq(testCycle.id, testCycleId));
 			return {

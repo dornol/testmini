@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, customField } from '$lib/server/db/schema';
+import { customField } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerCustomFieldTools(server: McpServer, projectId: number) {
@@ -23,7 +24,7 @@ export function registerCustomFieldTools(server: McpServer, projectId: number) {
 				.where(eq(customField.projectId, projectId))
 				.orderBy(customField.sortOrder);
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(fields, null, 2) }] };
+			return ok(fields);
 		}
 	);
 
@@ -37,8 +38,8 @@ export function registerCustomFieldTools(server: McpServer, projectId: number) {
 			required: z.boolean().optional().describe('Is this field required (default: false)')
 		},
 		async ({ name, fieldType, options, required }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [created] = await db
 				.insert(customField)
@@ -48,11 +49,11 @@ export function registerCustomFieldTools(server: McpServer, projectId: number) {
 					fieldType,
 					options: options ?? null,
 					required: required ?? false,
-					createdBy: proj.createdBy
+					createdBy: creator
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 
@@ -64,10 +65,10 @@ export function registerCustomFieldTools(server: McpServer, projectId: number) {
 			const f = await db.query.customField.findFirst({
 				where: and(eq(customField.id, fieldId), eq(customField.projectId, projectId))
 			});
-			if (!f) return { content: [{ type: 'text' as const, text: 'Custom field not found' }], isError: true };
+			if (!f) return err('Custom field not found');
 
 			await db.delete(customField).where(eq(customField.id, fieldId));
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, deletedId: fieldId }) }] };
+			return ok({ success: true, deletedId: fieldId });
 		}
 	);
 }

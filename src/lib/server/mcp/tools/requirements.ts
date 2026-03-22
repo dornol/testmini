@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, testCase, testCaseVersion, requirement, requirementTestCase } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, requirement, requirementTestCase } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerRequirementTools(server: McpServer, projectId: number) {
@@ -15,8 +16,8 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 			source: z.string().optional()
 		},
 		async ({ title, externalId, description, source }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [req] = await db
 				.insert(requirement)
@@ -26,11 +27,11 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 					externalId: externalId ?? null,
 					description: description ?? null,
 					source: source ?? null,
-					createdBy: proj.createdBy
+					createdBy: creator
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(req, null, 2) }] };
+			return ok(req);
 		}
 	);
 
@@ -45,19 +46,19 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 			const req = await db.query.requirement.findFirst({
 				where: and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId))
 			});
-			if (!req) return { content: [{ type: 'text' as const, text: 'Requirement not found' }], isError: true };
+			if (!req) return err('Requirement not found');
 
 			const tc = await db.query.testCase.findFirst({
 				where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
 			});
-			if (!tc) return { content: [{ type: 'text' as const, text: 'Test case not found' }], isError: true };
+			if (!tc) return err('Test case not found');
 
 			await db
 				.insert(requirementTestCase)
 				.values({ requirementId, testCaseId })
 				.onConflictDoNothing();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, requirementId, testCaseId }, null, 2) }] };
+			return ok({ success: true, requirementId, testCaseId });
 		}
 	);
 
@@ -130,7 +131,7 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 				matrix
 			};
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+			return ok(result);
 		}
 	);
 }

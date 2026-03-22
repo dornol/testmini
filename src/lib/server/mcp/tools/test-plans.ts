@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, testCase, testCaseVersion, testRun, testExecution, testPlan, testPlanTestCase, testPlanSignoff } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, testRun, testExecution, testPlan, testPlanTestCase, testPlanSignoff } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and, sql, inArray } from 'drizzle-orm';
 
 export function registerTestPlanTools(server: McpServer, projectId: number) {
@@ -14,7 +15,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
 			});
 
-			if (!plan) return { content: [{ type: 'text' as const, text: 'Test plan not found' }], isError: true };
+			if (!plan) return err('Test plan not found');
 
 			const items = await db
 				.select({
@@ -32,7 +33,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 				.where(eq(testPlanTestCase.testPlanId, planId))
 				.orderBy(testPlanTestCase.position);
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ ...plan, items }, null, 2) }] };
+			return ok({ ...plan, items });
 		}
 	);
 
@@ -47,8 +48,8 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			endDate: z.string().optional().describe('End date (ISO string)')
 		},
 		async ({ name, description, milestone, startDate, endDate }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [created] = await db
 				.insert(testPlan)
@@ -59,11 +60,11 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 					milestone: milestone ?? null,
 					startDate: startDate ? new Date(startDate) : null,
 					endDate: endDate ? new Date(endDate) : null,
-					createdBy: proj.createdBy
+					createdBy: creator
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 
@@ -83,7 +84,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			const plan = await db.query.testPlan.findFirst({
 				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
 			});
-			if (!plan) return { content: [{ type: 'text' as const, text: 'Test plan not found' }], isError: true };
+			if (!plan) return err('Test plan not found');
 
 			const updates: Record<string, unknown> = { updatedAt: new Date() };
 			if (name !== undefined) updates.name = name;
@@ -96,7 +97,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			await db.update(testPlan).set(updates).where(eq(testPlan.id, planId));
 
 			const updated = await db.query.testPlan.findFirst({ where: eq(testPlan.id, planId) });
-			return { content: [{ type: 'text' as const, text: JSON.stringify(updated, null, 2) }] };
+			return ok(updated);
 		}
 	);
 
@@ -111,7 +112,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			const plan = await db.query.testPlan.findFirst({
 				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
 			});
-			if (!plan) return { content: [{ type: 'text' as const, text: 'Test plan not found' }], isError: true };
+			if (!plan) return err('Test plan not found');
 
 			const [{ maxPos }] = await db
 				.select({ maxPos: sql<number>`coalesce(max(${testPlanTestCase.position}), -1)` })
@@ -126,7 +127,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 
 			await db.insert(testPlanTestCase).values(values).onConflictDoNothing();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, addedCount: testCaseIds.length }) }] };
+			return ok({ success: true, addedCount: testCaseIds.length });
 		}
 	);
 
@@ -141,13 +142,13 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			const plan = await db.query.testPlan.findFirst({
 				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
 			});
-			if (!plan) return { content: [{ type: 'text' as const, text: 'Test plan not found' }], isError: true };
+			if (!plan) return err('Test plan not found');
 
 			await db
 				.delete(testPlanTestCase)
 				.where(and(eq(testPlanTestCase.testPlanId, planId), inArray(testPlanTestCase.testCaseId, testCaseIds)));
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, removedCount: testCaseIds.length }) }] };
+			return ok({ success: true, removedCount: testCaseIds.length });
 		}
 	);
 
@@ -163,10 +164,10 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			const plan = await db.query.testPlan.findFirst({
 				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
 			});
-			if (!plan) return { content: [{ type: 'text' as const, text: 'Test plan not found' }], isError: true };
+			if (!plan) return err('Test plan not found');
 
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const planItems = await db
 				.select({ testCaseId: testPlanTestCase.testCaseId })
@@ -175,7 +176,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 				.orderBy(testPlanTestCase.position);
 
 			if (planItems.length === 0) {
-				return { content: [{ type: 'text' as const, text: 'Test plan has no test cases' }], isError: true };
+				return err('Test plan has no test cases');
 			}
 
 			const tcIds = planItems.map((i) => i.testCaseId);
@@ -193,7 +194,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 						projectId,
 						name: runName ?? `${plan.name} - ${environment}`,
 						environment,
-						createdBy: proj.createdBy,
+						createdBy: creator,
 						testPlanId: planId
 					})
 					.returning();
@@ -213,7 +214,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 				return { ...run, executionCount: executions.length, planId };
 			});
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+			return ok(result);
 		}
 	);
 
@@ -225,13 +226,13 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			const plan = await db.query.testPlan.findFirst({
 				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
 			});
-			if (!plan) return { content: [{ type: 'text' as const, text: 'Test plan not found' }], isError: true };
+			if (!plan) return err('Test plan not found');
 
 			const signoffs = await db.query.testPlanSignoff.findMany({
 				where: eq(testPlanSignoff.testPlanId, planId)
 			});
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(signoffs, null, 2) }] };
+			return ok(signoffs);
 		}
 	);
 }

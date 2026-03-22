@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { auditLog } from '$lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
+import { ok } from '../helpers';
 
 export function registerAuditLogTools(server: McpServer, projectId: number) {
 	server.tool(
@@ -31,7 +32,7 @@ export function registerAuditLogTools(server: McpServer, projectId: number) {
 				.orderBy(desc(auditLog.createdAt))
 				.limit(limit ?? 50);
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(logs, null, 2) }] };
+			return ok(logs);
 		}
 	);
 }

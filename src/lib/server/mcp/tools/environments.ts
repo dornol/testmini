@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, environmentConfig } from '$lib/server/db/schema';
+import { environmentConfig } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerEnvironmentTools(server: McpServer, projectId: number) {
@@ -24,7 +25,7 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 				.where(eq(environmentConfig.projectId, projectId))
 				.orderBy(environmentConfig.position);
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(envs, null, 2) }] };
+			return ok(envs);
 		}
 	);
 
@@ -39,8 +40,8 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 			memo: z.string().optional().describe('Notes about this environment')
 		},
 		async ({ name, color, isDefault, baseUrl, memo }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [created] = await db
 				.insert(environmentConfig)
@@ -51,11 +52,11 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 					isDefault: isDefault ?? false,
 					baseUrl: baseUrl ?? null,
 					memo: memo ?? null,
-					createdBy: proj.createdBy
+					createdBy: creator
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 
@@ -67,10 +68,10 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 			const env = await db.query.environmentConfig.findFirst({
 				where: and(eq(environmentConfig.id, environmentId), eq(environmentConfig.projectId, projectId))
 			});
-			if (!env) return { content: [{ type: 'text' as const, text: 'Environment not found' }], isError: true };
+			if (!env) return err('Environment not found');
 
 			await db.delete(environmentConfig).where(eq(environmentConfig.id, environmentId));
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, deletedId: environmentId }) }] };
+			return ok({ success: true, deletedId: environmentId });
 		}
 	);
 }

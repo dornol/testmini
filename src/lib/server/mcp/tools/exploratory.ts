@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, exploratorySession, sessionNote } from '$lib/server/db/schema';
+import { exploratorySession, sessionNote } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerExploratoryTools(server: McpServer, projectId: number) {
@@ -15,8 +16,8 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 			tags: z.array(z.string()).optional().describe('Session tags')
 		},
 		async ({ title, charter, environment, tags: sessionTags }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [created] = await db
 				.insert(exploratorySession)
@@ -26,11 +27,11 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 					charter: charter ?? null,
 					environment: environment ?? null,
 					tags: sessionTags ?? [],
-					createdBy: proj.createdBy
+					createdBy: creator
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 
@@ -44,7 +45,7 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 			const session = await db.query.exploratorySession.findFirst({
 				where: and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
 			});
-			if (!session) return { content: [{ type: 'text' as const, text: 'Session not found' }], isError: true };
+			if (!session) return err('Session not found');
 
 			const notes = await db
 				.select()
@@ -52,7 +53,7 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 				.where(eq(sessionNote.sessionId, sessionId))
 				.orderBy(sessionNote.timestamp);
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ ...session, notes }, null, 2) }] };
+			return ok({ ...session, notes });
 		}
 	);
 
@@ -68,7 +69,7 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 			const session = await db.query.exploratorySession.findFirst({
 				where: and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
 			});
-			if (!session) return { content: [{ type: 'text' as const, text: 'Session not found' }], isError: true };
+			if (!session) return err('Session not found');
 
 			const updates: Record<string, unknown> = {};
 			if (status !== undefined) updates.status = status;
@@ -84,7 +85,7 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 				where: eq(exploratorySession.id, sessionId)
 			});
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(updated, null, 2) }] };
+			return ok(updated);
 		}
 	);
 
@@ -101,7 +102,7 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 			const session = await db.query.exploratorySession.findFirst({
 				where: and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
 			});
-			if (!session) return { content: [{ type: 'text' as const, text: 'Session not found' }], isError: true };
+			if (!session) return err('Session not found');
 
 			const elapsed = ts ?? Math.floor((Date.now() - new Date(session.startedAt).getTime()) / 1000);
 
@@ -115,7 +116,7 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 }

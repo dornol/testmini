@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, testCase, testCaseVersion, testCaseTemplate } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, testCaseTemplate } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and, sql } from 'drizzle-orm';
 
 export function registerTemplateTools(server: McpServer, projectId: number) {
@@ -14,9 +15,9 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 				where: and(eq(testCaseTemplate.id, templateId), eq(testCaseTemplate.projectId, projectId))
 			});
 
-			if (!template) return { content: [{ type: 'text' as const, text: 'Template not found' }], isError: true };
+			if (!template) return err('Template not found');
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(template, null, 2) }] };
+			return ok(template);
 		}
 	);
 
@@ -31,8 +32,8 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 			steps: z.array(z.object({ action: z.string(), expected: z.string().optional() })).optional()
 		},
 		async ({ name, description, priority, precondition, steps }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const formattedSteps = (steps ?? []).map((s, i) => ({
 				order: i + 1,
@@ -49,11 +50,11 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 					priority: priority ?? 'MEDIUM',
 					precondition: precondition ?? null,
 					steps: formattedSteps,
-					createdBy: proj.createdBy
+					createdBy: creator
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(template, null, 2) }] };
+			return ok(template);
 		}
 	);
 
@@ -68,10 +69,10 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 			const template = await db.query.testCaseTemplate.findFirst({
 				where: and(eq(testCaseTemplate.id, templateId), eq(testCaseTemplate.projectId, projectId))
 			});
-			if (!template) return { content: [{ type: 'text' as const, text: 'Template not found' }], isError: true };
+			if (!template) return err('Template not found');
 
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [maxRow] = await db
 				.select({ maxKey: sql<string>`max(key)` })
@@ -89,7 +90,7 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 					.values({
 						projectId,
 						key: nextKey,
-						createdBy: proj.createdBy,
+						createdBy: creator,
 						sortOrder: maxNum + 1
 					})
 					.returning();
@@ -103,7 +104,7 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 						precondition: template.precondition,
 						steps: template.steps,
 						priority: template.priority,
-						updatedBy: proj.createdBy
+						updatedBy: creator
 					})
 					.returning();
 
@@ -115,7 +116,7 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 				return { ...tc, latestVersion: version };
 			});
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+			return ok(result);
 		}
 	);
 }

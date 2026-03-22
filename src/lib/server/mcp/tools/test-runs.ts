@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, testCase, testCaseVersion, testRun, testExecution, testFailureDetail } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, testRun, testExecution, testFailureDetail } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and, inArray, desc } from 'drizzle-orm';
 
 export function registerTestRunTools(server: McpServer, projectId: number) {
@@ -30,7 +31,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 				.orderBy(desc(testRun.createdAt))
 				.limit(limit ?? 50);
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(runs, null, 2) }] };
+			return ok(runs);
 		}
 	);
 
@@ -43,7 +44,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
 			});
 
-			if (!run) return { content: [{ type: 'text' as const, text: 'Test run not found' }], isError: true };
+			if (!run) return err('Test run not found');
 
 			const executions = await db
 				.select({
@@ -81,7 +82,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
 			});
 
-			if (!run) return { content: [{ type: 'text' as const, text: 'Test run not found' }], isError: true };
+			if (!run) return err('Test run not found');
 
 			const failures = await db
 				.select({
@@ -99,7 +100,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 				.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
 				.where(eq(testExecution.testRunId, runId));
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(failures, null, 2) }] };
+			return ok(failures);
 		}
 	);
 
@@ -112,8 +113,8 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			testCaseIds: z.array(z.number()).optional().describe('Test case IDs to include (empty = all)')
 		},
 		async ({ name, environment, testCaseIds }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			// Get test cases with latest versions
 			let cases;
@@ -130,7 +131,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			}
 
 			if (cases.length === 0) {
-				return { content: [{ type: 'text' as const, text: 'No test cases found' }], isError: true };
+				return err('No test cases found');
 			}
 
 			const result = await db.transaction(async (tx) => {
@@ -140,7 +141,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 						projectId,
 						name,
 						environment,
-						createdBy: proj.createdBy
+						createdBy: creator
 					})
 					.returning();
 
@@ -158,7 +159,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 				return { ...run, executionCount: executionValues.length };
 			});
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+			return ok(result);
 		}
 	);
 
@@ -177,15 +178,15 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			const run = await db.query.testRun.findFirst({
 				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
 			});
-			if (!run) return { content: [{ type: 'text' as const, text: 'Test run not found' }], isError: true };
+			if (!run) return err('Test run not found');
 
 			const execution = await db.query.testExecution.findFirst({
 				where: and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId))
 			});
-			if (!execution) return { content: [{ type: 'text' as const, text: 'Execution not found' }], isError: true };
+			if (!execution) return err('Execution not found');
 
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [detail] = await db
 				.insert(testFailureDetail)
@@ -195,11 +196,11 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 					stackTrace: stackTrace ?? null,
 					failureEnvironment: failureEnvironment ?? null,
 					comment: comment ?? null,
-					createdBy: proj.createdBy
+					createdBy: creator
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(detail, null, 2) }] };
+			return ok(detail);
 		}
 	);
 
@@ -211,7 +212,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			const run = await db.query.testRun.findFirst({
 				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
 			});
-			if (!run) return { content: [{ type: 'text' as const, text: 'Test run not found' }], isError: true };
+			if (!run) return err('Test run not found');
 
 			const executions = await db
 				.select({
@@ -262,7 +263,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 				results
 			};
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(exportData, null, 2) }] };
+			return ok(exportData);
 		}
 	);
 
@@ -278,20 +279,20 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			const run = await db.query.testRun.findFirst({
 				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
 			});
-			if (!run) return { content: [{ type: 'text' as const, text: 'Test run not found' }], isError: true };
-			if (run.status === 'COMPLETED') return { content: [{ type: 'text' as const, text: 'Cannot modify completed run' }], isError: true };
+			if (!run) return err('Test run not found');
+			if (run.status === 'COMPLETED') return err('Cannot modify completed run');
 
 			const execution = await db.query.testExecution.findFirst({
 				where: and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId))
 			});
-			if (!execution) return { content: [{ type: 'text' as const, text: 'Execution not found' }], isError: true };
+			if (!execution) return err('Execution not found');
 
 			await db
 				.update(testExecution)
 				.set({ status, executedAt: new Date() })
 				.where(eq(testExecution.id, executionId));
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, executionId, status }) }] };
+			return ok({ success: true, executionId, status });
 		}
 	);
 
@@ -303,15 +304,15 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			const run = await db.query.testRun.findFirst({
 				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
 			});
-			if (!run) return { content: [{ type: 'text' as const, text: 'Test run not found' }], isError: true };
-			if (run.status === 'COMPLETED') return { content: [{ type: 'text' as const, text: 'Test run already completed' }], isError: true };
+			if (!run) return err('Test run not found');
+			if (run.status === 'COMPLETED') return err('Test run already completed');
 
 			await db
 				.update(testRun)
 				.set({ status: 'COMPLETED', finishedAt: new Date() })
 				.where(eq(testRun.id, runId));
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, runId, status: 'COMPLETED' }) }] };
+			return ok({ success: true, runId, status: 'COMPLETED' });
 		}
 	);
 
@@ -329,19 +330,35 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			const run = await db.query.testRun.findFirst({
 				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
 			});
-			if (!run) return { content: [{ type: 'text' as const, text: 'Test run not found' }], isError: true };
-			if (run.status === 'COMPLETED') return { content: [{ type: 'text' as const, text: 'Cannot modify completed run' }], isError: true };
+			if (!run) return err('Test run not found');
+			if (run.status === 'COMPLETED') return err('Cannot modify completed run');
 
-			let updated = 0;
+			// Validate all executionIds belong to this run
+			const execIds = updates.map((u) => u.executionId);
+			const validExecs = await db
+				.select({ id: testExecution.id })
+				.from(testExecution)
+				.where(and(eq(testExecution.testRunId, runId), inArray(testExecution.id, execIds)));
+			const validIds = new Set(validExecs.map((e) => e.id));
+			const invalidIds = execIds.filter((id) => !validIds.has(id));
+			if (invalidIds.length > 0) return err(`Execution IDs not found in this run: ${invalidIds.join(', ')}`);
+
+			// Batch update by grouping same status
+			const byStatus = new Map<string, number[]>();
 			for (const u of updates) {
-				const result = await db
+				const list = byStatus.get(u.status) ?? [];
+				list.push(u.executionId);
+				byStatus.set(u.status, list);
+			}
+			const now = new Date();
+			for (const [status, ids] of byStatus) {
+				await db
 					.update(testExecution)
-					.set({ status: u.status, executedAt: new Date() })
-					.where(and(eq(testExecution.id, u.executionId), eq(testExecution.testRunId, runId)));
-				updated++;
+					.set({ status: status as typeof testExecution.status.enumValues[number], executedAt: now })
+					.where(and(eq(testExecution.testRunId, runId), inArray(testExecution.id, ids)));
 			}
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, runId, updatedCount: updated }) }] };
+			return ok({ success: true, runId, updatedCount: updates.length });
 		}
 	);
 }

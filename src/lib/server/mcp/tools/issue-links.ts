@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, issueLink } from '$lib/server/db/schema';
+import { issueLink } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and, desc } from 'drizzle-orm';
 
 export function registerIssueLinkTools(server: McpServer, projectId: number) {
@@ -23,7 +24,7 @@ export function registerIssueLinkTools(server: McpServer, projectId: number) {
 				.where(and(...conditions))
 				.orderBy(desc(issueLink.createdAt));
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(links, null, 2) }] };
+			return ok(links);
 		}
 	);
 
@@ -39,8 +40,8 @@ export function registerIssueLinkTools(server: McpServer, projectId: number) {
 			executionId: z.number().optional().describe('Execution ID to link')
 		},
 		async ({ externalUrl, externalKey, title, provider, testCaseId: tcId, executionId }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [created] = await db
 				.insert(issueLink)
@@ -52,11 +53,11 @@ export function registerIssueLinkTools(server: McpServer, projectId: number) {
 					externalKey: externalKey ?? null,
 					title: title ?? null,
 					provider,
-					createdBy: proj.createdBy
+					createdBy: creator
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 }

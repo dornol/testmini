@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, projectWebhook } from '$lib/server/db/schema';
+import { projectWebhook } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerWebhookTools(server: McpServer, projectId: number) {
@@ -22,7 +23,7 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 				.from(projectWebhook)
 				.where(eq(projectWebhook.projectId, projectId));
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(webhooks, null, 2) }] };
+			return ok(webhooks);
 		}
 	);
 
@@ -36,8 +37,8 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 			secret: z.string().optional().describe('Webhook secret for signature verification')
 		},
 		async ({ name, url, events, secret }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [created] = await db
 				.insert(projectWebhook)
@@ -47,11 +48,11 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 					url,
 					events: events ?? [],
 					secret: secret ?? null,
-					createdBy: proj.createdBy
+					createdBy: creator
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 
@@ -63,10 +64,10 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 			const wh = await db.query.projectWebhook.findFirst({
 				where: and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId))
 			});
-			if (!wh) return { content: [{ type: 'text' as const, text: 'Webhook not found' }], isError: true };
+			if (!wh) return err('Webhook not found');
 
 			await db.delete(projectWebhook).where(eq(projectWebhook.id, webhookId));
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, deletedId: webhookId }) }] };
+			return ok({ success: true, deletedId: webhookId });
 		}
 	);
 }

@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, testCase, tag, testCaseTag } from '$lib/server/db/schema';
+import { testCase, tag, testCaseTag } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerTagTools(server: McpServer, projectId: number) {
@@ -15,7 +16,7 @@ export function registerTagTools(server: McpServer, projectId: number) {
 				.from(tag)
 				.where(eq(tag.projectId, projectId));
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(tags, null, 2) }] };
+			return ok(tags);
 		}
 	);
 
@@ -27,15 +28,15 @@ export function registerTagTools(server: McpServer, projectId: number) {
 			color: z.string().optional().describe('Tag color hex (default: #6b7280)')
 		},
 		async ({ name, color }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [created] = await db
 				.insert(tag)
-				.values({ projectId, name, color: color ?? '#6b7280', createdBy: proj.createdBy })
+				.values({ projectId, name, color: color ?? '#6b7280', createdBy: creator })
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 
@@ -47,11 +48,11 @@ export function registerTagTools(server: McpServer, projectId: number) {
 			const t = await db.query.tag.findFirst({
 				where: and(eq(tag.id, tagId), eq(tag.projectId, projectId))
 			});
-			if (!t) return { content: [{ type: 'text' as const, text: 'Tag not found' }], isError: true };
+			if (!t) return err('Tag not found');
 
 			await db.delete(testCaseTag).where(eq(testCaseTag.tagId, tagId));
 			await db.delete(tag).where(eq(tag.id, tagId));
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, deletedId: tagId }) }] };
+			return ok({ success: true, deletedId: tagId });
 		}
 	);
 
@@ -66,19 +67,19 @@ export function registerTagTools(server: McpServer, projectId: number) {
 			const tc = await db.query.testCase.findFirst({
 				where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
 			});
-			if (!tc) return { content: [{ type: 'text' as const, text: 'Test case not found' }], isError: true };
+			if (!tc) return err('Test case not found');
 
 			const t = await db.query.tag.findFirst({
 				where: and(eq(tag.id, tagId), eq(tag.projectId, projectId))
 			});
-			if (!t) return { content: [{ type: 'text' as const, text: 'Tag not found' }], isError: true };
+			if (!t) return err('Tag not found');
 
 			await db
 				.insert(testCaseTag)
 				.values({ testCaseId, tagId })
 				.onConflictDoNothing();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, testCaseId, tagId }) }] };
+			return ok({ success: true, testCaseId, tagId });
 		}
 	);
 
@@ -94,7 +95,7 @@ export function registerTagTools(server: McpServer, projectId: number) {
 				.delete(testCaseTag)
 				.where(and(eq(testCaseTag.testCaseId, testCaseId), eq(testCaseTag.tagId, tagId)));
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, testCaseId, tagId }) }] };
+			return ok({ success: true, testCaseId, tagId });
 		}
 	);
 }

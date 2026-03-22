@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, module, moduleTestCase, testCase } from '$lib/server/db/schema';
+import { module, moduleTestCase, testCase } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and, sql } from 'drizzle-orm';
 
 export function registerModuleTools(server: McpServer, projectId: number) {
@@ -15,7 +16,7 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 				columns: { id: true, name: true, description: true, parentModuleId: true, sortOrder: true }
 			});
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(modules, null, 2) }] };
+			return ok(modules);
 		}
 	);
 
@@ -28,18 +29,14 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 			parentModuleId: z.number().optional().describe('Parent module ID for nesting')
 		},
 		async ({ name, description, parentModuleId }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			if (parentModuleId) {
 				const parent = await db.query.module.findFirst({
 					where: and(eq(module.id, parentModuleId), eq(module.projectId, projectId))
 				});
-				if (!parent)
-					return {
-						content: [{ type: 'text' as const, text: 'Parent module not found' }],
-						isError: true
-					};
+				if (!parent) return err('Parent module not found');
 			}
 
 			const [created] = await db
@@ -49,11 +46,11 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 					name,
 					description,
 					parentModuleId: parentModuleId ?? null,
-					createdBy: proj.createdBy
+					createdBy: creator
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 
@@ -65,7 +62,7 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 			const m = await db.query.module.findFirst({
 				where: and(eq(module.id, moduleId), eq(module.projectId, projectId))
 			});
-			if (!m) return { content: [{ type: 'text' as const, text: 'Module not found' }], isError: true };
+			if (!m) return err('Module not found');
 
 			await db.delete(module).where(eq(module.id, moduleId));
 			return {
@@ -92,7 +89,7 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 				.where(eq(module.projectId, projectId))
 				.groupBy(module.id, module.name);
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(rows, null, 2) }] };
+			return ok(rows);
 		}
 	);
 }

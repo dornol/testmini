@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, savedFilter } from '$lib/server/db/schema';
+import { savedFilter } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerSavedFilterTools(server: McpServer, projectId: number) {
@@ -20,7 +21,7 @@ export function registerSavedFilterTools(server: McpServer, projectId: number) {
 				.from(savedFilter)
 				.where(eq(savedFilter.projectId, projectId));
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(filters, null, 2) }] };
+			return ok(filters);
 		}
 	);
 
@@ -33,21 +34,21 @@ export function registerSavedFilterTools(server: McpServer, projectId: number) {
 			filters: z.record(z.string(), z.unknown()).describe('Filter criteria as JSON object')
 		},
 		async ({ name, filterType, filters }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [created] = await db
 				.insert(savedFilter)
 				.values({
 					projectId,
-					userId: proj.createdBy,
+					userId: creator,
 					name,
 					filterType: filterType ?? 'test_cases',
 					filters: filters as Record<string, unknown>
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 
@@ -59,10 +60,10 @@ export function registerSavedFilterTools(server: McpServer, projectId: number) {
 			const f = await db.query.savedFilter.findFirst({
 				where: and(eq(savedFilter.id, filterId), eq(savedFilter.projectId, projectId))
 			});
-			if (!f) return { content: [{ type: 'text' as const, text: 'Saved filter not found' }], isError: true };
+			if (!f) return err('Saved filter not found');
 
 			await db.delete(savedFilter).where(eq(savedFilter.id, filterId));
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, deletedId: filterId }) }] };
+			return ok({ success: true, deletedId: filterId });
 		}
 	);
 }

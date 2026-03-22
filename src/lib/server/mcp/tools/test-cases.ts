@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
-import { project, testCase, testCaseVersion, tag, testCaseTag } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, tag, testCaseTag } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and, sql, desc } from 'drizzle-orm';
 
 export function registerTestCaseTools(server: McpServer, projectId: number) {
@@ -32,7 +33,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				.orderBy(desc(testCase.createdAt))
 				.limit(limit ?? 50);
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(cases, null, 2) }] };
+			return ok(cases);
 		}
 	);
 
@@ -59,7 +60,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				)
 				.limit(maxResults);
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }] };
+			return ok(results);
 		}
 	);
 
@@ -78,7 +79,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				if (found) tc = await findTestCaseWithLatestVersion(found.id, projectId);
 			}
 
-			if (!tc) return { content: [{ type: 'text' as const, text: 'Test case not found' }], isError: true };
+			if (!tc) return err('Test case not found');
 
 			// Load tags
 			const tags = await db
@@ -87,7 +88,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
 				.where(eq(testCaseTag.testCaseId, tc.id));
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ ...tc, tags }, null, 2) }] };
+			return ok({ ...tc, tags });
 		}
 	);
 
@@ -114,8 +115,8 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			const nextKey = `TC-${String(maxNum + 1).padStart(4, '0')}`;
 
 			// Get project creator for attribution
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const formattedSteps = (steps ?? []).map((s, i) => ({
 				order: i + 1,
@@ -129,7 +130,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 					.values({
 						projectId,
 						key: nextKey,
-						createdBy: proj.createdBy,
+						createdBy: creator,
 						sortOrder: maxNum + 1
 					})
 					.returning();
@@ -144,7 +145,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 						steps: formattedSteps,
 						expectedResult: expectedResult ?? null,
 						priority: priority ?? 'MEDIUM',
-						updatedBy: proj.createdBy
+						updatedBy: creator
 					})
 					.returning();
 
@@ -156,7 +157,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				return { ...tc, latestVersion: version };
 			});
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+			return ok(result);
 		}
 	);
 
@@ -183,12 +184,12 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				if (found) tc = await findTestCaseWithLatestVersion(found.id, projectId);
 			}
 
-			if (!tc) return { content: [{ type: 'text' as const, text: 'Test case not found' }], isError: true };
-			if (!tc.latestVersion) return { content: [{ type: 'text' as const, text: 'No version found' }], isError: true };
+			if (!tc) return err('Test case not found');
+			if (!tc.latestVersion) return err('No version found');
 
 			const prev = tc.latestVersion;
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const formattedSteps = steps
 				? steps.map((s, i) => ({ order: i + 1, action: s.action, expected: s.expected ?? '' }))
@@ -205,7 +206,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 						steps: formattedSteps,
 						expectedResult: expectedResult !== undefined ? expectedResult : prev.expectedResult,
 						priority: priority ?? prev.priority,
-						updatedBy: proj.createdBy
+						updatedBy: creator
 					})
 					.returning();
 
@@ -217,7 +218,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				return { ...tc, latestVersion: version };
 			});
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+			return ok(result);
 		}
 	);
 
@@ -238,10 +239,10 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				});
 				tcId = found?.id;
 			}
-			if (!tcId) return { content: [{ type: 'text' as const, text: 'Test case not found' }], isError: true };
+			if (!tcId) return err('Test case not found');
 
 			await db.delete(testCase).where(and(eq(testCase.id, tcId), eq(testCase.projectId, projectId)));
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, deletedId: tcId }) }] };
+			return ok({ success: true, deletedId: tcId });
 		}
 	);
 
@@ -260,13 +261,13 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				});
 				tcId = found?.id;
 			}
-			if (!tcId) return { content: [{ type: 'text' as const, text: 'Test case not found' }], isError: true };
+			if (!tcId) return err('Test case not found');
 
 			const tc = await findTestCaseWithLatestVersion(tcId, projectId);
-			if (!tc?.latestVersion) return { content: [{ type: 'text' as const, text: 'Test case not found' }], isError: true };
+			if (!tc?.latestVersion) return err('Test case not found');
 
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [maxResult] = await db
 				.select({ maxKey: sql<string>`max(key)`.as('max_key') })
@@ -282,7 +283,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 						projectId,
 						key: newKey,
 						groupId: tc.groupId,
-						createdBy: proj.createdBy
+						createdBy: creator
 					})
 					.returning();
 
@@ -297,7 +298,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 						steps: lv.steps,
 						expectedResult: lv.expectedResult,
 						priority: lv.priority,
-						updatedBy: proj.createdBy
+						updatedBy: creator
 					})
 					.returning();
 
@@ -312,7 +313,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				return { ...newTc, key: newKey, title: newVer.title };
 			});
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+			return ok(result);
 		}
 	);
 
@@ -331,7 +332,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				});
 				tcId = found?.id;
 			}
-			if (!tcId) return { content: [{ type: 'text' as const, text: 'Test case not found' }], isError: true };
+			if (!tcId) return err('Test case not found');
 
 			const versions = await db
 				.select({
@@ -345,7 +346,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				.where(eq(testCaseVersion.testCaseId, tcId))
 				.orderBy(desc(testCaseVersion.versionNo));
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(versions, null, 2) }] };
+			return ok(versions);
 		}
 	);
 }

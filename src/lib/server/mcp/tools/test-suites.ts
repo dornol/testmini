@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, testCase, testCaseVersion, testSuite, testSuiteItem } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, testSuite, testSuiteItem } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and, inArray } from 'drizzle-orm';
 
 export function registerTestSuiteTools(server: McpServer, projectId: number) {
@@ -14,7 +15,7 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 				where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
 			});
 
-			if (!suite) return { content: [{ type: 'text' as const, text: 'Test suite not found' }], isError: true };
+			if (!suite) return err('Test suite not found');
 
 			const items = await db
 				.select({
@@ -30,7 +31,7 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 				.leftJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
 				.where(eq(testSuiteItem.suiteId, suiteId));
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ ...suite, items }, null, 2) }] };
+			return ok({ ...suite, items });
 		}
 	);
 
@@ -42,15 +43,15 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 			description: z.string().optional().describe('Suite description')
 		},
 		async ({ name, description }) => {
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [created] = await db
 				.insert(testSuite)
-				.values({ projectId, name, description: description ?? null, createdBy: proj.createdBy })
+				.values({ projectId, name, description: description ?? null, createdBy: creator })
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 
@@ -65,12 +66,12 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 			const suite = await db.query.testSuite.findFirst({
 				where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
 			});
-			if (!suite) return { content: [{ type: 'text' as const, text: 'Test suite not found' }], isError: true };
+			if (!suite) return err('Test suite not found');
 
 			const values = testCaseIds.map((testCaseId) => ({ suiteId, testCaseId }));
 			await db.insert(testSuiteItem).values(values).onConflictDoNothing();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, suiteId, addedCount: values.length }) }] };
+			return ok({ success: true, suiteId, addedCount: values.length });
 		}
 	);
 
@@ -85,13 +86,13 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 			const suite = await db.query.testSuite.findFirst({
 				where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
 			});
-			if (!suite) return { content: [{ type: 'text' as const, text: 'Test suite not found' }], isError: true };
+			if (!suite) return err('Test suite not found');
 
 			await db
 				.delete(testSuiteItem)
 				.where(and(eq(testSuiteItem.suiteId, suiteId), inArray(testSuiteItem.testCaseId, testCaseIds)));
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, suiteId, removedCount: testCaseIds.length }) }] };
+			return ok({ success: true, suiteId, removedCount: testCaseIds.length });
 		}
 	);
 }

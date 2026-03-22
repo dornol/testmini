@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, testCase, approvalHistory } from '$lib/server/db/schema';
+import { testCase, approvalHistory } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerApprovalTools(server: McpServer, projectId: number) {
@@ -17,10 +18,10 @@ export function registerApprovalTools(server: McpServer, projectId: number) {
 			const tc = await db.query.testCase.findFirst({
 				where: and(eq(testCase.id, tcId), eq(testCase.projectId, projectId))
 			});
-			if (!tc) return { content: [{ type: 'text' as const, text: 'Test case not found' }], isError: true };
+			if (!tc) return err('Test case not found');
 
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const fromStatus = tc.approvalStatus ?? 'DRAFT';
 
@@ -34,12 +35,12 @@ export function registerApprovalTools(server: McpServer, projectId: number) {
 					testCaseId: tcId,
 					fromStatus,
 					toStatus,
-					userId: proj.createdBy,
+					userId: creator,
 					comment: approvalComment ?? null
 				});
 			});
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, testCaseId: tcId, fromStatus, toStatus }) }] };
+			return ok({ success: true, testCaseId: tcId, fromStatus, toStatus });
 		}
 	);
 }

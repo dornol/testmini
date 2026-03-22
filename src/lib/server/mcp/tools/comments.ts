@@ -1,7 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { project, testCase, testRun, testExecution, testCaseComment, executionComment } from '$lib/server/db/schema';
+import { testCase, testRun, testExecution, testCaseComment, executionComment } from '$lib/server/db/schema';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerCommentTools(server: McpServer, projectId: number) {
@@ -16,21 +17,21 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 			const tc = await db.query.testCase.findFirst({
 				where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
 			});
-			if (!tc) return { content: [{ type: 'text' as const, text: 'Test case not found' }], isError: true };
+			if (!tc) return err('Test case not found');
 
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [created] = await db
 				.insert(testCaseComment)
 				.values({
 					testCaseId,
-					userId: proj.createdBy,
+					userId: creator,
 					content
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 
@@ -44,7 +45,7 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 			const tc = await db.query.testCase.findFirst({
 				where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
 			});
-			if (!tc) return { content: [{ type: 'text' as const, text: 'Test case not found' }], isError: true };
+			if (!tc) return err('Test case not found');
 
 			const comments = await db
 				.select({
@@ -58,7 +59,7 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 				.where(eq(testCaseComment.testCaseId, testCaseId))
 				.orderBy(testCaseComment.createdAt);
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(comments, null, 2) }] };
+			return ok(comments);
 		}
 	);
 
@@ -74,26 +75,26 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 			const run = await db.query.testRun.findFirst({
 				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
 			});
-			if (!run) return { content: [{ type: 'text' as const, text: 'Test run not found' }], isError: true };
+			if (!run) return err('Test run not found');
 
 			const execution = await db.query.testExecution.findFirst({
 				where: and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId))
 			});
-			if (!execution) return { content: [{ type: 'text' as const, text: 'Execution not found' }], isError: true };
+			if (!execution) return err('Execution not found');
 
-			const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-			if (!proj) return { content: [{ type: 'text' as const, text: 'Project not found' }], isError: true };
+			const creator = await requireProjectCreator(projectId);
+			if (typeof creator !== 'string') return creator;
 
 			const [created] = await db
 				.insert(executionComment)
 				.values({
 					testExecutionId: executionId,
-					userId: proj.createdBy,
+					userId: creator,
 					content
 				})
 				.returning();
 
-			return { content: [{ type: 'text' as const, text: JSON.stringify(created, null, 2) }] };
+			return ok(created);
 		}
 	);
 }

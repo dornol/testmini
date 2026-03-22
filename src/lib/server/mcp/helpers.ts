@@ -17,18 +17,14 @@ export function err(message: string): McpResult {
 
 // ── Entity helpers ───────────────────────────────────────
 
-/** Get project's createdBy (needed for insert operations). Cached per MCP session. */
-const projectCreatorCache = new Map<number, string>();
-
+/**
+ * Get project's createdBy (needed for insert operations).
+ * No caching — projectId is fixed per MCP session, and this avoids
+ * stale-cache issues in tests.
+ */
 export async function getProjectCreator(projectId: number): Promise<string | null> {
-	const cached = projectCreatorCache.get(projectId);
-	if (cached) return cached;
-
 	const proj = await db.query.project.findFirst({ where: eq(project.id, projectId) });
-	if (!proj) return null;
-
-	projectCreatorCache.set(projectId, proj.createdBy);
-	return proj.createdBy;
+	return proj?.createdBy ?? null;
 }
 
 /** Get project creator or return error response. */

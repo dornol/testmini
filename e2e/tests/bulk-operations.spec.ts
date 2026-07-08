@@ -24,23 +24,21 @@ test.describe.serial('Bulk Operations', () => {
 		projectId = match![1];
 	});
 
-	test('2. Create multiple test cases via quick-create', async ({ page }) => {
-		await page.goto(`/projects/${projectId}/test-cases`);
-		await page.waitForLoadState('networkidle');
-
+	test('2. Create multiple test cases', async ({ page }) => {
 		const titles = ['Bulk Test A', 'Bulk Test B', 'Bulk Test C'];
 
 		for (const title of titles) {
-			const quickForm = page.locator('form[action*="quickCreate"]').first();
-			await expect(quickForm).toBeVisible({ timeout: 10000 });
-
-			const titleInput = quickForm.locator('input[name="title"]');
-			await titleInput.fill(title);
-
-			const submitBtn = quickForm.locator('button[type="submit"]');
-			await submitBtn.click();
-			await page.waitForTimeout(1500);
+			await page.goto(`/projects/${projectId}/test-cases/new`);
+			await page.waitForLoadState('networkidle');
+			await page.fill('#title', `${title} ${ts}`);
+			await page.click('button[type="submit"]');
+			await page.waitForURL(new RegExp(`/projects/${projectId}/test-cases/\\d+$`), {
+				timeout: 15000
+			});
 		}
+
+		await page.goto(`/projects/${projectId}/test-cases`);
+		await page.waitForLoadState('networkidle');
 
 		// All 3 test cases should be visible
 		await expect(page.locator('text=TC-0001').first()).toBeVisible({ timeout: 10000 });
@@ -78,8 +76,9 @@ test.describe.serial('Bulk Operations', () => {
 		const bulkBar = page.locator('[class*="bulk"], [data-testid*="bulk"]').first();
 		// If no specific class, look for text indicating selection count
 		const selectionText = page.locator('text=/\\d+ selected|선택/i').first();
-		const hasBulkUI = await bulkBar.isVisible({ timeout: 3000 }).catch(() => false) ||
-			await selectionText.isVisible({ timeout: 3000 }).catch(() => false);
+		const hasBulkUI =
+			(await bulkBar.isVisible({ timeout: 3000 }).catch(() => false)) ||
+			(await selectionText.isVisible({ timeout: 3000 }).catch(() => false));
 		expect(hasBulkUI).toBe(true);
 	});
 
@@ -89,7 +88,9 @@ test.describe.serial('Bulk Operations', () => {
 		await expect(page.locator('text=TC-0001').first()).toBeVisible({ timeout: 10000 });
 
 		// The "select all" checkbox is typically in the header
-		const selectAllCheckbox = page.locator('thead input[type="checkbox"], thead button[role="checkbox"], [aria-label*="all" i]').first();
+		const selectAllCheckbox = page
+			.locator('thead input[type="checkbox"], thead button[role="checkbox"], [aria-label*="all" i]')
+			.first();
 		if (await selectAllCheckbox.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await selectAllCheckbox.click();
 

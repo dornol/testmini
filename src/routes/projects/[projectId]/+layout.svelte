@@ -29,13 +29,15 @@
 <div class="space-y-4">
 	<div>
 		<div class="mb-1">
-			<a href="/projects" class="text-muted-foreground hover:text-foreground text-sm">&larr; {m.projects_all()}</a>
+			<a href="/projects" class="text-muted-foreground hover:text-foreground text-sm"
+				>&larr; {m.projects_all()}</a
+			>
 		</div>
 		<h1 class="text-lg font-bold sm:text-xl">{data.project.name}</h1>
 	</div>
 
 	<nav class="border-b">
-		<div class="-mb-px flex gap-2 overflow-x-auto scrollbar-none" role="tablist">
+		<div class="-mb-px flex gap-2 overflow-x-auto scrollbar-none">
 			{#each tabs as tab (tab.href)}
 				<a
 					href={tab.href}

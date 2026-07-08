@@ -40,15 +40,22 @@
 		<Card.Description>{m.auth_login_desc()}</Card.Description>
 	</Card.Header>
 	<Card.Content>
-		<form onsubmit={handleSubmit} class="space-y-4">
+		<form method="POST" onsubmit={handleSubmit} class="space-y-4">
 			<div class="space-y-2">
 				<Label for="email">{m.common_email()}</Label>
-				<Input id="email" type="email" placeholder={m.auth_email_placeholder()} bind:value={email} required />
+				<Input
+					id="email"
+					name="email"
+					type="email"
+					placeholder={m.auth_email_placeholder()}
+					bind:value={email}
+					required
+				/>
 			</div>
 
 			<div class="space-y-2">
 				<Label for="password">{m.auth_password()}</Label>
-				<Input id="password" type="password" bind:value={password} required />
+				<Input id="password" name="password" type="password" bind:value={password} required />
 			</div>
 
 			<Button type="submit" class="w-full" disabled={loading}>
@@ -68,7 +75,12 @@
 			</div>
 			<div class="mt-4 space-y-2">
 				{#each data.providers as provider (provider.slug)}
-					<Button variant="outline" class="w-full" href="/auth/oidc/{provider.slug}" data-sveltekit-reload>
+					<Button
+						variant="outline"
+						class="w-full"
+						href="/auth/oidc/{provider.slug}"
+						data-sveltekit-reload
+					>
 						{#if provider.iconUrl}
 							<img src={provider.iconUrl} alt="" class="mr-2 h-4 w-4" />
 						{/if}

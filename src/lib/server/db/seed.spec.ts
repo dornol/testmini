@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('$lib/server/logger', () => ({
 	logger: {
@@ -40,16 +40,23 @@ vi.mock('$env/dynamic/private', () => ({
 import { seedAdminUser } from './seed';
 import { logger } from '$lib/server/logger';
 import { db } from '$lib/server/db';
+import { env } from '$env/dynamic/private';
 
 const mockLogger = logger as unknown as {
 	info: ReturnType<typeof vi.fn>;
 	warn: ReturnType<typeof vi.fn>;
 	error: ReturnType<typeof vi.fn>;
 };
+const mockEnv = env as Record<string, string | undefined>;
+const originalNodeEnv = process.env.NODE_ENV;
 
 describe('seedAdminUser', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		process.env.NODE_ENV = originalNodeEnv;
+		delete mockEnv.ADMIN_EMAIL;
+		delete mockEnv.ADMIN_PASSWORD;
+		delete mockEnv.ADMIN_NAME;
 		// Default: no users exist
 		vi.mocked(db.select).mockReturnValue({
 			from: vi.fn().mockReturnValue(Promise.resolve([{ value: 0 }]))
@@ -57,6 +64,10 @@ describe('seedAdminUser', () => {
 		vi.mocked(db.insert).mockReturnValue({
 			values: vi.fn().mockReturnValue(Promise.resolve())
 		} as never);
+	});
+
+	afterEach(() => {
+		process.env.NODE_ENV = originalNodeEnv;
 	});
 
 	it('should skip seeding when users already exist', async () => {
@@ -97,9 +108,7 @@ describe('seedAdminUser', () => {
 	it('should warn when using default password', async () => {
 		await seedAdminUser();
 
-		expect(mockLogger.warn).toHaveBeenCalledWith(
-			expect.stringContaining('default password')
-		);
+		expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('default password'));
 	});
 
 	it('should log the email address', async () => {
@@ -107,5 +116,32 @@ describe('seedAdminUser', () => {
 
 		const allInfoCalls = mockLogger.info.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
 		expect(allInfoCalls).toContain('admin@admin.local');
+	});
+
+	it('should reject default admin password in production', async () => {
+		process.env.NODE_ENV = 'production';
+
+		await expect(seedAdminUser()).rejects.toThrow('ADMIN_PASSWORD must be set');
+
+		expect(db.insert).not.toHaveBeenCalled();
+	});
+
+	it('should reject short admin password in production', async () => {
+		process.env.NODE_ENV = 'production';
+		mockEnv.ADMIN_PASSWORD = 'short';
+
+		await expect(seedAdminUser()).rejects.toThrow('at least 12 characters');
+
+		expect(db.insert).not.toHaveBeenCalled();
+	});
+
+	it('should create admin account in production with explicit strong password', async () => {
+		process.env.NODE_ENV = 'production';
+		mockEnv.ADMIN_PASSWORD = 'production-secret-123';
+
+		await seedAdminUser();
+
+		expect(db.insert).toHaveBeenCalledTimes(2);
+		expect(mockLogger.warn).not.toHaveBeenCalledWith(expect.stringContaining('default password'));
 	});
 });

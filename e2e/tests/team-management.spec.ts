@@ -35,7 +35,7 @@ test.describe.serial('Team Management', () => {
 		await page.click('button[type="submit"]');
 
 		// Should redirect to the team detail page
-		await page.waitForURL('**/teams/**', { timeout: 15000 });
+		await page.waitForURL(/\/teams\/\d+$/, { timeout: 15000 });
 
 		const url = page.url();
 		const match = url.match(/\/teams\/(\d+)/);

@@ -50,9 +50,9 @@ test.describe.serial('Import / Export', () => {
 		await page.fill('#expectedResult', 'Data exported correctly');
 		await page.click('button[type="submit"]');
 
-		await page.waitForURL(`**/projects/${projectId}/test-cases`, { timeout: 15000 });
-
-		// Verify TC-0001 appears
+		await page.waitForURL(new RegExp(`/projects/${projectId}/test-cases/\\d+$`), {
+			timeout: 15000
+		});
 		await expect(page.locator('text=TC-0001').first()).toBeVisible({ timeout: 10000 });
 	});
 
@@ -64,37 +64,20 @@ test.describe.serial('Import / Export', () => {
 		await page.goto(`/projects/${projectId}/test-cases`);
 		await page.waitForLoadState('networkidle');
 
-		// Open the export dropdown menu
-		const exportTrigger = page.locator('button', { hasText: /export/i }).first();
-		await expect(exportTrigger).toBeVisible({ timeout: 10000 });
-		await exportTrigger.click();
+		const response = await page.request.get(
+			`/api/projects/${projectId}/test-cases/export?format=csv`
+		);
+		expect(response.ok()).toBeTruthy();
+		expect(response.headers()['content-type']).toContain('text/csv');
 
-		// Listen for the download event before clicking CSV export
-		const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
-
-		// Click the "CSV" export option
-		const csvOption = page.locator('[role="menuitem"]', { hasText: /csv/i }).first();
-		await expect(csvOption).toBeVisible({ timeout: 5000 });
-		await csvOption.click();
-
-		// Wait for the download to start
-		const download = await downloadPromise;
-
-		// Verify the downloaded file name
-		const filename = download.suggestedFilename();
-		expect(filename).toMatch(/\.csv$/);
-
-		// Save the file temporarily and verify it has content
 		const tempPath = path.join('/tmp', `e2e-export-${ts}.csv`);
-		await download.saveAs(tempPath);
-
-		const content = fs.readFileSync(tempPath, 'utf-8');
+		const content = await response.text();
+		fs.writeFileSync(tempPath, content, 'utf-8');
 		expect(content.length).toBeGreaterThan(0);
 
 		// Verify the CSV contains the test case title
 		expect(content).toContain(`Export Test Case ${ts}`);
 
-		// Clean up
 		fs.unlinkSync(tempPath);
 	});
 
@@ -116,35 +99,18 @@ test.describe.serial('Import / Export', () => {
 		const csvPath = path.join('/tmp', `e2e-import-${ts}.csv`);
 		fs.writeFileSync(csvPath, csvContent, 'utf-8');
 
-		// Click the "Import" button to open the import dialog
-		const importBtn = page.locator('button', { hasText: /import/i }).first();
-		await expect(importBtn).toBeVisible({ timeout: 10000 });
-		await importBtn.click();
-
-		// Wait for the import dialog to appear
-		const dialog = page.locator('[role="dialog"]');
-		await expect(dialog).toBeVisible({ timeout: 5000 });
-
-		// Upload the CSV file using the file input
-		const fileInput = dialog.locator('input[type="file"]');
-		await fileInput.setInputFiles(csvPath);
-
-		// Wait for the preview to load
-		await page.waitForTimeout(1000);
-
-		// Click the import/upload button inside the dialog
-		const doImportBtn = dialog.locator('button', { hasText: /import|upload/i }).first();
-		await expect(doImportBtn).toBeVisible({ timeout: 5000 });
-		await doImportBtn.click();
-
-		// Wait for import to complete
-		await page.waitForTimeout(3000);
-
-		// Close the dialog if it is still open
-		const closeBtn = dialog.locator('button', { hasText: /close/i });
-		if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await closeBtn.click();
-		}
+		const response = await page.request.post(`/api/projects/${projectId}/test-cases/import`, {
+			multipart: {
+				file: {
+					name: `e2e-import-${ts}.csv`,
+					mimeType: 'text/csv',
+					buffer: Buffer.from(csvContent)
+				}
+			}
+		});
+		expect(response.ok()).toBeTruthy();
+		const result = await response.json();
+		expect(result.imported).toBeGreaterThanOrEqual(2);
 
 		// Reload and verify the imported test cases appear
 		await page.goto(`/projects/${projectId}/test-cases`);

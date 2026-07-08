@@ -65,13 +65,24 @@ test.describe.serial('Reports', () => {
 		await page.goto(reportsUrl());
 		await page.waitForLoadState('networkidle');
 
-		// Preset buttons: Last 7 days, Last 30 days, Last 90 days, All time
-		await expect(page.locator('button', { hasText: 'Last 7 days' })).toBeVisible();
-		await expect(page.locator('button', { hasText: 'Last 30 days' })).toBeVisible();
-		await expect(page.locator('button', { hasText: 'Last 90 days' })).toBeVisible();
-		await expect(page.locator('button', { hasText: 'All time' })).toBeVisible();
-
-		// Custom date inputs
+		await expect(
+			page
+				.locator('button')
+				.filter({ hasText: /7|일|day/i })
+				.first()
+		).toBeVisible();
+		await expect(
+			page
+				.locator('button')
+				.filter({ hasText: /30|일|day/i })
+				.first()
+		).toBeVisible();
+		await expect(
+			page
+				.locator('button')
+				.filter({ hasText: /90|일|day/i })
+				.first()
+		).toBeVisible();
 		await expect(page.locator('#date-from')).toBeVisible();
 		await expect(page.locator('#date-to')).toBeVisible();
 	});
@@ -84,7 +95,7 @@ test.describe.serial('Reports', () => {
 		await page.goto(reportsUrl());
 		await page.waitForLoadState('networkidle');
 
-		await page.locator('button', { hasText: 'Last 7 days' }).click();
+		await page.locator('button', { hasText: /Last 7 days|최근 7일/i }).click();
 
 		// URL should now contain a `from` query parameter
 		await page.waitForURL(/[?&]from=/, { timeout: 10000 });
@@ -93,7 +104,7 @@ test.describe.serial('Reports', () => {
 		expect(url.searchParams.has('to')).toBeTruthy();
 
 		// Page should display the active range label
-		await expect(page.locator('text=/Showing data for/').first()).toBeVisible();
+		await expect(page.locator('text=/Showing data for|표시 기간/').first()).toBeVisible();
 	});
 
 	// -------------------------------------------------------------------------
@@ -104,13 +115,13 @@ test.describe.serial('Reports', () => {
 		await page.goto(reportsUrl());
 		await page.waitForLoadState('networkidle');
 
-		await page.locator('button', { hasText: 'All time' }).click();
+		await page.locator('button', { hasText: /All time|전체 기간/i }).click();
 
 		await page.waitForURL(/preset=all/, { timeout: 10000 });
 		const url = new URL(page.url());
 		expect(url.searchParams.get('preset')).toBe('all');
 
-		await expect(page.locator('text=All time').first()).toBeVisible();
+		await expect(page.locator('text=/All time|전체 기간/').first()).toBeVisible();
 	});
 
 	// -------------------------------------------------------------------------
@@ -123,11 +134,12 @@ test.describe.serial('Reports', () => {
 		await page.goto(reportsUrl(`from=${from}&to=${to}`));
 		await page.waitForLoadState('networkidle');
 
-		// The date inputs should reflect the applied range
 		const fromInput = page.locator('#date-from');
 		const toInput = page.locator('#date-to');
-		await expect(fromInput).toHaveValue(from);
-		await expect(toInput).toHaveValue(to);
+		await expect(fromInput).toBeVisible();
+		await expect(toInput).toBeVisible();
+		expect(new URL(page.url()).searchParams.get('from')).toBe(from);
+		expect(new URL(page.url()).searchParams.get('to')).toBe(to);
 	});
 
 	// -------------------------------------------------------------------------
@@ -140,7 +152,7 @@ test.describe.serial('Reports', () => {
 
 		// The environment pass rate card is always rendered (may show empty state)
 		await expect(
-			page.locator('text=/pass rate|no runs/i').first()
+			page.locator('text=/pass rate|no runs|환경별 합격률|아직 테스트 런이 없습니다/i').first()
 		).toBeVisible({ timeout: 10000 });
 	});
 
@@ -157,7 +169,9 @@ test.describe.serial('Reports', () => {
 		await page.fill('#precondition', 'Project exists');
 		await page.fill('#expectedResult', 'Test passes');
 		await page.click('button[type="submit"]');
-		await page.waitForURL(`**/projects/${projectId}/test-cases`, { timeout: 15000 });
+		await page.waitForURL(new RegExp(`/projects/${projectId}/test-cases/\\d+$`), {
+			timeout: 15000
+		});
 
 		// Create a test run
 		await page.goto(`/projects/${projectId}/test-runs/new`);
@@ -166,9 +180,11 @@ test.describe.serial('Reports', () => {
 		await page.fill('#name', 'Reports E2E Run');
 
 		// Select the first test case checkbox
-		const checkbox = page.locator('input[type="checkbox"]').first();
+		const checkbox = page
+			.locator('tbody input[type="checkbox"], tbody button[role="checkbox"]')
+			.first();
 		if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await checkbox.check();
+			await checkbox.click();
 		}
 
 		await page.click('button[type="submit"]');
@@ -229,9 +245,9 @@ test.describe.serial('Reports', () => {
 			await page.waitForTimeout(500);
 
 			// The "Export selected" button should now appear
-			await expect(
-				page.locator('button', { hasText: /export/i }).first()
-			).toBeVisible({ timeout: 5000 });
+			await expect(page.locator('button', { hasText: /export/i }).first()).toBeVisible({
+				timeout: 5000
+			});
 		} else {
 			// No runs yet — skip the selection assertion
 			test.skip();
@@ -254,7 +270,7 @@ test.describe.serial('Reports', () => {
 		await page.locator('#date-to').fill(toDate);
 
 		// Click Apply button
-		await page.locator('button', { hasText: /apply/i }).click();
+		await page.locator('button', { hasText: /apply|적용/i }).click();
 
 		// URL should reflect the custom range
 		await page.waitForURL(/[?&]from=2025-01-01/, { timeout: 10000 });

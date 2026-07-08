@@ -39,6 +39,8 @@ data/uploads/
 e2e/.auth-storage.json
 e2e/test-results/
 e2e/playwright-report/
+test-results/
+playwright-report/
 
 # Claude
 .claude/

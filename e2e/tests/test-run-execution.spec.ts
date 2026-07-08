@@ -51,9 +51,9 @@ test.describe.serial('Test Run Execution', () => {
 		await page.fill('#expectedResult', 'User should be logged in');
 		await page.click('button[type="submit"]');
 
-		await page.waitForURL(`**/projects/${projectId}/test-cases`, { timeout: 15000 });
-
-		// Verify TC-0001 appears
+		await page.waitForURL(new RegExp(`/projects/${projectId}/test-cases/\\d+$`), {
+			timeout: 15000
+		});
 		await expect(page.locator('text=TC-0001').first()).toBeVisible({ timeout: 10000 });
 	});
 
@@ -137,7 +137,9 @@ test.describe.serial('Test Run Execution', () => {
 
 		// Look for a submit/save button in the failure dialog
 		const submitFailure = page
-			.locator('[role="dialog"] button[type="submit"], [role="dialog"] button:has-text("Save"), [role="dialog"] button:has-text("OK"), [role="dialog"] button:has-text("Submit")')
+			.locator(
+				'[role="dialog"] button[type="submit"], [role="dialog"] button:has-text("Save"), [role="dialog"] button:has-text("OK"), [role="dialog"] button:has-text("Submit")'
+			)
 			.first();
 		if (await submitFailure.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await submitFailure.click();
@@ -169,7 +171,7 @@ test.describe.serial('Test Run Execution', () => {
 		// Select PASS from the dropdown
 		const passOption = page.locator('button:has-text("PASS"), [data-status="PASS"]').last();
 		await expect(passOption).toBeVisible({ timeout: 5000 });
-		await passOption.click();
+		await passOption.evaluate((element) => (element as HTMLElement).click());
 
 		await page.waitForTimeout(2000);
 

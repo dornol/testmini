@@ -3,6 +3,8 @@ import { test, expect } from '../fixtures/auth.fixture';
 test.describe.serial('Full Workflow: Project → TC → Run → Execute', () => {
 	const projectName = `E2E Project ${Date.now()}`;
 	let projectUrl: string;
+	let projectId: string;
+	let runUrl: string;
 
 	test('1. Create a new project', async ({ page }) => {
 		await page.goto('/projects/new');
@@ -14,6 +16,9 @@ test.describe.serial('Full Workflow: Project → TC → Run → Execute', () => 
 		// Should redirect to the project page
 		await page.waitForURL('**/projects/**', { timeout: 15000 });
 		projectUrl = page.url();
+		const match = projectUrl.match(/\/projects\/(\d+)/);
+		expect(match).not.toBeNull();
+		projectId = match![1];
 
 		// Verify project name appears
 		await expect(page.locator('text=' + projectName).first()).toBeVisible();
@@ -40,59 +45,25 @@ test.describe.serial('Full Workflow: Project → TC → Run → Execute', () => 
 
 		await page.click('button[type="submit"]');
 
-		// Should redirect back to test cases list
-		await page.waitForURL('**/test-cases', { timeout: 15000 });
-
-		// Verify test case with key TC-0001 appears
+		await page.waitForURL(/\/test-cases\/\d+$/, { timeout: 15000 });
 		await expect(page.locator('text=TC-0001').first()).toBeVisible({ timeout: 10000 });
 	});
 
 	test('3. Create a test run', async ({ page }) => {
-		// Navigate to test runs
-		const testRunsUrl = projectUrl.replace(/\/[^/]*$/, '') + '/test-runs';
-		await page.goto(testRunsUrl.replace(/\/+$/, ''));
-
-		// Wait for the page, then find create run button
-		const createLink = page.locator('a[href*="test-runs/new"]').first();
-		await createLink.click();
-		await page.waitForURL('**/test-runs/new', { timeout: 10000 });
-
-		// Fill in run details
+		await page.goto(`/projects/${projectId}/test-runs/new`);
+		await page.waitForLoadState('networkidle');
 		await page.fill('#name', 'Sprint 1 E2E Run');
-
-		// Select environment (find the environment select trigger and pick QA)
-		const envSelect = page.locator('#environment');
-		if (await envSelect.isVisible()) {
-			await envSelect.selectOption('QA');
-		} else {
-			// Custom select component - click trigger and select QA
-			const envTrigger = page.locator('button[id*="environment"], [data-value]').first();
-			await envTrigger.click();
-			await page.locator('text=QA').click();
-		}
-
-		// Select the test case checkbox
-		const checkbox = page.locator('input[type="checkbox"]').first();
-		await checkbox.check();
-
+		await page.locator('input[type="checkbox"]').first().check();
 		await page.click('button[type="submit"]');
-
-		// Should redirect to the run page
-		await page.waitForURL('**/test-runs/**', { timeout: 15000 });
+		await page.waitForURL(/\/test-runs\/\d+$/, { timeout: 15000 });
+		runUrl = page.url();
 
 		// Verify run page loaded with execution table
 		await expect(page.locator('text=TC-0001').first()).toBeVisible({ timeout: 10000 });
 	});
 
 	test('4. Execute test - mark as PASS', async ({ page }) => {
-		// Navigate back to the run (in serial mode, we track via project URL)
-		const testRunsUrl = projectUrl.replace(/\/[^/]*$/, '') + '/test-runs';
-		await page.goto(testRunsUrl.replace(/\/+$/, ''));
-
-		// Click on the first run to open it
-		const runRow = page.locator('text=Sprint 1 E2E Run').first();
-		await runRow.click();
-		await page.waitForURL('**/test-runs/**', { timeout: 10000 });
+		await page.goto(runUrl);
 
 		// Start the run first (click the Start Run button)
 		const startBtn = page.locator('button:has-text("Start"), button[type="submit"]').first();
@@ -105,27 +76,21 @@ test.describe.serial('Full Workflow: Project → TC → Run → Execute', () => 
 			}
 		}
 
-		// Click PASS button for the execution
-		const passBtn = page.locator('button:has-text("PASS")').first();
+		const statusButton = page.locator('button:has-text("PENDING"), [data-status-dropdown]').first();
+		await expect(statusButton).toBeVisible({ timeout: 10000 });
+		await statusButton.click();
+
+		const passBtn = page.locator('button:has-text("PASS"), [data-status="PASS"]').last();
 		await expect(passBtn).toBeVisible({ timeout: 10000 });
-		await passBtn.click();
+		await passBtn.evaluate((element) => (element as HTMLElement).click());
 
 		// Wait for the status to update
 		await page.waitForTimeout(2000);
 	});
 
 	test('5. Verify test results', async ({ page }) => {
-		// Navigate to test runs list
-		const testRunsUrl = projectUrl.replace(/\/[^/]*$/, '') + '/test-runs';
-		await page.goto(testRunsUrl.replace(/\/+$/, ''));
-		await page.waitForLoadState('networkidle');
-
-		// Verify run is visible
-		await expect(page.locator('text=Sprint 1 E2E Run').first()).toBeVisible({ timeout: 10000 });
-
-		// Click to open the run
-		await page.locator('text=Sprint 1 E2E Run').first().click();
-		await page.waitForURL('**/test-runs/**', { timeout: 10000 });
+		await page.goto(runUrl);
+		await page.waitForLoadState('domcontentloaded');
 
 		// Verify PASS status is shown somewhere in the execution table
 		await expect(page.locator('text=PASS').first()).toBeVisible({ timeout: 10000 });

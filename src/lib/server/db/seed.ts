@@ -7,7 +7,8 @@ import { hashPassword, generateRandomString } from 'better-auth/crypto';
 
 /**
  * Seeds the initial admin account if no users exist.
- * Credentials default to admin@admin.local / admin1234 but can be overridden via env vars.
+ * Development credentials default to admin@admin.local / admin1234.
+ * Production must provide ADMIN_PASSWORD explicitly.
  */
 export async function seedAdminUser() {
 	const [{ value }] = await db.select({ value: count() }).from(user);
@@ -16,6 +17,16 @@ export async function seedAdminUser() {
 	const email = env.ADMIN_EMAIL || 'admin@admin.local';
 	const password = env.ADMIN_PASSWORD || 'admin1234';
 	const name = env.ADMIN_NAME || 'admin';
+	const isDefaultPassword = password === 'admin1234';
+
+	if (process.env.NODE_ENV === 'production') {
+		if (!env.ADMIN_PASSWORD || isDefaultPassword) {
+			throw new Error('ADMIN_PASSWORD must be set for production admin seeding');
+		}
+		if (password.length < 12) {
+			throw new Error('ADMIN_PASSWORD must be at least 12 characters in production');
+		}
+	}
 
 	const userId = generateRandomString(32);
 	const accountId = generateRandomString(32);
@@ -42,11 +53,10 @@ export async function seedAdminUser() {
 		updatedAt: now
 	});
 
-	const isDefault = !password || password === 'admin1234';
 	logger.info('='.repeat(50));
 	logger.info('  Admin account created');
 	logger.info(`  Email:    ${email}`);
-	if (isDefault) {
+	if (isDefaultPassword) {
 		logger.warn('  Using default password - change it immediately or set ADMIN_PASSWORD env var');
 	}
 	logger.info('='.repeat(50));

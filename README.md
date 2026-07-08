@@ -82,6 +82,7 @@ pnpm dev
 | `DATABASE_URL` | PostgreSQL connection string | `postgres://root:mysecretpassword@localhost:5432/local` |
 | `ORIGIN` | Application base URL | `http://localhost:5173` |
 | `BETTER_AUTH_SECRET` | Auth secret (32+ characters recommended) | Random string |
+| `ADMIN_PASSWORD` | Initial admin password; required before first production startup | Random string |
 
 ### Scripts
 

@@ -48,7 +48,6 @@ import type { Column } from 'drizzle-orm';
 import type { AnyPgTable } from 'drizzle-orm/pg-core';
 
 // Cast the mocked db for use with test helpers
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockDb = db as any;
 
 const fakeTable = {} as AnyPgTable;

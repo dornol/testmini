@@ -18,7 +18,9 @@
 	const apiBase = $derived(`/api/projects/${projectId}/exploratory-sessions/${sessionId}`);
 
 	// Session state -- use $state with $effect sync for optimistic updates
+	// svelte-ignore state_referenced_locally
 	let session: typeof data.session = $state(data.session);
+	// svelte-ignore state_referenced_locally
 	let notes: typeof data.notes = $state(data.notes);
 
 	// Timer state
@@ -188,15 +190,22 @@
 	async function completeSession() {
 		completing = true;
 		try {
-			const totalPause = pausedAt !== null
-				? accumulatedPause + Math.floor((Date.now() - pausedAt) / 1000)
-				: accumulatedPause;
+			const totalPause =
+				pausedAt !== null
+					? accumulatedPause + Math.floor((Date.now() - pausedAt) / 1000)
+					: accumulatedPause;
 			await apiPatch(apiBase, {
 				action: 'complete',
 				summary: completeSummary.trim() || undefined,
 				pausedDuration: totalPause
 			});
-			session = { ...session, status: 'COMPLETED', completedAt: new Date(), summary: completeSummary.trim() || null, pausedDuration: totalPause };
+			session = {
+				...session,
+				status: 'COMPLETED',
+				completedAt: new Date(),
+				summary: completeSummary.trim() || null,
+				pausedDuration: totalPause
+			};
 			showCompleteDialog = false;
 			stopTimer();
 			toast.success(m.exploratory_completed());
@@ -220,10 +229,15 @@
 				formData.set('screenshot', screenshotFile);
 			}
 
-			const created = await apiFetch<{ id: number; sessionId: number; content: string; noteType: string; timestamp: number; screenshotPath: string | null; createdAt: string }>(
-				`${apiBase}/notes`,
-				{ method: 'POST', body: formData }
-			);
+			const created = await apiFetch<{
+				id: number;
+				sessionId: number;
+				content: string;
+				noteType: string;
+				timestamp: number;
+				screenshotPath: string | null;
+				createdAt: string;
+			}>(`${apiBase}/notes`, { method: 'POST', body: formData });
 
 			notes = [...notes, { ...created, createdAt: new Date(created.createdAt) }] as typeof notes;
 			noteContent = '';
@@ -275,7 +289,8 @@
 			<a
 				href="/projects/{projectId}/exploratory"
 				class="text-muted-foreground hover:text-foreground text-sm"
-			>&larr; {m.common_back_to({ target: m.exploratory_title() })}</a>
+				>&larr; {m.common_back_to({ target: m.exploratory_title() })}</a
+			>
 			<h2 class="mt-1 text-lg font-semibold">{session.title}</h2>
 			<div class="mt-1 flex items-center gap-2">
 				<Badge variant={statusVariant(session.status)}>{statusLabel(session.status)}</Badge>
@@ -304,10 +319,14 @@
 		<div class="text-3xl font-mono font-bold tracking-wider">{timerDisplay}</div>
 		{#if session.status === 'ACTIVE'}
 			<Button variant="secondary" size="sm" onclick={pauseSession}>{m.exploratory_pause()}</Button>
-			<Button variant="default" size="sm" onclick={() => (showCompleteDialog = true)}>{m.exploratory_complete()}</Button>
+			<Button variant="default" size="sm" onclick={() => (showCompleteDialog = true)}
+				>{m.exploratory_complete()}</Button
+			>
 		{:else if session.status === 'PAUSED'}
 			<Button variant="default" size="sm" onclick={resumeSession}>{m.exploratory_resume()}</Button>
-			<Button variant="outline" size="sm" onclick={() => (showCompleteDialog = true)}>{m.exploratory_complete()}</Button>
+			<Button variant="outline" size="sm" onclick={() => (showCompleteDialog = true)}
+				>{m.exploratory_complete()}</Button
+			>
 		{/if}
 	</div>
 
@@ -323,19 +342,15 @@
 	{#if session.status !== 'COMPLETED'}
 		<div class="border rounded-lg p-4 space-y-3">
 			<h3 class="font-medium">{m.exploratory_add_note()}</h3>
-			<Textarea
-				bind:value={noteContent}
-				placeholder={m.exploratory_note_placeholder()}
-				rows={2}
-			/>
+			<Textarea bind:value={noteContent} placeholder={m.exploratory_note_placeholder()} rows={2} />
 			<div class="flex items-center gap-3 flex-wrap">
 				<div class="flex gap-1">
 					{#each ['NOTE', 'BUG', 'QUESTION', 'IDEA'] as type (type)}
 						<Button
 							variant={noteType === type ? 'default' : 'outline'}
 							size="sm"
-							onclick={() => (noteType = type)}
-						>{noteTypeLabel(type)}</Button>
+							onclick={() => (noteType = type)}>{noteTypeLabel(type)}</Button
+						>
 					{/each}
 				</div>
 				<input
@@ -345,11 +360,9 @@
 					onchange={handleFileChange}
 					class="text-sm"
 				/>
-				<Button
-					size="sm"
-					onclick={addNote}
-					disabled={submittingNote || !noteContent.trim()}
-				>{submittingNote ? m.common_saving() : m.exploratory_add_note_btn()}</Button>
+				<Button size="sm" onclick={addNote} disabled={submittingNote || !noteContent.trim()}
+					>{submittingNote ? m.common_saving() : m.exploratory_add_note_btn()}</Button
+				>
 			</div>
 		</div>
 	{/if}
@@ -364,8 +377,11 @@
 				{#each notes as note (note.id)}
 					<div class="border rounded-md p-3 flex gap-3">
 						<div class="flex-shrink-0 flex flex-col items-center gap-1">
-							<Badge variant="outline" class="font-mono text-xs">{formatTime(note.timestamp)}</Badge>
-							<Badge variant={noteTypeVariant(note.noteType)} class="text-xs">{noteTypeLabel(note.noteType)}</Badge>
+							<Badge variant="outline" class="font-mono text-xs">{formatTime(note.timestamp)}</Badge
+							>
+							<Badge variant={noteTypeVariant(note.noteType)} class="text-xs"
+								>{noteTypeLabel(note.noteType)}</Badge
+							>
 						</div>
 						<div class="flex-1 min-w-0">
 							<p class="text-sm whitespace-pre-wrap">{note.content}</p>
@@ -389,8 +405,8 @@
 								variant="ghost"
 								size="sm"
 								class="flex-shrink-0 text-muted-foreground hover:text-destructive"
-								onclick={() => deleteNote(note.id)}
-							>&times;</Button>
+								onclick={() => deleteNote(note.id)}>&times;</Button
+							>
 						{/if}
 					</div>
 				{/each}
@@ -408,10 +424,16 @@
 		</Dialog.Header>
 		<div>
 			<Label>{m.exploratory_summary()}</Label>
-			<Textarea bind:value={completeSummary} placeholder={m.exploratory_summary_placeholder()} rows={4} />
+			<Textarea
+				bind:value={completeSummary}
+				placeholder={m.exploratory_summary_placeholder()}
+				rows={4}
+			/>
 		</div>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (showCompleteDialog = false)}>{m.common_cancel()}</Button>
+			<Button variant="outline" onclick={() => (showCompleteDialog = false)}
+				>{m.common_cancel()}</Button
+			>
 			<Button onclick={completeSession} disabled={completing}>
 				{completing ? m.common_saving() : m.exploratory_complete()}
 			</Button>

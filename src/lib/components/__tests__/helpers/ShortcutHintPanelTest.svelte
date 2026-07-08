@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { setContext } from 'svelte';
-	import { SHORTCUTS_CONTEXT_KEY, type ShortcutsContext, type ShortcutDefinition, ShortcutManager } from '$lib/shortcuts';
+	import {
+		SHORTCUTS_CONTEXT_KEY,
+		type ShortcutsContext,
+		type ShortcutDefinition,
+		ShortcutManager
+	} from '$lib/shortcuts';
 	import ShortcutHintPanel from '../../ShortcutHintPanel.svelte';
 
 	interface Props {
@@ -14,6 +19,7 @@
 		register(combo: string, definition: ShortcutDefinition) {
 			return manager.register(combo, definition);
 		},
+		// svelte-ignore state_referenced_locally
 		manager
 	};
 

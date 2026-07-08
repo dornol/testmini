@@ -20,11 +20,27 @@
 	import { apiFetch, apiPut, apiDelete, apiPost } from '$lib/api-client';
 	import { TAG_PALETTE } from '$lib/constants';
 
-	let { projectId, canEdit, canDelete, projectPriorities, customFieldDefs, currentUserId, userRole, hasIssueTracker, onchange }: {
+	let {
+		projectId,
+		canEdit,
+		canDelete,
+		projectPriorities,
+		customFieldDefs,
+		currentUserId,
+		userRole,
+		hasIssueTracker,
+		onchange
+	}: {
 		projectId: number;
 		canEdit: boolean;
 		canDelete: boolean;
-		projectPriorities: { id: number; name: string; color: string; position: number; isDefault: boolean }[];
+		projectPriorities: {
+			id: number;
+			name: string;
+			color: string;
+			position: number;
+			isDefault: boolean;
+		}[];
 		customFieldDefs: { id: number; name: string; fieldType: string; options: string[] | null }[];
 		currentUserId: string;
 		userRole: string;
@@ -149,10 +165,14 @@
 
 	function getApprovalBadgeClass(status: string): string {
 		switch (status) {
-			case 'IN_REVIEW': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-			case 'APPROVED': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-			case 'REJECTED': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-			default: return 'bg-muted text-muted-foreground';
+			case 'IN_REVIEW':
+				return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+			case 'APPROVED':
+				return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+			case 'REJECTED':
+				return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+			default:
+				return 'bg-muted text-muted-foreground';
 		}
 	}
 
@@ -423,7 +443,10 @@
 	function resumeCooldownTimer(expiry: number) {
 		clearInterval(cooldownTimer);
 		issueCreateCooldown = Math.ceil((expiry - Date.now()) / 1000);
-		if (issueCreateCooldown <= 0) { issueCreateCooldown = 0; return; }
+		if (issueCreateCooldown <= 0) {
+			issueCreateCooldown = 0;
+			return;
+		}
 		cooldownTimer = setInterval(() => {
 			issueCreateCooldown = Math.ceil((expiry - Date.now()) / 1000);
 			if (issueCreateCooldown <= 0) {
@@ -498,10 +521,10 @@
 		if (linkingIssue || !newIssueUrl.trim() || !selectedTcId) return;
 		linkingIssue = true;
 		try {
-			const created = await apiPost<IssueLinkRecord>(
-				`/api/projects/${projectId}/issue-links`,
-				{ testCaseId: selectedTcId, externalUrl: newIssueUrl.trim() }
-			);
+			const created = await apiPost<IssueLinkRecord>(`/api/projects/${projectId}/issue-links`, {
+				testCaseId: selectedTcId,
+				externalUrl: newIssueUrl.trim()
+			});
 			issueLinks = [created, ...issueLinks];
 			newIssueUrl = '';
 			showLinkForm = false;
@@ -626,7 +649,13 @@
 
 	function formatDate(dateStr: string): string {
 		const d = new Date(dateStr);
-		return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+		return d.toLocaleDateString(undefined, {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
 	}
 
 	function handleSheetClose(isOpen: boolean) {
@@ -647,7 +676,13 @@
 </script>
 
 <Sheet.Root bind:open={sheetOpen} onOpenChange={handleSheetClose}>
-	<Sheet.Content side="right" class="!max-w-none overflow-y-auto p-0 data-[state=open]:duration-300 data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-end data-[state=closed]:slide-out-to-end {isResizing ? 'select-none' : ''}" style="width: {sheetWidth}px !important">
+	<Sheet.Content
+		side="right"
+		class="!max-w-none overflow-y-auto p-0 data-[state=open]:duration-300 data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-end data-[state=closed]:slide-out-to-end {isResizing
+			? 'select-none'
+			: ''}"
+		style="width: {sheetWidth}px !important"
+	>
 		<!-- Resize handle -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
@@ -679,13 +714,19 @@
 				<div class="flex items-start justify-between gap-4 pr-8">
 					<div class="space-y-1.5">
 						<div class="flex items-center gap-2.5">
-							<span class="bg-muted font-mono text-xs font-semibold px-2 py-0.5 rounded">{tc.key}</span>
+							<span class="bg-muted font-mono text-xs font-semibold px-2 py-0.5 rounded"
+								>{tc.key}</span
+							>
 							{#if version}
 								<PriorityBadge name={version.priority} color={getPriorityColor(version.priority)} />
 							{/if}
 							<span class="text-muted-foreground text-xs">v{version?.versionNo ?? 0}</span>
 							{#if tc.approvalStatus}
-								<span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium {getApprovalBadgeClass(tc.approvalStatus)}">
+								<span
+									class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium {getApprovalBadgeClass(
+										tc.approvalStatus
+									)}"
+								>
 									{tc.approvalStatus}
 								</span>
 							{/if}
@@ -703,32 +744,117 @@
 					</div>
 				{/if}
 				<div class="flex items-center gap-2 mt-4">
-					<a href="/projects/{projectId}/test-cases/{tc.id}" class="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md h-7 text-xs px-3">
-						<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+					<a
+						href="/projects/{projectId}/test-cases/{tc.id}"
+						class="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md h-7 text-xs px-3"
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="12"
+							height="12"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="mr-1"
+							><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path
+								d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
+							/></svg
+						>
 						{m.tc_detail_open_full_page()}
 					</a>
 					{#if canEdit && !detailEditing}
 						<Button size="sm" class="h-7 text-xs" onclick={startDetailEdit}>
-							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="mr-1"
+								><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path
+									d="m15 5 4 4"
+								/></svg
+							>
 							{m.common_edit()}
 						</Button>
 					{/if}
 					{#if canEdit && !detailEditing}
 						<Button variant="outline" size="sm" class="h-7 text-xs" onclick={cloneFromSheet}>
-							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="mr-1"
+								><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path
+									d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
+								/></svg
+							>
 							{m.tc_clone()}
 						</Button>
 					{/if}
-					<Button variant="outline" size="sm" class="h-7 text-xs" onclick={() => (showVersions = !showVersions)}>
-						<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+					<Button
+						variant="outline"
+						size="sm"
+						class="h-7 text-xs"
+						onclick={() => (showVersions = !showVersions)}
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="12"
+							height="12"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="mr-1"><path d="M12 8v4l3 3" /><circle cx="12" cy="12" r="10" /></svg
+						>
 						{showVersions ? m.tc_detail_hide_history() : m.tc_detail_version_history()}
 					</Button>
 					{#if canDelete && !detailEditing}
 						<AlertDialog.Root bind:open={detailDeleteOpen}>
 							<AlertDialog.Trigger>
 								{#snippet child({ props })}
-									<Button variant="ghost" size="sm" class="h-7 text-xs text-destructive hover:text-destructive" {...props}>
-										<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+									<Button
+										variant="ghost"
+										size="sm"
+										class="h-7 text-xs text-destructive hover:text-destructive"
+										{...props}
+									>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="12"
+											height="12"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											class="mr-1"
+											><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path
+												d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"
+											/><line x1="10" x2="10" y1="11" y2="17" /><line
+												x1="14"
+												x2="14"
+												y1="11"
+												y2="17"
+											/></svg
+										>
 										{m.common_delete()}
 									</Button>
 								{/snippet}
@@ -744,7 +870,9 @@
 									</AlertDialog.Header>
 									<AlertDialog.Footer>
 										<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-										<Button variant="destructive" onclick={deleteFromSheet}>{m.common_delete()}</Button>
+										<Button variant="destructive" onclick={deleteFromSheet}
+											>{m.common_delete()}</Button
+										>
 									</AlertDialog.Footer>
 								</AlertDialog.Content>
 							</AlertDialog.Portal>
@@ -755,15 +883,39 @@
 					<div class="mt-3 space-y-1.5">
 						<!-- Tags row -->
 						<div class="flex items-center gap-1.5">
-							<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground shrink-0"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="11"
+								height="11"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="text-muted-foreground shrink-0"
+								><path
+									d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"
+								/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor" /></svg
+							>
 							<div class="flex-1 min-w-0 overflow-x-auto detail-thin-scroll">
 								<div class="flex items-center gap-1 w-max">
 									{#each detailData.assignedTags as t (t.id)}
 										{#if canEdit}
-											<span class="inline-flex items-center gap-1 rounded-full border px-1.5 text-[11px] font-medium hover:bg-muted/50 transition-colors leading-5 whitespace-nowrap">
-												<span class="h-1.5 w-1.5 rounded-full shrink-0" style="background-color: {t.color}"></span>
+											<span
+												class="inline-flex items-center gap-1 rounded-full border px-1.5 text-[11px] font-medium hover:bg-muted/50 transition-colors leading-5 whitespace-nowrap"
+											>
+												<span
+													class="h-1.5 w-1.5 rounded-full shrink-0"
+													style="background-color: {t.color}"
+												></span>
 												{t.name}
-												<button type="button" class="text-muted-foreground hover:text-destructive transition-colors" aria-label={m.aria_remove()} onclick={() => removeTag(t.id)}>&times;</button>
+												<button
+													type="button"
+													class="text-muted-foreground hover:text-destructive transition-colors"
+													aria-label={m.aria_remove()}
+													onclick={() => removeTag(t.id)}>&times;</button
+												>
 											</span>
 										{:else}
 											<TagBadge name={t.name} color={t.color} />
@@ -774,15 +926,44 @@
 											(pt) => !detailData!.assignedTags.some((at) => at.id === pt.id)
 										)}
 										{@const filteredUnassigned = tagSearchInput
-											? unassignedTags.filter((t) => t.name.toLowerCase().includes(tagSearchInput.toLowerCase()))
+											? unassignedTags.filter((t) =>
+													t.name.toLowerCase().includes(tagSearchInput.toLowerCase())
+												)
 											: unassignedTags}
-										{@const exactMatch = tagSearchInput && detailData.projectTags.some((t) => t.name.toLowerCase() === tagSearchInput.toLowerCase().trim())}
+										{@const exactMatch =
+											tagSearchInput &&
+											detailData.projectTags.some(
+												(t) => t.name.toLowerCase() === tagSearchInput.toLowerCase().trim()
+											)}
 										{@const canCreateNew = tagSearchInput.trim().length > 0 && !exactMatch}
-										<Popover.Root bind:open={showTagCreator} onOpenChange={(open) => { if (!open) tagSearchInput = ''; }}>
+										<Popover.Root
+											bind:open={showTagCreator}
+											onOpenChange={(open) => {
+												if (!open) tagSearchInput = '';
+											}}
+										>
 											<Popover.Trigger>
 												{#snippet child({ props })}
-													<button type="button" class="text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-0.5 shrink-0" title={m.tag_assign()} {...props}>
-														<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+													<button
+														type="button"
+														class="text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-0.5 shrink-0"
+														title={m.tag_assign()}
+														{...props}
+													>
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															width="12"
+															height="12"
+															viewBox="0 0 24 24"
+															fill="none"
+															stroke="currentColor"
+															stroke-width="2"
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															><circle cx="12" cy="12" r="10" /><path d="M8 12h8" /><path
+																d="M12 8v8"
+															/></svg
+														>
 													</button>
 												{/snippet}
 											</Popover.Trigger>
@@ -798,9 +979,16 @@
 														<button
 															type="button"
 															class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
-															onclick={() => { assignTag(t.id); tagSearchInput = ''; showTagCreator = false; }}
+															onclick={() => {
+																assignTag(t.id);
+																tagSearchInput = '';
+																showTagCreator = false;
+															}}
 														>
-															<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {t.color}"></span>
+															<span
+																class="h-2 w-2 rounded-full shrink-0"
+																style="background-color: {t.color}"
+															></span>
 															{t.name}
 														</button>
 													{/each}
@@ -811,7 +999,9 @@
 															{#each TAG_PALETTE as color (color)}
 																<button
 																	type="button"
-																	class="h-4 w-4 rounded-full border {newTagColor === color ? 'border-foreground scale-110' : 'border-transparent'}"
+																	class="h-4 w-4 rounded-full border {newTagColor === color
+																		? 'border-foreground scale-110'
+																		: 'border-transparent'}"
 																	style="background-color: {color}"
 																	aria-label={m.aria_select_color({ color })}
 																	onclick={() => (newTagColor = color)}
@@ -823,13 +1013,18 @@
 															class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer font-medium"
 															onclick={() => createAndAssignTag(tagSearchInput, newTagColor)}
 														>
-															<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {newTagColor}"></span>
+															<span
+																class="h-2 w-2 rounded-full shrink-0"
+																style="background-color: {newTagColor}"
+															></span>
 															{m.tag_create_inline({ name: tagSearchInput.trim() })}
 														</button>
 													</div>
 												{/if}
 												{#if filteredUnassigned.length === 0 && !canCreateNew}
-													<p class="text-xs text-muted-foreground text-center py-2">{m.common_no_results()}</p>
+													<p class="text-xs text-muted-foreground text-center py-2">
+														{m.common_no_results()}
+													</p>
 												{/if}
 											</Popover.Content>
 										</Popover.Root>
@@ -839,14 +1034,37 @@
 						</div>
 						<!-- Assignees row -->
 						<div class="flex items-center gap-1.5">
-							<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground shrink-0"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="11"
+								height="11"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="text-muted-foreground shrink-0"
+								><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle
+									cx="12"
+									cy="7"
+									r="4"
+								/></svg
+							>
 							<div class="flex-1 min-w-0 overflow-x-auto detail-thin-scroll">
 								<div class="flex items-center gap-1 w-max">
 									{#each detailData.assignedAssignees as a (a.userId)}
 										{#if canEdit}
-											<span class="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1.5 text-[11px] font-medium hover:bg-muted transition-colors leading-5 whitespace-nowrap">
+											<span
+												class="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1.5 text-[11px] font-medium hover:bg-muted transition-colors leading-5 whitespace-nowrap"
+											>
 												{a.userName}
-												<button type="button" class="text-muted-foreground hover:text-destructive transition-colors" aria-label={m.aria_remove()} onclick={() => removeAssignee(a.userId)}>&times;</button>
+												<button
+													type="button"
+													class="text-muted-foreground hover:text-destructive transition-colors"
+													aria-label={m.aria_remove()}
+													onclick={() => removeAssignee(a.userId)}>&times;</button
+												>
 											</span>
 										{:else}
 											<Badge variant="outline" class="text-xs">{a.userName}</Badge>
@@ -860,14 +1078,35 @@
 											<DropdownMenu.Root>
 												<DropdownMenu.Trigger>
 													{#snippet child({ props })}
-														<button type="button" class="text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-0.5 shrink-0" title={m.assignee_assign()} {...props}>
-															<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+														<button
+															type="button"
+															class="text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-0.5 shrink-0"
+															title={m.assignee_assign()}
+															{...props}
+														>
+															<svg
+																xmlns="http://www.w3.org/2000/svg"
+																width="12"
+																height="12"
+																viewBox="0 0 24 24"
+																fill="none"
+																stroke="currentColor"
+																stroke-width="2"
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																><circle cx="12" cy="12" r="10" /><path d="M8 12h8" /><path
+																	d="M12 8v8"
+																/></svg
+															>
 														</button>
 													{/snippet}
 												</DropdownMenu.Trigger>
 												<DropdownMenu.Content align="start" class="min-w-[140px]">
 													{#each unassignedMembers as member (member.userId)}
-														<DropdownMenu.Item onclick={() => assignAssignee(member.userId)} class="text-xs">
+														<DropdownMenu.Item
+															onclick={() => assignAssignee(member.userId)}
+															class="text-xs"
+														>
 															{member.userName}
 														</DropdownMenu.Item>
 													{/each}
@@ -888,7 +1127,9 @@
 					<!-- Edit Mode -->
 					<div class="space-y-5">
 						<div class="space-y-1.5">
-							<Label for="detail-title" class="text-xs font-medium text-muted-foreground">{m.tc_title_label()}</Label>
+							<Label for="detail-title" class="text-xs font-medium text-muted-foreground"
+								>{m.tc_title_label()}</Label
+							>
 							<Input id="detail-title" bind:value={editTitle} class="h-9" />
 						</div>
 
@@ -897,17 +1138,37 @@
 							<DropdownMenu.Root>
 								<DropdownMenu.Trigger>
 									{#snippet child({ props })}
-										<Button variant="outline" class="h-9 w-full justify-between text-sm font-normal" {...props}>
+										<Button
+											variant="outline"
+											class="h-9 w-full justify-between text-sm font-normal"
+											{...props}
+										>
 											<span class="flex items-center gap-2">
 												<PriorityBadge name={editPriority} color={getPriorityColor(editPriority)} />
 											</span>
-											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><polyline points="6 9 12 15 18 9"/></svg>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												width="12"
+												height="12"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												class="text-muted-foreground"><polyline points="6 9 12 15 18 9" /></svg
+											>
 										</Button>
 									{/snippet}
 								</DropdownMenu.Trigger>
 								<DropdownMenu.Content class="min-w-[160px]">
 									{#each projectPriorities as p (p.id)}
-										<DropdownMenu.Item onclick={() => { editPriority = p.name; }} class="text-sm">
+										<DropdownMenu.Item
+											onclick={() => {
+												editPriority = p.name;
+											}}
+											class="text-sm"
+										>
 											<PriorityBadge name={p.name} color={p.color} />
 										</DropdownMenu.Item>
 									{/each}
@@ -916,25 +1177,43 @@
 						</div>
 
 						<div class="space-y-1.5">
-							<Label for="detail-precondition" class="text-xs font-medium text-muted-foreground">{m.tc_precondition()}</Label>
-							<Textarea id="detail-precondition" bind:value={editPrecondition} rows={3} class="text-sm" />
+							<Label for="detail-precondition" class="text-xs font-medium text-muted-foreground"
+								>{m.tc_precondition()}</Label
+							>
+							<Textarea
+								id="detail-precondition"
+								bind:value={editPrecondition}
+								rows={3}
+								class="text-sm"
+							/>
 						</div>
 
 						<StepsEditor
 							value={editSteps}
-							onchange={(s) => { editSteps = s; }}
+							onchange={(s) => {
+								editSteps = s;
+							}}
 						/>
 
 						<div class="space-y-1.5">
-							<Label for="detail-expected" class="text-xs font-medium text-muted-foreground">{m.tc_expected_result()}</Label>
-							<Textarea id="detail-expected" bind:value={editExpectedResult} rows={3} class="text-sm" />
+							<Label for="detail-expected" class="text-xs font-medium text-muted-foreground"
+								>{m.tc_expected_result()}</Label
+							>
+							<Textarea
+								id="detail-expected"
+								bind:value={editExpectedResult}
+								rows={3}
+								class="text-sm"
+							/>
 						</div>
 
 						<div class="flex gap-2 pt-2 border-t">
 							<Button size="sm" onclick={saveDetailEdit} disabled={editSaving}>
 								{editSaving ? m.common_saving() : m.common_save_changes()}
 							</Button>
-							<Button variant="outline" size="sm" onclick={cancelDetailEdit}>{m.common_cancel()}</Button>
+							<Button variant="outline" size="sm" onclick={cancelDetailEdit}
+								>{m.common_cancel()}</Button
+							>
 						</div>
 					</div>
 				{:else if version}
@@ -943,14 +1222,20 @@
 						<div class="flex">
 							<button
 								type="button"
-								class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab === 'steps' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+								class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab ===
+								'steps'
+									? 'border-primary text-foreground'
+									: 'border-transparent text-muted-foreground hover:text-foreground'}"
 								onclick={() => (contentTab = 'steps')}
 							>
 								{m.tc_detail_steps()}
 							</button>
 							<button
 								type="button"
-								class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab === 'comments' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+								class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab ===
+								'comments'
+									? 'border-primary text-foreground'
+									: 'border-transparent text-muted-foreground hover:text-foreground'}"
 								onclick={() => (contentTab = 'comments')}
 							>
 								{m.comment_title()}
@@ -958,19 +1243,28 @@
 							{#if hasIssueTracker}
 								<button
 									type="button"
-									class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab === 'issues' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+									class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab ===
+									'issues'
+										? 'border-primary text-foreground'
+										: 'border-transparent text-muted-foreground hover:text-foreground'}"
 									onclick={() => (contentTab = 'issues')}
 								>
 									{m.issue_link_title()}
 									{#if issueLinks.length > 0}
-										<span class="ml-1 inline-flex items-center justify-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium leading-none">{issueLinks.length}</span>
+										<span
+											class="ml-1 inline-flex items-center justify-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium leading-none"
+											>{issueLinks.length}</span
+										>
 									{/if}
 								</button>
 							{/if}
 							{#if customFieldDefs.length > 0}
 								<button
 									type="button"
-									class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab === 'customFields' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+									class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab ===
+									'customFields'
+										? 'border-primary text-foreground'
+										: 'border-transparent text-muted-foreground hover:text-foreground'}"
 									onclick={() => (contentTab = 'customFields')}
 								>
 									{m.custom_field_title()}
@@ -1002,8 +1296,28 @@
 							<!-- Action buttons -->
 							<div class="flex gap-2 mb-4">
 								{#if canEdit}
-									<Button variant="outline" size="sm" class="h-7 text-xs" disabled={creatingIssue || issueCreateCooldown > 0} onclick={handleCreateIssue}>
-										<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+									<Button
+										variant="outline"
+										size="sm"
+										class="h-7 text-xs"
+										disabled={creatingIssue || issueCreateCooldown > 0}
+										onclick={handleCreateIssue}
+									>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="12"
+											height="12"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											class="mr-1"
+											><circle cx="12" cy="12" r="10" /><path d="M8 12h8" /><path
+												d="M12 8v8"
+											/></svg
+										>
 										{#if creatingIssue}
 											{m.common_loading()}
 										{:else if issueCreateCooldown > 0}
@@ -1012,21 +1326,63 @@
 											{m.issue_link_create()}
 										{/if}
 									</Button>
-									<Button variant="outline" size="sm" class="h-7 text-xs" onclick={() => (showLinkForm = !showLinkForm)}>
-										<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+									<Button
+										variant="outline"
+										size="sm"
+										class="h-7 text-xs"
+										onclick={() => (showLinkForm = !showLinkForm)}
+									>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="12"
+											height="12"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											class="mr-1"
+											><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path
+												d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+											/></svg
+										>
 										{m.issue_link_add()}
 									</Button>
 								{/if}
 								{#if issueLinks.length > 0}
-									<Button variant="outline" size="sm" class="h-7 text-xs ml-auto" disabled={syncingAll} onclick={syncAllIssues}>
-										<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 {syncingAll ? 'animate-spin' : ''}"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+									<Button
+										variant="outline"
+										size="sm"
+										class="h-7 text-xs ml-auto"
+										disabled={syncingAll}
+										onclick={syncAllIssues}
+									>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="12"
+											height="12"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											class="mr-1 {syncingAll ? 'animate-spin' : ''}"
+											><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path
+												d="M21 3v5h-5"
+											/></svg
+										>
 										{syncingAll ? m.common_loading() : m.common_refresh()}
 									</Button>
 								{/if}
 							</div>
 							{#if showLinkForm}
 								<form
-									onsubmit={(e) => { e.preventDefault(); handleLinkIssue(); }}
+									onsubmit={(e) => {
+										e.preventDefault();
+										handleLinkIssue();
+									}}
 									class="mb-4 flex gap-2"
 								>
 									<Input
@@ -1036,55 +1392,142 @@
 										required
 										class="flex-1 h-8 text-xs"
 									/>
-									<Button type="submit" size="sm" class="h-8 text-xs" disabled={linkingIssue || !newIssueUrl.trim()}>
+									<Button
+										type="submit"
+										size="sm"
+										class="h-8 text-xs"
+										disabled={linkingIssue || !newIssueUrl.trim()}
+									>
 										{linkingIssue ? m.common_loading() : m.issue_link_add()}
 									</Button>
 								</form>
 							{/if}
 							{#if issueLinks.length === 0}
 								<div class="flex flex-col items-center justify-center py-8 text-center">
-									<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground/40 mb-3"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="32"
+										height="32"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="1.5"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										class="text-muted-foreground/40 mb-3"
+										><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path
+											d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+										/></svg
+									>
 									<p class="text-muted-foreground text-sm">{m.issue_link_empty()}</p>
 								</div>
 							{:else}
 								<div class="space-y-2">
 									{#each issueLinks as link (link.id)}
 										{@const isExpanded = expandedLinkId === link.id}
-										<div class="rounded-lg border {isExpanded ? 'border-primary/30' : ''} transition-colors">
+										<div
+											class="rounded-lg border {isExpanded
+												? 'border-primary/30'
+												: ''} transition-colors"
+										>
 											<!-- Issue row header -->
-											<button
-												type="button"
-												class="flex items-center justify-between gap-2 w-full px-3 py-2.5 text-sm hover:bg-muted/30 transition-colors text-left cursor-pointer"
-												onclick={() => toggleIssueDetail(link.id)}
+											<div
+												class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-muted/30 transition-colors"
 											>
-												<div class="min-w-0 flex-1">
-													<div class="flex items-center gap-2 mb-0.5">
-														<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 transition-transform {isExpanded ? 'rotate-90' : ''}"><polyline points="9 18 15 12 9 6"/></svg>
-														{#if link.externalKey}
-															<span class="font-mono text-xs font-medium shrink-0">{link.externalKey}</span>
-														{/if}
-														{#if link.status}
-															<span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium {link.status === 'closed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}">
-																{link.status}
-															</span>
-														{/if}
-														<span class="text-[10px] text-muted-foreground uppercase">{link.provider}</span>
+												<button
+													type="button"
+													class="min-w-0 flex-1 text-left cursor-pointer"
+													aria-expanded={isExpanded}
+													onclick={() => toggleIssueDetail(link.id)}
+												>
+													<div class="min-w-0">
+														<div class="flex items-center gap-2 mb-0.5">
+															<svg
+																xmlns="http://www.w3.org/2000/svg"
+																width="12"
+																height="12"
+																viewBox="0 0 24 24"
+																fill="none"
+																stroke="currentColor"
+																stroke-width="2"
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																class="shrink-0 transition-transform {isExpanded
+																	? 'rotate-90'
+																	: ''}"><polyline points="9 18 15 12 9 6" /></svg
+															>
+															{#if link.externalKey}
+																<span class="font-mono text-xs font-medium shrink-0"
+																	>{link.externalKey}</span
+																>
+															{/if}
+															{#if link.status}
+																<span
+																	class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium {link.status ===
+																	'closed'
+																		? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+																		: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}"
+																>
+																	{link.status}
+																</span>
+															{/if}
+															<span class="text-[10px] text-muted-foreground uppercase"
+																>{link.provider}</span
+															>
+														</div>
+														<span class="text-xs truncate block pl-5">
+															{link.title || link.externalUrl}
+														</span>
 													</div>
-													<span class="text-xs truncate block pl-5">
-														{link.title || link.externalUrl}
-													</span>
-												</div>
-												<div class="flex items-center gap-1 shrink-0" onclick={(e) => e.stopPropagation()}>
-													<a href={link.externalUrl} target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-primary p-1" title={m.aria_open_new_tab()}>
-														<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+												</button>
+												<div class="flex items-center gap-1 shrink-0">
+													<a
+														href={link.externalUrl}
+														target="_blank"
+														rel="noopener noreferrer"
+														class="text-muted-foreground hover:text-primary p-1"
+														title={m.aria_open_new_tab()}
+													>
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															width="14"
+															height="14"
+															viewBox="0 0 24 24"
+															fill="none"
+															stroke="currentColor"
+															stroke-width="2"
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path
+																d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
+															/></svg
+														>
 													</a>
 													{#if canEdit}
-														<button type="button" class="text-muted-foreground hover:text-destructive p-1" onclick={() => handleRemoveIssueLink(link.id)}>
-															<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+														<button
+															type="button"
+															class="text-muted-foreground hover:text-destructive p-1"
+															aria-label={m.aria_remove()}
+															onclick={() => handleRemoveIssueLink(link.id)}
+														>
+															<svg
+																xmlns="http://www.w3.org/2000/svg"
+																width="14"
+																height="14"
+																viewBox="0 0 24 24"
+																fill="none"
+																stroke="currentColor"
+																stroke-width="2"
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																><path d="M3 6h18" /><path
+																	d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"
+																/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg
+															>
 														</button>
 													{/if}
 												</div>
-											</button>
+											</div>
 
 											<!-- Expanded detail -->
 											{#if isExpanded}
@@ -1099,23 +1542,40 @@
 														<!-- Issue header info -->
 														<div class="space-y-3">
 															<div class="flex items-start justify-between gap-2">
-																<h5 class="text-sm font-semibold leading-tight">{issueDetail.title}</h5>
-																<span class="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {issueDetail.state === 'closed' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}">
+																<h5 class="text-sm font-semibold leading-tight">
+																	{issueDetail.title}
+																</h5>
+																<span
+																	class="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {issueDetail.state ===
+																	'closed'
+																		? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+																		: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}"
+																>
 																	{issueDetail.state}
 																</span>
 															</div>
 
 															<!-- Meta -->
-															<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+															<div
+																class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
+															>
 																<span class="flex items-center gap-1">
 																	{#if issueDetail.authorAvatar}
-																		<img src={issueDetail.authorAvatar} alt="" class="h-4 w-4 rounded-full" />
+																		<img
+																			src={issueDetail.authorAvatar}
+																			alt=""
+																			class="h-4 w-4 rounded-full"
+																		/>
 																	{/if}
 																	{issueDetail.author}
 																</span>
 																<span>{formatDate(issueDetail.createdAt)}</span>
 																{#if issueDetail.closedAt}
-																	<span>{m.issue_closed({ date: formatDate(issueDetail.closedAt) })}</span>
+																	<span
+																		>{m.issue_closed({
+																			date: formatDate(issueDetail.closedAt)
+																		})}</span
+																	>
 																{/if}
 															</div>
 
@@ -1135,7 +1595,9 @@
 
 															<!-- Body -->
 															{#if issueDetail.body}
-																<div class="rounded bg-muted/40 p-3 text-xs whitespace-pre-wrap break-words leading-relaxed">
+																<div
+																	class="rounded bg-muted/40 p-3 text-xs whitespace-pre-wrap break-words leading-relaxed"
+																>
 																	{issueDetail.body}
 																</div>
 															{/if}
@@ -1143,33 +1605,52 @@
 															<!-- Comments -->
 															{#if issueDetail.comments.length > 0}
 																<div class="space-y-2 pt-2">
-																	<h6 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+																	<h6
+																		class="text-xs font-semibold text-muted-foreground uppercase tracking-wide"
+																	>
 																		{m.issue_comments({ count: issueDetail.comments.length })}
 																	</h6>
 																	<div class="space-y-2">
 																		{#each issueDetail.comments as comment (comment.id)}
 																			<div class="rounded border p-2.5 text-xs">
-																				<div class="flex items-center gap-2 mb-1.5 text-muted-foreground">
+																				<div
+																					class="flex items-center gap-2 mb-1.5 text-muted-foreground"
+																				>
 																					{#if comment.authorAvatar}
-																						<img src={comment.authorAvatar} alt="" class="h-4 w-4 rounded-full" />
+																						<img
+																							src={comment.authorAvatar}
+																							alt=""
+																							class="h-4 w-4 rounded-full"
+																						/>
 																					{/if}
-																					<span class="font-medium text-foreground">{comment.author}</span>
+																					<span class="font-medium text-foreground"
+																						>{comment.author}</span
+																					>
 																					<span>{formatDate(comment.createdAt)}</span>
 																				</div>
-																				<div class="whitespace-pre-wrap break-words leading-relaxed">{comment.body}</div>
+																				<div
+																					class="whitespace-pre-wrap break-words leading-relaxed"
+																				>
+																					{comment.body}
+																				</div>
 																			</div>
 																		{/each}
 																	</div>
 																</div>
 															{:else}
-																<p class="text-xs text-muted-foreground pt-1">{m.issue_no_comments()}</p>
+																<p class="text-xs text-muted-foreground pt-1">
+																	{m.issue_no_comments()}
+																</p>
 															{/if}
 
 															<!-- Add comment form -->
 															{#if canEdit}
 																<div class="pt-3 border-t mt-3">
 																	<form
-																		onsubmit={(e) => { e.preventDefault(); postComment(); }}
+																		onsubmit={(e) => {
+																			e.preventDefault();
+																			postComment();
+																		}}
 																		class="space-y-2"
 																	>
 																		<Textarea
@@ -1181,7 +1662,9 @@
 																		<div class="flex items-center justify-between">
 																			<Button
 																				type="button"
-																				variant={issueDetail.state === 'closed' ? 'outline' : 'destructive'}
+																				variant={issueDetail.state === 'closed'
+																					? 'outline'
+																					: 'destructive'}
 																				size="sm"
 																				class="h-7 text-xs"
 																				disabled={togglingState}
@@ -1195,7 +1678,12 @@
 																					{m.issue_close()}
 																				{/if}
 																			</Button>
-																			<Button type="submit" size="sm" class="h-7 text-xs" disabled={postingComment || !newComment.trim()}>
+																			<Button
+																				type="submit"
+																				size="sm"
+																				class="h-7 text-xs"
+																				disabled={postingComment || !newComment.trim()}
+																			>
 																				{postingComment ? m.common_loading() : m.comment_submit()}
 																			</Button>
 																		</div>
@@ -1204,7 +1692,9 @@
 															{/if}
 														</div>
 													{:else}
-														<p class="text-xs text-muted-foreground py-2">{m.issue_load_failed()}</p>
+														<p class="text-xs text-muted-foreground py-2">
+															{m.issue_load_failed()}
+														</p>
 													{/if}
 												</div>
 											{/if}
@@ -1226,15 +1716,36 @@
 					<div class="border-t pt-4">
 						<div class="flex items-center justify-between mb-3">
 							<div class="flex items-center gap-1.5">
-								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
-								<h4 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{m.tc_detail_version_history()}</h4>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="14"
+									height="14"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="text-muted-foreground"
+									><path d="M12 8v4l3 3" /><circle cx="12" cy="12" r="10" /></svg
+								>
+								<h4 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+									{m.tc_detail_version_history()}
+								</h4>
 							</div>
 							{#if detailData.versions.length >= 2}
 								<div class="flex items-center gap-2">
 									{#if compareSelectedVersions.length < 2}
-										<span class="text-[10px] text-muted-foreground">{m.tc_version_select_hint()}</span>
+										<span class="text-[10px] text-muted-foreground"
+											>{m.tc_version_select_hint()}</span
+										>
 									{/if}
-									<Button size="sm" class="h-6 text-[10px] px-2" disabled={compareSelectedVersions.length !== 2 || diffLoading} onclick={compareVersions}>
+									<Button
+										size="sm"
+										class="h-6 text-[10px] px-2"
+										disabled={compareSelectedVersions.length !== 2 || diffLoading}
+										onclick={compareVersions}
+									>
 										{diffLoading ? m.common_saving() : m.tc_version_compare_btn()}
 									</Button>
 								</div>
@@ -1248,24 +1759,41 @@
 									{@const isSelected = compareSelectedVersions.includes(v.versionNo)}
 									<button
 										type="button"
-										class="w-full text-left rounded-lg border p-3 transition-colors cursor-pointer {isSelected ? 'border-blue-400 bg-blue-50 dark:bg-blue-950/30' : v.id === version?.id ? 'border-primary/50 bg-primary/5' : 'hover:bg-muted/30'}"
+										class="w-full text-left rounded-lg border p-3 transition-colors cursor-pointer {isSelected
+											? 'border-blue-400 bg-blue-50 dark:bg-blue-950/30'
+											: v.id === version?.id
+												? 'border-primary/50 bg-primary/5'
+												: 'hover:bg-muted/30'}"
 										onclick={() => toggleVersionSelect(v.versionNo)}
 									>
 										<div class="flex items-center justify-between">
 											<div class="flex items-center gap-2">
 												{#if detailData.versions.length >= 2}
-													<input type="checkbox" checked={isSelected} class="h-3 w-3 rounded border-gray-300" onclick={(e) => e.stopPropagation()} onchange={() => toggleVersionSelect(v.versionNo)} />
+													<input
+														type="checkbox"
+														checked={isSelected}
+														class="h-3 w-3 rounded border-gray-300"
+														onclick={(e) => e.stopPropagation()}
+														onchange={() => toggleVersionSelect(v.versionNo)}
+													/>
 												{/if}
-												<span class="text-xs font-semibold {v.id === version?.id ? 'text-primary' : ''}">v{v.versionNo}</span>
+												<span
+													class="text-xs font-semibold {v.id === version?.id ? 'text-primary' : ''}"
+													>v{v.versionNo}</span
+												>
 												{#if v.id === version?.id}
-													<span class="text-[10px] bg-primary/10 text-primary rounded px-1.5 py-0.5">latest</span>
+													<span class="text-[10px] bg-primary/10 text-primary rounded px-1.5 py-0.5"
+														>latest</span
+													>
 												{/if}
 											</div>
 											<PriorityBadge name={v.priority} color={getPriorityColor(v.priority)} />
 										</div>
 										<p class="mt-1 text-sm truncate">{v.title}</p>
 										<div class="text-muted-foreground mt-1 text-xs">
-											{v.updatedBy} &middot; {v.createdAt ? new Date(v.createdAt).toLocaleDateString() : ''}
+											{v.updatedBy} &middot; {v.createdAt
+												? new Date(v.createdAt).toLocaleDateString()
+												: ''}
 										</div>
 									</button>
 								{/each}

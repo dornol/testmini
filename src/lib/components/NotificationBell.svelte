@@ -25,7 +25,7 @@
 	let nextCursor = $state<string | null>(null);
 	let hasMore = $state(false);
 	// Tracks prop initially, can be overridden locally (mark-as-read, polling)
-	let unreadCount = $state(initialUnreadCount);
+	let unreadCount = $state(0);
 	$effect(() => {
 		unreadCount = initialUnreadCount;
 	});
@@ -75,10 +75,11 @@
 			if (!reset && nextCursor) {
 				params.set('cursor', nextCursor);
 			}
-			const data = await apiFetch<{ items: Notification[]; nextCursor: string | null; hasMore: boolean }>(
-				`/api/notifications?${params}`,
-				{ silent: true }
-			);
+			const data = await apiFetch<{
+				items: Notification[];
+				nextCursor: string | null;
+				hasMore: boolean;
+			}>(`/api/notifications?${params}`, { silent: true });
 			if (reset) {
 				notifications = data.items;
 			} else {
@@ -96,10 +97,9 @@
 
 	async function refreshUnreadCount() {
 		try {
-			const data = await apiFetch<{ items: Notification[] }>(
-				'/api/notifications?limit=50',
-				{ silent: true }
-			);
+			const data = await apiFetch<{ items: Notification[] }>('/api/notifications?limit=50', {
+				silent: true
+			});
 			unreadCount = data.items.filter((n) => !n.isRead).length;
 		} catch {
 			// silent — polling failure is not user-facing
@@ -310,9 +310,7 @@
 								<div class="flex items-start justify-between gap-2">
 									<p class="truncate text-sm font-medium">{n.title}</p>
 									{#if !n.isRead}
-										<span
-											class="bg-primary mt-1 h-2 w-2 shrink-0 rounded-full"
-											aria-hidden="true"
+										<span class="bg-primary mt-1 h-2 w-2 shrink-0 rounded-full" aria-hidden="true"
 										></span>
 									{/if}
 								</div>

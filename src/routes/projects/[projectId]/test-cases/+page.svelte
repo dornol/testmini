@@ -10,7 +10,12 @@
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
 	import { apiPut, apiPost, apiPatch, apiDelete } from '$lib/api-client';
-	import { dragHandleZone, dragHandle, TRIGGERS, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
+	import {
+		dragHandleZone,
+		dragHandle,
+		TRIGGERS,
+		SHADOW_ITEM_MARKER_PROPERTY_NAME
+	} from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import { untrack } from 'svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
@@ -43,13 +48,22 @@
 	let editingCell: { tcId: number; field: 'key' | 'title'; value: string } | null = $state(null);
 
 	// Priority popover state (fixed position like status dropdown)
-	let priorityPopover: { tcId: number; currentValue: string; x: number; y: number } | null = $state(null);
+	let priorityPopover: { tcId: number; currentValue: string; x: number; y: number } | null =
+		$state(null);
 
 	// Assignee popover state (fixed position like priority popover)
 	let assigneePopover: { tcId: number; x: number; y: number } | null = $state(null);
 
 	// Custom field popover state (fixed position)
-	let cfPopover: { tcId: number; cfId: number; fieldType: string; options: string[] | null; x: number; y: number; value: unknown } | null = $state(null);
+	let cfPopover: {
+		tcId: number;
+		cfId: number;
+		fieldType: string;
+		options: string[] | null;
+		x: number;
+		y: number;
+		value: unknown;
+	} | null = $state(null);
 
 	// Tag popover state (fixed position)
 	let tagPopover: { tcId: number; x: number; y: number } | null = $state(null);
@@ -60,13 +74,19 @@
 	let failureSheet: FailureDetailsSheet;
 	let failDialog: FailWithDetailDialog;
 
+	function focusOnMount(node: HTMLInputElement) {
+		node.focus();
+	}
+
 	// --- Group view state (persisted in localStorage) ---
 	const collapsedStorageKey = $derived(`tc-collapsed-${data.project.id}`);
 	function loadCollapsedGroups(): Set<number> {
 		try {
 			const stored = localStorage.getItem(`tc-collapsed-${data.project.id}`);
 			if (stored) return new Set(JSON.parse(stored));
-		} catch { /* ignore */ }
+		} catch {
+			/* ignore */
+		}
 		return new Set();
 	}
 	let collapsedGroups: Set<number> = $state(loadCollapsedGroups());
@@ -126,9 +146,7 @@
 				name: g.name,
 				sortOrder: g.sortOrder,
 				color: g.color,
-				items: tcArr
-					.filter((tc) => tc.groupId === g.id)
-					.sort((a, b) => a.sortOrder - b.sortOrder)
+				items: tcArr.filter((tc) => tc.groupId === g.id).sort((a, b) => a.sortOrder - b.sortOrder)
 			}));
 			dndUncategorized = tcArr
 				.filter((tc) => tc.groupId === null)
@@ -136,16 +154,23 @@
 		});
 	});
 
-	const hasActiveFilters = $derived(!!data.search || !!data.priority || !!data.tagIds || !!data.groupId || !!data.createdBy || !!data.assigneeId || !!data.suiteId || !!data.execStatus || !!data.approvalStatus || data.customFieldFilters.length > 0);
+	const hasActiveFilters = $derived(
+		!!data.search ||
+			!!data.priority ||
+			!!data.tagIds ||
+			!!data.groupId ||
+			!!data.createdBy ||
+			!!data.assigneeId ||
+			!!data.suiteId ||
+			!!data.execStatus ||
+			!!data.approvalStatus ||
+			data.customFieldFilters.length > 0
+	);
 	const flipDurationMs = 150;
-
 
 	const basePath = $derived(`/projects/${data.project.id}/test-cases`);
 
-	const selectedRuns = $derived(
-		data.projectRuns.filter((r) => data.selectedRunIds.includes(r.id))
-	);
-
+	const selectedRuns = $derived(data.projectRuns.filter((r) => data.selectedRunIds.includes(r.id)));
 
 	function addRunColumn(runId: string) {
 		if (!runId) return;
@@ -240,10 +265,9 @@
 		const pos = { x: rect.left + rect.width / 2, y: rect.bottom + 2 };
 
 		try {
-			await apiPost(
-				`/api/projects/${data.project.id}/test-runs/${runId}/executions`,
-				{ testCaseId: tcId }
-			);
+			await apiPost(`/api/projects/${data.project.id}/test-runs/${runId}/executions`, {
+				testCaseId: tcId
+			});
 			await invalidateAll();
 			// Open status dropdown at the captured position
 			openDropdown = { tcId, runId, x: pos.x, y: pos.y };
@@ -301,7 +325,15 @@
 	const dndDisabled = $derived(hasActiveFilters || !canEdit || useVirtualScroll);
 
 	// --- Column visibility & order (project-wide, persisted in DB) ---
-	type ColId = 'key' | 'title' | 'priority' | 'tags' | 'assignees' | 'updatedBy' | `cf_${number}` | `run_${number}`;
+	type ColId =
+		| 'key'
+		| 'title'
+		| 'priority'
+		| 'tags'
+		| 'assignees'
+		| 'updatedBy'
+		| `cf_${number}`
+		| `run_${number}`;
 	const STATIC_COLS: ColId[] = ['key', 'title', 'priority', 'tags', 'assignees', 'updatedBy'];
 
 	// All possible columns (static + dynamic) with defaults
@@ -350,9 +382,7 @@
 	});
 
 	// Derived: only visible columns in order
-	const orderedColIds = $derived(
-		colConfig.filter((c) => c.visible).map((c) => c.id)
-	);
+	const orderedColIds = $derived(colConfig.filter((c) => c.visible).map((c) => c.id));
 
 	// Derived: visible custom fields based on column config
 	const visibleCustomFields = $derived(
@@ -370,14 +400,14 @@
 				await apiPut(`/api/projects/${data.project.id}/column-settings`, {
 					columnSettings: colConfig.map((c) => ({ id: c.id, visible: c.visible }))
 				});
-			} catch { /* silent */ }
+			} catch {
+				/* silent */
+			}
 		}, 500);
 	}
 
 	function toggleColVisible(colId: ColId) {
-		colConfig = colConfig.map((c) =>
-			c.id === colId ? { ...c, visible: !c.visible } : c
-		);
+		colConfig = colConfig.map((c) => (c.id === colId ? { ...c, visible: !c.visible } : c));
 		persistColConfig();
 	}
 
@@ -414,7 +444,10 @@
 		return colId;
 	}
 
-	function formatCfValue(cf: { id: number; fieldType: string }, customFields: Record<string, unknown> | null): string {
+	function formatCfValue(
+		cf: { id: number; fieldType: string },
+		customFields: Record<string, unknown> | null
+	): string {
 		if (!customFields) return '';
 		const val = customFields[String(cf.id)];
 		if (val === undefined || val === null) return '';
@@ -454,7 +487,7 @@
 				arr.sort((a, b) => a.sortOrder - b.sortOrder);
 			}
 
-			for (const g of (groups as typeof data.groups)) {
+			for (const g of groups as typeof data.groups) {
 				const groupTcs = groupMap.get(g.id) ?? [];
 				if (filtered && groupTcs.length === 0) continue;
 				items.push({
@@ -487,7 +520,6 @@
 		});
 	});
 
-
 	// --- Inline editing (pencil icon click for key/title) ---
 	async function flushInlineEdit() {
 		if (!editingCell) return;
@@ -499,10 +531,9 @@
 		if (value.trim() === originalValue) return;
 
 		try {
-			await apiPatch(
-				`/api/projects/${data.project.id}/test-cases/${tcId}`,
-				{ [field]: value.trim() }
-			);
+			await apiPatch(`/api/projects/${data.project.id}/test-cases/${tcId}`, {
+				[field]: value.trim()
+			});
 			await invalidateAll();
 		} catch {
 			// error toast handled by apiPatch
@@ -551,10 +582,9 @@
 		updatingTcIds.add(tcId);
 		updatingTcIds = new Set(updatingTcIds);
 		try {
-			await apiPatch(
-				`/api/projects/${data.project.id}/test-cases/${tcId}`,
-				{ priority: newPriority }
-			);
+			await apiPatch(`/api/projects/${data.project.id}/test-cases/${tcId}`, {
+				priority: newPriority
+			});
 			await invalidateAll();
 		} catch {
 			// error toast handled by apiPatch
@@ -564,14 +594,27 @@
 		}
 	}
 
-	function openCfPopover(tcId: number, cf: { id: number; fieldType: string; options: string[] | null }, currentValue: unknown, event: MouseEvent) {
+	function openCfPopover(
+		tcId: number,
+		cf: { id: number; fieldType: string; options: string[] | null },
+		currentValue: unknown,
+		event: MouseEvent
+	) {
 		event.stopPropagation();
 		if (cfPopover?.tcId === tcId && cfPopover?.cfId === cf.id) {
 			cfPopover = null;
 		} else {
 			const el = event.currentTarget as HTMLElement;
 			const rect = el.getBoundingClientRect();
-			cfPopover = { tcId, cfId: cf.id, fieldType: cf.fieldType, options: cf.options, x: rect.left + rect.width / 2, y: rect.bottom + 4, value: currentValue ?? null };
+			cfPopover = {
+				tcId,
+				cfId: cf.id,
+				fieldType: cf.fieldType,
+				options: cf.options,
+				x: rect.left + rect.width / 2,
+				y: rect.bottom + 4,
+				value: currentValue ?? null
+			};
 		}
 	}
 
@@ -580,10 +623,9 @@
 		updatingTcIds.add(tcId);
 		updatingTcIds = new Set(updatingTcIds);
 		try {
-			await apiPatch(
-				`/api/projects/${data.project.id}/test-cases/${tcId}`,
-				{ customFields: { [String(cfId)]: value } }
-			);
+			await apiPatch(`/api/projects/${data.project.id}/test-cases/${tcId}`, {
+				customFields: { [String(cfId)]: value }
+			});
 			await invalidateAll();
 		} catch {
 			// error toast handled by apiPatch
@@ -628,7 +670,6 @@
 			updatingTcIds = new Set(updatingTcIds);
 		}
 	}
-
 
 	// --- Tag popover ---
 	function openTagPopover(tcId: number, event: MouseEvent) {
@@ -723,7 +764,9 @@
 		collapsedGroups = next;
 		try {
 			localStorage.setItem(collapsedStorageKey, JSON.stringify([...next]));
-		} catch { /* ignore */ }
+		} catch {
+			/* ignore */
+		}
 	}
 
 	function startEditGroupName(groupId: number, currentName: string) {
@@ -762,9 +805,7 @@
 	async function deleteGroup() {
 		if (deleteGroupId === null) return;
 		try {
-			await apiDelete(
-				`/api/projects/${data.project.id}/test-case-groups/${deleteGroupId}`
-			);
+			await apiDelete(`/api/projects/${data.project.id}/test-case-groups/${deleteGroupId}`);
 			toast.success(m.group_deleted());
 			deleteGroupOpen = false;
 			deleteGroupId = null;
@@ -775,23 +816,32 @@
 	}
 
 	// --- DnD handlers ---
-	function handleGroupDndConsider(e: CustomEvent<{ items: GroupItem[]; info: { trigger: string } }>) {
+	function handleGroupDndConsider(
+		e: CustomEvent<{ items: GroupItem[]; info: { trigger: string } }>
+	) {
 		dndGroups = e.detail.items;
 	}
 
-	async function handleGroupDndFinalize(e: CustomEvent<{ items: GroupItem[]; info: { trigger: string } }>) {
+	async function handleGroupDndFinalize(
+		e: CustomEvent<{ items: GroupItem[]; info: { trigger: string } }>
+	) {
 		dndGroups = e.detail.items;
 		// Persist new order
 		const reorderPayload = dndGroups.map((g, i) => ({ id: g.id, sortOrder: (i + 1) * 1000 }));
 		try {
-			await apiPut(`/api/projects/${data.project.id}/test-case-groups/reorder`, { groups: reorderPayload });
+			await apiPut(`/api/projects/${data.project.id}/test-case-groups/reorder`, {
+				groups: reorderPayload
+			});
 		} catch {
 			// error toast handled by apiPut
 			await invalidateAll();
 		}
 	}
 
-	function handleTcDndConsider(groupId: number | null, e: CustomEvent<{ items: TcItem[]; info: { trigger: string } }>) {
+	function handleTcDndConsider(
+		groupId: number | null,
+		e: CustomEvent<{ items: TcItem[]; info: { trigger: string } }>
+	) {
 		if (groupId === null) {
 			dndUncategorized = e.detail.items;
 		} else {
@@ -802,7 +852,10 @@
 		}
 	}
 
-	async function handleTcDndFinalize(groupId: number | null, e: CustomEvent<{ items: TcItem[]; info: { trigger: string } }>) {
+	async function handleTcDndFinalize(
+		groupId: number | null,
+		e: CustomEvent<{ items: TcItem[]; info: { trigger: string } }>
+	) {
 		if (groupId === null) {
 			dndUncategorized = e.detail.items;
 		} else {
@@ -839,12 +892,28 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="space-y-4" onclick={handleClickOutside} onkeydown={(e) => { if (e.key === 'Escape') { openDropdown = null; editingCell = null; priorityPopover = null; assigneePopover = null; tagPopover = null; tagSearchInput = ''; cfPopover = null; } }}>
+<div
+	class="space-y-4"
+	onclick={handleClickOutside}
+	onkeydown={(e) => {
+		if (e.key === 'Escape') {
+			openDropdown = null;
+			editingCell = null;
+			priorityPopover = null;
+			assigneePopover = null;
+			tagPopover = null;
+			tagSearchInput = '';
+			cfPopover = null;
+		}
+	}}
+>
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2">
 			<h2 class="text-lg font-semibold">{m.tc_title()}</h2>
 			{#if data.testCases.length > 0}
-				<span class="text-muted-foreground text-xs">{m.common_total_count({ count: data.testCases.length })}</span>
+				<span class="text-muted-foreground text-xs"
+					>{m.common_total_count({ count: data.testCases.length })}</span
+				>
 			{/if}
 		</div>
 		<div class="flex items-center gap-2">
@@ -856,19 +925,25 @@
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item
-						onclick={() => { window.location.href = `/api/projects/${data.project.id}/test-cases/export?format=csv`; }}
+						onclick={() => {
+							window.location.href = `/api/projects/${data.project.id}/test-cases/export?format=csv`;
+						}}
 					>
 						{m.tc_export_csv()}
 					</DropdownMenu.Item>
 					<DropdownMenu.Item
-						onclick={() => { window.location.href = `/api/projects/${data.project.id}/test-cases/export?format=json`; }}
+						onclick={() => {
+							window.location.href = `/api/projects/${data.project.id}/test-cases/export?format=json`;
+						}}
 					>
 						{m.tc_export_json()}
 					</DropdownMenu.Item>
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
 			{#if data.userRole !== 'VIEWER'}
-				<Button variant="outline" size="sm" onclick={() => (importDialogOpen = true)}>{m.tc_import()}</Button>
+				<Button variant="outline" size="sm" onclick={() => (importDialogOpen = true)}
+					>{m.tc_import()}</Button
+				>
 				<Button href="{basePath}/new" size="sm">{m.tc_new()}</Button>
 			{/if}
 		</div>
@@ -923,7 +998,18 @@
 								onclick={() => moveCol(visIdx, -1)}
 								aria-label={m.aria_move_column_up()}
 							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="12"
+									height="12"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									aria-hidden="true"><polyline points="18 15 12 9 6 15" /></svg
+								>
 							</button>
 							<button
 								type="button"
@@ -932,7 +1018,18 @@
 								onclick={() => moveCol(visIdx, 1)}
 								aria-label={m.aria_move_column_down()}
 							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="12"
+									height="12"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg
+								>
 							</button>
 						{/if}
 					</div>
@@ -950,7 +1047,18 @@
 						{#snippet child({ props })}
 							<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
 								{m.tc_add_run_column()}
-								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-1"><polyline points="6 9 12 15 18 9"/></svg>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="12"
+									height="12"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="ml-1"><polyline points="6 9 12 15 18 9" /></svg
+								>
 							</Button>
 						{/snippet}
 					</DropdownMenu.Trigger>
@@ -988,8 +1096,13 @@
 			groups={data.groups}
 			projectSuites={data.projectSuites}
 			{canDelete}
-			oncomplete={() => { selectedTcIds = new Set(); invalidateAll(); }}
-			onclear={() => { selectedTcIds = new Set(); }}
+			oncomplete={() => {
+				selectedTcIds = new Set();
+				invalidateAll();
+			}}
+			onclear={() => {
+				selectedTcIds = new Set();
+			}}
 		/>
 	{/if}
 
@@ -1033,13 +1146,14 @@
 					{#each assignees.slice(0, 3) as a (a.userId)}
 						<span
 							class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted border-2 border-background text-[9px] font-medium uppercase leading-none"
-							title={a.userName}
-						>{a.userName.charAt(0)}</span>
+							title={a.userName}>{a.userName.charAt(0)}</span
+						>
 					{/each}
 					{#if assignees.length > 3}
 						<span
 							class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted border-2 border-background text-[9px] font-medium leading-none text-muted-foreground"
-						>+{assignees.length - 3}</span>
+							>+{assignees.length - 3}</span
+						>
 					{/if}
 				</div>
 			{:else if canEdit}
@@ -1053,18 +1167,51 @@
 					type="checkbox"
 					class="h-3.5 w-3.5 shrink-0 rounded border-gray-300"
 					checked={selectedTcIds.has(tc.id)}
-					onclick={(e) => { e.stopPropagation(); toggleTcSelection(tc.id); }}
+					onclick={(e) => {
+						e.stopPropagation();
+						toggleTcSelection(tc.id);
+					}}
 				/>
 			{/if}
 			{#if !dndDisabled}
-				<span use:dragHandle data-drag-handle-tc class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 hidden sm:flex justify-center" role="button" tabindex="0" aria-label={m.aria_drag_reorder()} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
-					<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+				<span
+					use:dragHandle
+					data-drag-handle-tc
+					class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 hidden sm:flex justify-center"
+					role="button"
+					tabindex="0"
+					aria-label={m.aria_drag_reorder()}
+					onclick={(e) => e.stopPropagation()}
+					onkeydown={(e) => e.stopPropagation()}
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="12"
+						height="12"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						><circle cx="9" cy="5" r="1" /><circle cx="9" cy="12" r="1" /><circle
+							cx="9"
+							cy="19"
+							r="1"
+						/><circle cx="15" cy="5" r="1" /><circle cx="15" cy="12" r="1" /><circle
+							cx="15"
+							cy="19"
+							r="1"
+						/></svg
+					>
 				</span>
 			{/if}
 			<!-- Ordered columns -->
 			{#each orderedColIds as colId (colId)}
 				{#if colId === 'key'}
-					<span class="font-mono text-muted-foreground w-20 shrink-0 group/key hidden sm:inline-flex items-center gap-0.5">
+					<span
+						class="font-mono text-muted-foreground w-20 shrink-0 group/key hidden sm:inline-flex items-center gap-0.5"
+					>
 						{#if editingCell?.tcId === tc.id && editingCell?.field === 'key'}
 							<!-- svelte-ignore a11y_autofocus -->
 							<input
@@ -1086,13 +1233,28 @@
 									class="opacity-0 group-hover/key:opacity-100 text-muted-foreground hover:text-foreground transition-opacity shrink-0 p-0.5 -m-0.5 rounded hover:bg-muted"
 									onclick={(e) => startInlineEdit(tc.id, 'key', tc.key, e)}
 								>
-									<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="11"
+										height="11"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path
+											d="m15 5 4 4"
+										/></svg
+									>
 								</button>
 							{/if}
 						{/if}
 					</span>
 				{:else if colId === 'title'}
-					<span class="font-medium truncate flex-1 min-w-0 group/title inline-flex items-center gap-0.5">
+					<span
+						class="font-medium truncate flex-1 min-w-0 group/title inline-flex items-center gap-0.5"
+					>
 						{#if editingCell?.tcId === tc.id && editingCell?.field === 'title'}
 							<!-- svelte-ignore a11y_autofocus -->
 							<input
@@ -1106,7 +1268,15 @@
 								autofocus
 							/>
 						{:else}
-							<button type="button" class="truncate text-left hover:underline cursor-pointer" data-tip={tc.title} onclick={(e) => { e.stopPropagation(); detailSheet.open(tc.id); }}>{tc.title}</button>
+							<button
+								type="button"
+								class="truncate text-left hover:underline cursor-pointer"
+								data-tip={tc.title}
+								onclick={(e) => {
+									e.stopPropagation();
+									detailSheet.open(tc.id);
+								}}>{tc.title}</button
+							>
 							{#if canEdit}
 								<button
 									type="button"
@@ -1114,22 +1284,66 @@
 									class="opacity-0 group-hover/title:opacity-100 text-muted-foreground hover:text-foreground transition-opacity shrink-0 p-0.5 -m-0.5 rounded hover:bg-muted"
 									onclick={(e) => startInlineEdit(tc.id, 'title', tc.title, e)}
 								>
-									<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="11"
+										height="11"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path
+											d="m15 5 4 4"
+										/></svg
+									>
 								</button>
 							{/if}
 						{/if}
 					</span>
 					<!-- Issue link indicator -->
 					{#if tc.issueLinkCount > 0}
-						<span class="shrink-0 inline-flex items-center gap-0.5 text-muted-foreground" title={m.tc_linked_issues({ count: tc.issueLinkCount })}>
-							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+						<span
+							class="shrink-0 inline-flex items-center gap-0.5 text-muted-foreground"
+							title={m.tc_linked_issues({ count: tc.issueLinkCount })}
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path
+									d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+								/></svg
+							>
 							<span class="text-[10px]">{tc.issueLinkCount}</span>
 						</span>
 					{/if}
 					<!-- Approval Status (always after title) -->
 					{#if tc.approvalStatus && tc.approvalStatus !== 'DRAFT'}
-						<span class="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none {tc.approvalStatus === 'IN_REVIEW' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : tc.approvalStatus === 'APPROVED' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : tc.approvalStatus === 'REJECTED' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : ''}">
-							{tc.approvalStatus === 'IN_REVIEW' ? m.approval_in_review() : tc.approvalStatus === 'APPROVED' ? m.approval_approved() : tc.approvalStatus === 'REJECTED' ? m.approval_rejected() : tc.approvalStatus}
+						<span
+							class="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none {tc.approvalStatus ===
+							'IN_REVIEW'
+								? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+								: tc.approvalStatus === 'APPROVED'
+									? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+									: tc.approvalStatus === 'REJECTED'
+										? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+										: ''}"
+						>
+							{tc.approvalStatus === 'IN_REVIEW'
+								? m.approval_in_review()
+								: tc.approvalStatus === 'APPROVED'
+									? m.approval_approved()
+									: tc.approvalStatus === 'REJECTED'
+										? m.approval_rejected()
+										: tc.approvalStatus}
 						</span>
 					{/if}
 				{:else if colId === 'priority'}
@@ -1138,7 +1352,10 @@
 							type="button"
 							data-priority-popover
 							class="w-16 shrink-0 text-center hidden md:block"
-							onclick={(e) => { e.stopPropagation(); openPriorityPopover(tc.id, tc.priority, e); }}
+							onclick={(e) => {
+								e.stopPropagation();
+								openPriorityPopover(tc.id, tc.priority, e);
+							}}
 						>
 							<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
 						</button>
@@ -1154,18 +1371,23 @@
 								type="button"
 								data-tag-popover
 								class="w-28 shrink-0 gap-0.5 items-center overflow-hidden hidden lg:flex cursor-pointer rounded hover:bg-muted/50 transition-colors px-0.5 -mx-0.5"
-								onclick={(e) => { e.stopPropagation(); openTagPopover(tc.id, e); }}
+								onclick={(e) => {
+									e.stopPropagation();
+									openTagPopover(tc.id, e);
+								}}
 							>
 								{#if tc.tags && tc.tags.length > 0}
 									{#each tc.tags.slice(0, 3) as t (t.id)}
 										<span
 											class="rounded px-1 py-px text-[10px] leading-tight font-medium truncate max-w-[4rem]"
 											style="background-color: {t.color}20; color: {t.color}"
-											data-tip={t.name}
-										>{t.name}</span>
+											data-tip={t.name}>{t.name}</span
+										>
 									{/each}
 									{#if tc.tags.length > 3}
-										<span class="text-[10px] text-muted-foreground shrink-0">+{tc.tags.length - 3}</span>
+										<span class="text-[10px] text-muted-foreground shrink-0"
+											>+{tc.tags.length - 3}</span
+										>
 									{/if}
 								{:else}
 									<span class="text-[10px] text-muted-foreground">-</span>
@@ -1178,11 +1400,13 @@
 										<span
 											class="rounded px-1 py-px text-[10px] leading-tight font-medium truncate max-w-[4rem]"
 											style="background-color: {t.color}20; color: {t.color}"
-											data-tip={t.name}
-										>{t.name}</span>
+											data-tip={t.name}>{t.name}</span
+										>
 									{/each}
 									{#if tc.tags.length > 3}
-										<span class="text-[10px] text-muted-foreground shrink-0">+{tc.tags.length - 3}</span>
+										<span class="text-[10px] text-muted-foreground shrink-0"
+											>+{tc.tags.length - 3}</span
+										>
 									{/if}
 								{/if}
 							</div>
@@ -1194,7 +1418,10 @@
 							type="button"
 							data-assignee-popover
 							class="w-16 shrink-0 items-center cursor-pointer rounded hover:bg-muted/50 transition-colors px-0.5 -mx-0.5 hidden lg:flex"
-							onclick={(e) => { e.stopPropagation(); openAssigneePopover(tc.id, e); }}
+							onclick={(e) => {
+								e.stopPropagation();
+								openAssigneePopover(tc.id, e);
+							}}
 						>
 							{@render avatarStack(tc.assignees)}
 						</button>
@@ -1204,7 +1431,10 @@
 						</div>
 					{/if}
 				{:else if colId === 'updatedBy'}
-					<span class="text-muted-foreground w-20 shrink-0 text-right truncate hidden xl:block" data-tip={tc.updatedBy}>{tc.updatedBy}</span>
+					<span
+						class="text-muted-foreground w-20 shrink-0 text-right truncate hidden xl:block"
+						data-tip={tc.updatedBy}>{tc.updatedBy}</span
+					>
 				{:else if colId.startsWith('cf_')}
 					{@const cfId = Number(colId.slice(3))}
 					{@const cf = visibleCustomFields.find((c) => c.id === cfId)}
@@ -1217,12 +1447,38 @@
 									type="button"
 									data-cf-popover
 									class="w-24 shrink-0 text-center truncate text-muted-foreground hidden xl:block cursor-pointer rounded hover:bg-muted/50 transition-colors"
-									onclick={(e) => { e.stopPropagation(); saveCfValue(tc.id, cf.id, !cfRaw); }}
+									onclick={(e) => {
+										e.stopPropagation();
+										saveCfValue(tc.id, cf.id, !cfRaw);
+									}}
 								>
 									{#if cfRaw}
-										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-green-600 inline-block"><polyline points="20 6 9 17 4 12"/></svg>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="14"
+											height="14"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2.5"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											class="text-green-600 inline-block"><polyline points="20 6 9 17 4 12" /></svg
+										>
 									{:else}
-										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground inline-block"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="14"
+											height="14"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											class="text-muted-foreground inline-block"
+											><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
+										>
 									{/if}
 								</button>
 							{:else}
@@ -1241,14 +1497,46 @@
 								</button>
 							{/if}
 						{:else}
-							<span class="w-24 shrink-0 text-center truncate text-muted-foreground hidden xl:block" data-tip={cfVal}>
+							<span
+								class="w-24 shrink-0 text-center truncate text-muted-foreground hidden xl:block"
+								data-tip={cfVal}
+							>
 								{#if cf.fieldType === 'URL' && cfVal}
-									<a href={cfVal} target="_blank" rel="noopener noreferrer" class="text-primary hover:underline" onclick={(e) => e.stopPropagation()}>{cfVal}</a>
+									<a
+										href={cfVal}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="text-primary hover:underline"
+										onclick={(e) => e.stopPropagation()}>{cfVal}</a
+									>
 								{:else if cf.fieldType === 'CHECKBOX'}
 									{#if cfRaw}
-										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-green-600 inline-block"><polyline points="20 6 9 17 4 12"/></svg>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="14"
+											height="14"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2.5"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											class="text-green-600 inline-block"><polyline points="20 6 9 17 4 12" /></svg
+										>
 									{:else if cfRaw === false}
-										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground inline-block"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="14"
+											height="14"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											class="text-muted-foreground inline-block"
+											><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
+										>
 									{/if}
 								{:else}
 									{cfVal}
@@ -1263,10 +1551,17 @@
 						{@const exec = data.executionMap[tc.id]?.[run.id]}
 						{@const isRunCompleted = run.status === 'COMPLETED'}
 						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-						<span class="w-16 shrink-0 text-center hidden lg:block" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+						<span
+							class="w-16 shrink-0 text-center hidden lg:block"
+							onclick={(e) => e.stopPropagation()}
+							onkeydown={(e) => e.stopPropagation()}
+						>
 							{#if exec}
 								{#if isRunCompleted}
-									<span class="font-medium {statusColor(exec.status)}" title={m.tc_completed_run_readonly()}>{exec.status}</span>
+									<span
+										class="font-medium {statusColor(exec.status)}"
+										title={m.tc_completed_run_readonly()}>{exec.status}</span
+									>
 								{:else}
 									<button
 										type="button"
@@ -1316,7 +1611,9 @@
 					placeholder={m.tc_quick_create_placeholder()}
 					class="h-6 flex-1 min-w-0 text-xs"
 					value={quickTitles[groupKey] ?? ''}
-					oninput={(e) => { quickTitles[groupKey] = (e.currentTarget as HTMLInputElement).value; }}
+					oninput={(e) => {
+						quickTitles[groupKey] = (e.currentTarget as HTMLInputElement).value;
+					}}
 				/>
 				<input type="hidden" name="priority" value={quickPriorities[groupKey] ?? 'MEDIUM'} />
 				<DropdownMenu.Root>
@@ -1324,19 +1621,40 @@
 						{#snippet child({ props })}
 							<Button variant="outline" size="sm" class="h-6 px-1.5 text-xs shrink-0" {...props}>
 								{quickPriorities[groupKey] ?? 'MEDIUM'}
-								<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-0.5"><polyline points="6 9 12 15 18 9"/></svg>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="10"
+									height="10"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="ml-0.5"><polyline points="6 9 12 15 18 9" /></svg
+								>
 							</Button>
 						{/snippet}
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Content align="start" class="min-w-[100px]">
 						{#each priorityOptions as p (p.id)}
-							<DropdownMenu.Item onclick={() => { quickPriorities[groupKey] = p.name; }} class="text-xs">
+							<DropdownMenu.Item
+								onclick={() => {
+									quickPriorities[groupKey] = p.name;
+								}}
+								class="text-xs"
+							>
 								<PriorityBadge name={p.name} color={p.color} />
 							</DropdownMenu.Item>
 						{/each}
 					</DropdownMenu.Content>
 				</DropdownMenu.Root>
-				<Button type="submit" size="sm" class="h-6 shrink-0 px-2 text-xs" disabled={!(quickTitles[groupKey] ?? '').trim() || quickSubmittings[groupKey]}>
+				<Button
+					type="submit"
+					size="sm"
+					class="h-6 shrink-0 px-2 text-xs"
+					disabled={!(quickTitles[groupKey] ?? '').trim() || quickSubmittings[groupKey]}
+				>
 					{quickSubmittings[groupKey] ? '...' : '+'}
 				</Button>
 			</form>
@@ -1344,7 +1662,9 @@
 
 		<div>
 			<!-- Sticky Column header -->
-			<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-card sticky top-0 z-10 rounded-t-lg border-x border-t text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+			<div
+				class="flex items-center gap-2 px-3 py-1.5 border-b bg-card sticky top-0 z-10 rounded-t-lg border-x border-t text-[10px] text-muted-foreground font-medium uppercase tracking-wider"
+			>
 				{#if canEdit}
 					<input
 						type="checkbox"
@@ -1373,45 +1693,73 @@
 						{@const cfId = Number(colId.slice(3))}
 						{@const cf = data.projectCustomFields.find((c) => c.id === cfId)}
 						{#if cf}
-							<span class="w-24 shrink-0 text-center truncate hidden xl:block" data-tip={cf.name}>{cf.name}</span>
+							<span class="w-24 shrink-0 text-center truncate hidden xl:block" data-tip={cf.name}
+								>{cf.name}</span
+							>
 						{/if}
 					{:else if colId.startsWith('run_')}
 						{@const runId = Number(colId.slice(4))}
 						{@const run = selectedRuns.find((r) => r.id === runId)}
 						{#if run}
-							{@const envConfig = data.projectEnvironments.find(e => e.name === run.environment)}
+							{@const envConfig = data.projectEnvironments.find((e) => e.name === run.environment)}
 							{@const hasEnvInfo = envConfig?.baseUrl || envConfig?.credentials || envConfig?.memo}
 							{#if hasEnvInfo}
 								<Popover.Root>
-									<Popover.Trigger class="w-16 shrink-0 text-center truncate hidden lg:block cursor-pointer hover:text-primary transition-colors" title={run.name}>
+									<Popover.Trigger
+										class="w-16 shrink-0 text-center truncate hidden lg:block cursor-pointer hover:text-primary transition-colors"
+										title={run.name}
+									>
 										<span class="inline-flex items-center gap-0.5">
 											{run.name}
-											<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												width="10"
+												height="10"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												class="text-muted-foreground shrink-0"
+												><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path
+													d="M12 8h.01"
+												/></svg
+											>
 										</span>
 									</Popover.Trigger>
 									<Popover.Content class="w-72 text-left" align="start">
 										<div class="space-y-2">
 											<div class="font-medium text-sm flex items-center gap-2">
 												{#if envConfig?.color}
-													<span class="h-2.5 w-2.5 rounded-full shrink-0" style="background-color: {envConfig.color}"></span>
+													<span
+														class="h-2.5 w-2.5 rounded-full shrink-0"
+														style="background-color: {envConfig.color}"
+													></span>
 												{/if}
 												{run.environment}
 											</div>
 											{#if envConfig?.baseUrl}
 												<div>
-													<div class="text-xs font-medium text-muted-foreground">{m.env_base_url()}</div>
+													<div class="text-xs font-medium text-muted-foreground">
+														{m.env_base_url()}
+													</div>
 													<div class="text-xs break-all">{envConfig.baseUrl}</div>
 												</div>
 											{/if}
 											{#if envConfig?.credentials}
 												<div>
-													<div class="text-xs font-medium text-muted-foreground">{m.env_credentials()}</div>
+													<div class="text-xs font-medium text-muted-foreground">
+														{m.env_credentials()}
+													</div>
 													<div class="text-xs whitespace-pre-wrap">{envConfig.credentials}</div>
 												</div>
 											{/if}
 											{#if envConfig?.memo}
 												<div>
-													<div class="text-xs font-medium text-muted-foreground">{m.env_memo()}</div>
+													<div class="text-xs font-medium text-muted-foreground">
+														{m.env_memo()}
+													</div>
 													<div class="text-xs whitespace-pre-wrap">{envConfig.memo}</div>
 												</div>
 											{/if}
@@ -1419,7 +1767,9 @@
 									</Popover.Content>
 								</Popover.Root>
 							{:else}
-								<span class="w-16 shrink-0 text-center truncate hidden lg:block" title={run.name}>{run.name}</span>
+								<span class="w-16 shrink-0 text-center truncate hidden lg:block" title={run.name}
+									>{run.name}</span
+								>
 							{/if}
 						{/if}
 					{/if}
@@ -1427,199 +1777,440 @@
 			</div>
 
 			<div class="rounded-b-lg border-x border-b bg-card">
-			{#if useVirtualScroll}
-				<!-- Virtual scroll mode -->
-				<VirtualList items={flatItems} rowHeight={32} useWindowScroll>
-					{#snippet children({ item })}
-						{@const row = item as FlatItem}
-						{#if row._type === 'group-header'}
-							{@const group = row.group}
-							<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 text-sm font-semibold">
-								<button
-									type="button"
-									class="text-muted-foreground hover:text-foreground transition-colors"
-									onclick={() => toggleGroupCollapse(group.id)}
+				{#if useVirtualScroll}
+					<!-- Virtual scroll mode -->
+					<VirtualList items={flatItems} rowHeight={32} useWindowScroll>
+						{#snippet children({ item })}
+							{@const row = item as FlatItem}
+							{#if row._type === 'group-header'}
+								{@const group = row.group}
+								<div
+									class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 text-sm font-semibold"
 								>
-									{#if collapsedGroups.has(group.id)}
-										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-									{:else}
-										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-									{/if}
-								</button>
-								{#if group.color}
-									<span class="h-2.5 w-2.5 rounded-full shrink-0" style="background-color: {group.color}"></span>
-								{/if}
-								{#if editingGroupId === group.id}
-									<!-- svelte-ignore a11y_autofocus -->
-									<input
-										type="text"
-										class="border-primary bg-background h-6 rounded border px-1.5 text-xs font-semibold outline-none ring-1 ring-primary/30 flex-1"
-										bind:value={editingGroupName}
-										onblur={commitGroupNameEdit}
-										onkeydown={handleGroupNameKeydown}
-										autofocus
-									/>
-								{:else}
 									<button
 										type="button"
-										class="text-sm font-semibold hover:underline text-left"
-										ondblclick={() => { if (canEdit) startEditGroupName(group.id, group.name); }}
+										class="text-muted-foreground hover:text-foreground transition-colors"
+										onclick={() => toggleGroupCollapse(group.id)}
 									>
-										{group.name}
+										{#if collapsedGroups.has(group.id)}
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												width="14"
+												height="14"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg
+											>
+										{:else}
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												width="14"
+												height="14"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg
+											>
+										{/if}
 									</button>
-								{/if}
-								<span class="text-xs text-muted-foreground font-normal">({group.items.length})</span>
-								<div class="ml-auto flex items-center gap-1">
-									{#if canEdit}
+									{#if group.color}
+										<span
+											class="h-2.5 w-2.5 rounded-full shrink-0"
+											style="background-color: {group.color}"
+										></span>
+									{/if}
+									{#if editingGroupId === group.id}
+										<!-- svelte-ignore a11y_autofocus -->
+										<input
+											type="text"
+											class="border-primary bg-background h-6 rounded border px-1.5 text-xs font-semibold outline-none ring-1 ring-primary/30 flex-1"
+											bind:value={editingGroupName}
+											onblur={commitGroupNameEdit}
+											onkeydown={handleGroupNameKeydown}
+											autofocus
+										/>
+									{:else}
 										<button
 											type="button"
-											class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"
-											title={m.aria_edit_name()}
-											aria-label={m.aria_edit_name()}
-											onclick={() => startEditGroupName(group.id, group.name)}
+											class="text-sm font-semibold hover:underline text-left"
+											ondblclick={() => {
+												if (canEdit) startEditGroupName(group.id, group.name);
+											}}
 										>
-											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+											{group.name}
 										</button>
 									{/if}
-									{#if canDelete}
-										<button
-											type="button"
-											class="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted transition-colors"
-											title={m.aria_delete_group()}
-											aria-label={m.aria_delete_group()}
-											onclick={() => { deleteGroupId = group.id; deleteGroupOpen = true; }}
-										>
-											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-										</button>
-									{/if}
+									<span class="text-xs text-muted-foreground font-normal"
+										>({group.items.length})</span
+									>
+									<div class="ml-auto flex items-center gap-1">
+										{#if canEdit}
+											<button
+												type="button"
+												class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"
+												title={m.aria_edit_name()}
+												aria-label={m.aria_edit_name()}
+												onclick={() => startEditGroupName(group.id, group.name)}
+											>
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													width="12"
+													height="12"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path
+														d="m15 5 4 4"
+													/></svg
+												>
+											</button>
+										{/if}
+										{#if canDelete}
+											<button
+												type="button"
+												class="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted transition-colors"
+												title={m.aria_delete_group()}
+												aria-label={m.aria_delete_group()}
+												onclick={() => {
+													deleteGroupId = group.id;
+													deleteGroupOpen = true;
+												}}
+											>
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													width="12"
+													height="12"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													><path d="M3 6h18" /><path
+														d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"
+													/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg
+												>
+											</button>
+										{/if}
+									</div>
 								</div>
+							{:else if row._type === 'tc'}
+								<div
+									class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 group/row text-xs"
+								>
+									{@render tcRow(row.tc)}
+								</div>
+							{:else if row._type === 'quick-create'}
+								<div class="border-b bg-muted/10 text-xs">
+									{@render quickCreateRow(row.groupKey)}
+								</div>
+							{:else}
+								<div
+									class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/20 text-sm font-semibold"
+								>
+									<button
+										type="button"
+										class="text-muted-foreground hover:text-foreground transition-colors"
+										onclick={() => toggleGroupCollapse(-1)}
+									>
+										{#if collapsedGroups.has(-1)}
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												width="14"
+												height="14"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg
+											>
+										{:else}
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												width="14"
+												height="14"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg
+											>
+										{/if}
+									</button>
+									<span class="text-muted-foreground">{m.group_uncategorized()}</span>
+									<span class="text-xs text-muted-foreground font-normal"
+										>({(row as { itemCount: number }).itemCount})</span
+									>
+								</div>
+							{/if}
+						{/snippet}
+					</VirtualList>
+				{:else}
+					<!-- Normal DnD grouped view -->
+					<div
+						use:dragHandleZone={{
+							items: dndGroups,
+							flipDurationMs,
+							type: 'groups',
+							dragDisabled: dndDisabled
+						}}
+						onconsider={(e) => handleGroupDndConsider(e)}
+						onfinalize={(e) => handleGroupDndFinalize(e)}
+					>
+						{#each dndGroups as group (group.id)}
+							<div animate:flip={{ duration: flipDurationMs }}>
+								{#if !hasActiveFilters || group.items.length > 0}
+									<!-- Group separator row -->
+									<div
+										class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 text-sm font-semibold"
+									>
+										{#if !dndDisabled}
+											<span
+												use:dragHandle
+												data-drag-handle-group
+												class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 flex justify-center"
+												title={m.aria_drag_reorder()}
+												aria-label={m.aria_drag_reorder()}
+											>
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													width="14"
+													height="14"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													><circle cx="9" cy="5" r="1" /><circle cx="9" cy="12" r="1" /><circle
+														cx="9"
+														cy="19"
+														r="1"
+													/><circle cx="15" cy="5" r="1" /><circle cx="15" cy="12" r="1" /><circle
+														cx="15"
+														cy="19"
+														r="1"
+													/></svg
+												>
+											</span>
+										{/if}
+										<button
+											type="button"
+											class="text-muted-foreground hover:text-foreground transition-colors"
+											onclick={() => toggleGroupCollapse(group.id)}
+										>
+											{#if collapsedGroups.has(group.id)}
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													width="14"
+													height="14"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg
+												>
+											{:else}
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													width="14"
+													height="14"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg
+												>
+											{/if}
+										</button>
+										{#if group.color}
+											<span
+												class="h-2.5 w-2.5 rounded-full shrink-0"
+												style="background-color: {group.color}"
+											></span>
+										{/if}
+										{#if editingGroupId === group.id}
+											<!-- svelte-ignore a11y_autofocus -->
+											<input
+												type="text"
+												class="border-primary bg-background h-6 rounded border px-1.5 text-xs font-semibold outline-none ring-1 ring-primary/30 flex-1"
+												bind:value={editingGroupName}
+												onblur={commitGroupNameEdit}
+												onkeydown={handleGroupNameKeydown}
+												autofocus
+											/>
+										{:else}
+											<button
+												type="button"
+												class="text-sm font-semibold hover:underline text-left"
+												ondblclick={() => {
+													if (canEdit) startEditGroupName(group.id, group.name);
+												}}
+											>
+												{group.name}
+											</button>
+										{/if}
+										<span class="text-xs text-muted-foreground font-normal"
+											>({group.items.length})</span
+										>
+										<div class="ml-auto flex items-center gap-1">
+											{#if canEdit}
+												<button
+													type="button"
+													class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"
+													title={m.aria_edit_name()}
+													aria-label={m.aria_edit_name()}
+													onclick={() => startEditGroupName(group.id, group.name)}
+												>
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														width="12"
+														height="12"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														stroke-width="2"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path
+															d="m15 5 4 4"
+														/></svg
+													>
+												</button>
+											{/if}
+											{#if canDelete}
+												<button
+													type="button"
+													class="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted transition-colors"
+													title={m.aria_delete_group()}
+													aria-label={m.aria_delete_group()}
+													onclick={() => {
+														deleteGroupId = group.id;
+														deleteGroupOpen = true;
+													}}
+												>
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														width="12"
+														height="12"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														stroke-width="2"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														><path d="M3 6h18" /><path
+															d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"
+														/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg
+													>
+												</button>
+											{/if}
+										</div>
+									</div>
+
+									<!-- Group content (TC list) -->
+									{#if !collapsedGroups.has(group.id)}
+										<div
+											use:dragHandleZone={{
+												items: group.items,
+												flipDurationMs,
+												type: 'testcases',
+												dragDisabled: dndDisabled
+											}}
+											onconsider={(e) => handleTcDndConsider(group.id, e)}
+											onfinalize={(e) => handleTcDndFinalize(group.id, e)}
+											class="min-h-[32px]"
+										>
+											{#each group.items as tc (tc.id)}
+												<div
+													animate:flip={{ duration: flipDurationMs }}
+													class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 group/row text-xs"
+												>
+													{@render tcRow(tc)}
+												</div>
+											{/each}
+										</div>
+
+										{#if canEdit}
+											<div class="border-b bg-muted/10 text-xs">
+												{@render quickCreateRow(group.id)}
+											</div>
+										{/if}
+									{/if}
+								{/if}
 							</div>
-						{:else if row._type === 'tc'}
+						{/each}
+					</div>
+
+					<!-- Uncategorized section -->
+					{#if !hasActiveFilters || dndUncategorized.length > 0}
+						<div>
 							<div
-								class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 group/row text-xs"
+								class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/20 text-sm font-semibold"
 							>
-								{@render tcRow(row.tc)}
-							</div>
-						{:else if row._type === 'quick-create'}
-							<div class="border-b bg-muted/10 text-xs">
-								{@render quickCreateRow(row.groupKey)}
-							</div>
-						{:else}
-							<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/20 text-sm font-semibold">
+								{#if !dndDisabled}<span class="w-6 shrink-0"></span>{/if}
 								<button
 									type="button"
 									class="text-muted-foreground hover:text-foreground transition-colors"
 									onclick={() => toggleGroupCollapse(-1)}
 								>
 									{#if collapsedGroups.has(-1)}
-										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="14"
+											height="14"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg
+										>
 									{:else}
-										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="14"
+											height="14"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg
+										>
 									{/if}
 								</button>
 								<span class="text-muted-foreground">{m.group_uncategorized()}</span>
-								<span class="text-xs text-muted-foreground font-normal">({(row as { itemCount: number }).itemCount})</span>
-							</div>
-						{/if}
-					{/snippet}
-				</VirtualList>
-			{:else}
-				<!-- Normal DnD grouped view -->
-				<div
-					use:dragHandleZone={{
-						items: dndGroups,
-						flipDurationMs,
-						type: 'groups',
-						dragDisabled: dndDisabled
-					}}
-					onconsider={(e) => handleGroupDndConsider(e)}
-					onfinalize={(e) => handleGroupDndFinalize(e)}
-				>
-					{#each dndGroups as group (group.id)}
-						<div animate:flip={{ duration: flipDurationMs }}>
-						{#if !hasActiveFilters || group.items.length > 0}
-							<!-- Group separator row -->
-							<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 text-sm font-semibold">
-								{#if !dndDisabled}
-									<span use:dragHandle data-drag-handle-group class="cursor-grab text-muted-foreground hover:text-foreground w-6 shrink-0 flex justify-center" title={m.aria_drag_reorder()}
-									aria-label={m.aria_drag_reorder()}>
-										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
-									</span>
-								{/if}
-								<button
-									type="button"
-									class="text-muted-foreground hover:text-foreground transition-colors"
-									onclick={() => toggleGroupCollapse(group.id)}
+								<span class="text-xs text-muted-foreground font-normal"
+									>({dndUncategorized.length})</span
 								>
-									{#if collapsedGroups.has(group.id)}
-										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-									{:else}
-										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-									{/if}
-								</button>
-								{#if group.color}
-									<span class="h-2.5 w-2.5 rounded-full shrink-0" style="background-color: {group.color}"></span>
-								{/if}
-								{#if editingGroupId === group.id}
-									<!-- svelte-ignore a11y_autofocus -->
-									<input
-										type="text"
-										class="border-primary bg-background h-6 rounded border px-1.5 text-xs font-semibold outline-none ring-1 ring-primary/30 flex-1"
-										bind:value={editingGroupName}
-										onblur={commitGroupNameEdit}
-										onkeydown={handleGroupNameKeydown}
-										autofocus
-									/>
-								{:else}
-									<button
-										type="button"
-										class="text-sm font-semibold hover:underline text-left"
-										ondblclick={() => { if (canEdit) startEditGroupName(group.id, group.name); }}
-									>
-										{group.name}
-									</button>
-								{/if}
-								<span class="text-xs text-muted-foreground font-normal">({group.items.length})</span>
-								<div class="ml-auto flex items-center gap-1">
-									{#if canEdit}
-										<button
-											type="button"
-											class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"
-											title={m.aria_edit_name()}
-											aria-label={m.aria_edit_name()}
-											onclick={() => startEditGroupName(group.id, group.name)}
-										>
-											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-										</button>
-									{/if}
-									{#if canDelete}
-										<button
-											type="button"
-											class="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted transition-colors"
-											title={m.aria_delete_group()}
-											aria-label={m.aria_delete_group()}
-											onclick={() => { deleteGroupId = group.id; deleteGroupOpen = true; }}
-										>
-											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-										</button>
-									{/if}
-								</div>
 							</div>
 
-							<!-- Group content (TC list) -->
-							{#if !collapsedGroups.has(group.id)}
+							{#if !collapsedGroups.has(-1)}
 								<div
 									use:dragHandleZone={{
-										items: group.items,
+										items: dndUncategorized,
 										flipDurationMs,
 										type: 'testcases',
 										dragDisabled: dndDisabled
 									}}
-									onconsider={(e) => handleTcDndConsider(group.id, e)}
-									onfinalize={(e) => handleTcDndFinalize(group.id, e)}
+									onconsider={(e) => handleTcDndConsider(null, e)}
+									onfinalize={(e) => handleTcDndFinalize(null, e)}
 									class="min-h-[32px]"
 								>
-									{#each group.items as tc (tc.id)}
+									{#each dndUncategorized as tc (tc.id)}
 										<div
 											animate:flip={{ duration: flipDurationMs }}
 											class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 group/row text-xs"
@@ -1630,75 +2221,24 @@
 								</div>
 
 								{#if canEdit}
-									<div class="border-b bg-muted/10 text-xs">
-										{@render quickCreateRow(group.id)}
+									<div class="bg-muted/10 text-xs">
+										{@render quickCreateRow(-1)}
 									</div>
 								{/if}
 							{/if}
-						{/if}
-					</div>
-					{/each}
-				</div>
-
-				<!-- Uncategorized section -->
-				{#if !hasActiveFilters || dndUncategorized.length > 0}
-				<div>
-					<div class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/20 text-sm font-semibold">
-						{#if !dndDisabled}<span class="w-6 shrink-0"></span>{/if}
-						<button
-							type="button"
-							class="text-muted-foreground hover:text-foreground transition-colors"
-							onclick={() => toggleGroupCollapse(-1)}
-						>
-							{#if collapsedGroups.has(-1)}
-								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-							{:else}
-								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-							{/if}
-						</button>
-						<span class="text-muted-foreground">{m.group_uncategorized()}</span>
-						<span class="text-xs text-muted-foreground font-normal">({dndUncategorized.length})</span>
-					</div>
-
-					{#if !collapsedGroups.has(-1)}
-						<div
-							use:dragHandleZone={{
-								items: dndUncategorized,
-								flipDurationMs,
-								type: 'testcases',
-								dragDisabled: dndDisabled
-							}}
-							onconsider={(e) => handleTcDndConsider(null, e)}
-							onfinalize={(e) => handleTcDndFinalize(null, e)}
-							class="min-h-[32px]"
-						>
-							{#each dndUncategorized as tc (tc.id)}
-								<div
-									animate:flip={{ duration: flipDurationMs }}
-									class="flex items-center gap-2 px-3 py-1.5 border-b hover:bg-muted/30 group/row text-xs"
-								>
-									{@render tcRow(tc)}
-								</div>
-							{/each}
 						</div>
-
-						{#if canEdit}
-							<div class="bg-muted/10 text-xs">
-								{@render quickCreateRow(-1)}
-							</div>
-						{/if}
 					{/if}
-				</div>
 				{/if}
-			{/if}
-		</div>
-
-		{#if data.testCases.length === 0 && hasActiveFilters}
-			<div class="flex flex-col items-center gap-2 py-6">
-				<p class="text-center text-xs text-muted-foreground">{m.tc_empty_search()}</p>
-				<a href={basePath} class="text-xs text-primary hover:underline">{m.common_clear_filters()}</a>
 			</div>
-		{/if}
+
+			{#if data.testCases.length === 0 && hasActiveFilters}
+				<div class="flex flex-col items-center gap-2 py-6">
+					<p class="text-center text-xs text-muted-foreground">{m.tc_empty_search()}</p>
+					<a href={basePath} class="text-xs text-primary hover:underline"
+						>{m.common_clear_filters()}</a
+					>
+				</div>
+			{/if}
 		</div>
 	{/if}
 
@@ -1717,7 +2257,9 @@
 				{#each allStatuses as s}
 					<button
 						type="button"
-						class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted cursor-pointer {statusColor(s)} {s === exec.status ? 'font-bold' : ''}"
+						class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted cursor-pointer {statusColor(
+							s
+						)} {s === exec.status ? 'font-bold' : ''}"
 						onclick={() => updateExecutionStatus(runId, exec.executionId, s, tcKey)}
 					>
 						{s}
@@ -1728,14 +2270,26 @@
 					<button
 						type="button"
 						class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted text-muted-foreground"
-						onclick={() => { const r = runId, e = exec.executionId, k = tcKey; openDropdown = null; failureSheet.open(r, e, k); }}
+						onclick={() => {
+							const r = runId,
+								e = exec.executionId,
+								k = tcKey;
+							openDropdown = null;
+							failureSheet.open(r, e, k);
+						}}
 					>
 						{m.fail_details()}
 					</button>
 					<button
 						type="button"
 						class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted text-muted-foreground"
-						onclick={() => { const r = runId, e = exec.executionId, k = tcKey; openDropdown = null; failDialog.open(r, e, k); }}
+						onclick={() => {
+							const r = runId,
+								e = exec.executionId,
+								k = tcKey;
+							openDropdown = null;
+							failDialog.open(r, e, k);
+						}}
 					>
 						{m.fail_add_detail()}
 					</button>
@@ -1766,16 +2320,33 @@
 			onkeydown={(e) => e.stopPropagation()}
 		>
 			{#each data.projectMembers as member (member.userId)}
-				{@const isAssigned = tcForPopover?.assignees?.some((a) => a.userId === member.userId) ?? false}
+				{@const isAssigned =
+					tcForPopover?.assignees?.some((a) => a.userId === member.userId) ?? false}
 				<button
 					type="button"
-					class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted transition-colors {isAssigned ? 'font-bold bg-muted/50' : ''}"
+					class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted transition-colors {isAssigned
+						? 'font-bold bg-muted/50'
+						: ''}"
 					onclick={() => toggleAssignee(assigneePopover!.tcId, member.userId)}
 				>
-					<span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[9px] font-medium uppercase shrink-0">{member.userName.charAt(0)}</span>
+					<span
+						class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[9px] font-medium uppercase shrink-0"
+						>{member.userName.charAt(0)}</span
+					>
 					<span class="truncate flex-1">{member.userName}</span>
 					{#if isAssigned}
-						<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-primary shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="12"
+							height="12"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="text-primary shrink-0"><polyline points="20 6 9 17 4 12" /></svg
+						>
 					{/if}
 				</button>
 			{/each}
@@ -1791,7 +2362,9 @@
 		{@const filteredTags = tagSearchInput
 			? data.projectTags.filter((t) => t.name.toLowerCase().includes(tagSearchInput.toLowerCase()))
 			: data.projectTags}
-		{@const exactMatch = tagSearchInput && data.projectTags.some((t) => t.name.toLowerCase() === tagSearchInput.toLowerCase().trim())}
+		{@const exactMatch =
+			tagSearchInput &&
+			data.projectTags.some((t) => t.name.toLowerCase() === tagSearchInput.toLowerCase().trim())}
 		{@const canCreateNew = tagSearchInput.trim().length > 0 && !exactMatch}
 		<div
 			data-tag-popover
@@ -1814,13 +2387,26 @@
 					{@const isAssigned = tcForTagPopover?.tags?.some((tt) => tt.id === t.id) ?? false}
 					<button
 						type="button"
-						class="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-muted transition-colors rounded {isAssigned ? 'font-bold bg-muted/50' : ''}"
+						class="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-muted transition-colors rounded {isAssigned
+							? 'font-bold bg-muted/50'
+							: ''}"
 						onclick={() => toggleTag(tagPopover!.tcId, t.id)}
 					>
 						<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {t.color}"></span>
 						<span class="truncate flex-1">{t.name}</span>
 						{#if isAssigned}
-							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-primary shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.5"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="text-primary shrink-0"><polyline points="20 6 9 17 4 12" /></svg
+							>
 						{/if}
 					</button>
 				{/each}
@@ -1831,7 +2417,9 @@
 						{#each TAG_PALETTE as color (color)}
 							<button
 								type="button"
-								class="h-4 w-4 rounded-full border {newTagColor === color ? 'border-foreground scale-110' : 'border-transparent'}"
+								class="h-4 w-4 rounded-full border {newTagColor === color
+									? 'border-foreground scale-110'
+									: 'border-transparent'}"
 								style="background-color: {color}"
 								aria-label={m.aria_select_color({ color })}
 								onclick={() => (newTagColor = color)}
@@ -1843,7 +2431,8 @@
 						class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer font-medium"
 						onclick={() => createAndAssignTagInline(tagPopover!.tcId, tagSearchInput, newTagColor)}
 					>
-						<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {newTagColor}"></span>
+						<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {newTagColor}"
+						></span>
 						{m.tag_create_inline({ name: tagSearchInput.trim() })}
 					</button>
 				</div>
@@ -1864,12 +2453,26 @@
 			{#each priorityOptions as p (p.id)}
 				<button
 					type="button"
-					class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted transition-colors {p.name === priorityPopover.currentValue ? 'font-bold bg-muted/50' : ''}"
+					class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted transition-colors {p.name ===
+					priorityPopover.currentValue
+						? 'font-bold bg-muted/50'
+						: ''}"
 					onclick={() => selectPriority(priorityPopover!.tcId, p.name)}
 				>
 					<PriorityBadge name={p.name} color={p.color} />
 					{#if p.name === priorityPopover.currentValue}
-						<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-primary ml-auto"><polyline points="20 6 9 17 4 12"/></svg>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="12"
+							height="12"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="text-primary ml-auto"><polyline points="20 6 9 17 4 12" /></svg
+						>
 					{/if}
 				</button>
 			{/each}
@@ -1888,22 +2491,31 @@
 					class="w-full rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/30"
 					placeholder={cfPopover.fieldType === 'URL' ? 'https://...' : ''}
 					value={cfPopover.value ?? ''}
-					autofocus
+					use:focusOnMount
 					onkeydown={(e) => {
 						if (e.key === 'Enter') {
-							saveCfValue(cfPopover!.tcId, cfPopover!.cfId, (e.currentTarget as HTMLInputElement).value || null);
+							saveCfValue(
+								cfPopover!.tcId,
+								cfPopover!.cfId,
+								(e.currentTarget as HTMLInputElement).value || null
+							);
 						} else if (e.key === 'Escape') {
 							cfPopover = null;
 						}
 					}}
-					onblur={(e) => saveCfValue(cfPopover!.tcId, cfPopover!.cfId, (e.currentTarget as HTMLInputElement).value || null)}
+					onblur={(e) =>
+						saveCfValue(
+							cfPopover!.tcId,
+							cfPopover!.cfId,
+							(e.currentTarget as HTMLInputElement).value || null
+						)}
 				/>
 			{:else if cfPopover.fieldType === 'NUMBER'}
 				<input
 					type="number"
 					class="w-full rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/30"
 					value={cfPopover.value ?? ''}
-					autofocus
+					use:focusOnMount
 					onkeydown={(e) => {
 						if (e.key === 'Enter') {
 							const v = (e.currentTarget as HTMLInputElement).value;
@@ -1922,32 +2534,56 @@
 					type="date"
 					class="w-full rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/30"
 					value={cfPopover.value ?? ''}
-					autofocus
-					onchange={(e) => saveCfValue(cfPopover!.tcId, cfPopover!.cfId, (e.currentTarget as HTMLInputElement).value || null)}
+					use:focusOnMount
+					onchange={(e) =>
+						saveCfValue(
+							cfPopover!.tcId,
+							cfPopover!.cfId,
+							(e.currentTarget as HTMLInputElement).value || null
+						)}
 				/>
 			{:else if cfPopover.fieldType === 'SELECT' && cfPopover.options}
 				{#each cfPopover.options as opt (opt)}
 					<button
 						type="button"
-						class="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-muted transition-colors rounded {cfPopover.value === opt ? 'font-bold bg-muted/50' : ''}"
-						onclick={() => saveCfValue(cfPopover!.tcId, cfPopover!.cfId, cfPopover!.value === opt ? null : opt)}
+						class="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-muted transition-colors rounded {cfPopover.value ===
+						opt
+							? 'font-bold bg-muted/50'
+							: ''}"
+						onclick={() =>
+							saveCfValue(cfPopover!.tcId, cfPopover!.cfId, cfPopover!.value === opt ? null : opt)}
 					>
 						{opt}
 						{#if cfPopover.value === opt}
-							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-primary ml-auto"><polyline points="20 6 9 17 4 12"/></svg>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.5"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="text-primary ml-auto"><polyline points="20 6 9 17 4 12" /></svg
+							>
 						{/if}
 					</button>
 				{/each}
 			{:else if cfPopover.fieldType === 'MULTISELECT' && cfPopover.options}
 				{@const selected = (Array.isArray(cfPopover.value) ? cfPopover.value : []) as string[]}
 				{#each cfPopover.options as opt (opt)}
-					<label class="flex items-center gap-2 px-2 py-1 text-xs hover:bg-muted cursor-pointer rounded">
+					<label
+						class="flex items-center gap-2 px-2 py-1 text-xs hover:bg-muted cursor-pointer rounded"
+					>
 						<input
 							type="checkbox"
 							class="h-3 w-3"
 							checked={selected.includes(opt)}
 							onchange={() => {
-								const cur = (Array.isArray(cfPopover!.value) ? [...cfPopover!.value] : []) as string[];
+								const cur = (
+									Array.isArray(cfPopover!.value) ? [...cfPopover!.value] : []
+								) as string[];
 								const idx = cur.indexOf(opt);
 								if (idx >= 0) cur.splice(idx, 1);
 								else cur.push(opt);
@@ -1960,7 +2596,6 @@
 			{/if}
 		</div>
 	{/if}
-
 </div>
 
 <!-- Group delete confirmation -->
@@ -1975,7 +2610,11 @@
 				</AlertDialog.Description>
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel onclick={() => { deleteGroupId = null; }}>{m.common_cancel()}</AlertDialog.Cancel>
+				<AlertDialog.Cancel
+					onclick={() => {
+						deleteGroupId = null;
+					}}>{m.common_cancel()}</AlertDialog.Cancel
+				>
 				<Button variant="destructive" onclick={deleteGroup}>{m.common_delete()}</Button>
 			</AlertDialog.Footer>
 		</AlertDialog.Content>

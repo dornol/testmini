@@ -4,7 +4,7 @@ import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
 	issueLink: { id: 'id', projectId: 'project_id', testCaseId: 'test_case_id', testExecutionId: 'test_execution_id', externalUrl: 'external_url', externalKey: 'external_key', title: 'title', provider: 'provider', createdBy: 'created_by', createdAt: 'created_at' },
@@ -30,8 +30,9 @@ const { registerIssueLinkTools } = await import('./issue-links');
 const PROJECT_ID = 1;
 
 type ContentArray = Array<{ type: string; text: string }>;
-function parseResult(result: { content?: unknown }) {
-	return JSON.parse((result.content as ContentArray)[0].text);
+function parseResult(result: unknown) {
+	const toolResult = result as { content?: unknown };
+	return JSON.parse(((result as { content?: unknown }).content as ContentArray)[0].text);
 }
 
 async function createClient() {
@@ -129,7 +130,7 @@ describe('MCP issue-link tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Issue link not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Issue link not found');
 		});
 	});
 
@@ -169,7 +170,7 @@ describe('MCP issue-link tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
 		});
 	});
 });

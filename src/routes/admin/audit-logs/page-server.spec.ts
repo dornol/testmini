@@ -3,7 +3,7 @@ import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	auditLog: {
 		id: 'id',

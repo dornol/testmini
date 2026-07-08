@@ -4,7 +4,7 @@ import { testUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testCase: {
 		id: 'id',
@@ -34,6 +34,11 @@ const sampleTestCases = [
 	{ id: 3, key: 'TC-0003', title: 'Registration test' }
 ];
 
+type TraceabilityLoadData = {
+	projectId: number;
+	allTestCases: typeof sampleTestCases;
+};
+
 function createLoadEvent(projectId = '1') {
 	return {
 		params: { projectId },
@@ -50,7 +55,7 @@ describe('traceability +page.server.ts load', () => {
 	it('should return projectId and allTestCases', async () => {
 		mockSelectResult(mockDb, sampleTestCases);
 
-		const result = await load(createLoadEvent('5'));
+		const result = await load(createLoadEvent('5')) as TraceabilityLoadData;
 
 		expect(result.projectId).toBe(5);
 		expect(result.allTestCases).toEqual(sampleTestCases);
@@ -59,7 +64,7 @@ describe('traceability +page.server.ts load', () => {
 	it('should return empty array when no test cases exist', async () => {
 		mockSelectResult(mockDb, []);
 
-		const result = await load(createLoadEvent('1'));
+		const result = await load(createLoadEvent('1')) as TraceabilityLoadData;
 
 		expect(result.projectId).toBe(1);
 		expect(result.allTestCases).toEqual([]);
@@ -105,7 +110,10 @@ describe('traceability +page.server.ts load', () => {
 		}));
 		mockSelectResult(mockDb, manyTestCases);
 
-		const result = await load(createLoadEvent('1'));
+		const result = await load(createLoadEvent('1')) as {
+			projectId: number;
+			allTestCases: typeof manyTestCases;
+		};
 
 		expect(result.allTestCases).toHaveLength(100);
 		expect(result.allTestCases[0].key).toBe('TC-0001');

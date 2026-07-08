@@ -6,7 +6,7 @@ import { testUser, sampleExecution } from '$lib/server/test-helpers/fixtures';
 const mockDb = createMockDb();
 const mockRequireEditableRun = vi.fn().mockResolvedValue({ id: 50, projectId: 1, status: 'CREATED' });
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testExecution: { id: 'id', testRunId: 'test_run_id' },
 	testFailureDetail: { id: 'id', testExecutionId: 'test_execution_id' }

@@ -1,11 +1,10 @@
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testCase, testCaseVersion, testExecution } from '$lib/server/db/schema';
+import { testCase, testCaseVersion, testExecution, testRun } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
-import { badRequest, conflict } from '$lib/server/errors';
-import { requireEditableRun } from '$lib/server/crud-helpers';
+import { badRequest, conflict, forbidden } from '$lib/server/errors';
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, projectId }) => {
 	const runId = parseId(params.runId, 'run ID');
@@ -17,7 +16,15 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ par
 		return badRequest('testCaseId is required');
 	}
 
-	await requireEditableRun(runId, projectId);
+	const run = await db.query.testRun.findFirst({
+		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
+	});
+	if (!run) {
+		error(404, 'Test run not found');
+	}
+	if (run.status === 'COMPLETED') {
+		return forbidden('Cannot modify executions in a completed run');
+	}
 
 	// Verify test case belongs to project and get latest version
 	const tc = await db.query.testCase.findFirst({

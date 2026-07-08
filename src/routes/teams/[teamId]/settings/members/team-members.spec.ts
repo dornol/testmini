@@ -9,7 +9,7 @@ const mockDb = createMockDb();
 mockDb.query.team = { findFirst: vi.fn() };
 mockDb.query.teamMember = { findFirst: vi.fn() };
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	team: { id: 'id', name: 'name', description: 'description', createdBy: 'created_by', createdAt: 'created_at' },
 	teamMember: { id: 'id', teamId: 'team_id', userId: 'user_id', role: 'role', joinedAt: 'joined_at' },

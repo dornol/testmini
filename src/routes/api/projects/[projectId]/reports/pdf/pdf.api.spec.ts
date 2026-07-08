@@ -8,7 +8,7 @@ const mockParseDateRange = vi.fn();
 const mockLoadReportData = vi.fn();
 const mockGenerateReportPdf = vi.fn();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: {
 		id: 'id',

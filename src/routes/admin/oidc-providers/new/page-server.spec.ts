@@ -4,7 +4,7 @@ import { adminUser, testUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	oidcProvider: {
 		id: 'id',

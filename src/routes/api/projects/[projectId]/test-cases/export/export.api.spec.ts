@@ -5,7 +5,7 @@ import { testUser, sampleTestCase, sampleTestCaseVersion } from '$lib/server/tes
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testCase: { id: 'id', projectId: 'project_id', key: 'key', groupId: 'group_id', latestVersionId: 'latest_version_id' },
 	testCaseVersion: { id: 'id', title: 'title', priority: 'priority', precondition: 'precondition', steps: 'steps', expectedResult: 'expected_result' },

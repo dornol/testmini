@@ -4,7 +4,7 @@ import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
 	environmentConfig: { id: 'id', projectId: 'project_id', name: 'name', color: 'color', position: 'position', isDefault: 'is_default', baseUrl: 'base_url', memo: 'memo', createdBy: 'created_by' }
@@ -27,8 +27,9 @@ const { registerEnvironmentTools } = await import('./environments');
 const PROJECT_ID = 1;
 
 type ContentArray = Array<{ type: string; text: string }>;
-function parseResult(result: { content?: unknown }) {
-	return JSON.parse((result.content as ContentArray)[0].text);
+function parseResult(result: unknown) {
+	const toolResult = result as { content?: unknown };
+	return JSON.parse(((result as { content?: unknown }).content as ContentArray)[0].text);
 }
 
 async function createClient() {
@@ -111,7 +112,7 @@ describe('MCP environment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
 		});
 
 		it('should create with name and color', async () => {
@@ -157,7 +158,7 @@ describe('MCP environment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Environment not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Environment not found');
 		});
 	});
 
@@ -188,7 +189,7 @@ describe('MCP environment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Environment not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Environment not found');
 		});
 	});
 });

@@ -7,7 +7,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockMigrate = vi.fn().mockResolvedValue(undefined);
 const mockEnd = vi.fn().mockResolvedValue(undefined);
 const mockDrizzle = vi.fn().mockReturnValue({ __drizzleDb: true });
-const mockPostgres = vi.fn().mockReturnValue({ end: mockEnd });
+const mockMigrationClient = Object.assign(
+	vi.fn().mockResolvedValue([{ count: 2 }]),
+	{ end: mockEnd }
+);
+const mockPostgres = vi.fn().mockReturnValue(mockMigrationClient);
 
 vi.mock('drizzle-orm/postgres-js/migrator', () => ({
 	migrate: (...args: unknown[]) => mockMigrate(...args)
@@ -80,11 +84,12 @@ describe('runMigrations', () => {
 		mockEnv = { DATABASE_URL: 'postgres://localhost:5432/testdb' };
 		mockMigrate.mockResolvedValue(undefined);
 		mockEnd.mockResolvedValue(undefined);
+		mockMigrationClient.mockResolvedValue([{ count: 2 }]);
 		mockReadFileSync.mockReturnValue(
 			JSON.stringify({
 				entries: [
-					{ tag: '0001_initial' },
-					{ tag: '0002_add_users' }
+					{ tag: '0001_initial', when: 1 },
+					{ tag: '0002_add_users', when: 2 }
 				]
 			})
 		);
@@ -102,7 +107,7 @@ describe('runMigrations', () => {
 		expect(mockDrizzle).toHaveBeenCalled();
 		expect(mockMigrate).toHaveBeenCalled();
 		expect(mockEnd).toHaveBeenCalled();
-		expect(mockLogger.info).toHaveBeenCalledWith('Database migrations applied successfully');
+		expect(mockLogger.info).toHaveBeenCalledWith({ applied: 2 }, 'Database migrations applied successfully');
 	});
 
 	it('should be idempotent — skip on second call (globalThis flag)', async () => {
@@ -184,6 +189,7 @@ describe('checkMigrationIntegrity', () => {
 				entries: [{ tag: '0001_init' }, { tag: '0002_users' }]
 			})
 		);
+		mockMigrationClient.mockResolvedValue([{ count: 2 }]);
 		mockReaddirSync.mockReturnValue(['0001_init.sql', '0002_users.sql']);
 
 		const { runMigrations } = await import('./migrate');
@@ -196,6 +202,7 @@ describe('checkMigrationIntegrity', () => {
 				entries: [{ tag: '0001_init' }]
 			})
 		);
+		mockMigrationClient.mockResolvedValue([{ count: 1 }]);
 		mockReaddirSync.mockReturnValue(['0001_init.sql', '0002_orphan.sql']);
 
 		const { runMigrations } = await import('./migrate');

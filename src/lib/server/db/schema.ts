@@ -8,7 +8,8 @@ import {
 	timestamp,
 	jsonb,
 	index,
-	unique
+	unique,
+	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { user } from './auth.schema';
@@ -1772,7 +1773,7 @@ export const module = pgTable(
 			.notNull()
 			.references(() => project.id, { onDelete: 'cascade' }),
 		name: text('name').notNull(),
-		parentModuleId: integer('parent_module_id').references(() => module.id, { onDelete: 'set null' }),
+		parentModuleId: integer('parent_module_id').references((): AnyPgColumn => module.id, { onDelete: 'set null' }),
 		description: text('description'),
 		sortOrder: integer('sort_order').notNull().default(0),
 		createdBy: text('created_by')

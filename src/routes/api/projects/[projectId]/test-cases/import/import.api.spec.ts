@@ -5,7 +5,7 @@ import { adminUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testCase: { id: 'id', projectId: 'project_id', key: 'key', sortOrder: 'sort_order' },
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id' },

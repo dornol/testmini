@@ -9,7 +9,7 @@ const mockRequireAuth = vi.fn();
 const mockRequireProjectRole = vi.fn();
 const mockLoadProjectTags = vi.fn();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testCase: { id: 'id', projectId: 'project_id', key: 'key', latestVersionId: 'latest_version_id' },
 	testCaseVersion: { id: 'id', title: 'title', priority: 'priority' },

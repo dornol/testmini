@@ -5,7 +5,7 @@ import { testUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testCase: { id: 'id', projectId: 'project_id', key: 'key', groupId: 'group_id', sortOrder: 'sort_order', latestVersionId: 'latest_version_id', createdBy: 'created_by', createdAt: 'created_at' },
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id', versionNo: 'version_no', title: 'title', precondition: 'precondition', steps: 'steps', expectedResult: 'expected_result', priority: 'priority', revision: 'revision', updatedBy: 'updated_by', createdAt: 'created_at' },

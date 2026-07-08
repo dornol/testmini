@@ -6,7 +6,7 @@ const mockValidate = vi.fn();
 const mockCronSchedule = vi.fn();
 const mockLog = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	reportSchedule: { id: 'id', enabled: 'enabled', projectId: 'project_id' },
 	project: { id: 'id', name: 'name' }

@@ -3,7 +3,7 @@ import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	notification: { id: 'id', userId: 'user_id', type: 'type', title: 'title', message: 'message', link: 'link', projectId: 'project_id', isRead: 'is_read', createdAt: 'created_at' }
 }));
@@ -26,8 +26,9 @@ const { registerNotificationTools } = await import('./notifications');
 const PROJECT_ID = 1;
 
 type ContentArray = Array<{ type: string; text: string }>;
-function parseResult(result: { content?: unknown }) {
-	return JSON.parse((result.content as ContentArray)[0].text);
+function parseResult(result: unknown) {
+	const toolResult = result as { content?: unknown };
+	return JSON.parse(((result as { content?: unknown }).content as ContentArray)[0].text);
 }
 
 async function createClient() {

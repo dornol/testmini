@@ -28,13 +28,15 @@ const { mockDb } = vi.hoisted(() => {
 		insert: vi.fn().mockReturnValue(insertChain),
 		update: vi.fn().mockReturnValue(updateChain),
 		delete: vi.fn().mockReturnValue(deleteChain),
-		_chains: { select: selectChain, insert: insertChain, update: updateChain, delete: deleteChain }
+		_chains: { select: selectChain, insert: insertChain, update: updateChain, delete: deleteChain },
+		col: vi.fn((column: unknown) => column),
+		sql: Object.assign(vi.fn(), { raw: vi.fn((text: string) => ({ text })) })
 	};
 
 	return { mockDb };
 });
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testRun: {
 		id: 'id',

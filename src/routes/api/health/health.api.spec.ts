@@ -6,7 +6,7 @@ const mockDb = createMockDb() as ReturnType<typeof createMockDb> & { execute: Re
 const mockPing = vi.fn();
 let mockRedis: { ping: typeof mockPing } | null = null;
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('drizzle-orm', () => ({
 	sql: Object.assign(
 		(strings: TemplateStringsArray, ...values: unknown[]) => ({

@@ -7,7 +7,7 @@ const mockDb = createMockDb();
 // The items endpoint uses db.query.testPlan.findFirst
 (mockDb.query as Record<string, unknown>).testPlan = { findFirst: vi.fn() };
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testPlan: { id: 'id', projectId: 'project_id' },
 	testPlanTestCase: {

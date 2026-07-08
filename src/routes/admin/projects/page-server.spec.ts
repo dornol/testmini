@@ -19,7 +19,7 @@ vi.mock('$lib/server/db/schema', () => ({
 vi.mock('drizzle-orm', () => {
 	const sqlTag = (...args: unknown[]) => {
 		const result = ['sql', ...args];
-		(result as Record<string, unknown>).as = vi.fn().mockReturnValue(result);
+		(result as unknown as Record<string, unknown>).as = vi.fn().mockReturnValue(result);
 		return result;
 	};
 	sqlTag.raw = vi.fn((s: string) => s);

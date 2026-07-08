@@ -4,7 +4,7 @@ import { sampleProject, sampleTestCase, sampleTestRun, sampleExecution } from '$
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
 	testCase: { id: 'id', projectId: 'project_id' },
@@ -28,8 +28,9 @@ const { registerCommentTools } = await import('./comments');
 const PROJECT_ID = 1;
 
 type ContentArray = Array<{ type: string; text: string }>;
-function parseResult(result: { content?: unknown }) {
-	return JSON.parse((result.content as ContentArray)[0].text);
+function parseResult(result: unknown) {
+	const toolResult = result as { content?: unknown };
+	return JSON.parse(((result as { content?: unknown }).content as ContentArray)[0].text);
 }
 
 async function createClient() {
@@ -85,7 +86,7 @@ describe('MCP comment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
 		});
 
 		it('should return error when project not found', async () => {
@@ -98,7 +99,7 @@ describe('MCP comment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
 		});
 	});
 
@@ -133,7 +134,7 @@ describe('MCP comment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
 		});
 	});
 
@@ -218,7 +219,7 @@ describe('MCP comment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test run not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test run not found');
 		});
 
 		it('should return error when execution not found', async () => {
@@ -231,7 +232,7 @@ describe('MCP comment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Execution not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Execution not found');
 		});
 	});
 });

@@ -6,7 +6,7 @@ import { testUser } from '$lib/server/test-helpers/fixtures';
 const mockDb = createMockDb();
 const mockDeleteFile = vi.fn();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	exploratorySession: {
 		id: 'id',

@@ -107,7 +107,7 @@ describe('ImportResults', () => {
 		});
 
 		// Click expand button
-		const expandButton = container.querySelector('button[type="button"]');
+		const expandButton = container.querySelector<HTMLButtonElement>('button[type="button"]');
 		expect(expandButton).toBeTruthy();
 		expandButton!.click();
 

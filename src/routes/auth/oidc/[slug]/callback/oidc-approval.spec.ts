@@ -30,7 +30,7 @@ function resolveChain(result: unknown[]) {
 	return c;
 }
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	oidcProvider: { slug: 'slug', enabled: 'enabled', id: 'id', clientId: 'client_id', clientSecretEncrypted: 'client_secret_encrypted', tokenUrl: 'token_url', jwksUri: 'jwks_uri', issuerUrl: 'issuer_url', userinfoUrl: 'userinfo_url', autoRegister: 'auto_register' },
 	oidcAccount: { userId: 'user_id', providerId: 'provider_id', externalId: 'external_id', email: 'email', name: 'name' }

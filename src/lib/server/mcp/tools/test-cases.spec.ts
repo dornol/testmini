@@ -38,8 +38,9 @@ const { registerTestCaseTools } = await import('./test-cases');
 const PROJECT_ID = 1;
 
 type ContentArray = Array<{ type: string; text: string }>;
-function parseResult(result: { content?: unknown }) {
-	return JSON.parse((result.content as ContentArray)[0].text);
+function parseResult(result: unknown) {
+	const toolResult = result as { content?: unknown };
+	return JSON.parse(((result as { content?: unknown }).content as ContentArray)[0].text);
 }
 
 async function createClient() {
@@ -141,7 +142,7 @@ describe('MCP test-case tools', () => {
 			const result = await client.callTool({ name: 'get-test-case', arguments: { id: 999 } });
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
 		});
 	});
 
@@ -198,7 +199,7 @@ describe('MCP test-case tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
 		});
 	});
 
@@ -250,7 +251,7 @@ describe('MCP test-case tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
 		});
 	});
 
@@ -292,7 +293,7 @@ describe('MCP test-case tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
 		});
 	});
 
@@ -406,7 +407,7 @@ describe('MCP test-case tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('testCases array is empty');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('testCases array is empty');
 		});
 
 		it('should return error when group not found', async () => {
@@ -422,7 +423,7 @@ describe('MCP test-case tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Group not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Group not found');
 		});
 	});
 
@@ -454,7 +455,7 @@ describe('MCP test-case tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
 		});
 
 		it('should ungroup test case when groupId is null', async () => {
@@ -539,7 +540,7 @@ describe('MCP test-case tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
 		});
 	});
 });

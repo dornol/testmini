@@ -4,7 +4,7 @@ import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testPlan: { id: 'id', name: 'name', description: 'description', status: 'status', milestone: 'milestone', startDate: 'start_date', endDate: 'end_date', createdBy: 'created_by', createdAt: 'created_at', projectId: 'project_id' },
 	user: { id: 'id', name: 'name' }

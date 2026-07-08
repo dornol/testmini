@@ -202,7 +202,7 @@ describe('getActionContext', () => {
 		});
 
 		await expect(
-			getActionContext({ user: null } as App.Locals, { projectId: '42' })
+			getActionContext({ user: null } as unknown as App.Locals, { projectId: '42' })
 		).rejects.toMatchObject({ status: 401 });
 	});
 

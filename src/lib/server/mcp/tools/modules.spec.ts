@@ -4,7 +4,7 @@ import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
 	module: { id: 'id', projectId: 'project_id', name: 'name', description: 'description', parentModuleId: 'parent_module_id', sortOrder: 'sort_order', createdBy: 'created_by' },
@@ -31,8 +31,9 @@ const { registerModuleTools } = await import('./modules');
 const PROJECT_ID = 1;
 
 type ContentArray = Array<{ type: string; text: string }>;
-function parseResult(result: { content?: unknown }) {
-	return JSON.parse((result.content as ContentArray)[0].text);
+function parseResult(result: unknown) {
+	const toolResult = result as { content?: unknown };
+	return JSON.parse(((result as { content?: unknown }).content as ContentArray)[0].text);
 }
 
 async function createClient() {
@@ -102,7 +103,7 @@ describe('MCP module tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Parent module not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Parent module not found');
 		});
 
 		it('should create a module', async () => {
@@ -147,7 +148,7 @@ describe('MCP module tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Module not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Module not found');
 		});
 	});
 
@@ -200,7 +201,7 @@ describe('MCP module tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Module not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Module not found');
 		});
 	});
 

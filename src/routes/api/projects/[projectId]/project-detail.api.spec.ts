@@ -5,7 +5,7 @@ import { testUser, adminUser, sampleProject } from '$lib/server/test-helpers/fix
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', name: 'name', description: 'description', active: 'active', createdBy: 'created_by', createdAt: 'created_at' },
 	projectMember: { projectId: 'project_id', userId: 'user_id', role: 'role' }

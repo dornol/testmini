@@ -5,7 +5,7 @@ import { testUser, adminUser, sampleTestRun, sampleExecution } from '$lib/server
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testFailureDetail: {
 		id: 'id',
@@ -18,7 +18,8 @@ vi.mock('$lib/server/db/schema', () => ({
 		createdBy: 'created_by',
 		createdAt: 'created_at'
 	},
-	testExecution: { id: 'id', testRunId: 'test_run_id', status: 'status', executedBy: 'executed_by', executedAt: 'executed_at' },
+	testExecution: { id: 'id', testRunId: 'test_run_id', testCaseVersionId: 'test_case_version_id', status: 'status', executedBy: 'executed_by', executedAt: 'executed_at' },
+	testCaseVersion: { id: 'id', testCaseId: 'test_case_id' },
 	testRun: { id: 'id', projectId: 'project_id' },
 	user: { id: 'id', name: 'name' }
 }));

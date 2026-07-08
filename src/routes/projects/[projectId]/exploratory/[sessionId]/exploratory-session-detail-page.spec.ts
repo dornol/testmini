@@ -4,7 +4,7 @@ import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	exploratorySession: { id: 'id', projectId: 'project_id', createdBy: 'created_by' },
 	sessionNote: { id: 'id', sessionId: 'session_id', timestamp: 'timestamp' },

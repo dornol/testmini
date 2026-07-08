@@ -4,7 +4,7 @@ import { createMockDb } from '$lib/server/test-helpers/mock-db';
 const mockDb = createMockDb();
 const mockSendProjectWebhooks = vi.fn();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	notification: { id: 'id' },
 	userPreference: { userId: 'user_id' }

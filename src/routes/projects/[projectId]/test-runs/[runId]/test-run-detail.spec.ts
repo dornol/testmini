@@ -7,7 +7,7 @@ const mockDb = createMockDb();
 const mockPublish = vi.fn();
 const mockCreateNotification = vi.fn();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testRun: { id: 'id', projectId: 'project_id', status: 'status' },
 	testExecution: {

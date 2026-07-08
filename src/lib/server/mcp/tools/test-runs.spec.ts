@@ -34,8 +34,9 @@ const { registerTestRunTools } = await import('./test-runs');
 const PROJECT_ID = 1;
 
 type ContentArray = Array<{ type: string; text: string }>;
-function parseResult(result: { content?: unknown }) {
-	return JSON.parse((result.content as ContentArray)[0].text);
+function parseResult(result: unknown) {
+	const toolResult = result as { content?: unknown };
+	return JSON.parse(((result as { content?: unknown }).content as ContentArray)[0].text);
 }
 
 async function createClient() {
@@ -89,7 +90,7 @@ describe('MCP test-run tools', () => {
 			const result = await client.callTool({ name: 'get-test-run', arguments: { runId: 999 } });
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test run not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test run not found');
 		});
 	});
 
@@ -165,7 +166,7 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
 		});
 
 		it('should return error when no test cases found', async () => {
@@ -178,7 +179,7 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('No test cases found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('No test cases found');
 		});
 	});
 
@@ -210,7 +211,7 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test run not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test run not found');
 		});
 
 		it('should return error when execution not found', async () => {
@@ -223,7 +224,7 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Execution not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Execution not found');
 		});
 	});
 
@@ -254,7 +255,7 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Cannot modify completed run');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Cannot modify completed run');
 		});
 
 		it('should return error when execution not found', async () => {
@@ -267,7 +268,7 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Execution not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Execution not found');
 		});
 	});
 
@@ -291,7 +292,7 @@ describe('MCP test-run tools', () => {
 			const result = await client.callTool({ name: 'complete-test-run', arguments: { runId: 50 } });
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test run already completed');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test run already completed');
 		});
 
 		it('should return error when run not found', async () => {
@@ -330,7 +331,7 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test run not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test run not found');
 		});
 	});
 
@@ -361,7 +362,7 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test run not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test run not found');
 		});
 	});
 

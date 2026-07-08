@@ -4,7 +4,7 @@ import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
 	testCase: { id: 'id', projectId: 'project_id', latestVersionId: 'latest_version_id', key: 'key' },
@@ -33,8 +33,9 @@ const { registerTestPlanTools } = await import('./test-plans');
 const PROJECT_ID = 1;
 
 type ContentArray = Array<{ type: string; text: string }>;
-function parseResult(result: { content?: unknown }) {
-	return JSON.parse((result.content as ContentArray)[0].text);
+function parseResult(result: unknown) {
+	const toolResult = result as { content?: unknown };
+	return JSON.parse(((result as { content?: unknown }).content as ContentArray)[0].text);
 }
 
 async function createClient() {
@@ -100,7 +101,7 @@ describe('MCP test-plan tools', () => {
 			const result = await client.callTool({ name: 'get-test-plan', arguments: { planId: 999 } });
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test plan not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test plan not found');
 		});
 	});
 
@@ -130,7 +131,7 @@ describe('MCP test-plan tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
 		});
 	});
 
@@ -162,7 +163,7 @@ describe('MCP test-plan tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test plan not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test plan not found');
 		});
 	});
 
@@ -287,7 +288,7 @@ describe('MCP test-plan tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test plan has no test cases');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test plan has no test cases');
 		});
 
 		it('should return error when plan not found', async () => {
@@ -329,7 +330,7 @@ describe('MCP test-plan tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as ContentArray)[0].text).toBe('Test plan not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test plan not found');
 		});
 	});
 

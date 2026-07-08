@@ -9,6 +9,8 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 	await parent();
 	const projectId = parseId(params.projectId, 'project ID');
 	const sessionId = parseId(params.sessionId, 'session ID');
+	if (!Number.isFinite(projectId)) error(400, 'Invalid project ID');
+	if (!Number.isFinite(sessionId)) error(400, 'Invalid session ID');
 
 	let session;
 	try {

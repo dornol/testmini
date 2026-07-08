@@ -35,6 +35,13 @@ function chainable(terminal?: () => unknown) {
 	return chain;
 }
 
+function rawSql(strings: TemplateStringsArray, ...values: unknown[]) {
+	const text = strings.reduce((acc, part, index) => `${acc}${part}${index < values.length ? String(values[index]) : ''}`, '');
+	return { as: vi.fn().mockReturnValue({ text }), text };
+}
+
+export const mockCol = vi.fn((column: unknown) => column);
+
 export function createMockDb() {
 	const selectChain = chainable();
 	const insertChain = chainable();
@@ -43,6 +50,7 @@ export function createMockDb() {
 
 	const db = {
 		select: vi.fn().mockReturnValue(selectChain),
+		selectDistinct: vi.fn().mockReturnValue(selectChain),
 		insert: vi.fn().mockReturnValue(insertChain),
 		update: vi.fn().mockReturnValue(updateChain),
 		delete: vi.fn().mockReturnValue(deleteChain),
@@ -64,6 +72,7 @@ export function createMockDb() {
 			testCase: { findFirst: vi.fn() },
 			testRun: { findFirst: vi.fn() },
 			testExecution: { findFirst: vi.fn() },
+			testCaseVersion: { findFirst: vi.fn() },
 			projectMember: { findFirst: vi.fn() },
 			testCaseGroup: { findFirst: vi.fn() },
 			priorityConfig: { findFirst: vi.fn() },
@@ -86,7 +95,9 @@ export function createMockDb() {
 			sharedDataSet: { findFirst: vi.fn() },
 			issueLink: { findFirst: vi.fn() }
 		} as Record<string, { findFirst: ReturnType<typeof vi.fn>; findMany?: ReturnType<typeof vi.fn> }>,
-		_chains: { select: selectChain, insert: insertChain, update: updateChain, delete: deleteChain }
+		_chains: { select: selectChain, insert: insertChain, update: updateChain, delete: deleteChain },
+		sql: Object.assign(vi.fn(rawSql), { raw: vi.fn((text: string) => ({ text })) }),
+		col: mockCol
 	};
 
 	return db;

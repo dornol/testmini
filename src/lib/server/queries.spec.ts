@@ -3,7 +3,7 @@ import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db
 
 const mockDb = createMockDb();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb }));
+vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	tag: { id: 'tag.id', name: 'tag.name', color: 'tag.color', projectId: 'tag.project_id' },
 	testCaseTag: { tagId: 'tct.tag_id', testCaseId: 'tct.test_case_id' },

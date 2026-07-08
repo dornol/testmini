@@ -66,7 +66,8 @@ docker compose up -d
 
 # Set up environment variables
 cp .env.example .env
-# Configure ORIGIN and BETTER_AUTH_SECRET in the .env file
+# Configure ORIGIN and BETTER_AUTH_SECRET in the .env file.
+# For production first startup, also set ADMIN_PASSWORD.
 
 # Run DB migration
 pnpm db:push

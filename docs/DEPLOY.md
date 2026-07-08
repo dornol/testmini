@@ -67,6 +67,7 @@ cp .env.example .env
 | `DATABASE_URL` | PostgreSQL connection string | `postgres://user:password@localhost:5432/testmini` |
 | `ORIGIN` | Public URL of the app (without trailing slash) | `https://qa.example.com` |
 | `BETTER_AUTH_SECRET` | Session signing secret (minimum 32 characters) | Output of `openssl rand -base64 32` |
+| `ADMIN_PASSWORD` | Initial admin password, required before first production startup when no users exist | Output of `openssl rand -base64 16` |
 
 ### Optional Variables
 
@@ -86,7 +87,7 @@ cp .env.example .env
 | `SMTP_PASS` | SMTP authentication password | — | `password` |
 | `SMTP_FROM` | Email sender address | `SMTP_USER` value | `noreply@example.com` |
 | `ADMIN_EMAIL` | Initial admin account email (first startup only) | `admin@admin.local` | `admin@company.com` |
-| `ADMIN_PASSWORD` | Initial admin account password | `admin1234` | Output of `openssl rand -base64 16` |
+| `ADMIN_PASSWORD` | Initial admin account password; production rejects missing, default, or shorter-than-12-character values | — | Output of `openssl rand -base64 16` |
 | `ADMIN_NAME` | Initial admin display name | `admin` | `Admin` |
 | `DB_POOL_MAX` | Max database connections in pool | `20` (prod) / `10` (dev) | `20` |
 | `DB_IDLE_TIMEOUT` | Idle connection timeout (seconds) | `30` | `30` |
@@ -106,6 +107,7 @@ cp .env.example .env
 | `REDIS_PASSWORD` | Redis `requirepass` password | Output of `openssl rand -base64 24` |
 | `ORIGIN` | Public URL of the app | `https://qa.example.com` |
 | `BETTER_AUTH_SECRET` | Session signing secret | Output of `openssl rand -base64 32` |
+| `ADMIN_PASSWORD` | Initial admin password, required before first startup if the database has no users | Output of `openssl rand -base64 16` |
 | `APP_PORT` | Port exposed to the host | `3000` |
 | `S3_BUCKET` | S3/MinIO bucket name (optional) | `testmini` |
 | `S3_ENDPOINT` | S3/MinIO endpoint URL (optional) | `http://minio:9000` |
@@ -197,8 +199,9 @@ Uses `compose.prod.yaml`. The app (Node 24-alpine), PostgreSQL 17, and Redis 7 a
 The Dockerfile uses a 3-stage build for minimal image size and fast rebuilds:
 
 1. **deps** — Installs dependencies with pnpm store cache mount (`--mount=type=cache`)
-2. **build** — Builds the app and creates a production-only node_modules via `pnpm deploy --prod`
-3. **runtime** — Copies only the build output, prod deps, and drizzle migrations
+2. **build** — Builds the SvelteKit app
+3. **prod-deps** — Installs production-only dependencies
+4. **runtime** — Copies only the build output, prod deps, and drizzle migrations
 
 Health checks use Node.js `fetch()` instead of wget/curl, eliminating an extra package dependency.
 
@@ -251,18 +254,20 @@ POSTGRES_PASSWORD=<strong_password>
 REDIS_PASSWORD=<strong_password>
 ORIGIN=https://qa.example.com
 BETTER_AUTH_SECRET=<random_string_32_chars_or_more>
+ADMIN_EMAIL=admin@company.com
+ADMIN_PASSWORD=<random_string_12_chars_or_more>
+ADMIN_NAME=Admin
 APP_PORT=3000
 EOF
 
 # 3. Build Docker images and start services
 docker compose -f compose.prod.yaml up -d --build
 
-# 4. Run DB migration
-docker compose -f compose.prod.yaml exec app pnpm db:migrate
-
-# 5. Check service status
+# 4. Check service status
 docker compose -f compose.prod.yaml ps
 ```
+
+The production app applies registered Drizzle migrations automatically during startup before serving requests. The runtime image intentionally contains only production dependencies, so `pnpm db:migrate` is not available inside the `app` container.
 
 #### Checking Service Status
 
@@ -326,16 +331,22 @@ cp .env.example .env
 # Edit .env file: set DATABASE_URL, ORIGIN, BETTER_AUTH_SECRET
 # Optionally set REDIS_URL (omit for in-memory fallback)
 
-# 4. Production build
+# 4. Verify production readiness gates
+pnpm format:check
+pnpm lint
+pnpm check
+pnpm test
+
+# 5. Production build
 pnpm build
 
-# 5. Keep only production dependencies (optional, when transferring from build server to deployment server)
+# 6. Keep only production dependencies (optional, when transferring from build server to deployment server)
 pnpm prune --prod
 
-# 6. Run DB migration
+# 7. Run DB migration
 pnpm db:migrate
 
-# 7. Start the server
+# 8. Start the server
 NODE_ENV=production node build
 ```
 
@@ -410,8 +421,8 @@ pnpm db:push
 ### Migration in Docker Environment
 
 ```bash
-# Run inside the app container
-docker compose -f compose.prod.yaml exec app pnpm db:migrate
+# Migrations run automatically when the app container starts.
+docker compose -f compose.prod.yaml logs app | grep "Database migrations applied"
 ```
 
 ### Migration File Location
@@ -816,8 +827,8 @@ mc du local/testmini
 docker compose -f compose.prod.yaml logs app
 
 # 2. Check for missing required environment variables
-#    Verify that BETTER_AUTH_SECRET, ORIGIN, DATABASE_URL are set
-docker compose -f compose.prod.yaml exec app env | grep -E "DATABASE_URL|ORIGIN|BETTER_AUTH_SECRET"
+#    Verify that BETTER_AUTH_SECRET, ORIGIN, DATABASE_URL, and ADMIN_PASSWORD are set
+docker compose -f compose.prod.yaml exec app env | grep -E "DATABASE_URL|ORIGIN|BETTER_AUTH_SECRET|ADMIN_PASSWORD"
 
 # 3. Verify DB connection
 docker compose -f compose.prod.yaml exec app \
@@ -826,7 +837,7 @@ docker compose -f compose.prod.yaml exec app \
 
 ### DB Migration Failure
 
-**Symptom:** Error when running `pnpm db:migrate`
+**Symptom:** App fails during startup with a migration error, or manual `pnpm db:migrate` fails in a build/maintenance environment
 
 **Resolution:**
 
@@ -1014,8 +1025,8 @@ docker compose -f compose.prod.yaml exec db psql -U testmini testmini
 Verify the following items before deployment.
 
 - [ ] Database backup completed
-- [ ] `.env` environment variables verified (especially `ORIGIN`, `BETTER_AUTH_SECRET`)
-- [ ] Confirmed whether `pnpm db:migrate` needs to be run (if new migration files exist)
+- [ ] `.env` environment variables verified (especially `ORIGIN`, `BETTER_AUTH_SECRET`, `ADMIN_PASSWORD`)
+- [ ] Verified app startup logs show registered migrations applied successfully
 - [ ] Health check endpoint (`/api/health`) returns a normal response after deployment
 - [ ] Reverse proxy configuration verified (HTTPS, SSE timeout)
 - [ ] Upload volume/directory mount verified (or S3/MinIO bucket accessible)

@@ -15,14 +15,14 @@ services:
         max-size: "10m"
         max-file: "3"
     environment:
-      DATABASE_URL: "${DATABASE_URL:-postgres://testmini:${POSTGRES_PASSWORD}@db:5432/testmini}"
-      ORIGIN: "${ORIGIN}"
-      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET}"
-      REDIS_URL: "${REDIS_URL:-redis://:${REDIS_PASSWORD}@redis:6379}"
+      DATABASE_URL: "${DATABASE_URL:-postgres://testmini:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/testmini}"
+      ORIGIN: "${ORIGIN:?ORIGIN is required}"
+      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}"
+      REDIS_URL: "${REDIS_URL:-redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379}"
       NODE_ENV: production
-      # Initial admin account (optional — only used on first startup)
+      # Initial admin account (required before first production startup when no users exist)
       ADMIN_EMAIL: "${ADMIN_EMAIL:-}"
-      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:?ADMIN_PASSWORD is required before first production startup}"
       ADMIN_NAME: "${ADMIN_NAME:-}"
       # S3/MinIO (optional — omit to use local filesystem)
       S3_BUCKET: "${S3_BUCKET:-}"
@@ -61,7 +61,7 @@ services:
         max-file: "3"
     environment:
       POSTGRES_USER: testmini
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
       POSTGRES_DB: testmini
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -85,13 +85,13 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    command: redis-server --requirepass ${REDIS_PASSWORD}
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     environment:
-      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -113,7 +113,7 @@ services:
     environment:
       POSTGRES_HOST: "${POSTGRES_HOST:-db}"
       POSTGRES_USER: testmini
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
       POSTGRES_DB: testmini
       # Cron schedule for pg_dump (default: daily at 02:00)
       BACKUP_SCHEDULE: "${BACKUP_SCHEDULE:-0 2 * * *}"
@@ -126,53 +126,53 @@ services:
         condition: service_healthy
     networks:
       - backend
-    entrypoint: >
-      sh -c '
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
         set -e
         echo "[backup] Installing crond..."
         apk add --no-cache dcron
 
         mkdir -p /backups
 
-        cat > /usr/local/bin/run-backup.sh << '"'"'SCRIPT'"'"'
-      #!/usr/bin/env sh
-      set -e
-      TIMESTAMP=$(date +%Y-%m-%d_%H%M%S)
-      BACKUP_FILE="/backups/backup_${TIMESTAMP}.sql.gz"
-      RETAIN="${BACKUP_RETAIN:-30}"
-      echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Starting backup -> ${BACKUP_FILE}"
-      PGPASSWORD="${POSTGRES_PASSWORD}" pg_dump \
-        -h "${POSTGRES_HOST:-db}" \
-        -U "${POSTGRES_USER}" \
-        "${POSTGRES_DB}" \
-        | gzip > "${BACKUP_FILE}"
-      if [ ! -s "${BACKUP_FILE}" ]; then
-        echo "[$(date +%Y-%m-%d\ %H:%M:%S)] ERROR: Backup file is empty." >&2
-        rm -f "${BACKUP_FILE}"
-        exit 1
-      fi
-      SIZE=$(du -sh "${BACKUP_FILE}" | cut -f1)
-      echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Backup complete: ${BACKUP_FILE} (${SIZE})"
-      echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Applying retention (keep last ${RETAIN})..."
-      ls -1t /backups/backup_*.sql.gz 2>/dev/null \
-        | tail -n "+$((RETAIN + 1))" \
-        | xargs -r rm -f
-      echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Done."
-      SCRIPT
+        cat > /usr/local/bin/run-backup.sh << 'SCRIPT'
+        #!/usr/bin/env sh
+        set -e
+        TIMESTAMP=$$(date +%Y-%m-%d_%H%M%S)
+        BACKUP_FILE="/backups/backup_$${TIMESTAMP}.sql.gz"
+        RETAIN="$${BACKUP_RETAIN:-30}"
+        echo "[$$(date +%Y-%m-%d\ %H:%M:%S)] Starting backup -> $${BACKUP_FILE}"
+        PGPASSWORD="$${POSTGRES_PASSWORD}" pg_dump \
+          -h "$${POSTGRES_HOST:-db}" \
+          -U "$${POSTGRES_USER}" \
+          "$${POSTGRES_DB}" \
+          | gzip > "$${BACKUP_FILE}"
+        if [ ! -s "$${BACKUP_FILE}" ]; then
+          echo "[$$(date +%Y-%m-%d\ %H:%M:%S)] ERROR: Backup file is empty." >&2
+          rm -f "$${BACKUP_FILE}"
+          exit 1
+        fi
+        SIZE=$$(du -sh "$${BACKUP_FILE}" | cut -f1)
+        echo "[$$(date +%Y-%m-%d\ %H:%M:%S)] Backup complete: $${BACKUP_FILE} ($${SIZE})"
+        echo "[$$(date +%Y-%m-%d\ %H:%M:%S)] Applying retention (keep last $${RETAIN})..."
+        ls -1t /backups/backup_*.sql.gz 2>/dev/null \
+          | tail -n "+$$((RETAIN + 1))" \
+          | xargs -r rm -f
+        echo "[$$(date +%Y-%m-%d\ %H:%M:%S)] Done."
+        SCRIPT
 
         chmod +x /usr/local/bin/run-backup.sh
 
-        echo "${BACKUP_SCHEDULE} /usr/local/bin/run-backup.sh >> /proc/1/fd/1 2>&1" \
+        echo "$${BACKUP_SCHEDULE} /usr/local/bin/run-backup.sh >> /proc/1/fd/1 2>&1" \
           > /etc/crontabs/root
 
-        echo "[backup] Cron schedule: ${BACKUP_SCHEDULE}"
-        echo "[backup] Retention    : ${BACKUP_RETAIN:-30} backups"
+        echo "[backup] Cron schedule: $${BACKUP_SCHEDULE}"
+        echo "[backup] Retention    : $${BACKUP_RETAIN:-30} backups"
         echo "[backup] Running initial backup on startup..."
         /usr/local/bin/run-backup.sh || echo "[backup] Initial backup failed (non-fatal)."
 
         echo "[backup] Starting crond..."
         exec crond -f -l 8
-      '
 
 volumes:
   pgdata:

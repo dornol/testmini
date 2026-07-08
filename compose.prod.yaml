@@ -15,10 +15,10 @@ services:
         max-size: "10m"
         max-file: "3"
     environment:
-      DATABASE_URL: "${DATABASE_URL:-postgres://testmini:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/testmini}"
+      DATABASE_URL: "${APP_DATABASE_URL:-postgres://testmini:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/testmini}"
       ORIGIN: "${ORIGIN:?ORIGIN is required}"
       BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}"
-      REDIS_URL: "${REDIS_URL:-redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379}"
+      REDIS_URL: "${APP_REDIS_URL:-redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379}"
       NODE_ENV: production
       # Initial admin account (required before first production startup when no users exist)
       ADMIN_EMAIL: "${ADMIN_EMAIL:-}"
@@ -130,9 +130,6 @@ services:
     command:
       - |
         set -e
-        echo "[backup] Installing crond..."
-        apk add --no-cache dcron
-
         mkdir -p /backups
 
         cat > /usr/local/bin/run-backup.sh << 'SCRIPT'
@@ -172,7 +169,7 @@ services:
         /usr/local/bin/run-backup.sh || echo "[backup] Initial backup failed (non-fatal)."
 
         echo "[backup] Starting crond..."
-        exec crond -f -l 8
+        exec crond -f -l 8 -L /proc/1/fd/1
 
 volumes:
   pgdata:

@@ -114,8 +114,8 @@ cp .env.example .env
 | `S3_REGION` | S3 region (optional) | `us-east-1` |
 | `S3_ACCESS_KEY_ID` | S3/MinIO access key (optional) | `minioadmin` |
 | `S3_SECRET_ACCESS_KEY` | S3/MinIO secret key (optional) | `minioadmin` |
-| `DATABASE_URL` | Full DB URL (overrides POSTGRES_PASSWORD assembly) | `postgres://user:pw@ext-host:5432/testmini` |
-| `REDIS_URL` | Full Redis URL (overrides REDIS_PASSWORD assembly) | `redis://:pw@ext-host:6379` |
+| `APP_DATABASE_URL` | Full DB URL (overrides POSTGRES_PASSWORD assembly) | `postgres://user:pw@ext-host:5432/testmini` |
+| `APP_REDIS_URL` | Full Redis URL (overrides REDIS_PASSWORD assembly) | `redis://:pw@ext-host:6379` |
 | `POSTGRES_HOST` | DB host for backup service | `db` (default) or external host |
 | `APP_MEMORY_LIMIT` | App container memory limit | `512M` |
 | `DB_MEMORY_LIMIT` | DB container memory limit | `1G` |

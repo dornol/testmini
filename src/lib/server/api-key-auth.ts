@@ -3,6 +3,8 @@ import { projectApiKey } from '$lib/server/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { createHash } from 'crypto';
 
+const API_KEY_PATTERN = /^tmk_[0-9a-f]{32}$/;
+
 /**
  * Hash an API key using SHA-256.
  */
@@ -35,7 +37,7 @@ export async function authenticateApiKey(
 	}
 
 	const key = authHeader.slice(7).trim();
-	if (!key.startsWith('tmk_')) {
+	if (!API_KEY_PATTERN.test(key)) {
 		return null;
 	}
 

@@ -98,6 +98,24 @@ describe('api-key-auth', () => {
 			expect(result).toBeNull();
 		});
 
+		it.each([
+			'tmk_abc123',
+			'tmk_0123456789abcdef0123456789abcdeg',
+			'tmk_0123456789abcdef0123456789abcdef00',
+			'tmk_0123456789ABCDEF0123456789ABCDEF'
+		])('should reject malformed API key %s before querying database', async (key) => {
+			mockDb.query.projectApiKey = { findFirst: vi.fn() };
+
+			const request = new Request('http://localhost', {
+				method: 'GET',
+				headers: { Authorization: `Bearer ${key}` }
+			});
+
+			const result = await authenticateApiKey(request);
+			expect(result).toBeNull();
+			expect(mockDb.query.projectApiKey.findFirst).not.toHaveBeenCalled();
+		});
+
 		it('should return null when key not found in database', async () => {
 			mockDb.query.projectApiKey = { findFirst: vi.fn().mockResolvedValue(null) };
 

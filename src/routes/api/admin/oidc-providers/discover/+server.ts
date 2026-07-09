@@ -32,10 +32,7 @@ async function assertSafeIssuerUrl(issuerUrl: string): Promise<void> {
 	const { protocol, hostname } = parsed;
 
 	// 2. Protocol check: only https (or http://localhost for dev).
-	const isLocalhost =
-		hostname === 'localhost' ||
-		hostname === '127.0.0.1' ||
-		hostname === '::1';
+	const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
 
 	if (protocol !== 'https:' && !(protocol === 'http:' && isLocalhost)) {
 		error(400, 'issuerUrl must use HTTPS');
@@ -94,13 +91,13 @@ function isPrivateIp(addr: string): boolean {
 	if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255)) return false;
 	const [a, b] = parts;
 
-	if (a === 127) return true;                              // 127.0.0.0/8 loopback
-	if (a === 10) return true;                               // 10.0.0.0/8
-	if (a === 172 && b >= 16 && b <= 31) return true;       // 172.16.0.0/12
-	if (a === 192 && b === 168) return true;                 // 192.168.0.0/16
-	if (a === 169 && b === 254) return true;                 // 169.254.0.0/16 link-local
-	if (a === 0) return true;                                // 0.0.0.0/8
-	if (a === 100 && b >= 64 && b <= 127) return true;      // 100.64.0.0/10 shared
+	if (a === 127) return true; // 127.0.0.0/8 loopback
+	if (a === 10) return true; // 10.0.0.0/8
+	if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+	if (a === 192 && b === 168) return true; // 192.168.0.0/16
+	if (a === 169 && b === 254) return true; // 169.254.0.0/16 link-local
+	if (a === 0) return true; // 0.0.0.0/8
+	if (a === 100 && b >= 64 && b <= 127) return true; // 100.64.0.0/10 shared
 
 	return false;
 }
@@ -162,6 +159,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
 		const res = await fetch(`${issuerUrl}/.well-known/openid-configuration`, {
+			redirect: 'manual',
 			signal: controller.signal
 		});
 		clearTimeout(timeout);

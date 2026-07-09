@@ -15,10 +15,7 @@ vi.mock('$lib/server/logger', () => ({
 
 const { POST } = await import('./+server');
 
-function makeRequest(
-	body: unknown,
-	headers?: Record<string, string>
-): Request {
+function makeRequest(body: unknown, headers?: Record<string, string>): Request {
 	return new Request('http://localhost:5173/api/automation/webhook', {
 		method: 'POST',
 		headers: {
@@ -76,6 +73,26 @@ describe('/api/automation/webhook POST', () => {
 
 			expect(response.status).toBe(400);
 			expect(data.error).toBe('Invalid request body');
+		});
+
+		it('should return 400 for non-object JSON body', async () => {
+			const request = makeRequest(null, {
+				'x-github-event': 'workflow_run'
+			});
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Invalid request body');
+		});
+
+		it('should return 400 for oversized event header', async () => {
+			const request = makeRequest({ action: 'opened' }, { 'x-github-event': 'x'.repeat(101) });
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Invalid webhook event header');
 		});
 
 		it('should return 413 when content-length exceeds 1MB', async () => {
@@ -191,10 +208,7 @@ describe('/api/automation/webhook POST', () => {
 		});
 
 		it('should acknowledge unhandled GitHub events', async () => {
-			const request = makeRequest(
-				{ action: 'opened' },
-				{ 'x-github-event': 'pull_request' }
-			);
+			const request = makeRequest({ action: 'opened' }, { 'x-github-event': 'pull_request' });
 			const response = await POST({ request } as never);
 			const data = await response.json();
 
@@ -224,6 +238,29 @@ describe('/api/automation/webhook POST', () => {
 			const data = await response.json();
 
 			expect(data.meta.repo).toBe('org/inner-repo');
+		});
+
+		it('should reject malformed GitHub workflow_run payload', async () => {
+			const request = makeRequest(
+				{
+					action: 'completed',
+					workflow_run: {
+						id: 126,
+						name: 'CI Build',
+						head_branch: '',
+						head_sha: 'abc12345def67890',
+						status: 'completed',
+						conclusion: 'success',
+						html_url: 'https://github.com/org/repo/actions/runs/126'
+					}
+				},
+				{ 'x-github-event': 'workflow_run' }
+			);
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Invalid GitHub workflow_run payload');
 		});
 	});
 
@@ -328,10 +365,7 @@ describe('/api/automation/webhook POST', () => {
 		});
 
 		it('should acknowledge unhandled GitLab events', async () => {
-			const request = makeRequest(
-				{ object_kind: 'push' },
-				{ 'x-gitlab-event': 'Push Hook' }
-			);
+			const request = makeRequest({ object_kind: 'push' }, { 'x-gitlab-event': 'Push Hook' });
 			const response = await POST({ request } as never);
 			const data = await response.json();
 
@@ -361,6 +395,27 @@ describe('/api/automation/webhook POST', () => {
 			expect(data.meta.platform).toBe('gitlab');
 			// buildUrl should fallback to project web_url
 			expect(response.status).toBe(200);
+		});
+
+		it('should reject malformed GitLab pipeline payload', async () => {
+			const payload = {
+				object_kind: 'pipeline',
+				object_attributes: {
+					id: 461,
+					ref: 'main',
+					sha: '',
+					status: 'success'
+				},
+				project: {
+					path_with_namespace: 'org/repo'
+				}
+			};
+			const request = makeRequest(payload, { 'x-gitlab-event': 'Pipeline Hook' });
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Invalid GitLab pipeline payload');
 		});
 	});
 });

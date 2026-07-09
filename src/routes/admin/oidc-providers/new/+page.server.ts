@@ -6,6 +6,14 @@ import { eq } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
 import { encrypt } from '$lib/server/crypto';
 
+function parseDisplayOrder(value: FormDataEntryValue | null): number {
+	if (value === null || value === '') return 0;
+	if (typeof value !== 'string') return 0;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed < 0) return 0;
+	return parsed;
+}
+
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
 		const authUser = requireAuth(locals);
@@ -27,7 +35,7 @@ export const actions: Actions = {
 		const scopes = (formData.get('scopes') as string)?.trim() || 'openid profile email';
 		const autoRegister = formData.get('autoRegister') === 'on';
 		const iconUrl = (formData.get('iconUrl') as string)?.trim() || null;
-		const displayOrder = Number(formData.get('displayOrder')) || 0;
+		const displayOrder = parseDisplayOrder(formData.get('displayOrder'));
 
 		if (!name || !slug || !clientId || !clientSecret || !authorizationUrl || !tokenUrl) {
 			return fail(400, { error: 'Missing required fields' });

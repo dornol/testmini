@@ -7,6 +7,13 @@ import { eq, and, asc, count } from 'drizzle-orm';
 import { requireAuth } from '$lib/server/auth-utils';
 import { auth } from '$lib/server/auth';
 
+function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
+	if (typeof value !== 'string') return null;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+	return parsed;
+}
+
 export const load: PageServerLoad = async ({ locals }) => {
 	const authUser = requireAuth(locals);
 
@@ -59,11 +66,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const linkedProviderSlugs = new Set(linkedAccounts.map((a) => a.providerSlug));
 	const availableProviders = allActiveProviders.filter((p) => !linkedProviderSlugs.has(p.slug));
 
-	let pref: {
-		locale: string | null;
-		theme: string | null;
-		notificationSettings: { enableInApp?: boolean; mutedTypes?: string[] } | null;
-	} | undefined;
+	let pref:
+		| {
+				locale: string | null;
+				theme: string | null;
+				notificationSettings: { enableInApp?: boolean; mutedTypes?: string[] } | null;
+		  }
+		| undefined;
 	try {
 		pref = await db.query.userPreference.findFirst({
 			where: eq(userPreference.userId, authUser.id)
@@ -136,7 +145,7 @@ export const actions: Actions = {
 		const authUser = requireAuth(locals);
 
 		const formData = await request.formData();
-		const accountId = Number(formData.get('accountId'));
+		const accountId = parsePositiveFormId(formData.get('accountId'));
 		if (!accountId) return fail(400, { error: 'Invalid account ID' });
 
 		// Verify ownership

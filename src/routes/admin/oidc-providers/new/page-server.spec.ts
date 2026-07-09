@@ -114,6 +114,30 @@ describe('admin/oidc-providers/new +page.server', () => {
 			expect(mockDb.insert).toHaveBeenCalled();
 		});
 
+		it.each(['-1', '1.5', 'Infinity', '9007199254740992'])(
+			'should normalize invalid displayOrder %s to zero',
+			async (displayOrder) => {
+				mockSelectResult(mockDb, []); // no existing slug
+				const insertChain = {
+					values: vi.fn().mockResolvedValue(undefined)
+				};
+				mockDb.insert.mockReturnValue(insertChain as never);
+
+				const event = createActionEvent(adminUser, {
+					...validProviderData,
+					displayOrder
+				});
+
+				await expect(actions.create(event)).rejects.toMatchObject({
+					status: 302,
+					location: '/admin/oidc-providers'
+				});
+				expect(insertChain.values).toHaveBeenCalledWith(
+					expect.objectContaining({ displayOrder: 0 })
+				);
+			}
+		);
+
 		it('should return 500 when insert fails', async () => {
 			mockSelectResult(mockDb, []); // no existing slug
 			mockDb.insert.mockImplementationOnce(() => {

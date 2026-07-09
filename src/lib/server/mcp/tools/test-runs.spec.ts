@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { sampleProject, sampleTestRun, sampleExecution } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -11,9 +16,32 @@ vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
 	testCase: { id: 'id', projectId: 'project_id', key: 'key', latestVersionId: 'latest_version_id' },
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id', title: 'title', priority: 'priority' },
-	testRun: { id: 'id', projectId: 'project_id', name: 'name', environment: 'environment', status: 'status', createdBy: 'created_by', createdAt: 'created_at', finishedAt: 'finished_at' },
-	testExecution: { id: 'id', testRunId: 'test_run_id', testCaseVersionId: 'test_case_version_id', status: 'status', executedAt: 'executed_at' },
-	testFailureDetail: { id: 'id', testExecutionId: 'test_execution_id', errorMessage: 'error_message', stackTrace: 'stack_trace', failureEnvironment: 'failure_environment', comment: 'comment', createdBy: 'created_by' }
+	testRun: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		environment: 'environment',
+		status: 'status',
+		createdBy: 'created_by',
+		createdAt: 'created_at',
+		finishedAt: 'finished_at'
+	},
+	testExecution: {
+		id: 'id',
+		testRunId: 'test_run_id',
+		testCaseVersionId: 'test_case_version_id',
+		status: 'status',
+		executedAt: 'executed_at'
+	},
+	testFailureDetail: {
+		id: 'id',
+		testExecutionId: 'test_execution_id',
+		errorMessage: 'error_message',
+		stackTrace: 'stack_trace',
+		failureEnvironment: 'failure_environment',
+		comment: 'comment',
+		createdBy: 'created_by'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -70,8 +98,20 @@ describe('MCP test-run tools', () => {
 		it('should return run with executions and status counts', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			mockSelectResult(mockDb, [
-				{ id: 200, status: 'PASS', executedAt: '2025-01-02', testCaseKey: 'TC-0001', testCaseTitle: 'Login' },
-				{ id: 201, status: 'FAIL', executedAt: '2025-01-02', testCaseKey: 'TC-0002', testCaseTitle: 'Signup' }
+				{
+					id: 200,
+					status: 'PASS',
+					executedAt: '2025-01-02',
+					testCaseKey: 'TC-0001',
+					testCaseTitle: 'Login'
+				},
+				{
+					id: 201,
+					status: 'FAIL',
+					executedAt: '2025-01-02',
+					testCaseKey: 'TC-0002',
+					testCaseTitle: 'Signup'
+				}
 			]);
 
 			const result = await client.callTool({ name: 'get-test-run', arguments: { runId: 50 } });
@@ -90,7 +130,9 @@ describe('MCP test-run tools', () => {
 			const result = await client.callTool({ name: 'get-test-run', arguments: { runId: 999 } });
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test run not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test run not found'
+			);
 		});
 	});
 
@@ -100,7 +142,15 @@ describe('MCP test-run tools', () => {
 		it('should return failure details', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			mockSelectResult(mockDb, [
-				{ executionId: 200, testCaseKey: 'TC-0001', testCaseTitle: 'Login', errorMessage: 'Timeout', stackTrace: 'at line 1', failureEnvironment: 'Chrome', comment: null }
+				{
+					executionId: 200,
+					testCaseKey: 'TC-0001',
+					testCaseTitle: 'Login',
+					errorMessage: 'Timeout',
+					stackTrace: 'at line 1',
+					failureEnvironment: 'Chrome',
+					comment: null
+				}
 			]);
 
 			const result = await client.callTool({ name: 'get-failures', arguments: { runId: 50 } });
@@ -125,9 +175,18 @@ describe('MCP test-run tools', () => {
 	describe('create-test-run', () => {
 		it('should create a run with all test cases when no IDs specified', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockSelectResult(mockDb, [{ id: 10, latestVersionId: 100 }, { id: 11, latestVersionId: 101 }]);
+			mockSelectResult(mockDb, [
+				{ id: 10, latestVersionId: 100 },
+				{ id: 11, latestVersionId: 101 }
+			]);
 
-			const createdRun = { id: 60, projectId: 1, name: 'New Run', environment: 'QA', createdBy: 'user-1' };
+			const createdRun = {
+				id: 60,
+				projectId: 1,
+				name: 'New Run',
+				environment: 'QA',
+				createdBy: 'user-1'
+			};
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 				let insertCallCount = 0;
 				const tx = {
@@ -166,7 +225,9 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Project not found'
+			);
 		});
 
 		it('should return error when no test cases found', async () => {
@@ -179,7 +240,9 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('No test cases found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'No test cases found'
+			);
 		});
 	});
 
@@ -190,7 +253,17 @@ describe('MCP test-run tools', () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			mockDb.query.testExecution.findFirst.mockResolvedValue(sampleExecution);
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockInsertReturning(mockDb, [{ id: 1, testExecutionId: 200, errorMessage: 'Err', stackTrace: null, failureEnvironment: null, comment: null, createdBy: 'user-1' }]);
+			mockInsertReturning(mockDb, [
+				{
+					id: 1,
+					testExecutionId: 200,
+					errorMessage: 'Err',
+					stackTrace: null,
+					failureEnvironment: null,
+					comment: null,
+					createdBy: 'user-1'
+				}
+			]);
 
 			const result = await client.callTool({
 				name: 'record-failure-detail',
@@ -211,7 +284,9 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test run not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test run not found'
+			);
 		});
 
 		it('should return error when execution not found', async () => {
@@ -224,7 +299,9 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Execution not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Execution not found'
+			);
 		});
 	});
 
@@ -244,6 +321,12 @@ describe('MCP test-run tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.success).toBe(true);
 			expect(parsed.status).toBe('PASS');
+			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 200],
+					['test_run_id', 50]
+				])
+			);
 		});
 
 		it('should reject update on completed run', async () => {
@@ -255,7 +338,9 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Cannot modify completed run');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Cannot modify completed run'
+			);
 		});
 
 		it('should return error when execution not found', async () => {
@@ -268,7 +353,9 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Execution not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Execution not found'
+			);
 		});
 	});
 
@@ -284,6 +371,12 @@ describe('MCP test-run tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.success).toBe(true);
 			expect(parsed.status).toBe('COMPLETED');
+			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 50],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should reject completing an already completed run', async () => {
@@ -292,13 +385,18 @@ describe('MCP test-run tools', () => {
 			const result = await client.callTool({ name: 'complete-test-run', arguments: { runId: 50 } });
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test run already completed');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test run already completed'
+			);
 		});
 
 		it('should return error when run not found', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'complete-test-run', arguments: { runId: 999 } });
+			const result = await client.callTool({
+				name: 'complete-test-run',
+				arguments: { runId: 999 }
+			});
 
 			expect(result.isError).toBe(true);
 		});
@@ -309,7 +407,9 @@ describe('MCP test-run tools', () => {
 	describe('update-test-run', () => {
 		it('should update a test run', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-			mockUpdateReturning(mockDb, [{ ...sampleTestRun, name: 'Updated Run', environment: 'PROD' }]);
+			const updateChain = mockUpdateReturning(mockDb, [
+				{ ...sampleTestRun, name: 'Updated Run', environment: 'PROD' }
+			]);
 
 			const result = await client.callTool({
 				name: 'update-test-run',
@@ -320,6 +420,12 @@ describe('MCP test-run tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('Updated Run');
 			expect(parsed.environment).toBe('PROD');
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 50],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when run not found', async () => {
@@ -331,7 +437,9 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test run not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test run not found'
+			);
 		});
 	});
 
@@ -351,6 +459,12 @@ describe('MCP test-run tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(50);
 			expect(mockDb.delete).toHaveBeenCalledTimes(1);
+			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 50],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when run not found', async () => {
@@ -362,7 +476,9 @@ describe('MCP test-run tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test run not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test run not found'
+			);
 		});
 	});
 
@@ -370,15 +486,41 @@ describe('MCP test-run tools', () => {
 
 	describe('export-run-results', () => {
 		it('should export run results with failure details', async () => {
-			const run = { ...sampleTestRun, id: 50, name: 'Sprint 1', environment: 'QA', status: 'COMPLETED', createdAt: '2025-01-01', finishedAt: '2025-01-05' };
+			const run = {
+				...sampleTestRun,
+				id: 50,
+				name: 'Sprint 1',
+				environment: 'QA',
+				status: 'COMPLETED',
+				createdAt: '2025-01-01',
+				finishedAt: '2025-01-05'
+			};
 			mockDb.query.testRun.findFirst.mockResolvedValue(run);
 
 			let selectCallCount = 0;
 			mockDb.select.mockImplementation(() => {
 				selectCallCount++;
-				const data = selectCallCount === 1
-					? [{ executionId: 200, status: 'FAIL', executedAt: '2025-01-02', testCaseKey: 'TC-0001', testCaseTitle: 'Login', priority: 'HIGH' }]
-					: [{ executionId: 200, errorMessage: 'Timeout', stackTrace: null, failureEnvironment: null, comment: null }];
+				const data =
+					selectCallCount === 1
+						? [
+								{
+									executionId: 200,
+									status: 'FAIL',
+									executedAt: '2025-01-02',
+									testCaseKey: 'TC-0001',
+									testCaseTitle: 'Login',
+									priority: 'HIGH'
+								}
+							]
+						: [
+								{
+									executionId: 200,
+									errorMessage: 'Timeout',
+									stackTrace: null,
+									failureEnvironment: null,
+									comment: null
+								}
+							];
 				const chain = {
 					from: vi.fn().mockReturnThis(),
 					innerJoin: vi.fn().mockReturnThis(),
@@ -388,7 +530,10 @@ describe('MCP test-run tools', () => {
 				return chain as never;
 			});
 
-			const result = await client.callTool({ name: 'export-run-results', arguments: { runId: 50 } });
+			const result = await client.callTool({
+				name: 'export-run-results',
+				arguments: { runId: 50 }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
@@ -401,7 +546,10 @@ describe('MCP test-run tools', () => {
 		it('should return error when run not found', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'export-run-results', arguments: { runId: 999 } });
+			const result = await client.callTool({
+				name: 'export-run-results',
+				arguments: { runId: 999 }
+			});
 
 			expect(result.isError).toBe(true);
 		});

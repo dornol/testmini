@@ -1,7 +1,13 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { testCase, testCaseVersion, testRun, testExecution, testFailureDetail } from '$lib/server/db/schema';
+import {
+	testCase,
+	testCaseVersion,
+	testRun,
+	testExecution,
+	testFailureDetail
+} from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
 import { eq, and, inArray, desc } from 'drizzle-orm';
 
@@ -10,7 +16,10 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 		'list-test-runs',
 		'List all test runs for the project',
 		{
-			status: z.enum(['CREATED', 'IN_PROGRESS', 'COMPLETED']).optional().describe('Filter by status'),
+			status: z
+				.enum(['CREATED', 'IN_PROGRESS', 'COMPLETED'])
+				.optional()
+				.describe('Filter by status'),
 			limit: z.number().optional().describe('Max results (default 50)')
 		},
 		async ({ status, limit }) => {
@@ -65,10 +74,12 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			}
 
 			return {
-				content: [{
-					type: 'text' as const,
-					text: JSON.stringify({ ...run, statusCounts, executions }, null, 2)
-				}]
+				content: [
+					{
+						type: 'text' as const,
+						text: JSON.stringify({ ...run, statusCounts, executions }, null, 2)
+					}
+				]
 			};
 		}
 	);
@@ -257,7 +268,14 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			});
 
 			const exportData = {
-				run: { id: run.id, name: run.name, environment: run.environment, status: run.status, createdAt: run.createdAt, finishedAt: run.finishedAt },
+				run: {
+					id: run.id,
+					name: run.name,
+					environment: run.environment,
+					status: run.status,
+					createdAt: run.createdAt,
+					finishedAt: run.finishedAt
+				},
 				statusCounts,
 				totalExecutions: executions.length,
 				results
@@ -290,7 +308,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			await db
 				.update(testExecution)
 				.set({ status, executedAt: new Date() })
-				.where(eq(testExecution.id, executionId));
+				.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)));
 
 			return ok({ success: true, executionId, status });
 		}
@@ -310,7 +328,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			await db
 				.update(testRun)
 				.set({ status: 'COMPLETED', finishedAt: new Date() })
-				.where(eq(testRun.id, runId));
+				.where(and(eq(testRun.id, runId), eq(testRun.projectId, projectId)));
 
 			return ok({ success: true, runId, status: 'COMPLETED' });
 		}
@@ -321,10 +339,14 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 		'Update multiple execution statuses at once in a test run',
 		{
 			runId: z.number().describe('Test run ID'),
-			updates: z.array(z.object({
-				executionId: z.number().describe('Execution ID'),
-				status: z.enum(['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING']).describe('New status')
-			})).describe('Array of { executionId, status } updates')
+			updates: z
+				.array(
+					z.object({
+						executionId: z.number().describe('Execution ID'),
+						status: z.enum(['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING']).describe('New status')
+					})
+				)
+				.describe('Array of { executionId, status } updates')
 		},
 		async ({ runId, updates }) => {
 			const run = await db.query.testRun.findFirst({
@@ -341,7 +363,8 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 				.where(and(eq(testExecution.testRunId, runId), inArray(testExecution.id, execIds)));
 			const validIds = new Set(validExecs.map((e) => e.id));
 			const invalidIds = execIds.filter((id) => !validIds.has(id));
-			if (invalidIds.length > 0) return err(`Execution IDs not found in this run: ${invalidIds.join(', ')}`);
+			if (invalidIds.length > 0)
+				return err(`Execution IDs not found in this run: ${invalidIds.join(', ')}`);
 
 			// Batch update by grouping same status
 			const byStatus = new Map<string, number[]>();
@@ -354,7 +377,10 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			for (const [status, ids] of byStatus) {
 				await db
 					.update(testExecution)
-					.set({ status: status as typeof testExecution.status.enumValues[number], executedAt: now })
+					.set({
+						status: status as (typeof testExecution.status.enumValues)[number],
+						executedAt: now
+					})
 					.where(and(eq(testExecution.testRunId, runId), inArray(testExecution.id, ids)));
 			}
 
@@ -380,7 +406,11 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			if (name !== undefined) updates.name = name;
 			if (environment !== undefined) updates.environment = environment;
 
-			const [updated] = await db.update(testRun).set(updates).where(eq(testRun.id, runId)).returning();
+			const [updated] = await db
+				.update(testRun)
+				.set(updates)
+				.where(and(eq(testRun.id, runId), eq(testRun.projectId, projectId)))
+				.returning();
 			return ok(updated);
 		}
 	);
@@ -395,7 +425,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			});
 			if (!run) return err('Test run not found');
 
-			await db.delete(testRun).where(eq(testRun.id, runId));
+			await db.delete(testRun).where(and(eq(testRun.id, runId), eq(testRun.projectId, projectId)));
 			return ok({ success: true, deletedId: runId });
 		}
 	);

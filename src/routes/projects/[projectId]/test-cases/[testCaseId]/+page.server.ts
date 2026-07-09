@@ -386,6 +386,14 @@ export const actions: Actions = {
 
 		await requireActionTestCase(testCaseId, projectId);
 
+		const existingTag = await db.query.tag.findFirst({
+			where: and(eq(tag.id, tagId), eq(tag.projectId, projectId))
+		});
+
+		if (!existingTag) {
+			return fail(404, { error: 'Tag not found' });
+		}
+
 		await db
 			.delete(testCaseTag)
 			.where(and(eq(testCaseTag.testCaseId, testCaseId), eq(testCaseTag.tagId, tagId)));

@@ -264,6 +264,23 @@ describe('test case detail page actions', () => {
 			await expect(actions.removeTag(event)).rejects.toThrow();
 			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
+
+		it('rejects removal when the tag is outside the current project', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValueOnce({ id: 10, projectId: 1 });
+			mockDb.query.tag.findFirst.mockResolvedValueOnce(null);
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ tagId: '7' }),
+				user: testUser
+			});
+
+			const result = await actions.removeTag(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Tag not found' } });
+			expect(mockDb.query.tag.findFirst).toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
 	});
 
 	describe('assignAssignee', () => {

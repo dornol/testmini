@@ -15,6 +15,7 @@ export const GET = withAuth(async ({ user }) => {
 
 const VALID_LOCALES = ['ko', 'en'];
 const VALID_THEMES = ['light', 'dark', 'system'];
+const PREFERENCE_KEYS = new Set(['locale', 'theme', 'notificationSettings']);
 const MAX_MUTED_TYPES = 100;
 const MAX_MUTED_TYPE_LENGTH = 100;
 
@@ -22,7 +23,15 @@ function validatePreferenceBody(body: unknown): Record<string, unknown> {
 	if (!body || typeof body !== 'object' || Array.isArray(body)) {
 		error(400, 'Invalid request body');
 	}
-	return body as Record<string, unknown>;
+	const raw = body as Record<string, unknown>;
+	const keys = Object.keys(raw);
+	if (keys.length === 0) {
+		error(400, 'No preferences to update');
+	}
+	if (keys.some((key) => !PREFERENCE_KEYS.has(key))) {
+		error(400, 'Invalid preference field');
+	}
+	return raw;
 }
 
 function validateNotificationSettings(

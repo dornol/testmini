@@ -132,6 +132,28 @@ describe('/api/users/me/preferences', () => {
 			await expect(PUT(event)).rejects.toMatchObject({ status: 400 });
 		});
 
+		it('should reject empty body before writing', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				body: {},
+				user: testUser
+			});
+
+			await expect(PUT(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject unknown preference fields before writing', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				body: { locale: 'en', timezone: 'Asia/Seoul' },
+				user: testUser
+			});
+
+			await expect(PUT(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should preserve oversized request status', async () => {
 			const event = createMockEvent({
 				method: 'PUT',

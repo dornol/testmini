@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -7,8 +11,28 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
-	exploratorySession: { id: 'id', projectId: 'project_id', title: 'title', charter: 'charter', environment: 'environment', status: 'status', summary: 'summary', tags: 'tags', createdBy: 'created_by', startedAt: 'started_at', createdAt: 'created_at', updatedAt: 'updated_at' },
-	sessionNote: { id: 'id', sessionId: 'session_id', noteType: 'note_type', content: 'content', timestamp: 'timestamp', createdAt: 'created_at' }
+	exploratorySession: {
+		id: 'id',
+		projectId: 'project_id',
+		title: 'title',
+		charter: 'charter',
+		environment: 'environment',
+		status: 'status',
+		summary: 'summary',
+		tags: 'tags',
+		createdBy: 'created_by',
+		startedAt: 'started_at',
+		createdAt: 'created_at',
+		updatedAt: 'updated_at'
+	},
+	sessionNote: {
+		id: 'id',
+		sessionId: 'session_id',
+		noteType: 'note_type',
+		content: 'content',
+		timestamp: 'timestamp',
+		createdAt: 'created_at'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -16,7 +40,7 @@ vi.mock('drizzle-orm', () => ({
 	desc: vi.fn((a: unknown) => a)
 }));
 vi.mock('../helpers', async () => {
-	const actual = await vi.importActual('../helpers') as Record<string, unknown>;
+	const actual = (await vi.importActual('../helpers')) as Record<string, unknown>;
 	return { ...actual };
 });
 
@@ -91,7 +115,12 @@ describe('MCP exploratory tools', () => {
 
 			const result = await client.callTool({
 				name: 'create-exploratory-session',
-				arguments: { title: 'Explore login flow', charter: 'Test edge cases in login', environment: 'Chrome', tags: ['login', 'edge-cases'] }
+				arguments: {
+					title: 'Explore login flow',
+					charter: 'Test edge cases in login',
+					environment: 'Chrome',
+					tags: ['login', 'edge-cases']
+				}
 			});
 
 			expect(result.isError).toBeFalsy();
@@ -129,7 +158,9 @@ describe('MCP exploratory tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Session not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Session not found'
+			);
 		});
 	});
 
@@ -150,6 +181,12 @@ describe('MCP exploratory tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.status).toBe('COMPLETED');
 			expect(parsed.summary).toBe('All done');
+			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 	});
 
@@ -177,7 +214,15 @@ describe('MCP exploratory tools', () => {
 	describe('list-exploratory-sessions', () => {
 		it('should return sessions', async () => {
 			mockSelectResult(mockDb, [
-				{ id: 1, title: 'Explore login flow', charter: 'Test edge cases', environment: 'Chrome', status: 'ACTIVE', tags: ['login'], startedAt: new Date('2025-01-01') }
+				{
+					id: 1,
+					title: 'Explore login flow',
+					charter: 'Test edge cases',
+					environment: 'Chrome',
+					status: 'ACTIVE',
+					tags: ['login'],
+					startedAt: new Date('2025-01-01')
+				}
 			]);
 
 			const result = await client.callTool({
@@ -208,6 +253,12 @@ describe('MCP exploratory tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.delete).toHaveBeenCalledTimes(2);
+			expect(mockDb._chains.delete.where).toHaveBeenLastCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when session not found', async () => {
@@ -219,7 +270,9 @@ describe('MCP exploratory tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Session not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Session not found'
+			);
 		});
 	});
 });

@@ -43,7 +43,10 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 		},
 		async ({ sessionId }) => {
 			const session = await db.query.exploratorySession.findFirst({
-				where: and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
+				where: and(
+					eq(exploratorySession.id, sessionId),
+					eq(exploratorySession.projectId, projectId)
+				)
 			});
 			if (!session) return err('Session not found');
 
@@ -67,7 +70,10 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 		},
 		async ({ sessionId, status, summary }) => {
 			const session = await db.query.exploratorySession.findFirst({
-				where: and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
+				where: and(
+					eq(exploratorySession.id, sessionId),
+					eq(exploratorySession.projectId, projectId)
+				)
 			});
 			if (!session) return err('Session not found');
 
@@ -79,10 +85,15 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 			await db
 				.update(exploratorySession)
 				.set(updates)
-				.where(eq(exploratorySession.id, sessionId));
+				.where(
+					and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
+				);
 
 			const updated = await db.query.exploratorySession.findFirst({
-				where: eq(exploratorySession.id, sessionId)
+				where: and(
+					eq(exploratorySession.id, sessionId),
+					eq(exploratorySession.projectId, projectId)
+				)
 			});
 
 			return ok(updated);
@@ -95,12 +106,18 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 		{
 			sessionId: z.number().describe('Session ID'),
 			content: z.string().describe('Note content'),
-			noteType: z.enum(['NOTE', 'BUG', 'QUESTION', 'IDEA']).optional().describe('Note type (default: NOTE)'),
+			noteType: z
+				.enum(['NOTE', 'BUG', 'QUESTION', 'IDEA'])
+				.optional()
+				.describe('Note type (default: NOTE)'),
 			timestamp: z.number().optional().describe('Elapsed seconds since session start')
 		},
 		async ({ sessionId, content: noteContent, noteType, timestamp: ts }) => {
 			const session = await db.query.exploratorySession.findFirst({
-				where: and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
+				where: and(
+					eq(exploratorySession.id, sessionId),
+					eq(exploratorySession.projectId, projectId)
+				)
 			});
 			if (!session) return err('Session not found');
 
@@ -156,12 +173,19 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 		{ sessionId: z.number().describe('Session ID') },
 		async ({ sessionId }) => {
 			const s = await db.query.exploratorySession.findFirst({
-				where: and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
+				where: and(
+					eq(exploratorySession.id, sessionId),
+					eq(exploratorySession.projectId, projectId)
+				)
 			});
 			if (!s) return err('Session not found');
 
 			await db.delete(sessionNote).where(eq(sessionNote.sessionId, sessionId));
-			await db.delete(exploratorySession).where(eq(exploratorySession.id, sessionId));
+			await db
+				.delete(exploratorySession)
+				.where(
+					and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
+				);
 			return ok({ success: true, deletedId: sessionId });
 		}
 	);

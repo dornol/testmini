@@ -6,34 +6,31 @@ import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerCustomFieldTools(server: McpServer, projectId: number) {
-	server.tool(
-		'list-custom-fields',
-		'List all custom fields for the project',
-		{},
-		async () => {
-			const fields = await db
-				.select({
-					id: customField.id,
-					name: customField.name,
-					fieldType: customField.fieldType,
-					options: customField.options,
-					required: customField.required,
-					sortOrder: customField.sortOrder
-				})
-				.from(customField)
-				.where(eq(customField.projectId, projectId))
-				.orderBy(customField.sortOrder);
+	server.tool('list-custom-fields', 'List all custom fields for the project', {}, async () => {
+		const fields = await db
+			.select({
+				id: customField.id,
+				name: customField.name,
+				fieldType: customField.fieldType,
+				options: customField.options,
+				required: customField.required,
+				sortOrder: customField.sortOrder
+			})
+			.from(customField)
+			.where(eq(customField.projectId, projectId))
+			.orderBy(customField.sortOrder);
 
-			return ok(fields);
-		}
-	);
+		return ok(fields);
+	});
 
 	server.tool(
 		'create-custom-field',
 		'Create a new custom field',
 		{
 			name: z.string().describe('Field name'),
-			fieldType: z.enum(['TEXT', 'NUMBER', 'SELECT', 'MULTI_SELECT', 'DATE', 'URL', 'CHECKBOX']).describe('Field type'),
+			fieldType: z
+				.enum(['TEXT', 'NUMBER', 'SELECT', 'MULTI_SELECT', 'DATE', 'URL', 'CHECKBOX'])
+				.describe('Field type'),
 			options: z.array(z.string()).optional().describe('Options for SELECT/MULTI_SELECT types'),
 			required: z.boolean().optional().describe('Is this field required (default: false)')
 		},
@@ -67,7 +64,9 @@ export function registerCustomFieldTools(server: McpServer, projectId: number) {
 			});
 			if (!f) return err('Custom field not found');
 
-			await db.delete(customField).where(eq(customField.id, fieldId));
+			await db
+				.delete(customField)
+				.where(and(eq(customField.id, fieldId), eq(customField.projectId, projectId)));
 			return ok({ success: true, deletedId: fieldId });
 		}
 	);

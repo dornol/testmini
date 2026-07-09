@@ -6,24 +6,19 @@ import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerSavedFilterTools(server: McpServer, projectId: number) {
-	server.tool(
-		'list-saved-filters',
-		'List all saved filters for the project',
-		{},
-		async () => {
-			const filters = await db
-				.select({
-					id: savedFilter.id,
-					name: savedFilter.name,
-					filterType: savedFilter.filterType,
-					filters: savedFilter.filters
-				})
-				.from(savedFilter)
-				.where(eq(savedFilter.projectId, projectId));
+	server.tool('list-saved-filters', 'List all saved filters for the project', {}, async () => {
+		const filters = await db
+			.select({
+				id: savedFilter.id,
+				name: savedFilter.name,
+				filterType: savedFilter.filterType,
+				filters: savedFilter.filters
+			})
+			.from(savedFilter)
+			.where(eq(savedFilter.projectId, projectId));
 
-			return ok(filters);
-		}
-	);
+		return ok(filters);
+	});
 
 	server.tool(
 		'create-saved-filter',
@@ -62,7 +57,9 @@ export function registerSavedFilterTools(server: McpServer, projectId: number) {
 			});
 			if (!f) return err('Saved filter not found');
 
-			await db.delete(savedFilter).where(eq(savedFilter.id, filterId));
+			await db
+				.delete(savedFilter)
+				.where(and(eq(savedFilter.id, filterId), eq(savedFilter.projectId, projectId)));
 			return ok({ success: true, deletedId: filterId });
 		}
 	);

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockInsertReturning, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockInsertReturning,
+	mockSelectResult
+} from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -7,14 +11,24 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
-	savedFilter: { id: 'id', projectId: 'project_id', userId: 'user_id', name: 'name', filterType: 'filter_type', filters: 'filters', sortOrder: 'sort_order', createdAt: 'created_at', updatedAt: 'updated_at' }
+	savedFilter: {
+		id: 'id',
+		projectId: 'project_id',
+		userId: 'user_id',
+		name: 'name',
+		filterType: 'filter_type',
+		filters: 'filters',
+		sortOrder: 'sort_order',
+		createdAt: 'created_at',
+		updatedAt: 'updated_at'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('../helpers', async () => {
-	const actual = await vi.importActual('../helpers') as Record<string, unknown>;
+	const actual = (await vi.importActual('../helpers')) as Record<string, unknown>;
 	return { ...actual };
 });
 
@@ -114,7 +128,9 @@ describe('MCP saved-filter tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Project not found'
+			);
 		});
 
 		it('should create a saved filter', async () => {
@@ -149,6 +165,12 @@ describe('MCP saved-filter tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.delete).toHaveBeenCalledTimes(1);
+			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when saved filter not found', async () => {
@@ -160,7 +182,9 @@ describe('MCP saved-filter tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Saved filter not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Saved filter not found'
+			);
 		});
 	});
 });

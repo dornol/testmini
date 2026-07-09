@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockInsertReturning,
 	mockSelectResult
 } from '$lib/server/test-helpers/mock-db';
@@ -275,11 +276,7 @@ describe('/api/projects/[projectId]/modules/[moduleId]/test-cases', () => {
 		it('should remove test cases from module on success', async () => {
 			mockDb.query.module.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
 			mockSelectResult(mockDb, [{ id: 1 }, { id: 2 }]);
-			const deleteChain = {
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -290,7 +287,26 @@ describe('/api/projects/[projectId]/modules/[moduleId]/test-cases', () => {
 			const response = await DELETE(event);
 			expect(response.status).toBe(200);
 			const body = await response.json();
-			expect(body.removed).toBe(2);
+			expect(body.removed).toBe(1);
+			expect(deleteChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should report zero removed when module links are already gone', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
+			mockSelectResult(mockDb, [{ id: 1 }, { id: 2 }]);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				body: { testCaseIds: [1, 2] },
+				user: testUser
+			});
+			const response = await DELETE(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(body.removed).toBe(0);
 		});
 
 		it('should reject removing test cases outside the current project', async () => {

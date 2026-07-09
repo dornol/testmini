@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockSelectResult
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { adminUser, testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -261,11 +265,7 @@ describe('/api/projects/[projectId]/test-plans/[planId]/items', () => {
 
 	describe('DELETE', () => {
 		it('should remove test cases from plan', async () => {
-			const deleteChain = {
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -278,6 +278,25 @@ describe('/api/projects/[projectId]/test-plans/[planId]/items', () => {
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
+			expect(data.removed).toBe(1);
+			expect(deleteChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should report zero removed when plan items are already gone', async () => {
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				body: { testCaseIds: [10, 11] },
+				user: adminUser
+			});
+			const response = await DELETE(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.success).toBe(true);
+			expect(data.removed).toBe(0);
 		});
 
 		it('should return 404 when plan not found', async () => {

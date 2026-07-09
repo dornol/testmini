@@ -77,15 +77,16 @@ export const DELETE = withProjectRole(
 		const testCaseIds = validatePositiveIntegerList(bodyOrError.testCaseIds, 'testCaseIds');
 		if (testCaseIds instanceof Response) return testCaseIds;
 
-		await db
+		const deleted = await db
 			.delete(testPlanTestCase)
 			.where(
 				and(
 					eq(testPlanTestCase.testPlanId, planId),
 					inArray(testPlanTestCase.testCaseId, testCaseIds)
 				)
-			);
+			)
+			.returning({ id: testPlanTestCase.id });
 
-		return json({ success: true });
+		return json({ success: true, removed: deleted.length });
 	}
 );

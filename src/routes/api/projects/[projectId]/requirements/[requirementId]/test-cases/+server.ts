@@ -79,15 +79,16 @@ export const DELETE = withProjectRole(
 			error(404, 'Test case not found');
 		}
 
-		await db
+		const [deleted] = await db
 			.delete(requirementTestCase)
 			.where(
 				and(
 					eq(requirementTestCase.requirementId, requirementId),
 					eq(requirementTestCase.testCaseId, testCaseId)
 				)
-			);
+			)
+			.returning({ id: requirementTestCase.id });
 
-		return json({ success: true });
+		return json({ success: true, unlinked: Boolean(deleted) });
 	}
 );

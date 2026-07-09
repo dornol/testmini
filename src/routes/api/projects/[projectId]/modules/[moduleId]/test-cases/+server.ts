@@ -73,12 +73,13 @@ export const DELETE = withProjectRole(
 			return badRequest('Some test cases do not belong to this project');
 		}
 
-		await db
+		const deleted = await db
 			.delete(moduleTestCase)
 			.where(
 				and(eq(moduleTestCase.moduleId, moduleId), inArray(moduleTestCase.testCaseId, testCaseIds))
-			);
+			)
+			.returning({ id: moduleTestCase.id });
 
-		return json({ removed: testCaseIds.length });
+		return json({ removed: deleted.length });
 	}
 );

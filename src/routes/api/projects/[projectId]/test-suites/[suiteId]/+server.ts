@@ -29,48 +29,51 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 		.from(testSuiteItem)
 		.innerJoin(testCase, eq(testSuiteItem.testCaseId, testCase.id))
 		.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
-		.where(eq(testSuiteItem.suiteId, suiteId))
+		.where(and(eq(testSuiteItem.suiteId, suiteId), eq(testCase.projectId, projectId)))
 		.orderBy(testCase.key);
 
 	return json({ ...suite, items });
 });
 
-export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, params, projectId }) => {
-	const suiteId = parseId(params.suiteId, 'suite ID');
+export const PATCH = withProjectRole(
+	['PROJECT_ADMIN', 'QA'],
+	async ({ request, params, projectId }) => {
+		const suiteId = parseId(params.suiteId, 'suite ID');
 
-	const suite = await db.query.testSuite.findFirst({
-		where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
-	});
+		const suite = await db.query.testSuite.findFirst({
+			where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
+		});
 
-	if (!suite) {
-		error(404, 'Suite not found');
+		if (!suite) {
+			error(404, 'Suite not found');
+		}
+
+		const body = await parseJsonBody(request);
+		const parsed = updateTestSuiteSchema.safeParse(body);
+		if (!parsed.success) {
+			return validationError('Invalid input', parsed.error.flatten().fieldErrors);
+		}
+
+		const updates: Record<string, unknown> = {};
+		if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+		if (parsed.data.description !== undefined) updates.description = parsed.data.description;
+
+		if (Object.keys(updates).length === 0) {
+			return badRequest('No fields to update');
+		}
+
+		await db
+			.update(testSuite)
+			.set(updates)
+			.where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)));
+
+		const updated = await db.query.testSuite.findFirst({
+			where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
+		});
+
+		return json(updated);
 	}
-
-	const body = await parseJsonBody(request);
-	const parsed = updateTestSuiteSchema.safeParse(body);
-	if (!parsed.success) {
-		return validationError('Invalid input', parsed.error.flatten().fieldErrors);
-	}
-
-	const updates: Record<string, unknown> = {};
-	if (parsed.data.name !== undefined) updates.name = parsed.data.name;
-	if (parsed.data.description !== undefined) updates.description = parsed.data.description;
-
-	if (Object.keys(updates).length === 0) {
-		return badRequest('No fields to update');
-	}
-
-	await db
-		.update(testSuite)
-		.set(updates)
-		.where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)));
-
-	const updated = await db.query.testSuite.findFirst({
-		where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
-	});
-
-	return json(updated);
-});
+);
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ params, projectId }) => {
 	const suiteId = parseId(params.suiteId, 'suite ID');
@@ -83,7 +86,9 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ params, 
 		error(404, 'Suite not found');
 	}
 
-	await db.delete(testSuite).where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)));
+	await db
+		.delete(testSuite)
+		.where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)));
 
 	return json({ success: true });
 });

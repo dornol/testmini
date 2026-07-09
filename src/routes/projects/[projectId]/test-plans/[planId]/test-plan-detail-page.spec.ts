@@ -7,13 +7,39 @@ const mockDb = createMockDb();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
-	testPlan: { id: 'id', name: 'name', status: 'status', projectId: 'project_id', createdBy: 'created_by' },
-	testPlanTestCase: { id: 'id', testPlanId: 'test_plan_id', testCaseId: 'test_case_id', position: 'position' },
+	testPlan: {
+		id: 'id',
+		name: 'name',
+		status: 'status',
+		projectId: 'project_id',
+		createdBy: 'created_by'
+	},
+	testPlanTestCase: {
+		id: 'id',
+		testPlanId: 'test_plan_id',
+		testCaseId: 'test_case_id',
+		position: 'position'
+	},
 	testCase: { id: 'id', key: 'key', latestVersionId: 'latest_version_id', projectId: 'project_id' },
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id', title: 'title', priority: 'priority' },
-	testRun: { id: 'id', name: 'name', status: 'status', environment: 'environment', testPlanId: 'test_plan_id', createdAt: 'created_at' },
+	testRun: {
+		id: 'id',
+		name: 'name',
+		status: 'status',
+		environment: 'environment',
+		testPlanId: 'test_plan_id',
+		projectId: 'project_id',
+		createdAt: 'created_at'
+	},
 	user: { id: 'id', name: 'name' },
-	testPlanSignoff: { id: 'id', testPlanId: 'test_plan_id', userId: 'user_id', decision: 'decision', comment: 'comment', createdAt: 'created_at' },
+	testPlanSignoff: {
+		id: 'id',
+		testPlanId: 'test_plan_id',
+		userId: 'user_id',
+		decision: 'decision',
+		comment: 'comment',
+		createdAt: 'created_at'
+	},
 	project: { id: 'id', requireSignoff: 'require_signoff' },
 	release: { id: 'id', name: 'name', version: 'version', projectId: 'project_id' }
 }));
@@ -34,12 +60,17 @@ vi.mock('$lib/server/auth-utils', () => ({
 }));
 
 const { load } = await import('./+page.server');
+const drizzle = await import('drizzle-orm');
 
 const PARAMS = { projectId: '1', planId: '10' };
 
 const samplePlan = {
-	id: 10, projectId: 1, name: 'Sprint Plan',
-	status: 'ACTIVE', createdBy: 'user-1', createdAt: new Date()
+	id: 10,
+	projectId: 1,
+	name: 'Sprint Plan',
+	status: 'ACTIVE',
+	createdBy: 'user-1',
+	createdAt: new Date()
 };
 
 function createLoadEvent(params = PARAMS) {
@@ -57,13 +88,13 @@ function setupSelectMock(overrides: Record<number, unknown[]> = {}) {
 			chain[m] = vi.fn().mockReturnValue(chain);
 		}
 		const defaults: Record<number, unknown[]> = {
-			1: [{ name: 'Creator' }],       // creator
-			2: [],                            // items
-			3: [],                            // runs
-			4: [],                            // allTestCases
-			5: [],                            // signoffs
-			6: [{ requireSignoff: false }],   // project settings
-			7: []                             // releases
+			1: [{ name: 'Creator' }], // creator
+			2: [], // items
+			3: [], // runs
+			4: [], // allTestCases
+			5: [], // signoffs
+			6: [{ requireSignoff: false }], // project settings
+			7: [] // releases
 		};
 		const data = overrides[selectCall] ?? defaults[selectCall] ?? [];
 		chain.then = (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve);
@@ -80,13 +111,15 @@ describe('test-plans/[planId] page server', () => {
 	});
 
 	it('should return 404 when plan not found', async () => {
-		(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testPlan.findFirst.mockResolvedValue(null);
+		(
+			mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>
+		).testPlan.findFirst.mockResolvedValue(null);
 		await expect(load(createLoadEvent() as never)).rejects.toThrow();
 	});
 
 	it('should return plan with creator name', async () => {
 		setupSelectMock();
-		const result = await load(createLoadEvent() as never) as Record<string, any>;
+		const result = (await load(createLoadEvent() as never)) as Record<string, any>;
 
 		expect(result.plan.id).toBe(10);
 		expect(result.plan.name).toBe('Sprint Plan');
@@ -95,7 +128,7 @@ describe('test-plans/[planId] page server', () => {
 
 	it('should return empty creator name when creator not found', async () => {
 		setupSelectMock({ 1: [undefined] });
-		const result = await load(createLoadEvent() as never) as Record<string, any>;
+		const result = (await load(createLoadEvent() as never)) as Record<string, any>;
 
 		expect(result.plan.createdByName).toBe('');
 	});
@@ -105,10 +138,12 @@ describe('test-plans/[planId] page server', () => {
 			2: [{ id: 1, testCaseId: 5, key: 'TC-001', title: 'Test', priority: 'HIGH', position: 0 }],
 			3: [{ id: 50, name: 'Run 1', status: 'COMPLETED', environment: 'QA', createdAt: new Date() }],
 			4: [{ id: 5, key: 'TC-001', title: 'Test', priority: 'HIGH' }],
-			5: [{ id: 1, decision: 'APPROVED', comment: 'LGTM', createdAt: new Date(), userName: 'Admin' }],
+			5: [
+				{ id: 1, decision: 'APPROVED', comment: 'LGTM', createdAt: new Date(), userName: 'Admin' }
+			],
 			7: [{ id: 100, name: 'v1.0', version: '1.0.0' }]
 		});
-		const result = await load(createLoadEvent() as never) as Record<string, any>;
+		const result = (await load(createLoadEvent() as never)) as Record<string, any>;
 
 		expect(result.items).toHaveLength(1);
 		expect(result.runs).toHaveLength(1);
@@ -117,16 +152,27 @@ describe('test-plans/[planId] page server', () => {
 		expect(result.releases).toHaveLength(1);
 	});
 
+	it('should scope linked items and runs to the requested project', async () => {
+		setupSelectMock();
+		await load(createLoadEvent() as never);
+
+		expect(drizzle.eq).toHaveBeenCalledWith('project_id', 1);
+		const projectScopeCalls = (vi.mocked(drizzle.eq).mock.calls as unknown[][]).filter(
+			(call) => call[0] === 'project_id' && call[1] === 1
+		);
+		expect(projectScopeCalls.length).toBeGreaterThanOrEqual(4);
+	});
+
 	it('should return requireSignoff from project settings', async () => {
 		setupSelectMock({ 6: [{ requireSignoff: true }] });
-		const result = await load(createLoadEvent() as never) as Record<string, any>;
+		const result = (await load(createLoadEvent() as never)) as Record<string, any>;
 
 		expect(result.requireSignoff).toBe(true);
 	});
 
 	it('should default requireSignoff to false when project not found', async () => {
 		setupSelectMock({ 6: [undefined] });
-		const result = await load(createLoadEvent() as never) as Record<string, any>;
+		const result = (await load(createLoadEvent() as never)) as Record<string, any>;
 
 		expect(result.requireSignoff).toBe(false);
 	});

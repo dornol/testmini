@@ -1,7 +1,17 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testPlan, testPlanTestCase, testCase, testCaseVersion, testRun, user, testPlanSignoff, project, release } from '$lib/server/db/schema';
+import {
+	testPlan,
+	testPlanTestCase,
+	testCase,
+	testCaseVersion,
+	testRun,
+	user,
+	testPlanSignoff,
+	project,
+	release
+} from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { parseId } from '$lib/server/auth-utils';
 
@@ -18,62 +28,64 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		error(404, 'Plan not found');
 	}
 
-	const [
-		[creator],
-		items,
-		runs,
-		allTestCases,
-		signoffs,
-		[proj],
-		releases
-	] = await Promise.all([
+	const [[creator], items, runs, allTestCases, signoffs, [proj], releases] = await Promise.all([
 		db.select({ name: user.name }).from(user).where(eq(user.id, plan.createdBy)),
-		db.select({
-			id: testPlanTestCase.id,
-			testCaseId: testCase.id,
-			key: testCase.key,
-			title: testCaseVersion.title,
-			priority: testCaseVersion.priority,
-			position: testPlanTestCase.position
-		})
+		db
+			.select({
+				id: testPlanTestCase.id,
+				testCaseId: testCase.id,
+				key: testCase.key,
+				title: testCaseVersion.title,
+				priority: testCaseVersion.priority,
+				position: testPlanTestCase.position
+			})
 			.from(testPlanTestCase)
 			.innerJoin(testCase, eq(testPlanTestCase.testCaseId, testCase.id))
 			.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
-			.where(eq(testPlanTestCase.testPlanId, planId))
+			.where(and(eq(testPlanTestCase.testPlanId, planId), eq(testCase.projectId, projectId)))
 			.orderBy(testPlanTestCase.position),
-		db.select({
-			id: testRun.id,
-			name: testRun.name,
-			status: testRun.status,
-			environment: testRun.environment,
-			createdAt: testRun.createdAt
-		})
+		db
+			.select({
+				id: testRun.id,
+				name: testRun.name,
+				status: testRun.status,
+				environment: testRun.environment,
+				createdAt: testRun.createdAt
+			})
 			.from(testRun)
-			.where(eq(testRun.testPlanId, planId))
+			.where(and(eq(testRun.testPlanId, planId), eq(testRun.projectId, projectId)))
 			.orderBy(testRun.createdAt),
-		db.select({
-			id: testCase.id,
-			key: testCase.key,
-			title: testCaseVersion.title,
-			priority: testCaseVersion.priority
-		})
+		db
+			.select({
+				id: testCase.id,
+				key: testCase.key,
+				title: testCaseVersion.title,
+				priority: testCaseVersion.priority
+			})
 			.from(testCase)
 			.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
 			.where(eq(testCase.projectId, projectId))
 			.orderBy(testCase.key),
-		db.select({
-			id: testPlanSignoff.id,
-			decision: testPlanSignoff.decision,
-			comment: testPlanSignoff.comment,
-			createdAt: testPlanSignoff.createdAt,
-			userName: user.name
-		})
+		db
+			.select({
+				id: testPlanSignoff.id,
+				decision: testPlanSignoff.decision,
+				comment: testPlanSignoff.comment,
+				createdAt: testPlanSignoff.createdAt,
+				userName: user.name
+			})
 			.from(testPlanSignoff)
 			.innerJoin(user, eq(testPlanSignoff.userId, user.id))
 			.where(eq(testPlanSignoff.testPlanId, planId))
 			.orderBy(testPlanSignoff.createdAt),
-		db.select({ requireSignoff: project.requireSignoff }).from(project).where(eq(project.id, projectId)),
-		db.select({ id: release.id, name: release.name, version: release.version }).from(release).where(eq(release.projectId, projectId))
+		db
+			.select({ requireSignoff: project.requireSignoff })
+			.from(project)
+			.where(eq(project.id, projectId)),
+		db
+			.select({ id: release.id, name: release.name, version: release.version })
+			.from(release)
+			.where(eq(release.projectId, projectId))
 	]);
 
 	return {

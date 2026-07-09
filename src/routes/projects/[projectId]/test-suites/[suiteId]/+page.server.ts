@@ -1,7 +1,15 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testSuite, testSuiteItem, testCase, testCaseVersion, user, tag, testCaseTag } from '$lib/server/db/schema';
+import {
+	testSuite,
+	testSuiteItem,
+	testCase,
+	testCaseVersion,
+	user,
+	tag,
+	testCaseTag
+} from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { parseId } from '$lib/server/auth-utils';
 
@@ -30,7 +38,7 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		.from(testSuiteItem)
 		.innerJoin(testCase, eq(testSuiteItem.testCaseId, testCase.id))
 		.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
-		.where(eq(testSuiteItem.suiteId, suiteId))
+		.where(and(eq(testSuiteItem.suiteId, suiteId), eq(testCase.projectId, projectId)))
 		.orderBy(testCase.key);
 
 	// Get all test cases for "Add Cases" dialog

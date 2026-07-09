@@ -18,7 +18,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		createdAt: 'created_at'
 	},
 	testSuiteItem: { id: 'id', suiteId: 'suite_id', testCaseId: 'test_case_id' },
-	testCase: { id: 'id', key: 'key', latestVersionId: 'latest_version_id' },
+	testCase: { id: 'id', key: 'key', latestVersionId: 'latest_version_id', projectId: 'project_id' },
 	testCaseVersion: { id: 'id', title: 'title', priority: 'priority' },
 	user: { id: 'id', name: 'name' }
 }));
@@ -81,6 +81,24 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 			expect(data.id).toBe(5);
 			expect(data.name).toBe('Smoke Tests');
 			expect(Array.isArray(data.items)).toBe(true);
+		});
+
+		it('should scope suite items to test cases in the requested project', async () => {
+			const selectChain = mockSelectResult(mockDb, sampleItems);
+
+			const event = createMockEvent({
+				method: 'GET',
+				params: PARAMS,
+				user: testUser
+			});
+			await GET(event);
+
+			expect(selectChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['suite_id', 5],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return suite detail with empty items', async () => {

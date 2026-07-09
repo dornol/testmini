@@ -124,11 +124,6 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 			sortOrder: z.number().optional().describe('Sort order')
 		},
 		async ({ moduleId, name, description, parentModuleId, sortOrder }) => {
-			const m = await db.query.module.findFirst({
-				where: and(eq(module.id, moduleId), eq(module.projectId, projectId))
-			});
-			if (!m) return err('Module not found');
-
 			const parsed = updateModuleSchema.safeParse({
 				name,
 				description,
@@ -136,13 +131,6 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 				sortOrder
 			});
 			if (!parsed.success) return err(firstValidationError(parsed.error));
-
-			const parentError = await validateParentModule(
-				parsed.data.parentModuleId,
-				projectId,
-				moduleId
-			);
-			if (parentError) return parentError;
 
 			const updates: Record<string, unknown> = {};
 			if (parsed.data.name !== undefined) updates.name = parsed.data.name;
@@ -152,6 +140,18 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 			if (parsed.data.sortOrder !== undefined) updates.sortOrder = parsed.data.sortOrder;
 
 			if (Object.keys(updates).length === 0) return err('No fields to update');
+
+			const m = await db.query.module.findFirst({
+				where: and(eq(module.id, moduleId), eq(module.projectId, projectId))
+			});
+			if (!m) return err('Module not found');
+
+			const parentError = await validateParentModule(
+				parsed.data.parentModuleId,
+				projectId,
+				moduleId
+			);
+			if (parentError) return parentError;
 
 			const [updated] = await db
 				.update(module)

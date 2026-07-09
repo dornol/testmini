@@ -316,20 +316,17 @@ describe('MCP module tools', () => {
 		});
 
 		it('should reject empty names before updating a module', async () => {
-			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
-
 			const result = await client.callTool({
 				name: 'update-module',
 				arguments: { moduleId: 1, name: '   ' }
 			});
 
 			expect(result.isError).toBe(true);
+			expect(mockDb.query.module.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should reject empty updates', async () => {
-			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
-
 			const result = await client.callTool({
 				name: 'update-module',
 				arguments: { moduleId: 1 }
@@ -339,6 +336,7 @@ describe('MCP module tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'No fields to update'
 			);
+			expect(mockDb.query.module.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 

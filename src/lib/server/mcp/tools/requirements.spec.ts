@@ -345,8 +345,6 @@ describe('MCP requirement tools', () => {
 		});
 
 		it('should reject empty titles before updating a requirement', async () => {
-			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
-
 			const result = await client.callTool({
 				name: 'update-requirement',
 				arguments: { requirementId: 1, title: '   ' }
@@ -356,12 +354,11 @@ describe('MCP requirement tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Title is required'
 			);
+			expect(mockDb.query.requirement.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should reject empty updates', async () => {
-			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
-
 			const result = await client.callTool({
 				name: 'update-requirement',
 				arguments: { requirementId: 1 }
@@ -371,12 +368,11 @@ describe('MCP requirement tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'No fields to update'
 			);
+			expect(mockDb.query.requirement.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should reject long source before updating a requirement', async () => {
-			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
-
 			const result = await client.callTool({
 				name: 'update-requirement',
 				arguments: { requirementId: 1, source: 'A'.repeat(256) }
@@ -386,6 +382,7 @@ describe('MCP requirement tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Source must be 255 characters or less'
 			);
+			expect(mockDb.query.requirement.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 

@@ -164,11 +164,6 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 			source: z.string().nullable().optional().describe('New source')
 		},
 		async ({ requirementId, title, description, externalId, source }) => {
-			const r = await db.query.requirement.findFirst({
-				where: and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId))
-			});
-			if (!r) return err('Requirement not found');
-
 			const input: Record<string, unknown> = {};
 			if (title !== undefined) input.title = title;
 			if (description !== undefined) input.description = description;
@@ -187,6 +182,11 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 			if (fields.source !== undefined) updates.source = fields.source;
 
 			if (Object.keys(updates).length === 0) return err('No fields to update');
+
+			const r = await db.query.requirement.findFirst({
+				where: and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId))
+			});
+			if (!r) return err('Requirement not found');
 
 			const [updated] = await db
 				.update(requirement)

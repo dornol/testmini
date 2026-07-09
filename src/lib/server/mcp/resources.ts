@@ -18,6 +18,8 @@ import {
 } from '$lib/server/db/schema';
 import { eq, desc, count, asc } from 'drizzle-orm';
 
+const RESOURCE_LIST_LIMIT = 500;
+
 export function registerResources(server: McpServer, projectId: number) {
 	server.resource('test-cases', 'test-cases://list', async () => {
 		const cases = await db
@@ -32,9 +34,18 @@ export function registerResources(server: McpServer, projectId: number) {
 			.from(testCase)
 			.leftJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
 			.where(eq(testCase.projectId, projectId))
-			.orderBy(testCase.sortOrder);
+			.orderBy(testCase.sortOrder)
+			.limit(RESOURCE_LIST_LIMIT);
 
-		return { contents: [{ uri: 'test-cases://list', text: JSON.stringify(cases, null, 2), mimeType: 'application/json' }] };
+		return {
+			contents: [
+				{
+					uri: 'test-cases://list',
+					text: JSON.stringify(cases, null, 2),
+					mimeType: 'application/json'
+				}
+			]
+		};
 	});
 
 	server.resource('test-runs', 'test-runs://list', async () => {
@@ -52,7 +63,15 @@ export function registerResources(server: McpServer, projectId: number) {
 			.orderBy(desc(testRun.createdAt))
 			.limit(50);
 
-		return { contents: [{ uri: 'test-runs://list', text: JSON.stringify(runs, null, 2), mimeType: 'application/json' }] };
+		return {
+			contents: [
+				{
+					uri: 'test-runs://list',
+					text: JSON.stringify(runs, null, 2),
+					mimeType: 'application/json'
+				}
+			]
+		};
 	});
 
 	server.resource('summary', 'reports://summary', async () => {
@@ -79,7 +98,15 @@ export function registerResources(server: McpServer, projectId: number) {
 			recentRuns: latestRuns
 		};
 
-		return { contents: [{ uri: 'reports://summary', text: JSON.stringify(summary, null, 2), mimeType: 'application/json' }] };
+		return {
+			contents: [
+				{
+					uri: 'reports://summary',
+					text: JSON.stringify(summary, null, 2),
+					mimeType: 'application/json'
+				}
+			]
+		};
 	});
 
 	server.resource('project', 'projects://current', async () => {
@@ -88,7 +115,11 @@ export function registerResources(server: McpServer, projectId: number) {
 		});
 
 		if (!proj) {
-			return { contents: [{ uri: 'projects://current', text: JSON.stringify(null), mimeType: 'application/json' }] };
+			return {
+				contents: [
+					{ uri: 'projects://current', text: JSON.stringify(null), mimeType: 'application/json' }
+				]
+			};
 		}
 
 		const [tcCount] = await db
@@ -149,7 +180,15 @@ export function registerResources(server: McpServer, projectId: number) {
 			priorities
 		};
 
-		return { contents: [{ uri: 'projects://current', text: JSON.stringify(projectInfo, null, 2), mimeType: 'application/json' }] };
+		return {
+			contents: [
+				{
+					uri: 'projects://current',
+					text: JSON.stringify(projectInfo, null, 2),
+					mimeType: 'application/json'
+				}
+			]
+		};
 	});
 
 	server.resource('tags', 'tags://list', async () => {
@@ -157,9 +196,14 @@ export function registerResources(server: McpServer, projectId: number) {
 			.select({ id: tag.id, name: tag.name, color: tag.color })
 			.from(tag)
 			.where(eq(tag.projectId, projectId))
-			.orderBy(tag.name);
+			.orderBy(tag.name)
+			.limit(RESOURCE_LIST_LIMIT);
 
-		return { contents: [{ uri: 'tags://list', text: JSON.stringify(tags, null, 2), mimeType: 'application/json' }] };
+		return {
+			contents: [
+				{ uri: 'tags://list', text: JSON.stringify(tags, null, 2), mimeType: 'application/json' }
+			]
+		};
 	});
 
 	server.resource('test-suites', 'test-suites://list', async () => {
@@ -172,9 +216,18 @@ export function registerResources(server: McpServer, projectId: number) {
 			})
 			.from(testSuite)
 			.where(eq(testSuite.projectId, projectId))
-			.orderBy(testSuite.name);
+			.orderBy(testSuite.name)
+			.limit(RESOURCE_LIST_LIMIT);
 
-		return { contents: [{ uri: 'test-suites://list', text: JSON.stringify(suites, null, 2), mimeType: 'application/json' }] };
+		return {
+			contents: [
+				{
+					uri: 'test-suites://list',
+					text: JSON.stringify(suites, null, 2),
+					mimeType: 'application/json'
+				}
+			]
+		};
 	});
 
 	server.resource('test-plans', 'test-plans://list', async () => {
@@ -190,9 +243,18 @@ export function registerResources(server: McpServer, projectId: number) {
 			})
 			.from(testPlan)
 			.where(eq(testPlan.projectId, projectId))
-			.orderBy(desc(testPlan.createdAt));
+			.orderBy(desc(testPlan.createdAt))
+			.limit(RESOURCE_LIST_LIMIT);
 
-		return { contents: [{ uri: 'test-plans://list', text: JSON.stringify(plans, null, 2), mimeType: 'application/json' }] };
+		return {
+			contents: [
+				{
+					uri: 'test-plans://list',
+					text: JSON.stringify(plans, null, 2),
+					mimeType: 'application/json'
+				}
+			]
+		};
 	});
 
 	server.resource('templates', 'templates://list', async () => {
@@ -206,9 +268,18 @@ export function registerResources(server: McpServer, projectId: number) {
 			})
 			.from(testCaseTemplate)
 			.where(eq(testCaseTemplate.projectId, projectId))
-			.orderBy(testCaseTemplate.name);
+			.orderBy(testCaseTemplate.name)
+			.limit(RESOURCE_LIST_LIMIT);
 
-		return { contents: [{ uri: 'templates://list', text: JSON.stringify(templates, null, 2), mimeType: 'application/json' }] };
+		return {
+			contents: [
+				{
+					uri: 'templates://list',
+					text: JSON.stringify(templates, null, 2),
+					mimeType: 'application/json'
+				}
+			]
+		};
 	});
 
 	server.resource('requirements', 'requirements://list', async () => {
@@ -223,9 +294,18 @@ export function registerResources(server: McpServer, projectId: number) {
 			})
 			.from(requirement)
 			.where(eq(requirement.projectId, projectId))
-			.orderBy(requirement.id);
+			.orderBy(requirement.id)
+			.limit(RESOURCE_LIST_LIMIT);
 
-		return { contents: [{ uri: 'requirements://list', text: JSON.stringify(reqs, null, 2), mimeType: 'application/json' }] };
+		return {
+			contents: [
+				{
+					uri: 'requirements://list',
+					text: JSON.stringify(reqs, null, 2),
+					mimeType: 'application/json'
+				}
+			]
+		};
 	});
 
 	server.resource('custom-fields', 'custom-fields://list', async () => {
@@ -240,9 +320,18 @@ export function registerResources(server: McpServer, projectId: number) {
 			})
 			.from(customField)
 			.where(eq(customField.projectId, projectId))
-			.orderBy(customField.sortOrder);
+			.orderBy(customField.sortOrder)
+			.limit(RESOURCE_LIST_LIMIT);
 
-		return { contents: [{ uri: 'custom-fields://list', text: JSON.stringify(fields, null, 2), mimeType: 'application/json' }] };
+		return {
+			contents: [
+				{
+					uri: 'custom-fields://list',
+					text: JSON.stringify(fields, null, 2),
+					mimeType: 'application/json'
+				}
+			]
+		};
 	});
 
 	server.resource('exploratory-sessions', 'exploratory-sessions://list', async () => {
@@ -262,6 +351,14 @@ export function registerResources(server: McpServer, projectId: number) {
 			.orderBy(desc(exploratorySession.startedAt))
 			.limit(50);
 
-		return { contents: [{ uri: 'exploratory-sessions://list', text: JSON.stringify(sessions, null, 2), mimeType: 'application/json' }] };
+		return {
+			contents: [
+				{
+					uri: 'exploratory-sessions://list',
+					text: JSON.stringify(sessions, null, 2),
+					mimeType: 'application/json'
+				}
+			]
+		};
 	});
 }

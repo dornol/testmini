@@ -332,6 +332,14 @@ describe('MCP Server', () => {
 			const parsed = JSON.parse(getResourceText(result.contents[0]));
 			expect(parsed).toEqual([]);
 		});
+
+		it('should limit the resource result size', async () => {
+			const chain = mockSelectResult(mockDb, []);
+
+			await client.readResource({ uri: 'test-cases://list' });
+
+			expect(chain.limit as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(500);
+		});
 	});
 
 	describe('resource: test-runs://list', () => {

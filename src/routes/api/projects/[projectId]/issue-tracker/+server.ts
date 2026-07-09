@@ -8,6 +8,7 @@ import { parseJsonBody } from '$lib/server/auth-utils';
 import { childLogger } from '$lib/server/logger';
 import { validatePublicHttpUrl } from '$lib/server/url-safety';
 import { validateCustomIssueTemplate } from '$lib/server/integrations/custom-template';
+import { isPlainRecord } from '$lib/server/object-validation';
 
 const log = childLogger('issue-tracker-config');
 
@@ -27,10 +28,10 @@ type IssueTrackerConfigPayload = {
 };
 
 function validateRequestBody(body: unknown): Record<string, unknown> | Response {
-	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+	if (!isPlainRecord(body)) {
 		return badRequest('Invalid request body');
 	}
-	return body as Record<string, unknown>;
+	return body;
 }
 
 function requireTrimmedString(value: unknown, label: string, maxLength: number): string | Response {

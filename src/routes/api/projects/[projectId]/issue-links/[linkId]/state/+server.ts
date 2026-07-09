@@ -6,12 +6,13 @@ import { withProjectRole } from '$lib/server/api-handler';
 import { notFound, badRequest } from '$lib/server/errors';
 import { updateIssueState } from '$lib/server/issue-tracker';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
+import { isPlainRecord } from '$lib/server/object-validation';
 
 function validateRequestBody(body: unknown): Record<string, unknown> | Response {
-	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+	if (!isPlainRecord(body)) {
 		return badRequest('Invalid request body');
 	}
-	return body as Record<string, unknown>;
+	return body;
 }
 
 function validateState(value: unknown): 'open' | 'closed' | Response {

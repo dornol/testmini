@@ -6,18 +6,19 @@ import { eq, desc } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { generateApiKey, hashApiKey } from '$lib/server/api-key-auth';
 import { parseJsonBody } from '$lib/server/auth-utils';
+import { isPlainRecord } from '$lib/server/object-validation';
 
 const MAX_API_KEY_NAME_LENGTH = 100;
 const API_KEY_CREATE_FIELDS = new Set(['name']);
 
 function validateRequestBody(body: unknown): Record<string, unknown> | Response {
-	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+	if (!isPlainRecord(body)) {
 		return badRequest('Invalid request body');
 	}
 	if (Object.keys(body).some((key) => !API_KEY_CREATE_FIELDS.has(key))) {
 		return badRequest('Invalid API key field');
 	}
-	return body as Record<string, unknown>;
+	return body;
 }
 
 function validateKeyName(value: unknown): string | Response {

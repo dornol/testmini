@@ -13,6 +13,7 @@ import {
 	validateOptionalTestExecutionId
 } from '$lib/server/project-reference-validation';
 import { parseCanonicalPositiveInteger } from '$lib/server/search-param-validation';
+import { isPlainRecord } from '$lib/server/object-validation';
 
 const MAX_TITLE_LENGTH = 500;
 const MAX_DESCRIPTION_LENGTH = 10000;
@@ -43,10 +44,10 @@ function parsePositiveInteger(value: unknown, label: string): number | undefined
 }
 
 function validateRequestBody(body: unknown): Record<string, unknown> | Response {
-	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+	if (!isPlainRecord(body)) {
 		return badRequest('Invalid request body');
 	}
-	return body as Record<string, unknown>;
+	return body;
 }
 
 function requireTrimmedString(value: unknown, label: string, maxLength: number): string | Response {

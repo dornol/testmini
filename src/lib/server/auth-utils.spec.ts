@@ -80,12 +80,22 @@ describe('parseId', () => {
 		expect(parseId('42', 'project ID')).toBe(42);
 	});
 
-	it.each(['', '0', '-1', '1.5', 'abc', undefined])(
-		'should throw 400 for invalid ID value %s',
-		(raw) => {
-			expect(() => parseId(raw, 'project ID')).toThrow();
-		}
-	);
+	it.each([
+		'',
+		'0',
+		'-1',
+		'+1',
+		'01',
+		'1.5',
+		'1e3',
+		' 42',
+		'42 ',
+		'abc',
+		'9007199254740992',
+		undefined
+	])('should throw 400 for invalid ID value %s', (raw) => {
+		expect(() => parseId(raw, 'project ID')).toThrow();
+	});
 });
 
 describe('requireProjectAccess', () => {

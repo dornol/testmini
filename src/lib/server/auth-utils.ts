@@ -6,6 +6,8 @@ import { assertContentLengthUnderLimit } from '$lib/server/request-size';
 
 type AuthUser = NonNullable<App.Locals['user']>;
 
+const POSITIVE_INTEGER_ID_PATTERN = /^[1-9]\d*$/;
+
 export function isGlobalAdmin(user: AuthUser): boolean {
 	return user.role === 'admin';
 }
@@ -77,8 +79,12 @@ export async function requireProjectRole(
  * Parse a route param as a numeric ID, throwing 400 if invalid.
  */
 export function parseId(raw: string | undefined, label: string): number {
+	if (!raw || !POSITIVE_INTEGER_ID_PATTERN.test(raw)) {
+		error(400, `Invalid ${label}`);
+	}
+
 	const id = Number(raw);
-	if (!Number.isSafeInteger(id) || id <= 0) {
+	if (!Number.isSafeInteger(id)) {
 		error(400, `Invalid ${label}`);
 	}
 	return id;

@@ -10,6 +10,7 @@ const MAX_FILTER_NAME_LENGTH = 100;
 const MAX_FILTER_JSON_LENGTH = 20_000;
 const ALLOWED_FILTER_TYPES = new Set(['test_cases', 'test_runs']);
 const UNSAFE_FILTER_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const CREATE_FILTER_FIELDS = new Set(['name', 'filterType', 'filters']);
 
 function validateRequestBody(body: unknown): Record<string, unknown> | Response {
 	if (
@@ -21,6 +22,16 @@ function validateRequestBody(body: unknown): Record<string, unknown> | Response 
 		return badRequest('Invalid request body');
 	}
 	return body as Record<string, unknown>;
+}
+
+function validateRequestFields(
+	body: Record<string, unknown>,
+	allowedFields: Set<string>
+): Response | null {
+	if (Object.keys(body).some((key) => !allowedFields.has(key))) {
+		return badRequest('Invalid saved filter field');
+	}
+	return null;
 }
 
 function validateFilterType(value: unknown): string | Response {
@@ -100,6 +111,8 @@ export const GET = withProjectAccess(async ({ user, projectId, url }) => {
 export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 	const bodyOrError = validateRequestBody(await parseJsonBody(request));
 	if (bodyOrError instanceof Response) return bodyOrError;
+	const fieldError = validateRequestFields(bodyOrError, CREATE_FILTER_FIELDS);
+	if (fieldError) return fieldError;
 	const body = bodyOrError;
 
 	const nameOrError = validateFilterName(body.name);

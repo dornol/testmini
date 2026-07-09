@@ -72,7 +72,7 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 		it('should return 400 when request body is not an object', async () => {
 			for (const body of [null, ['Filter']]) {
 				vi.clearAllMocks();
-				mockDb.query.savedFilter = { findFirst: vi.fn().mockResolvedValue(sampleFilter) };
+				mockDb.query.savedFilter = { findFirst: vi.fn() };
 
 				const event = createMockEvent({
 					method: 'PATCH',
@@ -86,13 +86,29 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 
 				expect(response.status).toBe(400);
 				expect(data.error).toMatch(/request body/i);
+				expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
 				expect(mockDb.update).not.toHaveBeenCalled();
 			}
 		});
 
-		it('should reject empty name', async () => {
-			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleFilter);
+		it('should return 400 when request body has unknown fields', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { name: 'Updated', filterType: 'test_runs' }
+			});
 
+			const response = await PATCH(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Invalid saved filter field');
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject empty name', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -103,11 +119,10 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 			const response = await PATCH(event);
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('empty');
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
 		});
 
 		it('should reject name longer than 100 characters', async () => {
-			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleFilter);
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -118,11 +133,10 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 			const response = await PATCH(event);
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('100 characters');
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
 		});
 
 		it('should reject non-string name', async () => {
-			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleFilter);
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -132,11 +146,10 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 
 			const response = await PATCH(event);
 			expect(response.status).toBe(400);
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
 		});
 
 		it('should reject when no fields to update', async () => {
-			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleFilter);
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -147,11 +160,10 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 			const response = await PATCH(event);
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('No fields');
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
 		});
 
 		it('should reject invalid filters value', async () => {
-			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleFilter);
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -162,11 +174,10 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 			const response = await PATCH(event);
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('object');
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
 		});
 
 		it('should reject array filters value', async () => {
-			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleFilter);
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -176,6 +187,7 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 
 			const response = await PATCH(event);
 			expect(response.status).toBe(400);
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
 		});
 
 		it('should reject filters with unsafe keys', async () => {
@@ -187,7 +199,7 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 
 			for (const filters of unsafeFilters) {
 				vi.clearAllMocks();
-				mockDb.query.savedFilter = { findFirst: vi.fn().mockResolvedValue(sampleFilter) };
+				mockDb.query.savedFilter = { findFirst: vi.fn() };
 
 				const event = createMockEvent({
 					method: 'PATCH',
@@ -201,13 +213,12 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 
 				expect(response.status).toBe(400);
 				expect(data.error).toMatch(/unsafe key/i);
+				expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
 				expect(mockDb.update).not.toHaveBeenCalled();
 			}
 		});
 
 		it('should reject oversized filters value', async () => {
-			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleFilter);
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -217,6 +228,7 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 
 			const response = await PATCH(event);
 			expect(response.status).toBe(400);
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
 		});
 
 		it('should update filter name successfully', async () => {

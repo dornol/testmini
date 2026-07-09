@@ -8,6 +8,7 @@ import { eq, and } from 'drizzle-orm';
 const MAX_FILTER_NAME_LENGTH = 100;
 const MAX_FILTER_JSON_LENGTH = 20_000;
 const ALLOWED_FILTER_TYPES = ['test_cases', 'test_runs'] as const;
+const UNSAFE_FILTER_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 function validateFilterName(value: string): string | ReturnType<typeof err> {
 	const name = value.trim();
@@ -31,7 +32,25 @@ function validateFilters(
 	if (JSON.stringify(value).length > MAX_FILTER_JSON_LENGTH) {
 		return err(`Filters must be ${MAX_FILTER_JSON_LENGTH} characters or less`);
 	}
+	if (containsUnsafeFilterKey(value)) {
+		return err('Filters contain an unsafe key');
+	}
 	return value;
+}
+
+function containsUnsafeFilterKey(value: unknown): boolean {
+	if (Array.isArray(value)) {
+		return value.some((item) => containsUnsafeFilterKey(item));
+	}
+	if (!value || typeof value !== 'object') {
+		return false;
+	}
+	for (const [key, child] of Object.entries(value)) {
+		if (UNSAFE_FILTER_KEYS.has(key) || containsUnsafeFilterKey(child)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 export function registerSavedFilterTools(server: McpServer, projectId: number) {

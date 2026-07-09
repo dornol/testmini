@@ -179,6 +179,22 @@ describe('/api/projects/[projectId]/saved-filters', () => {
 			}
 		});
 
+		it('should return 400 when request body has unknown fields', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Filter', filters: { status: ['ACTIVE'] }, owner: 'qa' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Invalid saved filter field');
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should create a saved filter successfully', async () => {
 			mockDb.query.savedFilter.findFirst.mockResolvedValue(null);
 

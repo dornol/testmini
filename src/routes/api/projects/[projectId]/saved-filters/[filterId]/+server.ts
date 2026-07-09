@@ -9,6 +9,7 @@ import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 const MAX_FILTER_NAME_LENGTH = 100;
 const MAX_FILTER_JSON_LENGTH = 20_000;
 const UNSAFE_FILTER_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const UPDATE_FILTER_FIELDS = new Set(['name', 'filters']);
 
 function validateRequestBody(body: unknown): Record<string, unknown> | Response {
 	if (
@@ -20,6 +21,16 @@ function validateRequestBody(body: unknown): Record<string, unknown> | Response 
 		return badRequest('Invalid request body');
 	}
 	return body as Record<string, unknown>;
+}
+
+function validateRequestFields(
+	body: Record<string, unknown>,
+	allowedFields: Set<string>
+): Response | null {
+	if (Object.keys(body).some((key) => !allowedFields.has(key))) {
+		return badRequest('Invalid saved filter field');
+	}
+	return null;
 }
 
 function validateFilterName(value: unknown): string | Response {
@@ -78,11 +89,10 @@ async function findOwnedFilter(userId: string, projectId: number, filterId: numb
 export const PATCH = withProjectAccess(async ({ request, user, projectId, params }) => {
 	const filterId = parseId(params.filterId, 'filter ID');
 
-	const existing = await findOwnedFilter(user.id, projectId, filterId);
-	if (!existing) return notFound('Saved filter not found');
-
 	const bodyOrError = validateRequestBody(await parseJsonBody(request));
 	if (bodyOrError instanceof Response) return bodyOrError;
+	const fieldError = validateRequestFields(bodyOrError, UPDATE_FILTER_FIELDS);
+	if (fieldError) return fieldError;
 	const body = bodyOrError;
 
 	const updates: Record<string, unknown> = {};
@@ -103,6 +113,9 @@ export const PATCH = withProjectAccess(async ({ request, user, projectId, params
 	if (Object.keys(updates).length === 0) {
 		return badRequest('No fields to update');
 	}
+
+	const existing = await findOwnedFilter(user.id, projectId, filterId);
+	if (!existing) return notFound('Saved filter not found');
 
 	const [updated] = await db
 		.update(savedFilter)

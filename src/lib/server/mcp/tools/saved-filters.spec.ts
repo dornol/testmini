@@ -189,6 +189,25 @@ describe('MCP saved-filter tools', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should reject unsafe filter keys before insert', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-saved-filter',
+				arguments: {
+					name: 'Unsafe Filter',
+					filters: { nested: JSON.parse('{"constructor":"polluted"}') }
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'unsafe key'
+			);
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should reject duplicate filter names before insert', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
 			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleSavedFilter);

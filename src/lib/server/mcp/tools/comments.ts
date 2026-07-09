@@ -1,11 +1,36 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { testCase, testRun, testExecution, testCaseComment, executionComment } from '$lib/server/db/schema';
+import {
+	testCase,
+	testRun,
+	testExecution,
+	testCaseComment,
+	executionComment
+} from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and, desc } from 'drizzle-orm';
 
 export function registerCommentTools(server: McpServer, projectId: number) {
+	async function requireProjectTestCase(testCaseId: number) {
+		const tc = await db.query.testCase.findFirst({
+			where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
+		});
+		return tc ? null : err('Test case not found');
+	}
+
+	async function requireProjectExecution(runId: number, executionId: number) {
+		const run = await db.query.testRun.findFirst({
+			where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
+		});
+		if (!run) return err('Test run not found');
+
+		const execution = await db.query.testExecution.findFirst({
+			where: and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId))
+		});
+		return execution ? null : err('Execution not found');
+	}
+
 	server.tool(
 		'add-test-case-comment',
 		'Add a comment to a test case',
@@ -14,10 +39,8 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 			content: z.string().describe('Comment content')
 		},
 		async ({ testCaseId, content }) => {
-			const tc = await db.query.testCase.findFirst({
-				where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
-			});
-			if (!tc) return err('Test case not found');
+			const validationError = await requireProjectTestCase(testCaseId);
+			if (validationError) return validationError;
 
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
@@ -42,10 +65,8 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 			testCaseId: z.number().describe('Test case ID')
 		},
 		async ({ testCaseId }) => {
-			const tc = await db.query.testCase.findFirst({
-				where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
-			});
-			if (!tc) return err('Test case not found');
+			const validationError = await requireProjectTestCase(testCaseId);
+			if (validationError) return validationError;
 
 			const comments = await db
 				.select({
@@ -72,15 +93,8 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 			content: z.string().describe('Comment content')
 		},
 		async ({ runId, executionId, content }) => {
-			const run = await db.query.testRun.findFirst({
-				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
-			});
-			if (!run) return err('Test run not found');
-
-			const execution = await db.query.testExecution.findFirst({
-				where: and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId))
-			});
-			if (!execution) return err('Execution not found');
+			const validationError = await requireProjectExecution(runId, executionId);
+			if (validationError) return validationError;
 
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
@@ -107,6 +121,9 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 			content: z.string().describe('Updated content')
 		},
 		async ({ testCaseId, commentId, content }) => {
+			const validationError = await requireProjectTestCase(testCaseId);
+			if (validationError) return validationError;
+
 			const [updated] = await db
 				.update(testCaseComment)
 				.set({ content })
@@ -125,7 +142,11 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 			commentId: z.number().describe('Comment ID')
 		},
 		async ({ testCaseId, commentId }) => {
-			await db.delete(testCaseComment)
+			const validationError = await requireProjectTestCase(testCaseId);
+			if (validationError) return validationError;
+
+			await db
+				.delete(testCaseComment)
 				.where(and(eq(testCaseComment.id, commentId), eq(testCaseComment.testCaseId, testCaseId)));
 			return ok({ success: true, deletedId: commentId });
 		}
@@ -139,6 +160,9 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 			executionId: z.number().describe('Execution ID')
 		},
 		async ({ runId, executionId }) => {
+			const validationError = await requireProjectExecution(runId, executionId);
+			if (validationError) return validationError;
+
 			const comments = await db
 				.select()
 				.from(executionComment)

@@ -1,6 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
-import { sampleProject, sampleTestCase, sampleTestRun, sampleExecution } from '$lib/server/test-helpers/fixtures';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
+import {
+	sampleProject,
+	sampleTestCase,
+	sampleTestRun,
+	sampleExecution
+} from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 
@@ -10,8 +20,22 @@ vi.mock('$lib/server/db/schema', () => ({
 	testCase: { id: 'id', projectId: 'project_id' },
 	testRun: { id: 'id', projectId: 'project_id' },
 	testExecution: { id: 'id', testRunId: 'test_run_id' },
-	testCaseComment: { id: 'id', testCaseId: 'test_case_id', userId: 'user_id', content: 'content', parentId: 'parent_id', createdAt: 'created_at' },
-	executionComment: { id: 'id', testExecutionId: 'test_execution_id', userId: 'user_id', content: 'content', parentId: 'parent_id', createdAt: 'created_at' }
+	testCaseComment: {
+		id: 'id',
+		testCaseId: 'test_case_id',
+		userId: 'user_id',
+		content: 'content',
+		parentId: 'parent_id',
+		createdAt: 'created_at'
+	},
+	executionComment: {
+		id: 'id',
+		testExecutionId: 'test_execution_id',
+		userId: 'user_id',
+		content: 'content',
+		parentId: 'parent_id',
+		createdAt: 'created_at'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -64,7 +88,16 @@ describe('MCP comment tools', () => {
 		it('should add a comment to a test case', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockInsertReturning(mockDb, [{ id: 1, testCaseId: 10, userId: 'user-1', content: 'Looks good', parentId: null, createdAt: '2025-01-01' }]);
+			mockInsertReturning(mockDb, [
+				{
+					id: 1,
+					testCaseId: 10,
+					userId: 'user-1',
+					content: 'Looks good',
+					parentId: null,
+					createdAt: '2025-01-01'
+				}
+			]);
 
 			const result = await client.callTool({
 				name: 'add-test-case-comment',
@@ -86,7 +119,9 @@ describe('MCP comment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
 		});
 
 		it('should return error when project not found', async () => {
@@ -99,7 +134,9 @@ describe('MCP comment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Project not found'
+			);
 		});
 	});
 
@@ -109,7 +146,13 @@ describe('MCP comment tools', () => {
 		it('should list comments for a test case', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
 			mockSelectResult(mockDb, [
-				{ id: 1, content: 'First comment', userId: 'user-1', parentId: null, createdAt: '2025-01-01' },
+				{
+					id: 1,
+					content: 'First comment',
+					userId: 'user-1',
+					parentId: null,
+					createdAt: '2025-01-01'
+				},
 				{ id: 2, content: 'Reply', userId: 'user-2', parentId: 1, createdAt: '2025-01-02' }
 			]);
 
@@ -134,7 +177,9 @@ describe('MCP comment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
 		});
 	});
 
@@ -142,7 +187,17 @@ describe('MCP comment tools', () => {
 
 	describe('update-test-case-comment', () => {
 		it('should update a comment', async () => {
-			mockUpdateReturning(mockDb, [{ id: 1, testCaseId: 10, userId: 'user-1', content: 'Updated content', parentId: null, createdAt: '2025-01-01' }]);
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockUpdateReturning(mockDb, [
+				{
+					id: 1,
+					testCaseId: 10,
+					userId: 'user-1',
+					content: 'Updated content',
+					parentId: null,
+					createdAt: '2025-01-01'
+				}
+			]);
 
 			const result = await client.callTool({
 				name: 'update-test-case-comment',
@@ -153,12 +208,29 @@ describe('MCP comment tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.content).toBe('Updated content');
 		});
+
+		it('should return error when test case is not in the project', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'update-test-case-comment',
+				arguments: { testCaseId: 999, commentId: 1, content: 'Updated content' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
 	});
 
 	// ── delete-test-case-comment ────────────────────────
 
 	describe('delete-test-case-comment', () => {
 		it('should delete a comment', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+
 			const result = await client.callTool({
 				name: 'delete-test-case-comment',
 				arguments: { testCaseId: 10, commentId: 1 }
@@ -169,14 +241,38 @@ describe('MCP comment tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
 		});
+
+		it('should return error when test case is not in the project', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'delete-test-case-comment',
+				arguments: { testCaseId: 999, commentId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
 	});
 
 	// ── list-execution-comments ─────────────────────────
 
 	describe('list-execution-comments', () => {
 		it('should return comments array', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testExecution.findFirst.mockResolvedValue(sampleExecution);
 			mockSelectResult(mockDb, [
-				{ id: 5, testExecutionId: 200, userId: 'user-1', content: 'Execution comment', parentId: null, createdAt: '2025-01-01' }
+				{
+					id: 5,
+					testExecutionId: 200,
+					userId: 'user-1',
+					content: 'Execution comment',
+					parentId: null,
+					createdAt: '2025-01-01'
+				}
 			]);
 
 			const result = await client.callTool({
@@ -189,6 +285,37 @@ describe('MCP comment tools', () => {
 			expect(parsed).toHaveLength(1);
 			expect(parsed[0].content).toBe('Execution comment');
 		});
+
+		it('should return error when run is not in the project', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'list-execution-comments',
+				arguments: { runId: 999, executionId: 200 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test run not found'
+			);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return error when execution does not belong to the run', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testExecution.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'list-execution-comments',
+				arguments: { runId: 50, executionId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Execution not found'
+			);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
 	});
 
 	// ── add-execution-comment ────────────────────────────
@@ -198,7 +325,16 @@ describe('MCP comment tools', () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			mockDb.query.testExecution.findFirst.mockResolvedValue(sampleExecution);
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockInsertReturning(mockDb, [{ id: 5, testExecutionId: 200, userId: 'user-1', content: 'Failed on retry', parentId: null, createdAt: '2025-01-01' }]);
+			mockInsertReturning(mockDb, [
+				{
+					id: 5,
+					testExecutionId: 200,
+					userId: 'user-1',
+					content: 'Failed on retry',
+					parentId: null,
+					createdAt: '2025-01-01'
+				}
+			]);
 
 			const result = await client.callTool({
 				name: 'add-execution-comment',
@@ -219,7 +355,9 @@ describe('MCP comment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test run not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test run not found'
+			);
 		});
 
 		it('should return error when execution not found', async () => {
@@ -232,7 +370,9 @@ describe('MCP comment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Execution not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Execution not found'
+			);
 		});
 	});
 });

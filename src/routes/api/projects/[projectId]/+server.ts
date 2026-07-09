@@ -4,11 +4,10 @@ import { project, projectMember } from '$lib/server/db/schema';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { updateProjectSchema } from '$lib/schemas/project.schema';
-import { validationError } from '$lib/server/errors';
+import { badRequest, validationError } from '$lib/server/errors';
 import { eq, count, sql } from 'drizzle-orm';
 
 export const GET = withProjectAccess(async ({ projectId }) => {
-
 	const result = await db
 		.select({
 			id: project.id,
@@ -17,9 +16,10 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 			active: project.active,
 			createdBy: project.createdBy,
 			createdAt: project.createdAt,
-			memberCount: sql<number>`(select count(*)::int from project_member where project_id = ${col(project.id)})`.as(
-				'member_count'
-			)
+			memberCount:
+				sql<number>`(select count(*)::int from project_member where project_id = ${col(project.id)})`.as(
+					'member_count'
+				)
 		})
 		.from(project)
 		.where(eq(project.id, projectId));
@@ -32,20 +32,27 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 });
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, projectId }) => {
-
 	const body = await parseJsonBody(request);
 	const result = updateProjectSchema.safeParse(body);
 
 	if (!result.success) {
-		return validationError('Validation failed', result.error.flatten().fieldErrors as Record<string, string[]>);
+		return validationError(
+			'Validation failed',
+			result.error.flatten().fieldErrors as Record<string, string[]>
+		);
+	}
+
+	const updates: Record<string, unknown> = {};
+	if (result.data.name !== undefined) updates.name = result.data.name;
+	if (result.data.description !== undefined) updates.description = result.data.description || null;
+
+	if (Object.keys(updates).length === 0) {
+		return badRequest('No fields to update');
 	}
 
 	const [updated] = await db
 		.update(project)
-		.set({
-			name: result.data.name,
-			description: result.data.description || null
-		})
+		.set(updates)
 		.where(eq(project.id, projectId))
 		.returning();
 
@@ -57,7 +64,6 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, projec
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ projectId }) => {
-
 	const [deactivated] = await db
 		.update(project)
 		.set({ active: false })

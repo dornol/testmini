@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser, sampleProject } from '$lib/server/test-helpers/fixtures';
 
@@ -7,7 +11,14 @@ const mockDb = createMockDb();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
-	project: { id: 'id', name: 'name', description: 'description', active: 'active', createdBy: 'created_by', createdAt: 'created_at' },
+	project: {
+		id: 'id',
+		name: 'name',
+		description: 'description',
+		active: 'active',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
 	projectMember: { projectId: 'project_id', userId: 'user_id', role: 'role' }
 }));
 vi.mock('drizzle-orm', () => ({
@@ -24,7 +35,8 @@ vi.mock('drizzle-orm', () => ({
 
 // requireProjectAccess and requireProjectRole need real-ish behavior
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' }),
@@ -120,12 +132,12 @@ describe('/api/projects/[projectId]', () => {
 
 		it('should update project on success', async () => {
 			const updated = { ...sampleProject, name: 'Updated Project' };
-			mockUpdateReturning(mockDb, [updated]);
+			const updateChain = mockUpdateReturning(mockDb, [updated]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: { projectId: '1' },
-				body: { name: 'Updated Project', description: '' },
+				body: { name: 'Updated Project' },
 				user: adminUser
 			});
 			const response = await PATCH(event);
@@ -134,6 +146,22 @@ describe('/api/projects/[projectId]', () => {
 			expect(response.status).toBe(200);
 			expect(body.data.id).toBe(updated.id);
 			expect(body.data.name).toBe(updated.name);
+			expect(updateChain.set).toHaveBeenCalledWith({ name: 'Updated Project' });
+		});
+
+		it('should return 400 when no fields are provided', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: { projectId: '1' },
+				body: {},
+				user: adminUser
+			});
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/no fields/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 

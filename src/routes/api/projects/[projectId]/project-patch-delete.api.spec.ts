@@ -7,7 +7,14 @@ const mockDb = createMockDb();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
-	project: { id: 'id', name: 'name', description: 'description', active: 'active', createdBy: 'created_by', createdAt: 'created_at' },
+	project: {
+		id: 'id',
+		name: 'name',
+		description: 'description',
+		active: 'active',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
 	projectMember: { projectId: 'project_id', userId: 'user_id', role: 'role' }
 }));
 vi.mock('drizzle-orm', () => ({
@@ -22,7 +29,8 @@ vi.mock('drizzle-orm', () => ({
 	)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' }),
@@ -45,7 +53,7 @@ describe('/api/projects/[projectId] — PATCH & DELETE', () => {
 	describe('PATCH', () => {
 		it('should update project name', async () => {
 			const updated = { ...sampleProject, name: 'Renamed Project' };
-			mockUpdateReturning(mockDb, [updated]);
+			const updateChain = mockUpdateReturning(mockDb, [updated]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -58,6 +66,7 @@ describe('/api/projects/[projectId] — PATCH & DELETE', () => {
 
 			expect(response.status).toBe(200);
 			expect(body.data.name).toBe('Renamed Project');
+			expect(updateChain.set).toHaveBeenCalledWith({ name: 'Renamed Project' });
 		});
 
 		it('should return 403 for non-PROJECT_ADMIN', async () => {
@@ -123,6 +132,39 @@ describe('/api/projects/[projectId] — PATCH & DELETE', () => {
 
 			expect(response.status).toBe(200);
 			expect(body.data.description).toBe('New description');
+		});
+
+		it('should update project description without overwriting name', async () => {
+			const updated = { ...sampleProject, description: 'New description' };
+			const updateChain = mockUpdateReturning(mockDb, [updated]);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { description: 'New description' },
+				user: adminUser
+			});
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(body.data.description).toBe('New description');
+			expect(updateChain.set).toHaveBeenCalledWith({ description: 'New description' });
+		});
+
+		it('should return 400 when no fields are provided', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: {},
+				user: adminUser
+			});
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/no fields/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 

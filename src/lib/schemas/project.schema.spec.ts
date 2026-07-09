@@ -47,8 +47,13 @@ describe('updateProjectSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
-	it('should reject missing name', () => {
+	it('should accept description-only updates', () => {
 		const result = updateProjectSchema.safeParse({ description: 'no name' });
+		expect(result.success).toBe(true);
+	});
+
+	it('should reject empty name when provided', () => {
+		const result = updateProjectSchema.safeParse({ name: '' });
 		expect(result.success).toBe(false);
 	});
 });

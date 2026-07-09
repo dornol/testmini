@@ -23,11 +23,12 @@ export const DELETE = withProjectRole(
 			error(404, 'Execution not found');
 		}
 
-		// Delete related failures first, then the execution
-		await db.delete(testFailureDetail).where(eq(testFailureDetail.testExecutionId, executionId));
-		await db
-			.delete(testExecution)
-			.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)));
+		await db.transaction(async (tx) => {
+			await tx.delete(testFailureDetail).where(eq(testFailureDetail.testExecutionId, executionId));
+			await tx
+				.delete(testExecution)
+				.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)));
+		});
 
 		return json({ success: true });
 	}

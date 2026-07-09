@@ -70,29 +70,14 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]',
 				sampleExecution
 			);
 
-			const deleteChain = {
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
-
 			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
 			const response = await DELETE(event);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
-			// delete called twice: once for failures, once for execution
-			expect(mockDb.delete).toHaveBeenCalledTimes(2);
-			const executionDeleteChain = mockDb.delete.mock.results[1]?.value as {
-				where: ReturnType<typeof vi.fn>;
-			};
-			expect(executionDeleteChain.where).toHaveBeenCalledWith(
-				expect.arrayContaining([
-					['id', 200],
-					['test_run_id', 50]
-				])
-			);
+			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 	});
 });

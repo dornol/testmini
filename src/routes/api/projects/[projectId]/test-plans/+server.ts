@@ -6,6 +6,7 @@ import { eq, sql } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { createTestPlanSchema } from '$lib/schemas/test-plan.schema';
+import { validateOptionalReleaseId } from '$lib/server/project-reference-validation';
 
 export const GET = withProjectAccess(async ({ projectId, url }) => {
 	const statusFilter = url.searchParams.get('status');
@@ -21,8 +22,14 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 			endDate: testPlan.endDate,
 			createdBy: user.name,
 			createdAt: testPlan.createdAt,
-			itemCount: sql<number>`(select count(*)::int from test_plan_test_case where test_plan_id = ${col(testPlan.id)})`.as('item_count'),
-			runCount: sql<number>`(select count(*)::int from test_run where test_plan_id = ${col(testPlan.id)})`.as('run_count')
+			itemCount:
+				sql<number>`(select count(*)::int from test_plan_test_case where test_plan_id = ${col(testPlan.id)})`.as(
+					'item_count'
+				),
+			runCount:
+				sql<number>`(select count(*)::int from test_run where test_plan_id = ${col(testPlan.id)})`.as(
+					'run_count'
+				)
 		})
 		.from(testPlan)
 		.innerJoin(user, eq(testPlan.createdBy, user.id))
@@ -30,8 +37,15 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 		.orderBy(testPlan.createdAt)
 		.$dynamic();
 
-	const validStatuses = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'ACTIVE', 'COMPLETED', 'ARCHIVED'] as const;
-	type TestPlanStatus = typeof validStatuses[number];
+	const validStatuses = [
+		'DRAFT',
+		'IN_REVIEW',
+		'APPROVED',
+		'ACTIVE',
+		'COMPLETED',
+		'ARCHIVED'
+	] as const;
+	type TestPlanStatus = (typeof validStatuses)[number];
 	if (statusFilter && validStatuses.includes(statusFilter as TestPlanStatus)) {
 		query = query.where(eq(testPlan.status, statusFilter as TestPlanStatus));
 	}
@@ -47,8 +61,14 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 			endDate: testPlan.endDate,
 			createdBy: user.name,
 			createdAt: testPlan.createdAt,
-			itemCount: sql<number>`(select count(*)::int from test_plan_test_case where test_plan_id = ${col(testPlan.id)})`.as('item_count'),
-			runCount: sql<number>`(select count(*)::int from test_run where test_plan_id = ${col(testPlan.id)})`.as('run_count')
+			itemCount:
+				sql<number>`(select count(*)::int from test_plan_test_case where test_plan_id = ${col(testPlan.id)})`.as(
+					'item_count'
+				),
+			runCount:
+				sql<number>`(select count(*)::int from test_run where test_plan_id = ${col(testPlan.id)})`.as(
+					'run_count'
+				)
 		})
 		.from(testPlan)
 		.innerJoin(user, eq(testPlan.createdBy, user.id))
@@ -62,41 +82,49 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 	return json(plans);
 });
 
-export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, user: authUser, projectId }) => {
-	const body = await parseJsonBody(request);
-	const parsed = createTestPlanSchema.safeParse(body);
-	if (!parsed.success) {
-		return validationError('Invalid input', parsed.error.flatten().fieldErrors);
-	}
-
-	const { name, description, milestone, startDate, endDate, testCaseIds } = parsed.data;
-
-	const plan = await db.transaction(async (tx) => {
-		const [created] = await tx
-			.insert(testPlan)
-			.values({
-				projectId,
-				name,
-				description: description || null,
-				milestone: milestone || null,
-				startDate: startDate ? new Date(startDate) : null,
-				endDate: endDate ? new Date(endDate) : null,
-				createdBy: authUser.id
-			})
-			.returning();
-
-		if (testCaseIds.length > 0) {
-			await tx.insert(testPlanTestCase).values(
-				testCaseIds.map((tcId, idx) => ({
-					testPlanId: created.id,
-					testCaseId: tcId,
-					position: idx
-				}))
-			);
+export const POST = withProjectRole(
+	['PROJECT_ADMIN', 'QA', 'DEV'],
+	async ({ request, user: authUser, projectId }) => {
+		const body = await parseJsonBody(request);
+		const parsed = createTestPlanSchema.safeParse(body);
+		if (!parsed.success) {
+			return validationError('Invalid input', parsed.error.flatten().fieldErrors);
 		}
 
-		return created;
-	});
+		const { name, description, milestone, startDate, endDate, releaseId, testCaseIds } =
+			parsed.data;
 
-	return json({ id: plan.id }, { status: 201 });
-});
+		const releaseError = await validateOptionalReleaseId(releaseId, projectId);
+		if (releaseError) return releaseError;
+
+		const plan = await db.transaction(async (tx) => {
+			const [created] = await tx
+				.insert(testPlan)
+				.values({
+					projectId,
+					name,
+					description: description || null,
+					milestone: milestone || null,
+					startDate: startDate ? new Date(startDate) : null,
+					endDate: endDate ? new Date(endDate) : null,
+					releaseId: releaseId ?? null,
+					createdBy: authUser.id
+				})
+				.returning();
+
+			if (testCaseIds.length > 0) {
+				await tx.insert(testPlanTestCase).values(
+					testCaseIds.map((tcId, idx) => ({
+						testPlanId: created.id,
+						testCaseId: tcId,
+						position: idx
+					}))
+				);
+			}
+
+			return created;
+		});
+
+		return json({ id: plan.id }, { status: 201 });
+	}
+);

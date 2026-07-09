@@ -29,6 +29,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		id: 'id',
 		testPlanId: 'test_plan_id'
 	},
+	release: { id: 'id', projectId: 'project_id' },
 	user: { id: 'id', name: 'name' }
 }));
 vi.mock('drizzle-orm', () => ({
@@ -43,7 +44,8 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -225,7 +227,13 @@ describe('/api/projects/[projectId]/test-plans', () => {
 		});
 
 		it('should create test plan for PROJECT_ADMIN', async () => {
-			const created = { id: 12, projectId: 1, name: 'Admin Plan', createdBy: 'admin-1', createdAt: new Date() };
+			const created = {
+				id: 12,
+				projectId: 1,
+				name: 'Admin Plan',
+				createdBy: 'admin-1',
+				createdAt: new Date()
+			};
 			vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
 				const txInsertChain = {
@@ -253,6 +261,23 @@ describe('/api/projects/[projectId]/test-plans', () => {
 
 			expect(response.status).toBe(201);
 			expect(data.id).toBe(12);
+		});
+
+		it('should reject releaseId outside the project before creating a plan', async () => {
+			mockDb.query.release.findFirst.mockResolvedValue(null);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'New Plan', releaseId: 999 },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Release not found');
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when name is missing', async () => {

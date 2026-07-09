@@ -7,14 +7,22 @@ const mockDb = createMockDb();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
-	testRun: { id: 'id', projectId: 'project_id', name: 'name', status: 'status', environment: 'environment' }
+	testRun: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		status: 'status',
+		environment: 'environment'
+	},
+	release: { id: 'id', projectId: 'project_id' }
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
 	eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
@@ -146,6 +154,25 @@ describe('/api/projects/[projectId]/test-runs/[runId] — PATCH & DELETE', () =>
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+		});
+
+		it('should reject releaseId outside the project before updating', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.release.findFirst.mockResolvedValue(null);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { releaseId: 999 },
+				user: adminUser
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Release not found');
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 

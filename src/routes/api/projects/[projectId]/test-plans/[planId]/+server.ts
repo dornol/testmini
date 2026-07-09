@@ -15,6 +15,7 @@ import { eq, and, sql, desc } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { updateTestPlanSchema } from '$lib/schemas/test-plan.schema';
+import { validateOptionalReleaseId } from '$lib/server/project-reference-validation';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const planId = parseId(params.planId, 'plan ID');
@@ -82,6 +83,9 @@ export const PATCH = withProjectRole(
 		if (!parsed.success) {
 			return validationError('Invalid input', parsed.error.flatten().fieldErrors);
 		}
+
+		const releaseError = await validateOptionalReleaseId(parsed.data.releaseId, projectId);
+		if (releaseError) return releaseError;
 
 		// Sign-off guard: if status → COMPLETED and project requires sign-off
 		if (parsed.data.status === 'COMPLETED') {

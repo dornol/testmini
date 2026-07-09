@@ -34,6 +34,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		createdAt: 'created_at'
 	},
 	testExecution: { id: 'id', testRunId: 'test_run_id', status: 'status' },
+	release: { id: 'id', projectId: 'project_id' },
 	user: { id: 'id', name: 'name' }
 }));
 vi.mock('drizzle-orm', () => ({
@@ -232,6 +233,24 @@ describe('/api/projects/[projectId]/test-cycles/[cycleId]', () => {
 			});
 			const response = await PUT(event);
 			expect(response.status).toBe(404);
+		});
+
+		it('should reject releaseId outside the project before updating cycle', async () => {
+			mockDb.query.release.findFirst.mockResolvedValue(null);
+
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1', cycleId: '1' },
+				body: { releaseId: 999 },
+				user: testUser
+			});
+
+			const response = await PUT(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Release not found');
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 

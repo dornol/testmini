@@ -24,6 +24,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		createdAt: 'created_at'
 	},
 	testRun: { id: 'id', testCycleId: 'test_cycle_id' },
+	release: { id: 'id', projectId: 'project_id' },
 	user: { id: 'id', name: 'name' }
 }));
 vi.mock('drizzle-orm', () => ({
@@ -121,6 +122,24 @@ describe('/api/projects/[projectId]/test-cycles', () => {
 			});
 			const response = await POST(event);
 			expect(response.status).toBe(409);
+		});
+
+		it('should reject releaseId outside the project before creating a cycle', async () => {
+			mockDb.query.release.findFirst.mockResolvedValue(null);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Cycle 2', cycleNumber: 2, releaseId: 999 },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Release not found');
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for missing name', async () => {

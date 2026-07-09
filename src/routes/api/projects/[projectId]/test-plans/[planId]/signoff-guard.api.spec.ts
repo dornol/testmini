@@ -27,10 +27,23 @@ vi.mock('$lib/server/db/schema', () => ({
 	testPlanTestCase: { id: 'id', testPlanId: 'test_plan_id' },
 	testCase: { id: 'id', key: 'key', latestVersionId: 'latest_version_id' },
 	testCaseVersion: { id: 'id', title: 'title', priority: 'priority' },
-	testRun: { id: 'id', name: 'name', status: 'status', environment: 'environment', testPlanId: 'test_plan_id', createdAt: 'created_at' },
+	testRun: {
+		id: 'id',
+		name: 'name',
+		status: 'status',
+		environment: 'environment',
+		testPlanId: 'test_plan_id',
+		createdAt: 'created_at'
+	},
 	user: { id: 'id', name: 'name' },
 	project: { id: 'id', requireSignoff: 'require_signoff' },
-	testPlanSignoff: { id: 'id', testPlanId: 'test_plan_id', decision: 'decision', createdAt: 'created_at' }
+	testPlanSignoff: {
+		id: 'id',
+		testPlanId: 'test_plan_id',
+		decision: 'decision',
+		createdAt: 'created_at'
+	},
+	release: { id: 'id', projectId: 'project_id' }
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -44,7 +57,8 @@ vi.mock('drizzle-orm', () => ({
 	)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -73,6 +87,7 @@ describe('Test Plan PATCH - Sign-off Guard', () => {
 		(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testPlan = {
 			findFirst: vi.fn().mockResolvedValue(samplePlan)
 		};
+		mockDb.query.release.findFirst.mockResolvedValue({ id: 300, projectId: 1 });
 	});
 
 	it('should block COMPLETED status when requireSignoff is true and no signoff exists', async () => {
@@ -194,11 +209,14 @@ describe('Test Plan PATCH - Sign-off Guard', () => {
 			.mockResolvedValueOnce(samplePlan)
 			.mockResolvedValueOnce(completedPlan);
 
-		mockDb.select.mockImplementation(() => ({
-			from: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) => Promise.resolve([{ requireSignoff: false }]).then(r)
-		}) as never);
+		mockDb.select.mockImplementation(
+			() =>
+				({
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([{ requireSignoff: false }]).then(r)
+				}) as never
+		);
 
 		const updateChain = {
 			set: vi.fn().mockReturnThis(),
@@ -268,5 +286,26 @@ describe('Test Plan PATCH - Sign-off Guard', () => {
 
 		expect(response.status).toBe(200);
 		expect(data.releaseId).toBe(300);
+	});
+
+	it('should reject releaseId outside the project before updating plan', async () => {
+		mockDb.query.release.findFirst.mockResolvedValue(null);
+		(
+			mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>
+		).testPlan.findFirst.mockResolvedValueOnce(samplePlan);
+
+		const event = createMockEvent({
+			method: 'PATCH',
+			params: PARAMS,
+			body: { releaseId: 999 },
+			user: testUser
+		});
+
+		const response = await PATCH(event);
+		const data = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(data.error).toContain('Release not found');
+		expect(mockDb.update).not.toHaveBeenCalled();
 	});
 });

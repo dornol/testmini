@@ -6,6 +6,7 @@ import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { updateTestCycleSchema } from '$lib/schemas/test-cycle.schema';
 import { notFound, badRequest } from '$lib/server/errors';
+import { validateOptionalReleaseId } from '$lib/server/project-reference-validation';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const cycleId = parseId(params.cycleId, 'cycle ID');
@@ -69,6 +70,9 @@ export const PUT = withProjectRole(
 		const body = await parseJsonBody(request);
 		const parsed = updateTestCycleSchema.safeParse(body);
 		if (!parsed.success) return badRequest('Invalid input');
+
+		const releaseError = await validateOptionalReleaseId(parsed.data.releaseId, projectId);
+		if (releaseError) return releaseError;
 
 		const updates: Record<string, unknown> = {};
 		if (parsed.data.name !== undefined) updates.name = parsed.data.name;

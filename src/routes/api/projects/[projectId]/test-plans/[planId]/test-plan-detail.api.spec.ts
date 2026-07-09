@@ -38,6 +38,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		projectId: 'project_id',
 		createdAt: 'created_at'
 	},
+	release: { id: 'id', projectId: 'project_id' },
 	user: { id: 'id', name: 'name' }
 }));
 vi.mock('drizzle-orm', () => ({

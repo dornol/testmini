@@ -6,6 +6,7 @@ import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { createTestCycleSchema } from '$lib/schemas/test-cycle.schema';
 import { validationError, conflict } from '$lib/server/errors';
+import { validateOptionalReleaseId } from '$lib/server/project-reference-validation';
 
 export const GET = withProjectAccess(async ({ projectId, url }) => {
 	const statusFilter = url.searchParams.get('status');
@@ -26,7 +27,10 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 			endDate: testCycle.endDate,
 			createdBy: user.name,
 			createdAt: testCycle.createdAt,
-			runCount: sql<number>`(select count(*)::int from test_run where test_cycle_id = ${col(testCycle.id)})::int`.as('run_count')
+			runCount:
+				sql<number>`(select count(*)::int from test_run where test_cycle_id = ${col(testCycle.id)})::int`.as(
+					'run_count'
+				)
 		})
 		.from(testCycle)
 		.innerJoin(user, eq(testCycle.createdBy, user.id))
@@ -36,32 +40,41 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 	return json(cycles);
 });
 
-export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, projectId, user: currentUser }) => {
-	const body = await parseJsonBody(request);
-	const parsed = createTestCycleSchema.safeParse(body);
-	if (!parsed.success) {
-		return validationError('Invalid input', parsed.error.flatten().fieldErrors);
+export const POST = withProjectRole(
+	['PROJECT_ADMIN', 'QA'],
+	async ({ request, projectId, user: currentUser }) => {
+		const body = await parseJsonBody(request);
+		const parsed = createTestCycleSchema.safeParse(body);
+		if (!parsed.success) {
+			return validationError('Invalid input', parsed.error.flatten().fieldErrors);
+		}
+
+		const releaseError = await validateOptionalReleaseId(parsed.data.releaseId, projectId);
+		if (releaseError) return releaseError;
+
+		// Check unique cycle number
+		const existing = await db.query.testCycle.findFirst({
+			where: and(
+				eq(testCycle.projectId, projectId),
+				eq(testCycle.cycleNumber, parsed.data.cycleNumber)
+			)
+		});
+		if (existing) return conflict(`Cycle number ${parsed.data.cycleNumber} already exists`);
+
+		const [created] = await db
+			.insert(testCycle)
+			.values({
+				projectId,
+				name: parsed.data.name,
+				cycleNumber: parsed.data.cycleNumber,
+				status: parsed.data.status ?? 'PLANNED',
+				releaseId: parsed.data.releaseId ?? null,
+				startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null,
+				endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
+				createdBy: currentUser.id
+			})
+			.returning();
+
+		return json(created, { status: 201 });
 	}
-
-	// Check unique cycle number
-	const existing = await db.query.testCycle.findFirst({
-		where: and(eq(testCycle.projectId, projectId), eq(testCycle.cycleNumber, parsed.data.cycleNumber))
-	});
-	if (existing) return conflict(`Cycle number ${parsed.data.cycleNumber} already exists`);
-
-	const [created] = await db
-		.insert(testCycle)
-		.values({
-			projectId,
-			name: parsed.data.name,
-			cycleNumber: parsed.data.cycleNumber,
-			status: parsed.data.status ?? 'PLANNED',
-			releaseId: parsed.data.releaseId ?? null,
-			startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null,
-			endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
-			createdBy: currentUser.id
-		})
-		.returning();
-
-	return json(created, { status: 201 });
-});
+);

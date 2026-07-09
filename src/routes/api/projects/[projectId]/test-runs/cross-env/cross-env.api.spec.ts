@@ -7,9 +7,18 @@ const mockDb = createMockDb();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
-	testRun: { id: 'id', projectId: 'project_id', name: 'name', environment: 'environment', createdBy: 'created_by' },
+	testRun: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		environment: 'environment',
+		createdBy: 'created_by'
+	},
 	testExecution: { id: 'id', testRunId: 'test_run_id', testCaseVersionId: 'test_case_version_id' },
-	testCase: { id: 'id', projectId: 'project_id', latestVersionId: 'latest_version_id' }
+	testCase: { id: 'id', projectId: 'project_id', latestVersionId: 'latest_version_id' },
+	testPlan: { id: 'id', projectId: 'project_id' },
+	release: { id: 'id', projectId: 'project_id' },
+	testCycle: { id: 'id', projectId: 'project_id' }
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -18,7 +27,8 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' })
@@ -121,6 +131,29 @@ describe('/api/projects/[projectId]/test-runs/cross-env', () => {
 		});
 		const response = await POST(event);
 		expect(response.status).toBe(400);
+	});
+
+	it('should reject references outside the project before creating runs', async () => {
+		mockDb.query.testPlan.findFirst.mockResolvedValue(null);
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: { projectId: '1' },
+			body: {
+				name: 'Regression',
+				testCaseIds: [1],
+				environments: ['QA', 'STAGE'],
+				testPlanId: 999
+			},
+			user: testUser
+		});
+
+		const response = await POST(event);
+		const body = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(body.error).toContain('Test plan not found');
+		expect(mockDb.transaction).not.toHaveBeenCalled();
 	});
 
 	it('should return 401 for unauthenticated', async () => {

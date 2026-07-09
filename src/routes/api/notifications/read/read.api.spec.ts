@@ -98,6 +98,21 @@ describe('/api/notifications/read', () => {
 			});
 
 			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for invalid notification IDs before updating', async () => {
+			for (const ids of [[1.5], ['1'], [Number.MAX_SAFE_INTEGER + 1]]) {
+				vi.clearAllMocks();
+				const event = createMockEvent({
+					method: 'POST',
+					body: { ids },
+					user: testUser
+				});
+
+				await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+				expect(mockDb.update).not.toHaveBeenCalled();
+			}
 		});
 
 		it('should return 400 for too many notification IDs', async () => {
@@ -108,6 +123,7 @@ describe('/api/notifications/read', () => {
 			});
 
 			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 });

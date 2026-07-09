@@ -39,8 +39,8 @@ export const POST = withAuth(async ({ user, request }) => {
 		if (ids.length > MAX_NOTIFICATION_IDS) {
 			error(400, `ids must contain ${MAX_NOTIFICATION_IDS} items or fewer`);
 		}
-		if (!ids.every((id) => typeof id === 'number' && Number.isInteger(id) && id > 0)) {
-			error(400, 'ids must be an array of positive integers');
+		if (!ids.every((id) => typeof id === 'number' && Number.isSafeInteger(id) && id > 0)) {
+			error(400, 'ids must be an array of positive safe integers');
 		}
 
 		// Only allow marking notifications that belong to the current user

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -155,12 +155,7 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/detail', () => {
 		};
 		mockFetchIssueDetail.mockResolvedValue(detail);
 
-		const updateChain = {
-			set: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-		};
-		mockDb.update.mockReturnValue(updateChain as never);
+		const updateChain = mockUpdateReturning(mockDb, [{ id: 20 }]);
 
 		const event = createMockEvent({ params: PARAMS, user: testUser });
 		const response = await GET(event);
@@ -175,5 +170,41 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/detail', () => {
 				['project_id', 1]
 			])
 		);
+		expect(updateChain.returning).toHaveBeenCalledWith({ id: 'id' });
+	});
+
+	it('should return 404 when issue link disappears before local status update', async () => {
+		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(
+			{
+				id: 20,
+				projectId: 1,
+				externalUrl: 'https://jira.example.com/PROJ-1',
+				provider: 'JIRA'
+			}
+		);
+		(
+			mockDb.query.issueTrackerConfig as { findFirst: ReturnType<typeof vi.fn> }
+		).findFirst.mockResolvedValue({
+			projectId: 1,
+			provider: 'JIRA',
+			baseUrl: 'https://jira.example.com',
+			apiToken: 'token',
+			projectKey: 'PROJ',
+			customTemplate: null
+		});
+		mockFetchIssueDetail.mockResolvedValue({
+			key: 'PROJ-1',
+			title: 'Bug in login',
+			state: 'open',
+			description: 'Details here',
+			labels: ['bug']
+		});
+		mockUpdateReturning(mockDb, []);
+
+		const event = createMockEvent({ params: PARAMS, user: testUser });
+		const response = await GET(event);
+
+		expect(response.status).toBe(404);
+		expect((await response.json()).error).toContain('Issue link not found');
 	});
 });

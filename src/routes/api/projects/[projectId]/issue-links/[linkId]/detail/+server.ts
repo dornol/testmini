@@ -40,10 +40,12 @@ export const GET = withProjectAccess(async ({ projectId, params }) => {
 	}
 
 	// Also update the stored status
-	await db
+	const [updated] = await db
 		.update(issueLink)
 		.set({ status: detail.state, statusSyncedAt: new Date() })
-		.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)));
+		.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)))
+		.returning({ id: issueLink.id });
+	if (!updated) return notFound('Issue link not found');
 
 	return json(detail);
 });

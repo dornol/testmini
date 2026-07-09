@@ -232,5 +232,62 @@ describe('/api/projects/[projectId]/test-cases/reorder', () => {
 			const data = await response.json();
 			expect(data.error).toBe('Some test cases do not belong to this project');
 		});
+
+		it('should reorder test cases for the current project', async () => {
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: 10 }])
+			};
+			const tx = {
+				update: vi.fn().mockReturnValue(updateChain)
+			};
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: {
+					items: [
+						{ id: 10, groupId: null, sortOrder: 0 },
+						{ id: 11, groupId: 2, sortOrder: 1000 }
+					]
+				},
+				user: adminUser
+			});
+			const response = await PUT(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.success).toBe(true);
+			expect(tx.update).toHaveBeenCalledTimes(2);
+			expect(updateChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should return 404 when a test case disappears during reorder', async () => {
+			mockSelectResult(mockDb, [{ id: 10 }]);
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([])
+			};
+			const tx = {
+				update: vi.fn().mockReturnValue(updateChain)
+			};
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: {
+					items: [{ id: 10, groupId: null, sortOrder: 0 }]
+				},
+				user: adminUser
+			});
+
+			await expect(PUT(event)).rejects.toMatchObject({ status: 404 });
+			expect(updateChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
 	});
 });

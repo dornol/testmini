@@ -133,18 +133,26 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 
 			case 'moveToGroup': {
 				const newGroupId = groupId === undefined ? null : groupId;
-				await tx
+				const updatedRows = await tx
 					.update(testCase)
 					.set({ groupId: newGroupId })
-					.where(and(inArray(testCase.id, validIds), eq(testCase.projectId, projectId)));
+					.where(and(inArray(testCase.id, validIds), eq(testCase.projectId, projectId)))
+					.returning({ id: testCase.id });
+				if (updatedRows.length !== validIds.length) {
+					error(404, 'Some test cases were not found');
+				}
 				affected = validIds.length;
 				break;
 			}
 
 			case 'delete': {
-				await tx
+				const deletedRows = await tx
 					.delete(testCase)
-					.where(and(inArray(testCase.id, validIds), eq(testCase.projectId, projectId)));
+					.where(and(inArray(testCase.id, validIds), eq(testCase.projectId, projectId)))
+					.returning({ id: testCase.id });
+				if (deletedRows.length !== validIds.length) {
+					error(404, 'Some test cases were not found');
+				}
 				affected = validIds.length;
 				break;
 			}

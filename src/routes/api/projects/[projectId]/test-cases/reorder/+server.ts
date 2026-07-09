@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCase } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
@@ -31,10 +31,14 @@ export const PUT = withProjectRole(
 
 		await db.transaction(async (tx) => {
 			for (const item of items) {
-				await tx
+				const [updated] = await tx
 					.update(testCase)
 					.set({ groupId: item.groupId, sortOrder: item.sortOrder })
-					.where(and(eq(testCase.id, item.id), eq(testCase.projectId, projectId)));
+					.where(and(eq(testCase.id, item.id), eq(testCase.projectId, projectId)))
+					.returning({ id: testCase.id });
+				if (!updated) {
+					error(404, 'Test case not found');
+				}
 			}
 		});
 

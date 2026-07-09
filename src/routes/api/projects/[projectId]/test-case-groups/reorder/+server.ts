@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import { badRequest } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { testCaseGroup } from '$lib/server/db/schema';
@@ -31,10 +31,14 @@ export const PUT = withProjectRole(
 
 		await db.transaction(async (tx) => {
 			for (const g of groups) {
-				await tx
+				const [updated] = await tx
 					.update(testCaseGroup)
 					.set({ sortOrder: g.sortOrder })
-					.where(and(eq(testCaseGroup.id, g.id), eq(testCaseGroup.projectId, projectId)));
+					.where(and(eq(testCaseGroup.id, g.id), eq(testCaseGroup.projectId, projectId)))
+					.returning({ id: testCaseGroup.id });
+				if (!updated) {
+					error(404, 'Test case group not found');
+				}
 			}
 		});
 

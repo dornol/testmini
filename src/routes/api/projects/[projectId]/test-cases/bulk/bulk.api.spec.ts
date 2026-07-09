@@ -72,10 +72,12 @@ const viewerUser = {
 function createTxWriteChains() {
 	const updateChain = {
 		set: vi.fn().mockReturnThis(),
-		where: vi.fn().mockResolvedValue(undefined)
+		where: vi.fn().mockReturnThis(),
+		returning: vi.fn().mockResolvedValue([{ id: 10 }, { id: 11 }])
 	};
 	const deleteChain = {
-		where: vi.fn().mockResolvedValue(undefined)
+		where: vi.fn().mockReturnThis(),
+		returning: vi.fn().mockResolvedValue([{ id: 10 }, { id: 11 }])
 	};
 	const tx = {
 		update: vi.fn().mockReturnValue(updateChain),
@@ -295,6 +297,26 @@ describe('/api/projects/[projectId]/test-cases/bulk', () => {
 					['project_id', 1]
 				])
 			);
+			expect(updateChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should return 404 when moveToGroup updates fewer rows than requested', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValue({ role: 'QA' });
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue({ id: 3, projectId: 1 });
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
+			const { tx, updateChain } = createTxWriteChains();
+			updateChain.returning.mockResolvedValueOnce([{ id: 10 }]);
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'moveToGroup', testCaseIds: [10, 11], groupId: 3 },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 404 });
+			expect(updateChain.returning).toHaveBeenCalledWith({ id: 'id' });
 		});
 
 		it('should reject moveToGroup when the group is not in the current project', async () => {
@@ -366,6 +388,25 @@ describe('/api/projects/[projectId]/test-cases/bulk', () => {
 					['project_id', 1]
 				])
 			);
+			expect(deleteChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should return 404 when bulk delete removes fewer rows than requested', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValue({ role: 'PROJECT_ADMIN' });
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
+			const { tx, deleteChain } = createTxWriteChains();
+			deleteChain.returning.mockResolvedValueOnce([{ id: 10 }]);
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'delete', testCaseIds: [10, 11] },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 404 });
+			expect(deleteChain.returning).toHaveBeenCalledWith({ id: 'id' });
 		});
 
 		it('should reject removeTag when the tag is not in the current project', async () => {

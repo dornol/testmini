@@ -1,4 +1,5 @@
 import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
 
 export interface UrlValidationResult {
 	ok: boolean;
@@ -17,13 +18,21 @@ export async function validatePublicHttpUrl(rawUrl: string): Promise<UrlValidati
 		return { ok: false, error: 'URL must use http or https' };
 	}
 
-	if (!parsed.hostname) {
+	const hostname = parsed.hostname.replace(/^\[|\]$/g, '');
+	if (!hostname) {
 		return { ok: false, error: 'URL must include a hostname' };
+	}
+
+	if (isIP(hostname)) {
+		if (isPrivateOrReservedIp(hostname)) {
+			return { ok: false, error: 'URL resolves to a private or reserved IP address' };
+		}
+		return { ok: true };
 	}
 
 	let addresses: string[];
 	try {
-		const records = await lookup(parsed.hostname, { all: true });
+		const records = await lookup(hostname, { all: true });
 		addresses = records.map((record) => record.address);
 	} catch {
 		return { ok: false, error: 'URL hostname could not be resolved' };

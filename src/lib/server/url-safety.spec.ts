@@ -71,6 +71,28 @@ describe('validatePublicHttpUrl', () => {
 		});
 	});
 
+	it('accepts public IPv6 literal urls without DNS lookup', async () => {
+		await expect(validatePublicHttpUrl('https://[2606:4700:4700::1111]/hook')).resolves.toEqual({
+			ok: true
+		});
+		expect(mockLookup).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		'https://[::1]/hook',
+		'https://[::ffff:127.0.0.1]/hook',
+		'https://2130706433/hook',
+		'https://0x7f000001/hook',
+		'https://017700000001/hook',
+		'https://127.1/hook'
+	])('rejects private or obfuscated IP literal %s without DNS lookup', async (url) => {
+		await expect(validatePublicHttpUrl(url)).resolves.toEqual({
+			ok: false,
+			error: 'URL resolves to a private or reserved IP address'
+		});
+		expect(mockLookup).not.toHaveBeenCalled();
+	});
+
 	it('rejects non-HTTPS urls when HTTPS is required', async () => {
 		await expect(validatePublicHttpsUrl('http://example.com/hook')).resolves.toEqual({
 			ok: false,

@@ -1,4 +1,5 @@
 import { badRequest } from './errors';
+import { parseCanonicalPositiveInteger } from './search-param-validation';
 
 const MAX_EXTERNAL_URL_LENGTH = 2000;
 const MAX_EXTERNAL_KEY_LENGTH = 128;
@@ -25,10 +26,18 @@ export function parseIssueLinkPositiveInteger(
 	label: string
 ): number | undefined | Response {
 	if (value === undefined || value === null || value === '') return undefined;
-	const parsed = typeof value === 'number' ? value : Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-		return badRequest(`${label} must be a positive integer`);
+
+	if (typeof value === 'number') {
+		if (!Number.isSafeInteger(value) || value <= 0) {
+			return badRequest(`${label} must be a positive integer`);
+		}
+		return value;
 	}
+
+	if (typeof value !== 'string') return badRequest(`${label} must be a positive integer`);
+
+	const parsed = parseCanonicalPositiveInteger(value);
+	if (parsed === null) return badRequest(`${label} must be a positive integer`);
 	return parsed;
 }
 

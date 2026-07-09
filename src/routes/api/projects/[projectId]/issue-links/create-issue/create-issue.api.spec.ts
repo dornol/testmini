@@ -134,7 +134,20 @@ describe('/api/projects/[projectId]/issue-links/create-issue', () => {
 	});
 
 	it('should reject invalid testCaseId', async () => {
-		const cases = ['abc', 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
+		const cases = [
+			'abc',
+			0,
+			-1,
+			1.5,
+			Number.MAX_SAFE_INTEGER + 1,
+			'+1',
+			'01',
+			'1.5',
+			'1e3',
+			' 1',
+			'1 ',
+			{}
+		];
 
 		for (const testCaseId of cases) {
 			vi.clearAllMocks();
@@ -157,7 +170,20 @@ describe('/api/projects/[projectId]/issue-links/create-issue', () => {
 	});
 
 	it('should reject invalid testExecutionId', async () => {
-		const cases = ['abc', 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
+		const cases = [
+			'abc',
+			0,
+			-1,
+			1.5,
+			Number.MAX_SAFE_INTEGER + 1,
+			'+1',
+			'01',
+			'1.5',
+			'1e3',
+			' 1',
+			'1 ',
+			{}
+		];
 
 		for (const testExecutionId of cases) {
 			vi.clearAllMocks();

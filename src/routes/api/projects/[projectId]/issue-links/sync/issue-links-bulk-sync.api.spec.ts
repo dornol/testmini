@@ -204,7 +204,18 @@ describe('/api/projects/[projectId]/issue-links/sync', () => {
 	});
 
 	it('should reject invalid testCaseId scoping', async () => {
-		const cases = ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)];
+		const cases = [
+			'abc',
+			'0',
+			'-1',
+			'+1',
+			'01',
+			'1.5',
+			'1e3',
+			' 1',
+			'1 ',
+			String(Number.MAX_SAFE_INTEGER + 1)
+		];
 
 		for (const testCaseId of cases) {
 			vi.clearAllMocks();
@@ -245,7 +256,18 @@ describe('/api/projects/[projectId]/issue-links/sync', () => {
 	});
 
 	it('should reject invalid testExecutionId scoping', async () => {
-		const cases = ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)];
+		const cases = [
+			'abc',
+			'0',
+			'-1',
+			'+1',
+			'01',
+			'1.5',
+			'1e3',
+			' 1',
+			'1 ',
+			String(Number.MAX_SAFE_INTEGER + 1)
+		];
 
 		for (const testExecutionId of cases) {
 			vi.clearAllMocks();

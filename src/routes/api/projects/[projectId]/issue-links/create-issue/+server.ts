@@ -12,6 +12,7 @@ import {
 	validateOptionalTestCaseId,
 	validateOptionalTestExecutionId
 } from '$lib/server/project-reference-validation';
+import { parseCanonicalPositiveInteger } from '$lib/server/search-param-validation';
 
 const MAX_TITLE_LENGTH = 500;
 const MAX_DESCRIPTION_LENGTH = 10000;
@@ -27,10 +28,17 @@ type CreateIssuePayload = {
 
 function parsePositiveInteger(value: unknown, label: string): number | undefined | Response {
 	if (value === undefined || value === null || value === '') return undefined;
-	const parsed = typeof value === 'number' ? value : Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-		return badRequest(`${label} must be a positive integer`);
+	if (typeof value === 'number') {
+		if (!Number.isSafeInteger(value) || value <= 0) {
+			return badRequest(`${label} must be a positive integer`);
+		}
+		return value;
 	}
+
+	if (typeof value !== 'string') return badRequest(`${label} must be a positive integer`);
+
+	const parsed = parseCanonicalPositiveInteger(value);
+	if (parsed === null) return badRequest(`${label} must be a positive integer`);
 	return parsed;
 }
 

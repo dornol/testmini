@@ -5,11 +5,12 @@ import { and, eq, ne } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
 import { fetchIssueStatus } from '$lib/server/issue-tracker';
+import { parseCanonicalPositiveInteger } from '$lib/server/search-param-validation';
 
 function parsePositiveInteger(value: string | null, label: string): number | undefined | Response {
 	if (value === null || value === '') return undefined;
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+	const parsed = parseCanonicalPositiveInteger(value);
+	if (parsed === null) {
 		return badRequest(`${label} must be a positive integer`);
 	}
 	return parsed;

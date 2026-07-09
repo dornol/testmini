@@ -6,6 +6,9 @@ import { eq, ilike, count, desc, sql } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
 import { parsePositiveIntegerSearchParam } from '$lib/server/search-param-validation';
 import { parsePositiveFormId } from '$lib/server/form-utils';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+
+const MAX_ADMIN_PROJECT_FORM_BODY_SIZE = 16 * 1024;
 
 export const load: PageServerLoad = async ({ url }) => {
 	const pg = parsePositiveIntegerSearchParam(url.searchParams.get('page'), 1);
@@ -66,6 +69,12 @@ export const actions: Actions = {
 		if (!isGlobalAdmin(authUser)) {
 			return fail(403, { error: 'Admin access required' });
 		}
+
+		assertContentLengthUnderLimit(
+			request,
+			MAX_ADMIN_PROJECT_FORM_BODY_SIZE,
+			'Admin project form body is too large'
+		);
 
 		const formData = await request.formData();
 		const projectId = parsePositiveFormId(formData.get('projectId'));

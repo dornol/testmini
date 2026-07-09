@@ -37,6 +37,7 @@ vi.mock('drizzle-orm', () => {
 });
 
 const { actions, load } = await import('./+page.server');
+const MAX_ADMIN_PROJECT_FORM_BODY_SIZE = 16 * 1024;
 
 function createFormData(entries: Record<string, string>): FormData {
 	const fd = new FormData();
@@ -48,11 +49,14 @@ function createFormData(entries: Record<string, string>): FormData {
 
 function createActionEvent(
 	user: NonNullable<App.Locals['user']> | null,
-	formEntries: Record<string, string>
+	formEntries: Record<string, string>,
+	headers?: HeadersInit
 ) {
 	const formData = createFormData(formEntries);
+	const requestHeaders = new Headers(headers);
 	return {
 		request: {
+			headers: requestHeaders,
 			formData: () => Promise.resolve(formData)
 		},
 		locals: {
@@ -125,6 +129,36 @@ describe('admin/projects +page.server', () => {
 	});
 
 	describe('toggleActive', () => {
+		it('should reject oversized form bodies before querying project', async () => {
+			const event = createActionEvent(
+				adminUser,
+				{ projectId: '1', active: 'true' },
+				{ 'content-length': String(MAX_ADMIN_PROJECT_FORM_BODY_SIZE + 1) }
+			);
+
+			await expect(actions.toggleActive(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Admin project form body is too large' }
+			});
+			expect(mockDb.query.project.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject invalid content-length before querying project', async () => {
+			const event = createActionEvent(
+				adminUser,
+				{ projectId: '1', active: 'true' },
+				{ 'content-length': 'invalid' }
+			);
+
+			await expect(actions.toggleActive(event)).rejects.toMatchObject({
+				status: 400,
+				body: { message: 'Invalid content-length header' }
+			});
+			expect(mockDb.query.project.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 403 for non-admin users', async () => {
 			const event = createActionEvent(testUser, { projectId: '1', active: 'false' });
 			const result = await actions.toggleActive(event);

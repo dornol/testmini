@@ -190,6 +190,8 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 			expect(response.status).toBe(400);
 			const data = await response.json();
 			expect(data.error).toContain('No fields');
+			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when name is empty', async () => {
@@ -204,6 +206,8 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when URL is invalid', async () => {
@@ -218,6 +222,8 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when URL uses non-http protocol', async () => {
@@ -232,6 +238,8 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when URL resolves to a private address', async () => {
@@ -249,6 +257,7 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 			expect(response.status).toBe(400);
 			const data = await response.json();
 			expect(data.error).toContain('private or reserved IP');
+			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -266,6 +275,8 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 			expect(response.status).toBe(400);
 			const data = await response.json();
 			expect(data.error).toContain('Invalid event type');
+			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when events contain duplicates', async () => {
@@ -281,6 +292,7 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Duplicate event type');
+			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -306,6 +318,7 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Events must include 5 items or less');
+			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -320,6 +333,7 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 			});
 
 			await expect(PATCH(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -337,6 +351,7 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Invalid webhook field');
+			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -368,6 +383,7 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 				const response = await PATCH(event);
 
 				expect(response.status).toBe(400);
+				expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
 				expect(mockDb.update).not.toHaveBeenCalled();
 			}
 		});
@@ -386,6 +402,7 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Secret must be 4000 characters or less');
+			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -443,6 +460,8 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 

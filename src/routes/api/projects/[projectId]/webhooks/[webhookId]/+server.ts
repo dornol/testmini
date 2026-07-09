@@ -10,11 +10,6 @@ import { validateWebhookFields } from '$lib/server/webhook-validation';
 export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params, projectId }) => {
 	const webhookId = parseId(params.webhookId, 'webhook ID');
 
-	const existing = await db.query.projectWebhook.findFirst({
-		where: and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId))
-	});
-	if (!existing) error(404, 'Webhook not found');
-
 	const body = await parseJsonObjectBody(request);
 	const fields = await validateWebhookFields(body, { allowEnabled: true });
 	if (fields instanceof Response) return fields;
@@ -30,6 +25,11 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params
 	if (Object.keys(updates).length === 0) {
 		return badRequest('No fields to update');
 	}
+
+	const existing = await db.query.projectWebhook.findFirst({
+		where: and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId))
+	});
+	if (!existing) error(404, 'Webhook not found');
 
 	const [updated] = await db
 		.update(projectWebhook)

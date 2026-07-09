@@ -301,8 +301,6 @@ describe('MCP test-plan tools', () => {
 		});
 
 		it('should reject endDate before startDate before updating a plan', async () => {
-			mockDb.query.testPlan.findFirst.mockResolvedValue(samplePlan);
-
 			const result = await client.callTool({
 				name: 'update-test-plan',
 				arguments: { planId: 1, startDate: '2025-02-01', endDate: '2025-01-31' }
@@ -312,12 +310,11 @@ describe('MCP test-plan tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'endDate must be on or after startDate'
 			);
+			expect(mockDb.query.testPlan.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should reject empty updates', async () => {
-			mockDb.query.testPlan.findFirst.mockResolvedValue(samplePlan);
-
 			const result = await client.callTool({
 				name: 'update-test-plan',
 				arguments: { planId: 1 }
@@ -327,6 +324,7 @@ describe('MCP test-plan tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'No fields to update'
 			);
+			expect(mockDb.query.testPlan.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});

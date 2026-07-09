@@ -90,11 +90,6 @@ export function registerReleaseTools(server: McpServer, projectId: number) {
 			releaseDate: z.string().optional().describe('Release date (ISO 8601)')
 		},
 		async ({ releaseId, name, version, description, status, releaseDate }) => {
-			const r = await db.query.release.findFirst({
-				where: and(eq(release.id, releaseId), eq(release.projectId, projectId))
-			});
-			if (!r) return err('Release not found');
-
 			const parsed = updateReleaseSchema.safeParse({
 				name: name?.trim(),
 				version: version?.trim(),
@@ -118,6 +113,11 @@ export function registerReleaseTools(server: McpServer, projectId: number) {
 			if (parsed.data.releaseDate !== undefined) updates.releaseDate = parsedReleaseDate ?? null;
 
 			if (Object.keys(updates).length === 0) return err('No fields to update');
+
+			const r = await db.query.release.findFirst({
+				where: and(eq(release.id, releaseId), eq(release.projectId, projectId))
+			});
+			if (!r) return err('Release not found');
 
 			const [updated] = await db
 				.update(release)

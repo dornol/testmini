@@ -198,8 +198,6 @@ describe('MCP release tools', () => {
 		});
 
 		it('should reject invalid update dates before update', async () => {
-			mockDb.query.release.findFirst.mockResolvedValue(sampleRelease);
-
 			const result = await client.callTool({
 				name: 'update-release',
 				arguments: { releaseId: 300, releaseDate: 'not-a-date' }
@@ -209,6 +207,7 @@ describe('MCP release tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
 				'Invalid date'
 			);
+			expect(mockDb.query.release.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -256,8 +255,6 @@ describe('MCP release tools', () => {
 		});
 
 		it('should reject empty updates', async () => {
-			mockDb.query.release.findFirst.mockResolvedValue(sampleRelease);
-
 			const result = await client.callTool({
 				name: 'update-release',
 				arguments: { releaseId: 300 }
@@ -267,6 +264,7 @@ describe('MCP release tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
 				'No fields to update'
 			);
+			expect(mockDb.query.release.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});

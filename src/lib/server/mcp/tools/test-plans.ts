@@ -116,11 +116,6 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			endDate: z.string().optional().describe('End date (ISO string)')
 		},
 		async ({ planId, name, description, status, milestone, startDate, endDate }) => {
-			const plan = await db.query.testPlan.findFirst({
-				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
-			});
-			if (!plan) return err('Test plan not found');
-
 			const parsed = updateTestPlanSchema.safeParse({
 				name: name?.trim(),
 				description: description?.trim(),
@@ -143,6 +138,11 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 				updates.endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : null;
 
 			if (Object.keys(updates).length === 1) return err('No fields to update');
+
+			const plan = await db.query.testPlan.findFirst({
+				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
+			});
+			if (!plan) return err('Test plan not found');
 
 			const [updated] = await db
 				.update(testPlan)

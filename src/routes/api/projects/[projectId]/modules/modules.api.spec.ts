@@ -189,6 +189,20 @@ describe('/api/projects/[projectId]/modules', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for unknown fields before writing', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Login', externalId: 'mod-1' },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.query.module.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 401 for unauthenticated', async () => {
 			const event = createMockEvent({
 				method: 'POST',

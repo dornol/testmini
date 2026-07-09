@@ -257,6 +257,19 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for unknown fields before updating', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Regression Tests', externalId: 'suite-1' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 404 when suite not found', async () => {
 			vi.mocked(
 				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite

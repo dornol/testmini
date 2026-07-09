@@ -30,20 +30,26 @@ const testCaseIdsSchema = z
 		}
 	});
 
-export const createTestSuiteSchema = z.object({
-	name: testSuiteNameSchema,
-	description: testSuiteDescriptionSchema.nullish(),
-	testCaseIds: testCaseIdsSchema.default([])
-});
+export const createTestSuiteSchema = z
+	.object({
+		name: testSuiteNameSchema,
+		description: testSuiteDescriptionSchema.nullish(),
+		testCaseIds: testCaseIdsSchema.default([])
+	})
+	.strict();
 
-export const updateTestSuiteSchema = z.object({
-	name: testSuiteNameSchema.optional(),
-	description: testSuiteDescriptionSchema.nullish()
-});
+export const updateTestSuiteSchema = z
+	.object({
+		name: testSuiteNameSchema.optional(),
+		description: testSuiteDescriptionSchema.nullish()
+	})
+	.strict();
 
-export const suiteItemsSchema = z.object({
-	testCaseIds: testCaseIdsSchema.min(1, 'At least one test case ID is required')
-});
+export const suiteItemsSchema = z
+	.object({
+		testCaseIds: testCaseIdsSchema.min(1, 'At least one test case ID is required')
+	})
+	.strict();
 
 export type CreateTestSuiteInput = z.infer<typeof createTestSuiteSchema>;
 export type UpdateTestSuiteInput = z.infer<typeof updateTestSuiteSchema>;

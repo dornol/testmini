@@ -7,6 +7,8 @@ import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { validatePositiveIntegerList, validateRequestBody } from '$lib/server/id-list-validation';
 
+const SUITE_ITEMS_FIELDS = new Set(['testCaseIds']);
+
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA'],
 	async ({ request, params, projectId }) => {
@@ -22,6 +24,9 @@ export const POST = withProjectRole(
 
 		const bodyOrError = validateRequestBody(await parseJsonBody(request));
 		if (bodyOrError instanceof Response) return bodyOrError;
+		if (Object.keys(bodyOrError).some((key) => !SUITE_ITEMS_FIELDS.has(key))) {
+			return badRequest('Invalid suite item field');
+		}
 
 		const testCaseIds = validatePositiveIntegerList(bodyOrError.testCaseIds, 'testCaseIds');
 		if (testCaseIds instanceof Response) return testCaseIds;
@@ -68,6 +73,9 @@ export const DELETE = withProjectRole(
 
 		const bodyOrError = validateRequestBody(await parseJsonBody(request));
 		if (bodyOrError instanceof Response) return bodyOrError;
+		if (Object.keys(bodyOrError).some((key) => !SUITE_ITEMS_FIELDS.has(key))) {
+			return badRequest('Invalid suite item field');
+		}
 
 		const testCaseIds = validatePositiveIntegerList(bodyOrError.testCaseIds, 'testCaseIds');
 		if (testCaseIds instanceof Response) return testCaseIds;

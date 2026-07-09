@@ -330,5 +330,18 @@ describe('/api/projects/[projectId]/test-suites', () => {
 			expect(response.status).toBe(400);
 			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
+
+		it('should return 400 for unknown fields before creating', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'New Suite', testCaseIds: [], externalId: 'suite-1' },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
 	});
 });

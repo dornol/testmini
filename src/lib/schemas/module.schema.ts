@@ -16,18 +16,22 @@ const sortOrderSchema = z
 	.int()
 	.refine(Number.isSafeInteger, 'Sort order must be a safe integer');
 
-export const createModuleSchema = z.object({
-	name: moduleNameSchema,
-	parentModuleId: moduleIdSchema.nullish(),
-	description: moduleDescriptionSchema.nullish()
-});
+export const createModuleSchema = z
+	.object({
+		name: moduleNameSchema,
+		parentModuleId: moduleIdSchema.nullish(),
+		description: moduleDescriptionSchema.nullish()
+	})
+	.strict();
 
-export const updateModuleSchema = z.object({
-	name: moduleNameSchema.optional(),
-	parentModuleId: moduleIdSchema.nullish(),
-	description: moduleDescriptionSchema.nullish(),
-	sortOrder: sortOrderSchema.optional()
-});
+export const updateModuleSchema = z
+	.object({
+		name: moduleNameSchema.optional(),
+		parentModuleId: moduleIdSchema.nullish(),
+		description: moduleDescriptionSchema.nullish(),
+		sortOrder: sortOrderSchema.optional()
+	})
+	.strict();
 
 export type CreateModuleInput = z.infer<typeof createModuleSchema>;
 export type UpdateModuleInput = z.infer<typeof updateModuleSchema>;

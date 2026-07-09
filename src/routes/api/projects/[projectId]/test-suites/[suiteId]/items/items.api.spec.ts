@@ -85,6 +85,21 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]/items', () => {
 			expect(data.error).toContain('duplicates');
 		});
 
+		it('should return 400 when body has unknown fields', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { testCaseIds: [10], append: true },
+				user: adminUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Invalid suite item field');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when test cases do not belong to project', async () => {
 			// Return fewer test cases than requested, simulating some not belonging to the project
 			mockSelectResult(mockDb, [{ id: 10 }]);
@@ -104,6 +119,21 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]/items', () => {
 	});
 
 	describe('DELETE', () => {
+		it('should return 400 when body has unknown fields', async () => {
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				body: { testCaseIds: [10], force: true },
+				user: adminUser
+			});
+			const response = await DELETE(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Invalid suite item field');
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when testCaseIds contains duplicates', async () => {
 			const event = createMockEvent({
 				method: 'DELETE',

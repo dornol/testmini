@@ -18,7 +18,8 @@ vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'MEMBER' })
@@ -87,6 +88,29 @@ describe('/api/projects/[projectId]/dashboard-layout', () => {
 			expect(statusDist).toBeDefined();
 			expect(statusDist.visible).toBe(true);
 			expect(statusDist.size).toBe('md');
+		});
+
+		it('should drop invalid and duplicate saved layout entries', async () => {
+			const savedLayout = [
+				{ id: 'stats_summary', visible: true, order: 0, size: 'md' },
+				{ id: 'stats_summary', visible: false, order: 1, size: 'sm' },
+				{ id: 'unknown_widget', visible: true, order: 2, size: 'md' },
+				{ id: 'pass_rate_trend', visible: true, order: 99, size: 'md' }
+			];
+			mockDb.query.dashboardLayout = {
+				findFirst: vi.fn().mockResolvedValue({ layout: savedLayout })
+			};
+
+			const event = createMockEvent({ params: { projectId: '1' }, user: testUser });
+			const response = await GET(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(body.layout.filter((w: { id: string }) => w.id === 'stats_summary')).toHaveLength(1);
+			expect(body.layout.some((w: { id: string }) => w.id === 'unknown_widget')).toBe(false);
+			expect(body.layout.find((w: { id: string }) => w.id === 'pass_rate_trend').order).not.toBe(
+				99
+			);
 		});
 
 		it('should return 400 for invalid projectId', async () => {
@@ -162,6 +186,48 @@ describe('/api/projects/[projectId]/dashboard-layout', () => {
 				method: 'PUT',
 				params: { projectId: '1' },
 				body: { layout: [{ id: 'stats_summary', visible: true, order: 0, size: 'xl' }] },
+				user: testUser
+			});
+			await expect(PUT(event)).rejects.toThrow();
+		});
+
+		it('should return 400 for duplicate widget id', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1' },
+				body: {
+					layout: [
+						{ id: 'stats_summary', visible: true, order: 0, size: 'lg' },
+						{ id: 'stats_summary', visible: false, order: 1, size: 'md' }
+					]
+				},
+				user: testUser
+			});
+			await expect(PUT(event)).rejects.toThrow();
+		});
+
+		it('should return 400 for non-integer widget order', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1' },
+				body: { layout: [{ id: 'stats_summary', visible: true, order: 0.5, size: 'lg' }] },
+				user: testUser
+			});
+			await expect(PUT(event)).rejects.toThrow();
+		});
+
+		it('should return 400 when layout has too many widgets', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1' },
+				body: {
+					layout: Array.from({ length: 100 }, (_, index) => ({
+						id: `widget_${index}`,
+						visible: true,
+						order: index,
+						size: 'md'
+					}))
+				},
 				user: testUser
 			});
 			await expect(PUT(event)).rejects.toThrow();

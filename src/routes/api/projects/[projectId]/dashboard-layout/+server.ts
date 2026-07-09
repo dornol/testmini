@@ -7,8 +7,28 @@ import { withProjectAccess } from '$lib/server/api-handler';
 import { DEFAULT_LAYOUT, WIDGET_DEFINITIONS } from '$lib/dashboard-widgets';
 import { parseJsonBody } from '$lib/server/auth-utils';
 
-export const GET = withProjectAccess(async ({ user, projectId }) => {
+const VALID_SIZES = new Set<string>(['sm', 'md', 'lg']);
+const KNOWN_WIDGET_IDS = new Set(WIDGET_DEFINITIONS.map((w) => w.id));
+const MAX_LAYOUT_ITEMS = WIDGET_DEFINITIONS.length;
 
+function isWidgetConfig(value: unknown): value is WidgetConfig {
+	if (!value || typeof value !== 'object') return false;
+	const item = value as Record<string, unknown>;
+	const order = item.order;
+	return (
+		typeof item.id === 'string' &&
+		KNOWN_WIDGET_IDS.has(item.id) &&
+		typeof item.visible === 'boolean' &&
+		typeof order === 'number' &&
+		Number.isInteger(order) &&
+		order >= 0 &&
+		order < MAX_LAYOUT_ITEMS &&
+		typeof item.size === 'string' &&
+		VALID_SIZES.has(item.size)
+	);
+}
+
+export const GET = withProjectAccess(async ({ user, projectId }) => {
 	const row = await db.query.dashboardLayout.findFirst({
 		where: and(eq(dashboardLayout.userId, user.id), eq(dashboardLayout.projectId, projectId))
 	});
@@ -19,13 +39,19 @@ export const GET = withProjectAccess(async ({ user, projectId }) => {
 
 	// Reconcile saved layout with current widget definitions:
 	// add new widgets that aren't in saved layout, remove obsolete ones
-	const saved = row.layout as WidgetConfig[];
-	const knownIds = new Set(WIDGET_DEFINITIONS.map((w) => w.id));
+	const seenSavedIds = new Set<string>();
+	const saved = Array.isArray(row.layout)
+		? row.layout.filter((item) => {
+				if (!isWidgetConfig(item) || seenSavedIds.has(item.id)) return false;
+				seenSavedIds.add(item.id);
+				return true;
+			})
+		: [];
 	const savedIds = new Set(saved.map((w) => w.id));
 
 	const reconciled: WidgetConfig[] = [
 		// Keep saved widgets that still exist
-		...saved.filter((w) => knownIds.has(w.id)),
+		...saved,
 		// Append newly added widgets not in saved layout
 		...WIDGET_DEFINITIONS.filter((def) => !savedIds.has(def.id)).map((def, i) => ({
 			id: def.id,
@@ -38,10 +64,7 @@ export const GET = withProjectAccess(async ({ user, projectId }) => {
 	return json({ layout: reconciled });
 });
 
-const VALID_SIZES = new Set<string>(['sm', 'md', 'lg']);
-
 export const PUT = withProjectAccess(async ({ request, user, projectId }) => {
-
 	const body = await parseJsonBody(request);
 
 	const { layout } = body as { layout?: unknown };
@@ -49,23 +72,20 @@ export const PUT = withProjectAccess(async ({ request, user, projectId }) => {
 	if (!Array.isArray(layout)) {
 		error(400, 'layout must be an array');
 	}
+	if (layout.length > MAX_LAYOUT_ITEMS) {
+		error(400, 'layout contains too many widgets');
+	}
 
 	// Validate each widget config
-	const knownIds = new Set(WIDGET_DEFINITIONS.map((w) => w.id));
+	const seenIds = new Set<string>();
 	for (const item of layout) {
-		if (
-			typeof item !== 'object' ||
-			item === null ||
-			typeof item.id !== 'string' ||
-			typeof item.visible !== 'boolean' ||
-			typeof item.order !== 'number' ||
-			!VALID_SIZES.has(item.size)
-		) {
+		if (!isWidgetConfig(item)) {
 			error(400, 'Invalid widget config in layout');
 		}
-		if (!knownIds.has(item.id)) {
-			error(400, `Unknown widget id: ${item.id}`);
+		if (seenIds.has(item.id)) {
+			error(400, `Duplicate widget id: ${item.id}`);
 		}
+		seenIds.add(item.id);
 	}
 
 	const validatedLayout = layout as WidgetConfig[];

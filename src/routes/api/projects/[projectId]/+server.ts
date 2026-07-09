@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { db, col } from '$lib/server/db';
 import { project, projectMember } from '$lib/server/db/schema';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonObjectBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { updateProjectSchema } from '$lib/schemas/project.schema';
 import { badRequest, validationError } from '$lib/server/errors';
@@ -32,7 +32,7 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 });
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, projectId }) => {
-	const body = await parseJsonBody(request);
+	const body = await parseJsonObjectBody(request);
 	const result = updateProjectSchema.safeParse(body);
 
 	if (!result.success) {

@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { projectMember } from '$lib/server/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+import { isPlainRecord } from '$lib/server/object-validation';
 
 type AuthUser = NonNullable<App.Locals['user']>;
 
@@ -132,4 +133,12 @@ export async function parseJsonBody(request: Request): Promise<unknown> {
 		if (e && typeof e === 'object' && 'status' in e) throw e;
 		error(400, 'Invalid request body');
 	}
+}
+
+export async function parseJsonObjectBody(request: Request): Promise<Record<string, unknown>> {
+	const body = await parseJsonBody(request);
+	if (!isPlainRecord(body)) {
+		error(400, 'Invalid request body');
+	}
+	return body;
 }

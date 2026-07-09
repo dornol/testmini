@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { db, col } from '$lib/server/db';
 import { project, projectMember, priorityConfig, environmentConfig } from '$lib/server/db/schema';
-import { isGlobalAdmin, parseJsonBody } from '$lib/server/auth-utils';
+import { isGlobalAdmin, parseJsonObjectBody } from '$lib/server/auth-utils';
 import { createProjectSchema } from '$lib/schemas/project.schema';
 import { badRequest, validationError } from '$lib/server/errors';
 import { and, eq, ilike, count, inArray, sql } from 'drizzle-orm';
@@ -90,7 +90,7 @@ export const GET = withAuth(async ({ user, url }) => {
 });
 
 export const POST = withAuth(async ({ user, request }) => {
-	const body = await parseJsonBody(request);
+	const body = await parseJsonObjectBody(request);
 	const result = createProjectSchema.safeParse(body);
 
 	if (!result.success) {

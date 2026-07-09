@@ -266,6 +266,17 @@ describe('/api/projects', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should reject non-object JSON before creating a project', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				body: ['not', 'an', 'object'],
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for whitespace-only project name before creating a project', async () => {
 			const event = createMockEvent({
 				method: 'POST',

@@ -12,7 +12,7 @@ import {
 	testPlanSignoff
 } from '$lib/server/db/schema';
 import { eq, and, sql, desc } from 'drizzle-orm';
-import { parseJsonBody, parseId } from '$lib/server/auth-utils';
+import { parseJsonObjectBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { updateTestPlanSchema } from '$lib/schemas/test-plan.schema';
 import { validateOptionalReleaseId } from '$lib/server/project-reference-validation';
@@ -78,7 +78,7 @@ export const PATCH = withProjectRole(
 			error(404, 'Plan not found');
 		}
 
-		const body = await parseJsonBody(request);
+		const body = await parseJsonObjectBody(request);
 		const parsed = updateTestPlanSchema.safeParse(body);
 		if (!parsed.success) {
 			return validationError('Invalid input', parsed.error.flatten().fieldErrors);

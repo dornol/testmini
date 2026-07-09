@@ -130,6 +130,18 @@ describe('/api/projects/[projectId]', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should reject non-object JSON before updating', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: { projectId: '1' },
+				body: ['not', 'an', 'object'],
+				user: adminUser
+			});
+
+			await expect(PATCH(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should update project on success', async () => {
 			const updated = { ...sampleProject, name: 'Updated Project' };
 			const updateChain = mockUpdateReturning(mockDb, [updated]);

@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { db, col } from '$lib/server/db';
 import { release, testPlan, testRun, user } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { parseJsonBody, parseId } from '$lib/server/auth-utils';
+import { parseJsonObjectBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { updateReleaseSchema } from '$lib/schemas/release.schema';
 import { badRequest, notFound, validationError } from '$lib/server/errors';
@@ -82,7 +82,7 @@ export const PATCH = withProjectRole(
 	async ({ request, params, projectId }) => {
 		const releaseId = parseId(params.releaseId, 'release ID');
 
-		const body = await parseJsonBody(request);
+		const body = await parseJsonObjectBody(request);
 		const parsed = updateReleaseSchema.safeParse(body);
 		if (!parsed.success) {
 			return validationError('Invalid input', parsed.error.flatten().fieldErrors);

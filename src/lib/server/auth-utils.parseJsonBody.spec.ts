@@ -13,7 +13,7 @@ vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 
-import { parseJsonBody } from './auth-utils';
+import { parseJsonBody, parseJsonObjectBody } from './auth-utils';
 
 describe('parseJsonBody', () => {
 	it('should parse valid JSON body', async () => {
@@ -121,5 +121,32 @@ describe('parseJsonBody', () => {
 
 		const result = await parseJsonBody(request);
 		expect(result).toEqual([1, 2, 3]);
+	});
+});
+
+describe('parseJsonObjectBody', () => {
+	it('should parse plain object bodies', async () => {
+		const request = new Request('http://localhost/api/test', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ title: 'Hello' })
+		});
+
+		const result = await parseJsonObjectBody(request);
+		expect(result).toEqual({ title: 'Hello' });
+	});
+
+	it.each([
+		['array', [1, 2, 3]],
+		['null', null],
+		['string', 'hello']
+	])('should throw 400 for non-object JSON body: %s', async (_label, body) => {
+		const request = new Request('http://localhost/api/test', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body)
+		});
+
+		await expect(parseJsonObjectBody(request)).rejects.toMatchObject({ status: 400 });
 	});
 });

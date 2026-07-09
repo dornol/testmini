@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -9,10 +13,35 @@ vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
 	testCase: { id: 'id', projectId: 'project_id', latestVersionId: 'latest_version_id', key: 'key' },
 	testCaseVersion: { id: 'id', title: 'title', priority: 'priority' },
-	testRun: { id: 'id', projectId: 'project_id', name: 'name', environment: 'environment', createdBy: 'created_by', testPlanId: 'test_plan_id' },
+	testRun: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		environment: 'environment',
+		createdBy: 'created_by',
+		testPlanId: 'test_plan_id'
+	},
 	testExecution: { id: 'id', testRunId: 'test_run_id', testCaseVersionId: 'test_case_version_id' },
-	testPlan: { id: 'id', projectId: 'project_id', name: 'name', description: 'description', status: 'status', milestone: 'milestone', startDate: 'start_date', endDate: 'end_date', createdBy: 'created_by', createdAt: 'created_at', updatedAt: 'updated_at' },
-	testPlanTestCase: { id: 'id', testPlanId: 'test_plan_id', testCaseId: 'test_case_id', position: 'position', addedAt: 'added_at' }
+	testPlan: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		description: 'description',
+		status: 'status',
+		milestone: 'milestone',
+		startDate: 'start_date',
+		endDate: 'end_date',
+		createdBy: 'created_by',
+		createdAt: 'created_at',
+		updatedAt: 'updated_at'
+	},
+	testPlanTestCase: {
+		id: 'id',
+		testPlanId: 'test_plan_id',
+		testCaseId: 'test_case_id',
+		position: 'position',
+		addedAt: 'added_at'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -83,7 +112,15 @@ describe('MCP test-plan tools', () => {
 		it('should return plan with items', async () => {
 			mockDb.query.testPlan.findFirst.mockResolvedValue(samplePlan);
 			mockSelectResult(mockDb, [
-				{ id: 1, testCaseId: 10, position: 0, addedAt: '2025-01-01', key: 'TC-0001', title: 'Login', priority: 'HIGH' }
+				{
+					id: 1,
+					testCaseId: 10,
+					position: 0,
+					addedAt: '2025-01-01',
+					key: 'TC-0001',
+					title: 'Login',
+					priority: 'HIGH'
+				}
 			]);
 
 			const result = await client.callTool({ name: 'get-test-plan', arguments: { planId: 1 } });
@@ -101,7 +138,9 @@ describe('MCP test-plan tools', () => {
 			const result = await client.callTool({ name: 'get-test-plan', arguments: { planId: 999 } });
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test plan not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test plan not found'
+			);
 		});
 	});
 
@@ -131,7 +170,9 @@ describe('MCP test-plan tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Project not found'
+			);
 		});
 	});
 
@@ -152,6 +193,12 @@ describe('MCP test-plan tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('Updated');
 			expect(parsed.status).toBe('ACTIVE');
+			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when plan not found', async () => {
@@ -163,7 +210,9 @@ describe('MCP test-plan tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test plan not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test plan not found'
+			);
 		});
 	});
 
@@ -172,7 +221,16 @@ describe('MCP test-plan tools', () => {
 	describe('add-plan-items', () => {
 		it('should add test cases to plan', async () => {
 			mockDb.query.testPlan.findFirst.mockResolvedValue(samplePlan);
-			mockSelectResult(mockDb, [{ maxPos: 2 }]);
+			let selectCallCount = 0;
+			mockDb.select.mockImplementation(() => {
+				selectCallCount++;
+				const data = selectCallCount === 1 ? [{ id: 10 }, { id: 11 }] : [{ maxPos: 2 }];
+				return {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve)
+				} as never;
+			});
 			mockInsertReturning(mockDb, []);
 
 			const result = await client.callTool({
@@ -184,6 +242,22 @@ describe('MCP test-plan tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.success).toBe(true);
 			expect(parsed.addedCount).toBe(2);
+		});
+
+		it('should reject test cases outside the project', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue(samplePlan);
+			mockSelectResult(mockDb, [{ id: 10 }]);
+
+			const result = await client.callTool({
+				name: 'add-plan-items',
+				arguments: { planId: 1, testCaseIds: [10, 99] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case IDs not found in this project: 99'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return error when plan not found', async () => {
@@ -235,21 +309,32 @@ describe('MCP test-plan tools', () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
 
 			let selectCallCount = 0;
+			const caseSelectWhere = vi.fn().mockReturnThis();
 			mockDb.select.mockImplementation(() => {
 				selectCallCount++;
-				const data = selectCallCount === 1
-					? [{ testCaseId: 10 }, { testCaseId: 11 }]
-					: [{ id: 10, latestVersionId: 100 }, { id: 11, latestVersionId: 101 }];
+				const data =
+					selectCallCount === 1
+						? [{ testCaseId: 10 }, { testCaseId: 11 }]
+						: [
+								{ id: 10, latestVersionId: 100 },
+								{ id: 11, latestVersionId: 101 }
+							];
 				const chain = {
 					from: vi.fn().mockReturnThis(),
-					where: vi.fn().mockReturnThis(),
+					where: selectCallCount === 2 ? caseSelectWhere : vi.fn().mockReturnThis(),
 					orderBy: vi.fn().mockReturnThis(),
 					then: (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve)
 				};
 				return chain as never;
 			});
 
-			const createdRun = { id: 60, projectId: 1, name: 'Sprint 1 Plan - QA', environment: 'QA', createdBy: 'user-1' };
+			const createdRun = {
+				id: 60,
+				projectId: 1,
+				name: 'Sprint 1 Plan - QA',
+				environment: 'QA',
+				createdBy: 'user-1'
+			};
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 				let insertCallCount = 0;
 				const tx = {
@@ -275,6 +360,12 @@ describe('MCP test-plan tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.executionCount).toBe(2);
 			expect(parsed.planId).toBe(1);
+			expect(caseSelectWhere).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['project_id', PROJECT_ID],
+					['id', [10, 11]]
+				])
+			);
 		});
 
 		it('should return error when plan has no test cases', async () => {
@@ -288,7 +379,9 @@ describe('MCP test-plan tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test plan has no test cases');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test plan has no test cases'
+			);
 		});
 
 		it('should return error when plan not found', async () => {
@@ -319,6 +412,12 @@ describe('MCP test-plan tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.delete).toHaveBeenCalledTimes(2);
+			expect(mockDb._chains.delete.where).toHaveBeenLastCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when plan not found', async () => {
@@ -330,7 +429,9 @@ describe('MCP test-plan tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test plan not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test plan not found'
+			);
 		});
 	});
 
@@ -339,8 +440,24 @@ describe('MCP test-plan tools', () => {
 	describe('list-test-plans', () => {
 		it('should return plans array', async () => {
 			mockSelectResult(mockDb, [
-				{ id: 1, name: 'Sprint 1 Plan', status: 'DRAFT', milestone: null, startDate: null, endDate: null, createdAt: new Date('2025-01-01') },
-				{ id: 2, name: 'Sprint 2 Plan', status: 'ACTIVE', milestone: 'v1.0', startDate: null, endDate: null, createdAt: new Date('2025-02-01') }
+				{
+					id: 1,
+					name: 'Sprint 1 Plan',
+					status: 'DRAFT',
+					milestone: null,
+					startDate: null,
+					endDate: null,
+					createdAt: new Date('2025-01-01')
+				},
+				{
+					id: 2,
+					name: 'Sprint 2 Plan',
+					status: 'ACTIVE',
+					milestone: 'v1.0',
+					startDate: null,
+					endDate: null,
+					createdAt: new Date('2025-02-01')
+				}
 			]);
 
 			const result = await client.callTool({

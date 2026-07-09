@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import {
 	sampleProject,
 	sampleTestCase,
@@ -21,25 +25,161 @@ vi.mock('$lib/server/db', () => ({
 	findTestCaseWithLatestVersion: mockFindTestCaseWithLatestVersion
 }));
 vi.mock('$lib/server/db/schema', () => ({
-	project: { id: 'id', name: 'name', description: 'description', active: 'active', createdBy: 'created_by', createdAt: 'created_at' },
+	project: {
+		id: 'id',
+		name: 'name',
+		description: 'description',
+		active: 'active',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
 	projectMember: { projectId: 'project_id', userId: 'user_id', role: 'role' },
-	testSuite: { id: 'id', projectId: 'project_id', name: 'name', description: 'description', createdBy: 'created_by', createdAt: 'created_at' },
+	testSuite: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		description: 'description',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
 	testSuiteItem: { id: 'id', suiteId: 'suite_id', testCaseId: 'test_case_id', addedAt: 'added_at' },
-	testPlan: { id: 'id', projectId: 'project_id', name: 'name', description: 'description', status: 'status', milestone: 'milestone', startDate: 'start_date', endDate: 'end_date', createdBy: 'created_by', createdAt: 'created_at', updatedAt: 'updated_at' },
-	testPlanTestCase: { id: 'id', testPlanId: 'test_plan_id', testCaseId: 'test_case_id', position: 'position', addedAt: 'added_at' },
-	testCaseTemplate: { id: 'id', projectId: 'project_id', name: 'name', description: 'description', precondition: 'precondition', steps: 'steps', priority: 'priority', createdBy: 'created_by', createdAt: 'created_at', updatedAt: 'updated_at' },
-	testCaseGroup: { id: 'id', projectId: 'project_id', name: 'name', sortOrder: 'sort_order', color: 'color', createdBy: 'created_by' },
-	customField: { id: 'id', projectId: 'project_id', name: 'name', fieldType: 'field_type', options: 'options', required: 'required', sortOrder: 'sort_order' },
-	requirement: { id: 'id', projectId: 'project_id', externalId: 'external_id', title: 'title', description: 'description', source: 'source', createdBy: 'created_by', createdAt: 'created_at' },
-	requirementTestCase: { id: 'id', requirementId: 'requirement_id', testCaseId: 'test_case_id', createdAt: 'created_at' },
-	issueLink: { id: 'id', projectId: 'project_id', testCaseId: 'test_case_id', testExecutionId: 'test_execution_id', externalUrl: 'external_url', externalKey: 'external_key', title: 'title', status: 'status', provider: 'provider', createdBy: 'created_by', createdAt: 'created_at' },
-	exploratorySession: { id: 'id', projectId: 'project_id', title: 'title', charter: 'charter', status: 'status', environment: 'environment', tags: 'tags', startedAt: 'started_at', completedAt: 'completed_at', pausedDuration: 'paused_duration', summary: 'summary', createdBy: 'created_by' },
-	sessionNote: { id: 'id', sessionId: 'session_id', content: 'content', noteType: 'note_type', timestamp: 'timestamp', createdAt: 'created_at' },
-	testCaseComment: { id: 'id', testCaseId: 'test_case_id', userId: 'user_id', content: 'content', parentId: 'parent_id', createdAt: 'created_at' },
-	executionComment: { id: 'id', testExecutionId: 'test_execution_id', userId: 'user_id', content: 'content', parentId: 'parent_id', createdAt: 'created_at' },
-	approvalHistory: { id: 'id', testCaseId: 'test_case_id', fromStatus: 'from_status', toStatus: 'to_status', userId: 'user_id', comment: 'comment', createdAt: 'created_at' },
-	environmentConfig: { projectId: 'project_id', name: 'name', color: 'color', sortOrder: 'sort_order' },
-	priorityConfig: { projectId: 'project_id', name: 'name', color: 'color', sortOrder: 'sort_order' },
+	testPlan: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		description: 'description',
+		status: 'status',
+		milestone: 'milestone',
+		startDate: 'start_date',
+		endDate: 'end_date',
+		createdBy: 'created_by',
+		createdAt: 'created_at',
+		updatedAt: 'updated_at'
+	},
+	testPlanTestCase: {
+		id: 'id',
+		testPlanId: 'test_plan_id',
+		testCaseId: 'test_case_id',
+		position: 'position',
+		addedAt: 'added_at'
+	},
+	testCaseTemplate: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		description: 'description',
+		precondition: 'precondition',
+		steps: 'steps',
+		priority: 'priority',
+		createdBy: 'created_by',
+		createdAt: 'created_at',
+		updatedAt: 'updated_at'
+	},
+	testCaseGroup: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		sortOrder: 'sort_order',
+		color: 'color',
+		createdBy: 'created_by'
+	},
+	customField: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		fieldType: 'field_type',
+		options: 'options',
+		required: 'required',
+		sortOrder: 'sort_order'
+	},
+	requirement: {
+		id: 'id',
+		projectId: 'project_id',
+		externalId: 'external_id',
+		title: 'title',
+		description: 'description',
+		source: 'source',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
+	requirementTestCase: {
+		id: 'id',
+		requirementId: 'requirement_id',
+		testCaseId: 'test_case_id',
+		createdAt: 'created_at'
+	},
+	issueLink: {
+		id: 'id',
+		projectId: 'project_id',
+		testCaseId: 'test_case_id',
+		testExecutionId: 'test_execution_id',
+		externalUrl: 'external_url',
+		externalKey: 'external_key',
+		title: 'title',
+		status: 'status',
+		provider: 'provider',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
+	exploratorySession: {
+		id: 'id',
+		projectId: 'project_id',
+		title: 'title',
+		charter: 'charter',
+		status: 'status',
+		environment: 'environment',
+		tags: 'tags',
+		startedAt: 'started_at',
+		completedAt: 'completed_at',
+		pausedDuration: 'paused_duration',
+		summary: 'summary',
+		createdBy: 'created_by'
+	},
+	sessionNote: {
+		id: 'id',
+		sessionId: 'session_id',
+		content: 'content',
+		noteType: 'note_type',
+		timestamp: 'timestamp',
+		createdAt: 'created_at'
+	},
+	testCaseComment: {
+		id: 'id',
+		testCaseId: 'test_case_id',
+		userId: 'user_id',
+		content: 'content',
+		parentId: 'parent_id',
+		createdAt: 'created_at'
+	},
+	executionComment: {
+		id: 'id',
+		testExecutionId: 'test_execution_id',
+		userId: 'user_id',
+		content: 'content',
+		parentId: 'parent_id',
+		createdAt: 'created_at'
+	},
+	approvalHistory: {
+		id: 'id',
+		testCaseId: 'test_case_id',
+		fromStatus: 'from_status',
+		toStatus: 'to_status',
+		userId: 'user_id',
+		comment: 'comment',
+		createdAt: 'created_at'
+	},
+	environmentConfig: {
+		projectId: 'project_id',
+		name: 'name',
+		color: 'color',
+		sortOrder: 'sort_order'
+	},
+	priorityConfig: {
+		projectId: 'project_id',
+		name: 'name',
+		color: 'color',
+		sortOrder: 'sort_order'
+	},
 	testCase: {
 		id: 'id',
 		projectId: 'project_id',
@@ -89,7 +229,14 @@ vi.mock('$lib/server/db/schema', () => ({
 		comment: 'comment',
 		createdBy: 'created_by'
 	},
-	tag: { id: 'id', projectId: 'project_id', name: 'name', color: 'color', createdBy: 'created_by', createdAt: 'created_at' },
+	tag: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		color: 'color',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
 	testCaseTag: { testCaseId: 'test_case_id', tagId: 'tag_id' }
 }));
 vi.mock('drizzle-orm', () => ({
@@ -148,8 +295,22 @@ describe('MCP Server', () => {
 	describe('resource: test-cases://list', () => {
 		it('should return test cases as JSON', async () => {
 			const mockCases = [
-				{ id: 10, key: 'TC-0001', automationKey: null, title: 'Login test', priority: 'HIGH', createdAt: '2025-01-01' },
-				{ id: 11, key: 'TC-0002', automationKey: 'login_auto', title: 'Signup test', priority: 'MEDIUM', createdAt: '2025-01-02' }
+				{
+					id: 10,
+					key: 'TC-0001',
+					automationKey: null,
+					title: 'Login test',
+					priority: 'HIGH',
+					createdAt: '2025-01-01'
+				},
+				{
+					id: 11,
+					key: 'TC-0002',
+					automationKey: 'login_auto',
+					title: 'Signup test',
+					priority: 'MEDIUM',
+					createdAt: '2025-01-02'
+				}
 			];
 			mockSelectResult(mockDb, mockCases);
 
@@ -176,7 +337,14 @@ describe('MCP Server', () => {
 	describe('resource: test-runs://list', () => {
 		it('should return test runs as JSON', async () => {
 			const mockRuns = [
-				{ id: 50, name: 'Sprint 1', environment: 'QA', status: 'CREATED', createdAt: '2025-01-01', finishedAt: null }
+				{
+					id: 50,
+					name: 'Sprint 1',
+					environment: 'QA',
+					status: 'CREATED',
+					createdAt: '2025-01-01',
+					finishedAt: null
+				}
 			];
 			mockSelectResult(mockDb, mockRuns);
 
@@ -200,7 +368,14 @@ describe('MCP Server', () => {
 
 		it('should include all run fields', async () => {
 			const mockRuns = [
-				{ id: 50, name: 'Sprint 1', environment: 'QA', status: 'COMPLETED', createdAt: '2025-01-01', finishedAt: '2025-01-05' }
+				{
+					id: 50,
+					name: 'Sprint 1',
+					environment: 'QA',
+					status: 'COMPLETED',
+					createdAt: '2025-01-01',
+					finishedAt: '2025-01-05'
+				}
 			];
 			mockSelectResult(mockDb, mockRuns);
 
@@ -220,7 +395,13 @@ describe('MCP Server', () => {
 	describe('resource: reports://summary', () => {
 		it('should return dashboard summary', async () => {
 			const mockRuns = [
-				{ id: 50, name: 'Sprint 1', status: 'COMPLETED', environment: 'QA', finishedAt: '2025-01-05' }
+				{
+					id: 50,
+					name: 'Sprint 1',
+					status: 'COMPLETED',
+					environment: 'QA',
+					finishedAt: '2025-01-05'
+				}
 			];
 			// First select call returns runs, second returns count
 			let callCount = 0;
@@ -271,14 +452,29 @@ describe('MCP Server', () => {
 				selectCallCount++;
 				let result: unknown[];
 				switch (selectCallCount) {
-					case 1: result = [{ value: data.tcCount ?? 0 }]; break;
-					case 2: result = [{ value: data.runCount ?? 0 }]; break;
-					case 3: result = [{ value: data.suiteCount ?? 0 }]; break;
-					case 4: result = [{ value: data.planCount ?? 0 }]; break;
-					case 5: result = data.members ?? []; break;
-					case 6: result = data.environments ?? []; break;
-					case 7: result = data.priorities ?? []; break;
-					default: result = [];
+					case 1:
+						result = [{ value: data.tcCount ?? 0 }];
+						break;
+					case 2:
+						result = [{ value: data.runCount ?? 0 }];
+						break;
+					case 3:
+						result = [{ value: data.suiteCount ?? 0 }];
+						break;
+					case 4:
+						result = [{ value: data.planCount ?? 0 }];
+						break;
+					case 5:
+						result = data.members ?? [];
+						break;
+					case 6:
+						result = data.environments ?? [];
+						break;
+					case 7:
+						result = data.priorities ?? [];
+						break;
+					default:
+						result = [];
 				}
 				const chain = {
 					from: vi.fn().mockReturnThis(),
@@ -297,9 +493,18 @@ describe('MCP Server', () => {
 				runCount: 10,
 				suiteCount: 3,
 				planCount: 2,
-				members: [{ userId: 'user-1', role: 'PROJECT_ADMIN' }, { userId: 'user-2', role: 'QA' }],
-				environments: [{ name: 'DEV', color: '#22c55e' }, { name: 'QA', color: '#3b82f6' }],
-				priorities: [{ name: 'HIGH', color: '#ef4444' }, { name: 'MEDIUM', color: '#f59e0b' }]
+				members: [
+					{ userId: 'user-1', role: 'PROJECT_ADMIN' },
+					{ userId: 'user-2', role: 'QA' }
+				],
+				environments: [
+					{ name: 'DEV', color: '#22c55e' },
+					{ name: 'QA', color: '#3b82f6' }
+				],
+				priorities: [
+					{ name: 'HIGH', color: '#ef4444' },
+					{ name: 'MEDIUM', color: '#f59e0b' }
+				]
 			});
 
 			const result = await client.readResource({ uri: 'projects://current' });
@@ -395,12 +600,24 @@ describe('MCP Server', () => {
 
 			expect(parsed.environments).toHaveLength(4);
 			expect(parsed.priorities).toHaveLength(4);
-			expect(parsed.environments.map((e: { name: string }) => e.name)).toEqual(['DEV', 'QA', 'STAGE', 'PROD']);
-			expect(parsed.priorities.map((p: { name: string }) => p.name)).toEqual(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
+			expect(parsed.environments.map((e: { name: string }) => e.name)).toEqual([
+				'DEV',
+				'QA',
+				'STAGE',
+				'PROD'
+			]);
+			expect(parsed.priorities.map((p: { name: string }) => p.name)).toEqual([
+				'LOW',
+				'MEDIUM',
+				'HIGH',
+				'CRITICAL'
+			]);
 		});
 
 		it('should handle inactive project', async () => {
-			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue({ ...sampleProject, active: false }) };
+			mockDb.query.project = {
+				findFirst: vi.fn().mockResolvedValue({ ...sampleProject, active: false })
+			};
 			mockProjectSelects({});
 
 			const result = await client.readResource({ uri: 'projects://current' });
@@ -410,7 +627,9 @@ describe('MCP Server', () => {
 		});
 
 		it('should handle project with null description', async () => {
-			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue({ ...sampleProject, description: null }) };
+			mockDb.query.project = {
+				findFirst: vi.fn().mockResolvedValue({ ...sampleProject, description: null })
+			};
 			mockProjectSelects({});
 
 			const result = await client.readResource({ uri: 'projects://current' });
@@ -424,12 +643,13 @@ describe('MCP Server', () => {
 
 	describe('tool: search-test-cases', () => {
 		it('should search and return matching test cases', async () => {
-			const mockResults = [
-				{ id: 10, key: 'TC-0001', title: 'Login test', priority: 'HIGH' }
-			];
+			const mockResults = [{ id: 10, key: 'TC-0001', title: 'Login test', priority: 'HIGH' }];
 			mockSelectResult(mockDb, mockResults);
 
-			const result = await client.callTool({ name: 'search-test-cases', arguments: { query: 'login' } });
+			const result = await client.callTool({
+				name: 'search-test-cases',
+				arguments: { query: 'login' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -449,7 +669,10 @@ describe('MCP Server', () => {
 		it('should return empty results for no matches', async () => {
 			mockSelectResult(mockDb, []);
 
-			const result = await client.callTool({ name: 'search-test-cases', arguments: { query: 'nonexistent' } });
+			const result = await client.callTool({
+				name: 'search-test-cases',
+				arguments: { query: 'nonexistent' }
+			});
 
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
 			expect(parsed).toEqual([]);
@@ -482,7 +705,10 @@ describe('MCP Server', () => {
 			});
 			mockSelectResult(mockDb, []);
 
-			const result = await client.callTool({ name: 'get-test-case', arguments: { key: 'TC-0001' } });
+			const result = await client.callTool({
+				name: 'get-test-case',
+				arguments: { key: 'TC-0001' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -495,23 +721,32 @@ describe('MCP Server', () => {
 			const result = await client.callTool({ name: 'get-test-case', arguments: { id: 999 } });
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Test case not found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'Test case not found'
+			);
 		});
 
 		it('should return error when test case not found by key', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'get-test-case', arguments: { key: 'TC-9999' } });
+			const result = await client.callTool({
+				name: 'get-test-case',
+				arguments: { key: 'TC-9999' }
+			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Test case not found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'Test case not found'
+			);
 		});
 
 		it('should return error when neither id nor key provided', async () => {
 			const result = await client.callTool({ name: 'get-test-case', arguments: {} });
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Test case not found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'Test case not found'
+			);
 		});
 	});
 
@@ -519,8 +754,20 @@ describe('MCP Server', () => {
 		it('should return test run with execution details', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			const mockExecutions = [
-				{ id: 200, status: 'PASS', executedAt: '2025-01-02', testCaseKey: 'TC-0001', testCaseTitle: 'Login test' },
-				{ id: 201, status: 'FAIL', executedAt: '2025-01-02', testCaseKey: 'TC-0002', testCaseTitle: 'Signup test' }
+				{
+					id: 200,
+					status: 'PASS',
+					executedAt: '2025-01-02',
+					testCaseKey: 'TC-0001',
+					testCaseTitle: 'Login test'
+				},
+				{
+					id: 201,
+					status: 'FAIL',
+					executedAt: '2025-01-02',
+					testCaseKey: 'TC-0002',
+					testCaseTitle: 'Signup test'
+				}
 			];
 			mockSelectResult(mockDb, mockExecutions);
 
@@ -540,18 +787,56 @@ describe('MCP Server', () => {
 			const result = await client.callTool({ name: 'get-test-run', arguments: { runId: 999 } });
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Test run not found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'Test run not found'
+			);
 		});
 
 		it('should count all execution status types correctly', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			const mockExecutions = [
-				{ id: 200, status: 'PASS', executedAt: '2025-01-02', testCaseKey: 'TC-0001', testCaseTitle: 'Test 1' },
-				{ id: 201, status: 'PASS', executedAt: '2025-01-02', testCaseKey: 'TC-0002', testCaseTitle: 'Test 2' },
-				{ id: 202, status: 'FAIL', executedAt: '2025-01-02', testCaseKey: 'TC-0003', testCaseTitle: 'Test 3' },
-				{ id: 203, status: 'BLOCKED', executedAt: null, testCaseKey: 'TC-0004', testCaseTitle: 'Test 4' },
-				{ id: 204, status: 'SKIPPED', executedAt: null, testCaseKey: 'TC-0005', testCaseTitle: 'Test 5' },
-				{ id: 205, status: 'PENDING', executedAt: null, testCaseKey: 'TC-0006', testCaseTitle: 'Test 6' }
+				{
+					id: 200,
+					status: 'PASS',
+					executedAt: '2025-01-02',
+					testCaseKey: 'TC-0001',
+					testCaseTitle: 'Test 1'
+				},
+				{
+					id: 201,
+					status: 'PASS',
+					executedAt: '2025-01-02',
+					testCaseKey: 'TC-0002',
+					testCaseTitle: 'Test 2'
+				},
+				{
+					id: 202,
+					status: 'FAIL',
+					executedAt: '2025-01-02',
+					testCaseKey: 'TC-0003',
+					testCaseTitle: 'Test 3'
+				},
+				{
+					id: 203,
+					status: 'BLOCKED',
+					executedAt: null,
+					testCaseKey: 'TC-0004',
+					testCaseTitle: 'Test 4'
+				},
+				{
+					id: 204,
+					status: 'SKIPPED',
+					executedAt: null,
+					testCaseKey: 'TC-0005',
+					testCaseTitle: 'Test 5'
+				},
+				{
+					id: 205,
+					status: 'PENDING',
+					executedAt: null,
+					testCaseKey: 'TC-0006',
+					testCaseTitle: 'Test 6'
+				}
 			];
 			mockSelectResult(mockDb, mockExecutions);
 
@@ -605,7 +890,9 @@ describe('MCP Server', () => {
 			const result = await client.callTool({ name: 'get-failures', arguments: { runId: 999 } });
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Test run not found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'Test run not found'
+			);
 		});
 
 		it('should return empty array when no failures', async () => {
@@ -627,7 +914,13 @@ describe('MCP Server', () => {
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
 
 			const createdTc = { id: 14, projectId: 1, key: 'TC-0004', createdBy: 'user-1', sortOrder: 4 };
-			const createdVersion = { id: 140, testCaseId: 14, versionNo: 1, title: 'New test', priority: 'MEDIUM' };
+			const createdVersion = {
+				id: 140,
+				testCaseId: 14,
+				versionNo: 1,
+				title: 'New test',
+				priority: 'MEDIUM'
+			};
 
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 				const txInsertChain = {
@@ -677,7 +970,10 @@ describe('MCP Server', () => {
 
 			const createdTc = { id: 1, projectId: 1, key: 'TC-0001', createdBy: 'user-1', sortOrder: 1 };
 			const createdVersion = {
-				id: 10, testCaseId: 1, versionNo: 1, title: 'With steps',
+				id: 10,
+				testCaseId: 1,
+				versionNo: 1,
+				title: 'With steps',
 				steps: [{ order: 1, action: 'Click button', expected: 'Dialog opens' }],
 				priority: 'HIGH'
 			};
@@ -731,7 +1027,9 @@ describe('MCP Server', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Project not found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'Project not found'
+			);
 		});
 	});
 
@@ -743,7 +1041,12 @@ describe('MCP Server', () => {
 			});
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
 
-			const updatedVersion = { ...sampleTestCaseVersion, id: 101, versionNo: 2, title: 'Updated title' };
+			const updatedVersion = {
+				...sampleTestCaseVersion,
+				id: 101,
+				versionNo: 2,
+				title: 'Updated title'
+			};
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 				let insertCallCount = 0;
 				const txUpdateChain = {
@@ -756,7 +1059,8 @@ describe('MCP Server', () => {
 						const chain = {
 							values: vi.fn().mockReturnThis(),
 							returning: vi.fn().mockReturnThis(),
-							then: (resolve: (v: unknown) => void) => Promise.resolve([updatedVersion]).then(resolve)
+							then: (resolve: (v: unknown) => void) =>
+								Promise.resolve([updatedVersion]).then(resolve)
 						};
 						return chain;
 					}),
@@ -796,7 +1100,8 @@ describe('MCP Server', () => {
 						const chain = {
 							values: vi.fn().mockReturnThis(),
 							returning: vi.fn().mockReturnThis(),
-							then: (resolve: (v: unknown) => void) => Promise.resolve([updatedVersion]).then(resolve)
+							then: (resolve: (v: unknown) => void) =>
+								Promise.resolve([updatedVersion]).then(resolve)
 						};
 						return chain;
 					}),
@@ -824,7 +1129,9 @@ describe('MCP Server', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Test case not found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'Test case not found'
+			);
 		});
 
 		it('should return error when no latest version', async () => {
@@ -839,7 +1146,9 @@ describe('MCP Server', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('No version found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'No version found'
+			);
 		});
 	});
 
@@ -852,7 +1161,13 @@ describe('MCP Server', () => {
 				{ id: 11, latestVersionId: 101 }
 			]);
 
-			const createdRun = { id: 60, projectId: 1, name: 'Regression', environment: 'QA', status: 'CREATED' };
+			const createdRun = {
+				id: 60,
+				projectId: 1,
+				name: 'Regression',
+				environment: 'QA',
+				status: 'CREATED'
+			};
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 				const tx = {
 					insert: vi.fn().mockImplementation(() => {
@@ -882,7 +1197,13 @@ describe('MCP Server', () => {
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
 			mockSelectResult(mockDb, [{ id: 10, latestVersionId: 100 }]);
 
-			const createdRun = { id: 61, projectId: 1, name: 'Smoke', environment: 'DEV', status: 'CREATED' };
+			const createdRun = {
+				id: 61,
+				projectId: 1,
+				name: 'Smoke',
+				environment: 'DEV',
+				status: 'CREATED'
+			};
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 				const tx = {
 					insert: vi.fn().mockImplementation(() => {
@@ -916,7 +1237,9 @@ describe('MCP Server', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Project not found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'Project not found'
+			);
 		});
 
 		it('should return error when no test cases found', async () => {
@@ -929,7 +1252,9 @@ describe('MCP Server', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('No test cases found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'No test cases found'
+			);
 		});
 	});
 
@@ -977,7 +1302,9 @@ describe('MCP Server', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Test run not found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'Test run not found'
+			);
 		});
 
 		it('should return error when execution not found', async () => {
@@ -990,7 +1317,9 @@ describe('MCP Server', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Execution not found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'Execution not found'
+			);
 		});
 
 		it('should record failure with only required params', async () => {
@@ -1033,7 +1362,9 @@ describe('MCP Server', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Project not found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'Project not found'
+			);
 		});
 	});
 
@@ -1042,11 +1373,31 @@ describe('MCP Server', () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 
 			const mockExecutions = [
-				{ executionId: 200, status: 'PASS', executedAt: '2025-01-02', testCaseKey: 'TC-0001', testCaseTitle: 'Login', priority: 'HIGH' },
-				{ executionId: 201, status: 'FAIL', executedAt: '2025-01-02', testCaseKey: 'TC-0002', testCaseTitle: 'Signup', priority: 'MEDIUM' }
+				{
+					executionId: 200,
+					status: 'PASS',
+					executedAt: '2025-01-02',
+					testCaseKey: 'TC-0001',
+					testCaseTitle: 'Login',
+					priority: 'HIGH'
+				},
+				{
+					executionId: 201,
+					status: 'FAIL',
+					executedAt: '2025-01-02',
+					testCaseKey: 'TC-0002',
+					testCaseTitle: 'Signup',
+					priority: 'MEDIUM'
+				}
 			];
 			const mockFailures = [
-				{ executionId: 201, errorMessage: 'Error', stackTrace: 'trace', failureEnvironment: 'Chrome', comment: 'Bug' }
+				{
+					executionId: 201,
+					errorMessage: 'Error',
+					stackTrace: 'trace',
+					failureEnvironment: 'Chrome',
+					comment: 'Bug'
+				}
 			];
 
 			let selectCallCount = 0;
@@ -1062,7 +1413,10 @@ describe('MCP Server', () => {
 				return chain as never;
 			});
 
-			const result = await client.callTool({ name: 'export-run-results', arguments: { runId: 50 } });
+			const result = await client.callTool({
+				name: 'export-run-results',
+				arguments: { runId: 50 }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1077,17 +1431,29 @@ describe('MCP Server', () => {
 		it('should return error when run not found', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'export-run-results', arguments: { runId: 999 } });
+			const result = await client.callTool({
+				name: 'export-run-results',
+				arguments: { runId: 999 }
+			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Test run not found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'Test run not found'
+			);
 		});
 
 		it('should export run with no failures', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 
 			const mockExecutions = [
-				{ executionId: 200, status: 'PASS', executedAt: '2025-01-02', testCaseKey: 'TC-0001', testCaseTitle: 'Login', priority: 'HIGH' }
+				{
+					executionId: 200,
+					status: 'PASS',
+					executedAt: '2025-01-02',
+					testCaseKey: 'TC-0001',
+					testCaseTitle: 'Login',
+					priority: 'HIGH'
+				}
 			];
 
 			let selectCallCount = 0;
@@ -1103,7 +1469,10 @@ describe('MCP Server', () => {
 				return chain as never;
 			});
 
-			const result = await client.callTool({ name: 'export-run-results', arguments: { runId: 50 } });
+			const result = await client.callTool({
+				name: 'export-run-results',
+				arguments: { runId: 50 }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1116,11 +1485,30 @@ describe('MCP Server', () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 
 			const mockExecutions = [
-				{ executionId: 200, status: 'FAIL', executedAt: '2025-01-02', testCaseKey: 'TC-0001', testCaseTitle: 'Login', priority: 'HIGH' }
+				{
+					executionId: 200,
+					status: 'FAIL',
+					executedAt: '2025-01-02',
+					testCaseKey: 'TC-0001',
+					testCaseTitle: 'Login',
+					priority: 'HIGH'
+				}
 			];
 			const mockFailures = [
-				{ executionId: 200, errorMessage: 'Error 1', stackTrace: 'trace1', failureEnvironment: 'Chrome', comment: null },
-				{ executionId: 200, errorMessage: 'Error 2', stackTrace: 'trace2', failureEnvironment: 'Firefox', comment: 'retry' }
+				{
+					executionId: 200,
+					errorMessage: 'Error 1',
+					stackTrace: 'trace1',
+					failureEnvironment: 'Chrome',
+					comment: null
+				},
+				{
+					executionId: 200,
+					errorMessage: 'Error 2',
+					stackTrace: 'trace2',
+					failureEnvironment: 'Firefox',
+					comment: 'retry'
+				}
 			];
 
 			let selectCallCount = 0;
@@ -1136,7 +1524,10 @@ describe('MCP Server', () => {
 				return chain as never;
 			});
 
-			const result = await client.callTool({ name: 'export-run-results', arguments: { runId: 50 } });
+			const result = await client.callTool({
+				name: 'export-run-results',
+				arguments: { runId: 50 }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1179,7 +1570,9 @@ describe('MCP Server', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Cannot modify completed run');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'Cannot modify completed run'
+			);
 		});
 
 		it('should return error when run not found', async () => {
@@ -1191,7 +1584,9 @@ describe('MCP Server', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Test run not found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'Test run not found'
+			);
 		});
 
 		it('should return error when execution not found', async () => {
@@ -1204,7 +1599,9 @@ describe('MCP Server', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe('Execution not found');
+			expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe(
+				'Execution not found'
+			);
 		});
 
 		it('should accept all valid status values', async () => {
@@ -1231,7 +1628,9 @@ describe('MCP Server', () => {
 				});
 
 				expect(result.isError).toBeFalsy();
-				const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+				const parsed = JSON.parse(
+					(result.content as Array<{ type: string; text: string }>)[0].text
+				);
 				expect(parsed.status).toBe(status);
 
 				await connected.clientTransport.close();
@@ -1269,7 +1668,9 @@ describe('MCP Server', () => {
 
 	describe('resource: test-suites://list', () => {
 		it('should return suites as JSON', async () => {
-			mockSelectResult(mockDb, [{ id: 1, name: 'Smoke Suite', description: 'Quick tests', createdAt: '2025-01-01' }]);
+			mockSelectResult(mockDb, [
+				{ id: 1, name: 'Smoke Suite', description: 'Quick tests', createdAt: '2025-01-01' }
+			]);
 
 			const result = await client.readResource({ uri: 'test-suites://list' });
 			const parsed = JSON.parse(getResourceText(result.contents[0]));
@@ -1280,7 +1681,17 @@ describe('MCP Server', () => {
 
 	describe('resource: test-plans://list', () => {
 		it('should return plans as JSON', async () => {
-			mockSelectResult(mockDb, [{ id: 1, name: 'Sprint 1 Plan', status: 'DRAFT', milestone: 'v1.0', startDate: null, endDate: null, createdAt: '2025-01-01' }]);
+			mockSelectResult(mockDb, [
+				{
+					id: 1,
+					name: 'Sprint 1 Plan',
+					status: 'DRAFT',
+					milestone: 'v1.0',
+					startDate: null,
+					endDate: null,
+					createdAt: '2025-01-01'
+				}
+			]);
 
 			const result = await client.readResource({ uri: 'test-plans://list' });
 			const parsed = JSON.parse(getResourceText(result.contents[0]));
@@ -1291,7 +1702,15 @@ describe('MCP Server', () => {
 
 	describe('resource: templates://list', () => {
 		it('should return templates as JSON', async () => {
-			mockSelectResult(mockDb, [{ id: 1, name: 'API Test Template', description: 'For REST APIs', priority: 'MEDIUM', createdAt: '2025-01-01' }]);
+			mockSelectResult(mockDb, [
+				{
+					id: 1,
+					name: 'API Test Template',
+					description: 'For REST APIs',
+					priority: 'MEDIUM',
+					createdAt: '2025-01-01'
+				}
+			]);
 
 			const result = await client.readResource({ uri: 'templates://list' });
 			const parsed = JSON.parse(getResourceText(result.contents[0]));
@@ -1302,7 +1721,16 @@ describe('MCP Server', () => {
 
 	describe('resource: requirements://list', () => {
 		it('should return requirements as JSON', async () => {
-			mockSelectResult(mockDb, [{ id: 1, externalId: 'REQ-001', title: 'Login', description: null, source: 'Jira', createdAt: '2025-01-01' }]);
+			mockSelectResult(mockDb, [
+				{
+					id: 1,
+					externalId: 'REQ-001',
+					title: 'Login',
+					description: null,
+					source: 'Jira',
+					createdAt: '2025-01-01'
+				}
+			]);
 
 			const result = await client.readResource({ uri: 'requirements://list' });
 			const parsed = JSON.parse(getResourceText(result.contents[0]));
@@ -1313,7 +1741,16 @@ describe('MCP Server', () => {
 
 	describe('resource: custom-fields://list', () => {
 		it('should return custom fields as JSON', async () => {
-			mockSelectResult(mockDb, [{ id: 1, name: 'Browser', fieldType: 'SELECT', options: ['Chrome', 'Firefox'], required: false, sortOrder: 0 }]);
+			mockSelectResult(mockDb, [
+				{
+					id: 1,
+					name: 'Browser',
+					fieldType: 'SELECT',
+					options: ['Chrome', 'Firefox'],
+					required: false,
+					sortOrder: 0
+				}
+			]);
 
 			const result = await client.readResource({ uri: 'custom-fields://list' });
 			const parsed = JSON.parse(getResourceText(result.contents[0]));
@@ -1324,7 +1761,18 @@ describe('MCP Server', () => {
 
 	describe('resource: exploratory-sessions://list', () => {
 		it('should return sessions as JSON', async () => {
-			mockSelectResult(mockDb, [{ id: 1, title: 'Login exploration', charter: 'Explore login', status: 'ACTIVE', environment: 'QA', tags: ['login'], startedAt: '2025-01-01', completedAt: null }]);
+			mockSelectResult(mockDb, [
+				{
+					id: 1,
+					title: 'Login exploration',
+					charter: 'Explore login',
+					status: 'ACTIVE',
+					environment: 'QA',
+					tags: ['login'],
+					startedAt: '2025-01-01',
+					completedAt: null
+				}
+			]);
 
 			const result = await client.readResource({ uri: 'exploratory-sessions://list' });
 			const parsed = JSON.parse(getResourceText(result.contents[0]));
@@ -1363,7 +1811,10 @@ describe('MCP Server', () => {
 		it('should return error when run not found', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'complete-test-run', arguments: { runId: 999 } });
+			const result = await client.callTool({
+				name: 'complete-test-run',
+				arguments: { runId: 999 }
+			});
 			expect(result.isError).toBe(true);
 		});
 	});
@@ -1383,7 +1834,10 @@ describe('MCP Server', () => {
 		it('should delete by key', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
 
-			const result = await client.callTool({ name: 'delete-test-case', arguments: { key: 'TC-0001' } });
+			const result = await client.callTool({
+				name: 'delete-test-case',
+				arguments: { key: 'TC-0001' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1393,7 +1847,10 @@ describe('MCP Server', () => {
 		it('should return error when not found', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'delete-test-case', arguments: { key: 'TC-9999' } });
+			const result = await client.callTool({
+				name: 'delete-test-case',
+				arguments: { key: 'TC-9999' }
+			});
 			expect(result.isError).toBe(true);
 		});
 	});
@@ -1414,7 +1871,10 @@ describe('MCP Server', () => {
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
 			mockInsertReturning(mockDb, [{ id: 2, projectId: 1, name: 'critical', color: '#ef4444' }]);
 
-			const result = await client.callTool({ name: 'create-tag', arguments: { name: 'critical', color: '#ef4444' } });
+			const result = await client.callTool({
+				name: 'create-tag',
+				arguments: { name: 'critical', color: '#ef4444' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1424,7 +1884,12 @@ describe('MCP Server', () => {
 
 	describe('tool: delete-tag', () => {
 		it('should delete a tag', async () => {
-			mockDb.query.tag.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'smoke', color: '#ff0000' });
+			mockDb.query.tag.findFirst.mockResolvedValue({
+				id: 1,
+				projectId: 1,
+				name: 'smoke',
+				color: '#ff0000'
+			});
 
 			const result = await client.callTool({ name: 'delete-tag', arguments: { tagId: 1 } });
 
@@ -1444,9 +1909,17 @@ describe('MCP Server', () => {
 	describe('tool: add-tag-to-test-case', () => {
 		it('should add tag to test case', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
-			mockDb.query.tag.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'smoke', color: '#ff0000' });
+			mockDb.query.tag.findFirst.mockResolvedValue({
+				id: 1,
+				projectId: 1,
+				name: 'smoke',
+				color: '#ff0000'
+			});
 
-			const result = await client.callTool({ name: 'add-tag-to-test-case', arguments: { testCaseId: 10, tagId: 1 } });
+			const result = await client.callTool({
+				name: 'add-tag-to-test-case',
+				arguments: { testCaseId: 10, tagId: 1 }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1456,7 +1929,10 @@ describe('MCP Server', () => {
 		it('should return error when test case not found', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'add-tag-to-test-case', arguments: { testCaseId: 999, tagId: 1 } });
+			const result = await client.callTool({
+				name: 'add-tag-to-test-case',
+				arguments: { testCaseId: 999, tagId: 1 }
+			});
 			expect(result.isError).toBe(true);
 		});
 
@@ -1464,14 +1940,20 @@ describe('MCP Server', () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
 			mockDb.query.tag.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'add-tag-to-test-case', arguments: { testCaseId: 10, tagId: 999 } });
+			const result = await client.callTool({
+				name: 'add-tag-to-test-case',
+				arguments: { testCaseId: 10, tagId: 999 }
+			});
 			expect(result.isError).toBe(true);
 		});
 	});
 
 	describe('tool: remove-tag-from-test-case', () => {
 		it('should remove tag from test case', async () => {
-			const result = await client.callTool({ name: 'remove-tag-from-test-case', arguments: { testCaseId: 10, tagId: 1 } });
+			const result = await client.callTool({
+				name: 'remove-tag-from-test-case',
+				arguments: { testCaseId: 10, tagId: 1 }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1526,8 +2008,15 @@ describe('MCP Server', () => {
 
 	describe('tool: get-test-suite', () => {
 		it('should return suite with items', async () => {
-			mockDb.query.testSuite.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Smoke Suite', description: 'Quick tests' });
-			mockSelectResult(mockDb, [{ testCaseId: 10, testCaseKey: 'TC-0001', testCaseTitle: 'Login', addedAt: '2025-01-01' }]);
+			mockDb.query.testSuite.findFirst.mockResolvedValue({
+				id: 1,
+				projectId: 1,
+				name: 'Smoke Suite',
+				description: 'Quick tests'
+			});
+			mockSelectResult(mockDb, [
+				{ testCaseId: 10, testCaseKey: 'TC-0001', testCaseTitle: 'Login', addedAt: '2025-01-01' }
+			]);
 
 			const result = await client.callTool({ name: 'get-test-suite', arguments: { suiteId: 1 } });
 
@@ -1550,7 +2039,10 @@ describe('MCP Server', () => {
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
 			mockInsertReturning(mockDb, [{ id: 1, projectId: 1, name: 'Regression', description: null }]);
 
-			const result = await client.callTool({ name: 'create-test-suite', arguments: { name: 'Regression' } });
+			const result = await client.callTool({
+				name: 'create-test-suite',
+				arguments: { name: 'Regression' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1562,7 +2054,10 @@ describe('MCP Server', () => {
 		it('should add items to suite', async () => {
 			mockDb.query.testSuite.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Suite' });
 
-			const result = await client.callTool({ name: 'add-suite-items', arguments: { suiteId: 1, testCaseIds: [10, 11] } });
+			const result = await client.callTool({
+				name: 'add-suite-items',
+				arguments: { suiteId: 1, testCaseIds: [10, 11] }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1573,7 +2068,10 @@ describe('MCP Server', () => {
 		it('should return error when suite not found', async () => {
 			mockDb.query.testSuite.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'add-suite-items', arguments: { suiteId: 999, testCaseIds: [10] } });
+			const result = await client.callTool({
+				name: 'add-suite-items',
+				arguments: { suiteId: 999, testCaseIds: [10] }
+			});
 			expect(result.isError).toBe(true);
 		});
 	});
@@ -1582,7 +2080,10 @@ describe('MCP Server', () => {
 		it('should remove items from suite', async () => {
 			mockDb.query.testSuite.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Suite' });
 
-			const result = await client.callTool({ name: 'remove-suite-items', arguments: { suiteId: 1, testCaseIds: [10] } });
+			const result = await client.callTool({
+				name: 'remove-suite-items',
+				arguments: { suiteId: 1, testCaseIds: [10] }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1592,8 +2093,21 @@ describe('MCP Server', () => {
 
 	describe('tool: get-test-plan', () => {
 		it('should return plan with items', async () => {
-			mockDb.query.testPlan.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Sprint 1', status: 'DRAFT' });
-			mockSelectResult(mockDb, [{ testCaseId: 10, position: 0, testCaseKey: 'TC-0001', testCaseTitle: 'Login', addedAt: '2025-01-01' }]);
+			mockDb.query.testPlan.findFirst.mockResolvedValue({
+				id: 1,
+				projectId: 1,
+				name: 'Sprint 1',
+				status: 'DRAFT'
+			});
+			mockSelectResult(mockDb, [
+				{
+					testCaseId: 10,
+					position: 0,
+					testCaseKey: 'TC-0001',
+					testCaseTitle: 'Login',
+					addedAt: '2025-01-01'
+				}
+			]);
 
 			const result = await client.callTool({ name: 'get-test-plan', arguments: { planId: 1 } });
 
@@ -1614,9 +2128,14 @@ describe('MCP Server', () => {
 	describe('tool: create-test-plan', () => {
 		it('should create a plan', async () => {
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
-			mockInsertReturning(mockDb, [{ id: 1, projectId: 1, name: 'Sprint 1', status: 'DRAFT', milestone: 'v1.0' }]);
+			mockInsertReturning(mockDb, [
+				{ id: 1, projectId: 1, name: 'Sprint 1', status: 'DRAFT', milestone: 'v1.0' }
+			]);
 
-			const result = await client.callTool({ name: 'create-test-plan', arguments: { name: 'Sprint 1', milestone: 'v1.0' } });
+			const result = await client.callTool({
+				name: 'create-test-plan',
+				arguments: { name: 'Sprint 1', milestone: 'v1.0' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1638,7 +2157,10 @@ describe('MCP Server', () => {
 			};
 			mockDb.update.mockReturnValue(updateChain as never);
 
-			const result = await client.callTool({ name: 'update-test-plan', arguments: { planId: 1, status: 'ACTIVE' } });
+			const result = await client.callTool({
+				name: 'update-test-plan',
+				arguments: { planId: 1, status: 'ACTIVE' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1648,7 +2170,10 @@ describe('MCP Server', () => {
 		it('should return error when plan not found', async () => {
 			mockDb.query.testPlan.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'update-test-plan', arguments: { planId: 999, name: 'New' } });
+			const result = await client.callTool({
+				name: 'update-test-plan',
+				arguments: { planId: 999, name: 'New' }
+			});
 			expect(result.isError).toBe(true);
 		});
 	});
@@ -1656,9 +2181,21 @@ describe('MCP Server', () => {
 	describe('tool: add-plan-items', () => {
 		it('should add items to plan', async () => {
 			mockDb.query.testPlan.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Plan' });
-			mockSelectResult(mockDb, [{ value: 2 }]); // max position
+			let selectCallCount = 0;
+			mockDb.select.mockImplementation(() => {
+				selectCallCount++;
+				const data = selectCallCount === 1 ? [{ id: 10 }, { id: 11 }] : [{ maxPos: 2 }];
+				return {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve)
+				} as never;
+			});
 
-			const result = await client.callTool({ name: 'add-plan-items', arguments: { planId: 1, testCaseIds: [10, 11] } });
+			const result = await client.callTool({
+				name: 'add-plan-items',
+				arguments: { planId: 1, testCaseIds: [10, 11] }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1671,7 +2208,10 @@ describe('MCP Server', () => {
 		it('should remove items from plan', async () => {
 			mockDb.query.testPlan.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Plan' });
 
-			const result = await client.callTool({ name: 'remove-plan-items', arguments: { planId: 1, testCaseIds: [10] } });
+			const result = await client.callTool({
+				name: 'remove-plan-items',
+				arguments: { planId: 1, testCaseIds: [10] }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1681,15 +2221,24 @@ describe('MCP Server', () => {
 
 	describe('tool: create-run-from-plan', () => {
 		it('should create a run from plan', async () => {
-			mockDb.query.testPlan.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Sprint 1', status: 'ACTIVE' });
+			mockDb.query.testPlan.findFirst.mockResolvedValue({
+				id: 1,
+				projectId: 1,
+				name: 'Sprint 1',
+				status: 'ACTIVE'
+			});
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
 
 			let selectCallCount = 0;
 			mockDb.select.mockImplementation(() => {
 				selectCallCount++;
-				const data = selectCallCount === 1
-					? [{ testCaseId: 10 }, { testCaseId: 11 }] // plan items
-					: [{ id: 10, latestVersionId: 100 }, { id: 11, latestVersionId: 101 }]; // test cases
+				const data =
+					selectCallCount === 1
+						? [{ testCaseId: 10 }, { testCaseId: 11 }] // plan items
+						: [
+								{ id: 10, latestVersionId: 100 },
+								{ id: 11, latestVersionId: 101 }
+							]; // test cases
 				const chain = {
 					from: vi.fn().mockReturnThis(),
 					where: vi.fn().mockReturnThis(),
@@ -1699,7 +2248,13 @@ describe('MCP Server', () => {
 				return chain as never;
 			});
 
-			const createdRun = { id: 60, projectId: 1, name: 'Sprint 1', environment: 'QA', status: 'CREATED' };
+			const createdRun = {
+				id: 60,
+				projectId: 1,
+				name: 'Sprint 1',
+				environment: 'QA',
+				status: 'CREATED'
+			};
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 				const tx = {
 					insert: vi.fn().mockImplementation(() => ({
@@ -1711,7 +2266,10 @@ describe('MCP Server', () => {
 				return fn(tx);
 			});
 
-			const result = await client.callTool({ name: 'create-run-from-plan', arguments: { planId: 1, environment: 'QA' } });
+			const result = await client.callTool({
+				name: 'create-run-from-plan',
+				arguments: { planId: 1, environment: 'QA' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1721,11 +2279,18 @@ describe('MCP Server', () => {
 		});
 
 		it('should return error when plan has no test cases', async () => {
-			mockDb.query.testPlan.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Empty Plan' });
+			mockDb.query.testPlan.findFirst.mockResolvedValue({
+				id: 1,
+				projectId: 1,
+				name: 'Empty Plan'
+			});
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
 			mockSelectResult(mockDb, []);
 
-			const result = await client.callTool({ name: 'create-run-from-plan', arguments: { planId: 1, environment: 'QA' } });
+			const result = await client.callTool({
+				name: 'create-run-from-plan',
+				arguments: { planId: 1, environment: 'QA' }
+			});
 			expect(result.isError).toBe(true);
 		});
 	});
@@ -1733,8 +2298,13 @@ describe('MCP Server', () => {
 	describe('tool: get-template', () => {
 		it('should return template', async () => {
 			mockDb.query.testCaseTemplate.findFirst.mockResolvedValue({
-				id: 1, projectId: 1, name: 'API Template', description: 'REST API test', priority: 'MEDIUM',
-				precondition: 'Auth required', steps: [{ order: 1, action: 'Send GET', expected: '200 OK' }]
+				id: 1,
+				projectId: 1,
+				name: 'API Template',
+				description: 'REST API test',
+				priority: 'MEDIUM',
+				precondition: 'Auth required',
+				steps: [{ order: 1, action: 'Send GET', expected: '200 OK' }]
 			});
 
 			const result = await client.callTool({ name: 'get-template', arguments: { templateId: 1 } });
@@ -1748,7 +2318,10 @@ describe('MCP Server', () => {
 		it('should return error when template not found', async () => {
 			mockDb.query.testCaseTemplate.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'get-template', arguments: { templateId: 999 } });
+			const result = await client.callTool({
+				name: 'get-template',
+				arguments: { templateId: 999 }
+			});
 			expect(result.isError).toBe(true);
 		});
 	});
@@ -1756,9 +2329,14 @@ describe('MCP Server', () => {
 	describe('tool: create-template', () => {
 		it('should create a template', async () => {
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
-			mockInsertReturning(mockDb, [{ id: 1, projectId: 1, name: 'API Template', priority: 'HIGH', steps: [] }]);
+			mockInsertReturning(mockDb, [
+				{ id: 1, projectId: 1, name: 'API Template', priority: 'HIGH', steps: [] }
+			]);
 
-			const result = await client.callTool({ name: 'create-template', arguments: { name: 'API Template', priority: 'HIGH' } });
+			const result = await client.callTool({
+				name: 'create-template',
+				arguments: { name: 'API Template', priority: 'HIGH' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1769,13 +2347,24 @@ describe('MCP Server', () => {
 	describe('tool: create-test-case-from-template', () => {
 		it('should create test case from template', async () => {
 			mockDb.query.testCaseTemplate.findFirst.mockResolvedValue({
-				id: 1, projectId: 1, name: 'Template', precondition: 'Auth', steps: [{ order: 1, action: 'Click', expected: 'OK' }], priority: 'HIGH'
+				id: 1,
+				projectId: 1,
+				name: 'Template',
+				precondition: 'Auth',
+				steps: [{ order: 1, action: 'Click', expected: 'OK' }],
+				priority: 'HIGH'
 			});
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
 			mockSelectResult(mockDb, [{ maxKey: 'TC-0003' }]);
 
 			const createdTc = { id: 14, projectId: 1, key: 'TC-0004' };
-			const createdVersion = { id: 140, testCaseId: 14, versionNo: 1, title: 'From template', priority: 'HIGH' };
+			const createdVersion = {
+				id: 140,
+				testCaseId: 14,
+				versionNo: 1,
+				title: 'From template',
+				priority: 'HIGH'
+			};
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 				let insertCallCount = 0;
 				const tx = {
@@ -1784,7 +2373,8 @@ describe('MCP Server', () => {
 						return {
 							values: vi.fn().mockReturnThis(),
 							returning: vi.fn().mockReturnThis(),
-							then: (resolve: (v: unknown) => void) => Promise.resolve([insertCallCount === 1 ? createdTc : createdVersion]).then(resolve)
+							then: (resolve: (v: unknown) => void) =>
+								Promise.resolve([insertCallCount === 1 ? createdTc : createdVersion]).then(resolve)
 						};
 					}),
 					update: vi.fn().mockReturnValue({
@@ -1796,7 +2386,10 @@ describe('MCP Server', () => {
 				return fn(tx);
 			});
 
-			const result = await client.callTool({ name: 'create-test-case-from-template', arguments: { templateId: 1, title: 'From template' } });
+			const result = await client.callTool({
+				name: 'create-test-case-from-template',
+				arguments: { templateId: 1, title: 'From template' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1808,9 +2401,14 @@ describe('MCP Server', () => {
 	describe('tool: create-requirement', () => {
 		it('should create a requirement', async () => {
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
-			mockInsertReturning(mockDb, [{ id: 1, projectId: 1, title: 'User login', externalId: 'REQ-001', source: 'Jira' }]);
+			mockInsertReturning(mockDb, [
+				{ id: 1, projectId: 1, title: 'User login', externalId: 'REQ-001', source: 'Jira' }
+			]);
 
-			const result = await client.callTool({ name: 'create-requirement', arguments: { title: 'User login', externalId: 'REQ-001', source: 'Jira' } });
+			const result = await client.callTool({
+				name: 'create-requirement',
+				arguments: { title: 'User login', externalId: 'REQ-001', source: 'Jira' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1824,7 +2422,10 @@ describe('MCP Server', () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue({ id: 1, projectId: 1, title: 'Login' });
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
 
-			const result = await client.callTool({ name: 'link-requirement-test-case', arguments: { requirementId: 1, testCaseId: 10 } });
+			const result = await client.callTool({
+				name: 'link-requirement-test-case',
+				arguments: { requirementId: 1, testCaseId: 10 }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1834,7 +2435,10 @@ describe('MCP Server', () => {
 		it('should return error when requirement not found', async () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'link-requirement-test-case', arguments: { requirementId: 999, testCaseId: 10 } });
+			const result = await client.callTool({
+				name: 'link-requirement-test-case',
+				arguments: { requirementId: 999, testCaseId: 10 }
+			});
 			expect(result.isError).toBe(true);
 		});
 
@@ -1842,7 +2446,10 @@ describe('MCP Server', () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue({ id: 1, projectId: 1, title: 'Login' });
 			mockDb.query.testCase.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'link-requirement-test-case', arguments: { requirementId: 1, testCaseId: 999 } });
+			const result = await client.callTool({
+				name: 'link-requirement-test-case',
+				arguments: { requirementId: 1, testCaseId: 999 }
+			});
 			expect(result.isError).toBe(true);
 		});
 	});
@@ -1852,9 +2459,20 @@ describe('MCP Server', () => {
 			let selectCallCount = 0;
 			mockDb.select.mockImplementation(() => {
 				selectCallCount++;
-				const data = selectCallCount === 1
-					? [{ id: 1, externalId: 'REQ-001', title: 'Login', source: 'Jira' }, { id: 2, externalId: 'REQ-002', title: 'Signup', source: null }]
-					: [{ requirementId: 1, testCaseId: 10, testCaseKey: 'TC-0001', testCaseTitle: 'Login test' }];
+				const data =
+					selectCallCount === 1
+						? [
+								{ id: 1, externalId: 'REQ-001', title: 'Login', source: 'Jira' },
+								{ id: 2, externalId: 'REQ-002', title: 'Signup', source: null }
+							]
+						: [
+								{
+									requirementId: 1,
+									testCaseId: 10,
+									testCaseKey: 'TC-0001',
+									testCaseTitle: 'Login test'
+								}
+							];
 				const chain = {
 					from: vi.fn().mockReturnThis(),
 					where: vi.fn().mockReturnThis(),
@@ -1881,7 +2499,19 @@ describe('MCP Server', () => {
 
 	describe('tool: list-issue-links', () => {
 		it('should list issue links', async () => {
-			mockSelectResult(mockDb, [{ id: 1, testCaseId: 10, testExecutionId: null, externalUrl: 'https://jira.com/PROJ-1', externalKey: 'PROJ-1', title: 'Bug', status: 'OPEN', provider: 'jira', createdAt: '2025-01-01' }]);
+			mockSelectResult(mockDb, [
+				{
+					id: 1,
+					testCaseId: 10,
+					testExecutionId: null,
+					externalUrl: 'https://jira.com/PROJ-1',
+					externalKey: 'PROJ-1',
+					title: 'Bug',
+					status: 'OPEN',
+					provider: 'jira',
+					createdAt: '2025-01-01'
+				}
+			]);
 
 			const result = await client.callTool({ name: 'list-issue-links', arguments: {} });
 
@@ -1895,11 +2525,24 @@ describe('MCP Server', () => {
 	describe('tool: create-issue-link', () => {
 		it('should create an issue link', async () => {
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
-			mockInsertReturning(mockDb, [{ id: 1, projectId: 1, externalUrl: 'https://github.com/org/repo/issues/42', provider: 'github', externalKey: '#42' }]);
+			mockInsertReturning(mockDb, [
+				{
+					id: 1,
+					projectId: 1,
+					externalUrl: 'https://github.com/org/repo/issues/42',
+					provider: 'github',
+					externalKey: '#42'
+				}
+			]);
 
 			const result = await client.callTool({
 				name: 'create-issue-link',
-				arguments: { externalUrl: 'https://github.com/org/repo/issues/42', provider: 'github', externalKey: '#42', testCaseId: 10 }
+				arguments: {
+					externalUrl: 'https://github.com/org/repo/issues/42',
+					provider: 'github',
+					externalKey: '#42',
+					testCaseId: 10
+				}
 			});
 
 			expect(result.isError).toBeFalsy();
@@ -1911,11 +2554,26 @@ describe('MCP Server', () => {
 	describe('tool: create-exploratory-session', () => {
 		it('should create a session', async () => {
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
-			mockInsertReturning(mockDb, [{ id: 1, projectId: 1, title: 'Login exploration', charter: 'Explore login', status: 'ACTIVE', environment: 'QA', tags: ['login'] }]);
+			mockInsertReturning(mockDb, [
+				{
+					id: 1,
+					projectId: 1,
+					title: 'Login exploration',
+					charter: 'Explore login',
+					status: 'ACTIVE',
+					environment: 'QA',
+					tags: ['login']
+				}
+			]);
 
 			const result = await client.callTool({
 				name: 'create-exploratory-session',
-				arguments: { title: 'Login exploration', charter: 'Explore login', environment: 'QA', tags: ['login'] }
+				arguments: {
+					title: 'Login exploration',
+					charter: 'Explore login',
+					environment: 'QA',
+					tags: ['login']
+				}
 			});
 
 			expect(result.isError).toBeFalsy();
@@ -1928,13 +2586,26 @@ describe('MCP Server', () => {
 	describe('tool: get-exploratory-session', () => {
 		it('should return session with notes', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue({
-				id: 1, projectId: 1, title: 'Session 1', status: 'ACTIVE', startedAt: '2025-01-01T10:00:00Z'
+				id: 1,
+				projectId: 1,
+				title: 'Session 1',
+				status: 'ACTIVE',
+				startedAt: '2025-01-01T10:00:00Z'
 			});
 			mockSelectResult(mockDb, [
-				{ id: 1, content: 'Found a bug', noteType: 'BUG', timestamp: 120, createdAt: '2025-01-01T10:02:00Z' }
+				{
+					id: 1,
+					content: 'Found a bug',
+					noteType: 'BUG',
+					timestamp: 120,
+					createdAt: '2025-01-01T10:02:00Z'
+				}
 			]);
 
-			const result = await client.callTool({ name: 'get-exploratory-session', arguments: { sessionId: 1 } });
+			const result = await client.callTool({
+				name: 'get-exploratory-session',
+				arguments: { sessionId: 1 }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -1946,7 +2617,10 @@ describe('MCP Server', () => {
 		it('should return error when session not found', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'get-exploratory-session', arguments: { sessionId: 999 } });
+			const result = await client.callTool({
+				name: 'get-exploratory-session',
+				arguments: { sessionId: 999 }
+			});
 			expect(result.isError).toBe(true);
 		});
 	});
@@ -1977,7 +2651,10 @@ describe('MCP Server', () => {
 		it('should return error when session not found', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'update-exploratory-session', arguments: { sessionId: 999, status: 'PAUSED' } });
+			const result = await client.callTool({
+				name: 'update-exploratory-session',
+				arguments: { sessionId: 999, status: 'PAUSED' }
+			});
 			expect(result.isError).toBe(true);
 		});
 	});
@@ -1985,9 +2662,14 @@ describe('MCP Server', () => {
 	describe('tool: add-session-note', () => {
 		it('should add a note', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue({
-				id: 1, projectId: 1, status: 'ACTIVE', startedAt: new Date('2025-01-01T10:00:00Z')
+				id: 1,
+				projectId: 1,
+				status: 'ACTIVE',
+				startedAt: new Date('2025-01-01T10:00:00Z')
 			});
-			mockInsertReturning(mockDb, [{ id: 1, sessionId: 1, content: 'Found issue', noteType: 'BUG', timestamp: 300 }]);
+			mockInsertReturning(mockDb, [
+				{ id: 1, sessionId: 1, content: 'Found issue', noteType: 'BUG', timestamp: 300 }
+			]);
 
 			const result = await client.callTool({
 				name: 'add-session-note',
@@ -2003,7 +2685,10 @@ describe('MCP Server', () => {
 		it('should return error when session not found', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'add-session-note', arguments: { sessionId: 999, content: 'Note' } });
+			const result = await client.callTool({
+				name: 'add-session-note',
+				arguments: { sessionId: 999, content: 'Note' }
+			});
 			expect(result.isError).toBe(true);
 		});
 	});
@@ -2012,9 +2697,14 @@ describe('MCP Server', () => {
 		it('should add a comment', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
-			mockInsertReturning(mockDb, [{ id: 1, testCaseId: 10, userId: 'user-1', content: 'Needs review' }]);
+			mockInsertReturning(mockDb, [
+				{ id: 1, testCaseId: 10, userId: 'user-1', content: 'Needs review' }
+			]);
 
-			const result = await client.callTool({ name: 'add-test-case-comment', arguments: { testCaseId: 10, content: 'Needs review' } });
+			const result = await client.callTool({
+				name: 'add-test-case-comment',
+				arguments: { testCaseId: 10, content: 'Needs review' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -2024,7 +2714,10 @@ describe('MCP Server', () => {
 		it('should return error when test case not found', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'add-test-case-comment', arguments: { testCaseId: 999, content: 'Comment' } });
+			const result = await client.callTool({
+				name: 'add-test-case-comment',
+				arguments: { testCaseId: 999, content: 'Comment' }
+			});
 			expect(result.isError).toBe(true);
 		});
 	});
@@ -2033,11 +2726,20 @@ describe('MCP Server', () => {
 		it('should list comments', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
 			mockSelectResult(mockDb, [
-				{ id: 1, content: 'First comment', userId: 'user-1', parentId: null, createdAt: '2025-01-01' },
+				{
+					id: 1,
+					content: 'First comment',
+					userId: 'user-1',
+					parentId: null,
+					createdAt: '2025-01-01'
+				},
 				{ id: 2, content: 'Reply', userId: 'user-2', parentId: 1, createdAt: '2025-01-02' }
 			]);
 
-			const result = await client.callTool({ name: 'list-test-case-comments', arguments: { testCaseId: 10 } });
+			const result = await client.callTool({
+				name: 'list-test-case-comments',
+				arguments: { testCaseId: 10 }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -2050,9 +2752,14 @@ describe('MCP Server', () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			mockDb.query.testExecution = { findFirst: vi.fn().mockResolvedValue(sampleExecution) };
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
-			mockInsertReturning(mockDb, [{ id: 1, testExecutionId: 200, userId: 'user-1', content: 'Flaky test' }]);
+			mockInsertReturning(mockDb, [
+				{ id: 1, testExecutionId: 200, userId: 'user-1', content: 'Flaky test' }
+			]);
 
-			const result = await client.callTool({ name: 'add-execution-comment', arguments: { runId: 50, executionId: 200, content: 'Flaky test' } });
+			const result = await client.callTool({
+				name: 'add-execution-comment',
+				arguments: { runId: 50, executionId: 200, content: 'Flaky test' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -2062,7 +2769,10 @@ describe('MCP Server', () => {
 		it('should return error when run not found', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'add-execution-comment', arguments: { runId: 999, executionId: 200, content: 'Comment' } });
+			const result = await client.callTool({
+				name: 'add-execution-comment',
+				arguments: { runId: 999, executionId: 200, content: 'Comment' }
+			});
 			expect(result.isError).toBe(true);
 		});
 
@@ -2070,14 +2780,20 @@ describe('MCP Server', () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			mockDb.query.testExecution = { findFirst: vi.fn().mockResolvedValue(null) };
 
-			const result = await client.callTool({ name: 'add-execution-comment', arguments: { runId: 50, executionId: 999, content: 'Comment' } });
+			const result = await client.callTool({
+				name: 'add-execution-comment',
+				arguments: { runId: 50, executionId: 999, content: 'Comment' }
+			});
 			expect(result.isError).toBe(true);
 		});
 	});
 
 	describe('tool: update-approval-status', () => {
 		it('should update approval status', async () => {
-			mockDb.query.testCase.findFirst.mockResolvedValue({ ...sampleTestCase, approvalStatus: 'DRAFT' });
+			mockDb.query.testCase.findFirst.mockResolvedValue({
+				...sampleTestCase,
+				approvalStatus: 'DRAFT'
+			});
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
 
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
@@ -2096,7 +2812,10 @@ describe('MCP Server', () => {
 				return fn(tx);
 			});
 
-			const result = await client.callTool({ name: 'update-approval-status', arguments: { testCaseId: 10, toStatus: 'IN_REVIEW' } });
+			const result = await client.callTool({
+				name: 'update-approval-status',
+				arguments: { testCaseId: 10, toStatus: 'IN_REVIEW' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
@@ -2108,7 +2827,10 @@ describe('MCP Server', () => {
 		it('should return error when test case not found', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'update-approval-status', arguments: { testCaseId: 999, toStatus: 'APPROVED' } });
+			const result = await client.callTool({
+				name: 'update-approval-status',
+				arguments: { testCaseId: 999, toStatus: 'APPROVED' }
+			});
 			expect(result.isError).toBe(true);
 		});
 	});
@@ -2116,7 +2838,7 @@ describe('MCP Server', () => {
 	// ── Tool listing ─────────────────────────────────────────
 
 	describe('tool and resource listing', () => {
-	it('should register all tools', async () => {
+		it('should register all tools', async () => {
 			const result = await client.listTools();
 			expect(result.tools.length).toBeGreaterThanOrEqual(73);
 			// Spot-check a few key tools exist

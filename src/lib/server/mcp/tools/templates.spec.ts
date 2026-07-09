@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -7,9 +12,36 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
-	testCase: { id: 'id', projectId: 'project_id', key: 'key', latestVersionId: 'latest_version_id', sortOrder: 'sort_order', createdBy: 'created_by' },
-	testCaseVersion: { id: 'id', testCaseId: 'test_case_id', title: 'title', priority: 'priority', versionNo: 'version_no', precondition: 'precondition', steps: 'steps', updatedBy: 'updated_by' },
-	testCaseTemplate: { id: 'id', projectId: 'project_id', name: 'name', description: 'description', precondition: 'precondition', steps: 'steps', priority: 'priority', createdBy: 'created_by', createdAt: 'created_at', updatedAt: 'updated_at' }
+	testCase: {
+		id: 'id',
+		projectId: 'project_id',
+		key: 'key',
+		latestVersionId: 'latest_version_id',
+		sortOrder: 'sort_order',
+		createdBy: 'created_by'
+	},
+	testCaseVersion: {
+		id: 'id',
+		testCaseId: 'test_case_id',
+		title: 'title',
+		priority: 'priority',
+		versionNo: 'version_no',
+		precondition: 'precondition',
+		steps: 'steps',
+		updatedBy: 'updated_by'
+	},
+	testCaseTemplate: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		description: 'description',
+		precondition: 'precondition',
+		steps: 'steps',
+		priority: 'priority',
+		createdBy: 'created_by',
+		createdAt: 'created_at',
+		updatedAt: 'updated_at'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -90,10 +122,15 @@ describe('MCP template tools', () => {
 		it('should return error when not found', async () => {
 			mockDb.query.testCaseTemplate.findFirst.mockResolvedValue(null);
 
-			const result = await client.callTool({ name: 'get-template', arguments: { templateId: 999 } });
+			const result = await client.callTool({
+				name: 'get-template',
+				arguments: { templateId: 999 }
+			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Template not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Template not found'
+			);
 		});
 	});
 
@@ -128,7 +165,9 @@ describe('MCP template tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Project not found'
+			);
 		});
 	});
 
@@ -141,15 +180,21 @@ describe('MCP template tools', () => {
 			mockSelectResult(mockDb, [{ maxKey: 'TC-0005' }]);
 
 			const createdTc = { id: 16, projectId: 1, key: 'TC-0006', createdBy: 'user-1', sortOrder: 6 };
-			const createdVersion = { id: 160, testCaseId: 16, versionNo: 1, title: 'From template', priority: 'HIGH' };
+			const createdVersion = {
+				id: 160,
+				testCaseId: 16,
+				versionNo: 1,
+				title: 'From template',
+				priority: 'HIGH'
+			};
+			const txUpdateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+			};
 
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 				let insertCallCount = 0;
-				const txUpdateChain = {
-					set: vi.fn().mockReturnThis(),
-					where: vi.fn().mockReturnThis(),
-					then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
-				};
 				const tx = {
 					insert: vi.fn().mockImplementation(() => {
 						insertCallCount++;
@@ -157,7 +202,9 @@ describe('MCP template tools', () => {
 							values: vi.fn().mockReturnThis(),
 							returning: vi.fn().mockReturnThis(),
 							then: (resolve: (v: unknown) => void) =>
-								Promise.resolve(insertCallCount === 1 ? [createdTc] : [createdVersion]).then(resolve)
+								Promise.resolve(insertCallCount === 1 ? [createdTc] : [createdVersion]).then(
+									resolve
+								)
 						};
 					}),
 					update: vi.fn().mockReturnValue(txUpdateChain)
@@ -174,6 +221,12 @@ describe('MCP template tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.key).toBe('TC-0006');
 			expect(parsed.latestVersion.title).toBe('From template');
+			expect(txUpdateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', createdTc.id],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when template not found', async () => {
@@ -185,7 +238,9 @@ describe('MCP template tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Template not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Template not found'
+			);
 		});
 
 		it('should return error when project not found', async () => {
@@ -198,7 +253,9 @@ describe('MCP template tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Project not found'
+			);
 		});
 	});
 
@@ -207,7 +264,9 @@ describe('MCP template tools', () => {
 	describe('update-template', () => {
 		it('should update a template', async () => {
 			mockDb.query.testCaseTemplate.findFirst.mockResolvedValue(sampleTemplate);
-			mockUpdateReturning(mockDb, [{ ...sampleTemplate, name: 'Updated Template', priority: 'LOW' }]);
+			const updateChain = mockUpdateReturning(mockDb, [
+				{ ...sampleTemplate, name: 'Updated Template', priority: 'LOW' }
+			]);
 
 			const result = await client.callTool({
 				name: 'update-template',
@@ -218,6 +277,12 @@ describe('MCP template tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('Updated Template');
 			expect(parsed.priority).toBe('LOW');
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when template not found', async () => {
@@ -229,7 +294,9 @@ describe('MCP template tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Template not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Template not found'
+			);
 		});
 	});
 
@@ -249,6 +316,12 @@ describe('MCP template tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.delete).toHaveBeenCalledTimes(1);
+			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when template not found', async () => {
@@ -260,7 +333,9 @@ describe('MCP template tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Template not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Template not found'
+			);
 		});
 	});
 });

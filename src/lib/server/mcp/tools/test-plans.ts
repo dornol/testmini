@@ -1,7 +1,15 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { testCase, testCaseVersion, testRun, testExecution, testPlan, testPlanTestCase, testPlanSignoff } from '$lib/server/db/schema';
+import {
+	testCase,
+	testCaseVersion,
+	testRun,
+	testExecution,
+	testPlan,
+	testPlanTestCase,
+	testPlanSignoff
+} from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
 import { eq, and, sql, inArray } from 'drizzle-orm';
 
@@ -75,7 +83,10 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			planId: z.number().describe('Test plan ID'),
 			name: z.string().optional().describe('Plan name'),
 			description: z.string().optional().describe('Plan description'),
-			status: z.enum(['DRAFT', 'IN_REVIEW', 'APPROVED', 'ACTIVE', 'COMPLETED', 'ARCHIVED']).optional().describe('Plan status'),
+			status: z
+				.enum(['DRAFT', 'IN_REVIEW', 'APPROVED', 'ACTIVE', 'COMPLETED', 'ARCHIVED'])
+				.optional()
+				.describe('Plan status'),
 			milestone: z.string().optional().describe('Milestone name'),
 			startDate: z.string().optional().describe('Start date (ISO string)'),
 			endDate: z.string().optional().describe('End date (ISO string)')
@@ -94,9 +105,14 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			if (startDate !== undefined) updates.startDate = new Date(startDate);
 			if (endDate !== undefined) updates.endDate = new Date(endDate);
 
-			await db.update(testPlan).set(updates).where(eq(testPlan.id, planId));
+			await db
+				.update(testPlan)
+				.set(updates)
+				.where(and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId)));
 
-			const updated = await db.query.testPlan.findFirst({ where: eq(testPlan.id, planId) });
+			const updated = await db.query.testPlan.findFirst({
+				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
+			});
 			return ok(updated);
 		}
 	);
@@ -113,6 +129,16 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
 			});
 			if (!plan) return err('Test plan not found');
+
+			const validTestCases = await db
+				.select({ id: testCase.id })
+				.from(testCase)
+				.where(and(eq(testCase.projectId, projectId), inArray(testCase.id, testCaseIds)));
+			const validIds = new Set(validTestCases.map((tc) => tc.id));
+			const invalidIds = testCaseIds.filter((id) => !validIds.has(id));
+			if (invalidIds.length > 0) {
+				return err(`Test case IDs not found in this project: ${invalidIds.join(', ')}`);
+			}
 
 			const [{ maxPos }] = await db
 				.select({ maxPos: sql<number>`coalesce(max(${testPlanTestCase.position}), -1)` })
@@ -146,7 +172,12 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 
 			await db
 				.delete(testPlanTestCase)
-				.where(and(eq(testPlanTestCase.testPlanId, planId), inArray(testPlanTestCase.testCaseId, testCaseIds)));
+				.where(
+					and(
+						eq(testPlanTestCase.testPlanId, planId),
+						inArray(testPlanTestCase.testCaseId, testCaseIds)
+					)
+				);
 
 			return ok({ success: true, removedCount: testCaseIds.length });
 		}
@@ -183,7 +214,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			const cases = await db
 				.select({ id: testCase.id, latestVersionId: testCase.latestVersionId })
 				.from(testCase)
-				.where(inArray(testCase.id, tcIds));
+				.where(and(eq(testCase.projectId, projectId), inArray(testCase.id, tcIds)));
 
 			const versionMap = new Map(cases.map((c) => [c.id, c.latestVersionId]));
 
@@ -247,30 +278,27 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			if (!plan) return err('Test plan not found');
 
 			await db.delete(testPlanTestCase).where(eq(testPlanTestCase.testPlanId, planId));
-			await db.delete(testPlan).where(eq(testPlan.id, planId));
+			await db
+				.delete(testPlan)
+				.where(and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId)));
 			return ok({ success: true, deletedId: planId });
 		}
 	);
 
-	server.tool(
-		'list-test-plans',
-		'List all test plans for the project',
-		{},
-		async () => {
-			const plans = await db
-				.select({
-					id: testPlan.id,
-					name: testPlan.name,
-					status: testPlan.status,
-					milestone: testPlan.milestone,
-					startDate: testPlan.startDate,
-					endDate: testPlan.endDate,
-					createdAt: testPlan.createdAt
-				})
-				.from(testPlan)
-				.where(eq(testPlan.projectId, projectId));
+	server.tool('list-test-plans', 'List all test plans for the project', {}, async () => {
+		const plans = await db
+			.select({
+				id: testPlan.id,
+				name: testPlan.name,
+				status: testPlan.status,
+				milestone: testPlan.milestone,
+				startDate: testPlan.startDate,
+				endDate: testPlan.endDate,
+				createdAt: testPlan.createdAt
+			})
+			.from(testPlan)
+			.where(eq(testPlan.projectId, projectId));
 
-			return ok(plans);
-		}
-	);
+		return ok(plans);
+	});
 }

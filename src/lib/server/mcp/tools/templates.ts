@@ -79,9 +79,7 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 				.from(testCase)
 				.where(eq(testCase.projectId, projectId));
 
-			const maxNum = maxRow?.maxKey
-				? parseInt(maxRow.maxKey.replace(/^TC-/, ''), 10)
-				: 0;
+			const maxNum = maxRow?.maxKey ? parseInt(maxRow.maxKey.replace(/^TC-/, ''), 10) : 0;
 			const nextKey = `TC-${String(maxNum + 1).padStart(4, '0')}`;
 
 			const result = await db.transaction(async (tx) => {
@@ -111,7 +109,7 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 				await tx
 					.update(testCase)
 					.set({ latestVersionId: version.id })
-					.where(eq(testCase.id, tc.id));
+					.where(and(eq(testCase.id, tc.id), eq(testCase.projectId, projectId)));
 
 				return { ...tc, latestVersion: version };
 			});
@@ -129,7 +127,10 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 			description: z.string().optional().describe('New description'),
 			priority: z.string().optional().describe('New priority'),
 			precondition: z.string().optional().describe('New precondition'),
-			steps: z.array(z.object({ action: z.string(), expected: z.string().optional() })).optional().describe('New steps')
+			steps: z
+				.array(z.object({ action: z.string(), expected: z.string().optional() }))
+				.optional()
+				.describe('New steps')
 		},
 		async ({ templateId, name, description, priority, precondition, steps }) => {
 			const t = await db.query.testCaseTemplate.findFirst({
@@ -144,7 +145,11 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 			if (precondition !== undefined) updates.precondition = precondition;
 			if (steps !== undefined) updates.steps = steps.map((s, i) => ({ order: i + 1, ...s }));
 
-			const [updated] = await db.update(testCaseTemplate).set(updates).where(eq(testCaseTemplate.id, templateId)).returning();
+			const [updated] = await db
+				.update(testCaseTemplate)
+				.set(updates)
+				.where(and(eq(testCaseTemplate.id, templateId), eq(testCaseTemplate.projectId, projectId)))
+				.returning();
 			return ok(updated);
 		}
 	);
@@ -159,7 +164,9 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 			});
 			if (!t) return err('Template not found');
 
-			await db.delete(testCaseTemplate).where(eq(testCaseTemplate.id, templateId));
+			await db
+				.delete(testCaseTemplate)
+				.where(and(eq(testCaseTemplate.id, templateId), eq(testCaseTemplate.projectId, projectId)));
 			return ok({ success: true, deletedId: templateId });
 		}
 	);

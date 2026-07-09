@@ -81,6 +81,32 @@ describe('createTestPlanSchema', () => {
 		});
 		expect(result.success).toBe(false);
 	});
+
+	it('should reject invalid dates', () => {
+		const result = createTestPlanSchema.safeParse({
+			name: 'Plan',
+			startDate: 'not-a-date'
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject endDate before startDate', () => {
+		const result = createTestPlanSchema.safeParse({
+			name: 'Plan',
+			startDate: '2025-02-01',
+			endDate: '2025-01-31'
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('should accept empty date strings', () => {
+		const result = createTestPlanSchema.safeParse({
+			name: 'Plan',
+			startDate: '',
+			endDate: ''
+		});
+		expect(result.success).toBe(true);
+	});
 });
 
 describe('updateTestPlanSchema', () => {
@@ -118,6 +144,19 @@ describe('updateTestPlanSchema', () => {
 
 	it('should reject empty name', () => {
 		const result = updateTestPlanSchema.safeParse({ name: '' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject invalid dates', () => {
+		const result = updateTestPlanSchema.safeParse({ endDate: 'invalid-date' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject endDate before startDate', () => {
+		const result = updateTestPlanSchema.safeParse({
+			startDate: '2025-02-01',
+			endDate: '2025-01-31'
+		});
 		expect(result.success).toBe(false);
 	});
 });

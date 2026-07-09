@@ -180,6 +180,36 @@ describe('MCP test-plan tools', () => {
 				'Project not found'
 			);
 		});
+
+		it('should reject invalid dates before creating a plan', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-test-plan',
+				arguments: { name: 'Plan', startDate: 'not-a-date' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Invalid date'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject endDate before startDate before creating a plan', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-test-plan',
+				arguments: { name: 'Plan', startDate: '2025-02-01', endDate: '2025-01-31' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'endDate must be on or after startDate'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
 	});
 
 	// ── update-test-plan ─────────────────────────────────
@@ -219,6 +249,51 @@ describe('MCP test-plan tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Test plan not found'
 			);
+		});
+
+		it('should reject invalid dates before updating a plan', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue(samplePlan);
+
+			const result = await client.callTool({
+				name: 'update-test-plan',
+				arguments: { planId: 1, endDate: 'invalid-date' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Invalid date'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject endDate before startDate before updating a plan', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue(samplePlan);
+
+			const result = await client.callTool({
+				name: 'update-test-plan',
+				arguments: { planId: 1, startDate: '2025-02-01', endDate: '2025-01-31' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'endDate must be on or after startDate'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject empty updates', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue(samplePlan);
+
+			const result = await client.callTool({
+				name: 'update-test-plan',
+				arguments: { planId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'No fields to update'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 

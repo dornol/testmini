@@ -311,6 +311,36 @@ describe('/api/projects/[projectId]/test-plans/[planId]', () => {
 			expect(data.error).toBe('Invalid input');
 		});
 
+		it('should return 400 for invalid dates before updating', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { startDate: 'not-a-date' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toBe('Invalid input');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when endDate is before startDate', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { startDate: '2025-02-01', endDate: '2025-01-31' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toBe('Invalid input');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 404 when plan not found', async () => {
 			vi.mocked(
 				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testPlan.findFirst

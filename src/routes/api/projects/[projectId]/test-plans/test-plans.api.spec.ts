@@ -262,6 +262,36 @@ describe('/api/projects/[projectId]/test-plans', () => {
 			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
+		it('should reject invalid startDate before creating a plan', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Plan', startDate: 'not-a-date' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Invalid input');
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should reject endDate before startDate before creating a plan', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Plan', startDate: '2025-02-01', endDate: '2025-01-31' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Invalid input');
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should create test plan for PROJECT_ADMIN', async () => {
 			const created = {
 				id: 12,

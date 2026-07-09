@@ -10,15 +10,13 @@ import {
 	testPlanTestCase,
 	testPlanSignoff
 } from '$lib/server/db/schema';
-import {
-	ok,
-	err,
-	requireProjectCreator,
-	buildUpdates,
-	mcpPositiveIdSchema,
-	mcpIdListSchema
-} from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema, mcpIdListSchema } from '../helpers';
 import { eq, and, sql, inArray } from 'drizzle-orm';
+import { createTestPlanSchema, updateTestPlanSchema } from '$lib/schemas/test-plan.schema';
+
+function firstValidationError(error: { issues: Array<{ message: string }> }): string {
+	return error.issues[0]?.message ?? 'Invalid test plan';
+}
 
 export function registerTestPlanTools(server: McpServer, projectId: number) {
 	server.tool(
@@ -66,15 +64,24 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
 
+			const parsed = createTestPlanSchema.safeParse({
+				name: name.trim(),
+				description: description?.trim(),
+				milestone: milestone?.trim(),
+				startDate: startDate?.trim(),
+				endDate: endDate?.trim()
+			});
+			if (!parsed.success) return err(firstValidationError(parsed.error));
+
 			const [created] = await db
 				.insert(testPlan)
 				.values({
 					projectId,
-					name,
-					description: description ?? null,
-					milestone: milestone ?? null,
-					startDate: startDate ? new Date(startDate) : null,
-					endDate: endDate ? new Date(endDate) : null,
+					name: parsed.data.name,
+					description: parsed.data.description || null,
+					milestone: parsed.data.milestone || null,
+					startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null,
+					endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
 					createdBy: creator
 				})
 				.returning();
@@ -104,13 +111,28 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			});
 			if (!plan) return err('Test plan not found');
 
+			const parsed = updateTestPlanSchema.safeParse({
+				name: name?.trim(),
+				description: description?.trim(),
+				status,
+				milestone: milestone?.trim(),
+				startDate: startDate?.trim(),
+				endDate: endDate?.trim()
+			});
+			if (!parsed.success) return err(firstValidationError(parsed.error));
+
 			const updates: Record<string, unknown> = { updatedAt: new Date() };
-			if (name !== undefined) updates.name = name;
-			if (description !== undefined) updates.description = description;
-			if (status !== undefined) updates.status = status;
-			if (milestone !== undefined) updates.milestone = milestone;
-			if (startDate !== undefined) updates.startDate = new Date(startDate);
-			if (endDate !== undefined) updates.endDate = new Date(endDate);
+			if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+			if (parsed.data.description !== undefined)
+				updates.description = parsed.data.description || null;
+			if (parsed.data.status !== undefined) updates.status = parsed.data.status;
+			if (parsed.data.milestone !== undefined) updates.milestone = parsed.data.milestone || null;
+			if (parsed.data.startDate !== undefined)
+				updates.startDate = parsed.data.startDate ? new Date(parsed.data.startDate) : null;
+			if (parsed.data.endDate !== undefined)
+				updates.endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : null;
+
+			if (Object.keys(updates).length === 1) return err('No fields to update');
 
 			await db
 				.update(testPlan)

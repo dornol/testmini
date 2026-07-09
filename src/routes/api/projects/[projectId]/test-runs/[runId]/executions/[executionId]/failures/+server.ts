@@ -10,7 +10,7 @@ import {
 } from '$lib/server/db/schema';
 import { user } from '$lib/server/db/auth.schema';
 import { eq, and } from 'drizzle-orm';
-import { parseJsonBody, parseId } from '$lib/server/auth-utils';
+import { parseJsonObjectBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { createFailureSchema } from '$lib/schemas/failure.schema';
 import { badRequest } from '$lib/server/errors';
@@ -81,7 +81,7 @@ export const POST = withProjectRole(
 			error(404, 'Execution not found');
 		}
 
-		const body = await parseJsonBody(request);
+		const body = await parseJsonObjectBody(request);
 		const parsed = createFailureSchema.safeParse(body);
 		if (!parsed.success) {
 			return badRequest('Invalid failure detail data');

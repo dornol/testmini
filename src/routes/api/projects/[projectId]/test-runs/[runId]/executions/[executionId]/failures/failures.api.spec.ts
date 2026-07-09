@@ -173,6 +173,18 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/f
 			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for non-object JSON before writing', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: ['Error'],
+				user: adminUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should return 401 when unauthenticated', async () => {
 			const event = createMockEvent({
 				method: 'POST',

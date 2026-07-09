@@ -216,6 +216,19 @@ describe('/api/projects/[projectId]/test-plans/[planId]/create-run', () => {
 		expect(data.error).toBe('Invalid input');
 	});
 
+	it('should reject non-object JSON before loading plan items', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: ['not', 'an', 'object'],
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		expect(mockDb.select).not.toHaveBeenCalled();
+		expect(mockDb.transaction).not.toHaveBeenCalled();
+	});
+
 	it('should reject blank name and environment values', async () => {
 		const event = createMockEvent({
 			method: 'POST',

@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testPlan, testPlanSignoff, user, projectMember } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { parseJsonBody, parseId } from '$lib/server/auth-utils';
+import { parseJsonObjectBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { createSignoffSchema } from '$lib/schemas/signoff.schema';
 import { notFound, validationError } from '$lib/server/errors';
@@ -43,7 +43,7 @@ export const POST = withProjectRole(
 		});
 		if (!plan) return notFound('Plan not found');
 
-		const body = await parseJsonBody(request);
+		const body = await parseJsonObjectBody(request);
 		const parsed = createSignoffSchema.safeParse(body);
 		if (!parsed.success) {
 			return validationError('Invalid input', parsed.error.flatten().fieldErrors);

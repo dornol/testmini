@@ -149,6 +149,18 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/risk', () => {
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for non-object JSON before updating', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: { projectId: '1', testCaseId: '10' },
+				body: ['HIGH', 'LOW'],
+				user: testUser
+			});
+
+			await expect(PATCH(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 404 when test case not found', async () => {
 			mockUpdateReturning(mockDb, []);
 

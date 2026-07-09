@@ -283,6 +283,19 @@ describe('/api/projects/[projectId]/test-plans/[planId]/signoffs', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should reject non-object JSON before writing', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: ['not', 'an', 'object'],
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.insert).not.toHaveBeenCalled();
+			expect(mockCreateNotification).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for unknown fields before writing', async () => {
 			const event = createMockEvent({
 				method: 'POST',

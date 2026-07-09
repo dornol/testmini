@@ -9,9 +9,15 @@ vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql 
 vi.mock('$lib/server/db/schema', () => ({
 	projectWebhook: { id: 'id', projectId: 'project_id' },
 	webhookDeliveryLog: {
-		id: 'id', webhookId: 'webhook_id', event: 'event', statusCode: 'status_code',
-		success: 'success', errorMessage: 'error_message', attempt: 'attempt',
-		duration: 'duration', createdAt: 'created_at'
+		id: 'id',
+		webhookId: 'webhook_id',
+		event: 'event',
+		statusCode: 'status_code',
+		success: 'success',
+		errorMessage: 'error_message',
+		attempt: 'attempt',
+		duration: 'duration',
+		createdAt: 'created_at'
 	}
 }));
 vi.mock('drizzle-orm', () => ({
@@ -20,7 +26,8 @@ vi.mock('drizzle-orm', () => ({
 	desc: vi.fn((a: unknown) => ['desc', a])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
@@ -34,12 +41,24 @@ const PARAMS = { projectId: '1', webhookId: '5' };
 
 const sampleLogs = [
 	{
-		id: 1, event: 'TEST_RUN_COMPLETED', statusCode: 200, success: true,
-		errorMessage: null, attempt: 1, duration: 120, createdAt: new Date('2025-03-01')
+		id: 1,
+		event: 'TEST_RUN_COMPLETED',
+		statusCode: 200,
+		success: true,
+		errorMessage: null,
+		attempt: 1,
+		duration: 120,
+		createdAt: new Date('2025-03-01')
 	},
 	{
-		id: 2, event: 'TEST_CASE_CREATED', statusCode: 500, success: false,
-		errorMessage: 'Internal Server Error', attempt: 1, duration: 3000, createdAt: new Date('2025-03-02')
+		id: 2,
+		event: 'TEST_CASE_CREATED',
+		statusCode: 500,
+		success: false,
+		errorMessage: 'Internal Server Error',
+		attempt: 1,
+		duration: 3000,
+		createdAt: new Date('2025-03-02')
 	}
 ];
 
@@ -64,7 +83,8 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]/logs', () => {
 
 		it('should return delivery logs on success', async () => {
 			(mockDb.query.projectWebhook.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
-				id: 5, projectId: 1
+				id: 5,
+				projectId: 1
 			});
 			mockSelectResult(mockDb, sampleLogs);
 
@@ -79,20 +99,61 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]/logs', () => {
 
 		it('should respect limit search param', async () => {
 			(mockDb.query.projectWebhook.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
-				id: 5, projectId: 1
+				id: 5,
+				projectId: 1
 			});
 			mockSelectResult(mockDb, [sampleLogs[0]]);
 
 			const event = createMockEvent({
-				params: PARAMS, user: adminUser, searchParams: { limit: '1' }
+				params: PARAMS,
+				user: adminUser,
+				searchParams: { limit: '1' }
 			});
 			const response = await GET(event);
 			expect(response.status).toBe(200);
 		});
 
+		it('should cap limit search param', async () => {
+			(mockDb.query.projectWebhook.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+				id: 5,
+				projectId: 1
+			});
+			const selectChain = mockSelectResult(mockDb, sampleLogs);
+
+			const event = createMockEvent({
+				params: PARAMS,
+				user: adminUser,
+				searchParams: { limit: '500' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(selectChain.limit).toHaveBeenCalledWith(100);
+		});
+
+		it('should return 400 when limit is not a positive integer', async () => {
+			const cases = ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)];
+
+			for (const limit of cases) {
+				vi.clearAllMocks();
+				vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
+
+				const event = createMockEvent({
+					params: PARAMS,
+					user: adminUser,
+					searchParams: { limit }
+				});
+
+				await expect(GET(event)).rejects.toMatchObject({ status: 400 });
+				expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
+				expect(mockDb.select).not.toHaveBeenCalled();
+			}
+		});
+
 		it('should return empty array when no logs exist', async () => {
 			(mockDb.query.projectWebhook.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
-				id: 5, projectId: 1
+				id: 5,
+				projectId: 1
 			});
 			mockSelectResult(mockDb, []);
 

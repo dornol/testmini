@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -50,6 +54,8 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 		vi.clearAllMocks();
 		mockRequireTestCase.mockResolvedValue({ id: 10, projectId: 1 });
 		mockDb.query.testCaseDataSet = { findFirst: vi.fn() };
+		mockUpdateReturning(mockDb, [{ id: sampleDataSet.id }]);
+		mockDeleteReturning(mockDb, [{ id: sampleDataSet.id }]);
 	});
 
 	describe('PATCH', () => {
@@ -185,12 +191,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 				sampleDataSet
 			);
 
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			const updateChain = mockUpdateReturning(mockDb, [{ id: sampleDataSet.id }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -209,6 +210,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 					['test_case_id', 10]
 				])
 			);
+			expect(updateChain.returning).toHaveBeenCalledWith({ id: 'id' });
 		});
 
 		it('should update values on success', async () => {
@@ -216,12 +218,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 				sampleDataSet
 			);
 
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			mockUpdateReturning(mockDb, [{ id: sampleDataSet.id }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -238,12 +235,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 				sampleDataSet
 			);
 
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			mockUpdateReturning(mockDb, [{ id: sampleDataSet.id }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -260,12 +252,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 				sampleDataSet
 			);
 
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			mockUpdateReturning(mockDb, [{ id: sampleDataSet.id }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -275,6 +262,25 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 			});
 			const response = await PATCH(event);
 			expect(response.status).toBe(200);
+		});
+
+		it('should return 404 when dataset disappears before update', async () => {
+			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+				sampleDataSet
+			);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Set B' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(404);
+			expect(data.error).toContain('Data set not found');
 		});
 
 		it('should return 400 when no fields are provided', async () => {
@@ -312,11 +318,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 				sampleDataSet
 			);
 
-			const deleteChain = {
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: sampleDataSet.id }]);
 
 			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
 			const response = await DELETE(event);
@@ -330,6 +332,21 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 					['test_case_id', 10]
 				])
 			);
+			expect(deleteChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should return 404 when dataset disappears before delete', async () => {
+			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+				sampleDataSet
+			);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
+			const response = await DELETE(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(404);
+			expect(data.error).toContain('Data set not found');
 		});
 	});
 });

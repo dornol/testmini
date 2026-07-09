@@ -230,6 +230,31 @@ describe('/api/projects/[projectId]/exploratory-sessions', () => {
 			expect(response.status).toBe(400);
 			expect(mockDb.select).not.toHaveBeenCalled();
 		});
+
+		it.each([
+			['limit', '01'],
+			['limit', '1e3'],
+			['limit', '+1'],
+			['limit', ' 1'],
+			['offset', '01'],
+			['offset', '1e3'],
+			['offset', '+1'],
+			['offset', '10 ']
+		])(
+			'should return 400 for non-canonical %s value %s before querying sessions',
+			async (key, value) => {
+				const event = createMockEvent({
+					method: 'GET',
+					params: PARAMS,
+					user: testUser,
+					searchParams: { [key]: value }
+				});
+				const response = await GET(event);
+
+				expect(response.status).toBe(400);
+				expect(mockDb.select).not.toHaveBeenCalled();
+			}
+		);
 	});
 
 	describe('POST', () => {

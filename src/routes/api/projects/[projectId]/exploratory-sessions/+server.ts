@@ -6,36 +6,14 @@ import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { validateCreateExploratorySessionPayload } from '$lib/server/exploratory-session-validation';
+import {
+	parseNonNegativeIntegerSearchParam,
+	parsePositiveIntegerSearchParamStrict
+} from '$lib/server/search-param-validation';
 
 const VALID_STATUSES = ['ACTIVE', 'PAUSED', 'COMPLETED'] as const;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
-
-function parseNonNegativeIntegerParam(value: string | null, label: string): number {
-	if (value === null || value === '') return 0;
-
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed < 0) {
-		throw new Error(`Invalid ${label}`);
-	}
-
-	return parsed;
-}
-
-function parsePositiveIntegerParam(
-	value: string | null,
-	label: string,
-	defaultValue: number
-): number {
-	if (value === null || value === '') return defaultValue;
-
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-		throw new Error(`Invalid ${label}`);
-	}
-
-	return parsed;
-}
 
 function parseStatus(value: string | null): (typeof VALID_STATUSES)[number] | null {
 	if (value === null || value === '') return null;
@@ -52,11 +30,11 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 
 	try {
 		status = parseStatus(url.searchParams.get('status'));
-		limit = Math.min(
-			parsePositiveIntegerParam(url.searchParams.get('limit'), 'limit', DEFAULT_LIMIT),
-			MAX_LIMIT
-		);
-		offset = parseNonNegativeIntegerParam(url.searchParams.get('offset'), 'offset');
+		limit = parsePositiveIntegerSearchParamStrict(url.searchParams.get('limit'), 'limit', {
+			defaultValue: DEFAULT_LIMIT,
+			max: MAX_LIMIT
+		});
+		offset = parseNonNegativeIntegerSearchParam(url.searchParams.get('offset'), 'offset');
 	} catch (err) {
 		return badRequest(err instanceof Error ? err.message : 'Invalid session query');
 	}

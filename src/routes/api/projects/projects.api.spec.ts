@@ -180,6 +180,29 @@ describe('/api/projects', () => {
 			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 
+		it.each([
+			['page', '01'],
+			['page', '1e3'],
+			['page', '+1'],
+			['page', ' 1'],
+			['limit', '01'],
+			['limit', '1e3'],
+			['limit', '12 ']
+		])(
+			'should return 400 for non-canonical %s value %s before querying projects',
+			async (key, value) => {
+				const event = createMockEvent({
+					method: 'GET',
+					user: adminUser,
+					searchParams: { [key]: value }
+				});
+				const response = await GET(event);
+
+				expect(response.status).toBe(400);
+				expect(mockDb.select).not.toHaveBeenCalled();
+			}
+		);
+
 		it('should return 400 for overlong search before querying projects', async () => {
 			const event = createMockEvent({
 				method: 'GET',

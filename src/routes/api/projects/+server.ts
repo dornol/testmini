@@ -7,37 +7,25 @@ import { badRequest, validationError } from '$lib/server/errors';
 import { and, eq, ilike, count, inArray, sql } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
 import { withAuth } from '$lib/server/api-handler';
+import { parsePositiveIntegerSearchParamStrict } from '$lib/server/search-param-validation';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 50;
 const MAX_SEARCH_LENGTH = 100;
 
-function parsePositiveIntegerParam(
-	value: string | null,
-	label: string,
-	defaultValue: number
-): number {
-	if (value === null || value === '') return defaultValue;
-
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-		throw new Error(`Invalid ${label}`);
-	}
-
-	return parsed;
-}
-
 export const GET = withAuth(async ({ user, url }) => {
 	let page: number;
 	let limit: number;
 
 	try {
-		page = parsePositiveIntegerParam(url.searchParams.get('page'), 'page', DEFAULT_PAGE);
-		limit = Math.min(
-			parsePositiveIntegerParam(url.searchParams.get('limit'), 'limit', DEFAULT_LIMIT),
-			MAX_LIMIT
-		);
+		page = parsePositiveIntegerSearchParamStrict(url.searchParams.get('page'), 'page', {
+			defaultValue: DEFAULT_PAGE
+		});
+		limit = parsePositiveIntegerSearchParamStrict(url.searchParams.get('limit'), 'limit', {
+			defaultValue: DEFAULT_LIMIT,
+			max: MAX_LIMIT
+		});
 	} catch (err) {
 		return badRequest(err instanceof Error ? err.message : 'Invalid pagination parameters');
 	}

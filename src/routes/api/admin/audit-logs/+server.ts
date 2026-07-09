@@ -5,26 +5,14 @@ import { db } from '$lib/server/db';
 import { auditLog, user } from '$lib/server/db/schema';
 import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
 import { and, eq, gte, lte, count, desc } from 'drizzle-orm';
+import {
+	parseOptionalPositiveIntegerSearchParam,
+	parsePositiveIntegerSearchParamStrict
+} from '$lib/server/search-param-validation';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
-
-function parsePositiveIntegerParam(
-	value: string | null,
-	label: string,
-	defaultValue?: number,
-	max?: number
-): number | null {
-	if (value === null || value === '') return defaultValue ?? null;
-
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-		throw new Error(`Invalid ${label}`);
-	}
-
-	return max ? Math.min(parsed, max) : parsed;
-}
 
 function parseDateParam(value: string | null, label: string): Date | null {
 	if (value === null || value === '') return null;
@@ -51,12 +39,17 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	let toDate: Date | null;
 
 	try {
-		page =
-			parsePositiveIntegerParam(url.searchParams.get('page'), 'page', DEFAULT_PAGE) ?? DEFAULT_PAGE;
-		limit =
-			parsePositiveIntegerParam(url.searchParams.get('limit'), 'limit', DEFAULT_LIMIT, MAX_LIMIT) ??
-			DEFAULT_LIMIT;
-		filterProjectId = parsePositiveIntegerParam(url.searchParams.get('projectId'), 'projectId');
+		page = parsePositiveIntegerSearchParamStrict(url.searchParams.get('page'), 'page', {
+			defaultValue: DEFAULT_PAGE
+		});
+		limit = parsePositiveIntegerSearchParamStrict(url.searchParams.get('limit'), 'limit', {
+			defaultValue: DEFAULT_LIMIT,
+			max: MAX_LIMIT
+		});
+		filterProjectId = parseOptionalPositiveIntegerSearchParam(
+			url.searchParams.get('projectId'),
+			'projectId'
+		);
 		fromDate = parseDateParam(url.searchParams.get('from'), 'from');
 		toDate = parseDateParam(url.searchParams.get('to'), 'to');
 

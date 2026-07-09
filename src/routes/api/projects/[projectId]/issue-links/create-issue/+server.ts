@@ -8,26 +8,116 @@ import { createExternalIssue } from '$lib/server/issue-tracker';
 import { env } from '$env/dynamic/private';
 import { parseJsonBody } from '$lib/server/auth-utils';
 
+const MAX_TITLE_LENGTH = 500;
+const MAX_DESCRIPTION_LENGTH = 10000;
+const MAX_EXTERNAL_URL_LENGTH = 2000;
+const MAX_EXTERNAL_KEY_LENGTH = 128;
+
+type CreateIssuePayload = {
+	testCaseId?: number;
+	testExecutionId?: number;
+	title: string;
+	description: string;
+};
+
+function parsePositiveInteger(value: unknown, label: string): number | undefined | Response {
+	if (value === undefined || value === null || value === '') return undefined;
+	const parsed = typeof value === 'number' ? value : Number(value);
+	if (!Number.isInteger(parsed) || parsed <= 0) {
+		return badRequest(`${label} must be a positive integer`);
+	}
+	return parsed;
+}
+
+function validateRequestBody(body: unknown): Record<string, unknown> | Response {
+	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+		return badRequest('Invalid request body');
+	}
+	return body as Record<string, unknown>;
+}
+
+function requireTrimmedString(value: unknown, label: string, maxLength: number): string | Response {
+	if (typeof value !== 'string') {
+		return badRequest(`${label} is required`);
+	}
+	const trimmed = value.trim();
+	if (!trimmed) {
+		return badRequest(`${label} is required`);
+	}
+	if (trimmed.length > maxLength) {
+		return badRequest(`${label} must be ${maxLength} characters or less`);
+	}
+	return trimmed;
+}
+
+function optionalTrimmedString(
+	value: unknown,
+	label: string,
+	maxLength: number
+): string | Response {
+	if (value === undefined || value === null) return '';
+	if (typeof value !== 'string') {
+		return badRequest(`${label} must be a string`);
+	}
+	const trimmed = value.trim();
+	if (trimmed.length > maxLength) {
+		return badRequest(`${label} must be ${maxLength} characters or less`);
+	}
+	return trimmed;
+}
+
+function validateExternalUrl(value: unknown): string | Response {
+	const externalUrl = requireTrimmedString(value, 'External URL', MAX_EXTERNAL_URL_LENGTH);
+	if (externalUrl instanceof Response) return externalUrl;
+
+	try {
+		const parsed = new URL(externalUrl);
+		if (!['http:', 'https:'].includes(parsed.protocol)) {
+			return badRequest('External issue URL must use http or https');
+		}
+		if (parsed.username || parsed.password) {
+			return badRequest('External issue URL must not include credentials');
+		}
+	} catch {
+		return badRequest('Invalid external issue URL');
+	}
+
+	return externalUrl;
+}
+
+function validatePayload(body: Record<string, unknown>): CreateIssuePayload | Response {
+	const testCaseId = parsePositiveInteger(body.testCaseId, 'testCaseId');
+	if (testCaseId instanceof Response) return testCaseId;
+
+	const testExecutionId = parsePositiveInteger(body.testExecutionId, 'testExecutionId');
+	if (testExecutionId instanceof Response) return testExecutionId;
+
+	if (!testCaseId && !testExecutionId) {
+		return badRequest('Either testCaseId or testExecutionId is required');
+	}
+
+	const title = requireTrimmedString(body.title, 'Title', MAX_TITLE_LENGTH);
+	if (title instanceof Response) return title;
+
+	const description = optionalTrimmedString(
+		body.description,
+		'Description',
+		MAX_DESCRIPTION_LENGTH
+	);
+	if (description instanceof Response) return description;
+
+	return { testCaseId, testExecutionId, title, description };
+}
+
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ request, user, projectId }) => {
-		const body = await parseJsonBody(request) as {
-			testCaseId?: number;
-			testExecutionId?: number;
-			title?: string;
-			description?: string;
-		};
+		const bodyOrError = validateRequestBody(await parseJsonBody(request));
+		if (bodyOrError instanceof Response) return bodyOrError;
 
-		const title = (body.title ?? '').trim();
-		if (!title) {
-			return badRequest('Title is required');
-		}
-
-		const description = (body.description ?? '').trim();
-
-		if (!body.testCaseId && !body.testExecutionId) {
-			return badRequest('Either testCaseId or testExecutionId is required');
-		}
+		const payloadOrError = validatePayload(bodyOrError);
+		if (payloadOrError instanceof Response) return payloadOrError;
+		const body = payloadOrError;
 
 		const config = await db.query.issueTrackerConfig.findFirst({
 			where: eq(issueTrackerConfig.projectId, projectId)
@@ -61,8 +151,8 @@ export const POST = withProjectRole(
 					projectKey: config.projectKey,
 					customTemplate: config.customTemplate as Record<string, unknown> | null
 				},
-				title,
-				description,
+				body.title,
+				body.description,
 				backlink || undefined
 			);
 		} catch (err) {
@@ -70,15 +160,24 @@ export const POST = withProjectRole(
 			return badRequest(message);
 		}
 
+		const externalUrl = validateExternalUrl(result.url);
+		if (externalUrl instanceof Response) return externalUrl;
+
+		const externalKey = optionalTrimmedString(result.key, 'External key', MAX_EXTERNAL_KEY_LENGTH);
+		if (externalKey instanceof Response) return externalKey;
+
+		const externalTitle = optionalTrimmedString(result.title, 'Title', MAX_TITLE_LENGTH);
+		if (externalTitle instanceof Response) return externalTitle;
+
 		const [created] = await db
 			.insert(issueLink)
 			.values({
 				projectId,
 				testCaseId: body.testCaseId ?? null,
 				testExecutionId: body.testExecutionId ?? null,
-				externalUrl: result.url,
-				externalKey: result.key,
-				title: result.title,
+				externalUrl,
+				externalKey: externalKey || null,
+				title: externalTitle || body.title,
 				provider: config.provider,
 				createdBy: user.id
 			})

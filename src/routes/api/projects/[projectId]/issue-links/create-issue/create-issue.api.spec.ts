@@ -30,9 +30,8 @@ vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -110,6 +109,48 @@ describe('/api/projects/[projectId]/issue-links/create-issue', () => {
 		const response = await POST(event);
 		expect(response.status).toBe(400);
 		expect((await response.json()).error).toContain('testCaseId or testExecutionId');
+	});
+
+	it('should reject non-object request body', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser,
+			body: null
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('Invalid request body');
+	});
+
+	it('should reject invalid testCaseId', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser,
+			body: { testCaseId: 0, title: 'Bug title', description: 'desc' }
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('testCaseId must be a positive integer');
+	});
+
+	it('should reject non-string description', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser,
+			body: { testCaseId: 10, title: 'Bug title', description: { text: 'desc' } }
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('Description must be a string');
 	});
 
 	it('should return 404 when issue tracker not configured', async () => {
@@ -218,6 +259,28 @@ describe('/api/projects/[projectId]/issue-links/create-issue', () => {
 		expect((await response.json()).error).toContain('Jira returned 401');
 	});
 
+	it('should reject malformed external issue URLs returned by provider', async () => {
+		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+		mockCreateExternalIssue.mockResolvedValue({
+			url: 'javascript:alert(1)',
+			key: 'KEY-1',
+			title: 'Bug'
+		});
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser,
+			body: { testCaseId: 10, title: 'Bug', description: 'desc' }
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('External issue URL must use http or https');
+		expect(mockDb.insert).not.toHaveBeenCalled();
+	});
+
 	it('should handle non-Error exceptions from external issue creation', async () => {
 		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
 		mockCreateExternalIssue.mockRejectedValue('string error');
@@ -241,9 +304,7 @@ describe('/api/projects/[projectId]/issue-links/create-issue', () => {
 			key: 'KEY-1',
 			title: 'Exec bug'
 		});
-		mockInsertReturning(mockDb, [
-			{ ...sampleCreatedLink, testCaseId: null, testExecutionId: 200 }
-		]);
+		mockInsertReturning(mockDb, [{ ...sampleCreatedLink, testCaseId: null, testExecutionId: 200 }]);
 
 		const event = createMockEvent({
 			method: 'POST',

@@ -70,18 +70,33 @@ export const PATCH = withProjectRole(
 	async ({ request, params, projectId }) => {
 		const planId = parseId(params.planId, 'plan ID');
 
+		const body = await parseJsonObjectBody(request);
+		const parsed = updateTestPlanSchema.safeParse(body);
+		if (!parsed.success) {
+			return validationError('Invalid input', parsed.error.flatten().fieldErrors);
+		}
+
+		const updates: Record<string, unknown> = {};
+		if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+		if (parsed.data.description !== undefined) updates.description = parsed.data.description;
+		if (parsed.data.status !== undefined) updates.status = parsed.data.status;
+		if (parsed.data.milestone !== undefined) updates.milestone = parsed.data.milestone;
+		if (parsed.data.startDate !== undefined)
+			updates.startDate = parsed.data.startDate ? new Date(parsed.data.startDate) : null;
+		if (parsed.data.endDate !== undefined)
+			updates.endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : null;
+		if (parsed.data.releaseId !== undefined) updates.releaseId = parsed.data.releaseId;
+
+		if (Object.keys(updates).length === 0) {
+			return badRequest('No fields to update');
+		}
+
 		const plan = await db.query.testPlan.findFirst({
 			where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
 		});
 
 		if (!plan) {
 			error(404, 'Plan not found');
-		}
-
-		const body = await parseJsonObjectBody(request);
-		const parsed = updateTestPlanSchema.safeParse(body);
-		if (!parsed.success) {
-			return validationError('Invalid input', parsed.error.flatten().fieldErrors);
 		}
 
 		const releaseError = await validateOptionalReleaseId(parsed.data.releaseId, projectId);
@@ -106,21 +121,6 @@ export const PATCH = withProjectRole(
 					return badRequest('Sign-off approval is required before completing this plan');
 				}
 			}
-		}
-
-		const updates: Record<string, unknown> = {};
-		if (parsed.data.name !== undefined) updates.name = parsed.data.name;
-		if (parsed.data.description !== undefined) updates.description = parsed.data.description;
-		if (parsed.data.status !== undefined) updates.status = parsed.data.status;
-		if (parsed.data.milestone !== undefined) updates.milestone = parsed.data.milestone;
-		if (parsed.data.startDate !== undefined)
-			updates.startDate = parsed.data.startDate ? new Date(parsed.data.startDate) : null;
-		if (parsed.data.endDate !== undefined)
-			updates.endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : null;
-		if (parsed.data.releaseId !== undefined) updates.releaseId = parsed.data.releaseId;
-
-		if (Object.keys(updates).length === 0) {
-			return badRequest('No fields to update');
 		}
 
 		const [updated] = await db

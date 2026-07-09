@@ -276,6 +276,10 @@ describe('/api/projects/[projectId]/test-plans/[planId]', () => {
 			expect(response.status).toBe(400);
 			const data = await response.json();
 			expect(data.error).toBe('No fields to update');
+			expect(
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testPlan.findFirst
+			).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for invalid status', async () => {
@@ -290,6 +294,10 @@ describe('/api/projects/[projectId]/test-plans/[planId]', () => {
 			expect(response.status).toBe(400);
 			const data = await response.json();
 			expect(data.error).toBe('Invalid input');
+			expect(
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testPlan.findFirst
+			).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for invalid dates before updating', async () => {
@@ -304,6 +312,9 @@ describe('/api/projects/[projectId]/test-plans/[planId]', () => {
 			expect(response.status).toBe(400);
 			const data = await response.json();
 			expect(data.error).toBe('Invalid input');
+			expect(
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testPlan.findFirst
+			).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -317,6 +328,9 @@ describe('/api/projects/[projectId]/test-plans/[planId]', () => {
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+			expect(
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testPlan.findFirst
+			).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -332,6 +346,9 @@ describe('/api/projects/[projectId]/test-plans/[planId]', () => {
 			expect(response.status).toBe(400);
 			const data = await response.json();
 			expect(data.error).toBe('Invalid input');
+			expect(
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testPlan.findFirst
+			).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 

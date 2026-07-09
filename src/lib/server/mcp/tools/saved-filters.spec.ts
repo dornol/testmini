@@ -73,6 +73,7 @@ describe('MCP saved-filter tools', () => {
 	let close: () => Promise<void>;
 
 	beforeEach(async () => {
+		vi.clearAllMocks();
 		const c = await createClient();
 		client = c.client;
 		close = c.close;
@@ -135,17 +136,73 @@ describe('MCP saved-filter tools', () => {
 
 		it('should create a saved filter', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockInsertReturning(mockDb, [sampleSavedFilter]);
+			mockDb.query.savedFilter.findFirst.mockResolvedValue(null);
+			const insertChain = mockInsertReturning(mockDb, [sampleSavedFilter]);
 
 			const result = await client.callTool({
 				name: 'create-saved-filter',
-				arguments: { name: 'High Priority', filters: { priority: 'HIGH' } }
+				arguments: { name: ' High Priority ', filters: { priority: 'HIGH' } }
 			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('High Priority');
 			expect(parsed.filterType).toBe('test_cases');
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: 'High Priority',
+					filterType: 'test_cases',
+					filters: { priority: 'HIGH' }
+				})
+			);
+		});
+
+		it('should reject blank names before insert', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-saved-filter',
+				arguments: { name: '   ', filters: { priority: 'HIGH' } }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Name is required'
+			);
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject oversized filter payloads before insert', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-saved-filter',
+				arguments: { name: 'Huge Filter', filters: { value: 'x'.repeat(20_001) } }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Filters must be 20000 characters or less'
+			);
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject duplicate filter names before insert', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleSavedFilter);
+
+			const result = await client.callTool({
+				name: 'create-saved-filter',
+				arguments: { name: 'High Priority', filters: { priority: 'HIGH' } }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'already exists'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 	});
 
@@ -185,6 +242,20 @@ describe('MCP saved-filter tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Saved filter not found'
 			);
+		});
+
+		it('should reject invalid IDs before deleting', async () => {
+			const result = await client.callTool({
+				name: 'delete-saved-filter',
+				arguments: { filterId: -1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 	});
 });

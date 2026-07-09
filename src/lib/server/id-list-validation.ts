@@ -11,7 +11,7 @@ export function validateRequestBody(body: unknown): Record<string, unknown> | Re
 
 export function validatePositiveInteger(value: unknown, label: string): number | Response {
 	const parsed = typeof value === 'number' ? value : Number(value);
-	if (!Number.isInteger(parsed) || parsed <= 0) {
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
 		return badRequest(`${label} must be a positive integer`);
 	}
 	return parsed;

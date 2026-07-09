@@ -6,7 +6,12 @@ import {
 	updateMemberRoleSchema,
 	type AddMemberInput
 } from '$lib/schemas/member.schema';
-import { emptyForm, validateForm, parsePositiveFormId } from '$lib/server/form-utils';
+import {
+	emptyForm,
+	parseOptionalFormString,
+	parsePositiveFormId,
+	validateForm
+} from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { projectMember, user } from '$lib/server/db/schema';
 import { eq, and, count } from 'drizzle-orm';
@@ -98,7 +103,7 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const memberId = parsePositiveFormId(formData.get('memberId'));
-		const role = formData.get('role') as string;
+		const role = parseOptionalFormString(formData.get('role'));
 
 		const parsed = updateMemberRoleSchema.safeParse({ memberId, role });
 		if (!parsed.success) {

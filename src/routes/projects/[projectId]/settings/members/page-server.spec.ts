@@ -40,7 +40,7 @@ vi.mock('$lib/server/cache', () => ({ cacheDelete: vi.fn() }));
 
 const { actions } = await import('./+page.server');
 
-function makeForm(values: Record<string, string>): FormData {
+function makeForm(values: Record<string, FormDataEntryValue>): FormData {
 	const formData = new FormData();
 	for (const [key, value] of Object.entries(values)) {
 		formData.set(key, value);
@@ -117,6 +117,21 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 				params: { projectId: '1' },
 				user: testUser,
 				formData: makeForm({ memberId: '7', role: 'OWNER' })
+			});
+
+			const result = await actions.updateRole(event);
+
+			expect(result).toMatchObject({ status: 400 });
+			expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('returns 400 for non-text role before querying member records', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				user: testUser,
+				formData: makeForm({ memberId: '7', role: new File(['QA'], 'role.txt') })
 			});
 
 			const result = await actions.updateRole(event);

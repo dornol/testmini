@@ -341,6 +341,18 @@ describe('/api/projects/[projectId]/issue-tracker', () => {
 
 			const body = await response.json();
 			expect(body.baseUrl).toBe('https://new.atlassian.net');
+			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
+			expect(mockDb.query.issueTrackerConfig.findFirst).toHaveBeenLastCalledWith({
+				where: expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			});
 		});
 
 		it('should accept all valid providers', async () => {

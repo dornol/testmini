@@ -30,7 +30,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -60,26 +61,40 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/detail', () => {
 	});
 
 	it('should return 404 when issue link not found', async () => {
-		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(null);
+		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(
+			null
+		);
 		const event = createMockEvent({ params: PARAMS, user: testUser });
 		const response = await GET(event);
 		expect(response.status).toBe(404);
 	});
 
 	it('should return 400 for CUSTOM provider', async () => {
-		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue({
-			id: 20, projectId: 1, externalUrl: 'https://example.com/issue', provider: 'CUSTOM'
-		});
+		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(
+			{
+				id: 20,
+				projectId: 1,
+				externalUrl: 'https://example.com/issue',
+				provider: 'CUSTOM'
+			}
+		);
 		const event = createMockEvent({ params: PARAMS, user: testUser });
 		const response = await GET(event);
 		expect(response.status).toBe(400);
 	});
 
 	it('should return 404 when issue tracker not configured', async () => {
-		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue({
-			id: 20, projectId: 1, externalUrl: 'https://jira.example.com/PROJ-1', provider: 'JIRA'
-		});
-		(mockDb.query.issueTrackerConfig as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(null);
+		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(
+			{
+				id: 20,
+				projectId: 1,
+				externalUrl: 'https://jira.example.com/PROJ-1',
+				provider: 'JIRA'
+			}
+		);
+		(
+			mockDb.query.issueTrackerConfig as { findFirst: ReturnType<typeof vi.fn> }
+		).findFirst.mockResolvedValue(null);
 
 		const event = createMockEvent({ params: PARAMS, user: testUser });
 		const response = await GET(event);
@@ -87,12 +102,23 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/detail', () => {
 	});
 
 	it('should return 400 when fetchIssueDetail returns null', async () => {
-		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue({
-			id: 20, projectId: 1, externalUrl: 'https://jira.example.com/PROJ-1', provider: 'JIRA'
-		});
-		(mockDb.query.issueTrackerConfig as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue({
-			projectId: 1, provider: 'JIRA', baseUrl: 'https://jira.example.com',
-			apiToken: 'token', projectKey: 'PROJ', customTemplate: null
+		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(
+			{
+				id: 20,
+				projectId: 1,
+				externalUrl: 'https://jira.example.com/PROJ-1',
+				provider: 'JIRA'
+			}
+		);
+		(
+			mockDb.query.issueTrackerConfig as { findFirst: ReturnType<typeof vi.fn> }
+		).findFirst.mockResolvedValue({
+			projectId: 1,
+			provider: 'JIRA',
+			baseUrl: 'https://jira.example.com',
+			apiToken: 'token',
+			projectKey: 'PROJ',
+			customTemplate: null
 		});
 		mockFetchIssueDetail.mockResolvedValue(null);
 
@@ -102,12 +128,23 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/detail', () => {
 	});
 
 	it('should return issue detail and update local status on success', async () => {
-		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue({
-			id: 20, projectId: 1, externalUrl: 'https://jira.example.com/PROJ-1', provider: 'JIRA'
-		});
-		(mockDb.query.issueTrackerConfig as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue({
-			projectId: 1, provider: 'JIRA', baseUrl: 'https://jira.example.com',
-			apiToken: 'token', projectKey: 'PROJ', customTemplate: null
+		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(
+			{
+				id: 20,
+				projectId: 1,
+				externalUrl: 'https://jira.example.com/PROJ-1',
+				provider: 'JIRA'
+			}
+		);
+		(
+			mockDb.query.issueTrackerConfig as { findFirst: ReturnType<typeof vi.fn> }
+		).findFirst.mockResolvedValue({
+			projectId: 1,
+			provider: 'JIRA',
+			baseUrl: 'https://jira.example.com',
+			apiToken: 'token',
+			projectKey: 'PROJ',
+			customTemplate: null
 		});
 		const detail = {
 			key: 'PROJ-1',
@@ -132,5 +169,11 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/detail', () => {
 		expect(body.key).toBe('PROJ-1');
 		expect(body.state).toBe('open');
 		expect(mockFetchIssueDetail).toHaveBeenCalledOnce();
+		expect(updateChain.where).toHaveBeenCalledWith(
+			expect.arrayContaining([
+				['id', 20],
+				['project_id', 1]
+			])
+		);
 	});
 });

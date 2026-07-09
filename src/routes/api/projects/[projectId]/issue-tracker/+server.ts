@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import { badRequest } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { issueTrackerConfig } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { withProjectRole, withProjectAccess } from '$lib/server/api-handler';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { childLogger } from '$lib/server/logger';
@@ -209,10 +209,18 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 			updates.webhookSecret = body.webhookSecret;
 		}
 
-		await db.update(issueTrackerConfig).set(updates).where(eq(issueTrackerConfig.id, existing.id));
+		await db
+			.update(issueTrackerConfig)
+			.set(updates)
+			.where(
+				and(eq(issueTrackerConfig.id, existing.id), eq(issueTrackerConfig.projectId, projectId))
+			);
 
 		const updated = await db.query.issueTrackerConfig.findFirst({
-			where: eq(issueTrackerConfig.id, existing.id)
+			where: and(
+				eq(issueTrackerConfig.id, existing.id),
+				eq(issueTrackerConfig.projectId, projectId)
+			)
 		});
 
 		return json({

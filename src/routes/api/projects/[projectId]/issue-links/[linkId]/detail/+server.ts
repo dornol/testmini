@@ -43,7 +43,7 @@ export const GET = withProjectAccess(async ({ projectId, params }) => {
 	await db
 		.update(issueLink)
 		.set({ status: detail.state, statusSyncedAt: new Date() })
-		.where(eq(issueLink.id, linkId));
+		.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)));
 
 	return json(detail);
 });

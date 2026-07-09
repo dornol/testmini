@@ -160,6 +160,19 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/f
 			expect(body.error).toMatch(/invalid/i);
 		});
 
+		it('should return 400 for unknown fields before writing', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { errorMessage: 'Error', attachmentUrl: 'https://example.com/screenshot.png' },
+				user: adminUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should return 401 when unauthenticated', async () => {
 			const event = createMockEvent({
 				method: 'POST',

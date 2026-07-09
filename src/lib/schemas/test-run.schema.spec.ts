@@ -122,6 +122,16 @@ describe('createTestRunSchema', () => {
 		});
 		expect(result.success).toBe(false);
 	});
+
+	it('should reject unknown fields', () => {
+		const result = createTestRunSchema.safeParse({
+			name: 'Run',
+			environment: 'QA',
+			testCaseIds: [1],
+			priority: 'high'
+		});
+		expect(result.success).toBe(false);
+	});
 });
 
 describe('updateExecutionSchema', () => {
@@ -138,6 +148,11 @@ describe('updateExecutionSchema', () => {
 	it('should accept optional comment', () => {
 		const result = updateExecutionSchema.safeParse({ status: 'FAIL', comment: 'Bug found' });
 		expect(result.success).toBe(true);
+	});
+
+	it('should reject unknown fields', () => {
+		const result = updateExecutionSchema.safeParse({ status: 'PASS', duration: 100 });
+		expect(result.success).toBe(false);
 	});
 });
 
@@ -174,5 +189,10 @@ describe('updateTestRunSchema', () => {
 			expect(result.data.name).toBe('New name');
 			expect(result.data.environment).toBe('QA');
 		}
+	});
+
+	it('should reject unknown fields', () => {
+		const result = updateTestRunSchema.safeParse({ name: 'New name', status: 'IN_PROGRESS' });
+		expect(result.success).toBe(false);
 	});
 });

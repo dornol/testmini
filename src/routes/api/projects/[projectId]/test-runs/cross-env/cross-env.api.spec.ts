@@ -164,6 +164,25 @@ describe('/api/projects/[projectId]/test-runs/cross-env', () => {
 		expect(mockDb.select).not.toHaveBeenCalled();
 	});
 
+	it('should return 400 for unknown fields before selecting test cases', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: { projectId: '1' },
+			body: {
+				name: 'Regression',
+				testCaseIds: [1],
+				environments: ['QA', 'STAGE'],
+				priority: 'high'
+			},
+			user: testUser
+		});
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect(mockDb.select).not.toHaveBeenCalled();
+		expect(mockDb.transaction).not.toHaveBeenCalled();
+	});
+
 	it('should return 400 when no valid test cases found', async () => {
 		mockSelectResult(mockDb, []);
 

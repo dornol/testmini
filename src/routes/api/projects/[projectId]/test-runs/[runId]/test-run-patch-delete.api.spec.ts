@@ -156,6 +156,21 @@ describe('/api/projects/[projectId]/test-runs/[runId] — PATCH & DELETE', () =>
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 for unknown fields before updating', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Updated', status: 'IN_PROGRESS' },
+				user: adminUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should reject releaseId outside the project before updating', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			mockDb.query.release.findFirst.mockResolvedValue(null);

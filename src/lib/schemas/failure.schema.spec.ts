@@ -70,4 +70,12 @@ describe('createFailureSchema', () => {
 		});
 		expect(result.success).toBe(true);
 	});
+
+	it('should reject unknown fields', () => {
+		const result = createFailureSchema.safeParse({
+			errorMessage: 'Failure',
+			attachmentUrl: 'https://example.com/screenshot.png'
+		});
+		expect(result.success).toBe(false);
+	});
 });

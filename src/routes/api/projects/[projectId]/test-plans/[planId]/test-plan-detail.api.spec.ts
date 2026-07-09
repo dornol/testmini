@@ -326,6 +326,19 @@ describe('/api/projects/[projectId]/test-plans/[planId]', () => {
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for unknown fields before updating', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'New Name', ownerId: 'user-1' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when endDate is before startDate', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',

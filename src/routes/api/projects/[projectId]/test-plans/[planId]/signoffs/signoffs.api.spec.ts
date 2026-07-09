@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser } from '$lib/server/test-helpers/fixtures';
 
@@ -25,7 +29,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -97,7 +102,9 @@ describe('/api/projects/[projectId]/test-plans/[planId]/signoffs', () => {
 		});
 
 		it('should return 404 when plan not found', async () => {
-			(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testPlan.findFirst.mockResolvedValue(null);
+			(
+				mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>
+			).testPlan.findFirst.mockResolvedValue(null);
 
 			const event = createMockEvent({ method: 'GET', params: PARAMS, user: testUser });
 			const response = await GET(event);
@@ -132,11 +139,14 @@ describe('/api/projects/[projectId]/test-plans/[planId]/signoffs', () => {
 			};
 			mockInsertReturning(mockDb, [created]);
 			// Mock admins query for notifications
-			mockDb.select.mockImplementation(() => ({
-				from: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
-			}) as never);
+			mockDb.select.mockImplementation(
+				() =>
+					({
+						from: vi.fn().mockReturnThis(),
+						where: vi.fn().mockReturnThis(),
+						then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+					}) as never
+			);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -162,11 +172,14 @@ describe('/api/projects/[projectId]/test-plans/[planId]/signoffs', () => {
 				createdAt: new Date()
 			};
 			mockInsertReturning(mockDb, [created]);
-			mockDb.select.mockImplementation(() => ({
-				from: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
-			}) as never);
+			mockDb.select.mockImplementation(
+				() =>
+					({
+						from: vi.fn().mockReturnThis(),
+						where: vi.fn().mockReturnThis(),
+						then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+					}) as never
+			);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -191,11 +204,14 @@ describe('/api/projects/[projectId]/test-plans/[planId]/signoffs', () => {
 				createdAt: new Date()
 			};
 			mockInsertReturning(mockDb, [created]);
-			mockDb.select.mockImplementation(() => ({
-				from: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
-			}) as never);
+			mockDb.select.mockImplementation(
+				() =>
+					({
+						from: vi.fn().mockReturnThis(),
+						where: vi.fn().mockReturnThis(),
+						then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+					}) as never
+			);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -218,11 +234,14 @@ describe('/api/projects/[projectId]/test-plans/[planId]/signoffs', () => {
 				createdAt: new Date()
 			};
 			mockInsertReturning(mockDb, [created]);
-			mockDb.select.mockImplementation(() => ({
-				from: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
-			}) as never);
+			mockDb.select.mockImplementation(
+				() =>
+					({
+						from: vi.fn().mockReturnThis(),
+						where: vi.fn().mockReturnThis(),
+						then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+					}) as never
+			);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -264,8 +283,24 @@ describe('/api/projects/[projectId]/test-plans/[planId]/signoffs', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 for unknown fields before writing', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { decision: 'APPROVED', reviewerRole: 'lead' },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+			expect(mockCreateNotification).not.toHaveBeenCalled();
+		});
+
 		it('should return 404 when plan not found', async () => {
-			(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testPlan.findFirst.mockResolvedValue(null);
+			(
+				mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>
+			).testPlan.findFirst.mockResolvedValue(null);
 
 			const event = createMockEvent({
 				method: 'POST',

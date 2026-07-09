@@ -107,6 +107,14 @@ describe('createTestPlanSchema', () => {
 		});
 		expect(result.success).toBe(true);
 	});
+
+	it('should reject unknown fields', () => {
+		const result = createTestPlanSchema.safeParse({
+			name: 'Plan',
+			ownerId: 'user-1'
+		});
+		expect(result.success).toBe(false);
+	});
 });
 
 describe('updateTestPlanSchema', () => {
@@ -156,6 +164,14 @@ describe('updateTestPlanSchema', () => {
 		const result = updateTestPlanSchema.safeParse({
 			startDate: '2025-02-01',
 			endDate: '2025-01-31'
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject unknown fields', () => {
+		const result = updateTestPlanSchema.safeParse({
+			name: 'Updated Plan',
+			ownerId: 'user-1'
 		});
 		expect(result.success).toBe(false);
 	});

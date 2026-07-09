@@ -107,4 +107,14 @@ describe('cross-env-run.schema', () => {
 		});
 		expect(result.success).toBe(false);
 	});
+
+	it('rejects unknown fields', () => {
+		const result = createCrossEnvRunSchema.safeParse({
+			name: 'Regression',
+			testCaseIds: [1],
+			environments: ['QA', 'STAGE'],
+			priority: 'high'
+		});
+		expect(result.success).toBe(false);
+	});
 });

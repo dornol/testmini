@@ -277,6 +277,22 @@ describe('/api/projects/[projectId]/test-plans', () => {
 			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
+		it('should reject unknown fields before creating a plan', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Plan', ownerId: 'user-1' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Invalid input');
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should reject endDate before startDate before creating a plan', async () => {
 			const event = createMockEvent({
 				method: 'POST',

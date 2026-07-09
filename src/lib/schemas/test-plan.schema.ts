@@ -39,6 +39,7 @@ export const createTestPlanSchema = z
 		releaseId: z.number().int().positive().nullable().optional(),
 		testCaseIds: testCaseIdsSchema.default([])
 	})
+	.strict()
 	.refine(hasValidDateRange, {
 		message: 'endDate must be on or after startDate',
 		path: ['endDate']
@@ -56,6 +57,7 @@ export const updateTestPlanSchema = z
 		endDate: testPlanDateSchema.nullable().optional(),
 		releaseId: z.number().int().positive().nullable().optional()
 	})
+	.strict()
 	.refine(hasValidDateRange, {
 		message: 'endDate must be on or after startDate',
 		path: ['endDate']

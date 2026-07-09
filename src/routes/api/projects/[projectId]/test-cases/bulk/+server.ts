@@ -40,6 +40,9 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 	if (validIds.length === 0) {
 		return badRequest('No valid test cases found');
 	}
+	if (validIds.length !== testCaseIds.length) {
+		return badRequest('Some test cases do not belong to this project');
+	}
 
 	if (action === 'moveToGroup' && groupId !== null && groupId !== undefined) {
 		const groupRecord = await db.query.testCaseGroup.findFirst({

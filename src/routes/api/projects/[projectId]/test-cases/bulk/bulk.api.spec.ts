@@ -284,6 +284,25 @@ describe('/api/projects/[projectId]/test-cases/bulk', () => {
 			});
 		});
 
+		it('should reject when only some requested test cases belong to the project', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValue({ role: 'QA' });
+			mockSelectResult(mockDb, [{ id: 10 }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'clone', testCaseIds: [10, 99] },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Some test cases do not belong to this project');
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should scope bulk deletes to the current project', async () => {
 			mockDb.query.projectMember.findFirst.mockResolvedValue({ role: 'PROJECT_ADMIN' });
 			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);

@@ -196,6 +196,20 @@ describe('MCP release tools', () => {
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
+		it('should reject invalid IDs before updating', async () => {
+			const result = await client.callTool({
+				name: 'update-release',
+				arguments: { releaseId: -1, status: 'READY' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.query.release.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should clear release date when update receives an empty string', async () => {
 			mockDb.query.release.findFirst.mockResolvedValue(sampleRelease);
 			const updatedRelease = { ...sampleRelease, releaseDate: null };
@@ -265,6 +279,20 @@ describe('MCP release tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Release not found'
 			);
+		});
+
+		it('should reject invalid IDs before deleting', async () => {
+			const result = await client.callTool({
+				name: 'delete-release',
+				arguments: { releaseId: -1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.query.release.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 	});
 });

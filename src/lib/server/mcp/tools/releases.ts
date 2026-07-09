@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { release } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator } from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 import { createReleaseSchema, updateReleaseSchema } from '$lib/schemas/release.schema';
 
@@ -78,7 +78,7 @@ export function registerReleaseTools(server: McpServer, projectId: number) {
 		'update-release',
 		'Update an existing release',
 		{
-			releaseId: z.number().describe('Release ID'),
+			releaseId: mcpPositiveIdSchema.describe('Release ID'),
 			name: z.string().optional().describe('Release name'),
 			version: z.string().max(100).optional().describe('Version string'),
 			description: z.string().max(2000).optional().describe('Release description'),
@@ -131,7 +131,7 @@ export function registerReleaseTools(server: McpServer, projectId: number) {
 	server.tool(
 		'delete-release',
 		'Delete a release by ID',
-		{ releaseId: z.number().describe('Release ID') },
+		{ releaseId: mcpPositiveIdSchema.describe('Release ID') },
 		async ({ releaseId }) => {
 			const r = await db.query.release.findFirst({
 				where: and(eq(release.id, releaseId), eq(release.projectId, projectId))

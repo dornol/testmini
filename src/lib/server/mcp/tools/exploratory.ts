@@ -2,8 +2,41 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { exploratorySession, sessionNote } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
 import { eq, and, desc } from 'drizzle-orm';
+import {
+	validateCreateExploratorySessionPayload,
+	validateUpdateExploratorySessionPayload
+} from '$lib/server/exploratory-session-validation';
+
+const MAX_NOTE_CONTENT_LENGTH = 10_000;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 50;
+const mcpLimitSchema = z
+	.number()
+	.int()
+	.positive()
+	.max(MAX_LIMIT)
+	.refine(Number.isSafeInteger, 'limit must be a safe integer');
+const mcpTimestampSchema = z
+	.number()
+	.int()
+	.nonnegative()
+	.refine(Number.isSafeInteger, 'timestamp must be a safe integer');
+
+async function validationResponseToMcpError(response: Response, fallback: string) {
+	const body = (await response.json().catch(() => null)) as { error?: string } | null;
+	return err(body?.error ?? fallback);
+}
+
+function validateNoteContent(value: string): string | ReturnType<typeof err> {
+	const content = value.trim();
+	if (!content) return err('Content is required');
+	if (content.length > MAX_NOTE_CONTENT_LENGTH) {
+		return err(`Content must be ${MAX_NOTE_CONTENT_LENGTH} characters or fewer`);
+	}
+	return content;
+}
 
 export function registerExploratoryTools(server: McpServer, projectId: number) {
 	server.tool(
@@ -19,14 +52,24 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
 
+			const payload = validateCreateExploratorySessionPayload({
+				title,
+				charter,
+				environment,
+				tags: sessionTags
+			});
+			if (payload instanceof Response) {
+				return validationResponseToMcpError(payload, 'Invalid exploratory session');
+			}
+
 			const [created] = await db
 				.insert(exploratorySession)
 				.values({
 					projectId,
-					title,
-					charter: charter ?? null,
-					environment: environment ?? null,
-					tags: sessionTags ?? [],
+					title: payload.title,
+					charter: payload.charter,
+					environment: payload.environment,
+					tags: payload.tags,
 					createdBy: creator
 				})
 				.returning();
@@ -39,7 +82,7 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 		'get-exploratory-session',
 		'Get an exploratory session with its notes',
 		{
-			sessionId: z.number().describe('Session ID')
+			sessionId: mcpPositiveIdSchema.describe('Session ID')
 		},
 		async ({ sessionId }) => {
 			const session = await db.query.exploratorySession.findFirst({
@@ -64,7 +107,7 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 		'update-exploratory-session',
 		'Update an exploratory session status or summary',
 		{
-			sessionId: z.number().describe('Session ID'),
+			sessionId: mcpPositiveIdSchema.describe('Session ID'),
 			status: z.enum(['ACTIVE', 'PAUSED', 'COMPLETED']).optional().describe('New status'),
 			summary: z.string().optional().describe('Session summary')
 		},
@@ -79,8 +122,15 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 
 			const updates: Record<string, unknown> = {};
 			if (status !== undefined) updates.status = status;
-			if (summary !== undefined) updates.summary = summary;
+			if (summary !== undefined) {
+				const payload = validateUpdateExploratorySessionPayload({ summary });
+				if (payload instanceof Response) {
+					return validationResponseToMcpError(payload, 'Invalid exploratory session update');
+				}
+				updates.summary = payload.summary;
+			}
 			if (status === 'COMPLETED') updates.completedAt = new Date();
+			if (Object.keys(updates).length === 0) return err('No fields to update');
 
 			await db
 				.update(exploratorySession)
@@ -104,13 +154,13 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 		'add-session-note',
 		'Add a note to an exploratory session',
 		{
-			sessionId: z.number().describe('Session ID'),
+			sessionId: mcpPositiveIdSchema.describe('Session ID'),
 			content: z.string().describe('Note content'),
 			noteType: z
 				.enum(['NOTE', 'BUG', 'QUESTION', 'IDEA'])
 				.optional()
 				.describe('Note type (default: NOTE)'),
-			timestamp: z.number().optional().describe('Elapsed seconds since session start')
+			timestamp: mcpTimestampSchema.optional().describe('Elapsed seconds since session start')
 		},
 		async ({ sessionId, content: noteContent, noteType, timestamp: ts }) => {
 			const session = await db.query.exploratorySession.findFirst({
@@ -121,13 +171,16 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 			});
 			if (!session) return err('Session not found');
 
+			const content = validateNoteContent(noteContent);
+			if (typeof content !== 'string') return content;
+
 			const elapsed = ts ?? Math.floor((Date.now() - new Date(session.startedAt).getTime()) / 1000);
 
 			const [created] = await db
 				.insert(sessionNote)
 				.values({
 					sessionId,
-					content: noteContent,
+					content,
 					noteType: noteType ?? 'NOTE',
 					timestamp: elapsed
 				})
@@ -142,7 +195,7 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 		'List exploratory testing sessions',
 		{
 			status: z.enum(['ACTIVE', 'PAUSED', 'COMPLETED']).optional().describe('Filter by status'),
-			limit: z.number().optional().describe('Max results (default 20)')
+			limit: mcpLimitSchema.optional().describe('Max results (default 20, max 50)')
 		},
 		async ({ status, limit }) => {
 			const conditions = [eq(exploratorySession.projectId, projectId)];
@@ -161,7 +214,7 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 				.from(exploratorySession)
 				.where(and(...conditions))
 				.orderBy(desc(exploratorySession.startedAt))
-				.limit(limit ?? 20);
+				.limit(limit ?? DEFAULT_LIMIT);
 
 			return ok(sessions);
 		}
@@ -170,7 +223,7 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 	server.tool(
 		'delete-exploratory-session',
 		'Delete an exploratory session and its notes',
-		{ sessionId: z.number().describe('Session ID') },
+		{ sessionId: mcpPositiveIdSchema.describe('Session ID') },
 		async ({ sessionId }) => {
 			const s = await db.query.exploratorySession.findFirst({
 				where: and(

@@ -97,6 +97,7 @@ describe('MCP exploratory tools', () => {
 	let close: () => Promise<void>;
 
 	beforeEach(async () => {
+		vi.clearAllMocks();
 		const c = await createClient();
 		client = c.client;
 		close = c.close;
@@ -111,15 +112,15 @@ describe('MCP exploratory tools', () => {
 	describe('create-exploratory-session', () => {
 		it('should create a session', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockInsertReturning(mockDb, [sampleSession]);
+			const insertChain = mockInsertReturning(mockDb, [sampleSession]);
 
 			const result = await client.callTool({
 				name: 'create-exploratory-session',
 				arguments: {
-					title: 'Explore login flow',
-					charter: 'Test edge cases in login',
-					environment: 'Chrome',
-					tags: ['login', 'edge-cases']
+					title: '  Explore login flow  ',
+					charter: '  Test edge cases in login  ',
+					environment: '  Chrome  ',
+					tags: [' login ', 'edge-cases']
 				}
 			});
 
@@ -127,6 +128,44 @@ describe('MCP exploratory tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.title).toBe('Explore login flow');
 			expect(parsed.status).toBe('ACTIVE');
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({
+					title: 'Explore login flow',
+					charter: 'Test edge cases in login',
+					environment: 'Chrome',
+					tags: ['login', 'edge-cases']
+				})
+			);
+		});
+
+		it('should reject blank session titles before insert', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-exploratory-session',
+				arguments: { title: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Title is required'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject invalid tags before insert', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-exploratory-session',
+				arguments: { title: 'Explore login flow', tags: ['valid', '   '] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'tags[1] cannot be empty'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 	});
 
@@ -162,6 +201,19 @@ describe('MCP exploratory tools', () => {
 				'Session not found'
 			);
 		});
+
+		it('should reject invalid IDs before fetching', async () => {
+			const result = await client.callTool({
+				name: 'get-exploratory-session',
+				arguments: { sessionId: -1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.query.exploratorySession.findFirst).not.toHaveBeenCalled();
+		});
 	});
 
 	// ── update-exploratory-session ───────────────────────
@@ -188,6 +240,35 @@ describe('MCP exploratory tools', () => {
 				])
 			);
 		});
+
+		it('should reject empty updates before writing', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+			const result = await client.callTool({
+				name: 'update-exploratory-session',
+				arguments: { sessionId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'No fields to update'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject invalid IDs before updating', async () => {
+			const result = await client.callTool({
+				name: 'update-exploratory-session',
+				arguments: { sessionId: -1, status: 'COMPLETED' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.query.exploratorySession.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
 	});
 
 	// ── add-session-note ────────────────────────────────
@@ -195,17 +276,48 @@ describe('MCP exploratory tools', () => {
 	describe('add-session-note', () => {
 		it('should add a note to session', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
-			mockInsertReturning(mockDb, [sampleNote]);
+			const insertChain = mockInsertReturning(mockDb, [sampleNote]);
 
 			const result = await client.callTool({
 				name: 'add-session-note',
-				arguments: { sessionId: 1, content: 'Found a weird behavior', noteType: 'NOTE' }
+				arguments: { sessionId: 1, content: '  Found a weird behavior  ', noteType: 'NOTE' }
 			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.content).toBe('Found a weird behavior');
 			expect(parsed.noteType).toBe('NOTE');
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({ content: 'Found a weird behavior' })
+			);
+		});
+
+		it('should reject blank note content before insert', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+			const result = await client.callTool({
+				name: 'add-session-note',
+				arguments: { sessionId: 1, content: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Content is required'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject invalid timestamps before lookup', async () => {
+			const result = await client.callTool({
+				name: 'add-session-note',
+				arguments: { sessionId: 1, content: 'Note', timestamp: -1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.query.exploratorySession.findFirst).not.toHaveBeenCalled();
 		});
 	});
 
@@ -234,6 +346,19 @@ describe('MCP exploratory tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed).toHaveLength(1);
 			expect(parsed[0].title).toBe('Explore login flow');
+		});
+
+		it('should reject invalid limits before querying', async () => {
+			const result = await client.callTool({
+				name: 'list-exploratory-sessions',
+				arguments: { limit: 0 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 	});
 
@@ -273,6 +398,20 @@ describe('MCP exploratory tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Session not found'
 			);
+		});
+
+		it('should reject invalid IDs before deleting', async () => {
+			const result = await client.callTool({
+				name: 'delete-exploratory-session',
+				arguments: { sessionId: -1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.query.exploratorySession.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 	});
 });

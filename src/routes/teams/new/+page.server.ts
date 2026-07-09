@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { redirect, fail } from '@sveltejs/kit';
+import { error, redirect, fail } from '@sveltejs/kit';
 import { createTeamSchema, type CreateTeamInput } from '$lib/schemas/team.schema';
 import { emptyForm, validateForm } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
@@ -36,13 +36,24 @@ export const actions: Actions = {
 					description: description || null,
 					createdBy: locals.user!.id
 				})
-				.returning();
+				.returning({ id: team.id });
 
-			await tx.insert(teamMember).values({
-				teamId: created.id,
-				userId: locals.user!.id,
-				role: 'OWNER'
-			});
+			if (!created) {
+				error(500, 'Failed to create team');
+			}
+
+			const [member] = await tx
+				.insert(teamMember)
+				.values({
+					teamId: created.id,
+					userId: locals.user!.id,
+					role: 'OWNER'
+				})
+				.returning({ teamId: teamMember.teamId });
+
+			if (!member) {
+				error(500, 'Failed to create team owner membership');
+			}
 
 			return created;
 		});

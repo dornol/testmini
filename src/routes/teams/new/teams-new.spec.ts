@@ -7,8 +7,20 @@ const mockDb = createMockDb();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
-	team: { id: 'id', name: 'name', description: 'description', createdBy: 'created_by', createdAt: 'created_at' },
-	teamMember: { id: 'id', teamId: 'team_id', userId: 'user_id', role: 'role', joinedAt: 'joined_at' }
+	team: {
+		id: 'id',
+		name: 'name',
+		description: 'description',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
+	teamMember: {
+		id: 'id',
+		teamId: 'team_id',
+		userId: 'user_id',
+		role: 'role',
+		joinedAt: 'joined_at'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
@@ -52,7 +64,7 @@ describe('/teams/new', () => {
 
 		it('should return form for authenticated user', async () => {
 			const event = createMockEvent({ user: testUser });
-			const result = await load(event) as Record<string, any>;
+			const result = (await load(event)) as Record<string, any>;
 			expect(result).toHaveProperty('form');
 			expect(result.form).toHaveProperty('valid');
 		});
@@ -61,19 +73,25 @@ describe('/teams/new', () => {
 	describe('actions.default', () => {
 		function setupTransaction(createdTeam = { ...sampleTeam }) {
 			const insertedValues: unknown[] = [];
+			let lastValues: unknown;
 
 			mockDb.transaction.mockImplementation(async (fn) => {
 				const txInsertChain = {
 					values: vi.fn().mockImplementation(function (this: typeof txInsertChain, vals: unknown) {
+						lastValues = vals;
 						insertedValues.push(vals);
 						return txInsertChain;
 					}),
-					returning: vi.fn().mockResolvedValue([createdTeam]),
+					returning: vi.fn().mockImplementation(() => {
+						if ((lastValues as { role?: unknown })?.role === 'OWNER') {
+							return Promise.resolve([{ teamId: createdTeam.id }]);
+						}
+						return Promise.resolve([createdTeam]);
+					}),
 					_lastTable: undefined as unknown,
 					then: undefined as unknown
 				};
-				txInsertChain.then = (r: (v: unknown) => void) =>
-					Promise.resolve([createdTeam]).then(r);
+				txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([createdTeam]).then(r);
 
 				const tx = {
 					insert: vi.fn().mockImplementation((table: unknown) => {
@@ -181,10 +199,18 @@ describe('/teams/new', () => {
 				user: testUser
 			});
 
-			try { await actions.default(event); } catch { /* redirect */ }
+			try {
+				await actions.default(event);
+			} catch {
+				/* redirect */
+			}
 
 			// First insert: team data
-			const teamValues = insertedValues[0] as { name: string; description: string | null; createdBy: string };
+			const teamValues = insertedValues[0] as {
+				name: string;
+				description: string | null;
+				createdBy: string;
+			};
 			expect(teamValues.name).toBe('Test Team');
 			expect(teamValues.description).toBe('desc');
 			expect(teamValues.createdBy).toBe(testUser.id);
@@ -208,12 +234,67 @@ describe('/teams/new', () => {
 				user: testUser
 			});
 
-			try { await actions.default(event); } catch { /* redirect */ }
+			try {
+				await actions.default(event);
+			} catch {
+				/* redirect */
+			}
 
-			const teamValues = insertedValues[0] as { name: string; description: string | null; createdBy: string };
+			const teamValues = insertedValues[0] as {
+				name: string;
+				description: string | null;
+				createdBy: string;
+			};
 			expect(teamValues.name).toBe('No Desc Team');
 			expect(teamValues.description).toBeNull();
 			expect(teamValues.createdBy).toBe(testUser.id);
+		});
+
+		it('should return 500 when team insert creates no row', async () => {
+			mockDb.transaction.mockImplementation(async (fn) => {
+				const txInsertChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockResolvedValue([])
+				};
+				const tx = {
+					insert: vi.fn().mockReturnValue(txInsertChain)
+				};
+				return fn(tx);
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createFormData({ name: 'Team' }),
+				user: testUser
+			});
+
+			await expect(actions.default(event)).rejects.toMatchObject({ status: 500 });
+		});
+
+		it('should return 500 when owner membership insert creates no row', async () => {
+			const createdTeam = { ...sampleTeam, id: 99 };
+			let insertCount = 0;
+			mockDb.transaction.mockImplementation(async (fn) => {
+				const txInsertChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockImplementation(() => {
+						insertCount++;
+						return Promise.resolve(insertCount === 1 ? [createdTeam] : []);
+					})
+				};
+				const tx = {
+					insert: vi.fn().mockReturnValue(txInsertChain)
+				};
+				return fn(tx);
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createFormData({ name: 'Team' }),
+				user: testUser
+			});
+
+			await expect(actions.default(event)).rejects.toMatchObject({ status: 500 });
 		});
 
 		it('should accept a name exactly 100 characters long', async () => {

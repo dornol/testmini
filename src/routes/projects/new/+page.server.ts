@@ -4,6 +4,9 @@ import { createProjectSchema, type CreateProjectInput } from '$lib/schemas/proje
 import { emptyForm, validateForm } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { project, projectMember, priorityConfig, environmentConfig } from '$lib/server/db/schema';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+
+const MAX_PROJECT_CREATE_FORM_BODY_SIZE = 16 * 1024;
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
@@ -19,6 +22,11 @@ export const actions: Actions = {
 		if (!locals.user) {
 			redirect(302, '/auth/login');
 		}
+		assertContentLengthUnderLimit(
+			request,
+			MAX_PROJECT_CREATE_FORM_BODY_SIZE,
+			'Project create form body is too large'
+		);
 
 		const form = await validateForm(createProjectSchema, request);
 

@@ -35,6 +35,8 @@ vi.mock('drizzle-orm', () => ({
 
 const { load, actions } = await import('./+page.server');
 
+const MAX_TEAM_CREATE_FORM_BODY_SIZE = 16 * 1024;
+
 function createFormData(data: Record<string, string>): FormData {
 	const fd = new FormData();
 	for (const [key, value] of Object.entries(data)) {
@@ -112,6 +114,36 @@ describe('/teams/new', () => {
 				user: null
 			});
 			await expect(actions.default(event)).rejects.toThrow();
+		});
+
+		it('rejects oversized form bodies before creating team records', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				headers: { 'content-length': String(MAX_TEAM_CREATE_FORM_BODY_SIZE + 1) },
+				formData: createFormData({ name: 'Test' }),
+				user: testUser
+			});
+
+			await expect(actions.default(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Team create form body is too large' }
+			});
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('rejects invalid content-length before creating team records', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				headers: { 'content-length': 'invalid' },
+				formData: createFormData({ name: 'Test' }),
+				user: testUser
+			});
+
+			await expect(actions.default(event)).rejects.toMatchObject({
+				status: 400,
+				body: { message: 'Invalid content-length header' }
+			});
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for missing name', async () => {

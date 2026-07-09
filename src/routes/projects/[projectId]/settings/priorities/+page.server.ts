@@ -8,6 +8,13 @@ import { createPrioritySchema, updatePrioritySchema } from '$lib/schemas/priorit
 import { cacheDelete } from '$lib/server/cache';
 import { getNextPosition } from '$lib/server/queries';
 
+function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
+	if (typeof value !== 'string') return null;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+	return parsed;
+}
+
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = parseId(params.projectId, 'project ID');
 
@@ -84,7 +91,7 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const priorityId = Number(formData.get('priorityId'));
+		const priorityId = parsePositiveFormId(formData.get('priorityId'));
 		const name = (formData.get('name') as string)?.trim();
 		const color = formData.get('color') as string;
 		const isDefault = formData.get('isDefault') === 'true';
@@ -95,7 +102,7 @@ export const actions: Actions = {
 		}
 
 		const existing = await db.query.priorityConfig.findFirst({
-			where: eq(priorityConfig.id, priorityId)
+			where: eq(priorityConfig.id, parsed.data.priorityId)
 		});
 
 		if (!existing || existing.projectId !== projectId) {
@@ -107,7 +114,7 @@ export const actions: Actions = {
 			where: and(eq(priorityConfig.projectId, projectId), eq(priorityConfig.name, parsed.data.name))
 		});
 
-		if (duplicate && duplicate.id !== priorityId) {
+		if (duplicate && duplicate.id !== parsed.data.priorityId) {
 			return fail(400, { duplicate: true });
 		}
 
@@ -149,7 +156,7 @@ export const actions: Actions = {
 					color: parsed.data.color,
 					isDefault: parsed.data.isDefault
 				})
-				.where(eq(priorityConfig.id, priorityId));
+				.where(eq(priorityConfig.id, parsed.data.priorityId));
 		});
 
 		cacheDelete(`project:${projectId}:priorities`);
@@ -162,10 +169,10 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const priorityId = Number(formData.get('priorityId'));
+		const priorityId = parsePositiveFormId(formData.get('priorityId'));
 
 		if (!priorityId) {
-			return fail(400, { error: 'Missing priorityId' });
+			return fail(400, { error: 'Invalid priorityId' });
 		}
 
 		const existing = await db.query.priorityConfig.findFirst({

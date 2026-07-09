@@ -69,11 +69,14 @@ export const actions: Actions = {
 			}
 		}
 
-		// Unassign projects (set teamId to null)
-		await db.update(project).set({ teamId: null }).where(eq(project.teamId, teamId));
+		const deleted = await db.transaction(async (tx) => {
+			// Unassign projects (set teamId to null)
+			await tx.update(project).set({ teamId: null }).where(eq(project.teamId, teamId));
 
-		// Delete team (cascade will remove team_member rows)
-		const [deleted] = await db.delete(team).where(eq(team.id, teamId)).returning();
+			// Delete team (cascade will remove team_member rows)
+			const [deletedTeam] = await tx.delete(team).where(eq(team.id, teamId)).returning();
+			return deletedTeam;
+		});
 		if (!deleted) {
 			error(404, 'Team not found');
 		}

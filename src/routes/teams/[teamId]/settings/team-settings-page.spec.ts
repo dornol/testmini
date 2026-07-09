@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-	createMockDb,
-	mockDeleteReturning,
-	mockUpdateReturning
-} from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { adminUser, testUser } from '$lib/server/test-helpers/fixtures';
 import { superValidate } from 'sveltekit-superforms';
@@ -53,6 +49,19 @@ function mockValidTeamForm(data: { name?: string; description?: string | null })
 		valid: true,
 		data
 	} as never);
+}
+
+function mockDeleteTransaction(deletedRows: unknown[]) {
+	const updateWhere = vi.fn().mockResolvedValue(undefined);
+	const updateSet = vi.fn(() => ({ where: updateWhere }));
+	const txUpdate = vi.fn(() => ({ set: updateSet }));
+	const deleteReturning = vi.fn().mockResolvedValue(deletedRows);
+	const deleteWhere = vi.fn(() => ({ returning: deleteReturning }));
+	const txDelete = vi.fn(() => ({ where: deleteWhere }));
+	mockDb.transaction.mockImplementationOnce(async (fn) =>
+		fn({ update: txUpdate, delete: txDelete })
+	);
+	return { deleteReturning, deleteWhere, txDelete, txUpdate, updateSet, updateWhere };
 }
 
 describe('/teams/[teamId]/settings +page.server', () => {
@@ -140,19 +149,26 @@ describe('/teams/[teamId]/settings +page.server', () => {
 		});
 
 		it('should delete team on success', async () => {
-			const deleteChain = mockDeleteReturning(mockDb, [{ id: 5 }]);
+			const tx = mockDeleteTransaction([{ id: 5 }]);
 
 			await expect(actions.delete(createActionEvent())).rejects.toMatchObject({
 				status: 303,
 				location: '/teams'
 			});
 
-			expect(mockDb.update).toHaveBeenCalled();
-			expect(deleteChain.where).toHaveBeenCalledWith(['id', 5]);
+			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+			expect(tx.txUpdate).toHaveBeenCalledWith(
+				expect.objectContaining({ teamId: 'project_team_id' })
+			);
+			expect(tx.updateSet).toHaveBeenCalledWith({ teamId: null });
+			expect(tx.updateWhere).toHaveBeenCalledWith(['project_team_id', 5]);
+			expect(tx.txDelete).toHaveBeenCalledWith(expect.objectContaining({ id: 'id' }));
+			expect(tx.deleteWhere).toHaveBeenCalledWith(['id', 5]);
+			expect(tx.deleteReturning).toHaveBeenCalled();
 		});
 
 		it('should allow global admin without membership lookup when deleting', async () => {
-			mockDeleteReturning(mockDb, [{ id: 5 }]);
+			mockDeleteTransaction([{ id: 5 }]);
 
 			await expect(actions.delete(createActionEvent(adminUser))).rejects.toMatchObject({
 				status: 303,
@@ -163,12 +179,13 @@ describe('/teams/[teamId]/settings +page.server', () => {
 		});
 
 		it('should throw 404 when team disappears before delete', async () => {
-			mockDeleteReturning(mockDb, []);
+			mockDeleteTransaction([]);
 
 			await expect(actions.delete(createActionEvent())).rejects.toMatchObject({
 				status: 404,
 				body: { message: 'Team not found' }
 			});
+			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 		});
 	});
 });

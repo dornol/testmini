@@ -10,6 +10,7 @@ import {
 	isAttachmentReferenceType
 } from '$lib/server/attachment-access';
 import { assertMultipartContentLength } from '$lib/server/multipart-limits';
+import { parsePositiveFormId } from '$lib/server/form-utils';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_FILE_NAME_LENGTH = 255;
@@ -32,12 +33,8 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 function parseReferenceId(value: FormDataEntryValue | string | null): number {
-	if (typeof value !== 'string') {
-		error(400, 'Invalid referenceId');
-	}
-
-	const referenceId = Number(value);
-	if (!Number.isSafeInteger(referenceId) || referenceId <= 0) {
+	const referenceId = parsePositiveFormId(value);
+	if (referenceId === null) {
 		error(400, 'Invalid referenceId');
 	}
 

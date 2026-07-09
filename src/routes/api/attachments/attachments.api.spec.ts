@@ -106,34 +106,33 @@ describe('/api/attachments', () => {
 			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 
-		it('should reject unsafe reference IDs before resolving project access', async () => {
-			const event = createMockEvent({
-				method: 'GET',
-				searchParams: {
-					referenceType: 'TESTCASE',
-					referenceId: String(Number.MAX_SAFE_INTEGER + 1)
-				},
-				user: testUser
-			});
+		it.each([
+			'abc',
+			'0',
+			'-1',
+			'+1',
+			'01',
+			'1.5',
+			'1e3',
+			' 1',
+			'1 ',
+			'Infinity',
+			'9007199254740992'
+		])(
+			'should reject invalid referenceId %s before resolving project access',
+			async (referenceId) => {
+				const event = createMockEvent({
+					method: 'GET',
+					searchParams: { referenceType: 'TESTCASE', referenceId },
+					user: testUser
+				});
 
-			await expect(GET(event)).rejects.toMatchObject({ status: 400 });
-			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
-			expect(authUtils.requireProjectAccess).not.toHaveBeenCalled();
-			expect(mockDb.select).not.toHaveBeenCalled();
-		});
-
-		it('should reject decimal reference IDs before resolving project access', async () => {
-			const event = createMockEvent({
-				method: 'GET',
-				searchParams: { referenceType: 'TESTCASE', referenceId: '1.5' },
-				user: testUser
-			});
-
-			await expect(GET(event)).rejects.toMatchObject({ status: 400 });
-			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
-			expect(authUtils.requireProjectAccess).not.toHaveBeenCalled();
-			expect(mockDb.select).not.toHaveBeenCalled();
-		});
+				await expect(GET(event)).rejects.toMatchObject({ status: 400 });
+				expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+				expect(authUtils.requireProjectAccess).not.toHaveBeenCalled();
+				expect(mockDb.select).not.toHaveBeenCalled();
+			}
+		);
 	});
 
 	describe('POST', () => {
@@ -310,21 +309,21 @@ describe('/api/attachments', () => {
 			expect(storage.deleteFile).toHaveBeenCalledWith('attachments/TESTCASE/1/test.png');
 		});
 
-		it('should reject unsafe reference IDs before saving file', async () => {
+		it.each([
+			'abc',
+			'0',
+			'-1',
+			'+1',
+			'01',
+			'1.5',
+			'1e3',
+			' 1',
+			'1 ',
+			'Infinity',
+			'9007199254740992'
+		])('should reject invalid referenceId %s before saving file', async (referenceId) => {
 			const formData = createFileFormData({ name: 'test.png', type: 'image/png' });
-			formData.set('referenceId', String(Number.MAX_SAFE_INTEGER + 1));
-			const event = createMockEvent({ method: 'POST', formData, user: testUser });
-
-			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
-			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
-			expect(authUtils.requireProjectAccess).not.toHaveBeenCalled();
-			expect(storage.saveFile).not.toHaveBeenCalled();
-			expect(mockDb.insert).not.toHaveBeenCalled();
-		});
-
-		it('should reject decimal reference IDs before saving file', async () => {
-			const formData = createFileFormData({ name: 'test.png', type: 'image/png' });
-			formData.set('referenceId', '1.5');
+			formData.set('referenceId', referenceId);
 			const event = createMockEvent({ method: 'POST', formData, user: testUser });
 
 			await expect(POST(event)).rejects.toMatchObject({ status: 400 });

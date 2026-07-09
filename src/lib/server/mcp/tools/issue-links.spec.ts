@@ -24,7 +24,8 @@ vi.mock('$lib/server/db/schema', () => ({
 		createdAt: 'created_at'
 	},
 	testCase: { id: 'id', projectId: 'project_id' },
-	testExecution: { id: 'id', testRunId: 'test_run_id' }
+	testExecution: { id: 'id', testRunId: 'test_run_id' },
+	testRun: { id: 'id', projectId: 'project_id' }
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -78,6 +79,7 @@ describe('MCP issue-link tools', () => {
 	let close: () => Promise<void>;
 
 	beforeEach(async () => {
+		vi.clearAllMocks();
 		const c = await createClient();
 		client = c.client;
 		close = c.close;
@@ -167,6 +169,7 @@ describe('MCP issue-link tools', () => {
 
 	describe('create-issue-link', () => {
 		it('should create an issue link', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: PROJECT_ID });
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
 			mockInsertReturning(mockDb, [sampleIssueLink]);
 
@@ -185,6 +188,44 @@ describe('MCP issue-link tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.externalKey).toBe('PROJ-123');
 			expect(parsed.provider).toBe('jira');
+		});
+
+		it('should reject test case links outside the MCP project scope', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'create-issue-link',
+				arguments: {
+					externalUrl: 'https://jira.example.com/PROJ-123',
+					provider: 'jira',
+					testCaseId: 999
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found in this project'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject execution links outside the MCP project scope', async () => {
+			mockSelectResult(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'create-issue-link',
+				arguments: {
+					externalUrl: 'https://jira.example.com/PROJ-123',
+					provider: 'jira',
+					executionId: 999
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test execution not found in this project'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return error when project not found', async () => {

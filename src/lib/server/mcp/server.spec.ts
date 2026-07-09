@@ -2536,6 +2536,7 @@ describe('MCP Server', () => {
 
 	describe('tool: create-issue-link', () => {
 		it('should create an issue link', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: PROJECT_ID });
 			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(sampleProject) };
 			mockInsertReturning(mockDb, [
 				{

@@ -1,9 +1,34 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
-import { issueLink } from '$lib/server/db/schema';
+import { issueLink, testCase, testExecution, testRun } from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and, desc } from 'drizzle-orm';
+
+async function validateIssueLinkTarget(
+	projectId: number,
+	testCaseId?: number,
+	executionId?: number
+) {
+	if (testCaseId !== undefined) {
+		const existing = await db.query.testCase.findFirst({
+			where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
+		});
+		if (!existing) return err('Test case not found in this project');
+	}
+
+	if (executionId !== undefined) {
+		const [existing] = await db
+			.select({ id: testExecution.id })
+			.from(testExecution)
+			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
+			.where(and(eq(testExecution.id, executionId), eq(testRun.projectId, projectId)))
+			.limit(1);
+		if (!existing) return err('Test execution not found in this project');
+	}
+
+	return null;
+}
 
 export function registerIssueLinkTools(server: McpServer, projectId: number) {
 	server.tool(
@@ -40,6 +65,9 @@ export function registerIssueLinkTools(server: McpServer, projectId: number) {
 			executionId: z.number().optional().describe('Execution ID to link')
 		},
 		async ({ externalUrl, externalKey, title, provider, testCaseId: tcId, executionId }) => {
+			const targetError = await validateIssueLinkTarget(projectId, tcId, executionId);
+			if (targetError) return targetError;
+
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
 

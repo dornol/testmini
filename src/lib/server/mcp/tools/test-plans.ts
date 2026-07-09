@@ -95,6 +95,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create test plan');
 			return ok(created);
 		}
 	);

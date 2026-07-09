@@ -180,6 +180,21 @@ describe('MCP test-suite tools', () => {
 			expect(result.isError).toBe(true);
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
+
+		it('should return error when test suite insert returns no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'create-test-suite',
+				arguments: { name: 'Suite' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create test suite'
+			);
+		});
 	});
 
 	// ── add-suite-items ──────────────────────────────────

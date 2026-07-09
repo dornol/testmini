@@ -67,6 +67,7 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create test suite');
 			return ok(created);
 		}
 	);

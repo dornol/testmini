@@ -213,6 +213,21 @@ describe('MCP test-plan tools', () => {
 			);
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
+
+		it('should return error when test plan insert returns no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'create-test-plan',
+				arguments: { name: 'Plan' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create test plan'
+			);
+		});
 	});
 
 	// ── update-test-plan ─────────────────────────────────

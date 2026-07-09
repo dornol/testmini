@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
-import { testUser, adminUser, sampleTestRun, sampleExecution } from '$lib/server/test-helpers/fixtures';
+import {
+	testUser,
+	adminUser,
+	sampleTestRun,
+	sampleExecution
+} from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 
@@ -18,7 +23,14 @@ vi.mock('$lib/server/db/schema', () => ({
 		createdBy: 'created_by',
 		createdAt: 'created_at'
 	},
-	testExecution: { id: 'id', testRunId: 'test_run_id', testCaseVersionId: 'test_case_version_id', status: 'status', executedBy: 'executed_by', executedAt: 'executed_at' },
+	testExecution: {
+		id: 'id',
+		testRunId: 'test_run_id',
+		testCaseVersionId: 'test_case_version_id',
+		status: 'status',
+		executedBy: 'executed_by',
+		executedAt: 'executed_at'
+	},
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id' },
 	testRun: { id: 'id', projectId: 'project_id' },
 	user: { id: 'id', name: 'name' }
@@ -31,14 +43,17 @@ vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
 	};
 });
 vi.mock('$lib/schemas/failure.schema', async () => {
-	const actual = await vi.importActual<typeof import('$lib/schemas/failure.schema')>('$lib/schemas/failure.schema');
+	const actual = await vi.importActual<typeof import('$lib/schemas/failure.schema')>(
+		'$lib/schemas/failure.schema'
+	);
 	return actual;
 });
 
@@ -90,6 +105,20 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/f
 
 	describe('POST', () => {
 		it('should create failure detail for non-VIEWER', async () => {
+			const txUpdateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockResolvedValue(undefined)
+			};
+			const txInsertChain = {
+				values: vi.fn().mockResolvedValue(undefined)
+			};
+			mockDb.transaction.mockImplementationOnce(async (fn) =>
+				fn({
+					update: vi.fn().mockReturnValue(txUpdateChain),
+					insert: vi.fn().mockReturnValue(txInsertChain)
+				})
+			);
+
 			const event = createMockEvent({
 				method: 'POST',
 				params: PARAMS,
@@ -107,6 +136,12 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/f
 
 			expect(response.status).toBe(200);
 			expect(body.success).toBe(true);
+			expect(txUpdateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 200],
+					['test_run_id', 50]
+				])
+			);
 		});
 
 		it('should return 400 for missing required fields', async () => {

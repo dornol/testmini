@@ -52,7 +52,7 @@ export const PUT = withProjectRole(
 				executedBy: user.id,
 				executedAt: new Date()
 			})
-			.where(eq(testExecution.id, executionId));
+			.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)));
 
 		// Auto-update run status
 		await autoUpdateRunStatus(runId);

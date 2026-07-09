@@ -98,6 +98,15 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 			expect(response.status).toBe(200);
 			expect(body.success).toBe(true);
 			expect(body.status).toBe('PASS');
+			const executionUpdateChain = mockDb.update.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(executionUpdateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 200],
+					['test_run_id', 50]
+				])
+			);
 		});
 
 		it('should update execution status to FAIL', async () => {

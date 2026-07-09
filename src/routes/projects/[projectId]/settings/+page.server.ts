@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { fail, redirect } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { updateProjectSchema, type UpdateProjectInput } from '$lib/schemas/project.schema';
 import { zodAdapter } from '$lib/server/form-utils';
@@ -39,13 +39,18 @@ export const actions: Actions = {
 		}
 
 		const { name, description } = form.data as UpdateProjectInput;
-		await db
+		const [updated] = await db
 			.update(project)
 			.set({
 				name,
 				description: description || null
 			})
-			.where(eq(project.id, projectId));
+			.where(eq(project.id, projectId))
+			.returning();
+
+		if (!updated) {
+			error(404, 'Project not found');
+		}
 
 		return message(form, 'Project updated successfully');
 	},
@@ -60,10 +65,19 @@ export const actions: Actions = {
 			.from(project)
 			.where(eq(project.id, projectId));
 
-		await db
+		if (!proj) {
+			error(404, 'Project not found');
+		}
+
+		const [updated] = await db
 			.update(project)
 			.set({ requireSignoff: !proj.requireSignoff })
-			.where(eq(project.id, projectId));
+			.where(eq(project.id, projectId))
+			.returning();
+
+		if (!updated) {
+			error(404, 'Project not found');
+		}
 
 		return { success: true };
 	},
@@ -73,7 +87,15 @@ export const actions: Actions = {
 		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(user, projectId, ['PROJECT_ADMIN']);
 
-		await db.update(project).set({ active: false }).where(eq(project.id, projectId));
+		const [deactivated] = await db
+			.update(project)
+			.set({ active: false })
+			.where(eq(project.id, projectId))
+			.returning();
+
+		if (!deactivated) {
+			error(404, 'Project not found');
+		}
 
 		redirect(303, '/projects');
 	}

@@ -307,6 +307,20 @@ describe('/api/projects/[projectId]/exploratory-sessions', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should reject unknown request fields', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { title: 'Session', owner: 'qa' }
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid exploratory session field');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should reject non-string optional fields', async () => {
 			const event = createMockEvent({
 				method: 'POST',

@@ -7,6 +7,16 @@ const MAX_TAGS = 50;
 const MAX_TAG_LENGTH = 100;
 
 const SESSION_ACTIONS = ['pause', 'resume', 'complete'] as const;
+const CREATE_SESSION_FIELDS = new Set(['title', 'charter', 'environment', 'tags']);
+const UPDATE_SESSION_FIELDS = new Set([
+	'action',
+	'summary',
+	'title',
+	'charter',
+	'environment',
+	'tags',
+	'pausedDuration'
+]);
 
 export type ExploratorySessionAction = (typeof SESSION_ACTIONS)[number];
 
@@ -83,6 +93,8 @@ export function validateCreateExploratorySessionPayload(
 	body: unknown
 ): ValidatedCreateExploratorySession | Response {
 	if (!isRecord(body)) return badRequest('Request body must be an object');
+	const fieldError = validateSessionKeys(body, CREATE_SESSION_FIELDS);
+	if (fieldError) return fieldError;
 
 	const title = validateRequiredString(body.title, 'Title', { maxLength: MAX_TITLE_LENGTH });
 	if (title instanceof Response) return title;
@@ -105,11 +117,16 @@ export function validateUpdateExploratorySessionPayload(
 	body: unknown
 ): ValidatedUpdateExploratorySession | Response {
 	if (!isRecord(body)) return badRequest('Request body must be an object');
+	const fieldError = validateSessionKeys(body, UPDATE_SESSION_FIELDS);
+	if (fieldError) return fieldError;
 
 	const updates: ValidatedUpdateExploratorySession = {};
 
 	if (body.action !== undefined) {
-		if (typeof body.action !== 'string' || !SESSION_ACTIONS.includes(body.action as ExploratorySessionAction)) {
+		if (
+			typeof body.action !== 'string' ||
+			!SESSION_ACTIONS.includes(body.action as ExploratorySessionAction)
+		) {
 			return badRequest('Invalid action');
 		}
 		updates.action = body.action as ExploratorySessionAction;
@@ -162,4 +179,14 @@ export function validateUpdateExploratorySessionPayload(
 	}
 
 	return updates;
+}
+
+function validateSessionKeys(
+	body: Record<string, unknown>,
+	allowedFields: Set<string>
+): Response | null {
+	if (Object.keys(body).some((key) => !allowedFields.has(key))) {
+		return badRequest('Invalid exploratory session field');
+	}
+	return null;
 }

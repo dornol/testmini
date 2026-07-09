@@ -6,6 +6,8 @@ const MAX_DATASET_VALUE_COUNT = 200;
 const MAX_DATASET_KEY_LENGTH = 120;
 const MAX_DATASET_VALUE_LENGTH = 5000;
 const UNSAFE_DATASET_VALUE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const CREATE_DATASET_FIELDS = new Set(['name', 'values']);
+const UPDATE_DATASET_FIELDS = new Set(['name', 'values', 'orderIndex']);
 
 type CreateDataSetInput = {
 	name: string | null;
@@ -21,6 +23,8 @@ type UpdateDataSetInput = {
 export function validateCreateTestCaseDataSetInput(body: unknown): CreateDataSetInput | Response {
 	const bodyOrError = validateRequestBody(body);
 	if (bodyOrError instanceof Response) return bodyOrError;
+	const fieldError = validateDataSetKeys(bodyOrError, CREATE_DATASET_FIELDS);
+	if (fieldError) return fieldError;
 
 	const nameOrError = validateDataSetName(bodyOrError.name);
 	if (nameOrError instanceof Response) return nameOrError;
@@ -37,6 +41,8 @@ export function validateCreateTestCaseDataSetInput(body: unknown): CreateDataSet
 export function validateUpdateTestCaseDataSetInput(body: unknown): UpdateDataSetInput | Response {
 	const bodyOrError = validateRequestBody(body);
 	if (bodyOrError instanceof Response) return bodyOrError;
+	const fieldError = validateDataSetKeys(bodyOrError, UPDATE_DATASET_FIELDS);
+	if (fieldError) return fieldError;
 
 	const updates: UpdateDataSetInput = {};
 
@@ -57,8 +63,21 @@ export function validateUpdateTestCaseDataSetInput(body: unknown): UpdateDataSet
 		if (orderIndexOrError instanceof Response) return orderIndexOrError;
 		updates.orderIndex = orderIndexOrError;
 	}
+	if (Object.keys(updates).length === 0) {
+		return badRequest('No fields to update');
+	}
 
 	return updates;
+}
+
+function validateDataSetKeys(
+	body: Record<string, unknown>,
+	allowedFields: Set<string>
+): Response | null {
+	if (Object.keys(body).some((key) => !allowedFields.has(key))) {
+		return badRequest('Invalid data set field');
+	}
+	return null;
 }
 
 function validateDataSetName(value: unknown): string | null | Response {

@@ -123,6 +123,23 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 when request body has unknown fields', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'DS1', values: { user: 'test' }, orderIndex: 1 },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Invalid data set field');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when values is an array', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
 			const event = createMockEvent({

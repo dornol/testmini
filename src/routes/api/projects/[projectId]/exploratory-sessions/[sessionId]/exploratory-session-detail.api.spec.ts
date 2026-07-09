@@ -357,6 +357,21 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]', () => {
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
+		it('should reject unknown request fields', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { title: 'Updated', owner: 'qa' }
+			});
+			const response = await PATCH(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid exploratory session field');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should complete a paused session (PAUSED -> COMPLETED is valid)', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue({
 				...sampleSession,

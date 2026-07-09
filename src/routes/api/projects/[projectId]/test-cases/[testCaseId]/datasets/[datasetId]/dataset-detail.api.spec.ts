@@ -95,6 +95,23 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 			expect(mockDb.query.testCaseDataSet.findFirst).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 when request body has unknown fields', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Set B', extra: 'x' },
+				user: testUser
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Invalid data set field');
+			expect(mockDb.query.testCaseDataSet.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when values contain non-string entries', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -260,11 +277,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 			expect(response.status).toBe(200);
 		});
 
-		it('should return success with no updates (empty body)', async () => {
-			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
-				sampleDataSet
-			);
-
+		it('should return 400 when no fields are provided', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -272,7 +285,12 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 				user: testUser
 			});
 			const response = await PATCH(event);
-			expect(response.status).toBe(200);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('No fields to update');
+			expect(mockDb.query.testCaseDataSet.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 

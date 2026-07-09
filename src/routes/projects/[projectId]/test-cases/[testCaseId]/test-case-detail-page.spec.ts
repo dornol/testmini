@@ -109,6 +109,50 @@ describe('test case detail page actions', () => {
 				expect(mockDb.delete).not.toHaveBeenCalled();
 			}
 		});
+
+		it('rejects removal when the test case is outside the current project', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ tagId: '7' }),
+				user: testUser
+			});
+
+			await expect(actions.removeTag(event)).rejects.toThrow();
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('assignAssignee', () => {
+		it('rejects assignment when the test case is outside the current project', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ userId: 'user-2' }),
+				user: testUser
+			});
+
+			await expect(actions.assignAssignee(event)).rejects.toThrow();
+			expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('removeAssignee', () => {
+		it('rejects removal when the test case is outside the current project', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ userId: 'user-2' }),
+				user: testUser
+			});
+
+			await expect(actions.removeAssignee(event)).rejects.toThrow();
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
 	});
 
 	describe('delete', () => {

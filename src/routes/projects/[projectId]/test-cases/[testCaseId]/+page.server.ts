@@ -31,6 +31,16 @@ function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
 	return parsed;
 }
 
+async function requireActionTestCase(testCaseId: number, projectId: number) {
+	const tc = await db.query.testCase.findFirst({
+		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
+	});
+	if (!tc) {
+		error(404, 'Test case not found');
+	}
+	return tc;
+}
+
 export const load: PageServerLoad = async ({ params, parent, locals }) => {
 	await parent();
 	const authUser = requireAuth(locals);
@@ -255,6 +265,8 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid tag data' });
 		}
 
+		await requireActionTestCase(testCaseId, projectId);
+
 		// Check duplicate
 		const existing = await db.query.tag.findFirst({
 			where: and(eq(tag.projectId, projectId), eq(tag.name, parsed.data.name))
@@ -301,6 +313,8 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid tagId' });
 		}
 
+		await requireActionTestCase(testCaseId, projectId);
+
 		// Verify tag belongs to project
 		const t = await db.query.tag.findFirst({
 			where: and(eq(tag.id, tagId), eq(tag.projectId, projectId))
@@ -335,6 +349,8 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid tagId' });
 		}
 
+		await requireActionTestCase(testCaseId, projectId);
+
 		await db
 			.delete(testCaseTag)
 			.where(and(eq(testCaseTag.testCaseId, testCaseId), eq(testCaseTag.tagId, tagId)));
@@ -354,6 +370,8 @@ export const actions: Actions = {
 		if (!userId) {
 			return fail(400, { error: 'Missing userId' });
 		}
+
+		await requireActionTestCase(testCaseId, projectId);
 
 		// Verify user is a project member
 		const member = await db.query.projectMember.findFirst({
@@ -388,6 +406,8 @@ export const actions: Actions = {
 		if (!userId) {
 			return fail(400, { error: 'Missing userId' });
 		}
+
+		await requireActionTestCase(testCaseId, projectId);
 
 		await db
 			.delete(testCaseAssignee)

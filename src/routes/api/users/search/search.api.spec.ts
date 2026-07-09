@@ -36,6 +36,7 @@ vi.mock('drizzle-orm', () => ({
 
 // Import after mocks
 const { GET } = await import('./+server');
+const drizzle = await import('drizzle-orm');
 
 describe('/api/users/search', () => {
 	beforeEach(() => {
@@ -61,7 +62,7 @@ describe('/api/users/search', () => {
 				{ id: 'user-5', name: 'Test User 5', email: 'user5@example.com' },
 				{ id: 'user-6', name: 'Test User 6', email: 'user6@example.com' }
 			];
-			mockSelectResult(mockDb, users);
+			const selectChain = mockSelectResult(mockDb, users);
 
 			const event = createMockEvent({
 				method: 'GET',
@@ -74,6 +75,110 @@ describe('/api/users/search', () => {
 			expect(response.status).toBe(200);
 			expect(data.data).toHaveLength(2);
 			expect(mockDb.select).toHaveBeenCalled();
+			expect(selectChain.offset).toHaveBeenCalledWith(10);
+		});
+
+		it('should cap large offset values', async () => {
+			const selectChain = mockSelectResult(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { q: 'Test', offset: '999999' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(selectChain.offset).toHaveBeenCalledWith(10000);
+		});
+
+		it('should trim query before searching', async () => {
+			mockSelectResult(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { q: '  Alice  ' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(drizzle.ilike).toHaveBeenCalledWith('name', '%Alice%');
+			expect(drizzle.ilike).toHaveBeenCalledWith('email', '%Alice%');
+		});
+
+		it('should return 400 for invalid offset', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { q: 'Test', offset: 'abc' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for negative offset', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { q: 'Test', offset: '-1' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for invalid excludeProjectId', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { q: 'Test', excludeProjectId: 'abc' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for unsafe excludeProjectId', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { q: 'Test', excludeProjectId: String(Number.MAX_SAFE_INTEGER + 1) }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should reject overlong queries before hitting the database', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { q: 'a'.repeat(101) }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should exclude existing project members using a validated project ID', async () => {
+			mockSelectResult(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { q: 'Test', excludeProjectId: '42' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(drizzle.eq).toHaveBeenCalledWith('project_id', 42);
 		});
 
 		it('should return 401 when not authenticated', async () => {

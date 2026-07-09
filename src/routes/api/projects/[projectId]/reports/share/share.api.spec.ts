@@ -240,6 +240,17 @@ describe('/api/projects/[projectId]/reports/share', () => {
 			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
 		});
 
+		it('should reject impossible date range values', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { name: 'Report', config: { from: '2025-02-31' } }
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		});
+
 		it('should reject users without share creation role', async () => {
 			vi.mocked(authUtils.requireProjectRole).mockRejectedValue(
 				Object.assign(new Error(), { status: 403, body: { message: 'Forbidden' } })

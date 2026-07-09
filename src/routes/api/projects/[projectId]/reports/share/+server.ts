@@ -33,7 +33,7 @@ function validateConfig(config: unknown): { from?: string; to?: string; preset?:
 			error(400, `${key} must use YYYY-MM-DD format`);
 		}
 		const date = new Date(`${value}T00:00:00.000Z`);
-		if (Number.isNaN(date.getTime())) {
+		if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
 			error(400, `${key} is not a valid date`);
 		}
 		parsed[key] = value;

@@ -55,7 +55,11 @@ export const POST = withProjectRole(
 				testRunId: runId,
 				testCaseVersionId: tc.latestVersionId
 			})
-			.returning();
+			.returning({ id: testExecution.id });
+
+		if (!execution) {
+			error(500, 'Failed to create test execution');
+		}
 
 		return json({ executionId: execution.id, status: 'PENDING' });
 	}

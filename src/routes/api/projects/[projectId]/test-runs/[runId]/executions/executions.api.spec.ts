@@ -185,5 +185,25 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions', () => {
 			expect(response.status).toBe(409);
 			expect(body.error).toMatch(/already exists/i);
 		});
+
+		it('should return 500 when execution insert creates no row', async () => {
+			const noExistingChain = {
+				from: vi.fn().mockReturnThis(),
+				innerJoin: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (resolve: (v: unknown) => void) => Promise.resolve([]).then(resolve)
+			};
+			mockDb.select.mockReturnValue(noExistingChain as never);
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { testCaseId: 10 },
+				user: adminUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
 	});
 });

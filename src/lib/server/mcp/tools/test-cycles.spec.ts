@@ -222,6 +222,20 @@ describe('MCP test cycle tools', () => {
 				'Test cycle not found'
 			);
 		});
+
+		it('should reject invalid IDs before deleting', async () => {
+			const result = await client.callTool({
+				name: 'delete-test-cycle',
+				arguments: { testCycleId: -1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.query.testCycle.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
 	});
 
 	// ── update-test-cycle ───────────────────────────────
@@ -266,6 +280,20 @@ describe('MCP test cycle tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Test cycle not found'
 			);
+		});
+
+		it('should reject invalid IDs before updating', async () => {
+			const result = await client.callTool({
+				name: 'update-test-cycle',
+				arguments: { testCycleId: -1, name: 'Updated' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.query.testCycle.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should reject invalid update status', async () => {

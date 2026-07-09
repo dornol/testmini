@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { testCycle } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator } from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
 import { eq, and, sql } from 'drizzle-orm';
 import { createTestCycleSchema, updateTestCycleSchema } from '$lib/schemas/test-cycle.schema';
 
@@ -65,7 +65,7 @@ export function registerTestCycleTools(server: McpServer, projectId: number) {
 	server.tool(
 		'delete-test-cycle',
 		'Delete a test cycle by ID',
-		{ testCycleId: z.number().describe('Test cycle ID') },
+		{ testCycleId: mcpPositiveIdSchema.describe('Test cycle ID') },
 		async ({ testCycleId }) => {
 			const c = await db.query.testCycle.findFirst({
 				where: and(eq(testCycle.id, testCycleId), eq(testCycle.projectId, projectId))
@@ -83,7 +83,7 @@ export function registerTestCycleTools(server: McpServer, projectId: number) {
 		'update-test-cycle',
 		'Update a test cycle',
 		{
-			testCycleId: z.number().describe('Test cycle ID'),
+			testCycleId: mcpPositiveIdSchema.describe('Test cycle ID'),
 			name: z.string().optional().describe('New name'),
 			status: z.string().optional().describe('New status'),
 			startDate: z.string().optional().describe('New start date (ISO)'),

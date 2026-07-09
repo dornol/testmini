@@ -1938,6 +1938,7 @@ describe('MCP Server', () => {
 				name: 'smoke',
 				color: '#ff0000'
 			});
+			mockInsertReturning(mockDb, [{ testCaseId: 10 }]);
 
 			const result = await client.callTool({
 				name: 'add-tag-to-test-case',
@@ -1947,6 +1948,7 @@ describe('MCP Server', () => {
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
 			expect(parsed.success).toBe(true);
+			expect(parsed.added).toBe(true);
 		});
 
 		it('should return error when test case not found', async () => {
@@ -1975,6 +1977,7 @@ describe('MCP Server', () => {
 		it('should remove tag from test case', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
 			mockDb.query.tag.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'smoke' });
+			mockDeleteReturning(mockDb, [{ testCaseId: 10 }]);
 
 			const result = await client.callTool({
 				name: 'remove-tag-from-test-case',
@@ -1984,6 +1987,7 @@ describe('MCP Server', () => {
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
 			expect(parsed.success).toBe(true);
+			expect(parsed.removed).toBe(true);
 		});
 	});
 
@@ -2458,6 +2462,7 @@ describe('MCP Server', () => {
 		it('should link requirement to test case', async () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue({ id: 1, projectId: 1, title: 'Login' });
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockInsertReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'link-requirement-test-case',
@@ -2467,6 +2472,7 @@ describe('MCP Server', () => {
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
 			expect(parsed.success).toBe(true);
+			expect(parsed.linked).toBe(true);
 		});
 
 		it('should return error when requirement not found', async () => {

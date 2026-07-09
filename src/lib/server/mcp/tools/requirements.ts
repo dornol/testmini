@@ -48,6 +48,7 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!req) return err('Failed to create requirement');
 			return ok(req);
 		}
 	);
@@ -192,6 +193,7 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 				.set(updates)
 				.where(and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId)))
 				.returning();
+			if (!updated) return err('Requirement not found');
 			return ok(updated);
 		}
 	);
@@ -209,9 +211,11 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 			await db
 				.delete(requirementTestCase)
 				.where(eq(requirementTestCase.requirementId, requirementId));
-			await db
+			const [deleted] = await db
 				.delete(requirement)
-				.where(and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId)));
+				.where(and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId)))
+				.returning({ id: requirement.id });
+			if (!deleted) return err('Requirement not found');
 			return ok({ success: true, deletedId: requirementId });
 		}
 	);
@@ -234,15 +238,16 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 			});
 			if (!tc) return err('Test case not found');
 
-			await db
+			const deleted = await db
 				.delete(requirementTestCase)
 				.where(
 					and(
 						eq(requirementTestCase.requirementId, requirementId),
 						eq(requirementTestCase.testCaseId, testCaseId)
 					)
-				);
-			return ok({ success: true, requirementId, testCaseId });
+				)
+				.returning({ id: requirementTestCase.id });
+			return ok({ success: true, requirementId, testCaseId, unlinked: deleted.length > 0 });
 		}
 	);
 }

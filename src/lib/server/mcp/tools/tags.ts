@@ -52,6 +52,7 @@ export function registerTagTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create tag');
 			return ok(created);
 		}
 	);
@@ -98,9 +99,13 @@ export function registerTagTools(server: McpServer, projectId: number) {
 			});
 			if (!t) return err('Tag not found');
 
-			await db.insert(testCaseTag).values({ testCaseId, tagId }).onConflictDoNothing();
+			const [inserted] = await db
+				.insert(testCaseTag)
+				.values({ testCaseId, tagId })
+				.onConflictDoNothing()
+				.returning({ testCaseId: testCaseTag.testCaseId });
 
-			return ok({ success: true, testCaseId, tagId });
+			return ok({ success: true, testCaseId, tagId, added: !!inserted });
 		}
 	);
 
@@ -122,11 +127,12 @@ export function registerTagTools(server: McpServer, projectId: number) {
 			});
 			if (!t) return err('Tag not found');
 
-			await db
+			const deleted = await db
 				.delete(testCaseTag)
-				.where(and(eq(testCaseTag.testCaseId, testCaseId), eq(testCaseTag.tagId, tagId)));
+				.where(and(eq(testCaseTag.testCaseId, testCaseId), eq(testCaseTag.tagId, tagId)))
+				.returning({ testCaseId: testCaseTag.testCaseId });
 
-			return ok({ success: true, testCaseId, tagId });
+			return ok({ success: true, testCaseId, tagId, removed: deleted.length > 0 });
 		}
 	);
 
@@ -169,6 +175,7 @@ export function registerTagTools(server: McpServer, projectId: number) {
 				.set(updates)
 				.where(and(eq(tag.id, tagId), eq(tag.projectId, projectId)))
 				.returning();
+			if (!updated) return err('Tag not found');
 			return ok(updated);
 		}
 	);

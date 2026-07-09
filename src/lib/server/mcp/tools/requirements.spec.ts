@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockSelectResult,
 	mockInsertReturning,
 	mockUpdateReturning
@@ -129,6 +130,21 @@ describe('MCP requirement tools', () => {
 				'Title is required'
 			);
 			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return error when requirement insert returns no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'create-requirement',
+				arguments: { title: 'User Authentication' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create requirement'
+			);
 		});
 
 		it('should reject long fields before creating a requirement', async () => {
@@ -387,6 +403,21 @@ describe('MCP requirement tools', () => {
 			);
 		});
 
+		it('should return error when requirement disappears before update', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockUpdateReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'update-requirement',
+				arguments: { requirementId: 1, title: 'Updated Title' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Requirement not found'
+			);
+		});
+
 		it('should reject unsafe IDs before linking', async () => {
 			const result = await client.callTool({
 				name: 'link-requirement-test-case',
@@ -405,6 +436,7 @@ describe('MCP requirement tools', () => {
 	describe('delete-requirement', () => {
 		it('should delete requirement and its links', async () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'delete-requirement',
@@ -440,6 +472,21 @@ describe('MCP requirement tools', () => {
 				'Requirement not found'
 			);
 		});
+
+		it('should return error when requirement disappears before delete', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-requirement',
+				arguments: { requirementId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Requirement not found'
+			);
+		});
 	});
 
 	// ── unlink-requirement-test-case ────────────────────
@@ -448,6 +495,7 @@ describe('MCP requirement tools', () => {
 		it('should unlink requirement from test case', async () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'unlink-requirement-test-case',
@@ -459,6 +507,23 @@ describe('MCP requirement tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.requirementId).toBe(1);
 			expect(parsed.testCaseId).toBe(10);
+			expect(parsed.unlinked).toBe(true);
+		});
+
+		it('should report unlinked false when requirement link does not exist', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'unlink-requirement-test-case',
+				arguments: { requirementId: 1, testCaseId: 10 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.unlinked).toBe(false);
 		});
 
 		it('should reject unlink when requirement is not in the current project', async () => {

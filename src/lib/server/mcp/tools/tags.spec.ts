@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockInsertReturning,
 	mockTransactionDeleteReturning,
 	mockUpdateReturning
@@ -111,6 +112,22 @@ describe('MCP tag tools', () => {
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.color).toBe('#6b7280');
+		});
+
+		it('should return error when tag insert returns no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockDb.query.tag.findFirst.mockResolvedValue(null);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'create-tag',
+				arguments: { name: 'smoke' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create tag'
+			);
 		});
 
 		it('should return error when project not found', async () => {
@@ -232,6 +249,7 @@ describe('MCP tag tools', () => {
 		it('should add tag to test case', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
 			mockDb.query.tag.findFirst.mockResolvedValue(sampleTag);
+			mockInsertReturning(mockDb, [{ testCaseId: 10 }]);
 
 			const result = await client.callTool({
 				name: 'add-tag-to-test-case',
@@ -243,6 +261,23 @@ describe('MCP tag tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.testCaseId).toBe(10);
 			expect(parsed.tagId).toBe(1);
+			expect(parsed.added).toBe(true);
+		});
+
+		it('should report added false when tag link already exists', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDb.query.tag.findFirst.mockResolvedValue(sampleTag);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'add-tag-to-test-case',
+				arguments: { testCaseId: 10, tagId: 1 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.added).toBe(false);
 		});
 
 		it('should return error when test case not found', async () => {
@@ -281,6 +316,7 @@ describe('MCP tag tools', () => {
 		it('should remove tag from test case', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
 			mockDb.query.tag.findFirst.mockResolvedValue(sampleTag);
+			mockDeleteReturning(mockDb, [{ testCaseId: 10 }]);
 
 			const result = await client.callTool({
 				name: 'remove-tag-from-test-case',
@@ -292,6 +328,23 @@ describe('MCP tag tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.testCaseId).toBe(10);
 			expect(parsed.tagId).toBe(1);
+			expect(parsed.removed).toBe(true);
+		});
+
+		it('should report removed false when tag link does not exist', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDb.query.tag.findFirst.mockResolvedValue(sampleTag);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'remove-tag-from-test-case',
+				arguments: { testCaseId: 10, tagId: 1 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.removed).toBe(false);
 		});
 
 		it('should reject removal when test case is not in the current project', async () => {
@@ -356,6 +409,21 @@ describe('MCP tag tools', () => {
 			const result = await client.callTool({
 				name: 'update-tag',
 				arguments: { tagId: 999, name: 'nope' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Tag not found'
+			);
+		});
+
+		it('should return error when tag disappears before update', async () => {
+			mockDb.query.tag.findFirst.mockResolvedValueOnce(sampleTag).mockResolvedValueOnce(null);
+			mockUpdateReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'update-tag',
+				arguments: { tagId: 1, name: 'critical' }
 			});
 
 			expect(result.isError).toBe(true);

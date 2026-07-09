@@ -8,7 +8,8 @@ vi.mock('$lib/server/url-safety', () => ({
 }));
 vi.stubGlobal('fetch', mockFetch);
 
-const { createGiteaIssue, fetchGiteaIssueStatus, testGiteaConnection } = await import('./gitea');
+const { createGiteaIssue, fetchGiteaIssueDetail, fetchGiteaIssueStatus, testGiteaConnection } =
+	await import('./gitea');
 
 function jsonResponse(data: unknown, status = 200): Response {
 	return new Response(JSON.stringify(data), {
@@ -237,6 +238,44 @@ describe('Gitea integration', () => {
 			await expect(
 				fetchGiteaIssueStatus(baseConfig, 'https://gitea.example.com/org/repo/issues/999')
 			).rejects.toThrow('Gitea returned 404');
+		});
+	});
+
+	describe('fetchGiteaIssueDetail', () => {
+		it('normalizes malformed labels, comments, and state fields', async () => {
+			mockFetch
+				.mockResolvedValueOnce(
+					jsonResponse({
+						title: 'Bug',
+						body: null,
+						state: { value: 'closed' },
+						user: null,
+						labels: { name: 'not-array' },
+						created_at: '2026-01-01T00:00:00Z',
+						updated_at: '2026-01-02T00:00:00Z',
+						closed_at: null
+					})
+				)
+				.mockResolvedValueOnce(jsonResponse({ message: 'not-array' }));
+
+			const result = await fetchGiteaIssueDetail(
+				baseConfig,
+				'https://gitea.example.com/org/repo/issues/5'
+			);
+
+			expect(result).toEqual({
+				title: 'Bug',
+				body: '',
+				state: 'unknown',
+				stateCategory: 'unknown',
+				author: '',
+				authorAvatar: undefined,
+				labels: [],
+				createdAt: '2026-01-01T00:00:00Z',
+				updatedAt: '2026-01-02T00:00:00Z',
+				closedAt: null,
+				comments: []
+			});
 		});
 	});
 });

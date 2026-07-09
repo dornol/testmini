@@ -5,6 +5,14 @@ import type {
 	IssueDetail
 } from './types';
 import { safeIntegrationFetch } from './safe-fetch';
+import {
+	asArray,
+	asRecord,
+	normalizeIssueColor,
+	nullableStringField,
+	optionalStringField,
+	stringField
+} from './external-response';
 import { issueStatusCategoryFromState, parseExternalIssueState } from './issue-status';
 
 export async function testGithubConnection(
@@ -120,37 +128,40 @@ export async function fetchGithubIssueDetail(
 
 	if (!issueRes.ok) throw new Error(`GitHub returned ${issueRes.status}`);
 
-	const issue = await issueRes.json();
-	const comments = commentsRes.ok ? await commentsRes.json() : [];
+	const issue = asRecord(await issueRes.json());
+	const comments = asArray(commentsRes.ok ? await commentsRes.json() : []);
+	const state = parseExternalIssueState(issue);
 
 	return {
-		title: issue.title,
-		body: issue.body ?? '',
-		state: issue.state,
-		stateCategory: issue.state === 'closed' ? 'done' : 'open',
-		author: issue.user?.login ?? '',
-		authorAvatar: issue.user?.avatar_url,
-		labels: (issue.labels ?? []).map((l: { name: string; color: string }) => ({
-			name: l.name,
-			color: `#${l.color}`
-		})),
-		createdAt: issue.created_at,
-		updatedAt: issue.updated_at,
-		closedAt: issue.closed_at,
-		comments: comments.map(
-			(c: {
-				id: number;
-				body: string;
-				user?: { login: string; avatar_url?: string };
-				created_at: string;
-			}) => ({
-				id: c.id,
-				body: c.body,
-				author: c.user?.login ?? '',
-				authorAvatar: c.user?.avatar_url,
-				createdAt: c.created_at
-			})
-		)
+		title: stringField(issue.title),
+		body: stringField(issue.body),
+		state,
+		stateCategory: issueStatusCategoryFromState(state),
+		author: stringField(asRecord(issue.user).login),
+		authorAvatar: optionalStringField(asRecord(issue.user).avatar_url),
+		labels: asArray(issue.labels).flatMap((label) => {
+			const record = asRecord(label);
+			const name = stringField(record.name);
+			if (!name) return [];
+			return [{ name, color: normalizeIssueColor(record.color) }];
+		}),
+		createdAt: stringField(issue.created_at),
+		updatedAt: stringField(issue.updated_at),
+		closedAt: nullableStringField(issue.closed_at),
+		comments: comments.flatMap((comment) => {
+			const record = asRecord(comment);
+			if (typeof record.id !== 'number') return [];
+			const user = asRecord(record.user);
+			return [
+				{
+					id: record.id,
+					body: stringField(record.body),
+					author: stringField(user.login),
+					authorAvatar: optionalStringField(user.avatar_url),
+					createdAt: stringField(record.created_at)
+				}
+			];
+		})
 	};
 }
 

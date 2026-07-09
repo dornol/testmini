@@ -8,7 +8,7 @@ vi.mock('$lib/server/url-safety', () => ({
 }));
 vi.stubGlobal('fetch', mockFetch);
 
-const { createGithubIssue, fetchGithubIssueStatus, testGithubConnection } =
+const { createGithubIssue, fetchGithubIssueDetail, fetchGithubIssueStatus, testGithubConnection } =
 	await import('./github');
 
 function jsonResponse(data: unknown, status = 200): Response {
@@ -228,6 +228,44 @@ describe('GitHub integration', () => {
 			await expect(
 				fetchGithubIssueStatus(baseConfig, 'https://github.com/org/repo/issues/999')
 			).rejects.toThrow('GitHub returned 404');
+		});
+	});
+
+	describe('fetchGithubIssueDetail', () => {
+		it('normalizes malformed labels, comments, and state fields', async () => {
+			mockFetch
+				.mockResolvedValueOnce(
+					jsonResponse({
+						title: 'Bug',
+						body: null,
+						state: { value: 'closed' },
+						user: null,
+						labels: { name: 'not-array' },
+						created_at: '2026-01-01T00:00:00Z',
+						updated_at: '2026-01-02T00:00:00Z',
+						closed_at: null
+					})
+				)
+				.mockResolvedValueOnce(jsonResponse({ message: 'not-array' }));
+
+			const result = await fetchGithubIssueDetail(
+				baseConfig,
+				'https://github.com/org/repo/issues/5'
+			);
+
+			expect(result).toEqual({
+				title: 'Bug',
+				body: '',
+				state: 'unknown',
+				stateCategory: 'unknown',
+				author: '',
+				authorAvatar: undefined,
+				labels: [],
+				createdAt: '2026-01-01T00:00:00Z',
+				updatedAt: '2026-01-02T00:00:00Z',
+				closedAt: null,
+				comments: []
+			});
 		});
 	});
 });

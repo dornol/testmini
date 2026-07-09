@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockDeleteReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser } from '$lib/server/test-helpers/fixtures';
 
@@ -61,13 +65,13 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 		// Add projectWebhook to query mock
 		mockDb.query.projectWebhook = { findFirst: vi.fn() };
+		mockUpdateReturning(mockDb, [existingWebhook]);
 	});
 
 	describe('PATCH', () => {
 		it('should update webhook name', async () => {
-			mockDb.query.projectWebhook.findFirst
-				.mockResolvedValueOnce(existingWebhook) // existence check
-				.mockResolvedValueOnce({ ...existingWebhook, name: 'Updated Name' }); // re-fetch after update
+			mockDb.query.projectWebhook.findFirst.mockResolvedValueOnce(existingWebhook);
+			mockUpdateReturning(mockDb, [{ ...existingWebhook, name: 'Updated Name' }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -82,6 +86,7 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 			expect(data.name).toBe('Updated Name');
 			const updateChain = mockDb.update.mock.results[0]?.value as {
 				where: ReturnType<typeof vi.fn>;
+				returning: ReturnType<typeof vi.fn>;
 			};
 			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
@@ -89,12 +94,12 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 					['project_id', 1]
 				])
 			);
+			expect(updateChain.returning).toHaveBeenCalled();
 		});
 
 		it('should update webhook URL', async () => {
-			mockDb.query.projectWebhook.findFirst
-				.mockResolvedValueOnce(existingWebhook)
-				.mockResolvedValueOnce({ ...existingWebhook, url: 'https://new.example.com/hook' });
+			mockDb.query.projectWebhook.findFirst.mockResolvedValueOnce(existingWebhook);
+			mockUpdateReturning(mockDb, [{ ...existingWebhook, url: 'https://new.example.com/hook' }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -110,9 +115,8 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 		});
 
 		it('should update enabled status', async () => {
-			mockDb.query.projectWebhook.findFirst
-				.mockResolvedValueOnce(existingWebhook)
-				.mockResolvedValueOnce({ ...existingWebhook, enabled: false });
+			mockDb.query.projectWebhook.findFirst.mockResolvedValueOnce(existingWebhook);
+			mockUpdateReturning(mockDb, [{ ...existingWebhook, enabled: false }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -128,9 +132,10 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 		});
 
 		it('should update events filter', async () => {
-			mockDb.query.projectWebhook.findFirst
-				.mockResolvedValueOnce(existingWebhook)
-				.mockResolvedValueOnce({ ...existingWebhook, events: ['TEST_FAILED', 'COMMENT_ADDED'] });
+			mockDb.query.projectWebhook.findFirst.mockResolvedValueOnce(existingWebhook);
+			mockUpdateReturning(mockDb, [
+				{ ...existingWebhook, events: ['TEST_FAILED', 'COMMENT_ADDED'] }
+			]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -155,6 +160,20 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 				user: adminUser
 			});
 			await expect(PATCH(event)).rejects.toThrow();
+		});
+
+		it('should return 404 when webhook disappears before update', async () => {
+			mockDb.query.projectWebhook.findFirst.mockResolvedValueOnce(existingWebhook);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Updated' },
+				user: adminUser
+			});
+
+			await expect(PATCH(event)).rejects.toMatchObject({ status: 404 });
 		});
 
 		it('should return 400 when no fields to update', async () => {
@@ -395,9 +414,11 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 		});
 
 		it('should clear secret when empty string is provided', async () => {
-			mockDb.query.projectWebhook.findFirst
-				.mockResolvedValueOnce({ ...existingWebhook, secret: 'old-secret' })
-				.mockResolvedValueOnce({ ...existingWebhook, secret: null });
+			mockDb.query.projectWebhook.findFirst.mockResolvedValueOnce({
+				...existingWebhook,
+				secret: 'old-secret'
+			});
+			mockUpdateReturning(mockDb, [{ ...existingWebhook, secret: null }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',

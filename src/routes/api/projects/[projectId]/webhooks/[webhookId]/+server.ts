@@ -31,14 +31,11 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params
 		return badRequest('No fields to update');
 	}
 
-	await db
+	const [updated] = await db
 		.update(projectWebhook)
 		.set(updates)
-		.where(and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId)));
-
-	const updated = await db.query.projectWebhook.findFirst({
-		where: and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId))
-	});
+		.where(and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId)))
+		.returning();
 	if (!updated) error(404, 'Webhook not found');
 
 	return json({

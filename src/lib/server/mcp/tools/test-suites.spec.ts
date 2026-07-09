@@ -152,6 +152,7 @@ describe('MCP test-suite tools', () => {
 	describe('add-suite-items', () => {
 		it('should add test cases to suite', async () => {
 			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
 
 			const result = await client.callTool({
 				name: 'add-suite-items',
@@ -162,6 +163,22 @@ describe('MCP test-suite tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.success).toBe(true);
 			expect(parsed.addedCount).toBe(2);
+		});
+
+		it('should reject test cases outside the current project', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
+			mockSelectResult(mockDb, [{ id: 10 }]);
+
+			const result = await client.callTool({
+				name: 'add-suite-items',
+				arguments: { suiteId: 1, testCaseIds: [10, 999] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return error when suite not found', async () => {

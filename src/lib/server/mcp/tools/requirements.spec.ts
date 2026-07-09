@@ -326,6 +326,9 @@ describe('MCP requirement tools', () => {
 
 	describe('unlink-requirement-test-case', () => {
 		it('should unlink requirement from test case', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+
 			const result = await client.callTool({
 				name: 'unlink-requirement-test-case',
 				arguments: { requirementId: 1, testCaseId: 10 }
@@ -336,6 +339,37 @@ describe('MCP requirement tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.requirementId).toBe(1);
 			expect(parsed.testCaseId).toBe(10);
+		});
+
+		it('should reject unlink when requirement is not in the current project', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'unlink-requirement-test-case',
+				arguments: { requirementId: 999, testCaseId: 10 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Requirement not found'
+			);
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
+		it('should reject unlink when test case is not in the current project', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'unlink-requirement-test-case',
+				arguments: { requirementId: 1, testCaseId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 	});
 });

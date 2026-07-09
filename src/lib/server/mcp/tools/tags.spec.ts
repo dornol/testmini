@@ -218,6 +218,9 @@ describe('MCP tag tools', () => {
 
 	describe('remove-tag-from-test-case', () => {
 		it('should remove tag from test case', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDb.query.tag.findFirst.mockResolvedValue(sampleTag);
+
 			const result = await client.callTool({
 				name: 'remove-tag-from-test-case',
 				arguments: { testCaseId: 10, tagId: 1 }
@@ -228,6 +231,37 @@ describe('MCP tag tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.testCaseId).toBe(10);
 			expect(parsed.tagId).toBe(1);
+		});
+
+		it('should reject removal when test case is not in the current project', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'remove-tag-from-test-case',
+				arguments: { testCaseId: 999, tagId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
+		it('should reject removal when tag is not in the current project', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDb.query.tag.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'remove-tag-from-test-case',
+				arguments: { testCaseId: 10, tagId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Tag not found'
+			);
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 	});
 

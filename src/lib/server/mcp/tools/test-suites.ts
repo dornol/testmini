@@ -68,6 +68,13 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 			});
 			if (!suite) return err('Test suite not found');
 
+			const uniqueTestCaseIds = [...new Set(testCaseIds)];
+			const validCases = await db
+				.select({ id: testCase.id })
+				.from(testCase)
+				.where(and(eq(testCase.projectId, projectId), inArray(testCase.id, uniqueTestCaseIds)));
+			if (validCases.length !== uniqueTestCaseIds.length) return err('Test case not found');
+
 			const values = testCaseIds.map((testCaseId) => ({ suiteId, testCaseId }));
 			await db.insert(testSuiteItem).values(values).onConflictDoNothing();
 

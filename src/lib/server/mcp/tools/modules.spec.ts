@@ -246,6 +246,7 @@ describe('MCP module tools', () => {
 	describe('add-module-test-cases', () => {
 		it('should add test cases to module', async () => {
 			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 20 }]);
 			mockInsertReturning(mockDb, []);
 
 			const result = await client.callTool({
@@ -259,12 +260,31 @@ describe('MCP module tools', () => {
 			expect(parsed.moduleId).toBe(1);
 			expect(parsed.addedCount).toBe(2);
 		});
+
+		it('should reject adding test cases outside the current project', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
+			mockSelectResult(mockDb, [{ id: 10 }]);
+
+			const result = await client.callTool({
+				name: 'add-module-test-cases',
+				arguments: { moduleId: 1, testCaseIds: [10, 999] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
 	});
 
 	// ── remove-module-test-cases ────────────────────────
 
 	describe('remove-module-test-cases', () => {
 		it('should remove test cases from module', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 20 }]);
+
 			const result = await client.callTool({
 				name: 'remove-module-test-cases',
 				arguments: { moduleId: 1, testCaseIds: [10, 20] }
@@ -275,6 +295,37 @@ describe('MCP module tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.moduleId).toBe(1);
 			expect(parsed.removedCount).toBe(2);
+		});
+
+		it('should reject removal when module is not in the current project', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'remove-module-test-cases',
+				arguments: { moduleId: 999, testCaseIds: [10] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Module not found'
+			);
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
+		it('should reject removing test cases outside the current project', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
+			mockSelectResult(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'remove-module-test-cases',
+				arguments: { moduleId: 1, testCaseIds: [999] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 	});
 });

@@ -1950,6 +1950,9 @@ describe('MCP Server', () => {
 
 	describe('tool: remove-tag-from-test-case', () => {
 		it('should remove tag from test case', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDb.query.tag.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'smoke' });
+
 			const result = await client.callTool({
 				name: 'remove-tag-from-test-case',
 				arguments: { testCaseId: 10, tagId: 1 }
@@ -2053,6 +2056,7 @@ describe('MCP Server', () => {
 	describe('tool: add-suite-items', () => {
 		it('should add items to suite', async () => {
 			mockDb.query.testSuite.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Suite' });
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
 
 			const result = await client.callTool({
 				name: 'add-suite-items',

@@ -128,6 +128,13 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 			});
 			if (!m) return err('Module not found');
 
+			const uniqueTestCaseIds = [...new Set(testCaseIds)];
+			const validCases = await db
+				.select({ id: testCase.id })
+				.from(testCase)
+				.where(and(eq(testCase.projectId, projectId), inArray(testCase.id, uniqueTestCaseIds)));
+			if (validCases.length !== uniqueTestCaseIds.length) return err('Test case not found');
+
 			const values = testCaseIds.map((tcId) => ({ moduleId, testCaseId: tcId }));
 			await db.insert(moduleTestCase).values(values).onConflictDoNothing();
 			return ok({ success: true, moduleId, addedCount: testCaseIds.length });
@@ -142,6 +149,18 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 			testCaseIds: z.array(z.number()).describe('Test case IDs to remove')
 		},
 		async ({ moduleId, testCaseIds }) => {
+			const m = await db.query.module.findFirst({
+				where: and(eq(module.id, moduleId), eq(module.projectId, projectId))
+			});
+			if (!m) return err('Module not found');
+
+			const uniqueTestCaseIds = [...new Set(testCaseIds)];
+			const validCases = await db
+				.select({ id: testCase.id })
+				.from(testCase)
+				.where(and(eq(testCase.projectId, projectId), inArray(testCase.id, uniqueTestCaseIds)));
+			if (validCases.length !== uniqueTestCaseIds.length) return err('Test case not found');
+
 			await db
 				.delete(moduleTestCase)
 				.where(

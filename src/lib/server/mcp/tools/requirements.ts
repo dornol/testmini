@@ -193,6 +193,16 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 			testCaseId: z.number().describe('Test case ID')
 		},
 		async ({ requirementId, testCaseId }) => {
+			const req = await db.query.requirement.findFirst({
+				where: and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId))
+			});
+			if (!req) return err('Requirement not found');
+
+			const tc = await db.query.testCase.findFirst({
+				where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
+			});
+			if (!tc) return err('Test case not found');
+
 			await db
 				.delete(requirementTestCase)
 				.where(

@@ -83,6 +83,16 @@ export function registerTagTools(server: McpServer, projectId: number) {
 			tagId: z.number().describe('Tag ID')
 		},
 		async ({ testCaseId, tagId }) => {
+			const tc = await db.query.testCase.findFirst({
+				where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
+			});
+			if (!tc) return err('Test case not found');
+
+			const t = await db.query.tag.findFirst({
+				where: and(eq(tag.id, tagId), eq(tag.projectId, projectId))
+			});
+			if (!t) return err('Tag not found');
+
 			await db
 				.delete(testCaseTag)
 				.where(and(eq(testCaseTag.testCaseId, testCaseId), eq(testCaseTag.tagId, tagId)));

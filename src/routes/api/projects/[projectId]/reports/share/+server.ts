@@ -5,6 +5,7 @@ import { sharedReport } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import crypto from 'crypto';
 import { parseJsonBody } from '$lib/server/auth-utils';
+import { isPlainRecord } from '$lib/server/object-validation';
 
 const MAX_NAME_LENGTH = 120;
 const MAX_EXPIRES_IN_DAYS = 365;
@@ -12,11 +13,11 @@ const ALLOWED_PRESETS = new Set(['last_7_days', 'last_30_days', 'last_90_days', 
 
 function validateConfig(config: unknown): { from?: string; to?: string; preset?: string } {
 	if (config == null) return {};
-	if (!config || typeof config !== 'object' || Array.isArray(config)) {
+	if (!isPlainRecord(config)) {
 		error(400, 'config must be an object');
 	}
 
-	const raw = config as Record<string, unknown>;
+	const raw = config;
 	const parsed: { from?: string; to?: string; preset?: string } = {};
 
 	if (raw.preset !== undefined) {
@@ -64,11 +65,9 @@ export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA'],
 	async ({ request, projectId, user }) => {
 		const body = await parseJsonBody(request);
-		const { name, config, expiresInDays } = body as {
-			name: string;
-			config?: unknown;
-			expiresInDays?: number;
-		};
+		if (!isPlainRecord(body)) error(400, 'Invalid request body');
+
+		const { name, config } = body;
 
 		const trimmedName = typeof name === 'string' ? name.trim() : '';
 		if (!trimmedName) error(400, 'Name is required');
@@ -78,11 +77,17 @@ export const POST = withProjectRole(
 
 		const safeConfig = validateConfig(config);
 
-		if (
-			expiresInDays !== undefined &&
-			(!Number.isInteger(expiresInDays) || expiresInDays < 1 || expiresInDays > MAX_EXPIRES_IN_DAYS)
-		) {
-			error(400, `expiresInDays must be an integer between 1 and ${MAX_EXPIRES_IN_DAYS}`);
+		let expiresInDays: number | undefined;
+		if (body.expiresInDays !== undefined) {
+			if (
+				typeof body.expiresInDays !== 'number' ||
+				!Number.isInteger(body.expiresInDays) ||
+				body.expiresInDays < 1 ||
+				body.expiresInDays > MAX_EXPIRES_IN_DAYS
+			) {
+				error(400, `expiresInDays must be an integer between 1 and ${MAX_EXPIRES_IN_DAYS}`);
+			}
+			expiresInDays = body.expiresInDays;
 		}
 
 		const token = crypto.randomBytes(32).toString('hex');

@@ -159,6 +159,18 @@ describe('/api/projects/[projectId]/reports/share', () => {
 			await expect(POST(event)).rejects.toThrow();
 		});
 
+		it('should reject non-object request bodies before inserting', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: null
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should create shared report and return 201', async () => {
 			mockRandomBytes.mockReturnValue({ toString: () => 'generated-token-hex' });
 			mockInsertReturning(mockDb, [sampleSharedReport]);

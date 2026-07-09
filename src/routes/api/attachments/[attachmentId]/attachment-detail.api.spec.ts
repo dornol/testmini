@@ -387,6 +387,22 @@ describe('/api/attachments/[attachmentId]', () => {
 			expect(storage.deleteFile).not.toHaveBeenCalled();
 		});
 
+		it('should surface stored file deletion failures', async () => {
+			setupAttachmentQuery(sampleAttachment);
+			setupTestCaseQuery({ projectId: 1 });
+			vi.mocked(storage.deleteFile).mockRejectedValueOnce(new Error('EPERM'));
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: { attachmentId: '1' },
+				user: testUser
+			});
+
+			await expect(DELETE(event)).rejects.toThrow('EPERM');
+			expect(mockDb.delete).toHaveBeenCalled();
+			expect(storage.deleteFile).toHaveBeenCalledWith(sampleAttachment.objectKey);
+		});
+
 		it('should delete attachment with EXECUTION reference for authorized user', async () => {
 			setupAttachmentQuery(executionAttachment);
 			setupExecutionQuery({ testRun: { projectId: 5 } });

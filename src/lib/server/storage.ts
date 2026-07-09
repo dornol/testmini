@@ -32,7 +32,7 @@ if (isS3Enabled()) {
 	if (missing.length > 0) {
 		throw new Error(
 			`S3 storage is enabled (S3_BUCKET and S3_ENDPOINT are set) but missing: ${missing.join(', ')}. ` +
-			`Set these variables or remove S3_BUCKET/S3_ENDPOINT to use local filesystem.`
+				`Set these variables or remove S3_BUCKET/S3_ENDPOINT to use local filesystem.`
 		);
 	}
 }
@@ -69,6 +69,12 @@ function safeKey(objectKey: string): void {
 	if (objectKey.includes('..')) {
 		throw new Error('Invalid object key');
 	}
+}
+
+function isNotFoundError(error: unknown): boolean {
+	if (!error || typeof error !== 'object') return false;
+	if ('code' in error && error.code === 'ENOENT') return true;
+	return error instanceof Error && error.message.includes('ENOENT');
 }
 
 // ---------------------------------------------------------------------------
@@ -140,10 +146,12 @@ export async function deleteFile(objectKey: string): Promise<void> {
 		return;
 	}
 
+	const filePath = safePath(objectKey);
 	try {
-		await unlink(safePath(objectKey));
-	} catch {
-		// File already deleted or doesn't exist
+		await unlink(filePath);
+	} catch (err) {
+		if (isNotFoundError(err)) return;
+		throw err;
 	}
 }
 

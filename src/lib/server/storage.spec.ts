@@ -1,26 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const {
-	mockEnv,
-	mockSend,
-	mockMkdir,
-	mockWriteFile,
-	mockReadFile,
-	mockUnlink,
-	mockStat
-} = vi.hoisted(() => {
-	const mockEnv: Record<string, string | undefined> = {};
-	const mockSend = vi.fn();
-	return {
-		mockEnv,
-		mockSend,
-		mockMkdir: vi.fn().mockResolvedValue(undefined),
-		mockWriteFile: vi.fn().mockResolvedValue(undefined),
-		mockReadFile: vi.fn().mockResolvedValue(Buffer.from('file-content')),
-		mockUnlink: vi.fn().mockResolvedValue(undefined),
-		mockStat: vi.fn().mockResolvedValue({})
-	};
-});
+const { mockEnv, mockSend, mockMkdir, mockWriteFile, mockReadFile, mockUnlink, mockStat } =
+	vi.hoisted(() => {
+		const mockEnv: Record<string, string | undefined> = {};
+		const mockSend = vi.fn();
+		return {
+			mockEnv,
+			mockSend,
+			mockMkdir: vi.fn().mockResolvedValue(undefined),
+			mockWriteFile: vi.fn().mockResolvedValue(undefined),
+			mockReadFile: vi.fn().mockResolvedValue(Buffer.from('file-content')),
+			mockUnlink: vi.fn().mockResolvedValue(undefined),
+			mockStat: vi.fn().mockResolvedValue({})
+		};
+	});
 
 vi.mock('$env/dynamic/private', () => ({ env: mockEnv }));
 
@@ -169,7 +162,10 @@ describe('storage', () => {
 			it('writes the correct data to the resolved path', async () => {
 				const data = Buffer.from('hello world');
 				await saveFile('testcase/1/abc.txt', data);
-				expect(mockWriteFile).toHaveBeenCalledWith(expect.stringContaining('testcase/1/abc.txt'), data);
+				expect(mockWriteFile).toHaveBeenCalledWith(
+					expect.stringContaining('testcase/1/abc.txt'),
+					data
+				);
 			});
 
 			it('does not use S3', async () => {
@@ -246,14 +242,13 @@ describe('storage', () => {
 				await expect(deleteFile('testcase/1/abc.txt')).resolves.toBeUndefined();
 			});
 
-			it('swallows any error from unlink', async () => {
+			it('propagates non-ENOENT unlink errors', async () => {
 				mockUnlink.mockRejectedValueOnce(new Error('EPERM'));
-				await expect(deleteFile('testcase/1/abc.txt')).resolves.toBeUndefined();
+				await expect(deleteFile('testcase/1/abc.txt')).rejects.toThrow('EPERM');
 			});
 
-			it('swallows traversal errors (catch-all behavior)', async () => {
-				// deleteFile has a try/catch that swallows ALL errors including traversal
-				await expect(deleteFile('../../etc/important')).resolves.toBeUndefined();
+			it('rejects traversal errors before unlink', async () => {
+				await expect(deleteFile('../../etc/important')).rejects.toThrow('Invalid object key');
 				expect(mockUnlink).not.toHaveBeenCalled();
 			});
 		});
@@ -325,9 +320,7 @@ describe('storage', () => {
 			});
 
 			it('rejects embedded .. in deleteFile', async () => {
-				await expect(deleteFile('data/../../../etc/shadow')).rejects.toThrow(
-					'Invalid object key'
-				);
+				await expect(deleteFile('data/../../../etc/shadow')).rejects.toThrow('Invalid object key');
 				expect(mockSend).not.toHaveBeenCalled();
 			});
 
@@ -533,9 +526,8 @@ describe('storage', () => {
 			await expect(getFile('../../etc/shadow')).rejects.toThrow('Invalid object key');
 		});
 
-		it('deleteFile swallows traversal errors (catch-all)', async () => {
-			// deleteFile's catch block swallows all errors
-			await expect(deleteFile('../../etc/important')).resolves.toBeUndefined();
+		it('deleteFile rejects traversal errors', async () => {
+			await expect(deleteFile('../../etc/important')).rejects.toThrow('Invalid object key');
 		});
 
 		it('fileExists returns false for traversal paths', async () => {
@@ -544,9 +536,7 @@ describe('storage', () => {
 		});
 
 		it('rejects absolute paths', async () => {
-			await expect(saveFile('/etc/passwd', Buffer.from('x'))).rejects.toThrow(
-				'Invalid object key'
-			);
+			await expect(saveFile('/etc/passwd', Buffer.from('x'))).rejects.toThrow('Invalid object key');
 		});
 
 		it('rejects encoded traversal (..%2F does not bypass after resolve)', async () => {

@@ -305,19 +305,20 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (links.length === 0) continue;
 
 		const linkIds = links.map((l) => l.id);
-		await db
+		const updatedLinks = await db
 			.update(issueLink)
 			.set({
 				status: event.issueState,
 				statusSyncedAt: new Date()
 			})
-			.where(and(eq(issueLink.projectId, config.projectId), inArray(issueLink.id, linkIds)));
+			.where(and(eq(issueLink.projectId, config.projectId), inArray(issueLink.id, linkIds)))
+			.returning({ id: issueLink.id, testCaseId: issueLink.testCaseId });
 
-		totalUpdated += links.length;
+		totalUpdated += updatedLinks.length;
 
 		// Track test cases that need retesting when issue is resolved
 		if (stateToCategory(event.issueState) === 'done') {
-			for (const link of links) {
+			for (const link of updatedLinks) {
 				if (link.testCaseId) {
 					const ids = retestCaseIdsByProject.get(config.projectId) ?? new Set<number>();
 					ids.add(link.testCaseId);
@@ -332,11 +333,12 @@ export const POST: RequestHandler = async ({ request }) => {
 	for (const [projectId, caseIds] of retestCaseIdsByProject) {
 		const ids = [...caseIds];
 		if (ids.length === 0) continue;
-		await db
+		const updatedCases = await db
 			.update(testCase)
 			.set({ retestNeeded: true })
-			.where(and(eq(testCase.projectId, projectId), inArray(testCase.id, ids)));
-		retestMarked += ids.length;
+			.where(and(eq(testCase.projectId, projectId), inArray(testCase.id, ids)))
+			.returning({ id: testCase.id });
+		retestMarked += updatedCases.length;
 	}
 
 	log.info(

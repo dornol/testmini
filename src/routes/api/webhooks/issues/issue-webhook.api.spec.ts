@@ -183,8 +183,10 @@ function makeIssueLink(overrides: Record<string, unknown> = {}) {
 	};
 }
 
-/** Helper to set up config select → link select → update chain in sequence */
-function setupDbChain(configs: unknown[], links: unknown[] = []) {
+let updateChains: Record<string, unknown>[] = [];
+
+/** Helper to set up config select -> link select -> update chain in sequence */
+function setupDbChain(configs: unknown[], links: unknown[] = [], updateResults?: unknown[][]) {
 	let selectCall = 0;
 	mockDb.select.mockImplementation(() => {
 		const call = selectCall++;
@@ -195,6 +197,33 @@ function setupDbChain(configs: unknown[], links: unknown[] = []) {
 		// Subsequent selects: links
 		return chainResolving(links);
 	});
+
+	setupUpdateResults(...(updateResults ?? [links, links.filter(hasTestCaseId)]));
+}
+
+function hasTestCaseId(link: unknown): boolean {
+	return (
+		typeof link === 'object' &&
+		link !== null &&
+		'testCaseId' in link &&
+		Boolean((link as { testCaseId?: unknown }).testCaseId)
+	);
+}
+
+function setupUpdateResults(...results: unknown[][]) {
+	let updateCall = 0;
+	updateChains = [];
+	mockDb.update.mockImplementation(() => {
+		const chain = chainResolving(results[updateCall++] ?? []);
+		updateChains.push(chain);
+		return chain;
+	});
+}
+
+function getUpdateWhere(index: number) {
+	const chain = updateChains[index];
+	if (!chain) throw new Error(`Missing update chain ${index}`);
+	return chain.where as ReturnType<typeof vi.fn>;
 }
 
 function chainResolving(result: unknown[]) {
@@ -398,7 +427,7 @@ describe('/api/webhooks/issues POST', () => {
 			expect(data.updated).toBe(1);
 			// update was called for issueLink status
 			expect(mockDb.update).toHaveBeenCalled();
-			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+			expect(getUpdateWhere(0)).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['project_id', 1],
 					['id', [100]]
@@ -693,7 +722,7 @@ describe('/api/webhooks/issues POST', () => {
 			expect(data.retestMarked).toBe(1);
 			// update should have been called twice: once for issueLink, once for testCase
 			expect(mockDb.update).toHaveBeenCalledTimes(2);
-			expect(mockDb._chains.update.where).toHaveBeenLastCalledWith(
+			expect(getUpdateWhere(1)).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['project_id', 1],
 					['id', [55]]
@@ -735,6 +764,7 @@ describe('/api/webhooks/issues POST', () => {
 				if (call === 1) return chainResolving([link1]);
 				return chainResolving([link2]);
 			});
+			setupUpdateResults([link1], [link2], [{ id: 10 }], [{ id: 20 }]);
 
 			const event = createWebhookRequest(
 				makeGitHubIssuePayload({ action: 'closed', state: 'closed' }),
@@ -747,13 +777,13 @@ describe('/api/webhooks/issues POST', () => {
 			expect(response.status).toBe(200);
 			expect(data.updated).toBe(2);
 			expect(data.retestMarked).toBe(2);
-			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+			expect(getUpdateWhere(2)).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['project_id', 1],
 					['id', [10]]
 				])
 			);
-			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+			expect(getUpdateWhere(3)).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['project_id', 2],
 					['id', [20]]
@@ -775,6 +805,44 @@ describe('/api/webhooks/issues POST', () => {
 			expect(response.status).toBe(200);
 			expect(data.updated).toBe(0);
 			expect(data.retestMarked).toBe(0);
+		});
+
+		it('reports zero updated rows when matching issue links disappear before update', async () => {
+			const config = makeConfig();
+			const link = makeIssueLink({ testCaseId: 55 });
+			setupDbChain([config], [link], [[]]);
+
+			const event = createWebhookRequest(
+				makeGitHubIssuePayload({ action: 'closed', state: 'closed' }),
+				{ 'x-github-event': 'issues' }
+			);
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.updated).toBe(0);
+			expect(data.retestMarked).toBe(0);
+			expect(mockDb.update).toHaveBeenCalledTimes(1);
+		});
+
+		it('reports actual retest rows when matching test cases disappear before update', async () => {
+			const config = makeConfig();
+			const link = makeIssueLink({ testCaseId: 55 });
+			setupDbChain([config], [link], [[link], []]);
+
+			const event = createWebhookRequest(
+				makeGitHubIssuePayload({ action: 'closed', state: 'closed' }),
+				{ 'x-github-event': 'issues' }
+			);
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.updated).toBe(1);
+			expect(data.retestMarked).toBe(0);
+			expect(mockDb.update).toHaveBeenCalledTimes(2);
 		});
 
 		it('handles issue links without testCaseId on close (no retest)', async () => {

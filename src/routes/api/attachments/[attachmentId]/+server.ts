@@ -10,6 +10,19 @@ import {
 	isAttachmentReferenceType
 } from '$lib/server/attachment-access';
 
+const ACTIVE_CONTENT_TYPES = new Set(['image/svg+xml', 'text/html', 'application/xhtml+xml']);
+
+function getSafeDownloadContentType(contentType: string | null): string {
+	if (!contentType) return 'application/octet-stream';
+
+	const normalized = contentType.split(';', 1)[0]?.trim().toLowerCase() ?? '';
+	if (ACTIVE_CONTENT_TYPES.has(normalized)) {
+		return 'application/octet-stream';
+	}
+
+	return contentType;
+}
+
 export const GET = withAuth(async ({ params, user }) => {
 	const attachmentId = parseId(params.attachmentId, 'attachment ID');
 
@@ -35,9 +48,10 @@ export const GET = withAuth(async ({ params, user }) => {
 
 	return new Response(body, {
 		headers: {
-			'Content-Type': record.contentType || 'application/octet-stream',
+			'Content-Type': getSafeDownloadContentType(record.contentType),
 			'Content-Disposition': `attachment; filename="${encodeURIComponent(record.fileName)}"`,
-			'Content-Length': String(fileBuffer.length)
+			'Content-Length': String(fileBuffer.length),
+			'X-Content-Type-Options': 'nosniff'
 		}
 	});
 });

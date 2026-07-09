@@ -161,6 +161,7 @@ describe('/api/attachments/[attachmentId]', () => {
 			expect(response.status).toBe(200);
 			expect(response.headers.get('Content-Type')).toBe('image/png');
 			expect(response.headers.get('Content-Disposition')).toContain('screenshot.png');
+			expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
 			expect(authUtils.requireProjectAccess).toHaveBeenCalledWith(testUser, 1);
 			expect(storage.getFile).toHaveBeenCalledWith(sampleAttachment.objectKey);
 		});
@@ -244,6 +245,50 @@ describe('/api/attachments/[attachmentId]', () => {
 			const response = await GET(event);
 
 			expect(response.headers.get('Content-Type')).toBe('application/octet-stream');
+		});
+
+		it('should not serve active HTML attachments with their stored content type', async () => {
+			const htmlAttachment = {
+				...sampleAttachment,
+				fileName: 'report.html',
+				contentType: 'text/html; charset=utf-8',
+				objectKey: 'attachments/TESTCASE/10/report.html'
+			};
+			setupAttachmentQuery(htmlAttachment);
+			setupTestCaseQuery({ projectId: 1 });
+
+			const event = createMockEvent({
+				method: 'GET',
+				params: { attachmentId: '1' },
+				user: testUser
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(response.headers.get('Content-Type')).toBe('application/octet-stream');
+			expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+		});
+
+		it('should not serve SVG attachments with their stored content type', async () => {
+			const svgAttachment = {
+				...sampleAttachment,
+				fileName: 'diagram.svg',
+				contentType: 'image/svg+xml',
+				objectKey: 'attachments/TESTCASE/10/diagram.svg'
+			};
+			setupAttachmentQuery(svgAttachment);
+			setupTestCaseQuery({ projectId: 1 });
+
+			const event = createMockEvent({
+				method: 'GET',
+				params: { attachmentId: '1' },
+				user: testUser
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(response.headers.get('Content-Type')).toBe('application/octet-stream');
+			expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
 		});
 	});
 

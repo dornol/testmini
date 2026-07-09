@@ -44,7 +44,15 @@ function validateConfig(config: unknown): { from?: string; to?: string; preset?:
 
 export const GET = withProjectAccess(async ({ projectId }) => {
 	const reports = await db
-		.select()
+		.select({
+			id: sharedReport.id,
+			projectId: sharedReport.projectId,
+			name: sharedReport.name,
+			config: sharedReport.config,
+			expiresAt: sharedReport.expiresAt,
+			createdBy: sharedReport.createdBy,
+			createdAt: sharedReport.createdAt
+		})
 		.from(sharedReport)
 		.where(eq(sharedReport.projectId, projectId))
 		.orderBy(sharedReport.createdAt);

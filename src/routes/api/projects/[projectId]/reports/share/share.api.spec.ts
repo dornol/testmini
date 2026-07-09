@@ -75,7 +75,9 @@ describe('/api/projects/[projectId]/reports/share', () => {
 		});
 
 		it('should return list of shared reports', async () => {
-			mockSelectResult(mockDb, [sampleSharedReport]);
+			const listItem = { ...sampleSharedReport };
+			delete (listItem as Partial<typeof sampleSharedReport>).token;
+			mockSelectResult(mockDb, [listItem]);
 
 			const event = createMockEvent({
 				method: 'GET',
@@ -90,7 +92,10 @@ describe('/api/projects/[projectId]/reports/share', () => {
 			expect(body).toHaveLength(1);
 			expect(body[0].id).toBe(sampleSharedReport.id);
 			expect(body[0].name).toBe(sampleSharedReport.name);
-			expect(body[0].token).toBe(sampleSharedReport.token);
+			expect(body[0]).not.toHaveProperty('token');
+			expect(mockDb.select).toHaveBeenCalledWith(
+				expect.not.objectContaining({ token: expect.anything() })
+			);
 		});
 
 		it('should return empty array when no shared reports', async () => {
@@ -170,6 +175,7 @@ describe('/api/projects/[projectId]/reports/share', () => {
 
 			const body = await response.json();
 			expect(body.name).toBe('Weekly Report');
+			expect(body.token).toBe(sampleSharedReport.token);
 			expect(authUtils.requireProjectRole).toHaveBeenCalledWith(testUser, 1, [
 				'PROJECT_ADMIN',
 				'QA'

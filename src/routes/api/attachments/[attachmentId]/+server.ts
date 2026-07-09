@@ -9,6 +9,7 @@ import {
 	getProjectIdForAttachmentReference,
 	isAttachmentReferenceType
 } from '$lib/server/attachment-access';
+import { attachmentContentDisposition } from '$lib/server/content-disposition';
 
 const ACTIVE_CONTENT_TYPES = new Set(['image/svg+xml', 'text/html', 'application/xhtml+xml']);
 
@@ -49,7 +50,7 @@ export const GET = withAuth(async ({ params, user }) => {
 	return new Response(body, {
 		headers: {
 			'Content-Type': getSafeDownloadContentType(record.contentType),
-			'Content-Disposition': `attachment; filename="${encodeURIComponent(record.fileName)}"`,
+			'Content-Disposition': attachmentContentDisposition(record.fileName),
 			'Content-Length': String(fileBuffer.length),
 			'X-Content-Type-Options': 'nosniff'
 		}

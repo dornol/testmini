@@ -51,11 +51,20 @@ describe('csvResponse', () => {
 
 	it('includes Content-Disposition header with filename', () => {
 		const res = csvResponse(['A'], [['1']], 'export.csv');
-		expect(res.headers.get('Content-Disposition')).toBe('attachment; filename="export.csv"');
+		expect(res.headers.get('Content-Disposition')).toBe(
+			`attachment; filename="export.csv"; filename*=UTF-8''export.csv`
+		);
 	});
 
 	it('contains header row followed by data rows', async () => {
-		const res = csvResponse(['Name', 'Age'], [['Alice', '30'], ['Bob', '25']], 'f.csv');
+		const res = csvResponse(
+			['Name', 'Age'],
+			[
+				['Alice', '30'],
+				['Bob', '25']
+			],
+			'f.csv'
+		);
 		const text = await res.text();
 		const clean = text.replace(/^\uFEFF/, '');
 		const lines = clean.split('\n');
@@ -72,6 +81,15 @@ describe('csvResponse', () => {
 
 	it('handles special characters in filename', () => {
 		const res = csvResponse(['A'], [], 'report (1).csv');
-		expect(res.headers.get('Content-Disposition')).toBe('attachment; filename="report (1).csv"');
+		expect(res.headers.get('Content-Disposition')).toBe(
+			`attachment; filename="report (1).csv"; filename*=UTF-8''report%20%281%29.csv`
+		);
+	});
+
+	it('sanitizes unsafe filename fallback in Content-Disposition', () => {
+		const res = csvResponse(['A'], [], 'bad"\r\nx.csv');
+		const disposition = res.headers.get('Content-Disposition');
+		expect(disposition).toContain('filename="bad___x.csv"');
+		expect(disposition).toContain(`filename*=UTF-8''bad%22%0D%0Ax.csv`);
 	});
 });

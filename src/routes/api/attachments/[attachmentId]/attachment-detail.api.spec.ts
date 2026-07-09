@@ -166,6 +166,27 @@ describe('/api/attachments/[attachmentId]', () => {
 			expect(storage.getFile).toHaveBeenCalledWith(sampleAttachment.objectKey);
 		});
 
+		it('should sanitize unsafe filenames in Content-Disposition', async () => {
+			setupAttachmentQuery({
+				...sampleAttachment,
+				fileName: 'bad"\r\nSet-Cookie: x=1.png'
+			});
+			setupTestCaseQuery({ projectId: 1 });
+
+			const event = createMockEvent({
+				method: 'GET',
+				params: { attachmentId: '1' },
+				user: testUser
+			});
+			const response = await GET(event);
+			const disposition = response.headers.get('Content-Disposition');
+
+			expect(disposition).toContain('filename="bad___Set-Cookie: x=1.png"');
+			expect(disposition).toContain(`filename*=UTF-8''bad%22%0D%0ASet-Cookie%3A%20x%3D1.png`);
+			expect(disposition).not.toContain('\r');
+			expect(disposition).not.toContain('\n');
+		});
+
 		it('should resolve project via EXECUTION reference type', async () => {
 			setupAttachmentQuery(executionAttachment);
 			setupExecutionQuery({ testRun: { projectId: 5 } });

@@ -1,3 +1,5 @@
+import { attachmentContentDisposition } from './content-disposition';
+
 /** Parse a CSV string into a 2D array of strings, handling quoted fields and escaped quotes */
 export function parseCSV(text: string): string[][] {
 	const rows: string[][] = [];
@@ -53,17 +55,23 @@ const FORMULA_PREFIXES = ['=', '+', '-', '@', '\t', '\r'];
 
 /** Escape and format a row of cells for CSV output */
 export function formatCsvRow(cells: (string | null | undefined)[]): string {
-	return cells.map((cell) => {
-		let value = String(cell ?? '').replace(/"/g, '""');
-		if (FORMULA_PREFIXES.some((p) => value.startsWith(p))) {
-			value = `'${value}`;
-		}
-		return `"${value}"`;
-	}).join(',');
+	return cells
+		.map((cell) => {
+			let value = String(cell ?? '').replace(/"/g, '""');
+			if (FORMULA_PREFIXES.some((p) => value.startsWith(p))) {
+				value = `'${value}`;
+			}
+			return `"${value}"`;
+		})
+		.join(',');
 }
 
 /** Build a complete CSV response with BOM and Content-Disposition header */
-export function csvResponse(headers: string[], rows: (string | null | undefined)[][], filename: string): Response {
+export function csvResponse(
+	headers: string[],
+	rows: (string | null | undefined)[][],
+	filename: string
+): Response {
 	const headerRow = formatCsvRow(headers);
 	const dataRows = rows.map((row) => formatCsvRow(row));
 	const content = '\uFEFF' + [headerRow, ...dataRows].join('\n');
@@ -71,7 +79,7 @@ export function csvResponse(headers: string[], rows: (string | null | undefined)
 	return new Response(content, {
 		headers: {
 			'Content-Type': 'text/csv; charset=utf-8',
-			'Content-Disposition': `attachment; filename="${filename}"`
+			'Content-Disposition': attachmentContentDisposition(filename)
 		}
 	});
 }

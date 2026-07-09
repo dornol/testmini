@@ -51,9 +51,8 @@ vi.mock('drizzle-orm', () => ({
 	)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -120,7 +119,15 @@ describe('/api/projects/[projectId]/requirements/matrix/export', () => {
 		// All db.select() calls return the same mock data, so requirements
 		// will have links. We verify the CSV format is correct.
 		mockSelectResult(mockDb, [
-			{ id: 1, externalId: 'REQ-001', title: 'Login requirement', source: 'PRD', testCaseId: 1, key: 'TC-001', status: 'PASS' }
+			{
+				id: 1,
+				externalId: 'REQ-001',
+				title: 'Login requirement',
+				source: 'PRD',
+				testCaseId: 1,
+				key: 'TC-001',
+				status: 'PASS'
+			}
 		]);
 
 		const event = createMockEvent({
@@ -146,6 +153,8 @@ describe('/api/projects/[projectId]/requirements/matrix/export', () => {
 
 		const response = await GET(event);
 		const disposition = response.headers.get('Content-Disposition');
-		expect(disposition).toBe('attachment; filename="traceability_matrix.csv"');
+		expect(disposition).toBe(
+			`attachment; filename="traceability_matrix.csv"; filename*=UTF-8''traceability_matrix.csv`
+		);
 	});
 });

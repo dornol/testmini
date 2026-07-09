@@ -10,6 +10,7 @@ import {
 } from '$lib/server/db/schema';
 import { eq, and, gt, inArray } from 'drizzle-orm';
 import { formatCsvRow } from '$lib/server/csv-utils';
+import { attachmentContentDisposition } from '$lib/server/content-disposition';
 import { parseId } from '$lib/server/auth-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
 
@@ -126,7 +127,7 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 	return new Response(stream, {
 		headers: {
 			'Content-Type': 'text/csv; charset=utf-8',
-			'Content-Disposition': `attachment; filename="${fileName}"`
+			'Content-Disposition': attachmentContentDisposition(fileName)
 		}
 	});
 });

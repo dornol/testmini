@@ -119,6 +119,7 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create webhook');
 			return ok(publicWebhook(created));
 		}
 	);
@@ -133,9 +134,11 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 			});
 			if (!wh) return err('Webhook not found');
 
-			await db
+			const [deleted] = await db
 				.delete(projectWebhook)
-				.where(and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId)));
+				.where(and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId)))
+				.returning({ id: projectWebhook.id });
+			if (!deleted) return err('Webhook not found');
 			return ok({ success: true, deletedId: webhookId });
 		}
 	);
@@ -172,6 +175,7 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 				.set(updates)
 				.where(and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId)))
 				.returning();
+			if (!updated) return err('Webhook not found');
 			return ok(publicWebhook(updated));
 		}
 	);

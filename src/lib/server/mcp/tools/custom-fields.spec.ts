@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockInsertReturning,
 	mockSelectResult
 } from '$lib/server/test-helpers/mock-db';
@@ -267,6 +268,23 @@ describe('MCP custom-field tools', () => {
 			);
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
+
+		it('should return error when custom field insert returns no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockDb.query.customField.findFirst.mockResolvedValue(null);
+			mockSelectResult(mockDb, []);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'create-custom-field',
+				arguments: { name: 'Notes', fieldType: 'TEXT' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create custom field'
+			);
+		});
 	});
 
 	// ── delete-custom-field ─────────────────────────────
@@ -274,6 +292,7 @@ describe('MCP custom-field tools', () => {
 	describe('delete-custom-field', () => {
 		it('should delete a custom field', async () => {
 			mockDb.query.customField.findFirst.mockResolvedValue(sampleCustomField);
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'delete-custom-field',
@@ -285,7 +304,7 @@ describe('MCP custom-field tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.delete).toHaveBeenCalledTimes(1);
-			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+			expect(deleteChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 1],
 					['project_id', PROJECT_ID]
@@ -319,6 +338,21 @@ describe('MCP custom-field tools', () => {
 			);
 			expect(mockDb.query.customField.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
+		it('should return error when custom field disappears before delete', async () => {
+			mockDb.query.customField.findFirst.mockResolvedValue(sampleCustomField);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-custom-field',
+				arguments: { fieldId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Custom field not found'
+			);
 		});
 	});
 });

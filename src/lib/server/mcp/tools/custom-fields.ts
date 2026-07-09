@@ -132,6 +132,7 @@ export function registerCustomFieldTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create custom field');
 			return ok(created);
 		}
 	);
@@ -146,9 +147,11 @@ export function registerCustomFieldTools(server: McpServer, projectId: number) {
 			});
 			if (!f) return err('Custom field not found');
 
-			await db
+			const [deleted] = await db
 				.delete(customField)
-				.where(and(eq(customField.id, fieldId), eq(customField.projectId, projectId)));
+				.where(and(eq(customField.id, fieldId), eq(customField.projectId, projectId)))
+				.returning({ id: customField.id });
+			if (!deleted) return err('Custom field not found');
 			return ok({ success: true, deletedId: fieldId });
 		}
 	);

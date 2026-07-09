@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockInsertReturning,
 	mockSelectResult,
 	mockUpdateReturning
@@ -279,6 +280,21 @@ describe('MCP webhook tools', () => {
 			expect(result.isError).toBe(true);
 			expect(mockDb.insert).toHaveBeenCalledTimes(insertCallCount);
 		});
+
+		it('should return error when webhook insert returns no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'create-webhook',
+				arguments: { name: 'Hook', url: 'https://ci.example.com/hook' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create webhook'
+			);
+		});
 	});
 
 	// ── delete-webhook ──────────────────────────────────
@@ -286,6 +302,7 @@ describe('MCP webhook tools', () => {
 	describe('delete-webhook', () => {
 		it('should delete a webhook', async () => {
 			mockDb.query.projectWebhook.findFirst.mockResolvedValue(sampleWebhook);
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'delete-webhook',
@@ -335,6 +352,21 @@ describe('MCP webhook tools', () => {
 			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
+
+		it('should return error when webhook disappears before delete', async () => {
+			mockDb.query.projectWebhook.findFirst.mockResolvedValue(sampleWebhook);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-webhook',
+				arguments: { webhookId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Webhook not found'
+			);
+		});
 	});
 
 	// ── update-webhook ──────────────────────────────────
@@ -370,6 +402,21 @@ describe('MCP webhook tools', () => {
 			const result = await client.callTool({
 				name: 'update-webhook',
 				arguments: { webhookId: 999, name: 'Updated' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Webhook not found'
+			);
+		});
+
+		it('should return error when webhook disappears before update', async () => {
+			mockDb.query.projectWebhook.findFirst.mockResolvedValue(sampleWebhook);
+			mockUpdateReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'update-webhook',
+				arguments: { webhookId: 1, name: 'Updated Hook' }
 			});
 
 			expect(result.isError).toBe(true);

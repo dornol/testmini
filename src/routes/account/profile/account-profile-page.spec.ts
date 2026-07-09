@@ -59,6 +59,7 @@ vi.mock('$lib/server/auth', () => ({
 }));
 
 const { actions } = await import('./+page.server');
+const MAX_PROFILE_FORM_BODY_SIZE = 16 * 1024;
 
 function createFormData(accountId: string): FormData {
 	const formData = new FormData();
@@ -110,6 +111,21 @@ describe('/account/profile +page.server', () => {
 	});
 
 	describe('actions.updateName', () => {
+		it('should reject oversized form bodies before updating', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createNameFormData('Updated Name'),
+				headers: { 'content-length': String(MAX_PROFILE_FORM_BODY_SIZE + 1) },
+				user: testUser
+			});
+
+			await expect(actions.updateName(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Profile form body is too large' }
+			});
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should update name on success', async () => {
 			mockUpdateReturning(mockDb, [{ id: testUser.id }]);
 
@@ -173,6 +189,25 @@ describe('/account/profile +page.server', () => {
 	});
 
 	describe('actions.changePassword', () => {
+		it('should reject oversized form bodies before calling auth', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createPasswordFormData({
+					currentPassword: 'current-password',
+					newPassword: 'new-password',
+					confirmPassword: 'new-password'
+				}),
+				headers: { 'content-length': String(MAX_PROFILE_FORM_BODY_SIZE + 1) },
+				user: testUser
+			});
+
+			await expect(actions.changePassword(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Profile form body is too large' }
+			});
+			expect(mockChangePassword).not.toHaveBeenCalled();
+		});
+
 		it('should reject file values for password fields before calling auth', async () => {
 			const event = createMockEvent({
 				method: 'POST',
@@ -215,6 +250,22 @@ describe('/account/profile +page.server', () => {
 	});
 
 	describe('actions.unlink', () => {
+		it('should reject invalid content-length before querying ownership', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createFormData('7'),
+				headers: { 'content-length': 'invalid' },
+				user: testUser
+			});
+
+			await expect(actions.unlink(event)).rejects.toMatchObject({
+				status: 400,
+				body: { message: 'Invalid content-length header' }
+			});
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
 		it.each(['', '0', '-1', '+1', '01', '1.5', '1e3', ' 7', '7 ', 'Infinity', '9007199254740992'])(
 			'should reject invalid accountId %s before querying ownership',
 			async (accountId) => {

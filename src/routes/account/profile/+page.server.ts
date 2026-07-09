@@ -8,9 +8,11 @@ import { requireAuth } from '$lib/server/auth-utils';
 import { auth } from '$lib/server/auth';
 import { parsePositiveFormId } from '$lib/server/form-utils';
 import { unlinkOidcAccount } from '$lib/server/oidc-account-links';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
 
 const MAX_PROFILE_NAME_LENGTH = 100;
 const MAX_PASSWORD_LENGTH = 1024;
+const MAX_PROFILE_FORM_BODY_SIZE = 16 * 1024;
 
 function parseProfileName(value: FormDataEntryValue | null): string | null {
 	if (typeof value !== 'string') return null;
@@ -106,6 +108,12 @@ export const actions: Actions = {
 	updateName: async ({ request, locals }) => {
 		const authUser = requireAuth(locals);
 
+		assertContentLengthUnderLimit(
+			request,
+			MAX_PROFILE_FORM_BODY_SIZE,
+			'Profile form body is too large'
+		);
+
 		const formData = await request.formData();
 		const name = parseProfileName(formData.get('name'));
 
@@ -127,6 +135,12 @@ export const actions: Actions = {
 
 	changePassword: async ({ request, locals }) => {
 		const authUser = requireAuth(locals);
+
+		assertContentLengthUnderLimit(
+			request,
+			MAX_PROFILE_FORM_BODY_SIZE,
+			'Profile form body is too large'
+		);
 
 		const formData = await request.formData();
 		const currentPassword = parseRequiredText(formData.get('currentPassword'));
@@ -167,6 +181,12 @@ export const actions: Actions = {
 
 	unlink: async ({ request, locals }) => {
 		const authUser = requireAuth(locals);
+
+		assertContentLengthUnderLimit(
+			request,
+			MAX_PROFILE_FORM_BODY_SIZE,
+			'Profile form body is too large'
+		);
 
 		const formData = await request.formData();
 		const accountId = parsePositiveFormId(formData.get('accountId'));

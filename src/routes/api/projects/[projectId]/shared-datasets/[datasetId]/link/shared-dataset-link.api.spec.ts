@@ -10,10 +10,17 @@ vi.mock('$lib/server/db/schema', () => ({
 	sharedDataSet: { id: 'id', projectId: 'project_id', parameters: 'parameters', rows: 'rows' },
 	testCase: { id: 'id', projectId: 'project_id' },
 	testCaseParameter: {
-		id: 'id', testCaseId: 'test_case_id', name: 'name', orderIndex: 'order_index'
+		id: 'id',
+		testCaseId: 'test_case_id',
+		name: 'name',
+		orderIndex: 'order_index'
 	},
 	testCaseDataSet: {
-		id: 'id', testCaseId: 'test_case_id', name: 'name', values: 'values', orderIndex: 'order_index'
+		id: 'id',
+		testCaseId: 'test_case_id',
+		name: 'name',
+		values: 'values',
+		orderIndex: 'order_index'
 	}
 }));
 vi.mock('drizzle-orm', () => ({
@@ -22,7 +29,8 @@ vi.mock('drizzle-orm', () => ({
 	asc: vi.fn((a: unknown) => ['asc', a])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -54,7 +62,10 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 
 	it('should return 401 when not authenticated', async () => {
 		const event = createMockEvent({
-			method: 'POST', params: PARAMS, body: { testCaseId: 10 }, user: null
+			method: 'POST',
+			params: PARAMS,
+			body: { testCaseId: 10 },
+			user: null
 		});
 		await expect(POST(event)).rejects.toThrow();
 	});
@@ -62,16 +73,24 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 	it('should return 404 when shared dataset not found', async () => {
 		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 		const event = createMockEvent({
-			method: 'POST', params: PARAMS, body: { testCaseId: 10 }, user: testUser
+			method: 'POST',
+			params: PARAMS,
+			body: { testCaseId: 10 },
+			user: testUser
 		});
 		const response = await POST(event);
 		expect(response.status).toBe(404);
 	});
 
 	it('should return 400 when testCaseId is missing', async () => {
-		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(sampleSharedDataSet);
+		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+			sampleSharedDataSet
+		);
 		const event = createMockEvent({
-			method: 'POST', params: PARAMS, body: {}, user: testUser
+			method: 'POST',
+			params: PARAMS,
+			body: {},
+			user: testUser
 		});
 		const response = await POST(event);
 		expect(response.status).toBe(400);
@@ -79,19 +98,99 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 		expect(data.error).toContain('testCaseId is required');
 	});
 
+	it('should return 400 when body is not an object', async () => {
+		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+			sampleSharedDataSet
+		);
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: null,
+			user: testUser
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('Invalid request body');
+	});
+
+	it('should return 400 when testCaseId is invalid', async () => {
+		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+			sampleSharedDataSet
+		);
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { testCaseId: 'abc' },
+			user: testUser
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('testCaseId must be a positive integer');
+	});
+
 	it('should return 404 when test case not found', async () => {
-		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(sampleSharedDataSet);
+		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+			sampleSharedDataSet
+		);
 		(mockDb.query.testCase.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 		const event = createMockEvent({
-			method: 'POST', params: PARAMS, body: { testCaseId: 999 }, user: testUser
+			method: 'POST',
+			params: PARAMS,
+			body: { testCaseId: 999 },
+			user: testUser
 		});
 		const response = await POST(event);
 		expect(response.status).toBe(404);
 	});
 
+	it('should return 400 when stored dataset parameters are invalid', async () => {
+		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+			...sampleSharedDataSet,
+			parameters: ['username', 123]
+		});
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { testCaseId: 10 },
+			user: testUser
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('parameters is invalid');
+	});
+
+	it('should return 400 when stored dataset rows are invalid', async () => {
+		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+			...sampleSharedDataSet,
+			rows: [{ username: 123 }]
+		});
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { testCaseId: 10 },
+			user: testUser
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('rows are invalid');
+	});
+
 	it('should link shared dataset to test case and return linked count', async () => {
-		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(sampleSharedDataSet);
-		(mockDb.query.testCase.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 10, projectId: 1 });
+		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+			sampleSharedDataSet
+		);
+		(mockDb.query.testCase.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+			id: 10,
+			projectId: 1
+		});
 
 		// Mock select for existing parameters (none) and existing datasets (none)
 		mockDb.select.mockImplementation(() => {
@@ -111,7 +210,10 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 		mockDb.insert.mockReturnValue(insertChain as never);
 
 		const event = createMockEvent({
-			method: 'POST', params: PARAMS, body: { testCaseId: 10 }, user: testUser
+			method: 'POST',
+			params: PARAMS,
+			body: { testCaseId: 10 },
+			user: testUser
 		});
 		const response = await POST(event);
 		const data = await response.json();
@@ -123,7 +225,10 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 	it('should handle shared dataset with no rows', async () => {
 		const emptyDs = { ...sampleSharedDataSet, rows: [] };
 		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(emptyDs);
-		(mockDb.query.testCase.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 10, projectId: 1 });
+		(mockDb.query.testCase.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+			id: 10,
+			projectId: 1
+		});
 
 		mockDb.select.mockImplementation(() => {
 			const chain = {
@@ -142,7 +247,10 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 		mockDb.insert.mockReturnValue(insertChain as never);
 
 		const event = createMockEvent({
-			method: 'POST', params: PARAMS, body: { testCaseId: 10 }, user: testUser
+			method: 'POST',
+			params: PARAMS,
+			body: { testCaseId: 10 },
+			user: testUser
 		});
 		const response = await POST(event);
 		const data = await response.json();

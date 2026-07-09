@@ -4,7 +4,12 @@ import { sharedDataSet } from '$lib/server/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
-import { badRequest } from '$lib/server/errors';
+import {
+	validateDataSetName,
+	validateDataSetParameters,
+	validateDataSetRows,
+	validateRequestBody
+} from '$lib/server/shared-dataset-validation';
 
 export const GET = withProjectAccess(async ({ projectId }) => {
 	const dataSets = await db
@@ -16,29 +21,32 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 	return json(dataSets);
 });
 
-export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, user, projectId }) => {
-	const body = await parseJsonBody(request);
-	const { name, parameters, rows } = body as {
-		name: string;
-		parameters: string[];
-		rows: Record<string, string>[];
-	};
+export const POST = withProjectRole(
+	['PROJECT_ADMIN', 'QA', 'DEV'],
+	async ({ request, user, projectId }) => {
+		const bodyOrError = validateRequestBody(await parseJsonBody(request));
+		if (bodyOrError instanceof Response) return bodyOrError;
 
-	if (!name?.trim()) return badRequest('Name is required');
-	if (!parameters || !Array.isArray(parameters) || parameters.length === 0) {
-		return badRequest('At least one parameter is required');
+		const nameOrError = validateDataSetName(bodyOrError.name);
+		if (nameOrError instanceof Response) return nameOrError;
+
+		const parametersOrError = validateDataSetParameters(bodyOrError.parameters);
+		if (parametersOrError instanceof Response) return parametersOrError;
+
+		const rowsOrError = validateDataSetRows(bodyOrError.rows, parametersOrError);
+		if (rowsOrError instanceof Response) return rowsOrError;
+
+		const [ds] = await db
+			.insert(sharedDataSet)
+			.values({
+				projectId,
+				name: nameOrError,
+				parameters: parametersOrError,
+				rows: rowsOrError,
+				createdBy: user.id
+			})
+			.returning();
+
+		return json(ds, { status: 201 });
 	}
-
-	const [ds] = await db
-		.insert(sharedDataSet)
-		.values({
-			projectId,
-			name: name.trim(),
-			parameters,
-			rows: rows ?? [],
-			createdBy: user.id
-		})
-		.returning();
-
-	return json(ds, { status: 201 });
-});
+);

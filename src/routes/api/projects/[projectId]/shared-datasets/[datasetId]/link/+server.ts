@@ -5,65 +5,108 @@ import { eq, and, asc } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
+import { validateRequestBody } from '$lib/server/shared-dataset-validation';
 
-export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, projectId }) => {
-	const datasetId = parseId(params.datasetId, 'dataset ID');
+function parsePositiveInteger(value: unknown, label: string): number | Response {
+	const parsed = typeof value === 'number' ? value : Number(value);
+	if (!Number.isInteger(parsed) || parsed <= 0) {
+		return badRequest(`${label} must be a positive integer`);
+	}
+	return parsed;
+}
 
-	const ds = await db.query.sharedDataSet.findFirst({
-		where: and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId))
-	});
-	if (!ds) return notFound('Shared data set not found');
+function getStringArray(value: unknown, label: string): string[] | Response {
+	if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
+		return badRequest(`${label} is invalid`);
+	}
+	return value;
+}
 
-	const body = await parseJsonBody(request);
-	const { testCaseId } = body as { testCaseId: number };
+function getRows(value: unknown): Record<string, string>[] | Response {
+	if (
+		!Array.isArray(value) ||
+		value.some(
+			(row) =>
+				!row ||
+				typeof row !== 'object' ||
+				Array.isArray(row) ||
+				Object.values(row).some((rowValue) => typeof rowValue !== 'string')
+		)
+	) {
+		return badRequest('Shared data set rows are invalid');
+	}
+	return value as Record<string, string>[];
+}
 
-	if (!testCaseId) return badRequest('testCaseId is required');
+export const POST = withProjectRole(
+	['PROJECT_ADMIN', 'QA', 'DEV'],
+	async ({ params, request, projectId }) => {
+		const datasetId = parseId(params.datasetId, 'dataset ID');
 
-	const tc = await db.query.testCase.findFirst({
-		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
-	});
-	if (!tc) return notFound('Test case not found');
+		const ds = await db.query.sharedDataSet.findFirst({
+			where: and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId))
+		});
+		if (!ds) return notFound('Shared data set not found');
 
-	const dsParams = (ds.parameters as string[]) ?? [];
-	const dsRows = (ds.rows as Record<string, string>[]) ?? [];
+		const dsParams = getStringArray(ds.parameters, 'Shared data set parameters');
+		if (dsParams instanceof Response) return dsParams;
 
-	// Ensure parameters exist on test case
-	const existingParams = await db
-		.select()
-		.from(testCaseParameter)
-		.where(eq(testCaseParameter.testCaseId, testCaseId))
-		.orderBy(asc(testCaseParameter.orderIndex));
+		const dsRows = getRows(ds.rows);
+		if (dsRows instanceof Response) return dsRows;
 
-	const existingNames = new Set(existingParams.map((p) => p.name));
-	let maxOrder = existingParams.length > 0 ? existingParams[existingParams.length - 1].orderIndex + 1 : 0;
+		const bodyOrError = validateRequestBody(await parseJsonBody(request));
+		if (bodyOrError instanceof Response) return bodyOrError;
 
-	for (const pName of dsParams) {
-		if (!existingNames.has(pName)) {
-			await db.insert(testCaseParameter).values({
-				testCaseId,
-				name: pName,
-				orderIndex: maxOrder++
-			});
+		if (bodyOrError.testCaseId === undefined || bodyOrError.testCaseId === null) {
+			return badRequest('testCaseId is required');
 		}
+		const testCaseId = parsePositiveInteger(bodyOrError.testCaseId, 'testCaseId');
+		if (testCaseId instanceof Response) return testCaseId;
+
+		const tc = await db.query.testCase.findFirst({
+			where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
+		});
+		if (!tc) return notFound('Test case not found');
+
+		// Ensure parameters exist on test case
+		const existingParams = await db
+			.select()
+			.from(testCaseParameter)
+			.where(eq(testCaseParameter.testCaseId, testCaseId))
+			.orderBy(asc(testCaseParameter.orderIndex));
+
+		const existingNames = new Set(existingParams.map((p) => p.name));
+		let maxOrder =
+			existingParams.length > 0 ? existingParams[existingParams.length - 1].orderIndex + 1 : 0;
+
+		for (const pName of dsParams) {
+			if (!existingNames.has(pName)) {
+				await db.insert(testCaseParameter).values({
+					testCaseId,
+					name: pName,
+					orderIndex: maxOrder++
+				});
+			}
+		}
+
+		// Add data set rows
+		const existingDs = await db
+			.select({ orderIndex: testCaseDataSet.orderIndex })
+			.from(testCaseDataSet)
+			.where(eq(testCaseDataSet.testCaseId, testCaseId))
+			.orderBy(asc(testCaseDataSet.orderIndex));
+		let dsOrder = existingDs.length > 0 ? existingDs[existingDs.length - 1].orderIndex + 1 : 0;
+
+		if (dsRows.length > 0) {
+			const values = dsRows.map((row) => ({
+				testCaseId,
+				name: null as string | null,
+				values: row,
+				orderIndex: dsOrder++
+			}));
+			await db.insert(testCaseDataSet).values(values);
+		}
+
+		return json({ linked: dsRows.length });
 	}
-
-	// Add data set rows
-	const existingDs = await db
-		.select({ orderIndex: testCaseDataSet.orderIndex })
-		.from(testCaseDataSet)
-		.where(eq(testCaseDataSet.testCaseId, testCaseId))
-		.orderBy(asc(testCaseDataSet.orderIndex));
-	let dsOrder = existingDs.length > 0 ? existingDs[existingDs.length - 1].orderIndex + 1 : 0;
-
-	if (dsRows.length > 0) {
-		const values = dsRows.map((row) => ({
-			testCaseId,
-			name: null as string | null,
-			values: row,
-			orderIndex: dsOrder++
-		}));
-		await db.insert(testCaseDataSet).values(values);
-	}
-
-	return json({ linked: dsRows.length });
-});
+);

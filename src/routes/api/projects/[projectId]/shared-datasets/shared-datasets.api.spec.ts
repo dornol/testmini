@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -23,7 +27,8 @@ vi.mock('drizzle-orm', () => ({
 	asc: vi.fn((a: unknown) => a)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -111,6 +116,80 @@ describe('/api/projects/[projectId]/shared-datasets', () => {
 			});
 			const response = await POST(event);
 			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 when body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: null,
+				user: testUser
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid request body');
+		});
+
+		it('should return 400 when parameters contain non-strings', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'DS', parameters: ['user', 123], rows: [] },
+				user: testUser
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Parameters must be strings');
+		});
+
+		it('should return 400 when parameters are duplicated after trimming', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'DS', parameters: ['user', ' user '], rows: [] },
+				user: testUser
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Parameters must be unique');
+		});
+
+		it('should return 400 when rows contain unknown parameters', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: {
+					name: 'DS',
+					parameters: ['user'],
+					rows: [{ user: 'admin', password: 'secret' }]
+				},
+				user: testUser
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('unknown parameter');
+		});
+
+		it('should return 400 when row values are not strings', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'DS', parameters: ['user'], rows: [{ user: 123 }] },
+				user: testUser
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('values must be strings');
 		});
 
 		it('should create dataset on success', async () => {

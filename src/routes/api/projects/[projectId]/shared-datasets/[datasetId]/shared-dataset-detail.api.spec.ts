@@ -21,7 +21,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -53,7 +54,9 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 		});
 
 		it('should return 404 when dataset not found', async () => {
-			(mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(null);
+			(
+				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
+			).findFirst.mockResolvedValue(null);
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -65,8 +68,12 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 		});
 
 		it('should update dataset name on success', async () => {
-			(mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue({
-				id: 10, name: 'Old Name', projectId: 1
+			(
+				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
+			).findFirst.mockResolvedValue({
+				id: 10,
+				name: 'Old Name',
+				projectId: 1
 			});
 			const updateChain = {
 				set: vi.fn().mockReturnThis(),
@@ -88,8 +95,12 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 		});
 
 		it('should succeed with no updates when body is empty', async () => {
-			(mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue({
-				id: 10, name: 'Name', projectId: 1
+			(
+				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
+			).findFirst.mockResolvedValue({
+				id: 10,
+				name: 'Name',
+				projectId: 1
 			});
 
 			const event = createMockEvent({
@@ -102,6 +113,78 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 			expect(response.status).toBe(200);
 			const body = await response.json();
 			expect(body.success).toBe(true);
+		});
+
+		it('should return 400 when body is not an object', async () => {
+			(
+				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
+			).findFirst.mockResolvedValue({
+				id: 10,
+				name: 'Name',
+				projectId: 1,
+				parameters: ['user'],
+				rows: []
+			});
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: null,
+				user: testUser
+			});
+
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid request body');
+		});
+
+		it('should return 400 when updated name is empty', async () => {
+			(
+				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
+			).findFirst.mockResolvedValue({
+				id: 10,
+				name: 'Name',
+				projectId: 1,
+				parameters: ['user'],
+				rows: []
+			});
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: '   ' },
+				user: testUser
+			});
+
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Name is required');
+		});
+
+		it('should return 400 when updated rows contain unknown parameters', async () => {
+			(
+				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
+			).findFirst.mockResolvedValue({
+				id: 10,
+				name: 'Name',
+				projectId: 1,
+				parameters: ['user'],
+				rows: []
+			});
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { rows: [{ password: 'secret' }] },
+				user: testUser
+			});
+
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('unknown parameter');
 		});
 	});
 
@@ -116,7 +199,9 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 		});
 
 		it('should return 404 when dataset not found', async () => {
-			(mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(null);
+			(
+				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
+			).findFirst.mockResolvedValue(null);
 			const event = createMockEvent({
 				method: 'DELETE',
 				params: PARAMS,
@@ -127,8 +212,12 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 		});
 
 		it('should delete dataset on success', async () => {
-			(mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue({
-				id: 10, name: 'DS', projectId: 1
+			(
+				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
+			).findFirst.mockResolvedValue({
+				id: 10,
+				name: 'DS',
+				projectId: 1
 			});
 			const deleteChain = {
 				where: vi.fn().mockReturnThis(),

@@ -1,16 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockAuthenticateApiKey = vi.fn();
+const mockLog = vi.hoisted(() => ({
+	info: vi.fn(),
+	warn: vi.fn(),
+	error: vi.fn()
+}));
 
 vi.mock('$lib/server/api-key-auth', () => ({
 	authenticateApiKey: mockAuthenticateApiKey
 }));
 vi.mock('$lib/server/logger', () => ({
-	childLogger: () => ({
-		info: vi.fn(),
-		warn: vi.fn(),
-		error: vi.fn()
-	})
+	childLogger: () => mockLog
 }));
 
 const { POST } = await import('./+server');
@@ -297,6 +298,35 @@ describe('/api/automation/webhook POST', () => {
 			expect(response.status).toBe(400);
 			expect(data.error).toBe('Invalid GitHub workflow_run payload');
 		});
+
+		it('should log sanitized GitHub workflow_run validation errors', async () => {
+			const request = makeRequest(
+				{
+					action: 'completed',
+					workflow_run: {
+						id: 126,
+						name: 'CI Build',
+						head_branch: '',
+						head_sha: 'abc12345def67890',
+						status: 'completed',
+						conclusion: 'success',
+						html_url: 'https://github.com/org/repo/actions/runs/126'
+					}
+				},
+				{ 'x-github-event': 'workflow_run' }
+			);
+
+			await POST({ request } as never);
+
+			const [logMeta] = mockLog.warn.mock.calls[0];
+
+			expect(logMeta.err).toEqual({
+				name: 'Error',
+				message: 'workflow_run.head_branch must be a non-empty string'
+			});
+			expect(logMeta.err).not.toHaveProperty('stack');
+			expect(logMeta.projectId).toBe(1);
+		});
 	});
 
 	// ─── GitLab events ──────────────────────────────────────────────────
@@ -451,6 +481,33 @@ describe('/api/automation/webhook POST', () => {
 
 			expect(response.status).toBe(400);
 			expect(data.error).toBe('Invalid GitLab pipeline payload');
+		});
+
+		it('should log sanitized GitLab pipeline validation errors', async () => {
+			const payload = {
+				object_kind: 'pipeline',
+				object_attributes: {
+					id: 461,
+					ref: 'main',
+					sha: '',
+					status: 'success'
+				},
+				project: {
+					path_with_namespace: 'org/repo'
+				}
+			};
+			const request = makeRequest(payload, { 'x-gitlab-event': 'Pipeline Hook' });
+
+			await POST({ request } as never);
+
+			const [logMeta] = mockLog.warn.mock.calls[0];
+
+			expect(logMeta.err).toEqual({
+				name: 'Error',
+				message: 'object_attributes.sha must be a non-empty string'
+			});
+			expect(logMeta.err).not.toHaveProperty('stack');
+			expect(logMeta.projectId).toBe(1);
 		});
 	});
 });

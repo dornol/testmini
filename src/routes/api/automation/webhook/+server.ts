@@ -10,6 +10,7 @@ import { authenticateApiKey } from '$lib/server/api-key-auth';
 import { childLogger } from '$lib/server/logger';
 import { parseJsonObjectBody } from '$lib/server/auth-utils';
 import { parseContentLengthHeader } from '$lib/server/request-size';
+import { redactSecrets } from '$lib/server/secret-redaction';
 
 const log = childLogger('webhook');
 const MAX_EVENT_NAME_LENGTH = 100;
@@ -76,6 +77,17 @@ function validateEventName(value: string | null, field: string): string | null {
 		throw new Error(`${field} is invalid`);
 	}
 	return value;
+}
+
+function sanitizeWebhookError(err: unknown): { message: string; name?: string } | string {
+	if (err instanceof Error) {
+		return {
+			name: err.name,
+			message: redactSecrets(err.message)
+		};
+	}
+
+	return redactSecrets(String(err));
 }
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -150,7 +162,10 @@ export const POST: RequestHandler = async ({ request }) => {
 				buildUrl = safeString(wr.html_url, 'workflow_run.html_url', 2_000);
 				isCompleted = status === 'completed';
 			} catch (err) {
-				log.warn({ err, projectId }, 'Invalid GitHub workflow_run payload');
+				log.warn(
+					{ err: sanitizeWebhookError(err), projectId },
+					'Invalid GitHub workflow_run payload'
+				);
 				return badRequest('Invalid GitHub workflow_run payload');
 			}
 			message = isCompleted
@@ -183,7 +198,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				isCompleted =
 					buildStatus === 'success' || buildStatus === 'failed' || buildStatus === 'canceled';
 			} catch (err) {
-				log.warn({ err, projectId }, 'Invalid GitLab pipeline payload');
+				log.warn({ err: sanitizeWebhookError(err), projectId }, 'Invalid GitLab pipeline payload');
 				return badRequest('Invalid GitLab pipeline payload');
 			}
 			message = isCompleted

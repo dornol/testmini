@@ -84,6 +84,35 @@ describe('admin/users approval actions', () => {
 			expect(result).toMatchObject({ status: 400, data: { error: 'Invalid user ID' } });
 		});
 
+		it('should return 404 when target user does not exist', async () => {
+			mockDb.query.user.findFirst.mockResolvedValue(null);
+
+			const event = createActionEvent(adminUser, { userId: 'missing-user' });
+			const result = await actions.approve(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'User not found' } });
+			expect(mockDb.update).not.toHaveBeenCalled();
+			expect(logAudit).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when target user is already approved', async () => {
+			mockDb.query.user.findFirst.mockResolvedValue({
+				id: 'approved-user',
+				approved: true,
+				role: 'user'
+			});
+
+			const event = createActionEvent(adminUser, { userId: 'approved-user' });
+			const result = await actions.approve(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'User is already approved' }
+			});
+			expect(mockDb.update).not.toHaveBeenCalled();
+			expect(logAudit).not.toHaveBeenCalled();
+		});
+
 		it('should set approved=true and log audit on success', async () => {
 			const event = createActionEvent(adminUser, { userId: 'pending-user-1' });
 			const result = await actions.approve(event);

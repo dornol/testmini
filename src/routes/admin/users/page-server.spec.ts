@@ -159,6 +159,16 @@ describe('admin/users +page.server', () => {
 			expect(result).toMatchObject({ status: 400, data: { error: 'Cannot change your own role' } });
 		});
 
+		it('should return 404 when role target user does not exist', async () => {
+			mockDb.query.user.findFirst.mockResolvedValue(null);
+
+			const event = createActionEvent(adminUser, { userId: 'missing-user', role: 'admin' });
+			const result = await actions.updateRole(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'User not found' } });
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should update role on success', async () => {
 			const event = createActionEvent(adminUser, { userId: 'user-2', role: 'admin' });
 			const result = await actions.updateRole(event);
@@ -186,6 +196,31 @@ describe('admin/users +page.server', () => {
 			expect(result).toMatchObject({ status: 400, data: { error: 'Cannot ban yourself' } });
 		});
 
+		it('should reject oversized ban reasons before updating', async () => {
+			const event = createActionEvent(adminUser, {
+				userId: 'user-2',
+				banReason: 'x'.repeat(501)
+			});
+			const result = await actions.ban(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'Ban reason must be 500 characters or less' }
+			});
+			expect(mockDb.query.user.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 404 when ban target user does not exist', async () => {
+			mockDb.query.user.findFirst.mockResolvedValue(null);
+
+			const event = createActionEvent(adminUser, { userId: 'missing-user' });
+			const result = await actions.ban(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'User not found' } });
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should ban user with reason on success', async () => {
 			const event = createActionEvent(adminUser, {
 				userId: 'user-2',
@@ -210,6 +245,16 @@ describe('admin/users +page.server', () => {
 			expect(result).toMatchObject({ status: 400, data: { error: 'Invalid user ID' } });
 		});
 
+		it('should return 404 when unban target user does not exist', async () => {
+			mockDb.query.user.findFirst.mockResolvedValue(null);
+
+			const event = createActionEvent(adminUser, { userId: 'missing-user' });
+			const result = await actions.unban(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'User not found' } });
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should unban user on success', async () => {
 			const event = createActionEvent(adminUser, { userId: 'user-2' });
 			const result = await actions.unban(event);
@@ -219,6 +264,31 @@ describe('admin/users +page.server', () => {
 	});
 
 	describe('approve', () => {
+		it('should return 404 when approve target user does not exist', async () => {
+			mockDb.query.user.findFirst.mockResolvedValue(null);
+
+			const event = createActionEvent(adminUser, { userId: 'missing-user' });
+			const result = await actions.approve(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'User not found' } });
+			expect(mockDb.update).not.toHaveBeenCalled();
+			expect(logAudit).not.toHaveBeenCalled();
+		});
+
+		it('should not approve an already approved user', async () => {
+			mockDb.query.user.findFirst.mockResolvedValue({ id: 'user-2', approved: true });
+
+			const event = createActionEvent(adminUser, { userId: 'user-2' });
+			const result = await actions.approve(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'User is already approved' }
+			});
+			expect(mockDb.update).not.toHaveBeenCalled();
+			expect(logAudit).not.toHaveBeenCalled();
+		});
+
 		it('should approve user and log audit on success', async () => {
 			const event = createActionEvent(adminUser, { userId: 'user-2' });
 			const result = await actions.approve(event);

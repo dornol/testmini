@@ -7,6 +7,32 @@ import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
 import { logAudit } from '$lib/server/audit';
 import { parsePositiveIntegerSearchParam } from '$lib/server/search-param-validation';
 
+const MAX_USER_ID_LENGTH = 255;
+const MAX_BAN_REASON_LENGTH = 500;
+
+function parseUserId(value: FormDataEntryValue | null): string | null {
+	if (typeof value !== 'string') return null;
+	const userId = value.trim();
+	if (!userId || userId.length > MAX_USER_ID_LENGTH || /[\x00-\x1F\x7F]/.test(userId)) {
+		return null;
+	}
+	return userId;
+}
+
+function parseBanReason(value: FormDataEntryValue | null): string | null | 'invalid' {
+	if (value === null) return null;
+	if (typeof value !== 'string') return 'invalid';
+	const banReason = value.trim();
+	if (!banReason) return null;
+	if (
+		banReason.length > MAX_BAN_REASON_LENGTH ||
+		/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(banReason)
+	) {
+		return 'invalid';
+	}
+	return banReason;
+}
+
 export const load: PageServerLoad = async ({ url }) => {
 	const page = parsePositiveIntegerSearchParam(url.searchParams.get('page'), 1);
 	const limit = 20;
@@ -63,7 +89,7 @@ export const actions: Actions = {
 		}
 
 		const formData = await request.formData();
-		const userId = formData.get('userId') as string;
+		const userId = parseUserId(formData.get('userId'));
 		const role = formData.get('role') as string;
 
 		if (!userId || !['admin', 'user'].includes(role)) {
@@ -72,6 +98,14 @@ export const actions: Actions = {
 
 		if (userId === authUser.id) {
 			return fail(400, { error: 'Cannot change your own role' });
+		}
+
+		const target = await db.query.user.findFirst({
+			where: eq(user.id, userId),
+			columns: { id: true }
+		});
+		if (!target) {
+			return fail(404, { error: 'User not found' });
 		}
 
 		await db.update(user).set({ role }).where(eq(user.id, userId));
@@ -86,15 +120,26 @@ export const actions: Actions = {
 		}
 
 		const formData = await request.formData();
-		const userId = formData.get('userId') as string;
-		const banReason = (formData.get('banReason') as string) || null;
+		const userId = parseUserId(formData.get('userId'));
+		const banReason = parseBanReason(formData.get('banReason'));
 
 		if (!userId) {
 			return fail(400, { error: 'Invalid user ID' });
 		}
+		if (banReason === 'invalid') {
+			return fail(400, { error: `Ban reason must be ${MAX_BAN_REASON_LENGTH} characters or less` });
+		}
 
 		if (userId === authUser.id) {
 			return fail(400, { error: 'Cannot ban yourself' });
+		}
+
+		const target = await db.query.user.findFirst({
+			where: eq(user.id, userId),
+			columns: { id: true }
+		});
+		if (!target) {
+			return fail(404, { error: 'User not found' });
 		}
 
 		await db.update(user).set({ banned: true, banReason }).where(eq(user.id, userId));
@@ -109,10 +154,18 @@ export const actions: Actions = {
 		}
 
 		const formData = await request.formData();
-		const userId = formData.get('userId') as string;
+		const userId = parseUserId(formData.get('userId'));
 
 		if (!userId) {
 			return fail(400, { error: 'Invalid user ID' });
+		}
+
+		const target = await db.query.user.findFirst({
+			where: eq(user.id, userId),
+			columns: { id: true }
+		});
+		if (!target) {
+			return fail(404, { error: 'User not found' });
 		}
 
 		await db.update(user).set({ banned: false, banReason: null }).where(eq(user.id, userId));
@@ -127,10 +180,21 @@ export const actions: Actions = {
 		}
 
 		const formData = await request.formData();
-		const userId = formData.get('userId') as string;
+		const userId = parseUserId(formData.get('userId'));
 
 		if (!userId) {
 			return fail(400, { error: 'Invalid user ID' });
+		}
+
+		const target = await db.query.user.findFirst({
+			where: eq(user.id, userId),
+			columns: { id: true, approved: true }
+		});
+		if (!target) {
+			return fail(404, { error: 'User not found' });
+		}
+		if (target.approved) {
+			return fail(400, { error: 'User is already approved' });
 		}
 
 		await db.update(user).set({ approved: true }).where(eq(user.id, userId));
@@ -152,7 +216,7 @@ export const actions: Actions = {
 		}
 
 		const formData = await request.formData();
-		const userId = formData.get('userId') as string;
+		const userId = parseUserId(formData.get('userId'));
 
 		if (!userId) {
 			return fail(400, { error: 'Invalid user ID' });

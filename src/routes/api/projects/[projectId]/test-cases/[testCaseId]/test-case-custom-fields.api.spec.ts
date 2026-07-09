@@ -97,7 +97,7 @@ function mockUpdateChain() {
 	const updateChain = {
 		set: vi.fn().mockReturnThis(),
 		where: vi.fn().mockReturnThis(),
-		then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+		returning: vi.fn().mockResolvedValue([{ id: 10 }])
 	};
 	mockDb.update.mockReturnValue(updateChain as never);
 	return updateChain;

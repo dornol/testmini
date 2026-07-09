@@ -79,10 +79,14 @@ export const PATCH = withProjectRole(
 			if (existing && existing.id !== testCaseId) {
 				return conflict('Key already exists in this project');
 			}
-			await db
+			const [updatedTestCase] = await db
 				.update(testCase)
 				.set({ key })
-				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
+				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)))
+				.returning({ id: testCase.id });
+			if (!updatedTestCase) {
+				error(404, 'Test case not found');
+			}
 		}
 
 		// Automation key update
@@ -95,10 +99,14 @@ export const PATCH = withProjectRole(
 					return conflict('Automation key already exists in this project');
 				}
 			}
-			await db
+			const [updatedTestCase] = await db
 				.update(testCase)
 				.set({ automationKey })
-				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
+				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)))
+				.returning({ id: testCase.id });
+			if (!updatedTestCase) {
+				error(404, 'Test case not found');
+			}
 		}
 
 		// Title, priority, or customFields update: create a new version to preserve history
@@ -149,10 +157,14 @@ export const PATCH = withProjectRole(
 				})
 				.returning();
 
-			await db
+			const [updatedTestCase] = await db
 				.update(testCase)
 				.set({ latestVersionId: version.id })
-				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
+				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)))
+				.returning({ id: testCase.id });
+			if (!updatedTestCase) {
+				error(404, 'Test case not found');
+			}
 		}
 
 		return json({ success: true });
@@ -201,10 +213,14 @@ export const PUT = withProjectRole(
 				})
 				.returning();
 
-			await tx
+			const [updatedTestCase] = await tx
 				.update(testCase)
 				.set({ latestVersionId: version.id })
-				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
+				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)))
+				.returning({ id: testCase.id });
+			if (!updatedTestCase) {
+				error(404, 'Test case not found');
+			}
 		});
 
 		return json({ success: true });
@@ -215,9 +231,13 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projec
 	const testCaseId = parseId(params.testCaseId, 'test case ID');
 	await requireTestCase(testCaseId, projectId);
 
-	await db
+	const [deleted] = await db
 		.delete(testCase)
-		.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
+		.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)))
+		.returning({ id: testCase.id });
+	if (!deleted) {
+		error(404, 'Test case not found');
+	}
 
 	return json({ success: true });
 });

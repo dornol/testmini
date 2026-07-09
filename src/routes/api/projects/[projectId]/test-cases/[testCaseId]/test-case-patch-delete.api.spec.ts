@@ -298,7 +298,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 			const updateChain = {
 				set: vi.fn().mockReturnThis(),
 				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+				returning: vi.fn().mockResolvedValue([{ id: 10 }])
 			};
 			mockDb.update.mockReturnValue(updateChain as never);
 
@@ -464,7 +464,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 			const updateChain = {
 				set: vi.fn().mockReturnThis(),
 				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+				returning: vi.fn().mockResolvedValue([{ id: 10 }])
 			};
 			mockDb.update.mockReturnValue(updateChain as never);
 
@@ -480,6 +480,67 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 			expect(response.status).toBe(200);
 			expect(body.success).toBe(true);
 		});
+
+		it('should return 404 when direct test case update finds no row', async () => {
+			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
+			mockFindTC.mockResolvedValue(tc);
+			mockDb.query.testCase.findFirst.mockResolvedValueOnce(undefined);
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([])
+			};
+			mockDb.update.mockReturnValue(updateChain as never);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { key: 'TC-NEW' },
+				user: adminUser
+			});
+
+			await expect(PATCH(event)).rejects.toMatchObject({ status: 404 });
+			expect(updateChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+	});
+
+	describe('PUT mutation verification', () => {
+		it('should return 404 when latest version pointer update finds no row', async () => {
+			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
+			mockFindTC.mockResolvedValue(tc);
+			const newVersion = { ...sampleTestCaseVersion, id: 101, versionNo: 2 };
+			const insertChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([newVersion])
+			};
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([])
+			};
+			const tx = {
+				insert: vi.fn().mockReturnValue(insertChain),
+				update: vi.fn().mockReturnValue(updateChain)
+			};
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: {
+					title: 'Updated Title',
+					precondition: '',
+					steps: [{ action: 'Step 1', expected: 'Result 1' }],
+					expectedResult: 'Pass',
+					priority: 'HIGH',
+					revision: 1
+				},
+				user: adminUser
+			});
+
+			await expect(PUT(event)).rejects.toMatchObject({ status: 404 });
+			expect(updateChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
 	});
 
 	describe('DELETE', () => {
@@ -487,7 +548,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
 			const deleteChain = {
 				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+				returning: vi.fn().mockResolvedValue([{ id: 10 }])
 			};
 			mockDb.delete.mockReturnValue(deleteChain as never);
 
@@ -531,7 +592,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
 			const deleteChain = {
 				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+				returning: vi.fn().mockResolvedValue([{ id: 10 }])
 			};
 			mockDb.delete.mockReturnValue(deleteChain as never);
 
@@ -551,6 +612,24 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 					['project_id', 1]
 				])
 			);
+		});
+
+		it('should return 404 when delete finds no row after preflight lookup', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			const deleteChain = {
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([])
+			};
+			mockDb.delete.mockReturnValue(deleteChain as never);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: adminUser
+			});
+
+			await expect(DELETE(event)).rejects.toMatchObject({ status: 404 });
+			expect(deleteChain.returning).toHaveBeenCalledWith({ id: 'id' });
 		});
 	});
 });

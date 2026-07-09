@@ -11,7 +11,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { requireEditableRun } from '$lib/server/crud-helpers';
-import { publish } from '$lib/server/redis';
+import { publishRunEvent } from '$lib/server/run-events';
 import { createNotification } from '$lib/server/notifications';
 import type { RunEvent } from '$lib/types/events';
 import { validateRequestBody } from '$lib/server/id-list-validation';
@@ -94,7 +94,7 @@ export const PUT = withProjectRole(
 			status: executionStatus,
 			executedBy: user.name
 		};
-		await publish(`run:${runId}:events`, event);
+		await publishRunEvent(runId, event);
 
 		return json({ success: true, status: executionStatus });
 	}

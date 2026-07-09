@@ -13,7 +13,7 @@ import {
 import { eq, and, inArray, count, sql } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { createFailureSchema, type CreateFailureInput } from '$lib/schemas/failure.schema';
-import { publish } from '$lib/server/redis';
+import { publishRunEvent } from '$lib/server/run-events';
 import { createNotification } from '$lib/server/notifications';
 import type { RunEvent } from '$lib/types/events';
 import { parsePositiveFormId } from '$lib/server/form-utils';
@@ -282,7 +282,7 @@ export const actions: Actions = {
 			status,
 			executedBy: authUser.name
 		};
-		await publish(`run:${runId}:events`, event);
+		await publishRunEvent(runId, event);
 
 		return { success: true };
 	},
@@ -357,8 +357,8 @@ export const actions: Actions = {
 			status: 'FAIL',
 			executedBy: authUser.name
 		};
-		await publish(`run:${runId}:events`, event);
-		await publish(`run:${runId}:events`, {
+		await publishRunEvent(runId, event);
+		await publishRunEvent(runId, {
 			type: 'failure:added',
 			executionId
 		} satisfies RunEvent);
@@ -554,7 +554,7 @@ export const actions: Actions = {
 			executionIds,
 			status: 'PASS'
 		};
-		await publish(`run:${runId}:events`, event);
+		await publishRunEvent(runId, event);
 
 		return { success: true };
 	},
@@ -596,7 +596,7 @@ export const actions: Actions = {
 			runId,
 			status
 		};
-		await publish(`run:${runId}:events`, event);
+		await publishRunEvent(runId, event);
 
 		// Notify project members when run is completed
 		if (status === 'COMPLETED') {

@@ -54,6 +54,7 @@ vi.mock('$lib/server/redis', () => ({
 
 const { PUT } = await import('./+server');
 const authUtils = await import('$lib/server/auth-utils');
+const redis = await import('$lib/server/redis');
 
 const PARAMS = { projectId: '1', runId: '50', executionId: '200' };
 
@@ -129,6 +130,29 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 			expect(response.status).toBe(200);
 			expect(body.success).toBe(true);
 			expect(body.status).toBe('FAIL');
+		});
+
+		it('should keep the status update successful when run event publish fails', async () => {
+			vi.mocked(redis.publish).mockRejectedValueOnce(new Error('redis unavailable'));
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { status: 'PASS' },
+				user: adminUser
+			});
+
+			const response = await PUT(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(body.success).toBe(true);
+			expect(body.status).toBe('PASS');
+			expect(redis.publish).toHaveBeenCalledWith('run:50:events', {
+				type: 'execution:updated',
+				executionId: 200,
+				status: 'PASS',
+				executedBy: adminUser.name
+			});
 		});
 
 		it('should return 400 for invalid status', async () => {

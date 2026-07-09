@@ -627,6 +627,33 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 				})
 			);
 		});
+
+		it('should keep status update successful when SSE publish fails', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testExecution = {
+				findFirst: vi.fn().mockResolvedValue(sampleExecution)
+			};
+			mockPublish.mockRejectedValueOnce(new Error('redis unavailable'));
+
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockResolvedValue(undefined)
+			};
+			mockDb.update.mockReturnValue(updateChain as never);
+
+			const event = createActionEvent(createFormData({ executionId: '200', status: 'PASS' }));
+			const result = await actions.updateStatus(event as never);
+
+			expect(result).toEqual({ success: true });
+			expect(mockPublish).toHaveBeenCalledWith(
+				'run:50:events',
+				expect.objectContaining({
+					type: 'execution:updated',
+					executionId: 200,
+					status: 'PASS'
+				})
+			);
+		});
 	});
 
 	// ─── failWithDetail ───────────────────────────────────────────

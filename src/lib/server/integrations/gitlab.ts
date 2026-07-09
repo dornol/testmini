@@ -1,11 +1,14 @@
 import type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult } from './types';
+import { safeIntegrationFetch } from './safe-fetch';
 
-export async function testGitlabConnection(config: IssueTrackerConfig): Promise<{ ok: boolean; message: string }> {
+export async function testGitlabConnection(
+	config: IssueTrackerConfig
+): Promise<{ ok: boolean; message: string }> {
 	if (!config.apiToken) return { ok: false, message: 'API token is required for GitLab' };
 	if (!config.projectKey) return { ok: false, message: 'Project ID is required for GitLab' };
 
 	const url = `${config.baseUrl}/api/v4/projects/${encodeURIComponent(config.projectKey)}`;
-	const res = await fetch(url, {
+	const res = await safeIntegrationFetch(url, {
 		headers: {
 			'PRIVATE-TOKEN': config.apiToken,
 			Accept: 'application/json'
@@ -35,7 +38,7 @@ export async function createGitlabIssue(
 	}
 
 	const url = `${config.baseUrl}/api/v4/projects/${encodeURIComponent(config.projectKey)}/issues`;
-	const res = await fetch(url, {
+	const res = await safeIntegrationFetch(url, {
 		method: 'POST',
 		headers: {
 			'PRIVATE-TOKEN': config.apiToken,
@@ -69,7 +72,7 @@ export async function fetchGitlabIssueStatus(
 
 	const iid = match[1];
 	const url = `${config.baseUrl}/api/v4/projects/${encodeURIComponent(config.projectKey)}/issues/${iid}`;
-	const res = await fetch(url, {
+	const res = await safeIntegrationFetch(url, {
 		headers: {
 			'PRIVATE-TOKEN': config.apiToken,
 			Accept: 'application/json'

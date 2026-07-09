@@ -3,6 +3,10 @@ import type { IssueTrackerConfig } from './issue-tracker';
 
 // Mock global fetch
 const mockFetch = vi.fn();
+const mockValidatePublicHttpUrl = vi.hoisted(() => vi.fn());
+vi.mock('$lib/server/url-safety', () => ({
+	validatePublicHttpUrl: mockValidatePublicHttpUrl
+}));
 vi.stubGlobal('fetch', mockFetch);
 
 const { createExternalIssue, testConnection } = await import('./issue-tracker');
@@ -17,6 +21,7 @@ function jsonResponse(data: unknown, status = 200): Response {
 describe('issue-tracker', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockValidatePublicHttpUrl.mockResolvedValue({ ok: true });
 	});
 
 	afterEach(() => {

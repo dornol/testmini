@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { IssueTrackerConfig } from './types';
 
 const mockFetch = vi.fn();
+const mockValidatePublicHttpUrl = vi.hoisted(() => vi.fn());
+vi.mock('$lib/server/url-safety', () => ({
+	validatePublicHttpUrl: mockValidatePublicHttpUrl
+}));
 vi.stubGlobal('fetch', mockFetch);
 
 const { createCustomIssue } = await import('./custom');
@@ -25,11 +29,16 @@ const baseConfig: IssueTrackerConfig = {
 };
 
 describe('Custom integration', () => {
-	beforeEach(() => vi.clearAllMocks());
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockValidatePublicHttpUrl.mockResolvedValue({ ok: true });
+	});
 	afterEach(() => vi.restoreAllMocks());
 
 	it('creates issue with custom headers', async () => {
-		mockFetch.mockResolvedValue(jsonResponse({ url: 'https://example.com/issue/99', key: 'ISSUE-99' }));
+		mockFetch.mockResolvedValue(
+			jsonResponse({ url: 'https://example.com/issue/99', key: 'ISSUE-99' })
+		);
 
 		const result = await createCustomIssue(baseConfig, 'Bug', 'Description');
 		expect(result).toEqual({

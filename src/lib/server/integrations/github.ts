@@ -1,11 +1,20 @@
-import type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult, IssueDetail } from './types';
+import type {
+	IssueTrackerConfig,
+	CreateIssueResult,
+	IssueStatusResult,
+	IssueDetail
+} from './types';
+import { safeIntegrationFetch } from './safe-fetch';
 
-export async function testGithubConnection(config: IssueTrackerConfig): Promise<{ ok: boolean; message: string }> {
+export async function testGithubConnection(
+	config: IssueTrackerConfig
+): Promise<{ ok: boolean; message: string }> {
 	if (!config.apiToken) return { ok: false, message: 'API token is required for GitHub' };
-	if (!config.projectKey) return { ok: false, message: 'Repository (owner/repo) is required for GitHub' };
+	if (!config.projectKey)
+		return { ok: false, message: 'Repository (owner/repo) is required for GitHub' };
 
 	const url = `https://api.github.com/repos/${config.projectKey}`;
-	const res = await fetch(url, {
+	const res = await safeIntegrationFetch(url, {
 		headers: {
 			Authorization: `Bearer ${config.apiToken}`,
 			Accept: 'application/vnd.github+json'
@@ -35,7 +44,7 @@ export async function createGithubIssue(
 	}
 
 	const url = `https://api.github.com/repos/${config.projectKey}/issues`;
-	const res = await fetch(url, {
+	const res = await safeIntegrationFetch(url, {
 		method: 'POST',
 		headers: {
 			Authorization: `Bearer ${config.apiToken}`,
@@ -69,7 +78,7 @@ export async function addGithubIssueComment(
 
 	const issueNumber = match[1];
 	const url = `https://api.github.com/repos/${config.projectKey}/issues/${issueNumber}/comments`;
-	await fetch(url, {
+	await safeIntegrationFetch(url, {
 		method: 'POST',
 		headers: {
 			Authorization: `Bearer ${config.apiToken}`,
@@ -96,8 +105,16 @@ export async function fetchGithubIssueDetail(
 	};
 
 	const [issueRes, commentsRes] = await Promise.all([
-		fetch(`https://api.github.com/repos/${config.projectKey}/issues/${issueNumber}`, { headers }),
-		fetch(`https://api.github.com/repos/${config.projectKey}/issues/${issueNumber}/comments?per_page=50`, { headers })
+		safeIntegrationFetch(
+			`https://api.github.com/repos/${config.projectKey}/issues/${issueNumber}`,
+			{
+				headers
+			}
+		),
+		safeIntegrationFetch(
+			`https://api.github.com/repos/${config.projectKey}/issues/${issueNumber}/comments?per_page=50`,
+			{ headers }
+		)
 	]);
 
 	if (!issueRes.ok) throw new Error(`GitHub returned ${issueRes.status}`);
@@ -119,13 +136,20 @@ export async function fetchGithubIssueDetail(
 		createdAt: issue.created_at,
 		updatedAt: issue.updated_at,
 		closedAt: issue.closed_at,
-		comments: comments.map((c: { id: number; body: string; user?: { login: string; avatar_url?: string }; created_at: string }) => ({
-			id: c.id,
-			body: c.body,
-			author: c.user?.login ?? '',
-			authorAvatar: c.user?.avatar_url,
-			createdAt: c.created_at
-		}))
+		comments: comments.map(
+			(c: {
+				id: number;
+				body: string;
+				user?: { login: string; avatar_url?: string };
+				created_at: string;
+			}) => ({
+				id: c.id,
+				body: c.body,
+				author: c.user?.login ?? '',
+				authorAvatar: c.user?.avatar_url,
+				createdAt: c.created_at
+			})
+		)
 	};
 }
 
@@ -140,15 +164,18 @@ export async function updateGithubIssueState(
 	if (!match) return;
 
 	const issueNumber = match[1];
-	const res = await fetch(`https://api.github.com/repos/${config.projectKey}/issues/${issueNumber}`, {
-		method: 'PATCH',
-		headers: {
-			Authorization: `Bearer ${config.apiToken}`,
-			'Content-Type': 'application/json',
-			Accept: 'application/vnd.github+json'
-		},
-		body: JSON.stringify({ state })
-	});
+	const res = await safeIntegrationFetch(
+		`https://api.github.com/repos/${config.projectKey}/issues/${issueNumber}`,
+		{
+			method: 'PATCH',
+			headers: {
+				Authorization: `Bearer ${config.apiToken}`,
+				'Content-Type': 'application/json',
+				Accept: 'application/vnd.github+json'
+			},
+			body: JSON.stringify({ state })
+		}
+	);
 
 	if (!res.ok) {
 		throw new Error(`GitHub returned ${res.status}: ${await res.text()}`);
@@ -167,7 +194,7 @@ export async function fetchGithubIssueStatus(
 
 	const issueNumber = match[1];
 	const url = `https://api.github.com/repos/${config.projectKey}/issues/${issueNumber}`;
-	const res = await fetch(url, {
+	const res = await safeIntegrationFetch(url, {
 		headers: {
 			Authorization: `Bearer ${config.apiToken}`,
 			Accept: 'application/vnd.github+json'

@@ -1,4 +1,5 @@
 import type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult } from './types';
+import { safeIntegrationFetch } from './safe-fetch';
 
 function jiraAuthHeader(config: IssueTrackerConfig): string {
 	if (!config.apiToken) throw new Error('API token is required for Jira');
@@ -9,11 +10,13 @@ function jiraAuthHeader(config: IssueTrackerConfig): string {
 	return `Basic ${btoa(token)}`;
 }
 
-export async function testJiraConnection(config: IssueTrackerConfig): Promise<{ ok: boolean; message: string }> {
+export async function testJiraConnection(
+	config: IssueTrackerConfig
+): Promise<{ ok: boolean; message: string }> {
 	if (!config.apiToken) return { ok: false, message: 'API token is required for Jira' };
 
 	const url = `${config.baseUrl}/rest/api/3/myself`;
-	const res = await fetch(url, {
+	const res = await safeIntegrationFetch(url, {
 		headers: {
 			Authorization: jiraAuthHeader(config),
 			Accept: 'application/json'
@@ -25,7 +28,10 @@ export async function testJiraConnection(config: IssueTrackerConfig): Promise<{ 
 	}
 
 	const data = await res.json();
-	return { ok: true, message: `Connected as ${data.displayName || data.emailAddress || 'unknown'}` };
+	return {
+		ok: true,
+		message: `Connected as ${data.displayName || data.emailAddress || 'unknown'}`
+	};
 }
 
 export async function createJiraIssue(
@@ -54,7 +60,7 @@ export async function createJiraIssue(
 	}
 
 	const url = `${config.baseUrl}/rest/api/3/issue`;
-	const res = await fetch(url, {
+	const res = await safeIntegrationFetch(url, {
 		method: 'POST',
 		headers: {
 			Authorization: jiraAuthHeader(config),
@@ -94,7 +100,7 @@ export async function fetchJiraIssueStatus(
 	if (!externalKey) return { status: 'unknown', statusCategory: 'unknown' };
 
 	const url = `${config.baseUrl}/rest/api/3/issue/${encodeURIComponent(externalKey)}?fields=status`;
-	const res = await fetch(url, {
+	const res = await safeIntegrationFetch(url, {
 		headers: {
 			Authorization: jiraAuthHeader(config),
 			Accept: 'application/json'

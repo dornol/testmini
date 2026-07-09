@@ -1,11 +1,20 @@
-import type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult, IssueDetail } from './types';
+import type {
+	IssueTrackerConfig,
+	CreateIssueResult,
+	IssueStatusResult,
+	IssueDetail
+} from './types';
+import { safeIntegrationFetch } from './safe-fetch';
 
-export async function testGiteaConnection(config: IssueTrackerConfig): Promise<{ ok: boolean; message: string }> {
+export async function testGiteaConnection(
+	config: IssueTrackerConfig
+): Promise<{ ok: boolean; message: string }> {
 	if (!config.apiToken) return { ok: false, message: 'API token is required for Gitea' };
-	if (!config.projectKey) return { ok: false, message: 'Repository (owner/repo) is required for Gitea' };
+	if (!config.projectKey)
+		return { ok: false, message: 'Repository (owner/repo) is required for Gitea' };
 
 	const url = `${config.baseUrl}/api/v1/repos/${config.projectKey}`;
-	const res = await fetch(url, {
+	const res = await safeIntegrationFetch(url, {
 		headers: {
 			Authorization: `token ${config.apiToken}`,
 			Accept: 'application/json'
@@ -35,7 +44,7 @@ export async function createGiteaIssue(
 	}
 
 	const url = `${config.baseUrl}/api/v1/repos/${config.projectKey}/issues`;
-	const res = await fetch(url, {
+	const res = await safeIntegrationFetch(url, {
 		method: 'POST',
 		headers: {
 			Authorization: `token ${config.apiToken}`,
@@ -69,7 +78,7 @@ export async function addGiteaIssueComment(
 
 	const issueNumber = match[1];
 	const url = `${config.baseUrl}/api/v1/repos/${config.projectKey}/issues/${issueNumber}/comments`;
-	await fetch(url, {
+	await safeIntegrationFetch(url, {
 		method: 'POST',
 		headers: {
 			Authorization: `token ${config.apiToken}`,
@@ -95,8 +104,14 @@ export async function fetchGiteaIssueDetail(
 	};
 
 	const [issueRes, commentsRes] = await Promise.all([
-		fetch(`${config.baseUrl}/api/v1/repos/${config.projectKey}/issues/${issueNumber}`, { headers }),
-		fetch(`${config.baseUrl}/api/v1/repos/${config.projectKey}/issues/${issueNumber}/comments?limit=50`, { headers })
+		safeIntegrationFetch(
+			`${config.baseUrl}/api/v1/repos/${config.projectKey}/issues/${issueNumber}`,
+			{ headers }
+		),
+		safeIntegrationFetch(
+			`${config.baseUrl}/api/v1/repos/${config.projectKey}/issues/${issueNumber}/comments?limit=50`,
+			{ headers }
+		)
 	]);
 
 	if (!issueRes.ok) throw new Error(`Gitea returned ${issueRes.status}`);
@@ -118,13 +133,20 @@ export async function fetchGiteaIssueDetail(
 		createdAt: issue.created_at,
 		updatedAt: issue.updated_at,
 		closedAt: issue.closed_at,
-		comments: comments.map((c: { id: number; body: string; user?: { login: string; full_name?: string; avatar_url?: string }; created_at: string }) => ({
-			id: c.id,
-			body: c.body,
-			author: c.user?.login ?? c.user?.full_name ?? '',
-			authorAvatar: c.user?.avatar_url,
-			createdAt: c.created_at
-		}))
+		comments: comments.map(
+			(c: {
+				id: number;
+				body: string;
+				user?: { login: string; full_name?: string; avatar_url?: string };
+				created_at: string;
+			}) => ({
+				id: c.id,
+				body: c.body,
+				author: c.user?.login ?? c.user?.full_name ?? '',
+				authorAvatar: c.user?.avatar_url,
+				createdAt: c.created_at
+			})
+		)
 	};
 }
 
@@ -139,14 +161,17 @@ export async function updateGiteaIssueState(
 	if (!match) return;
 
 	const issueNumber = match[1];
-	const res = await fetch(`${config.baseUrl}/api/v1/repos/${config.projectKey}/issues/${issueNumber}`, {
-		method: 'PATCH',
-		headers: {
-			Authorization: `token ${config.apiToken}`,
-			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify({ state })
-	});
+	const res = await safeIntegrationFetch(
+		`${config.baseUrl}/api/v1/repos/${config.projectKey}/issues/${issueNumber}`,
+		{
+			method: 'PATCH',
+			headers: {
+				Authorization: `token ${config.apiToken}`,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ state })
+		}
+	);
 
 	if (!res.ok) {
 		throw new Error(`Gitea returned ${res.status}: ${await res.text()}`);
@@ -165,7 +190,7 @@ export async function fetchGiteaIssueStatus(
 
 	const issueNumber = match[1];
 	const url = `${config.baseUrl}/api/v1/repos/${config.projectKey}/issues/${issueNumber}`;
-	const res = await fetch(url, {
+	const res = await safeIntegrationFetch(url, {
 		headers: {
 			Authorization: `token ${config.apiToken}`,
 			Accept: 'application/json'

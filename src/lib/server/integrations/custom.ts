@@ -1,4 +1,5 @@
 import type { IssueTrackerConfig, CreateIssueResult } from './types';
+import { safeIntegrationFetch } from './safe-fetch';
 
 export async function createCustomIssue(
 	config: IssueTrackerConfig,
@@ -32,7 +33,7 @@ export async function createCustomIssue(
 
 	const body = JSON.stringify({ title, description: desc });
 
-	const res = await fetch(config.baseUrl, {
+	const res = await safeIntegrationFetch(config.baseUrl, {
 		method,
 		headers,
 		body

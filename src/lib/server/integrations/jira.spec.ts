@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { IssueTrackerConfig } from './types';
 
 const mockFetch = vi.fn();
+const mockValidatePublicHttpUrl = vi.hoisted(() => vi.fn());
+vi.mock('$lib/server/url-safety', () => ({
+	validatePublicHttpUrl: mockValidatePublicHttpUrl
+}));
 vi.stubGlobal('fetch', mockFetch);
 
 const { createJiraIssue, fetchJiraIssueStatus, testJiraConnection } = await import('./jira');
@@ -22,7 +26,10 @@ const baseConfig: IssueTrackerConfig = {
 };
 
 describe('Jira integration', () => {
-	beforeEach(() => vi.clearAllMocks());
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockValidatePublicHttpUrl.mockResolvedValue({ ok: true });
+	});
 	afterEach(() => vi.restoreAllMocks());
 
 	// ── jiraAuthHeader (tested indirectly) ────────────
@@ -48,7 +55,9 @@ describe('Jira integration', () => {
 
 		it('throws when apiToken is null', async () => {
 			const config = { ...baseConfig, apiToken: null };
-			await expect(createJiraIssue(config, 'title', 'desc')).rejects.toThrow('API token is required');
+			await expect(createJiraIssue(config, 'title', 'desc')).rejects.toThrow(
+				'API token is required'
+			);
 		});
 	});
 
@@ -141,7 +150,9 @@ describe('Jira integration', () => {
 
 		it('throws on non-ok response', async () => {
 			mockFetch.mockResolvedValue(new Response('Server Error', { status: 500 }));
-			await expect(createJiraIssue(baseConfig, 'title', 'desc')).rejects.toThrow('Jira returned 500');
+			await expect(createJiraIssue(baseConfig, 'title', 'desc')).rejects.toThrow(
+				'Jira returned 500'
+			);
 		});
 	});
 
@@ -215,7 +226,9 @@ describe('Jira integration', () => {
 
 		it('throws on non-ok response', async () => {
 			mockFetch.mockResolvedValue(new Response('Not Found', { status: 404 }));
-			await expect(fetchJiraIssueStatus(baseConfig, 'PROJ-999')).rejects.toThrow('Jira returned 404');
+			await expect(fetchJiraIssueStatus(baseConfig, 'PROJ-999')).rejects.toThrow(
+				'Jira returned 404'
+			);
 		});
 	});
 });

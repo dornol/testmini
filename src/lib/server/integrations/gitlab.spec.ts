@@ -2,9 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { IssueTrackerConfig } from './types';
 
 const mockFetch = vi.fn();
+const mockValidatePublicHttpUrl = vi.hoisted(() => vi.fn());
+vi.mock('$lib/server/url-safety', () => ({
+	validatePublicHttpUrl: mockValidatePublicHttpUrl
+}));
 vi.stubGlobal('fetch', mockFetch);
 
-const { createGitlabIssue, fetchGitlabIssueStatus, testGitlabConnection } = await import('./gitlab');
+const { createGitlabIssue, fetchGitlabIssueStatus, testGitlabConnection } =
+	await import('./gitlab');
 
 function jsonResponse(data: unknown, status = 200): Response {
 	return new Response(JSON.stringify(data), {
@@ -22,7 +27,10 @@ const baseConfig: IssueTrackerConfig = {
 };
 
 describe('GitLab integration', () => {
-	beforeEach(() => vi.clearAllMocks());
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockValidatePublicHttpUrl.mockResolvedValue({ ok: true });
+	});
 	afterEach(() => vi.restoreAllMocks());
 
 	// ── testGitlabConnection ─────────────────────────
@@ -128,7 +136,9 @@ describe('GitLab integration', () => {
 
 		it('throws on non-ok response', async () => {
 			mockFetch.mockResolvedValue(new Response('Bad Request', { status: 400 }));
-			await expect(createGitlabIssue(baseConfig, 'title', 'desc')).rejects.toThrow('GitLab returned 400');
+			await expect(createGitlabIssue(baseConfig, 'title', 'desc')).rejects.toThrow(
+				'GitLab returned 400'
+			);
 		});
 
 		it('posts to correct API endpoint with encoded projectKey', async () => {
@@ -148,14 +158,20 @@ describe('GitLab integration', () => {
 		it('maps opened state to open category', async () => {
 			mockFetch.mockResolvedValue(jsonResponse({ state: 'opened' }));
 
-			const result = await fetchGitlabIssueStatus(baseConfig, 'https://gitlab.com/group/proj/-/issues/7');
+			const result = await fetchGitlabIssueStatus(
+				baseConfig,
+				'https://gitlab.com/group/proj/-/issues/7'
+			);
 			expect(result).toEqual({ status: 'opened', statusCategory: 'open' });
 		});
 
 		it('maps closed state to done category', async () => {
 			mockFetch.mockResolvedValue(jsonResponse({ state: 'closed' }));
 
-			const result = await fetchGitlabIssueStatus(baseConfig, 'https://gitlab.com/group/proj/-/issues/5');
+			const result = await fetchGitlabIssueStatus(
+				baseConfig,
+				'https://gitlab.com/group/proj/-/issues/5'
+			);
 			expect(result).toEqual({ status: 'closed', statusCategory: 'done' });
 		});
 
@@ -163,9 +179,7 @@ describe('GitLab integration', () => {
 			mockFetch.mockResolvedValue(jsonResponse({ state: 'opened' }));
 			await fetchGitlabIssueStatus(baseConfig, 'https://gitlab.com/group/proj/-/issues/42');
 
-			expect(mockFetch.mock.calls[0][0]).toBe(
-				'https://gitlab.com/api/v4/projects/12345/issues/42'
-			);
+			expect(mockFetch.mock.calls[0][0]).toBe('https://gitlab.com/api/v4/projects/12345/issues/42');
 		});
 
 		it('returns unknown for non-matching URL', async () => {
@@ -176,13 +190,19 @@ describe('GitLab integration', () => {
 
 		it('throws when apiToken missing', async () => {
 			await expect(
-				fetchGitlabIssueStatus({ ...baseConfig, apiToken: null }, 'https://gitlab.com/g/p/-/issues/1')
+				fetchGitlabIssueStatus(
+					{ ...baseConfig, apiToken: null },
+					'https://gitlab.com/g/p/-/issues/1'
+				)
 			).rejects.toThrow('API token is required');
 		});
 
 		it('throws when projectKey missing', async () => {
 			await expect(
-				fetchGitlabIssueStatus({ ...baseConfig, projectKey: null }, 'https://gitlab.com/g/p/-/issues/1')
+				fetchGitlabIssueStatus(
+					{ ...baseConfig, projectKey: null },
+					'https://gitlab.com/g/p/-/issues/1'
+				)
 			).rejects.toThrow('Project ID is required');
 		});
 

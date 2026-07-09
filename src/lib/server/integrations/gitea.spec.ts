@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { IssueTrackerConfig } from './types';
 
 const mockFetch = vi.fn();
+const mockValidatePublicHttpUrl = vi.hoisted(() => vi.fn());
+vi.mock('$lib/server/url-safety', () => ({
+	validatePublicHttpUrl: mockValidatePublicHttpUrl
+}));
 vi.stubGlobal('fetch', mockFetch);
 
 const { createGiteaIssue, fetchGiteaIssueStatus, testGiteaConnection } = await import('./gitea');
@@ -22,7 +26,10 @@ const baseConfig: IssueTrackerConfig = {
 };
 
 describe('Gitea integration', () => {
-	beforeEach(() => vi.clearAllMocks());
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockValidatePublicHttpUrl.mockResolvedValue({ ok: true });
+	});
 	afterEach(() => vi.restoreAllMocks());
 
 	// ── testGiteaConnection ─────────────────────────
@@ -123,7 +130,9 @@ describe('Gitea integration', () => {
 
 		it('throws on non-ok response', async () => {
 			mockFetch.mockResolvedValue(new Response('Unprocessable', { status: 422 }));
-			await expect(createGiteaIssue(baseConfig, 'title', 'desc')).rejects.toThrow('Gitea returned 422');
+			await expect(createGiteaIssue(baseConfig, 'title', 'desc')).rejects.toThrow(
+				'Gitea returned 422'
+			);
 		});
 
 		it('posts to correct API endpoint', async () => {
@@ -142,14 +151,20 @@ describe('Gitea integration', () => {
 		it('maps open state to open category', async () => {
 			mockFetch.mockResolvedValue(jsonResponse({ state: 'open' }));
 
-			const result = await fetchGiteaIssueStatus(baseConfig, 'https://gitea.example.com/org/repo/issues/42');
+			const result = await fetchGiteaIssueStatus(
+				baseConfig,
+				'https://gitea.example.com/org/repo/issues/42'
+			);
 			expect(result).toEqual({ status: 'open', statusCategory: 'open' });
 		});
 
 		it('maps closed state to done category', async () => {
 			mockFetch.mockResolvedValue(jsonResponse({ state: 'closed' }));
 
-			const result = await fetchGiteaIssueStatus(baseConfig, 'https://gitea.example.com/org/repo/issues/5');
+			const result = await fetchGiteaIssueStatus(
+				baseConfig,
+				'https://gitea.example.com/org/repo/issues/5'
+			);
 			expect(result).toEqual({ status: 'closed', statusCategory: 'done' });
 		});
 
@@ -171,13 +186,19 @@ describe('Gitea integration', () => {
 
 		it('throws when apiToken missing', async () => {
 			await expect(
-				fetchGiteaIssueStatus({ ...baseConfig, apiToken: null }, 'https://gitea.example.com/o/r/issues/1')
+				fetchGiteaIssueStatus(
+					{ ...baseConfig, apiToken: null },
+					'https://gitea.example.com/o/r/issues/1'
+				)
 			).rejects.toThrow('API token is required');
 		});
 
 		it('throws when projectKey missing', async () => {
 			await expect(
-				fetchGiteaIssueStatus({ ...baseConfig, projectKey: null }, 'https://gitea.example.com/o/r/issues/1')
+				fetchGiteaIssueStatus(
+					{ ...baseConfig, projectKey: null },
+					'https://gitea.example.com/o/r/issues/1'
+				)
 			).rejects.toThrow('Repository (owner/repo) is required');
 		});
 

@@ -2,9 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { IssueTrackerConfig } from './types';
 
 const mockFetch = vi.fn();
+const mockValidatePublicHttpUrl = vi.hoisted(() => vi.fn());
+vi.mock('$lib/server/url-safety', () => ({
+	validatePublicHttpUrl: mockValidatePublicHttpUrl
+}));
 vi.stubGlobal('fetch', mockFetch);
 
-const { createGithubIssue, fetchGithubIssueStatus, testGithubConnection } = await import('./github');
+const { createGithubIssue, fetchGithubIssueStatus, testGithubConnection } =
+	await import('./github');
 
 function jsonResponse(data: unknown, status = 200): Response {
 	return new Response(JSON.stringify(data), {
@@ -22,7 +27,10 @@ const baseConfig: IssueTrackerConfig = {
 };
 
 describe('GitHub integration', () => {
-	beforeEach(() => vi.clearAllMocks());
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockValidatePublicHttpUrl.mockResolvedValue({ ok: true });
+	});
 	afterEach(() => vi.restoreAllMocks());
 
 	// ── testGithubConnection ─────────────────────────
@@ -116,7 +124,9 @@ describe('GitHub integration', () => {
 
 		it('throws on non-ok response', async () => {
 			mockFetch.mockResolvedValue(new Response('Unprocessable', { status: 422 }));
-			await expect(createGithubIssue(baseConfig, 'title', 'desc')).rejects.toThrow('GitHub returned 422');
+			await expect(createGithubIssue(baseConfig, 'title', 'desc')).rejects.toThrow(
+				'GitHub returned 422'
+			);
 		});
 
 		it('posts to correct API endpoint', async () => {
@@ -135,14 +145,20 @@ describe('GitHub integration', () => {
 		it('maps open state to open category', async () => {
 			mockFetch.mockResolvedValue(jsonResponse({ state: 'open' }));
 
-			const result = await fetchGithubIssueStatus(baseConfig, 'https://github.com/org/repo/issues/42');
+			const result = await fetchGithubIssueStatus(
+				baseConfig,
+				'https://github.com/org/repo/issues/42'
+			);
 			expect(result).toEqual({ status: 'open', statusCategory: 'open' });
 		});
 
 		it('maps closed state to done category', async () => {
 			mockFetch.mockResolvedValue(jsonResponse({ state: 'closed' }));
 
-			const result = await fetchGithubIssueStatus(baseConfig, 'https://github.com/org/repo/issues/5');
+			const result = await fetchGithubIssueStatus(
+				baseConfig,
+				'https://github.com/org/repo/issues/5'
+			);
 			expect(result).toEqual({ status: 'closed', statusCategory: 'done' });
 		});
 
@@ -170,7 +186,10 @@ describe('GitHub integration', () => {
 
 		it('throws when projectKey missing', async () => {
 			await expect(
-				fetchGithubIssueStatus({ ...baseConfig, projectKey: null }, 'https://github.com/o/r/issues/1')
+				fetchGithubIssueStatus(
+					{ ...baseConfig, projectKey: null },
+					'https://github.com/o/r/issues/1'
+				)
 			).rejects.toThrow('Repository (owner/repo) is required');
 		});
 

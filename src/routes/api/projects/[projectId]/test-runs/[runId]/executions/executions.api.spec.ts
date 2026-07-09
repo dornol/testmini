@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockDb, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
-import { testUser, adminUser, sampleTestCase, sampleTestRun } from '$lib/server/test-helpers/fixtures';
+import {
+	testUser,
+	adminUser,
+	sampleTestCase,
+	sampleTestRun
+} from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 
@@ -18,7 +23,8 @@ vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
@@ -126,6 +132,36 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toMatch(/testCaseId/i);
+		});
+
+		it('should return 400 when request body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: [10],
+				user: adminUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/request body/i);
+			expect(mockDb.query.testRun.findFirst).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when testCaseId is not a positive integer', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { testCaseId: 0 },
+				user: adminUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/positive integer/i);
+			expect(mockDb.query.testRun.findFirst).not.toHaveBeenCalled();
 		});
 
 		it('should return 409 when execution already exists', async () => {

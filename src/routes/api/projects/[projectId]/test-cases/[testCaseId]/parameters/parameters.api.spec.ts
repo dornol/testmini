@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -21,7 +25,8 @@ vi.mock('drizzle-orm', () => ({
 	asc: vi.fn((a: unknown) => a)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -103,10 +108,62 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 when request body is not an object', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: ['param1'],
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/request body/i);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when name is not a string', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 123 },
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/name/i);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when name is too long', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'x'.repeat(201) },
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/200 characters/i);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when parameter name already exists', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
-			(mockDb.query.testCaseParameter as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue({
-				id: 1, testCaseId: 10, name: 'username'
+			(
+				mockDb.query.testCaseParameter as { findFirst: ReturnType<typeof vi.fn> }
+			).findFirst.mockResolvedValue({
+				id: 1,
+				testCaseId: 10,
+				name: 'username'
 			});
 
 			const event = createMockEvent({
@@ -121,7 +178,9 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters', () => {
 
 		it('should create parameter on success', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
-			(mockDb.query.testCaseParameter as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(null);
+			(
+				mockDb.query.testCaseParameter as { findFirst: ReturnType<typeof vi.fn> }
+			).findFirst.mockResolvedValue(null);
 
 			// select for max order returns empty
 			mockSelectResult(mockDb, []);

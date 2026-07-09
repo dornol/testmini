@@ -108,7 +108,25 @@ describe('admin/branding +page.server', () => {
 		it('should return 400 when appName is empty', async () => {
 			const event = createActionEvent(adminUser, { appName: '  ' });
 			const result = await actions.save(event);
-			expect(result).toMatchObject({ status: 400, data: { error: 'App name is required' } });
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'App name is required (1-100 characters)' }
+			});
+		});
+
+		it('should return 400 when appName is not text', async () => {
+			const event = createActionEvent(adminUser, {
+				appName: createTestFile('name.txt', 10, 'text/plain')
+			});
+			const result = await actions.save(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'App name is required (1-100 characters)' }
+			});
+			expect(mockDb.query.appConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should insert new config when none exists', async () => {
@@ -211,6 +229,22 @@ describe('admin/branding +page.server', () => {
 			expect(saveFile).toHaveBeenCalledWith('branding/test-uuid-1234.png', expect.any(Buffer));
 		});
 
+		it('should derive logo extension from MIME type instead of original filename', async () => {
+			(mockDb.query as Record<string, unknown>).appConfig = {
+				findFirst: vi.fn().mockResolvedValue(null)
+			};
+
+			const logoFile = createTestFile('logo.html', 1000, 'image/jpeg');
+			const event = createActionEvent(adminUser, {
+				appName: 'MyApp',
+				logo: logoFile as unknown as string
+			});
+			const result = await actions.save(event);
+
+			expect(result).toMatchObject({ success: true });
+			expect(saveFile).toHaveBeenCalledWith('branding/test-uuid-1234.jpg', expect.any(Buffer));
+		});
+
 		it('should remove logo when removeLogo is true', async () => {
 			(mockDb.query as Record<string, unknown>).appConfig = {
 				findFirst: vi.fn().mockResolvedValue({
@@ -282,6 +316,22 @@ describe('admin/branding +page.server', () => {
 				data: { error: 'Invalid favicon file type' }
 			});
 			expect(saveFile).not.toHaveBeenCalled();
+		});
+
+		it('should derive favicon extension from MIME type instead of original filename', async () => {
+			(mockDb.query as Record<string, unknown>).appConfig = {
+				findFirst: vi.fn().mockResolvedValue(null)
+			};
+
+			const faviconFile = createTestFile('favicon.html', 1000, 'image/png');
+			const event = createActionEvent(adminUser, {
+				appName: 'MyApp',
+				favicon: faviconFile as unknown as string
+			});
+			const result = await actions.save(event);
+
+			expect(result).toMatchObject({ success: true });
+			expect(saveFile).toHaveBeenCalledWith('branding/test-uuid-1234.png', expect.any(Buffer));
 		});
 	});
 });

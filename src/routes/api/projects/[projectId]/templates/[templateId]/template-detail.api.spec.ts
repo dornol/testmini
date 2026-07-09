@@ -132,6 +132,7 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toContain('No fields to update');
+			expect(mockDb.query.testCaseTemplate.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -147,6 +148,7 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toContain('Invalid template field');
+			expect(mockDb.query.testCaseTemplate.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -162,6 +164,8 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toMatch(/name/i);
+			expect(mockDb.query.testCaseTemplate.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when name contains control characters before updating', async () => {
@@ -176,6 +180,7 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toBe('Template name must not contain control characters');
+			expect(mockDb.query.testCaseTemplate.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -191,6 +196,7 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toMatch(/request body/i);
+			expect(mockDb.query.testCaseTemplate.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -206,6 +212,7 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toMatch(/steps/i);
+			expect(mockDb.query.testCaseTemplate.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -221,6 +228,7 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toMatch(/priority/i);
+			expect(mockDb.query.testCaseTemplate.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -236,6 +244,7 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toBe('Priority must not contain control characters');
+			expect(mockDb.query.testCaseTemplate.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 

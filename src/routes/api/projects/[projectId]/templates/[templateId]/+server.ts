@@ -25,14 +25,6 @@ export const PATCH = withProjectRole(
 	async ({ request, params, projectId }) => {
 		const templateId = parseId(params.templateId, 'template ID');
 
-		const template = await db.query.testCaseTemplate.findFirst({
-			where: and(eq(testCaseTemplate.id, templateId), eq(testCaseTemplate.projectId, projectId))
-		});
-
-		if (!template) {
-			error(404, 'Template not found');
-		}
-
 		const templateOrError = validateUpdateTemplateInput(await parseJsonBody(request));
 		if (templateOrError instanceof Response) return templateOrError;
 
@@ -55,6 +47,14 @@ export const PATCH = withProjectRole(
 
 		if (Object.keys(updates).length === 0) {
 			return json({ success: true });
+		}
+
+		const template = await db.query.testCaseTemplate.findFirst({
+			where: and(eq(testCaseTemplate.id, templateId), eq(testCaseTemplate.projectId, projectId))
+		});
+
+		if (!template) {
+			error(404, 'Template not found');
 		}
 
 		const [updated] = await db

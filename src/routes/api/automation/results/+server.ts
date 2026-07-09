@@ -1,5 +1,5 @@
 import type { RequestHandler } from './$types';
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { unauthorized, badRequest, notFound, payloadTooLarge } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import {
@@ -191,7 +191,10 @@ export const POST: RequestHandler = async ({ request }) => {
 				startedAt: now,
 				createdBy
 			})
-			.returning();
+			.returning({ id: testRun.id });
+		if (!run) {
+			error(500, 'Failed to create automation test run');
+		}
 
 		// 2. Create executions for each result
 		for (const result of normalizedResults) {
@@ -220,17 +223,26 @@ export const POST: RequestHandler = async ({ request }) => {
 					startedAt: now,
 					completedAt: now
 				})
-				.returning();
+				.returning({ id: testExecution.id });
+			if (!execution) {
+				error(500, 'Failed to create automation test execution');
+			}
 
 			// 3. For FAIL results with errorMessage, record failure detail
 			if (result.status === 'FAIL' && result.errorMessage) {
-				await tx.insert(testFailureDetail).values({
-					testExecutionId: execution.id,
-					errorMessage: result.errorMessage,
-					failureEnvironment: environment,
-					comment: result.duration != null ? `Duration: ${result.duration}ms` : null,
-					createdBy
-				});
+				const [failureDetail] = await tx
+					.insert(testFailureDetail)
+					.values({
+						testExecutionId: execution.id,
+						errorMessage: result.errorMessage,
+						failureEnvironment: environment,
+						comment: result.duration != null ? `Duration: ${result.duration}ms` : null,
+						createdBy
+					})
+					.returning({ id: testFailureDetail.id });
+				if (!failureDetail) {
+					error(500, 'Failed to create automation failure detail');
+				}
 			}
 
 			finalResults.push({
@@ -241,10 +253,14 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		// 4. Mark run as completed
-		await tx
+		const [completedRun] = await tx
 			.update(testRun)
 			.set({ status: 'COMPLETED', finishedAt: new Date() })
-			.where(and(eq(testRun.id, run.id), eq(testRun.projectId, projectId)));
+			.where(and(eq(testRun.id, run.id), eq(testRun.projectId, projectId)))
+			.returning({ id: testRun.id });
+		if (!completedRun) {
+			error(500, 'Failed to complete automation test run');
+		}
 
 		return run.id;
 	});

@@ -59,6 +59,30 @@ function makeInvalidJsonRequest(): Request {
 	});
 }
 
+function makeChainableResult(result: unknown[]) {
+	const chain: Record<string, unknown> = {};
+	const methods = [
+		'from',
+		'where',
+		'orderBy',
+		'limit',
+		'offset',
+		'innerJoin',
+		'leftJoin',
+		'groupBy',
+		'as',
+		'set',
+		'values',
+		'returning',
+		'onConflictDoNothing'
+	];
+	for (const m of methods) {
+		chain[m] = vi.fn().mockImplementation(() => chain);
+	}
+	chain.then = (resolve: (v: unknown) => void) => Promise.resolve(result).then(resolve);
+	return chain;
+}
+
 /** Helper to set up db mocks for a full successful flow */
 function setupSuccessfulFlow(opts?: {
 	matchedCases?: { id: number; automationKey: string; latestVersionId: number | null }[];
@@ -77,46 +101,44 @@ function setupSuccessfulFlow(opts?: {
 	}
 	mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
 
-	// Helper to create a chainable select result without side-effects on mockDb.select
-	const makeChainable = (result: unknown[]) => {
-		const chain: Record<string, unknown> = {};
-		const methods = [
-			'from',
-			'where',
-			'orderBy',
-			'limit',
-			'offset',
-			'innerJoin',
-			'leftJoin',
-			'groupBy',
-			'as',
-			'set',
-			'values',
-			'returning',
-			'onConflictDoNothing'
-		];
-		for (const m of methods) {
-			chain[m] = vi.fn().mockImplementation(() => chain);
-		}
-		chain.then = (resolve: (v: unknown) => void) => Promise.resolve(result).then(resolve);
-		return chain;
-	};
-
 	// db.select() is called twice: first for matchedCases, then for project members
 	let selectCallCount = 0;
 	mockDb.select.mockImplementation(() => {
 		selectCallCount++;
 		if (selectCallCount === 1) {
-			return makeChainable(matchedCases) as never;
+			return makeChainableResult(matchedCases) as never;
 		}
-		return makeChainable(members) as never;
+		return makeChainableResult(members) as never;
 	});
 
 	// Transaction mock
 	mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 		const tx = {
-			insert: vi.fn().mockImplementation(() => makeChainable([{ id: 50 }])),
-			update: vi.fn().mockImplementation(() => makeChainable([]))
+			insert: vi.fn().mockImplementation(() => makeChainableResult([{ id: 50 }])),
+			update: vi.fn().mockImplementation(() => makeChainableResult([{ id: 50 }]))
+		};
+		return fn(tx);
+	});
+}
+
+function mockAutomationTransactionResults(opts: {
+	run?: unknown[];
+	execution?: unknown[];
+	failureDetail?: unknown[];
+	completedRun?: unknown[];
+}) {
+	let insertCallCount = 0;
+	mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
+		const tx = {
+			insert: vi.fn().mockImplementation(() => {
+				insertCallCount++;
+				if (insertCallCount === 1) return makeChainableResult(opts.run ?? [{ id: 50 }]);
+				if (insertCallCount === 2) return makeChainableResult(opts.execution ?? [{ id: 200 }]);
+				return makeChainableResult(opts.failureDetail ?? [{ id: 300 }]);
+			}),
+			update: vi
+				.fn()
+				.mockImplementation(() => makeChainableResult(opts.completedRun ?? [{ id: 50 }]))
 		};
 		return fn(tx);
 	});
@@ -646,6 +668,50 @@ describe('/api/automation/results POST', () => {
 					['project_id', 1]
 				])
 			);
+		});
+
+		it('should return 500 when test run creation affects no row', async () => {
+			setupSuccessfulFlow();
+			mockAutomationTransactionResults({ run: [] });
+
+			const request = makeRequest({
+				results: [{ automationKey: 'login-test', status: 'PASS' }]
+			});
+
+			await expect(POST({ request } as never)).rejects.toMatchObject({ status: 500 });
+		});
+
+		it('should return 500 when test execution creation affects no row', async () => {
+			setupSuccessfulFlow();
+			mockAutomationTransactionResults({ execution: [] });
+
+			const request = makeRequest({
+				results: [{ automationKey: 'login-test', status: 'PASS' }]
+			});
+
+			await expect(POST({ request } as never)).rejects.toMatchObject({ status: 500 });
+		});
+
+		it('should return 500 when failure detail creation affects no row', async () => {
+			setupSuccessfulFlow();
+			mockAutomationTransactionResults({ failureDetail: [] });
+
+			const request = makeRequest({
+				results: [{ automationKey: 'login-test', status: 'FAIL', errorMessage: 'broken' }]
+			});
+
+			await expect(POST({ request } as never)).rejects.toMatchObject({ status: 500 });
+		});
+
+		it('should return 500 when run completion update affects no row', async () => {
+			setupSuccessfulFlow();
+			mockAutomationTransactionResults({ completedRun: [] });
+
+			const request = makeRequest({
+				results: [{ automationKey: 'login-test', status: 'PASS' }]
+			});
+
+			await expect(POST({ request } as never)).rejects.toMatchObject({ status: 500 });
 		});
 	});
 

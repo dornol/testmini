@@ -109,7 +109,10 @@ export const actions: Actions = {
 			return fail(404, { error: 'User not found' });
 		}
 
-		await db.update(user).set({ role }).where(eq(user.id, userId));
+		const [updated] = await db.update(user).set({ role }).where(eq(user.id, userId)).returning();
+		if (!updated) {
+			return fail(404, { error: 'User not found' });
+		}
 
 		return { success: true };
 	},
@@ -143,7 +146,14 @@ export const actions: Actions = {
 			return fail(404, { error: 'User not found' });
 		}
 
-		await db.update(user).set({ banned: true, banReason }).where(eq(user.id, userId));
+		const [updated] = await db
+			.update(user)
+			.set({ banned: true, banReason })
+			.where(eq(user.id, userId))
+			.returning();
+		if (!updated) {
+			return fail(404, { error: 'User not found' });
+		}
 
 		return { success: true };
 	},
@@ -169,7 +179,14 @@ export const actions: Actions = {
 			return fail(404, { error: 'User not found' });
 		}
 
-		await db.update(user).set({ banned: false, banReason: null }).where(eq(user.id, userId));
+		const [updated] = await db
+			.update(user)
+			.set({ banned: false, banReason: null })
+			.where(eq(user.id, userId))
+			.returning();
+		if (!updated) {
+			return fail(404, { error: 'User not found' });
+		}
 
 		return { success: true };
 	},
@@ -198,7 +215,14 @@ export const actions: Actions = {
 			return fail(400, { error: 'User is already approved' });
 		}
 
-		await db.update(user).set({ approved: true }).where(eq(user.id, userId));
+		const [updated] = await db
+			.update(user)
+			.set({ approved: true })
+			.where(eq(user.id, userId))
+			.returning();
+		if (!updated) {
+			return fail(404, { error: 'User not found' });
+		}
 
 		logAudit({
 			userId: authUser.id,
@@ -236,14 +260,18 @@ export const actions: Actions = {
 			return fail(400, { error: 'Only pending users can be rejected' });
 		}
 
+		const [deleted] = await db.delete(user).where(eq(user.id, userId)).returning();
+
+		if (!deleted) {
+			return fail(404, { error: 'User not found' });
+		}
+
 		logAudit({
 			userId: authUser.id,
 			action: 'USER_REJECTED',
 			entityType: 'USER',
 			entityId: userId
 		});
-
-		await db.delete(user).where(eq(user.id, userId));
 
 		return { success: true };
 	}

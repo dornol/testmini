@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { adminUser, testUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -182,10 +187,21 @@ describe('admin/users +page.server', () => {
 		});
 
 		it('should update role on success', async () => {
+			mockUpdateReturning(mockDb, [{ id: 'user-2' }]);
+
 			const event = createActionEvent(adminUser, { userId: 'user-2', role: 'admin' });
 			const result = await actions.updateRole(event);
 			expect(result).toMatchObject({ success: true });
 			expect(mockDb.update).toHaveBeenCalled();
+		});
+
+		it('should return 404 when role target disappears before update', async () => {
+			mockUpdateReturning(mockDb, []);
+
+			const event = createActionEvent(adminUser, { userId: 'user-2', role: 'admin' });
+			const result = await actions.updateRole(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'User not found' } });
 		});
 	});
 
@@ -234,6 +250,8 @@ describe('admin/users +page.server', () => {
 		});
 
 		it('should ban user with reason on success', async () => {
+			mockUpdateReturning(mockDb, [{ id: 'user-2' }]);
+
 			const event = createActionEvent(adminUser, {
 				userId: 'user-2',
 				banReason: 'Spam'
@@ -241,6 +259,15 @@ describe('admin/users +page.server', () => {
 			const result = await actions.ban(event);
 			expect(result).toMatchObject({ success: true });
 			expect(mockDb.update).toHaveBeenCalled();
+		});
+
+		it('should return 404 when ban target disappears before update', async () => {
+			mockUpdateReturning(mockDb, []);
+
+			const event = createActionEvent(adminUser, { userId: 'user-2' });
+			const result = await actions.ban(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'User not found' } });
 		});
 	});
 
@@ -268,10 +295,21 @@ describe('admin/users +page.server', () => {
 		});
 
 		it('should unban user on success', async () => {
+			mockUpdateReturning(mockDb, [{ id: 'user-2' }]);
+
 			const event = createActionEvent(adminUser, { userId: 'user-2' });
 			const result = await actions.unban(event);
 			expect(result).toMatchObject({ success: true });
 			expect(mockDb.update).toHaveBeenCalled();
+		});
+
+		it('should return 404 when unban target disappears before update', async () => {
+			mockUpdateReturning(mockDb, []);
+
+			const event = createActionEvent(adminUser, { userId: 'user-2' });
+			const result = await actions.unban(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'User not found' } });
 		});
 	});
 
@@ -302,6 +340,8 @@ describe('admin/users +page.server', () => {
 		});
 
 		it('should approve user and log audit on success', async () => {
+			mockUpdateReturning(mockDb, [{ id: 'user-2' }]);
+
 			const event = createActionEvent(adminUser, { userId: 'user-2' });
 			const result = await actions.approve(event);
 			expect(result).toMatchObject({ success: true });
@@ -312,6 +352,16 @@ describe('admin/users +page.server', () => {
 				entityType: 'USER',
 				entityId: 'user-2'
 			});
+		});
+
+		it('should return 404 and skip audit when approve target disappears before update', async () => {
+			mockUpdateReturning(mockDb, []);
+
+			const event = createActionEvent(adminUser, { userId: 'user-2' });
+			const result = await actions.approve(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'User not found' } });
+			expect(logAudit).not.toHaveBeenCalled();
 		});
 	});
 
@@ -362,6 +412,8 @@ describe('admin/users +page.server', () => {
 		});
 
 		it('should delete user and log audit on success', async () => {
+			mockDeleteReturning(mockDb, [{ id: 'user-2' }]);
+
 			const event = createActionEvent(adminUser, { userId: 'user-2' });
 			const result = await actions.reject(event);
 			expect(result).toMatchObject({ success: true });
@@ -372,6 +424,16 @@ describe('admin/users +page.server', () => {
 				entityType: 'USER',
 				entityId: 'user-2'
 			});
+		});
+
+		it('should return 404 and skip audit when reject target disappears before delete', async () => {
+			mockDeleteReturning(mockDb, []);
+
+			const event = createActionEvent(adminUser, { userId: 'user-2' });
+			const result = await actions.reject(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'User not found' } });
+			expect(logAudit).not.toHaveBeenCalled();
 		});
 	});
 });

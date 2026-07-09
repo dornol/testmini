@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { adminUser, testUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -114,6 +119,8 @@ describe('admin/users approval actions', () => {
 		});
 
 		it('should set approved=true and log audit on success', async () => {
+			mockUpdateReturning(mockDb, [{ id: 'pending-user-1' }]);
+
 			const event = createActionEvent(adminUser, { userId: 'pending-user-1' });
 			const result = await actions.approve(event);
 
@@ -125,6 +132,16 @@ describe('admin/users approval actions', () => {
 				entityType: 'USER',
 				entityId: 'pending-user-1'
 			});
+		});
+
+		it('should return 404 and skip audit when target disappears before approve update', async () => {
+			mockUpdateReturning(mockDb, []);
+
+			const event = createActionEvent(adminUser, { userId: 'pending-user-1' });
+			const result = await actions.approve(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'User not found' } });
+			expect(logAudit).not.toHaveBeenCalled();
 		});
 	});
 
@@ -174,6 +191,8 @@ describe('admin/users approval actions', () => {
 		});
 
 		it('should delete the user and log audit on success', async () => {
+			mockDeleteReturning(mockDb, [{ id: 'pending-user-2' }]);
+
 			const event = createActionEvent(adminUser, { userId: 'pending-user-2' });
 			const result = await actions.reject(event);
 
@@ -187,20 +206,30 @@ describe('admin/users approval actions', () => {
 			});
 		});
 
-		it('should call logAudit before deleting the user', async () => {
+		it('should call logAudit after deleting the user', async () => {
 			const callOrder: string[] = [];
 			(logAudit as ReturnType<typeof vi.fn>).mockImplementation(() => {
 				callOrder.push('audit');
 			});
-			mockDb.delete.mockImplementation(() => {
+			mockDb.delete.mockImplementationOnce(() => {
 				callOrder.push('delete');
-				return mockDb._chains.delete;
+				return mockDeleteReturning(mockDb, [{ id: 'pending-user-3' }]);
 			});
 
 			const event = createActionEvent(adminUser, { userId: 'pending-user-3' });
 			await actions.reject(event);
 
-			expect(callOrder).toEqual(['audit', 'delete']);
+			expect(callOrder).toEqual(['delete', 'audit']);
+		});
+
+		it('should return 404 and skip audit when target disappears before reject delete', async () => {
+			mockDeleteReturning(mockDb, []);
+
+			const event = createActionEvent(adminUser, { userId: 'pending-user-2' });
+			const result = await actions.reject(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'User not found' } });
+			expect(logAudit).not.toHaveBeenCalled();
 		});
 	});
 

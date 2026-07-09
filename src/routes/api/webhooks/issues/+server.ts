@@ -8,6 +8,7 @@ import { childLogger } from '$lib/server/logger';
 import crypto from 'node:crypto';
 import { readRequestText } from '$lib/server/auth-utils';
 import { parseContentLengthHeader } from '$lib/server/request-size';
+import { redactSecrets } from '$lib/server/secret-redaction';
 
 const log = childLogger('issue-webhook');
 const MAX_ACTION_LENGTH = 100;
@@ -177,6 +178,17 @@ function stateToCategory(state: string): 'open' | 'done' {
 	return state === 'closed' ? 'done' : 'open';
 }
 
+function sanitizeIssueWebhookError(err: unknown): { message: string; name?: string } | string {
+	if (err instanceof Error) {
+		return {
+			name: err.name,
+			message: redactSecrets(err.message)
+		};
+	}
+
+	return redactSecrets(String(err));
+}
+
 // ── Handler ─────────────────────────────────────────────
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -221,7 +233,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		event = parseEvent(request, body);
 	} catch (err) {
-		log.warn({ err }, 'Invalid issue webhook payload');
+		log.warn({ err: sanitizeIssueWebhookError(err) }, 'Invalid issue webhook payload');
 		return badRequest('Invalid issue webhook payload');
 	}
 	if (!event) {

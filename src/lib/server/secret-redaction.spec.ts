@@ -30,4 +30,15 @@ describe('redactSecrets', () => {
 		expect(result).not.toContain('query-secret-12345');
 		expect(result).toContain('token=[redacted]');
 	});
+
+	it('redacts prefixed secret and token keys', () => {
+		const result = redactSecrets(
+			'webhook_secret=secret-value-12345 client-token=client-token-12345'
+		);
+
+		expect(result).not.toContain('secret-value-12345');
+		expect(result).not.toContain('client-token-12345');
+		expect(result).toContain('webhook_secret=[redacted]');
+		expect(result).toContain('client-token=[redacted]');
+	});
 });

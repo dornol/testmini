@@ -221,6 +221,24 @@ describe('sendProjectWebhooks', () => {
 		).resolves.toBeUndefined();
 	});
 
+	it('should redact top-level webhook query errors', async () => {
+		const token = 'query-token-12345';
+		mockDb.select.mockImplementation(() => {
+			throw new Error(`DB connection failed apiToken=${token}`);
+		});
+
+		await sendProjectWebhooks(1, `EVENT_secret=${token}`, {
+			title: 'Fail',
+			message: 'Failed'
+		});
+
+		const [logMeta] = mockLog.error.mock.calls[0];
+
+		expect(logMeta.err.message).not.toContain(token);
+		expect(logMeta.event).not.toContain(token);
+		expect(logMeta.err).not.toHaveProperty('stack');
+	});
+
 	it('should send to multiple webhooks in parallel', async () => {
 		mockSelectResult(mockDb, [
 			{ ...sampleWebhook, id: 1, url: 'https://hook1.example.com' },
@@ -350,6 +368,26 @@ describe('sendProjectWebhooks', () => {
 		expect(loggedDelivery.errorMessage).not.toContain(errorSecret);
 		expect(warnMeta.url).not.toContain(urlSecret);
 		expect(warnMeta.err.message).not.toContain(errorSecret);
+	});
+
+	it('should redact webhook delivery log persistence errors', async () => {
+		const webhookSecret = 'webhook-secret-12345';
+		const insertValues = vi
+			.fn()
+			.mockRejectedValue(new Error(`insert failed secret=${webhookSecret}`));
+		mockDb.insert = vi.fn().mockReturnValue({ values: insertValues });
+		mockSelectResult(mockDb, [{ ...sampleWebhook, secret: webhookSecret }]);
+
+		await sendProjectWebhooks(1, 'TEST_FAILED', {
+			title: 'Fail',
+			message: `secret=${webhookSecret}`
+		});
+
+		const [logMeta] = mockLog.error.mock.calls[0];
+
+		expect(logMeta.err.message).not.toContain(webhookSecret);
+		expect(logMeta.err).not.toHaveProperty('stack');
+		expect(logMeta.webhookId).toBe(sampleWebhook.id);
 	});
 
 	it('should stop retrying after first success', async () => {

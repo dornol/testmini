@@ -57,7 +57,10 @@ export async function sendProjectWebhooks(
 			matching.map((w) => deliverWithRetry(w.id, w.url, w.secret, event, body))
 		);
 	} catch (err) {
-		log.error({ err, projectId, event }, 'Failed to send project webhooks');
+		log.error(
+			{ err: sanitizeWebhookError(err), projectId, event: sanitizeWebhookLogValue(event, null) },
+			'Failed to send project webhooks'
+		);
 	}
 }
 
@@ -92,7 +95,10 @@ async function deliverWithRetry(
 				duration: result.duration
 			});
 		} catch (err) {
-			log.error({ err, webhookId }, 'Failed to save webhook delivery log');
+			log.error(
+				{ err: sanitizeWebhookError(err, secret), webhookId },
+				'Failed to save webhook delivery log'
+			);
 		}
 
 		if (result.success) return;
@@ -202,6 +208,20 @@ function sanitizeWebhookLogValue(value: string, secret: string | null): string {
 	return redacted.length > MAX_RESPONSE_BODY_LENGTH
 		? redacted.slice(0, MAX_RESPONSE_BODY_LENGTH)
 		: redacted;
+}
+
+function sanitizeWebhookError(
+	err: unknown,
+	secret: string | null = null
+): { message: string; name?: string } | string {
+	if (err instanceof Error) {
+		return {
+			name: err.name,
+			message: sanitizeWebhookLogValue(err.message, secret)
+		};
+	}
+
+	return sanitizeWebhookLogValue(String(err), secret);
 }
 
 function sleep(ms: number): Promise<void> {

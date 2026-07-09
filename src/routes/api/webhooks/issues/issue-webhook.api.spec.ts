@@ -5,6 +5,12 @@ import crypto from 'node:crypto';
 // ── Mocks ────────────────────────────────────────────────
 
 const mockDb = createMockDb();
+const mockLog = vi.hoisted(() => ({
+	info: vi.fn(),
+	warn: vi.fn(),
+	debug: vi.fn(),
+	error: vi.fn()
+}));
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 
@@ -36,12 +42,7 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 vi.mock('$lib/server/logger', () => ({
-	childLogger: () => ({
-		info: vi.fn(),
-		warn: vi.fn(),
-		debug: vi.fn(),
-		error: vi.fn()
-	})
+	childLogger: () => mockLog
 }));
 
 // Import after mocks
@@ -390,6 +391,27 @@ describe('/api/webhooks/issues POST', () => {
 			expect(data.error).toBe('Invalid issue webhook payload');
 			expect(mockDb.select).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('logs sanitized validation errors for malformed handled event payloads', async () => {
+			const payload = {
+				...makeGitHubIssuePayload(),
+				issue: {
+					...makeGitHubIssuePayload().issue,
+					state: { value: 'closed' }
+				}
+			};
+			const event = createWebhookRequest(payload, { 'x-github-event': 'issues' });
+
+			await POST(event);
+
+			const [logMeta] = mockLog.warn.mock.calls[0];
+
+			expect(logMeta.err).toEqual({
+				name: 'Error',
+				message: 'issue.state must be a non-empty string'
+			});
+			expect(logMeta.err).not.toHaveProperty('stack');
 		});
 
 		it('returns 400 for unsafe issue numbers before querying configs', async () => {

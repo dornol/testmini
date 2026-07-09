@@ -42,6 +42,7 @@ vi.mock('$lib/server/api-key-auth', () => ({
 
 const { GET, POST } = await import('./+server');
 const authUtils = await import('$lib/server/auth-utils');
+const apiKeyAuth = await import('$lib/server/api-key-auth');
 
 const PARAMS = { projectId: '1' };
 
@@ -261,6 +262,23 @@ describe('/api/projects/[projectId]/api-keys', () => {
 			const response = await POST(event);
 
 			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 when name contains control characters before generating a key', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Deploy\u0000Key' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Name must not contain control characters');
+			expect(apiKeyAuth.generateApiKey).not.toHaveBeenCalled();
+			expect(apiKeyAuth.hashApiKey).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should reject request with invalid project ID', async () => {

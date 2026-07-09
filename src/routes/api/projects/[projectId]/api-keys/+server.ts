@@ -9,6 +9,7 @@ import { parseJsonBody } from '$lib/server/auth-utils';
 import { isPlainRecord } from '$lib/server/object-validation';
 
 const MAX_API_KEY_NAME_LENGTH = 100;
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 const API_KEY_CREATE_FIELDS = new Set(['name']);
 
 function validateRequestBody(body: unknown): Record<string, unknown> | Response {
@@ -28,6 +29,9 @@ function validateKeyName(value: unknown): string | Response {
 	const name = value.trim();
 	if (!name) {
 		return badRequest('Name is required');
+	}
+	if (CONTROL_CHAR_PATTERN.test(name)) {
+		return badRequest('Name must not contain control characters');
 	}
 	if (name.length > MAX_API_KEY_NAME_LENGTH) {
 		return badRequest(`Name must be ${MAX_API_KEY_NAME_LENGTH} characters or less`);

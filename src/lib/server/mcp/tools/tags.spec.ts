@@ -433,8 +433,6 @@ describe('MCP tag tools', () => {
 		});
 
 		it('should reject invalid update colors', async () => {
-			mockDb.query.tag.findFirst.mockResolvedValue(sampleTag);
-
 			const result = await client.callTool({
 				name: 'update-tag',
 				arguments: { tagId: 1, color: 'blue' }
@@ -444,6 +442,21 @@ describe('MCP tag tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
 				'Invalid hex color'
 			);
+			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject update names with control characters before lookup', async () => {
+			const result = await client.callTool({
+				name: 'update-tag',
+				arguments: { tagId: 1, name: 'smoke\u0000tag' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Name must not contain control characters'
+			);
+			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 

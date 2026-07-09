@@ -147,6 +147,13 @@ export function registerTagTools(server: McpServer, projectId: number) {
 		async ({ tagId, name, color }) => {
 			if (name === undefined && color === undefined) return err('No fields to update');
 
+			const inputValidation = updateTagSchema.safeParse({
+				tagId,
+				name: name?.trim() ?? 'existing',
+				color: color?.trim() ?? '#000000'
+			});
+			if (!inputValidation.success) return err(firstValidationError(inputValidation.error));
+
 			const t = await db.query.tag.findFirst({
 				where: and(eq(tag.id, tagId), eq(tag.projectId, projectId))
 			});
@@ -154,8 +161,8 @@ export function registerTagTools(server: McpServer, projectId: number) {
 
 			const parsed = updateTagSchema.safeParse({
 				tagId,
-				name: name?.trim() ?? t.name,
-				color: color?.trim() ?? t.color
+				name: name === undefined ? t.name : inputValidation.data.name,
+				color: color === undefined ? t.color : inputValidation.data.color
 			});
 			if (!parsed.success) return err(firstValidationError(parsed.error));
 

@@ -2,8 +2,20 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { issueLink, testCase, testExecution, testRun } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator } from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
 import { eq, and, desc } from 'drizzle-orm';
+import {
+	validateIssueLinkCreateInput,
+	validateIssueLinkProvider
+} from '$lib/server/issue-link-validation';
+
+async function mcpValidationError(
+	response: Response,
+	fallback: string
+): Promise<ReturnType<typeof err>> {
+	const body = (await response.json().catch(() => null)) as { error?: string } | null;
+	return err(body?.error ?? fallback);
+}
 
 async function validateIssueLinkTarget(
 	projectId: number,
@@ -35,8 +47,8 @@ export function registerIssueLinkTools(server: McpServer, projectId: number) {
 		'list-issue-links',
 		'List issue links, optionally filtered by test case or execution',
 		{
-			testCaseId: z.number().optional().describe('Filter by test case ID'),
-			executionId: z.number().optional().describe('Filter by execution ID')
+			testCaseId: mcpPositiveIdSchema.optional().describe('Filter by test case ID'),
+			executionId: mcpPositiveIdSchema.optional().describe('Filter by execution ID')
 		},
 		async ({ testCaseId, executionId }) => {
 			const conditions = [eq(issueLink.projectId, projectId)];
@@ -61,11 +73,31 @@ export function registerIssueLinkTools(server: McpServer, projectId: number) {
 			externalKey: z.string().optional().describe('External issue key (e.g., JIRA-123)'),
 			title: z.string().optional().describe('Issue title'),
 			provider: z.string().describe('Issue tracker provider (e.g., jira, github)'),
-			testCaseId: z.number().optional().describe('Test case ID to link'),
-			executionId: z.number().optional().describe('Execution ID to link')
+			testCaseId: mcpPositiveIdSchema.optional().describe('Test case ID to link'),
+			executionId: mcpPositiveIdSchema.optional().describe('Execution ID to link')
 		},
 		async ({ externalUrl, externalKey, title, provider, testCaseId: tcId, executionId }) => {
-			const targetError = await validateIssueLinkTarget(projectId, tcId, executionId);
+			const payloadOrError = validateIssueLinkCreateInput({
+				externalUrl,
+				externalKey,
+				title,
+				testCaseId: tcId,
+				testExecutionId: executionId
+			});
+			if (payloadOrError instanceof Response) {
+				return mcpValidationError(payloadOrError, 'Invalid issue link');
+			}
+
+			const providerOrError = validateIssueLinkProvider(provider);
+			if (providerOrError instanceof Response) {
+				return mcpValidationError(providerOrError, 'Invalid issue link');
+			}
+
+			const targetError = await validateIssueLinkTarget(
+				projectId,
+				payloadOrError.testCaseId,
+				payloadOrError.testExecutionId
+			);
 			if (targetError) return targetError;
 
 			const creator = await requireProjectCreator(projectId);
@@ -75,12 +107,12 @@ export function registerIssueLinkTools(server: McpServer, projectId: number) {
 				.insert(issueLink)
 				.values({
 					projectId,
-					testCaseId: tcId ?? null,
-					testExecutionId: executionId ?? null,
-					externalUrl,
-					externalKey: externalKey ?? null,
-					title: title ?? null,
-					provider,
+					testCaseId: payloadOrError.testCaseId ?? null,
+					testExecutionId: payloadOrError.testExecutionId ?? null,
+					externalUrl: payloadOrError.externalUrl,
+					externalKey: payloadOrError.externalKey ?? null,
+					title: payloadOrError.title ?? null,
+					provider: providerOrError,
 					createdBy: creator
 				})
 				.returning();
@@ -92,7 +124,7 @@ export function registerIssueLinkTools(server: McpServer, projectId: number) {
 	server.tool(
 		'delete-issue-link',
 		'Delete an issue link',
-		{ linkId: z.number().describe('Issue link ID') },
+		{ linkId: mcpPositiveIdSchema.describe('Issue link ID') },
 		async ({ linkId }) => {
 			const link = await db.query.issueLink.findFirst({
 				where: and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId))

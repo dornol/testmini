@@ -171,15 +171,15 @@ describe('MCP issue-link tools', () => {
 		it('should create an issue link', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: PROJECT_ID });
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockInsertReturning(mockDb, [sampleIssueLink]);
+			const insertChain = mockInsertReturning(mockDb, [sampleIssueLink]);
 
 			const result = await client.callTool({
 				name: 'create-issue-link',
 				arguments: {
-					externalUrl: 'https://jira.example.com/PROJ-123',
-					externalKey: 'PROJ-123',
-					title: 'Login button broken',
-					provider: 'jira',
+					externalUrl: ' https://jira.example.com/PROJ-123 ',
+					externalKey: ' PROJ-123 ',
+					title: ' Login button broken ',
+					provider: ' jira ',
 					testCaseId: 10
 				}
 			});
@@ -188,6 +188,66 @@ describe('MCP issue-link tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.externalKey).toBe('PROJ-123');
 			expect(parsed.provider).toBe('jira');
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({
+					externalUrl: 'https://jira.example.com/PROJ-123',
+					externalKey: 'PROJ-123',
+					title: 'Login button broken',
+					provider: 'jira'
+				})
+			);
+		});
+
+		it('should reject issue links without a target', async () => {
+			const result = await client.callTool({
+				name: 'create-issue-link',
+				arguments: {
+					externalUrl: 'https://jira.example.com/PROJ-123',
+					provider: 'jira'
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Either testCaseId or testExecutionId is required'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject non-http external URLs before target lookup', async () => {
+			const result = await client.callTool({
+				name: 'create-issue-link',
+				arguments: {
+					externalUrl: 'file:///etc/passwd',
+					provider: 'jira',
+					testCaseId: 10
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'External URL must use http or https'
+			);
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject external URLs with credentials before target lookup', async () => {
+			const result = await client.callTool({
+				name: 'create-issue-link',
+				arguments: {
+					externalUrl: 'https://user:pass@jira.example.com/PROJ-123',
+					provider: 'jira',
+					testCaseId: 10
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'External URL must not include credentials'
+			);
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should reject test case links outside the MCP project scope', async () => {
@@ -229,13 +289,15 @@ describe('MCP issue-link tools', () => {
 		});
 
 		it('should return error when project not found', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: PROJECT_ID });
 			mockDb.query.project.findFirst.mockResolvedValue(null);
 
 			const result = await client.callTool({
 				name: 'create-issue-link',
 				arguments: {
 					externalUrl: 'https://jira.example.com/PROJ-123',
-					provider: 'jira'
+					provider: 'jira',
+					testCaseId: 10
 				}
 			});
 

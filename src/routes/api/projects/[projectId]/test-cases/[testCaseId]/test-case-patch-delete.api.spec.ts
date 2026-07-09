@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockDb, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
-import { testUser, adminUser, sampleTestCase, sampleTestCaseVersion } from '$lib/server/test-helpers/fixtures';
+import {
+	testUser,
+	adminUser,
+	sampleTestCase,
+	sampleTestCaseVersion
+} from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 const mockFindTC = vi.fn();
@@ -10,8 +15,13 @@ vi.mock('$lib/server/db', () => ({ db: mockDb, findTestCaseWithLatestVersion: mo
 vi.mock('$lib/server/db/schema', () => ({
 	testCase: { id: 'id', projectId: 'project_id', key: 'key', latestVersionId: 'latest_version_id' },
 	testCaseVersion: {
-		id: 'id', testCaseId: 'test_case_id', versionNo: 'version_no',
-		title: 'title', priority: 'priority', updatedBy: 'updated_by', createdAt: 'created_at'
+		id: 'id',
+		testCaseId: 'test_case_id',
+		versionNo: 'version_no',
+		title: 'title',
+		priority: 'priority',
+		updatedBy: 'updated_by',
+		createdAt: 'created_at'
 	},
 	user: { id: 'id', name: 'name', image: 'image' },
 	tag: { id: 'id', name: 'name', color: 'color', projectId: 'project_id' },
@@ -31,7 +41,8 @@ vi.mock('drizzle-orm', () => ({
 	)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
@@ -195,6 +206,12 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 
 			expect(response.status).toBe(200);
 			expect(body.success).toBe(true);
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 10],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return 403 for VIEWER (requireProjectRole rejects)', async () => {
@@ -244,8 +261,11 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
 			// findTestCaseWithLatestVersion returns the test case, findFirst returns a conflicting one
 			mockFindTC.mockResolvedValue(tc);
-			mockDb.query.testCase.findFirst
-				.mockResolvedValueOnce({ ...sampleTestCase, id: 999, key: 'TC-DUPE' });
+			mockDb.query.testCase.findFirst.mockResolvedValueOnce({
+				...sampleTestCase,
+				id: 999,
+				key: 'TC-DUPE'
+			});
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -351,6 +371,12 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 
 			expect(response.status).toBe(200);
 			expect(body.success).toBe(true);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 10],
+					['project_id', 1]
+				])
+			);
 		});
 	});
 });

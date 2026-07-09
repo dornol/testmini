@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { attachment } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { requireProjectAccess, parseId } from '$lib/server/auth-utils';
 import { withAuth } from '$lib/server/api-handler';
 import { getFile, deleteFile } from '$lib/server/storage';
@@ -63,7 +63,16 @@ export const DELETE = withAuth(async ({ params, user }) => {
 	await requireProjectAccess(user, projectId);
 
 	await deleteFile(record.objectKey);
-	await db.delete(attachment).where(eq(attachment.id, attachmentId));
+	await db
+		.delete(attachment)
+		.where(
+			and(
+				eq(attachment.id, attachmentId),
+				eq(attachment.referenceType, record.referenceType),
+				eq(attachment.referenceId, record.referenceId),
+				eq(attachment.objectKey, record.objectKey)
+			)
+		);
 
 	return new Response(null, { status: 204 });
 });

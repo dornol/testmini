@@ -215,6 +215,12 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters/[paramete
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 20],
+					['test_case_id', 10]
+				])
+			);
 		});
 
 		it('should update orderIndex without name check', async () => {
@@ -287,6 +293,12 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters/[paramete
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 20],
+					['test_case_id', 10]
+				])
+			);
 		});
 	});
 });

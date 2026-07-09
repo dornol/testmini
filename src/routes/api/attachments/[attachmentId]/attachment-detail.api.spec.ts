@@ -23,10 +23,12 @@ vi.mock('$lib/server/db/schema', () => ({
 	testFailureDetail: { id: 'id' }
 }));
 vi.mock('drizzle-orm', () => ({
+	and: vi.fn((...args: unknown[]) => args),
 	eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'MEMBER' })
@@ -308,6 +310,17 @@ describe('/api/attachments/[attachmentId]', () => {
 			expect(authUtils.requireProjectAccess).toHaveBeenCalledWith(testUser, 1);
 			expect(storage.deleteFile).toHaveBeenCalledWith(sampleAttachment.objectKey);
 			expect(mockDb.delete).toHaveBeenCalled();
+			const deleteChain = mockDb.delete.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['reference_type', 'TESTCASE'],
+					['reference_id', 10],
+					['object_key', sampleAttachment.objectKey]
+				])
+			);
 		});
 
 		it('should delete attachment with EXECUTION reference for authorized user', async () => {

@@ -42,7 +42,12 @@ export const PATCH = withProjectRole(
 		if (parameterOrError.orderIndex !== undefined) updates.orderIndex = parameterOrError.orderIndex;
 
 		if (Object.keys(updates).length > 0) {
-			await db.update(testCaseParameter).set(updates).where(eq(testCaseParameter.id, parameterId));
+			await db
+				.update(testCaseParameter)
+				.set(updates)
+				.where(
+					and(eq(testCaseParameter.id, parameterId), eq(testCaseParameter.testCaseId, testCaseId))
+				);
 		}
 
 		return json({ success: true });
@@ -64,7 +69,11 @@ export const DELETE = withProjectRole(
 		});
 		if (!param) return notFound('Parameter not found');
 
-		await db.delete(testCaseParameter).where(eq(testCaseParameter.id, parameterId));
+		await db
+			.delete(testCaseParameter)
+			.where(
+				and(eq(testCaseParameter.id, parameterId), eq(testCaseParameter.testCaseId, testCaseId))
+			);
 
 		return json({ success: true });
 	}

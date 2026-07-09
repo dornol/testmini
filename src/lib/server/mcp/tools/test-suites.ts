@@ -29,7 +29,7 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 				.from(testSuiteItem)
 				.innerJoin(testCase, eq(testSuiteItem.testCaseId, testCase.id))
 				.leftJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
-				.where(eq(testSuiteItem.suiteId, suiteId));
+				.where(and(eq(testSuiteItem.suiteId, suiteId), eq(testCase.projectId, projectId)));
 
 			return ok({ ...suite, items });
 		}

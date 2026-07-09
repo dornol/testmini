@@ -83,7 +83,7 @@ describe('MCP test-suite tools', () => {
 	describe('get-test-suite', () => {
 		it('should return suite with items', async () => {
 			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
-			mockSelectResult(mockDb, [
+			const selectChain = mockSelectResult(mockDb, [
 				{
 					id: 1,
 					testCaseId: 10,
@@ -101,6 +101,12 @@ describe('MCP test-suite tools', () => {
 			expect(parsed.name).toBe('Smoke Tests');
 			expect(parsed.items).toHaveLength(1);
 			expect(parsed.items[0].key).toBe('TC-0001');
+			expect(selectChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['suite_id', 1],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when suite not found', async () => {

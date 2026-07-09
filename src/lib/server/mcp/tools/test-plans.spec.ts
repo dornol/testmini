@@ -111,7 +111,7 @@ describe('MCP test-plan tools', () => {
 	describe('get-test-plan', () => {
 		it('should return plan with items', async () => {
 			mockDb.query.testPlan.findFirst.mockResolvedValue(samplePlan);
-			mockSelectResult(mockDb, [
+			const selectChain = mockSelectResult(mockDb, [
 				{
 					id: 1,
 					testCaseId: 10,
@@ -130,6 +130,12 @@ describe('MCP test-plan tools', () => {
 			expect(parsed.name).toBe('Sprint 1 Plan');
 			expect(parsed.items).toHaveLength(1);
 			expect(parsed.items[0].key).toBe('TC-0001');
+			expect(selectChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_plan_id', 1],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when plan not found', async () => {

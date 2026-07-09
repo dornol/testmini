@@ -38,7 +38,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 				.from(testPlanTestCase)
 				.innerJoin(testCase, eq(testPlanTestCase.testCaseId, testCase.id))
 				.leftJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
-				.where(eq(testPlanTestCase.testPlanId, planId))
+				.where(and(eq(testPlanTestCase.testPlanId, planId), eq(testCase.projectId, projectId)))
 				.orderBy(testPlanTestCase.position);
 
 			return ok({ ...plan, items });

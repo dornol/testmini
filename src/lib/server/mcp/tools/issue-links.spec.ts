@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -7,7 +11,18 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
-	issueLink: { id: 'id', projectId: 'project_id', testCaseId: 'test_case_id', testExecutionId: 'test_execution_id', externalUrl: 'external_url', externalKey: 'external_key', title: 'title', provider: 'provider', createdBy: 'created_by', createdAt: 'created_at' },
+	issueLink: {
+		id: 'id',
+		projectId: 'project_id',
+		testCaseId: 'test_case_id',
+		testExecutionId: 'test_execution_id',
+		externalUrl: 'external_url',
+		externalKey: 'external_key',
+		title: 'title',
+		provider: 'provider',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
 	testCase: { id: 'id', projectId: 'project_id' },
 	testExecution: { id: 'id', testRunId: 'test_run_id' }
 }));
@@ -17,7 +32,7 @@ vi.mock('drizzle-orm', () => ({
 	desc: vi.fn((a: unknown) => a)
 }));
 vi.mock('../helpers', async () => {
-	const actual = await vi.importActual('../helpers') as Record<string, unknown>;
+	const actual = (await vi.importActual('../helpers')) as Record<string, unknown>;
 	return { ...actual };
 });
 
@@ -76,7 +91,10 @@ describe('MCP issue-link tools', () => {
 
 	describe('list-issue-links', () => {
 		it('should return all issue links', async () => {
-			mockSelectResult(mockDb, [sampleIssueLink, { ...sampleIssueLink, id: 2, externalKey: 'PROJ-456' }]);
+			mockSelectResult(mockDb, [
+				sampleIssueLink,
+				{ ...sampleIssueLink, id: 2, externalKey: 'PROJ-456' }
+			]);
 
 			const result = await client.callTool({
 				name: 'list-issue-links',
@@ -119,6 +137,15 @@ describe('MCP issue-link tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.delete).toHaveBeenCalledTimes(1);
+			const deleteChain = mockDb.delete.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when issue link not found', async () => {
@@ -130,7 +157,9 @@ describe('MCP issue-link tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Issue link not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Issue link not found'
+			);
 		});
 	});
 
@@ -170,7 +199,9 @@ describe('MCP issue-link tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Project not found'
+			);
 		});
 	});
 });

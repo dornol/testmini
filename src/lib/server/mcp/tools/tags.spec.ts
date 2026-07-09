@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockInsertReturning, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockInsertReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { sampleProject, sampleTestCase } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -8,7 +12,14 @@ vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql 
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
 	testCase: { id: 'id', projectId: 'project_id' },
-	tag: { id: 'id', projectId: 'project_id', name: 'name', color: 'color', createdBy: 'created_by', createdAt: 'created_at' },
+	tag: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		color: 'color',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
 	testCaseTag: { testCaseId: 'test_case_id', tagId: 'tag_id' }
 }));
 vi.mock('drizzle-orm', () => ({
@@ -105,7 +116,9 @@ describe('MCP tag tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Project not found'
+			);
 		});
 	});
 
@@ -126,6 +139,15 @@ describe('MCP tag tools', () => {
 			expect(parsed.deletedId).toBe(1);
 			// Should have called delete twice (testCaseTag then tag)
 			expect(mockDb.delete).toHaveBeenCalledTimes(2);
+			const tagDeleteChain = mockDb.delete.mock.results[1]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(tagDeleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when tag not found', async () => {
@@ -137,7 +159,9 @@ describe('MCP tag tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Tag not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Tag not found'
+			);
 		});
 	});
 
@@ -169,7 +193,9 @@ describe('MCP tag tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
 		});
 
 		it('should return error when tag not found', async () => {
@@ -182,7 +208,9 @@ describe('MCP tag tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Tag not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Tag not found'
+			);
 		});
 	});
 
@@ -208,7 +236,7 @@ describe('MCP tag tools', () => {
 	describe('update-tag', () => {
 		it('should update name', async () => {
 			mockDb.query.tag.findFirst.mockResolvedValue(sampleTag);
-			mockUpdateReturning(mockDb, [{ ...sampleTag, name: 'critical' }]);
+			const updateChain = mockUpdateReturning(mockDb, [{ ...sampleTag, name: 'critical' }]);
 
 			const result = await client.callTool({
 				name: 'update-tag',
@@ -218,6 +246,12 @@ describe('MCP tag tools', () => {
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('critical');
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when tag not found', async () => {
@@ -229,7 +263,9 @@ describe('MCP tag tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Tag not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Tag not found'
+			);
 		});
 	});
 });

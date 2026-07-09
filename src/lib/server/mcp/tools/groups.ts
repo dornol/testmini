@@ -6,25 +6,20 @@ import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerGroupTools(server: McpServer, projectId: number) {
-	server.tool(
-		'list-groups',
-		'List test case groups (sections)',
-		{},
-		async () => {
-			const groups = await db
-				.select({
-					id: testCaseGroup.id,
-					name: testCaseGroup.name,
-					sortOrder: testCaseGroup.sortOrder,
-					color: testCaseGroup.color
-				})
-				.from(testCaseGroup)
-				.where(eq(testCaseGroup.projectId, projectId))
-				.orderBy(testCaseGroup.sortOrder);
+	server.tool('list-groups', 'List test case groups (sections)', {}, async () => {
+		const groups = await db
+			.select({
+				id: testCaseGroup.id,
+				name: testCaseGroup.name,
+				sortOrder: testCaseGroup.sortOrder,
+				color: testCaseGroup.color
+			})
+			.from(testCaseGroup)
+			.where(eq(testCaseGroup.projectId, projectId))
+			.orderBy(testCaseGroup.sortOrder);
 
-			return ok(groups);
-		}
-	);
+		return ok(groups);
+	});
 
 	server.tool(
 		'create-group',
@@ -62,7 +57,9 @@ export function registerGroupTools(server: McpServer, projectId: number) {
 				.set({ groupId: null })
 				.where(and(eq(testCase.projectId, projectId), eq(testCase.groupId, groupId)));
 
-			await db.delete(testCaseGroup).where(eq(testCaseGroup.id, groupId));
+			await db
+				.delete(testCaseGroup)
+				.where(and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId)));
 			return ok({ success: true, deletedId: groupId });
 		}
 	);
@@ -85,7 +82,11 @@ export function registerGroupTools(server: McpServer, projectId: number) {
 			if (name !== undefined) updates.name = name;
 			if (color !== undefined) updates.color = color;
 
-			const [updated] = await db.update(testCaseGroup).set(updates).where(eq(testCaseGroup.id, groupId)).returning();
+			const [updated] = await db
+				.update(testCaseGroup)
+				.set(updates)
+				.where(and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId)))
+				.returning();
 			return ok(updated);
 		}
 	);

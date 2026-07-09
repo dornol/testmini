@@ -71,7 +71,9 @@ export function registerIssueLinkTools(server: McpServer, projectId: number) {
 			});
 			if (!link) return err('Issue link not found');
 
-			await db.delete(issueLink).where(eq(issueLink.id, linkId));
+			await db
+				.delete(issueLink)
+				.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)));
 			return ok({ success: true, deletedId: linkId });
 		}
 	);

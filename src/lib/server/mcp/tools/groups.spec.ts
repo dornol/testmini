@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -8,7 +13,14 @@ vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql 
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
 	testCase: { projectId: 'project_id', groupId: 'group_id' },
-	testCaseGroup: { id: 'id', projectId: 'project_id', name: 'name', sortOrder: 'sort_order', color: 'color', createdBy: 'created_by' }
+	testCaseGroup: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		sortOrder: 'sort_order',
+		color: 'color',
+		createdBy: 'created_by'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -132,7 +144,9 @@ describe('MCP group tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Project not found'
+			);
 		});
 	});
 
@@ -154,6 +168,15 @@ describe('MCP group tools', () => {
 			// Should have called update (unassign) and delete
 			expect(mockDb.update).toHaveBeenCalled();
 			expect(mockDb.delete).toHaveBeenCalled();
+			const deleteChain = mockDb.delete.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when group not found', async () => {
@@ -165,7 +188,9 @@ describe('MCP group tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Group not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Group not found'
+			);
 		});
 	});
 
@@ -174,7 +199,9 @@ describe('MCP group tools', () => {
 	describe('update-group', () => {
 		it('should update name and color', async () => {
 			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(sampleGroup);
-			mockUpdateReturning(mockDb, [{ ...sampleGroup, name: 'Updated', color: '#ff0000' }]);
+			const updateChain = mockUpdateReturning(mockDb, [
+				{ ...sampleGroup, name: 'Updated', color: '#ff0000' }
+			]);
 
 			const result = await client.callTool({
 				name: 'update-group',
@@ -185,6 +212,12 @@ describe('MCP group tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('Updated');
 			expect(parsed.color).toBe('#ff0000');
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when group not found', async () => {
@@ -196,7 +229,9 @@ describe('MCP group tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Group not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Group not found'
+			);
 		});
 	});
 });

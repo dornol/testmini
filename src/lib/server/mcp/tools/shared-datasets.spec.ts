@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockInsertReturning, mockSelectResult, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockInsertReturning,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -7,14 +12,22 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
-	sharedDataSet: { id: 'id', projectId: 'project_id', name: 'name', parameters: 'parameters', rows: 'rows', createdBy: 'created_by', createdAt: 'created_at' }
+	sharedDataSet: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		parameters: 'parameters',
+		rows: 'rows',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('../helpers', async () => {
-	const actual = await vi.importActual('../helpers') as Record<string, unknown>;
+	const actual = (await vi.importActual('../helpers')) as Record<string, unknown>;
 	return { ...actual };
 });
 
@@ -84,7 +97,12 @@ describe('MCP shared-dataset tools', () => {
 
 		it('should return shared datasets', async () => {
 			mockSelectResult(mockDb, [
-				{ id: 1, name: 'Login Credentials', parameters: ['username', 'password'], createdAt: new Date('2025-01-01') }
+				{
+					id: 1,
+					name: 'Login Credentials',
+					parameters: ['username', 'password'],
+					createdAt: new Date('2025-01-01')
+				}
 			]);
 
 			const result = await client.callTool({
@@ -112,7 +130,9 @@ describe('MCP shared-dataset tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Project not found'
+			);
 		});
 
 		it('should create a shared dataset', async () => {
@@ -151,6 +171,15 @@ describe('MCP shared-dataset tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.delete).toHaveBeenCalledTimes(1);
+			const deleteChain = mockDb.delete.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when shared dataset not found', async () => {
@@ -162,7 +191,9 @@ describe('MCP shared-dataset tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Shared dataset not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Shared dataset not found'
+			);
 		});
 	});
 
@@ -171,7 +202,9 @@ describe('MCP shared-dataset tools', () => {
 	describe('update-shared-dataset', () => {
 		it('should update a shared dataset', async () => {
 			mockDb.query.sharedDataSet.findFirst.mockResolvedValue(sampleDataset);
-			mockUpdateReturning(mockDb, [{ ...sampleDataset, name: 'Updated Dataset', parameters: ['email', 'password'] }]);
+			const updateChain = mockUpdateReturning(mockDb, [
+				{ ...sampleDataset, name: 'Updated Dataset', parameters: ['email', 'password'] }
+			]);
 
 			const result = await client.callTool({
 				name: 'update-shared-dataset',
@@ -182,6 +215,12 @@ describe('MCP shared-dataset tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('Updated Dataset');
 			expect(parsed.parameters).toEqual(['email', 'password']);
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when shared dataset not found', async () => {
@@ -193,7 +232,9 @@ describe('MCP shared-dataset tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Shared dataset not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Shared dataset not found'
+			);
 		});
 	});
 });

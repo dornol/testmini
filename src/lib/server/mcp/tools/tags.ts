@@ -6,19 +6,14 @@ import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerTagTools(server: McpServer, projectId: number) {
-	server.tool(
-		'list-tags',
-		'List all tags for the project',
-		{},
-		async () => {
-			const tags = await db
-				.select({ id: tag.id, name: tag.name, color: tag.color })
-				.from(tag)
-				.where(eq(tag.projectId, projectId));
+	server.tool('list-tags', 'List all tags for the project', {}, async () => {
+		const tags = await db
+			.select({ id: tag.id, name: tag.name, color: tag.color })
+			.from(tag)
+			.where(eq(tag.projectId, projectId));
 
-			return ok(tags);
-		}
-	);
+		return ok(tags);
+	});
 
 	server.tool(
 		'create-tag',
@@ -51,7 +46,7 @@ export function registerTagTools(server: McpServer, projectId: number) {
 			if (!t) return err('Tag not found');
 
 			await db.delete(testCaseTag).where(eq(testCaseTag.tagId, tagId));
-			await db.delete(tag).where(eq(tag.id, tagId));
+			await db.delete(tag).where(and(eq(tag.id, tagId), eq(tag.projectId, projectId)));
 			return ok({ success: true, deletedId: tagId });
 		}
 	);
@@ -74,10 +69,7 @@ export function registerTagTools(server: McpServer, projectId: number) {
 			});
 			if (!t) return err('Tag not found');
 
-			await db
-				.insert(testCaseTag)
-				.values({ testCaseId, tagId })
-				.onConflictDoNothing();
+			await db.insert(testCaseTag).values({ testCaseId, tagId }).onConflictDoNothing();
 
 			return ok({ success: true, testCaseId, tagId });
 		}
@@ -117,7 +109,11 @@ export function registerTagTools(server: McpServer, projectId: number) {
 			if (name !== undefined) updates.name = name;
 			if (color !== undefined) updates.color = color;
 
-			const [updated] = await db.update(tag).set(updates).where(eq(tag.id, tagId)).returning();
+			const [updated] = await db
+				.update(tag)
+				.set(updates)
+				.where(and(eq(tag.id, tagId), eq(tag.projectId, projectId)))
+				.returning();
 			return ok(updated);
 		}
 	);

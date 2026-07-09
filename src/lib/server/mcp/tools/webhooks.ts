@@ -6,26 +6,21 @@ import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerWebhookTools(server: McpServer, projectId: number) {
-	server.tool(
-		'list-webhooks',
-		'List all webhooks for the project',
-		{},
-		async () => {
-			const webhooks = await db
-				.select({
-					id: projectWebhook.id,
-					name: projectWebhook.name,
-					url: projectWebhook.url,
-					events: projectWebhook.events,
-					enabled: projectWebhook.enabled,
-					createdAt: projectWebhook.createdAt
-				})
-				.from(projectWebhook)
-				.where(eq(projectWebhook.projectId, projectId));
+	server.tool('list-webhooks', 'List all webhooks for the project', {}, async () => {
+		const webhooks = await db
+			.select({
+				id: projectWebhook.id,
+				name: projectWebhook.name,
+				url: projectWebhook.url,
+				events: projectWebhook.events,
+				enabled: projectWebhook.enabled,
+				createdAt: projectWebhook.createdAt
+			})
+			.from(projectWebhook)
+			.where(eq(projectWebhook.projectId, projectId));
 
-			return ok(webhooks);
-		}
-	);
+		return ok(webhooks);
+	});
 
 	server.tool(
 		'create-webhook',
@@ -33,7 +28,10 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 		{
 			name: z.string().describe('Webhook name'),
 			url: z.string().describe('Webhook URL'),
-			events: z.array(z.string()).optional().describe('Events to subscribe to (e.g., run.completed, execution.status_changed)'),
+			events: z
+				.array(z.string())
+				.optional()
+				.describe('Events to subscribe to (e.g., run.completed, execution.status_changed)'),
 			secret: z.string().optional().describe('Webhook secret for signature verification')
 		},
 		async ({ name, url, events, secret }) => {
@@ -66,7 +64,9 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 			});
 			if (!wh) return err('Webhook not found');
 
-			await db.delete(projectWebhook).where(eq(projectWebhook.id, webhookId));
+			await db
+				.delete(projectWebhook)
+				.where(and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId)));
 			return ok({ success: true, deletedId: webhookId });
 		}
 	);
@@ -93,7 +93,11 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 			if (events !== undefined) updates.events = events;
 			if (enabled !== undefined) updates.enabled = enabled;
 
-			const [updated] = await db.update(projectWebhook).set(updates).where(eq(projectWebhook.id, webhookId)).returning();
+			const [updated] = await db
+				.update(projectWebhook)
+				.set(updates)
+				.where(and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId)))
+				.returning();
 			return ok(updated);
 		}
 	);

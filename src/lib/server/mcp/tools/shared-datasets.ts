@@ -6,24 +6,19 @@ import { eq, and } from 'drizzle-orm';
 import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
 
 export function registerSharedDataSetTools(server: McpServer, projectId: number) {
-	server.tool(
-		'list-shared-datasets',
-		'List all shared datasets in the project',
-		{},
-		async () => {
-			const datasets = await db
-				.select({
-					id: sharedDataSet.id,
-					name: sharedDataSet.name,
-					parameters: sharedDataSet.parameters,
-					createdAt: sharedDataSet.createdAt
-				})
-				.from(sharedDataSet)
-				.where(eq(sharedDataSet.projectId, projectId));
+	server.tool('list-shared-datasets', 'List all shared datasets in the project', {}, async () => {
+		const datasets = await db
+			.select({
+				id: sharedDataSet.id,
+				name: sharedDataSet.name,
+				parameters: sharedDataSet.parameters,
+				createdAt: sharedDataSet.createdAt
+			})
+			.from(sharedDataSet)
+			.where(eq(sharedDataSet.projectId, projectId));
 
-			return ok(datasets);
-		}
-	);
+		return ok(datasets);
+	});
 
 	server.tool(
 		'create-shared-dataset',
@@ -65,7 +60,9 @@ export function registerSharedDataSetTools(server: McpServer, projectId: number)
 			});
 			if (!ds) return err('Shared dataset not found');
 
-			await db.delete(sharedDataSet).where(eq(sharedDataSet.id, datasetId));
+			await db
+				.delete(sharedDataSet)
+				.where(and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId)));
 			return ok({ success: true, deletedId: datasetId });
 		}
 	);
@@ -90,7 +87,11 @@ export function registerSharedDataSetTools(server: McpServer, projectId: number)
 			if (parameters !== undefined) updates.parameters = parameters;
 			if (rows !== undefined) updates.rows = rows;
 
-			const [updated] = await db.update(sharedDataSet).set(updates).where(eq(sharedDataSet.id, datasetId)).returning();
+			const [updated] = await db
+				.update(sharedDataSet)
+				.set(updates)
+				.where(and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId)))
+				.returning();
 			return ok(updated);
 		}
 	);

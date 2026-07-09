@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockInsertReturning, mockSelectResult, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockInsertReturning,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -7,14 +12,24 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
-	projectWebhook: { id: 'id', projectId: 'project_id', name: 'name', url: 'url', events: 'events', enabled: 'enabled', secret: 'secret', createdBy: 'created_by', createdAt: 'created_at' }
+	projectWebhook: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		url: 'url',
+		events: 'events',
+		enabled: 'enabled',
+		secret: 'secret',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('../helpers', async () => {
-	const actual = await vi.importActual('../helpers') as Record<string, unknown>;
+	const actual = (await vi.importActual('../helpers')) as Record<string, unknown>;
 	return { ...actual };
 });
 
@@ -86,7 +101,14 @@ describe('MCP webhook tools', () => {
 
 		it('should return webhooks', async () => {
 			mockSelectResult(mockDb, [
-				{ id: 1, name: 'CI Webhook', url: 'https://ci.example.com/hook', events: ['run.completed'], enabled: true, createdAt: new Date('2025-01-01') }
+				{
+					id: 1,
+					name: 'CI Webhook',
+					url: 'https://ci.example.com/hook',
+					events: ['run.completed'],
+					enabled: true,
+					createdAt: new Date('2025-01-01')
+				}
 			]);
 
 			const result = await client.callTool({
@@ -114,7 +136,9 @@ describe('MCP webhook tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Project not found'
+			);
 		});
 
 		it('should create a webhook', async () => {
@@ -123,7 +147,11 @@ describe('MCP webhook tools', () => {
 
 			const result = await client.callTool({
 				name: 'create-webhook',
-				arguments: { name: 'CI Webhook', url: 'https://ci.example.com/hook', events: ['run.completed'] }
+				arguments: {
+					name: 'CI Webhook',
+					url: 'https://ci.example.com/hook',
+					events: ['run.completed']
+				}
 			});
 
 			expect(result.isError).toBeFalsy();
@@ -150,6 +178,15 @@ describe('MCP webhook tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.delete).toHaveBeenCalledTimes(1);
+			const deleteChain = mockDb.delete.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when webhook not found', async () => {
@@ -161,7 +198,9 @@ describe('MCP webhook tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Webhook not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Webhook not found'
+			);
 		});
 	});
 
@@ -170,7 +209,9 @@ describe('MCP webhook tools', () => {
 	describe('update-webhook', () => {
 		it('should update a webhook', async () => {
 			mockDb.query.projectWebhook.findFirst.mockResolvedValue(sampleWebhook);
-			mockUpdateReturning(mockDb, [{ ...sampleWebhook, name: 'Updated Hook', enabled: false }]);
+			const updateChain = mockUpdateReturning(mockDb, [
+				{ ...sampleWebhook, name: 'Updated Hook', enabled: false }
+			]);
 
 			const result = await client.callTool({
 				name: 'update-webhook',
@@ -181,6 +222,12 @@ describe('MCP webhook tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('Updated Hook');
 			expect(parsed.enabled).toBe(false);
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when webhook not found', async () => {
@@ -192,7 +239,9 @@ describe('MCP webhook tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Webhook not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Webhook not found'
+			);
 		});
 	});
 });

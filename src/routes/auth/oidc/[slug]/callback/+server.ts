@@ -18,6 +18,15 @@ const OIDC_FETCH_TIMEOUT = 10_000;
 
 const log = childLogger('oidc-callback');
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	return value as Record<string, unknown>;
+}
+
+function readStringClaim(value: unknown): string | undefined {
+	return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
 /** Sign a cookie value using HMAC-SHA256, matching better-auth's format: `value.base64signature` */
 function signSessionCookie(value: string, secret: string): string {
 	const signature = createHmac('sha256', secret).update(value).digest('base64');
@@ -58,8 +67,10 @@ async function exchangeToken(
 			return null;
 		}
 
-		const tokenData = await tokenRes.json();
-		return { tokenData, accessToken: tokenData.access_token };
+		const tokenData = asRecord(await tokenRes.json());
+		if (!tokenData) return null;
+
+		return { tokenData, accessToken: readStringClaim(tokenData.access_token) ?? '' };
 	} catch {
 		return null;
 	} finally {
@@ -83,13 +94,14 @@ async function resolveUserInfo(
 	let email: string | undefined;
 	let name: string | undefined;
 
-	if (tokenData.id_token) {
+	const idToken = readStringClaim(tokenData.id_token);
+	if (idToken) {
 		const jwksUri = provider.jwksUri ?? null;
 		const issuerUrl = provider.issuerUrl ?? null;
 
 		if (jwksUri && issuerUrl) {
 			const result = await verifyIdToken({
-				idToken: tokenData.id_token as string,
+				idToken,
 				jwksUri,
 				issuer: issuerUrl,
 				audience: provider.clientId
@@ -97,9 +109,9 @@ async function resolveUserInfo(
 
 			if (result.verified && result.claims) {
 				callbackLog.info('ID token signature and claims verified');
-				sub = result.claims.sub;
-				email = result.claims.email;
-				name = result.claims.name;
+				sub = readStringClaim(result.claims.sub);
+				email = readStringClaim(result.claims.email);
+				name = readStringClaim(result.claims.name);
 			} else {
 				callbackLog.warn({ warning: result.warning }, 'ID token verification failed');
 			}
@@ -128,10 +140,12 @@ async function resolveUserInfo(
 				signal: controller.signal
 			}).finally(() => clearTimeout(timeout));
 			if (userinfoRes.ok) {
-				const userinfo = await userinfoRes.json();
-				sub = sub || userinfo.sub;
-				email = email || userinfo.email;
-				name = name || userinfo.name;
+				const userinfo = asRecord(await userinfoRes.json());
+				if (userinfo) {
+					sub = sub || readStringClaim(userinfo.sub);
+					email = email || readStringClaim(userinfo.email);
+					name = name || readStringClaim(userinfo.name);
+				}
 			}
 		} catch {
 			// Continue with what we have

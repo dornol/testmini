@@ -148,7 +148,10 @@ function createCallbackEvent() {
 	} as never;
 }
 
-function setupMocks(selectResults: unknown[][]) {
+function setupMocks(
+	selectResults: unknown[][],
+	userinfoBody: unknown = { sub: 'oidc-sub-123', email: 'new@example.com', name: 'New User' }
+) {
 	let selectIdx = 0;
 	mockDb.select.mockImplementation(() => resolveChain(selectResults[selectIdx++] ?? []) as never);
 	mockDb.insert.mockImplementation(() => resolveChain([]) as never);
@@ -164,13 +167,10 @@ function setupMocks(selectResults: unknown[][]) {
 			)
 		)
 		.mockResolvedValueOnce(
-			new Response(
-				JSON.stringify({ sub: 'oidc-sub-123', email: 'new@example.com', name: 'New User' }),
-				{
-					status: 200,
-					headers: { 'Content-Type': 'application/json' }
-				}
-			)
+			new Response(JSON.stringify(userinfoBody), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' }
+			})
 		);
 }
 
@@ -189,6 +189,7 @@ async function runCallback(selectResults: unknown[][]) {
 describe('OIDC callback - approval queue', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockFetch.mockReset();
 		mockValidatePublicHttpsUrl.mockResolvedValue({ ok: true });
 	});
 
@@ -312,6 +313,32 @@ describe('OIDC callback - approval queue', () => {
 		expect(result.redirected).toBe(true);
 		expect(result.location).toBe('/auth/login?error=oidc_callback_error');
 		expect(mockFetch).not.toHaveBeenCalled();
+	});
+
+	it('should reject userinfo responses without a string subject before creating users', async () => {
+		setupMocks([[{ ...baseProvider, autoRegister: true }]], {
+			sub: { id: 'oidc-sub-123' },
+			email: 'new@example.com',
+			name: 'New User'
+		});
+
+		const event = createCallbackEvent();
+		let result: { redirected: boolean; status?: number; location?: string };
+		try {
+			await GET(event);
+			result = { redirected: false };
+		} catch (e: unknown) {
+			const err = e as { status: number; location: string };
+			result = { redirected: true, status: err.status, location: err.location };
+		}
+
+		expect(result).toEqual({
+			redirected: true,
+			status: 302,
+			location: '/auth/login?error=oidc_callback_error'
+		});
+		expect(mockFetch).toHaveBeenCalledTimes(2);
+		expect(mockDb.insert).not.toHaveBeenCalled();
 	});
 
 	it('should reject malformed provider slugs before cookie or database access', async () => {

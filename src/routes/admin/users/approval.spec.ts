@@ -61,6 +61,9 @@ function createActionEvent(
 describe('admin/users approval actions', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockDb.query.user = {
+			findFirst: vi.fn().mockResolvedValue({ id: 'pending-user', approved: false, role: 'user' })
+		};
 	});
 
 	describe('approve', () => {
@@ -114,6 +117,33 @@ describe('admin/users approval actions', () => {
 			expect(result).toMatchObject({ status: 400, data: { error: 'Invalid user ID' } });
 		});
 
+		it('should return 400 when rejecting yourself', async () => {
+			const event = createActionEvent(adminUser, { userId: adminUser.id });
+			const result = await actions.reject(event);
+
+			expect(result).toMatchObject({ status: 400, data: { error: 'Cannot reject yourself' } });
+			expect(mockDb.query.user.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
+		it('should not delete approved users via reject', async () => {
+			mockDb.query.user.findFirst.mockResolvedValue({
+				id: 'approved-user',
+				approved: true,
+				role: 'user'
+			});
+
+			const event = createActionEvent(adminUser, { userId: 'approved-user' });
+			const result = await actions.reject(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'Only pending users can be rejected' }
+			});
+			expect(mockDb.delete).not.toHaveBeenCalled();
+			expect(logAudit).not.toHaveBeenCalled();
+		});
+
 		it('should delete the user and log audit on success', async () => {
 			const event = createActionEvent(adminUser, { userId: 'pending-user-2' });
 			const result = await actions.reject(event);
@@ -150,7 +180,7 @@ describe('admin/users approval actions', () => {
 			const url = new URL('http://localhost:5173/admin/users');
 			mockSelectResult(mockDb, [{ count: 0 }]);
 
-			const result = await load({ url } as never) as Record<string, unknown>;
+			const result = (await load({ url } as never)) as Record<string, unknown>;
 			expect(result.pendingOnly).toBe(false);
 		});
 
@@ -158,7 +188,7 @@ describe('admin/users approval actions', () => {
 			const url = new URL('http://localhost:5173/admin/users?pending=true');
 			mockSelectResult(mockDb, [{ count: 0 }]);
 
-			const result = await load({ url } as never) as Record<string, unknown>;
+			const result = (await load({ url } as never)) as Record<string, unknown>;
 			expect(result.pendingOnly).toBe(true);
 		});
 
@@ -168,7 +198,7 @@ describe('admin/users approval actions', () => {
 			// In mock, we verify the query was made; actual field mapping is drizzle's responsibility
 			mockSelectResult(mockDb, [{ count: 0 }]);
 
-			const result = await load({ url } as never) as Record<string, unknown>;
+			const result = (await load({ url } as never)) as Record<string, unknown>;
 			expect(result.users).toBeDefined();
 			expect(mockDb.select).toHaveBeenCalled();
 		});

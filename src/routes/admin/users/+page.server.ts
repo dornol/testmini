@@ -14,9 +14,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
 	const conditions = [];
 	if (search) {
-		conditions.push(
-			or(ilike(user.name, `%${search}%`), ilike(user.email, `%${search}%`))
-		);
+		conditions.push(or(ilike(user.name, `%${search}%`), ilike(user.email, `%${search}%`)));
 	}
 	if (pendingOnly) {
 		conditions.push(eq(user.approved, false));
@@ -98,10 +96,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Cannot ban yourself' });
 		}
 
-		await db
-			.update(user)
-			.set({ banned: true, banReason })
-			.where(eq(user.id, userId));
+		await db.update(user).set({ banned: true, banReason }).where(eq(user.id, userId));
 
 		return { success: true };
 	},
@@ -119,10 +114,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid user ID' });
 		}
 
-		await db
-			.update(user)
-			.set({ banned: false, banReason: null })
-			.where(eq(user.id, userId));
+		await db.update(user).set({ banned: false, banReason: null }).where(eq(user.id, userId));
 
 		return { success: true };
 	},
@@ -163,6 +155,19 @@ export const actions: Actions = {
 
 		if (!userId) {
 			return fail(400, { error: 'Invalid user ID' });
+		}
+
+		if (userId === authUser.id) {
+			return fail(400, { error: 'Cannot reject yourself' });
+		}
+
+		const target = await db.query.user.findFirst({
+			where: eq(user.id, userId),
+			columns: { id: true, approved: true, role: true }
+		});
+
+		if (!target || target.approved || target.role === 'admin') {
+			return fail(400, { error: 'Only pending users can be rejected' });
 		}
 
 		logAudit({

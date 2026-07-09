@@ -61,6 +61,9 @@ function createActionEvent(
 describe('admin/users +page.server', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockDb.query.user = {
+			findFirst: vi.fn().mockResolvedValue({ id: 'pending-user', approved: false, role: 'user' })
+		};
 	});
 
 	describe('load', () => {
@@ -220,6 +223,51 @@ describe('admin/users +page.server', () => {
 	});
 
 	describe('reject', () => {
+		it('should return 400 when rejecting yourself', async () => {
+			const event = createActionEvent(adminUser, { userId: adminUser.id });
+			const result = await actions.reject(event);
+
+			expect(result).toMatchObject({ status: 400, data: { error: 'Cannot reject yourself' } });
+			expect(mockDb.query.user.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
+		it('should not delete an already approved user', async () => {
+			mockDb.query.user.findFirst.mockResolvedValue({
+				id: 'user-2',
+				approved: true,
+				role: 'user'
+			});
+
+			const event = createActionEvent(adminUser, { userId: 'user-2' });
+			const result = await actions.reject(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'Only pending users can be rejected' }
+			});
+			expect(mockDb.delete).not.toHaveBeenCalled();
+			expect(logAudit).not.toHaveBeenCalled();
+		});
+
+		it('should not delete an admin user through the reject action', async () => {
+			mockDb.query.user.findFirst.mockResolvedValue({
+				id: 'admin-2',
+				approved: false,
+				role: 'admin'
+			});
+
+			const event = createActionEvent(adminUser, { userId: 'admin-2' });
+			const result = await actions.reject(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'Only pending users can be rejected' }
+			});
+			expect(mockDb.delete).not.toHaveBeenCalled();
+			expect(logAudit).not.toHaveBeenCalled();
+		});
+
 		it('should delete user and log audit on success', async () => {
 			const event = createActionEvent(adminUser, { userId: 'user-2' });
 			const result = await actions.reject(event);

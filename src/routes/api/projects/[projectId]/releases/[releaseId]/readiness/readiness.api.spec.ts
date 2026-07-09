@@ -8,7 +8,13 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	release: { id: 'id', projectId: 'project_id' },
-	testRun: { id: 'id', name: 'name', status: 'status', releaseId: 'release_id' },
+	testRun: {
+		id: 'id',
+		name: 'name',
+		status: 'status',
+		releaseId: 'release_id',
+		projectId: 'project_id'
+	},
 	testExecution: { id: 'id', testRunId: 'test_run_id', status: 'status' },
 	testCaseVersion: { id: 'id' },
 	testCase: { id: 'id' }
@@ -24,7 +30,8 @@ vi.mock('drizzle-orm', () => ({
 	)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' })
@@ -51,14 +58,27 @@ describe('/api/projects/[projectId]/releases/[releaseId]/readiness', () => {
 	});
 
 	it('should return GO verdict when all executions pass', async () => {
-		mockDb.select.mockImplementation(() => ({
-			from: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) =>
-				Promise.resolve([
-					{ id: 50, name: 'Run 1', status: 'COMPLETED', total: 10, pass: 10, fail: 0, blocked: 0, pending: 0 }
-				]).then(r)
-		}) as never);
+		const where = vi.fn().mockReturnThis();
+		mockDb.select.mockImplementation(
+			() =>
+				({
+					from: vi.fn().mockReturnThis(),
+					where,
+					then: (r: (v: unknown) => void) =>
+						Promise.resolve([
+							{
+								id: 50,
+								name: 'Run 1',
+								status: 'COMPLETED',
+								total: 10,
+								pass: 10,
+								fail: 0,
+								blocked: 0,
+								pending: 0
+							}
+						]).then(r)
+				}) as never
+		);
 
 		const event = createMockEvent({ method: 'GET', params: PARAMS, user: testUser });
 		const response = await GET(event);
@@ -70,17 +90,33 @@ describe('/api/projects/[projectId]/releases/[releaseId]/readiness', () => {
 		expect(data.stats.pass).toBe(10);
 		expect(data.stats.passRate).toBe(100);
 		expect(data.blockingRuns).toEqual([]);
+		expect(where).toHaveBeenCalledWith([
+			['release_id', 300],
+			['project_id', 1]
+		]);
 	});
 
 	it('should return NO_GO verdict when there are failures', async () => {
-		mockDb.select.mockImplementation(() => ({
-			from: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) =>
-				Promise.resolve([
-					{ id: 50, name: 'Run 1', status: 'COMPLETED', total: 10, pass: 7, fail: 2, blocked: 1, pending: 0 }
-				]).then(r)
-		}) as never);
+		mockDb.select.mockImplementation(
+			() =>
+				({
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) =>
+						Promise.resolve([
+							{
+								id: 50,
+								name: 'Run 1',
+								status: 'COMPLETED',
+								total: 10,
+								pass: 7,
+								fail: 2,
+								blocked: 1,
+								pending: 0
+							}
+						]).then(r)
+				}) as never
+		);
 
 		const event = createMockEvent({ method: 'GET', params: PARAMS, user: testUser });
 		const response = await GET(event);
@@ -96,14 +132,26 @@ describe('/api/projects/[projectId]/releases/[releaseId]/readiness', () => {
 	});
 
 	it('should return NO_GO when there are blocked executions', async () => {
-		mockDb.select.mockImplementation(() => ({
-			from: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) =>
-				Promise.resolve([
-					{ id: 50, name: 'Run 1', status: 'IN_PROGRESS', total: 5, pass: 3, fail: 0, blocked: 2, pending: 0 }
-				]).then(r)
-		}) as never);
+		mockDb.select.mockImplementation(
+			() =>
+				({
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) =>
+						Promise.resolve([
+							{
+								id: 50,
+								name: 'Run 1',
+								status: 'IN_PROGRESS',
+								total: 5,
+								pass: 3,
+								fail: 0,
+								blocked: 2,
+								pending: 0
+							}
+						]).then(r)
+				}) as never
+		);
 
 		const event = createMockEvent({ method: 'GET', params: PARAMS, user: testUser });
 		const response = await GET(event);
@@ -113,14 +161,26 @@ describe('/api/projects/[projectId]/releases/[releaseId]/readiness', () => {
 	});
 
 	it('should return CAUTION when there are pending executions', async () => {
-		mockDb.select.mockImplementation(() => ({
-			from: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) =>
-				Promise.resolve([
-					{ id: 50, name: 'Run 1', status: 'IN_PROGRESS', total: 10, pass: 5, fail: 0, blocked: 0, pending: 5 }
-				]).then(r)
-		}) as never);
+		mockDb.select.mockImplementation(
+			() =>
+				({
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) =>
+						Promise.resolve([
+							{
+								id: 50,
+								name: 'Run 1',
+								status: 'IN_PROGRESS',
+								total: 10,
+								pass: 5,
+								fail: 0,
+								blocked: 0,
+								pending: 5
+							}
+						]).then(r)
+				}) as never
+		);
 
 		const event = createMockEvent({ method: 'GET', params: PARAMS, user: testUser });
 		const response = await GET(event);
@@ -131,11 +191,14 @@ describe('/api/projects/[projectId]/releases/[releaseId]/readiness', () => {
 	});
 
 	it('should return CAUTION when no runs are linked', async () => {
-		mockDb.select.mockImplementation(() => ({
-			from: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
-		}) as never);
+		mockDb.select.mockImplementation(
+			() =>
+				({
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+				}) as never
+		);
 
 		const event = createMockEvent({ method: 'GET', params: PARAMS, user: testUser });
 		const response = await GET(event);
@@ -148,15 +211,36 @@ describe('/api/projects/[projectId]/releases/[releaseId]/readiness', () => {
 	});
 
 	it('should aggregate stats across multiple runs', async () => {
-		mockDb.select.mockImplementation(() => ({
-			from: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) =>
-				Promise.resolve([
-					{ id: 50, name: 'Run 1', status: 'COMPLETED', total: 5, pass: 5, fail: 0, blocked: 0, pending: 0 },
-					{ id: 51, name: 'Run 2', status: 'COMPLETED', total: 5, pass: 5, fail: 0, blocked: 0, pending: 0 }
-				]).then(r)
-		}) as never);
+		mockDb.select.mockImplementation(
+			() =>
+				({
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) =>
+						Promise.resolve([
+							{
+								id: 50,
+								name: 'Run 1',
+								status: 'COMPLETED',
+								total: 5,
+								pass: 5,
+								fail: 0,
+								blocked: 0,
+								pending: 0
+							},
+							{
+								id: 51,
+								name: 'Run 2',
+								status: 'COMPLETED',
+								total: 5,
+								pass: 5,
+								fail: 0,
+								blocked: 0,
+								pending: 0
+							}
+						]).then(r)
+				}) as never
+		);
 
 		const event = createMockEvent({ method: 'GET', params: PARAMS, user: testUser });
 		const response = await GET(event);
@@ -170,7 +254,9 @@ describe('/api/projects/[projectId]/releases/[releaseId]/readiness', () => {
 	});
 
 	it('should return 404 when release not found', async () => {
-		(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).release.findFirst.mockResolvedValue(null);
+		(
+			mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>
+		).release.findFirst.mockResolvedValue(null);
 
 		const event = createMockEvent({ method: 'GET', params: PARAMS, user: testUser });
 		const response = await GET(event);

@@ -1,6 +1,6 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { db, col } from '$lib/server/db';
-import { release, testRun, testExecution, testCaseVersion, testCase } from '$lib/server/db/schema';
+import { release, testRun } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { notFound } from '$lib/server/errors';
@@ -20,14 +20,27 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 			id: testRun.id,
 			name: testRun.name,
 			status: testRun.status,
-			total: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)})`.as('total'),
-			pass: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'PASS')`.as('pass'),
-			fail: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'FAIL')`.as('fail'),
-			blocked: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'BLOCKED')`.as('blocked'),
-			pending: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'PENDING')`.as('pending')
+			total:
+				sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)})`.as(
+					'total'
+				),
+			pass: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'PASS')`.as(
+				'pass'
+			),
+			fail: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'FAIL')`.as(
+				'fail'
+			),
+			blocked:
+				sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'BLOCKED')`.as(
+					'blocked'
+				),
+			pending:
+				sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'PENDING')`.as(
+					'pending'
+				)
 		})
 		.from(testRun)
-		.where(eq(testRun.releaseId, releaseId));
+		.where(and(eq(testRun.releaseId, releaseId), eq(testRun.projectId, projectId)));
 
 	const totalExec = runs.reduce((s, r) => s + Number(r.total), 0);
 	const totalPass = runs.reduce((s, r) => s + Number(r.pass), 0);
@@ -36,7 +49,7 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const totalPending = runs.reduce((s, r) => s + Number(r.pending), 0);
 
 	// Blocking failures: runs that have FAIL or BLOCKED and are not COMPLETED
-	const blockingRuns = runs.filter(r => (Number(r.fail) > 0 || Number(r.blocked) > 0));
+	const blockingRuns = runs.filter((r) => Number(r.fail) > 0 || Number(r.blocked) > 0);
 
 	// Verdict
 	let verdict: 'GO' | 'NO_GO' | 'CAUTION' = 'GO';
@@ -50,8 +63,20 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 
 	return json({
 		verdict,
-		stats: { total: totalExec, pass: totalPass, fail: totalFail, blocked: totalBlocked, pending: totalPending, passRate },
+		stats: {
+			total: totalExec,
+			pass: totalPass,
+			fail: totalFail,
+			blocked: totalBlocked,
+			pending: totalPending,
+			passRate
+		},
 		runCount: runs.length,
-		blockingRuns: blockingRuns.map(r => ({ id: r.id, name: r.name, fail: Number(r.fail), blocked: Number(r.blocked) }))
+		blockingRuns: blockingRuns.map((r) => ({
+			id: r.id,
+			name: r.name,
+			fail: Number(r.fail),
+			blocked: Number(r.blocked)
+		}))
 	});
 });

@@ -106,6 +106,23 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for unknown requirement fields before updating', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { title: 'Updated', status: 'APPROVED' }
+			});
+
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid requirement field');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when title is empty', async () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
 

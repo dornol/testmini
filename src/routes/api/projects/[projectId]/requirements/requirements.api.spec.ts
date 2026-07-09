@@ -295,6 +295,20 @@ describe('/api/projects/[projectId]/requirements', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for unknown requirement fields before inserting', async () => {
+			vi.mocked(authUtils.parseJsonBody).mockResolvedValue({
+				title: 'Requirement',
+				status: 'APPROVED'
+			});
+
+			const event = createMockEvent({ method: 'POST', params: PARAMS, user: testUser });
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid requirement field');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when requirement fields have invalid types', async () => {
 			const cases = [
 				{ title: 123 },

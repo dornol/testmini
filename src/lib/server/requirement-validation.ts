@@ -4,6 +4,7 @@ const MAX_REQUIREMENT_TITLE_LENGTH = 255;
 const MAX_REQUIREMENT_EXTERNAL_ID_LENGTH = 255;
 const MAX_REQUIREMENT_DESCRIPTION_LENGTH = 10_000;
 const MAX_REQUIREMENT_SOURCE_LENGTH = 255;
+const REQUIREMENT_FIELDS = new Set(['title', 'externalId', 'description', 'source']);
 
 export interface ValidatedRequirementFields {
 	title?: string;
@@ -39,6 +40,10 @@ export function validateRequirementFields(
 	}
 
 	const input = body as Record<string, unknown>;
+	if (Object.keys(input).some((key) => !REQUIREMENT_FIELDS.has(key))) {
+		return badRequest('Invalid requirement field');
+	}
+
 	const fields: ValidatedRequirementFields = {};
 
 	if (input.title !== undefined) {

@@ -32,7 +32,7 @@ vi.mock('$lib/server/audit', () => ({
 const { actions, load } = await import('./+page.server');
 const { logAudit } = await import('$lib/server/audit');
 
-function createFormData(entries: Record<string, string>): FormData {
+function createFormData(entries: Record<string, FormDataEntryValue>): FormData {
 	const fd = new FormData();
 	for (const [k, v] of Object.entries(entries)) {
 		fd.set(k, v);
@@ -42,7 +42,7 @@ function createFormData(entries: Record<string, string>): FormData {
 
 function createActionEvent(
 	user: NonNullable<App.Locals['user']> | null,
-	formEntries: Record<string, string>
+	formEntries: Record<string, FormDataEntryValue>
 ) {
 	const formData = createFormData(formEntries);
 	return {
@@ -145,6 +145,18 @@ describe('admin/users +page.server', () => {
 			const event = createActionEvent(adminUser, { userId: 'user-2', role: 'superadmin' });
 			const result = await actions.updateRole(event);
 			expect(result).toMatchObject({ status: 400, data: { error: 'Invalid user ID or role' } });
+		});
+
+		it('should return 400 for non-text role before querying target user', async () => {
+			const event = createActionEvent(adminUser, {
+				userId: 'user-2',
+				role: new File(['admin'], 'role.txt')
+			});
+			const result = await actions.updateRole(event);
+
+			expect(result).toMatchObject({ status: 400, data: { error: 'Invalid user ID or role' } });
+			expect(mockDb.query.user.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when userId is missing', async () => {

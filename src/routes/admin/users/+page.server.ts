@@ -6,6 +6,7 @@ import { eq, ilike, or, and, count, desc } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
 import { logAudit } from '$lib/server/audit';
 import { parsePositiveIntegerSearchParam } from '$lib/server/search-param-validation';
+import { parseOptionalFormString } from '$lib/server/form-utils';
 
 const MAX_USER_ID_LENGTH = 255;
 const MAX_BAN_REASON_LENGTH = 500;
@@ -90,9 +91,9 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const userId = parseUserId(formData.get('userId'));
-		const role = formData.get('role') as string;
+		const role = parseOptionalFormString(formData.get('role'));
 
-		if (!userId || !['admin', 'user'].includes(role)) {
+		if (!userId || (role !== 'admin' && role !== 'user')) {
 			return fail(400, { error: 'Invalid user ID or role' });
 		}
 

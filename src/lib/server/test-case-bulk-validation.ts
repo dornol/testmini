@@ -4,6 +4,7 @@ import { isPlainRecord } from './object-validation';
 const MAX_BULK_TEST_CASES = 200;
 const MAX_PRIORITY_LENGTH = 30;
 const MAX_USER_ID_LENGTH = 255;
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 const BASE_FIELDS = new Set(['action', 'testCaseIds']);
 const ACTION_FIELDS: Record<BulkTestCaseAction, Set<string>> = {
 	addTag: new Set([...BASE_FIELDS, 'tagId']),
@@ -86,7 +87,7 @@ function validateRequiredString(
 		return badRequest(options.error);
 	}
 	const trimmed = value.trim();
-	if (!trimmed || trimmed.length > options.maxLength) {
+	if (!trimmed || trimmed.length > options.maxLength || CONTROL_CHAR_PATTERN.test(trimmed)) {
 		return badRequest(options.error);
 	}
 	return trimmed;

@@ -259,6 +259,38 @@ describe('/api/projects/[projectId]/test-cases/bulk', () => {
 			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 when setPriority contains control characters', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'setPriority', testCaseIds: [1], priority: 'HIGH\u0000' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Invalid priority');
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when userId contains control characters', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'addAssignee', testCaseIds: [1], userId: 'user\u0000id' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('userId required');
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should return 403 for unauthorized role (VIEWER)', async () => {
 			// Mock requireProjectRole: user has VIEWER role (not in allowed list)
 			mockDb.query.projectMember.findFirst.mockResolvedValue({ role: 'VIEWER' });

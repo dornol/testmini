@@ -4,6 +4,7 @@ import { userPreference } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { withAuth } from '$lib/server/api-handler';
 import { parseJsonBody } from '$lib/server/auth-utils';
+import { isPlainRecord } from '$lib/server/object-validation';
 
 export const GET = withAuth(async ({ user }) => {
 	const pref = await db.query.userPreference.findFirst({
@@ -21,50 +22,48 @@ const MAX_MUTED_TYPES = 100;
 const MAX_MUTED_TYPE_LENGTH = 100;
 
 function validatePreferenceBody(body: unknown): Record<string, unknown> {
-	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+	if (!isPlainRecord(body)) {
 		error(400, 'Invalid request body');
 	}
-	const raw = body as Record<string, unknown>;
-	const keys = Object.keys(raw);
+	const keys = Object.keys(body);
 	if (keys.length === 0) {
 		error(400, 'No preferences to update');
 	}
 	if (keys.some((key) => !PREFERENCE_KEYS.has(key))) {
 		error(400, 'Invalid preference field');
 	}
-	return raw;
+	return body;
 }
 
 function validateNotificationSettings(
 	value: unknown
 ): { enableInApp?: boolean; mutedTypes?: string[] } | null | undefined {
 	if (value === undefined || value === null) return value;
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+	if (!isPlainRecord(value)) {
 		error(400, 'Invalid notificationSettings');
 	}
 
-	const settings = value as Record<string, unknown>;
-	if (Object.keys(settings).some((key) => !NOTIFICATION_SETTINGS_KEYS.has(key))) {
+	if (Object.keys(value).some((key) => !NOTIFICATION_SETTINGS_KEYS.has(key))) {
 		error(400, 'Invalid notificationSettings field');
 	}
 
 	const parsed: { enableInApp?: boolean; mutedTypes?: string[] } = {};
 
-	if (settings.enableInApp !== undefined) {
-		if (typeof settings.enableInApp !== 'boolean') {
+	if (value.enableInApp !== undefined) {
+		if (typeof value.enableInApp !== 'boolean') {
 			error(400, 'enableInApp must be a boolean');
 		}
-		parsed.enableInApp = settings.enableInApp;
+		parsed.enableInApp = value.enableInApp;
 	}
 
-	if (settings.mutedTypes !== undefined) {
-		if (!Array.isArray(settings.mutedTypes)) {
+	if (value.mutedTypes !== undefined) {
+		if (!Array.isArray(value.mutedTypes)) {
 			error(400, 'mutedTypes must be an array of strings');
 		}
-		if (settings.mutedTypes.length > MAX_MUTED_TYPES) {
+		if (value.mutedTypes.length > MAX_MUTED_TYPES) {
 			error(400, `mutedTypes must contain ${MAX_MUTED_TYPES} items or fewer`);
 		}
-		const mutedTypes = settings.mutedTypes.map((item) =>
+		const mutedTypes = value.mutedTypes.map((item) =>
 			typeof item === 'string' ? item.trim() : ''
 		);
 		if (

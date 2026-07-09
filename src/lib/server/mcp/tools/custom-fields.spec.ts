@@ -73,6 +73,7 @@ describe('MCP custom-field tools', () => {
 	let close: () => Promise<void>;
 
 	beforeEach(async () => {
+		vi.clearAllMocks();
 		const c = await createClient();
 		client = c.client;
 		close = c.close;
@@ -142,25 +143,42 @@ describe('MCP custom-field tools', () => {
 
 		it('should create a TEXT custom field', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockInsertReturning(mockDb, [{ ...sampleCustomField, fieldType: 'TEXT', options: null }]);
+			mockDb.query.customField.findFirst.mockResolvedValue(null);
+			mockSelectResult(mockDb, []);
+			const insertChain = mockInsertReturning(mockDb, [
+				{ ...sampleCustomField, name: 'Notes', fieldType: 'TEXT', options: null, sortOrder: 0 }
+			]);
 
 			const result = await client.callTool({
 				name: 'create-custom-field',
-				arguments: { name: 'Notes', fieldType: 'TEXT' }
+				arguments: { name: ' Notes ', fieldType: 'TEXT' }
 			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.fieldType).toBe('TEXT');
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: 'Notes',
+					options: null,
+					sortOrder: 0
+				})
+			);
 		});
 
 		it('should create a SELECT custom field with options', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockDb.query.customField.findFirst.mockResolvedValue(null);
+			mockSelectResult(mockDb, [{ sortOrder: 2 }]);
 			mockInsertReturning(mockDb, [sampleCustomField]);
 
 			const result = await client.callTool({
 				name: 'create-custom-field',
-				arguments: { name: 'Browser', fieldType: 'SELECT', options: ['Chrome', 'Firefox'] }
+				arguments: {
+					name: 'Browser',
+					fieldType: 'SELECT',
+					options: [' Chrome ', 'Firefox']
+				}
 			});
 
 			expect(result.isError).toBeFalsy();
@@ -168,6 +186,86 @@ describe('MCP custom-field tools', () => {
 			expect(parsed.name).toBe('Browser');
 			expect(parsed.fieldType).toBe('SELECT');
 			expect(parsed.options).toEqual(['Chrome', 'Firefox']);
+		});
+
+		it('should reject blank field names after trimming', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-custom-field',
+				arguments: { name: '   ', fieldType: 'TEXT' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Field name is required'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject options for non-select fields', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-custom-field',
+				arguments: { name: 'Notes', fieldType: 'TEXT', options: ['A'] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Options are only allowed'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should require options for select fields', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-custom-field',
+				arguments: { name: 'Browser', fieldType: 'SELECT' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Options are required'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject duplicate select options', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-custom-field',
+				arguments: {
+					name: 'Browser',
+					fieldType: 'SELECT',
+					options: ['Chrome', 'chrome']
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Options must not contain duplicates'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject duplicate field names before insert', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockDb.query.customField.findFirst.mockResolvedValue(sampleCustomField);
+
+			const result = await client.callTool({
+				name: 'create-custom-field',
+				arguments: { name: 'Browser', fieldType: 'TEXT' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'already exists'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 	});
 

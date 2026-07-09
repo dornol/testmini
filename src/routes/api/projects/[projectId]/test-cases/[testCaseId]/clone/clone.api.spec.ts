@@ -8,8 +8,25 @@ const mockFindTC = vi.fn();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, findTestCaseWithLatestVersion: mockFindTC }));
 vi.mock('$lib/server/db/schema', () => ({
-	testCase: { id: 'id', projectId: 'project_id', key: 'key', groupId: 'group_id', sortOrder: 'sort_order', latestVersionId: 'latest_version_id' },
-	testCaseVersion: { id: 'id', testCaseId: 'test_case_id', versionNo: 'version_no', title: 'title', precondition: 'precondition', steps: 'steps', expectedResult: 'expected_result', priority: 'priority', updatedBy: 'updated_by' },
+	testCase: {
+		id: 'id',
+		projectId: 'project_id',
+		key: 'key',
+		groupId: 'group_id',
+		sortOrder: 'sort_order',
+		latestVersionId: 'latest_version_id'
+	},
+	testCaseVersion: {
+		id: 'id',
+		testCaseId: 'test_case_id',
+		versionNo: 'version_no',
+		title: 'title',
+		precondition: 'precondition',
+		steps: 'steps',
+		expectedResult: 'expected_result',
+		priority: 'priority',
+		updatedBy: 'updated_by'
+	},
 	testCaseTag: { testCaseId: 'test_case_id', tagId: 'tag_id' }
 }));
 vi.mock('drizzle-orm', () => ({
@@ -23,7 +40,8 @@ vi.mock('drizzle-orm', () => ({
 	)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' })
@@ -61,21 +79,24 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/clone', () => {
 
 			const newTestCaseId = 11;
 			const newVersion = { ...sampleTestCaseVersion, id: 101, testCaseId: newTestCaseId };
+			const txUpdateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+			};
 
 			mockDb.transaction.mockImplementation(async (fn) => {
 				// max key select returns TC-0001, so nextNum = 2, newKey = TC-0002
 				const txMaxKeyChain = {
 					from: vi.fn().mockReturnThis(),
 					where: vi.fn().mockReturnThis(),
-					then: (r: (v: unknown) => void) =>
-						Promise.resolve([{ maxKey: 'TC-0001' }]).then(r)
+					then: (r: (v: unknown) => void) => Promise.resolve([{ maxKey: 'TC-0001' }]).then(r)
 				};
 				// max sort order select returns 0
 				const txMaxSortChain = {
 					from: vi.fn().mockReturnThis(),
 					where: vi.fn().mockReturnThis(),
-					then: (r: (v: unknown) => void) =>
-						Promise.resolve([{ maxOrder: 0 }]).then(r)
+					then: (r: (v: unknown) => void) => Promise.resolve([{ maxOrder: 0 }]).then(r)
 				};
 				// tags select returns empty
 				const txTagsChain = {
@@ -86,18 +107,14 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/clone', () => {
 
 				const txInsertCaseChain = {
 					values: vi.fn().mockReturnThis(),
-					returning: vi.fn().mockResolvedValue([{ ...sampleTestCase, id: newTestCaseId, key: 'TC-0002' }])
+					returning: vi
+						.fn()
+						.mockResolvedValue([{ ...sampleTestCase, id: newTestCaseId, key: 'TC-0002' }])
 				};
 				const txInsertVersionChain = {
 					values: vi.fn().mockReturnThis(),
 					returning: vi.fn().mockResolvedValue([newVersion])
 				};
-				const txUpdateChain = {
-					set: vi.fn().mockReturnThis(),
-					where: vi.fn().mockReturnThis(),
-					then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-				};
-
 				let selectCallCount = 0;
 				let insertCallCount = 0;
 				const tx = {
@@ -125,6 +142,12 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/clone', () => {
 			expect(body.success).toBe(true);
 			expect(body.newTestCaseId).toBe(newTestCaseId);
 			expect(body.newKey).toBe('TC-0002');
+			expect(txUpdateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', newTestCaseId],
+					['project_id', 1]
+				])
+			);
 		});
 	});
 });

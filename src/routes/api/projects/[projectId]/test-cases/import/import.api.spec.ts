@@ -7,12 +7,26 @@ const mockDb = createMockDb();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
-	testCase: { id: 'id', projectId: 'project_id', key: 'key', sortOrder: 'sort_order' },
+	testCase: {
+		id: 'id',
+		projectId: 'project_id',
+		key: 'key',
+		sortOrder: 'sort_order',
+		latestVersionId: 'latest_version_id'
+	},
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id' },
 	testCaseGroup: { id: 'id', projectId: 'project_id', name: 'name' },
 	tag: { id: 'id', projectId: 'project_id', name: 'name' },
 	testCaseTag: { testCaseId: 'test_case_id', tagId: 'tag_id' },
-	priorityConfig: { id: 'id', projectId: 'project_id', name: 'name', color: 'color', position: 'position', isDefault: 'is_default', createdBy: 'created_by' }
+	priorityConfig: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		color: 'color',
+		position: 'position',
+		isDefault: 'is_default',
+		createdBy: 'created_by'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
@@ -25,7 +39,8 @@ vi.mock('drizzle-orm', () => ({
 	)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
@@ -44,7 +59,10 @@ function createCsvFormData(csvContent: string, filename = 'test.csv'): FormData 
 
 function createJsonFormData(jsonContent: unknown, filename = 'test.json'): FormData {
 	const fd = new FormData();
-	fd.append('file', new File([JSON.stringify(jsonContent)], filename, { type: 'application/json' }));
+	fd.append(
+		'file',
+		new File([JSON.stringify(jsonContent)], filename, { type: 'application/json' })
+	);
 	return fd;
 }
 
@@ -61,7 +79,12 @@ describe('/api/projects/[projectId]/test-cases/import', () => {
 
 	it('should throw 400 when no file uploaded', async () => {
 		const fd = new FormData();
-		const event = createMockEvent({ method: 'POST', params: PARAMS, formData: fd, user: adminUser });
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: fd,
+			user: adminUser
+		});
 		await expect(POST(event)).rejects.toThrow();
 	});
 
@@ -81,7 +104,9 @@ describe('/api/projects/[projectId]/test-cases/import', () => {
 				values: vi.fn().mockReturnThis(),
 				returning: vi.fn().mockImplementation(() => {
 					importedCount++;
-					return Promise.resolve([{ id: importedCount, key: `TC-${String(importedCount).padStart(4, '0')}` }]);
+					return Promise.resolve([
+						{ id: importedCount, key: `TC-${String(importedCount).padStart(4, '0')}` }
+					]);
 				}),
 				set: vi.fn().mockReturnThis(),
 				where: vi.fn().mockReturnThis(),
@@ -102,7 +127,12 @@ describe('/api/projects/[projectId]/test-cases/import', () => {
 			return fn(tx);
 		});
 
-		const event = createMockEvent({ method: 'POST', params: PARAMS, formData: fd, user: adminUser });
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: fd,
+			user: adminUser
+		});
 		const response = await POST(event);
 		const body = await response.json();
 
@@ -135,7 +165,8 @@ describe('/api/projects/[projectId]/test-cases/import', () => {
 				onConflictDoNothing: vi.fn().mockReturnThis(),
 				then: undefined as unknown
 			};
-			txChain.then = (r: (v: unknown) => void) => Promise.resolve([{ maxKey: null, maxOrder: 0 }]).then(r);
+			txChain.then = (r: (v: unknown) => void) =>
+				Promise.resolve([{ maxKey: null, maxOrder: 0 }]).then(r);
 			const txSelectChain = {
 				from: vi.fn().mockReturnThis(),
 				where: vi.fn().mockReturnThis(),
@@ -149,7 +180,12 @@ describe('/api/projects/[projectId]/test-cases/import', () => {
 			return fn(tx);
 		});
 
-		const event = createMockEvent({ method: 'POST', params: PARAMS, formData: fd, user: adminUser });
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: fd,
+			user: adminUser
+		});
 		const response = await POST(event);
 
 		expect(response.status).toBe(200);
@@ -174,7 +210,8 @@ describe('/api/projects/[projectId]/test-cases/import', () => {
 				onConflictDoNothing: vi.fn().mockReturnThis(),
 				then: undefined as unknown
 			};
-			txChain.then = (r: (v: unknown) => void) => Promise.resolve([{ maxKey: null, maxOrder: 0 }]).then(r);
+			txChain.then = (r: (v: unknown) => void) =>
+				Promise.resolve([{ maxKey: null, maxOrder: 0 }]).then(r);
 			const txSelectChain = {
 				from: vi.fn().mockReturnThis(),
 				where: vi.fn().mockReturnThis(),
@@ -188,10 +225,72 @@ describe('/api/projects/[projectId]/test-cases/import', () => {
 			return fn(tx);
 		});
 
-		const event = createMockEvent({ method: 'POST', params: PARAMS, formData: fd, user: adminUser });
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: fd,
+			user: adminUser
+		});
 		const response = await POST(event);
 
 		expect(response.status).toBe(200);
+	});
+
+	it('should scope imported test case latest-version updates to the current project', async () => {
+		const fd = createJsonFormData([{ title: 'Scoped import', priority: 'MEDIUM' }]);
+
+		mockDb.select.mockImplementation(() => {
+			return mockSelectResult(mockDb, []) as never;
+		});
+
+		const txUpdateChain = {
+			set: vi.fn().mockReturnThis(),
+			where: vi.fn().mockResolvedValue(undefined)
+		};
+
+		mockDb.transaction.mockImplementation(async (fn) => {
+			let insertCallCount = 0;
+			const txSelectChain = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([{ maxKey: null, maxOrder: 0 }]).then(r)
+			};
+			const txInsertCaseChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: 123, key: 'TC-0001' }])
+			};
+			const txInsertVersionChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: 456, testCaseId: 123 }])
+			};
+			const tx = {
+				select: vi.fn().mockReturnValue(txSelectChain),
+				insert: vi.fn().mockImplementation(() => {
+					insertCallCount++;
+					return insertCallCount === 1 ? txInsertCaseChain : txInsertVersionChain;
+				}),
+				update: vi.fn().mockReturnValue(txUpdateChain)
+			};
+			return fn(tx);
+		});
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: fd,
+			user: adminUser
+		});
+		const response = await POST(event);
+		const body = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(body.imported).toBe(1);
+		expect(txUpdateChain.where).toHaveBeenCalledWith(
+			expect.arrayContaining([
+				['id', 123],
+				['project_id', 1]
+			])
+		);
 	});
 
 	it('should skip rows with missing title and return 400 when all invalid', async () => {
@@ -202,7 +301,12 @@ describe('/api/projects/[projectId]/test-cases/import', () => {
 			return mockSelectResult(mockDb, []) as never;
 		});
 
-		const event = createMockEvent({ method: 'POST', params: PARAMS, formData: fd, user: adminUser });
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: fd,
+			user: adminUser
+		});
 		const response = await POST(event);
 		const body = await response.json();
 

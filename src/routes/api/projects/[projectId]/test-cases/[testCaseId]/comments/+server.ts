@@ -12,8 +12,12 @@ import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { requireTestCase } from '$lib/server/queries';
 import { badRequest } from '$lib/server/errors';
 import { createNotification } from '$lib/server/notifications';
-import { validateCommentContent } from '$lib/server/crud-helpers';
-import { validatePositiveInteger, validateRequestBody } from '$lib/server/id-list-validation';
+import {
+	COMMENT_CREATE_FIELDS,
+	validateCommentContent,
+	validateCommentRequestBody
+} from '$lib/server/crud-helpers';
+import { validatePositiveInteger } from '$lib/server/id-list-validation';
 
 /** Extract @mentioned names from comment content */
 function extractMentions(content: string): string[] {
@@ -53,7 +57,10 @@ export const POST = withProjectRole(
 		const testCaseId = parseId(params.testCaseId, 'test case ID');
 		const tc = await requireTestCase(testCaseId, projectId);
 
-		const bodyOrError = validateRequestBody(await parseJsonBody(request));
+		const bodyOrError = validateCommentRequestBody(
+			await parseJsonBody(request),
+			COMMENT_CREATE_FIELDS
+		);
 		if (bodyOrError instanceof Response) return bodyOrError;
 		const { content: rawContent, parentId: rawParentId } = bodyOrError;
 

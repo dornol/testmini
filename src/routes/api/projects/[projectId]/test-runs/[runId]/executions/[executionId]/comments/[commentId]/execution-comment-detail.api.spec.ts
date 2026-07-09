@@ -166,6 +166,38 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 			expect((await response.json()).error).toContain('too long');
 		});
 
+		it('should reject non-object request body', async () => {
+			mockSelectResult(mockDb, [sampleComment]);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: null
+			});
+
+			const response = await PATCH(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid request body');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject unknown request fields', async () => {
+			mockSelectResult(mockDb, [sampleComment]);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { content: 'Updated comment', visibility: 'public' }
+			});
+
+			const response = await PATCH(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid comment field');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should update comment successfully', async () => {
 			mockSelectResult(mockDb, [sampleComment]);
 			const updatedComment = { ...sampleComment, content: 'Updated comment' };

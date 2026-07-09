@@ -5,8 +5,12 @@ import { eq, and, asc, isNull } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
-import { validateCommentContent } from '$lib/server/crud-helpers';
-import { validatePositiveInteger, validateRequestBody } from '$lib/server/id-list-validation';
+import {
+	COMMENT_CREATE_FIELDS,
+	validateCommentContent,
+	validateCommentRequestBody
+} from '$lib/server/crud-helpers';
+import { validatePositiveInteger } from '$lib/server/id-list-validation';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const runId = parseId(params.runId, 'run ID');
@@ -71,7 +75,10 @@ export const POST = withProjectRole(
 
 		if (exec.length === 0) error(404, 'Execution not found');
 
-		const bodyOrError = validateRequestBody(await parseJsonBody(request));
+		const bodyOrError = validateCommentRequestBody(
+			await parseJsonBody(request),
+			COMMENT_CREATE_FIELDS
+		);
 		if (bodyOrError instanceof Response) return bodyOrError;
 		const { content: rawContent, parentId: rawParentId } = bodyOrError;
 

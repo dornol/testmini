@@ -6,6 +6,9 @@ import type { AnyPgTable } from 'drizzle-orm/pg-core';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { badRequest } from '$lib/server/errors';
 
+export const COMMENT_CREATE_FIELDS = new Set(['content', 'parentId']);
+export const COMMENT_UPDATE_FIELDS = new Set(['content']);
+
 /**
  * Find a project-scoped resource by ID, or throw 404.
  */
@@ -17,7 +20,9 @@ export async function findOrFail(
 	projectId: number,
 	label: string
 ) {
-	const result = await db.select().from(table)
+	const result = await db
+		.select()
+		.from(table)
 		.where(and(eq(idCol, resourceId), eq(projectIdCol, projectId)))
 		.limit(1);
 
@@ -34,7 +39,13 @@ export async function findOrFail(
  */
 export async function parseAndValidate<T>(
 	request: Request,
-	schema: { safeParse: (data: unknown) => { success: true; data: T } | { success: false; error: { flatten: () => { fieldErrors: Record<string, string[]> } } } }
+	schema: {
+		safeParse: (
+			data: unknown
+		) =>
+			| { success: true; data: T }
+			| { success: false; error: { flatten: () => { fieldErrors: Record<string, string[]> } } };
+	}
 ): Promise<T> {
 	const body = await parseJsonBody(request);
 	const parsed = schema.safeParse(body);
@@ -73,6 +84,20 @@ export function validateCommentContent(content: unknown): string | Response {
 		return badRequest('Content is too long (max 10000 characters)');
 	}
 	return content.trim();
+}
+
+export function validateCommentRequestBody(
+	body: unknown,
+	allowedFields: Set<string>
+): Record<string, unknown> | Response {
+	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+		return badRequest('Invalid request body');
+	}
+	const record = body as Record<string, unknown>;
+	if (Object.keys(record).some((key) => !allowedFields.has(key))) {
+		return badRequest('Invalid comment field');
+	}
+	return record;
 }
 
 /**

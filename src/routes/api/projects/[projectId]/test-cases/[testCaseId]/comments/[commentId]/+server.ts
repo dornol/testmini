@@ -4,7 +4,11 @@ import { testCase, testCaseComment } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { isGlobalAdmin, parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
-import { validateCommentContent } from '$lib/server/crud-helpers';
+import {
+	COMMENT_UPDATE_FIELDS,
+	validateCommentContent,
+	validateCommentRequestBody
+} from '$lib/server/crud-helpers';
 import { getMemberRole } from '$lib/server/queries';
 
 async function resolveComment(testCaseId: number, projectId: number, commentId: number) {
@@ -43,8 +47,12 @@ export const PATCH = withProjectAccess(async ({ params, request, user, projectId
 		error(403, 'You can only edit your own comments');
 	}
 
-	const body = await parseJsonBody(request);
-	const { content: rawContent } = body as { content?: string };
+	const bodyOrError = validateCommentRequestBody(
+		await parseJsonBody(request),
+		COMMENT_UPDATE_FIELDS
+	);
+	if (bodyOrError instanceof Response) return bodyOrError;
+	const { content: rawContent } = bodyOrError;
 
 	const contentOrError = validateCommentContent(rawContent);
 	if (contentOrError instanceof Response) return contentOrError;

@@ -208,6 +208,22 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toMatch(/request body/i);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when request body has unknown fields', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { content: 'New comment', visibility: 'public' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Invalid comment field');
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should validate parentId belongs to same test case', async () => {

@@ -168,6 +168,23 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 			const response = await POST(event);
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Invalid request body');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject unknown request fields', async () => {
+			mockSelectResult(mockDb, [{ id: 200 }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { content: 'A comment', visibility: 'public' }
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid comment field');
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should reject content exceeding 10000 characters', async () => {

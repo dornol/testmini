@@ -147,6 +147,36 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments/[commentId]
 			expect(body.error).toMatch(/content/i);
 		});
 
+		it('should return 400 when request body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: null,
+				user: testUser
+			});
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/request body/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when request body has unknown fields', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { content: 'Updated comment', visibility: 'public' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Invalid comment field');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 401 when not authenticated', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',

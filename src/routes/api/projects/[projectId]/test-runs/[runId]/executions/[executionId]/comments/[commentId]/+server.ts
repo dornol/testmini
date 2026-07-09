@@ -3,7 +3,11 @@ import { db } from '$lib/server/db';
 import { executionComment, testExecution, testRun } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
-import { validateCommentContent } from '$lib/server/crud-helpers';
+import {
+	COMMENT_UPDATE_FIELDS,
+	validateCommentContent,
+	validateCommentRequestBody
+} from '$lib/server/crud-helpers';
 import { withProjectAccess } from '$lib/server/api-handler';
 
 async function findScopedComment(
@@ -52,8 +56,12 @@ export const PATCH = withProjectAccess(async ({ params, request, user, projectId
 		error(403, 'Not authorized to edit this comment');
 	}
 
-	const body = await parseJsonBody(request);
-	const { content: rawContent } = body as { content?: string };
+	const bodyOrError = validateCommentRequestBody(
+		await parseJsonBody(request),
+		COMMENT_UPDATE_FIELDS
+	);
+	if (bodyOrError instanceof Response) return bodyOrError;
+	const { content: rawContent } = bodyOrError;
 
 	const contentOrError = validateCommentContent(rawContent);
 	if (contentOrError instanceof Response) return contentOrError;

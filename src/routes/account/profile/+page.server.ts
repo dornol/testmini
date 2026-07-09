@@ -8,6 +8,23 @@ import { requireAuth } from '$lib/server/auth-utils';
 import { auth } from '$lib/server/auth';
 import { parsePositiveFormId } from '$lib/server/form-utils';
 
+const MAX_PROFILE_NAME_LENGTH = 100;
+const MAX_PASSWORD_LENGTH = 1024;
+
+function parseProfileName(value: FormDataEntryValue | null): string | null {
+	if (typeof value !== 'string') return null;
+	const name = value.trim();
+	if (!name || name.length > MAX_PROFILE_NAME_LENGTH || /[\x00-\x1F\x7F]/.test(name)) {
+		return null;
+	}
+	return name;
+}
+
+function parseRequiredText(value: FormDataEntryValue | null): string | null {
+	if (typeof value !== 'string' || value.length === 0) return null;
+	return value;
+}
+
 export const load: PageServerLoad = async ({ locals }) => {
 	const authUser = requireAuth(locals);
 
@@ -89,9 +106,9 @@ export const actions: Actions = {
 		const authUser = requireAuth(locals);
 
 		const formData = await request.formData();
-		const name = (formData.get('name') as string)?.trim();
+		const name = parseProfileName(formData.get('name'));
 
-		if (!name || name.length < 1 || name.length > 100) {
+		if (!name) {
 			return fail(400, { error: 'Name is required (1-100 characters)' });
 		}
 
@@ -104,11 +121,11 @@ export const actions: Actions = {
 		const authUser = requireAuth(locals);
 
 		const formData = await request.formData();
-		const currentPassword = formData.get('currentPassword') as string;
-		const newPassword = formData.get('newPassword') as string;
-		const confirmPassword = formData.get('confirmPassword') as string;
+		const currentPassword = parseRequiredText(formData.get('currentPassword'));
+		const newPassword = parseRequiredText(formData.get('newPassword'));
+		const confirmPassword = parseRequiredText(formData.get('confirmPassword'));
 
-		if (!currentPassword || !newPassword) {
+		if (!currentPassword || !newPassword || !confirmPassword) {
 			return fail(400, { passwordError: 'All fields are required' });
 		}
 
@@ -118,6 +135,11 @@ export const actions: Actions = {
 
 		if (newPassword.length < 8) {
 			return fail(400, { passwordError: 'Password must be at least 8 characters' });
+		}
+		if (newPassword.length > MAX_PASSWORD_LENGTH) {
+			return fail(400, {
+				passwordError: `Password must be ${MAX_PASSWORD_LENGTH} characters or less`
+			});
 		}
 
 		try {

@@ -66,6 +66,24 @@ function createFormData(accountId: string): FormData {
 	return formData;
 }
 
+function createNameFormData(value: FormDataEntryValue): FormData {
+	const formData = new FormData();
+	formData.set('name', value);
+	return formData;
+}
+
+function createPasswordFormData(values: {
+	currentPassword?: FormDataEntryValue;
+	newPassword?: FormDataEntryValue;
+	confirmPassword?: FormDataEntryValue;
+}): FormData {
+	const formData = new FormData();
+	if (values.currentPassword !== undefined) formData.set('currentPassword', values.currentPassword);
+	if (values.newPassword !== undefined) formData.set('newPassword', values.newPassword);
+	if (values.confirmPassword !== undefined) formData.set('confirmPassword', values.confirmPassword);
+	return formData;
+}
+
 function chainWithResult(result: unknown[]) {
 	const chain: Record<string, unknown> = {};
 	for (const method of ['from', 'where', 'innerJoin', 'orderBy']) {
@@ -78,6 +96,82 @@ function chainWithResult(result: unknown[]) {
 describe('/account/profile +page.server', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+	});
+
+	describe('actions.updateName', () => {
+		it('should reject file values for name before updating', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createNameFormData(new File(['content'], 'name.txt')),
+				user: testUser
+			});
+
+			const result = await actions.updateName(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'Name is required (1-100 characters)' }
+			});
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject control characters in name before updating', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createNameFormData('Valid\u0000Name'),
+				user: testUser
+			});
+
+			const result = await actions.updateName(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'Name is required (1-100 characters)' }
+			});
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('actions.changePassword', () => {
+		it('should reject file values for password fields before calling auth', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createPasswordFormData({
+					currentPassword: new File(['content'], 'password.txt'),
+					newPassword: 'new-password',
+					confirmPassword: 'new-password'
+				}),
+				user: testUser
+			});
+
+			const result = await actions.changePassword(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { passwordError: 'All fields are required' }
+			});
+			expect(mockChangePassword).not.toHaveBeenCalled();
+		});
+
+		it('should reject oversized new passwords before calling auth', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createPasswordFormData({
+					currentPassword: 'current-password',
+					newPassword: 'x'.repeat(1025),
+					confirmPassword: 'x'.repeat(1025)
+				}),
+				user: testUser
+			});
+
+			const result = await actions.changePassword(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { passwordError: 'Password must be 1024 characters or less' }
+			});
+			expect(mockChangePassword).not.toHaveBeenCalled();
+		});
 	});
 
 	describe('actions.unlink', () => {

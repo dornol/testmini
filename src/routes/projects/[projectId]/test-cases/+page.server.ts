@@ -20,6 +20,10 @@ import { eq, and, desc, asc, sql, inArray } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { loadProjectTags, loadBatchTags, loadBatchAssignees } from '$lib/server/queries';
 import { buildTestCaseConditions } from '$lib/server/test-case-filters';
+import {
+	parseCanonicalPositiveInteger,
+	parseCanonicalPositiveIntegerList
+} from '$lib/server/search-param-validation';
 
 async function loadExecutionMap(
 	selectedRunIds: number[],
@@ -40,10 +44,7 @@ async function loadExecutionMap(
 		.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 		.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
 		.where(
-			and(
-				inArray(testExecution.testRunId, selectedRunIds),
-				eq(testCase.projectId, projectId)
-			)
+			and(inArray(testExecution.testRunId, selectedRunIds), eq(testCase.projectId, projectId))
 		);
 
 	for (const exec of executions) {
@@ -76,7 +77,9 @@ function applyExecStatusFilter<T extends { id: number }>(
 		const isNotExecuted = !tcExecs || selectedRunIds.every((rid) => !tcExecs[rid]);
 		if (hasNotExecuted && isNotExecuted) return true;
 		if (otherStatuses.length > 0 && tcExecs) {
-			return selectedRunIds.some((rid) => tcExecs[rid] && otherStatuses.includes(tcExecs[rid].status));
+			return selectedRunIds.some(
+				(rid) => tcExecs[rid] && otherStatuses.includes(tcExecs[rid].status)
+			);
 		}
 		return false;
 	});
@@ -100,10 +103,7 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 	// Parse selected run IDs: URL param takes priority, otherwise fall back to project setting
 	let selectedRunIds: number[];
 	if (url.searchParams.has('runIds')) {
-		selectedRunIds = url.searchParams.get('runIds')!
-			.split(',')
-			.map(Number)
-			.filter((id) => !isNaN(id) && id > 0);
+		selectedRunIds = parseCanonicalPositiveIntegerList(url.searchParams.get('runIds')!);
 	} else {
 		const proj = await db.query.project.findFirst({
 			where: eq(project.id, projectId),
@@ -116,8 +116,8 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 	const customFieldFilters: { fieldId: number; value: string }[] = [];
 	for (const [key, value] of url.searchParams.entries()) {
 		if (key.startsWith('cf_') && value) {
-			const fieldId = Number(key.slice(3));
-			if (!isNaN(fieldId) && fieldId > 0) {
+			const fieldId = parseCanonicalPositiveInteger(key.slice(3));
+			if (fieldId !== null) {
 				customFieldFilters.push({ fieldId, value });
 			}
 		}
@@ -139,22 +139,24 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 
 	// Load custom field definitions and column settings for this project
 	const [projectCustomFields, projectRow] = await Promise.all([
-		db.select({
-			id: customField.id,
-			name: customField.name,
-			fieldType: customField.fieldType,
-			options: customField.options
-		})
-		.from(customField)
-		.where(eq(customField.projectId, projectId))
-		.orderBy(asc(customField.sortOrder)),
+		db
+			.select({
+				id: customField.id,
+				name: customField.name,
+				fieldType: customField.fieldType,
+				options: customField.options
+			})
+			.from(customField)
+			.where(eq(customField.projectId, projectId))
+			.orderBy(asc(customField.sortOrder)),
 
 		db.query.project.findFirst({
 			where: eq(project.id, projectId),
 			columns: { columnSettings: true }
 		})
 	]);
-	const columnSettings = (projectRow?.columnSettings ?? null) as { id: string; visible: boolean }[] | null;
+	const columnSettings = (projectRow?.columnSettings ?? null) as
+		{ id: string; visible: boolean }[] | null;
 
 	// Load groups for this project
 	const groups = await db
@@ -195,11 +197,14 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 	]);
 
 	// Load issue link counts per test case
-	const issueLinkCounts = tcIdSet.size > 0 ? await db
-		.select({ testCaseId: issueLink.testCaseId, count: sql<number>`count(*)`.as('count') })
-		.from(issueLink)
-		.where(inArray(issueLink.testCaseId, [...tcIdSet]))
-		.groupBy(issueLink.testCaseId) : [];
+	const issueLinkCounts =
+		tcIdSet.size > 0
+			? await db
+					.select({ testCaseId: issueLink.testCaseId, count: sql<number>`count(*)`.as('count') })
+					.from(issueLink)
+					.where(inArray(issueLink.testCaseId, [...tcIdSet]))
+					.groupBy(issueLink.testCaseId)
+			: [];
 	const issueLinkMap: Record<number, number> = {};
 	for (const r of issueLinkCounts) {
 		if (r.testCaseId) issueLinkMap[r.testCaseId] = Number(r.count);
@@ -249,9 +254,7 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 
 	// Persist selected run IDs to project setting
 	if (url.searchParams.has('runIds')) {
-		await db.update(project)
-			.set({ selectedRunIds })
-			.where(eq(project.id, projectId));
+		await db.update(project).set({ selectedRunIds }).where(eq(project.id, projectId));
 	}
 
 	// Load saved filters for the current user
@@ -267,7 +270,12 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		)
 		.orderBy(asc(savedFilter.sortOrder), asc(savedFilter.name));
 
-	const filteredTestCases = applyExecStatusFilter(testCases, executionMap, execStatus, selectedRunIds);
+	const filteredTestCases = applyExecStatusFilter(
+		testCases,
+		executionMap,
+		execStatus,
+		selectedRunIds
+	);
 
 	return {
 		testCases: filteredTestCases.map((tc) => ({
@@ -310,10 +318,14 @@ export const actions: Actions = {
 		const title = (formData.get('title') as string)?.trim();
 		const priority = (formData.get('priority') as string) || 'MEDIUM';
 		const groupIdStr = formData.get('groupId') as string | null;
-		const groupId = groupIdStr ? Number(groupIdStr) : null;
+		const groupId = groupIdStr ? parseCanonicalPositiveInteger(groupIdStr) : null;
 
 		if (!title || title.length < 1 || title.length > 200) {
 			return fail(400, { error: 'Title is required (1-200 characters)' });
+		}
+
+		if (groupIdStr && groupId === null) {
+			return fail(400, { error: 'Invalid group ID' });
 		}
 
 		if (!priority) {
@@ -339,9 +351,8 @@ export const actions: Actions = {
 			const key = `TC-${String(nextNum).padStart(4, '0')}`;
 
 			// Compute sortOrder for the group (or uncategorized)
-			const groupCondition = groupId !== null
-				? eq(testCase.groupId, groupId)
-				: sql`${testCase.groupId} is null`;
+			const groupCondition =
+				groupId !== null ? eq(testCase.groupId, groupId) : sql`${testCase.groupId} is null`;
 			const [maxSortResult] = await tx
 				.select({ maxOrder: sql<number>`coalesce(max(${testCase.sortOrder}), 0)` })
 				.from(testCase)

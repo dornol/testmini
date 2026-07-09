@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+	parseCanonicalPositiveInteger,
+	parseCanonicalPositiveIntegerList,
 	parseNonNegativeIntegerSearchParam,
 	parseOptionalPositiveIntegerSearchParam,
 	parsePositiveIntegerSearchParam,
@@ -7,6 +9,32 @@ import {
 } from './search-param-validation';
 
 describe('search-param-validation', () => {
+	describe('parseCanonicalPositiveInteger', () => {
+		it('should parse canonical positive safe integers', () => {
+			expect(parseCanonicalPositiveInteger('1')).toBe(1);
+			expect(parseCanonicalPositiveInteger('42')).toBe(42);
+		});
+
+		it.each(['', '0', '-1', '+1', '01', '1.5', '1e3', ' 12', '12 ', '9007199254740992'])(
+			'should reject non-canonical positive integer value %s',
+			(value) => {
+				expect(parseCanonicalPositiveInteger(value)).toBeNull();
+			}
+		);
+	});
+
+	describe('parseCanonicalPositiveIntegerList', () => {
+		it('should parse valid comma-separated positive integers', () => {
+			expect(parseCanonicalPositiveIntegerList('1,2,42')).toEqual([1, 2, 42]);
+		});
+
+		it('should ignore invalid list tokens', () => {
+			expect(
+				parseCanonicalPositiveIntegerList('abc,0,-1,+1,01,1e3, 7,7 ,9007199254740992,5')
+			).toEqual([5]);
+		});
+	});
+
 	describe('parsePositiveIntegerSearchParam', () => {
 		it.each([
 			null,

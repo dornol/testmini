@@ -1,4 +1,19 @@
 const NON_NEGATIVE_INTEGER_PATTERN = /^(0|[1-9]\d*)$/;
+const POSITIVE_INTEGER_PATTERN = /^[1-9]\d*$/;
+
+export function parseCanonicalPositiveInteger(value: string): number | null {
+	if (!POSITIVE_INTEGER_PATTERN.test(value)) return null;
+
+	const parsed = Number(value);
+	return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
+export function parseCanonicalPositiveIntegerList(value: string): number[] {
+	return value
+		.split(',')
+		.map((token) => parseCanonicalPositiveInteger(token))
+		.filter((id): id is number => id !== null);
+}
 
 export function parsePositiveIntegerSearchParam(
 	value: string | null,

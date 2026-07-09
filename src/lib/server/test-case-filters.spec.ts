@@ -132,9 +132,12 @@ describe('buildTestCaseConditions', () => {
 		expect(outerAndCall).toHaveLength(4); // projectId + 3 exists
 	});
 
-	// 7. tagIds filter — invalid values (NaN, 0, negative) should be ignored
-	it('should ignore invalid tagIds (NaN, 0, negative)', () => {
-		buildTestCaseConditions({ projectId: 1, tagIds: 'abc,0,-1,5' });
+	// 7. tagIds filter — invalid values should be ignored
+	it('should ignore invalid tagIds', () => {
+		buildTestCaseConditions({
+			projectId: 1,
+			tagIds: 'abc,0,-1,+1,01,1e3, 7,7 ,9007199254740992,5'
+		});
 
 		expect(mockExists).toHaveBeenCalledTimes(1);
 		expect(mockEq).toHaveBeenCalledWith('tag_id', 5);
@@ -158,14 +161,17 @@ describe('buildTestCaseConditions', () => {
 	});
 
 	// 10. groupId = invalid string — should not add condition
-	it('should not add condition for invalid groupId string', () => {
-		buildTestCaseConditions({ projectId: 1, groupId: 'invalid' });
+	it.each(['invalid', '0', '-1', '+1', '01', '1e3', ' 7', '7 ', '9007199254740992'])(
+		'should not add condition for invalid groupId value %s',
+		(groupId) => {
+			buildTestCaseConditions({ projectId: 1, groupId });
 
-		expect(mockIsNull).not.toHaveBeenCalled();
-		// eq should only be called once for projectId
-		expect(mockEq).toHaveBeenCalledTimes(1);
-		expect(mockAnd.mock.calls[0]).toHaveLength(1);
-	});
+			expect(mockIsNull).not.toHaveBeenCalled();
+			// eq should only be called once for projectId
+			expect(mockEq).toHaveBeenCalledTimes(1);
+			expect(mockAnd.mock.calls[0]).toHaveLength(1);
+		}
+	);
 
 	// 11. createdBy filter — single
 	it('should add inArray for single createdBy', () => {
@@ -203,7 +209,10 @@ describe('buildTestCaseConditions', () => {
 
 	// 15. suiteId filter — invalid values ignored
 	it('should ignore invalid suiteId values', () => {
-		buildTestCaseConditions({ projectId: 1, suiteId: 'abc,0,-5' });
+		buildTestCaseConditions({
+			projectId: 1,
+			suiteId: 'abc,0,-5,+1,01,1e3, 3,3 ,9007199254740992'
+		});
 
 		expect(mockExists).not.toHaveBeenCalled();
 		expect(mockAnd.mock.calls[0]).toHaveLength(1); // only projectId

@@ -8,6 +8,10 @@ import {
 } from '$lib/server/db/schema';
 import { eq, and, ilike, or, exists, sql, inArray, isNull } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
+import {
+	parseCanonicalPositiveInteger,
+	parseCanonicalPositiveIntegerList
+} from '$lib/server/search-param-validation';
 
 interface TestCaseFilterParams {
 	projectId: number;
@@ -33,7 +37,10 @@ export function buildTestCaseConditions(params: TestCaseFilterParams): SQL {
 		// Also try full-text search for word-level matching (English tokenizer)
 		const words = term.split(/\s+/).filter(Boolean);
 		if (words.length > 0) {
-			const query = words.map((w) => w.replace(/[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ_-]/g, '')).filter(Boolean).join(' & ');
+			const query = words
+				.map((w) => w.replace(/[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ_-]/g, ''))
+				.filter(Boolean)
+				.join(' & ');
 			if (query) {
 				const ftsCondition = sql`test_case_version.search_vector @@ to_tsquery('english', ${query})`;
 				conditions.push(or(keyCondition, titleCondition, ftsCondition)!);
@@ -53,22 +60,14 @@ export function buildTestCaseConditions(params: TestCaseFilterParams): SQL {
 	}
 
 	if (params.tagIds) {
-		const tagIdNums = params.tagIds
-			.split(',')
-			.map(Number)
-			.filter((id) => !isNaN(id) && id > 0);
+		const tagIdNums = parseCanonicalPositiveIntegerList(params.tagIds);
 		for (const tagIdNum of tagIdNums) {
 			conditions.push(
 				exists(
 					db
 						.select({ one: sql`1` })
 						.from(testCaseTag)
-						.where(
-							and(
-								eq(testCaseTag.testCaseId, testCase.id),
-								eq(testCaseTag.tagId, tagIdNum)
-							)
-						)
+						.where(and(eq(testCaseTag.testCaseId, testCase.id), eq(testCaseTag.tagId, tagIdNum)))
 				)
 			);
 		}
@@ -78,8 +77,8 @@ export function buildTestCaseConditions(params: TestCaseFilterParams): SQL {
 		if (params.groupId === 'uncategorized') {
 			conditions.push(isNull(testCase.groupId));
 		} else {
-			const gid = Number(params.groupId);
-			if (!isNaN(gid) && gid > 0) {
+			const gid = parseCanonicalPositiveInteger(params.groupId);
+			if (gid !== null) {
 				conditions.push(eq(testCase.groupId, gid));
 			}
 		}
@@ -112,10 +111,7 @@ export function buildTestCaseConditions(params: TestCaseFilterParams): SQL {
 	}
 
 	if (params.suiteId) {
-		const suiteIdNums = params.suiteId
-			.split(',')
-			.map(Number)
-			.filter((id) => !isNaN(id) && id > 0);
+		const suiteIdNums = parseCanonicalPositiveIntegerList(params.suiteId);
 		if (suiteIdNums.length > 0) {
 			conditions.push(
 				exists(

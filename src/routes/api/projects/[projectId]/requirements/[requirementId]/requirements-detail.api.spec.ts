@@ -79,8 +79,6 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 		});
 
 		it('should return 400 when no fields to update', async () => {
-			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -91,11 +89,11 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 			const response = await PATCH(event);
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('No fields to update');
+			expect(mockDb.query.requirement.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when request body is not an object', async () => {
-			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -107,12 +105,11 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Invalid request body');
+			expect(mockDb.query.requirement.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for unknown requirement fields before updating', async () => {
-			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -124,12 +121,11 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Invalid requirement field');
+			expect(mockDb.query.requirement.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when title is empty', async () => {
-			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -141,6 +137,7 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Title is required');
+			expect(mockDb.query.requirement.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -149,9 +146,7 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 
 			for (const body of cases) {
 				vi.clearAllMocks();
-				mockDb.query.requirement = {
-					findFirst: vi.fn().mockResolvedValue(sampleRequirement)
-				};
+				mockDb.query.requirement = { findFirst: vi.fn() };
 
 				const event = createMockEvent({
 					method: 'PATCH',
@@ -163,6 +158,7 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 				const response = await PATCH(event);
 
 				expect(response.status).toBe(400);
+				expect(mockDb.query.requirement.findFirst).not.toHaveBeenCalled();
 				expect(mockDb.update).not.toHaveBeenCalled();
 			}
 		});
@@ -177,9 +173,7 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 
 			for (const body of cases) {
 				vi.clearAllMocks();
-				mockDb.query.requirement = {
-					findFirst: vi.fn().mockResolvedValue(sampleRequirement)
-				};
+				mockDb.query.requirement = { findFirst: vi.fn() };
 
 				const event = createMockEvent({
 					method: 'PATCH',
@@ -191,6 +185,7 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 				const response = await PATCH(event);
 
 				expect(response.status).toBe(400);
+				expect(mockDb.query.requirement.findFirst).not.toHaveBeenCalled();
 				expect(mockDb.update).not.toHaveBeenCalled();
 			}
 		});

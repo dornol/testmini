@@ -12,14 +12,6 @@ export const PATCH = withProjectRole(
 	async ({ request, params, projectId }) => {
 		const requirementId = parseId(params.requirementId, 'requirement ID');
 
-		const existing = await db.query.requirement.findFirst({
-			where: and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId))
-		});
-
-		if (!existing) {
-			error(404, 'Requirement not found');
-		}
-
 		const body = await parseJsonBody(request);
 		const fields = validateRequirementFields(body);
 		if (fields instanceof Response) return fields;
@@ -32,6 +24,14 @@ export const PATCH = withProjectRole(
 
 		if (Object.keys(updates).length === 0) {
 			return badRequest('No fields to update');
+		}
+
+		const existing = await db.query.requirement.findFirst({
+			where: and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId))
+		});
+
+		if (!existing) {
+			error(404, 'Requirement not found');
 		}
 
 		const [updated] = await db

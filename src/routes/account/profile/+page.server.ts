@@ -171,7 +171,9 @@ export const actions: Actions = {
 			return fail(400, { error: 'Cannot unlink the last authentication method' });
 		}
 
-		await db.delete(oidcAccount).where(eq(oidcAccount.id, accountId));
+		await db
+			.delete(oidcAccount)
+			.where(and(eq(oidcAccount.id, accountId), eq(oidcAccount.userId, authUser.id)));
 
 		return { unlinkSuccess: true };
 	}

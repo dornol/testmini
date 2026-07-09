@@ -49,6 +49,15 @@ function createFormData(accountId: string): FormData {
 	return formData;
 }
 
+function chainWithResult(result: unknown[]) {
+	const chain: Record<string, unknown> = {};
+	for (const method of ['from', 'where', 'innerJoin', 'orderBy']) {
+		chain[method] = vi.fn().mockReturnValue(chain);
+	}
+	chain.then = (resolve: (value: unknown[]) => void) => Promise.resolve(result).then(resolve);
+	return chain;
+}
+
 describe('/auth/account +page.server', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -71,5 +80,31 @@ describe('/auth/account +page.server', () => {
 				expect(mockDb.delete).not.toHaveBeenCalled();
 			}
 		);
+
+		it('should scope the unlink delete to the authenticated user', async () => {
+			const ownershipChain = chainWithResult([{ id: 7 }]);
+			const oidcCountChain = chainWithResult([{ count: 2 }]);
+			const passwordChain = chainWithResult([]);
+			mockDb.select
+				.mockReturnValueOnce(ownershipChain as never)
+				.mockReturnValueOnce(oidcCountChain as never)
+				.mockReturnValueOnce(passwordChain as never);
+
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createFormData('7'),
+				user: testUser
+			});
+
+			const result = await actions.unlink(event);
+
+			expect(result).toEqual({ success: true });
+			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 7],
+					['user_id', testUser.id]
+				])
+			);
+		});
 	});
 });

@@ -91,7 +91,9 @@ export const actions: Actions = {
 			});
 		}
 
-		await db.delete(oidcAccount).where(eq(oidcAccount.id, accountId));
+		await db
+			.delete(oidcAccount)
+			.where(and(eq(oidcAccount.id, accountId), eq(oidcAccount.userId, user.id)));
 
 		return { success: true };
 	}

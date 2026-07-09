@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { fail } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import {
 	testCase,
@@ -255,7 +255,12 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 
 	// Persist selected run IDs to project setting
 	if (url.searchParams.has('runIds')) {
-		await db.update(project).set({ selectedRunIds }).where(eq(project.id, projectId));
+		const [updated] = await db
+			.update(project)
+			.set({ selectedRunIds })
+			.where(eq(project.id, projectId))
+			.returning();
+		if (!updated) error(404, 'Project not found');
 	}
 
 	// Load saved filters for the current user

@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
+mockDb.query.issueTrackerConfig = { findFirst: vi.fn() };
 const mockRequireProjectRole = vi.fn();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
@@ -99,7 +100,7 @@ vi.mock('$lib/server/test-case-filters', () => ({
 	buildTestCaseConditions: vi.fn(() => [])
 }));
 
-const { actions } = await import('./+page.server');
+const { actions, load } = await import('./+page.server');
 
 const PARAMS = { projectId: '1' };
 
@@ -119,14 +120,8 @@ describe('test cases page server actions', () => {
 
 	describe('quickCreate', () => {
 		it.each([
-			[
-				{ title: new File(['New case'], 'title.txt'), priority: 'MEDIUM' },
-				'Title is required'
-			],
-			[
-				{ title: 'New case', priority: new File(['MEDIUM'], 'priority.txt') },
-				'Invalid priority'
-			],
+			[{ title: new File(['New case'], 'title.txt'), priority: 'MEDIUM' }, 'Title is required'],
+			[{ title: 'New case', priority: new File(['MEDIUM'], 'priority.txt') }, 'Invalid priority'],
 			[
 				{ title: 'New case', priority: 'MEDIUM', groupId: new File(['1'], 'group-id.txt') },
 				'Invalid group ID'
@@ -162,5 +157,25 @@ describe('test cases page server actions', () => {
 				expect(mockDb.transaction).not.toHaveBeenCalled();
 			}
 		);
+	});
+});
+
+describe('test cases page server load', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('throws 404 when project disappears before persisting selected run ids', async () => {
+		mockUpdateReturning(mockDb, []);
+
+		await expect(
+			load({
+				params: PARAMS,
+				url: new URL('http://localhost:5173/projects/1/test-cases?runIds=1'),
+				parent: vi.fn().mockResolvedValue({}),
+				cookies: {},
+				locals: { user: testUser }
+			} as never)
+		).rejects.toMatchObject({ status: 404 });
 	});
 });

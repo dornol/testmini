@@ -21,6 +21,19 @@ describe('id-list-validation', () => {
 			expect(stringResult).toBeInstanceOf(Response);
 			expect((stringResult as Response).status).toBe(400);
 		});
+
+		it.each(['abc', 0, -1, 1.5, '+1', '01', '1.5', '1e3', ' 1', '1 ', {}])(
+			'rejects invalid integer value %s',
+			async (value) => {
+				const result = validatePositiveInteger(value, 'id');
+
+				expect(result).toBeInstanceOf(Response);
+				expect((result as Response).status).toBe(400);
+				expect(await (result as Response).json()).toEqual({
+					error: 'id must be a positive integer'
+				});
+			}
+		);
 	});
 
 	describe('validatePositiveIntegerList', () => {
@@ -33,5 +46,18 @@ describe('id-list-validation', () => {
 				error: 'ids items must be a positive integer'
 			});
 		});
+
+		it.each([[['01']], [['1e3']], [[' 1']], [[{}]]])(
+			'rejects invalid list item %j',
+			async (ids) => {
+				const result = validatePositiveIntegerList(ids, 'ids');
+
+				expect(result).toBeInstanceOf(Response);
+				expect((result as Response).status).toBe(400);
+				expect(await (result as Response).json()).toEqual({
+					error: 'ids items must be a positive integer'
+				});
+			}
+		);
 	});
 });

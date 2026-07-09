@@ -9,8 +9,11 @@ const mockRequireTestCase = vi.fn().mockResolvedValue({ id: 10, projectId: 1 });
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testCaseDataSet: {
-		id: 'id', testCaseId: 'test_case_id', name: 'name',
-		values: 'values', orderIndex: 'order_index'
+		id: 'id',
+		testCaseId: 'test_case_id',
+		name: 'name',
+		values: 'values',
+		orderIndex: 'order_index'
 	}
 }));
 vi.mock('drizzle-orm', () => ({
@@ -18,7 +21,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -34,8 +38,11 @@ const { PATCH, DELETE } = await import('./+server');
 const PARAMS = { projectId: '1', testCaseId: '10', datasetId: '30' };
 
 const sampleDataSet = {
-	id: 30, testCaseId: 10, name: 'Set A',
-	values: { browser: 'Chrome', os: 'Windows' }, orderIndex: 0
+	id: 30,
+	testCaseId: 10,
+	name: 'Set A',
+	values: { browser: 'Chrome', os: 'Windows' },
+	orderIndex: 0
 };
 
 describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]', () => {
@@ -48,22 +55,94 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 	describe('PATCH', () => {
 		it('should return 401 when not authenticated', async () => {
 			const event = createMockEvent({
-				method: 'PATCH', params: PARAMS, body: { name: 'Updated' }, user: null
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Updated' },
+				user: null
 			});
 			await expect(PATCH(event)).rejects.toThrow();
+		});
+
+		it('should return 400 when request body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: ['Updated'],
+				user: testUser
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/request body/i);
+			expect(mockDb.query.testCaseDataSet.findFirst).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when name is not a string or null', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 123 },
+				user: testUser
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/name must be a string or null/i);
+			expect(mockDb.query.testCaseDataSet.findFirst).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when values contain non-string entries', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { values: { browser: ['Chrome'] } },
+				user: testUser
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/string values/i);
+			expect(mockDb.query.testCaseDataSet.findFirst).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when orderIndex is negative', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { orderIndex: -1 },
+				user: testUser
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/non-negative integer/i);
+			expect(mockDb.query.testCaseDataSet.findFirst).not.toHaveBeenCalled();
 		});
 
 		it('should return 404 when dataset not found', async () => {
 			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 			const event = createMockEvent({
-				method: 'PATCH', params: PARAMS, body: { name: 'Updated' }, user: testUser
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Updated' },
+				user: testUser
 			});
 			const response = await PATCH(event);
 			expect(response.status).toBe(404);
 		});
 
 		it('should update dataset name on success', async () => {
-			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(sampleDataSet);
+			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+				sampleDataSet
+			);
 
 			const updateChain = {
 				set: vi.fn().mockReturnThis(),
@@ -73,7 +152,10 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 			mockDb.update.mockReturnValue(updateChain as never);
 
 			const event = createMockEvent({
-				method: 'PATCH', params: PARAMS, body: { name: 'Set B' }, user: testUser
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Set B' },
+				user: testUser
 			});
 			const response = await PATCH(event);
 			const data = await response.json();
@@ -83,7 +165,9 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 		});
 
 		it('should update values on success', async () => {
-			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(sampleDataSet);
+			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+				sampleDataSet
+			);
 
 			const updateChain = {
 				set: vi.fn().mockReturnThis(),
@@ -93,7 +177,8 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 			mockDb.update.mockReturnValue(updateChain as never);
 
 			const event = createMockEvent({
-				method: 'PATCH', params: PARAMS,
+				method: 'PATCH',
+				params: PARAMS,
 				body: { values: { browser: 'Firefox', os: 'Linux' } },
 				user: testUser
 			});
@@ -102,7 +187,9 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 		});
 
 		it('should update orderIndex', async () => {
-			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(sampleDataSet);
+			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+				sampleDataSet
+			);
 
 			const updateChain = {
 				set: vi.fn().mockReturnThis(),
@@ -112,14 +199,19 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 			mockDb.update.mockReturnValue(updateChain as never);
 
 			const event = createMockEvent({
-				method: 'PATCH', params: PARAMS, body: { orderIndex: 3 }, user: testUser
+				method: 'PATCH',
+				params: PARAMS,
+				body: { orderIndex: 3 },
+				user: testUser
 			});
 			const response = await PATCH(event);
 			expect(response.status).toBe(200);
 		});
 
 		it('should set name to null when empty string', async () => {
-			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(sampleDataSet);
+			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+				sampleDataSet
+			);
 
 			const updateChain = {
 				set: vi.fn().mockReturnThis(),
@@ -129,17 +221,25 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 			mockDb.update.mockReturnValue(updateChain as never);
 
 			const event = createMockEvent({
-				method: 'PATCH', params: PARAMS, body: { name: '' }, user: testUser
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: '' },
+				user: testUser
 			});
 			const response = await PATCH(event);
 			expect(response.status).toBe(200);
 		});
 
 		it('should return success with no updates (empty body)', async () => {
-			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(sampleDataSet);
+			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+				sampleDataSet
+			);
 
 			const event = createMockEvent({
-				method: 'PATCH', params: PARAMS, body: {}, user: testUser
+				method: 'PATCH',
+				params: PARAMS,
+				body: {},
+				user: testUser
 			});
 			const response = await PATCH(event);
 			expect(response.status).toBe(200);
@@ -160,7 +260,9 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 		});
 
 		it('should delete dataset on success', async () => {
-			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(sampleDataSet);
+			(mockDb.query.testCaseDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+				sampleDataSet
+			);
 
 			const deleteChain = {
 				where: vi.fn().mockReturnThis(),

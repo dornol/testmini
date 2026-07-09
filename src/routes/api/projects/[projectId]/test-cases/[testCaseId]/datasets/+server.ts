@@ -5,7 +5,7 @@ import { eq, asc } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { requireTestCase } from '$lib/server/queries';
-import { badRequest } from '$lib/server/errors';
+import { validateCreateTestCaseDataSetInput } from '$lib/server/test-case-dataset-validation';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const testCaseId = parseId(params.testCaseId, 'test case ID');
@@ -20,32 +20,34 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 	return json(dataSets);
 });
 
-export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, projectId }) => {
-	const testCaseId = parseId(params.testCaseId, 'test case ID');
-	await requireTestCase(testCaseId, projectId);
+export const POST = withProjectRole(
+	['PROJECT_ADMIN', 'QA', 'DEV'],
+	async ({ params, request, projectId }) => {
+		const testCaseId = parseId(params.testCaseId, 'test case ID');
+		await requireTestCase(testCaseId, projectId);
 
-	const body = await parseJsonBody(request);
-	const { name, values } = body as { name?: string; values: Record<string, string> };
+		const dataSetOrError = validateCreateTestCaseDataSetInput(await parseJsonBody(request));
+		if (dataSetOrError instanceof Response) return dataSetOrError;
+		const { name, values } = dataSetOrError;
 
-	if (!values || typeof values !== 'object') return badRequest('values is required');
+		// Get max order
+		const existing = await db
+			.select({ orderIndex: testCaseDataSet.orderIndex })
+			.from(testCaseDataSet)
+			.where(eq(testCaseDataSet.testCaseId, testCaseId))
+			.orderBy(asc(testCaseDataSet.orderIndex));
+		const maxOrder = existing.length > 0 ? existing[existing.length - 1].orderIndex + 1 : 0;
 
-	// Get max order
-	const existing = await db
-		.select({ orderIndex: testCaseDataSet.orderIndex })
-		.from(testCaseDataSet)
-		.where(eq(testCaseDataSet.testCaseId, testCaseId))
-		.orderBy(asc(testCaseDataSet.orderIndex));
-	const maxOrder = existing.length > 0 ? existing[existing.length - 1].orderIndex + 1 : 0;
+		const [ds] = await db
+			.insert(testCaseDataSet)
+			.values({
+				testCaseId,
+				name,
+				values,
+				orderIndex: maxOrder
+			})
+			.returning();
 
-	const [ds] = await db
-		.insert(testCaseDataSet)
-		.values({
-			testCaseId,
-			name: name?.trim() || null,
-			values,
-			orderIndex: maxOrder
-		})
-		.returning();
-
-	return json(ds, { status: 201 });
-});
+		return json(ds, { status: 201 });
+	}
+);

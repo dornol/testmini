@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -22,7 +26,8 @@ vi.mock('drizzle-orm', () => ({
 	asc: vi.fn((a: unknown) => a)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -101,13 +106,87 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 when request body is not an object', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: ['dataset'],
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/request body/i);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when values is an array', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { values: ['not', 'a', 'record'] },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('values must be an object');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when values contain non-string entries', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { values: { user: 123 } },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/string values/i);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when name is too long', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'x'.repeat(121), values: { user: 'test' } },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/120 characters/i);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should create dataset on success', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
 
 			// select for max order returns empty
 			mockSelectResult(mockDb, []);
 
-			const created = { id: 3, testCaseId: 10, name: 'New DS', values: { user: 'test' }, orderIndex: 0 };
+			const created = {
+				id: 3,
+				testCaseId: 10,
+				name: 'New DS',
+				values: { user: 'test' },
+				orderIndex: 0
+			};
 			mockInsertReturning(mockDb, [created]);
 
 			const event = createMockEvent({

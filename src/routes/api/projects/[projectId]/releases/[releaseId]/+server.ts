@@ -27,10 +27,13 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 			name: testPlan.name,
 			status: testPlan.status,
 			milestone: testPlan.milestone,
-			itemCount: sql<number>`(select count(*)::int from test_plan_test_case where test_plan_id = ${col(testPlan.id)})`.as('item_count')
+			itemCount:
+				sql<number>`(select count(*)::int from test_plan_test_case where test_plan_id = ${col(testPlan.id)})`.as(
+					'item_count'
+				)
 		})
 		.from(testPlan)
-		.where(eq(testPlan.releaseId, releaseId));
+		.where(and(eq(testPlan.releaseId, releaseId), eq(testPlan.projectId, projectId)));
 
 	// Linked runs with execution stats
 	const runs = await db
@@ -40,13 +43,23 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 			status: testRun.status,
 			environment: testRun.environment,
 			createdAt: testRun.createdAt,
-			total: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)})`.as('total'),
-			pass: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'PASS')`.as('pass'),
-			fail: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'FAIL')`.as('fail'),
-			blocked: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'BLOCKED')`.as('blocked')
+			total:
+				sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)})`.as(
+					'total'
+				),
+			pass: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'PASS')`.as(
+				'pass'
+			),
+			fail: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'FAIL')`.as(
+				'fail'
+			),
+			blocked:
+				sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'BLOCKED')`.as(
+					'blocked'
+				)
 		})
 		.from(testRun)
-		.where(eq(testRun.releaseId, releaseId));
+		.where(and(eq(testRun.releaseId, releaseId), eq(testRun.projectId, projectId)));
 
 	// Aggregate stats
 	const totalExec = runs.reduce((s, r) => s + Number(r.total), 0);
@@ -64,40 +77,45 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 	});
 });
 
-export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, params, projectId }) => {
-	const releaseId = parseId(params.releaseId, 'release ID');
+export const PATCH = withProjectRole(
+	['PROJECT_ADMIN', 'QA'],
+	async ({ request, params, projectId }) => {
+		const releaseId = parseId(params.releaseId, 'release ID');
 
-	const rel = await db.query.release.findFirst({
-		where: and(eq(release.id, releaseId), eq(release.projectId, projectId))
-	});
-	if (!rel) return notFound('Release not found');
+		const rel = await db.query.release.findFirst({
+			where: and(eq(release.id, releaseId), eq(release.projectId, projectId))
+		});
+		if (!rel) return notFound('Release not found');
 
-	const body = await parseJsonBody(request);
-	const parsed = updateReleaseSchema.safeParse(body);
-	if (!parsed.success) {
-		return validationError('Invalid input', parsed.error.flatten().fieldErrors);
+		const body = await parseJsonBody(request);
+		const parsed = updateReleaseSchema.safeParse(body);
+		if (!parsed.success) {
+			return validationError('Invalid input', parsed.error.flatten().fieldErrors);
+		}
+
+		const updates: Record<string, unknown> = {};
+		if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+		if (parsed.data.version !== undefined) updates.version = parsed.data.version;
+		if (parsed.data.description !== undefined) updates.description = parsed.data.description;
+		if (parsed.data.status !== undefined) updates.status = parsed.data.status;
+		if (parsed.data.targetDate !== undefined)
+			updates.targetDate = parsed.data.targetDate ? new Date(parsed.data.targetDate) : null;
+		if (parsed.data.releaseDate !== undefined)
+			updates.releaseDate = parsed.data.releaseDate ? new Date(parsed.data.releaseDate) : null;
+
+		if (Object.keys(updates).length === 0) {
+			return badRequest('No fields to update');
+		}
+
+		const [updated] = await db
+			.update(release)
+			.set(updates)
+			.where(and(eq(release.id, releaseId), eq(release.projectId, projectId)))
+			.returning();
+
+		return json(updated);
 	}
-
-	const updates: Record<string, unknown> = {};
-	if (parsed.data.name !== undefined) updates.name = parsed.data.name;
-	if (parsed.data.version !== undefined) updates.version = parsed.data.version;
-	if (parsed.data.description !== undefined) updates.description = parsed.data.description;
-	if (parsed.data.status !== undefined) updates.status = parsed.data.status;
-	if (parsed.data.targetDate !== undefined) updates.targetDate = parsed.data.targetDate ? new Date(parsed.data.targetDate) : null;
-	if (parsed.data.releaseDate !== undefined) updates.releaseDate = parsed.data.releaseDate ? new Date(parsed.data.releaseDate) : null;
-
-	if (Object.keys(updates).length === 0) {
-		return badRequest('No fields to update');
-	}
-
-	const [updated] = await db
-		.update(release)
-		.set(updates)
-		.where(and(eq(release.id, releaseId), eq(release.projectId, projectId)))
-		.returning();
-
-	return json(updated);
-});
+);
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
 	const releaseId = parseId(params.releaseId, 'release ID');

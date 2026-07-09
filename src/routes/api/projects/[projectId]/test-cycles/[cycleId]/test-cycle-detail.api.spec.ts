@@ -27,6 +27,7 @@ vi.mock('$lib/server/db/schema', () => ({
 	testRun: {
 		id: 'id',
 		testCycleId: 'test_cycle_id',
+		projectId: 'project_id',
 		name: 'name',
 		environment: 'environment',
 		status: 'status',
@@ -66,6 +67,24 @@ describe('/api/projects/[projectId]/test-cycles/[cycleId]', () => {
 	describe('GET', () => {
 		it('should return cycle detail with runs', async () => {
 			// First select for cycle detail, second for runs
+			const runsWhere = vi.fn().mockReturnValue({
+				groupBy: vi.fn().mockReturnValue({
+					orderBy: vi.fn().mockReturnValue({
+						then: (r: (v: unknown) => void) =>
+							Promise.resolve([
+								{
+									id: 10,
+									name: 'Run 1',
+									environment: 'QA',
+									status: 'COMPLETED',
+									total: 5,
+									passed: 4,
+									failed: 1
+								}
+							]).then(r)
+					})
+				})
+			});
 			const cycleData = {
 				id: 1,
 				name: 'Cycle 1',
@@ -73,17 +92,6 @@ describe('/api/projects/[projectId]/test-cycles/[cycleId]', () => {
 				status: 'PLANNED',
 				createdBy: 'Test User'
 			};
-			const runsData = [
-				{
-					id: 10,
-					name: 'Run 1',
-					environment: 'QA',
-					status: 'COMPLETED',
-					total: 5,
-					passed: 4,
-					failed: 1
-				}
-			];
 			mockDb.select
 				.mockReturnValueOnce({
 					from: vi.fn().mockReturnValue({
@@ -97,13 +105,7 @@ describe('/api/projects/[projectId]/test-cycles/[cycleId]', () => {
 				.mockReturnValueOnce({
 					from: vi.fn().mockReturnValue({
 						leftJoin: vi.fn().mockReturnValue({
-							where: vi.fn().mockReturnValue({
-								groupBy: vi.fn().mockReturnValue({
-									orderBy: vi.fn().mockReturnValue({
-										then: (r: (v: unknown) => void) => Promise.resolve(runsData).then(r)
-									})
-								})
-							})
+							where: runsWhere
 						})
 					})
 				} as never);
@@ -119,6 +121,10 @@ describe('/api/projects/[projectId]/test-cycles/[cycleId]', () => {
 			expect(data.name).toBe('Cycle 1');
 			expect(data.runs).toHaveLength(1);
 			expect(data.summary.passRate).toBe(80);
+			expect(runsWhere).toHaveBeenCalledWith([
+				['test_cycle_id', 1],
+				['project_id', 1]
+			]);
 		});
 
 		it('should return 404 for non-existent cycle', async () => {

@@ -1,7 +1,16 @@
 import { json, error } from '@sveltejs/kit';
 import { badRequest, validationError } from '$lib/server/errors';
 import { db } from '$lib/server/db';
-import { testPlan, testPlanTestCase, testCase, testCaseVersion, testRun, user, project, testPlanSignoff } from '$lib/server/db/schema';
+import {
+	testPlan,
+	testPlanTestCase,
+	testCase,
+	testCaseVersion,
+	testRun,
+	user,
+	project,
+	testPlanSignoff
+} from '$lib/server/db/schema';
 import { eq, and, sql, desc } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
@@ -20,28 +29,30 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 
 	const [[creator], items, runs] = await Promise.all([
 		db.select({ name: user.name }).from(user).where(eq(user.id, plan.createdBy)),
-		db.select({
-			id: testPlanTestCase.id,
-			testCaseId: testCase.id,
-			key: testCase.key,
-			title: testCaseVersion.title,
-			priority: testCaseVersion.priority,
-			position: testPlanTestCase.position
-		})
+		db
+			.select({
+				id: testPlanTestCase.id,
+				testCaseId: testCase.id,
+				key: testCase.key,
+				title: testCaseVersion.title,
+				priority: testCaseVersion.priority,
+				position: testPlanTestCase.position
+			})
 			.from(testPlanTestCase)
 			.innerJoin(testCase, eq(testPlanTestCase.testCaseId, testCase.id))
 			.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
-			.where(eq(testPlanTestCase.testPlanId, planId))
+			.where(and(eq(testPlanTestCase.testPlanId, planId), eq(testCase.projectId, projectId)))
 			.orderBy(testPlanTestCase.position),
-		db.select({
-			id: testRun.id,
-			name: testRun.name,
-			status: testRun.status,
-			environment: testRun.environment,
-			createdAt: testRun.createdAt
-		})
+		db
+			.select({
+				id: testRun.id,
+				name: testRun.name,
+				status: testRun.status,
+				environment: testRun.environment,
+				createdAt: testRun.createdAt
+			})
 			.from(testRun)
-			.where(eq(testRun.testPlanId, planId))
+			.where(and(eq(testRun.testPlanId, planId), eq(testRun.projectId, projectId)))
 			.orderBy(testRun.createdAt)
 	]);
 
@@ -53,68 +64,73 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 	});
 });
 
-export const PATCH = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, params, projectId }) => {
-	const planId = parseId(params.planId, 'plan ID');
+export const PATCH = withProjectRole(
+	['PROJECT_ADMIN', 'QA', 'DEV'],
+	async ({ request, params, projectId }) => {
+		const planId = parseId(params.planId, 'plan ID');
 
-	const plan = await db.query.testPlan.findFirst({
-		where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
-	});
+		const plan = await db.query.testPlan.findFirst({
+			where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
+		});
 
-	if (!plan) {
-		error(404, 'Plan not found');
-	}
+		if (!plan) {
+			error(404, 'Plan not found');
+		}
 
-	const body = await parseJsonBody(request);
-	const parsed = updateTestPlanSchema.safeParse(body);
-	if (!parsed.success) {
-		return validationError('Invalid input', parsed.error.flatten().fieldErrors);
-	}
+		const body = await parseJsonBody(request);
+		const parsed = updateTestPlanSchema.safeParse(body);
+		if (!parsed.success) {
+			return validationError('Invalid input', parsed.error.flatten().fieldErrors);
+		}
 
-	// Sign-off guard: if status → COMPLETED and project requires sign-off
-	if (parsed.data.status === 'COMPLETED') {
-		const [proj] = await db
-			.select({ requireSignoff: project.requireSignoff })
-			.from(project)
-			.where(eq(project.id, projectId));
+		// Sign-off guard: if status → COMPLETED and project requires sign-off
+		if (parsed.data.status === 'COMPLETED') {
+			const [proj] = await db
+				.select({ requireSignoff: project.requireSignoff })
+				.from(project)
+				.where(eq(project.id, projectId));
 
-		if (proj?.requireSignoff) {
-			const latestSignoff = await db
-				.select({ decision: testPlanSignoff.decision })
-				.from(testPlanSignoff)
-				.where(eq(testPlanSignoff.testPlanId, planId))
-				.orderBy(desc(testPlanSignoff.createdAt))
-				.limit(1);
+			if (proj?.requireSignoff) {
+				const latestSignoff = await db
+					.select({ decision: testPlanSignoff.decision })
+					.from(testPlanSignoff)
+					.where(eq(testPlanSignoff.testPlanId, planId))
+					.orderBy(desc(testPlanSignoff.createdAt))
+					.limit(1);
 
-			if (!latestSignoff.length || latestSignoff[0].decision !== 'APPROVED') {
-				return badRequest('Sign-off approval is required before completing this plan');
+				if (!latestSignoff.length || latestSignoff[0].decision !== 'APPROVED') {
+					return badRequest('Sign-off approval is required before completing this plan');
+				}
 			}
 		}
+
+		const updates: Record<string, unknown> = {};
+		if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+		if (parsed.data.description !== undefined) updates.description = parsed.data.description;
+		if (parsed.data.status !== undefined) updates.status = parsed.data.status;
+		if (parsed.data.milestone !== undefined) updates.milestone = parsed.data.milestone;
+		if (parsed.data.startDate !== undefined)
+			updates.startDate = parsed.data.startDate ? new Date(parsed.data.startDate) : null;
+		if (parsed.data.endDate !== undefined)
+			updates.endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : null;
+		if (parsed.data.releaseId !== undefined) updates.releaseId = parsed.data.releaseId;
+
+		if (Object.keys(updates).length === 0) {
+			return badRequest('No fields to update');
+		}
+
+		await db
+			.update(testPlan)
+			.set(updates)
+			.where(and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId)));
+
+		const updated = await db.query.testPlan.findFirst({
+			where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
+		});
+
+		return json(updated);
 	}
-
-	const updates: Record<string, unknown> = {};
-	if (parsed.data.name !== undefined) updates.name = parsed.data.name;
-	if (parsed.data.description !== undefined) updates.description = parsed.data.description;
-	if (parsed.data.status !== undefined) updates.status = parsed.data.status;
-	if (parsed.data.milestone !== undefined) updates.milestone = parsed.data.milestone;
-	if (parsed.data.startDate !== undefined) updates.startDate = parsed.data.startDate ? new Date(parsed.data.startDate) : null;
-	if (parsed.data.endDate !== undefined) updates.endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : null;
-	if (parsed.data.releaseId !== undefined) updates.releaseId = parsed.data.releaseId;
-
-	if (Object.keys(updates).length === 0) {
-		return badRequest('No fields to update');
-	}
-
-	await db
-		.update(testPlan)
-		.set(updates)
-		.where(and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId)));
-
-	const updated = await db.query.testPlan.findFirst({
-		where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
-	});
-
-	return json(updated);
-});
+);
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
 	const planId = parseId(params.planId, 'plan ID');

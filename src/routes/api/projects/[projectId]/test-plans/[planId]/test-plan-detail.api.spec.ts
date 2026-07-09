@@ -27,7 +27,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		testCaseId: 'test_case_id',
 		position: 'position'
 	},
-	testCase: { id: 'id', key: 'key', latestVersionId: 'latest_version_id' },
+	testCase: { id: 'id', key: 'key', latestVersionId: 'latest_version_id', projectId: 'project_id' },
 	testCaseVersion: { id: 'id', title: 'title', priority: 'priority' },
 	testRun: {
 		id: 'id',
@@ -35,6 +35,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		status: 'status',
 		environment: 'environment',
 		testPlanId: 'test_plan_id',
+		projectId: 'project_id',
 		createdAt: 'created_at'
 	},
 	user: { id: 'id', name: 'name' }
@@ -51,7 +52,8 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -78,11 +80,24 @@ const samplePlan = {
 };
 
 const sampleItems = [
-	{ id: 1, testCaseId: 10, key: 'TC-0001', title: 'Login should work', priority: 'MEDIUM', position: 0 }
+	{
+		id: 1,
+		testCaseId: 10,
+		key: 'TC-0001',
+		title: 'Login should work',
+		priority: 'MEDIUM',
+		position: 0
+	}
 ];
 
 const sampleRuns = [
-	{ id: 50, name: 'Sprint 1 Run', status: 'CREATED', environment: 'QA', createdAt: new Date('2025-01-01') }
+	{
+		id: 50,
+		name: 'Sprint 1 Run',
+		status: 'CREATED',
+		environment: 'QA',
+		createdAt: new Date('2025-01-01')
+	}
 ];
 
 describe('/api/projects/[projectId]/test-plans/[planId]', () => {
@@ -99,6 +114,8 @@ describe('/api/projects/[projectId]/test-plans/[planId]', () => {
 		it('should return plan detail with items and runs', async () => {
 			// First select returns creator, second returns items, third returns runs
 			let selectCall = 0;
+			const itemsWhere = vi.fn().mockReturnThis();
+			const runsWhere = vi.fn().mockReturnThis();
 			mockDb.select.mockImplementation(() => {
 				selectCall++;
 				if (selectCall === 1) {
@@ -113,7 +130,7 @@ describe('/api/projects/[projectId]/test-plans/[planId]', () => {
 					return {
 						from: vi.fn().mockReturnThis(),
 						innerJoin: vi.fn().mockReturnThis(),
-						where: vi.fn().mockReturnThis(),
+						where: itemsWhere,
 						orderBy: vi.fn().mockReturnThis(),
 						then: (r: (v: unknown) => void) => Promise.resolve(sampleItems).then(r)
 					} as never;
@@ -121,7 +138,7 @@ describe('/api/projects/[projectId]/test-plans/[planId]', () => {
 					// runs query
 					return {
 						from: vi.fn().mockReturnThis(),
-						where: vi.fn().mockReturnThis(),
+						where: runsWhere,
 						orderBy: vi.fn().mockReturnThis(),
 						then: (r: (v: unknown) => void) => Promise.resolve(sampleRuns).then(r)
 					} as never;
@@ -142,6 +159,14 @@ describe('/api/projects/[projectId]/test-plans/[planId]', () => {
 			expect(data.createdByName).toBe('Test User');
 			expect(Array.isArray(data.items)).toBe(true);
 			expect(Array.isArray(data.runs)).toBe(true);
+			expect(itemsWhere).toHaveBeenCalledWith([
+				['test_plan_id', 1],
+				['project_id', 1]
+			]);
+			expect(runsWhere).toHaveBeenCalledWith([
+				['test_plan_id', 1],
+				['project_id', 1]
+			]);
 		});
 
 		it('should return 404 when plan not found', async () => {
@@ -225,7 +250,12 @@ describe('/api/projects/[projectId]/test-plans/[planId]', () => {
 		});
 
 		it('should update milestone and dates', async () => {
-			const updatedPlan = { ...samplePlan, milestone: 'v2.0', startDate: new Date('2025-02-01'), endDate: new Date('2025-02-28') };
+			const updatedPlan = {
+				...samplePlan,
+				milestone: 'v2.0',
+				startDate: new Date('2025-02-01'),
+				endDate: new Date('2025-02-28')
+			};
 			vi.mocked(
 				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testPlan.findFirst
 			)

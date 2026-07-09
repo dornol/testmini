@@ -42,7 +42,7 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 		})
 		.from(testRun)
 		.leftJoin(testExecution, eq(testExecution.testRunId, testRun.id))
-		.where(eq(testRun.testCycleId, cycleId))
+		.where(and(eq(testRun.testCycleId, cycleId), eq(testRun.projectId, projectId)))
 		.groupBy(testRun.id)
 		.orderBy(testRun.createdAt);
 
@@ -61,31 +61,36 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 	});
 });
 
-export const PUT = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, params, projectId }) => {
-	const cycleId = parseId(params.cycleId, 'cycle ID');
+export const PUT = withProjectRole(
+	['PROJECT_ADMIN', 'QA'],
+	async ({ request, params, projectId }) => {
+		const cycleId = parseId(params.cycleId, 'cycle ID');
 
-	const body = await parseJsonBody(request);
-	const parsed = updateTestCycleSchema.safeParse(body);
-	if (!parsed.success) return badRequest('Invalid input');
+		const body = await parseJsonBody(request);
+		const parsed = updateTestCycleSchema.safeParse(body);
+		if (!parsed.success) return badRequest('Invalid input');
 
-	const updates: Record<string, unknown> = {};
-	if (parsed.data.name !== undefined) updates.name = parsed.data.name;
-	if (parsed.data.status !== undefined) updates.status = parsed.data.status;
-	if (parsed.data.releaseId !== undefined) updates.releaseId = parsed.data.releaseId;
-	if (parsed.data.startDate !== undefined) updates.startDate = parsed.data.startDate ? new Date(parsed.data.startDate) : null;
-	if (parsed.data.endDate !== undefined) updates.endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : null;
+		const updates: Record<string, unknown> = {};
+		if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+		if (parsed.data.status !== undefined) updates.status = parsed.data.status;
+		if (parsed.data.releaseId !== undefined) updates.releaseId = parsed.data.releaseId;
+		if (parsed.data.startDate !== undefined)
+			updates.startDate = parsed.data.startDate ? new Date(parsed.data.startDate) : null;
+		if (parsed.data.endDate !== undefined)
+			updates.endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : null;
 
-	if (Object.keys(updates).length === 0) return badRequest('No fields to update');
+		if (Object.keys(updates).length === 0) return badRequest('No fields to update');
 
-	const [updated] = await db
-		.update(testCycle)
-		.set(updates)
-		.where(and(eq(testCycle.id, cycleId), eq(testCycle.projectId, projectId)))
-		.returning();
+		const [updated] = await db
+			.update(testCycle)
+			.set(updates)
+			.where(and(eq(testCycle.id, cycleId), eq(testCycle.projectId, projectId)))
+			.returning();
 
-	if (!updated) return notFound('Test cycle not found');
-	return json(updated);
-});
+		if (!updated) return notFound('Test cycle not found');
+		return json(updated);
+	}
+);
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectId }) => {
 	const cycleId = parseId(params.cycleId, 'cycle ID');

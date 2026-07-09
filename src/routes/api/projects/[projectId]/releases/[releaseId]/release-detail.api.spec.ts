@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser } from '$lib/server/test-helpers/fixtures';
 
@@ -20,8 +24,23 @@ vi.mock('$lib/server/db/schema', () => ({
 		createdAt: 'created_at',
 		updatedAt: 'updated_at'
 	},
-	testPlan: { id: 'id', name: 'name', status: 'status', milestone: 'milestone', releaseId: 'release_id' },
-	testRun: { id: 'id', name: 'name', status: 'status', environment: 'environment', releaseId: 'release_id', createdAt: 'created_at' },
+	testPlan: {
+		id: 'id',
+		name: 'name',
+		status: 'status',
+		milestone: 'milestone',
+		releaseId: 'release_id',
+		projectId: 'project_id'
+	},
+	testRun: {
+		id: 'id',
+		name: 'name',
+		status: 'status',
+		environment: 'environment',
+		releaseId: 'release_id',
+		projectId: 'project_id',
+		createdAt: 'created_at'
+	},
 	testExecution: { id: 'id', testRunId: 'test_run_id', status: 'status' },
 	user: { id: 'id', name: 'name' },
 	testPlanTestCase: { id: 'id', testPlanId: 'test_plan_id' },
@@ -39,7 +58,8 @@ vi.mock('drizzle-orm', () => ({
 	)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -79,6 +99,8 @@ describe('/api/projects/[projectId]/releases/[releaseId]', () => {
 	describe('GET', () => {
 		it('should return release detail with plans, runs, and stats', async () => {
 			let selectCall = 0;
+			const planWhere = vi.fn().mockReturnThis();
+			const runWhere = vi.fn().mockReturnThis();
 			mockDb.select.mockImplementation(() => {
 				selectCall++;
 				if (selectCall === 1) {
@@ -92,18 +114,30 @@ describe('/api/projects/[projectId]/releases/[releaseId]', () => {
 					// plans query
 					return {
 						from: vi.fn().mockReturnThis(),
-						where: vi.fn().mockReturnThis(),
+						where: planWhere,
 						then: (r: (v: unknown) => void) =>
-							Promise.resolve([{ id: 1, name: 'Plan 1', status: 'ACTIVE', milestone: 'v1', itemCount: 5 }]).then(r)
+							Promise.resolve([
+								{ id: 1, name: 'Plan 1', status: 'ACTIVE', milestone: 'v1', itemCount: 5 }
+							]).then(r)
 					} as never;
 				} else {
 					// runs query
 					return {
 						from: vi.fn().mockReturnThis(),
-						where: vi.fn().mockReturnThis(),
+						where: runWhere,
 						then: (r: (v: unknown) => void) =>
 							Promise.resolve([
-								{ id: 50, name: 'Run 1', status: 'COMPLETED', environment: 'QA', createdAt: new Date(), total: 10, pass: 8, fail: 1, blocked: 1 }
+								{
+									id: 50,
+									name: 'Run 1',
+									status: 'COMPLETED',
+									environment: 'QA',
+									createdAt: new Date(),
+									total: 10,
+									pass: 8,
+									fail: 1,
+									blocked: 1
+								}
 							]).then(r)
 					} as never;
 				}
@@ -123,10 +157,20 @@ describe('/api/projects/[projectId]/releases/[releaseId]', () => {
 			expect(data.stats.total).toBe(10);
 			expect(data.stats.pass).toBe(8);
 			expect(data.stats.passRate).toBe(80);
+			expect(planWhere).toHaveBeenCalledWith([
+				['release_id', 300],
+				['project_id', 1]
+			]);
+			expect(runWhere).toHaveBeenCalledWith([
+				['release_id', 300],
+				['project_id', 1]
+			]);
 		});
 
 		it('should return 404 when release not found', async () => {
-			(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).release.findFirst.mockResolvedValue(null);
+			(
+				mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>
+			).release.findFirst.mockResolvedValue(null);
 
 			const event = createMockEvent({ method: 'GET', params: PARAMS, user: testUser });
 			const response = await GET(event);
@@ -231,7 +275,9 @@ describe('/api/projects/[projectId]/releases/[releaseId]', () => {
 		});
 
 		it('should return 404 when release not found', async () => {
-			(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).release.findFirst.mockResolvedValue(null);
+			(
+				mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>
+			).release.findFirst.mockResolvedValue(null);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -280,7 +326,9 @@ describe('/api/projects/[projectId]/releases/[releaseId]', () => {
 		});
 
 		it('should return 404 when release not found', async () => {
-			(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).release.findFirst.mockResolvedValue(null);
+			(
+				mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>
+			).release.findFirst.mockResolvedValue(null);
 
 			const event = createMockEvent({
 				method: 'DELETE',

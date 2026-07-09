@@ -15,18 +15,12 @@ export const DELETE = withProjectRole(
 
 		// Verify session belongs to project
 		const session = await db.query.exploratorySession.findFirst({
-			where: and(
-				eq(exploratorySession.id, sessionId),
-				eq(exploratorySession.projectId, projectId)
-			)
+			where: and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
 		});
 		if (!session) return notFound('Session not found');
 
 		const note = await db.query.sessionNote.findFirst({
-			where: and(
-				eq(sessionNote.id, noteId),
-				eq(sessionNote.sessionId, sessionId)
-			)
+			where: and(eq(sessionNote.id, noteId), eq(sessionNote.sessionId, sessionId))
 		});
 		if (!note) return notFound('Note not found');
 
@@ -35,7 +29,9 @@ export const DELETE = withProjectRole(
 			await deleteFile(note.screenshotPath);
 		}
 
-		await db.delete(sessionNote).where(eq(sessionNote.id, noteId));
+		await db
+			.delete(sessionNote)
+			.where(and(eq(sessionNote.id, noteId), eq(sessionNote.sessionId, sessionId)));
 
 		return json({ success: true });
 	}

@@ -23,9 +23,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -114,6 +113,15 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes/[note
 			expect(body.success).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
 			expect(mockDeleteFile).not.toHaveBeenCalled();
+			const deleteChain = mockDb.delete.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 5],
+					['session_id', 10]
+				])
+			);
 		});
 
 		it('should delete screenshot file when note has a screenshot', async () => {

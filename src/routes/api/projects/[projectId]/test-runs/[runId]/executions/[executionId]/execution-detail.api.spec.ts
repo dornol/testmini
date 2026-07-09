@@ -4,7 +4,9 @@ import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, sampleExecution } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
-const mockRequireEditableRun = vi.fn().mockResolvedValue({ id: 50, projectId: 1, status: 'CREATED' });
+const mockRequireEditableRun = vi
+	.fn()
+	.mockResolvedValue({ id: 50, projectId: 1, status: 'CREATED' });
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
@@ -16,7 +18,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -63,7 +66,9 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]',
 		});
 
 		it('should delete execution and related failures on success', async () => {
-			(mockDb.query.testExecution.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(sampleExecution);
+			(mockDb.query.testExecution.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+				sampleExecution
+			);
 
 			const deleteChain = {
 				where: vi.fn().mockReturnThis(),
@@ -79,6 +84,15 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]',
 			expect(data.success).toBe(true);
 			// delete called twice: once for failures, once for execution
 			expect(mockDb.delete).toHaveBeenCalledTimes(2);
+			const executionDeleteChain = mockDb.delete.mock.results[1]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(executionDeleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 200],
+					['test_run_id', 50]
+				])
+			);
 		});
 	});
 });

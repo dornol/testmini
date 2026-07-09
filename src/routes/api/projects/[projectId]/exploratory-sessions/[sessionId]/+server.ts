@@ -8,10 +8,7 @@ import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 
 async function findSession(projectId: number, sessionId: number) {
 	return db.query.exploratorySession.findFirst({
-		where: and(
-			eq(exploratorySession.id, sessionId),
-			eq(exploratorySession.projectId, projectId)
-		)
+		where: and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
 	});
 }
 
@@ -52,7 +49,7 @@ export const PATCH = withProjectRole(
 			tags?: string[];
 		};
 		try {
-			body = await parseJsonBody(request) as typeof body;
+			body = (await parseJsonBody(request)) as typeof body;
 		} catch {
 			error(400, 'Invalid JSON');
 		}
@@ -112,7 +109,7 @@ export const PATCH = withProjectRole(
 		const [updated] = await db
 			.update(exploratorySession)
 			.set(updates)
-			.where(eq(exploratorySession.id, sessionId))
+			.where(and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId)))
 			.returning();
 
 		return json(updated);
@@ -127,7 +124,11 @@ export const DELETE = withProjectRole(
 		const session = await findSession(projectId, sessionId);
 		if (!session) return notFound('Session not found');
 
-		await db.delete(exploratorySession).where(eq(exploratorySession.id, sessionId));
+		await db
+			.delete(exploratorySession)
+			.where(
+				and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
+			);
 
 		return json({ success: true });
 	}

@@ -46,9 +46,8 @@ vi.mock('drizzle-orm', () => ({
 	asc: vi.fn((a: unknown) => a)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -171,7 +170,7 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]', () => {
 				status: 'ACTIVE'
 			});
 			const updatedSession = { ...sampleSession, status: 'PAUSED' };
-			mockUpdateReturning(mockDb, [updatedSession]);
+			const updateChain = mockUpdateReturning(mockDb, [updatedSession]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -184,6 +183,12 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]', () => {
 
 			const body = await response.json();
 			expect(body.status).toBe('PAUSED');
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 10],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should reject pausing a non-active session', async () => {
@@ -442,6 +447,15 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]', () => {
 			const body = await response.json();
 			expect(body.success).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
+			const deleteChain = mockDb.delete.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 10],
+					['project_id', 1]
+				])
+			);
 		});
 	});
 });

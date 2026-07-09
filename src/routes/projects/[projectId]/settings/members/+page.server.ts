@@ -136,7 +136,9 @@ export const actions: Actions = {
 		await db
 			.update(projectMember)
 			.set({ role: parsed.data.role })
-			.where(eq(projectMember.id, parsed.data.memberId));
+			.where(
+				and(eq(projectMember.id, parsed.data.memberId), eq(projectMember.projectId, projectId))
+			);
 
 		cacheDelete(`project:${projectId}:members`);
 
@@ -186,7 +188,9 @@ export const actions: Actions = {
 			}
 		}
 
-		await db.delete(projectMember).where(eq(projectMember.id, memberId));
+		await db
+			.delete(projectMember)
+			.where(and(eq(projectMember.id, memberId), eq(projectMember.projectId, projectId)));
 
 		cacheDelete(`project:${projectId}:members`);
 

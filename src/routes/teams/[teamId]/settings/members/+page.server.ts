@@ -109,7 +109,10 @@ export const actions: Actions = {
 			}
 		}
 
-		await db.update(teamMember).set({ role }).where(eq(teamMember.id, memberId));
+		await db
+			.update(teamMember)
+			.set({ role })
+			.where(and(eq(teamMember.id, memberId), eq(teamMember.teamId, teamId)));
 
 		return { success: true };
 	},
@@ -146,7 +149,9 @@ export const actions: Actions = {
 			}
 		}
 
-		await db.delete(teamMember).where(eq(teamMember.id, memberId));
+		await db
+			.delete(teamMember)
+			.where(and(eq(teamMember.id, memberId), eq(teamMember.teamId, teamId)));
 
 		return { success: true };
 	}

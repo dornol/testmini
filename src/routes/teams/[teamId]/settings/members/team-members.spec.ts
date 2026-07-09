@@ -197,6 +197,12 @@ describe('/teams/[teamId]/settings/members', () => {
 			const result = await actions.updateRole(event);
 
 			expect(mockDb.update).toHaveBeenCalled();
+			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 2],
+					['team_id', 5]
+				])
+			);
 			expect(result).toEqual({ success: true });
 		});
 
@@ -312,6 +318,12 @@ describe('/teams/[teamId]/settings/members', () => {
 			const result = await actions.removeMember(event);
 
 			expect(mockDb.delete).toHaveBeenCalled();
+			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 2],
+					['team_id', 5]
+				])
+			);
 			expect(result).toEqual({ success: true });
 		});
 

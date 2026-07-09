@@ -55,6 +55,32 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 	});
 
 	describe('updateRole', () => {
+		it('scopes role updates to the current project', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValueOnce({
+				id: 7,
+				projectId: 1,
+				userId: 'target-user',
+				role: 'QA'
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				user: testUser,
+				formData: makeForm({ memberId: '7', role: 'DEV' })
+			});
+
+			const result = await actions.updateRole(event);
+
+			expect(result).toEqual({ success: true });
+			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 7],
+					['project_id', 1]
+				])
+			);
+		});
+
 		it('returns 400 for invalid memberId before querying member records', async () => {
 			for (const memberId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
 				vi.clearAllMocks();
@@ -91,6 +117,32 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 	});
 
 	describe('removeMember', () => {
+		it('scopes member deletes to the current project', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValueOnce({
+				id: 7,
+				projectId: 1,
+				userId: 'target-user',
+				role: 'QA'
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				user: testUser,
+				formData: makeForm({ memberId: '7' })
+			});
+
+			const result = await actions.removeMember(event);
+
+			expect(result).toEqual({ success: true });
+			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 7],
+					['project_id', 1]
+				])
+			);
+		});
+
 		it('returns 400 for invalid memberId before querying member records', async () => {
 			for (const memberId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
 				vi.clearAllMocks();

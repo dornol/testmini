@@ -2,6 +2,8 @@ import { badRequest } from '$lib/server/errors';
 import { validateRequestBody } from '$lib/server/id-list-validation';
 
 const MAX_PARAMETER_NAME_LENGTH = 200;
+const CREATE_PARAMETER_FIELDS = new Set(['name']);
+const UPDATE_PARAMETER_FIELDS = new Set(['name', 'orderIndex']);
 
 type ParameterInput = {
 	name?: string;
@@ -13,6 +15,8 @@ type CreateParameterInput = ParameterInput & { name: string };
 export function validateCreateParameterInput(body: unknown): CreateParameterInput | Response {
 	const recordOrError = validateRequestBody(body);
 	if (recordOrError instanceof Response) return recordOrError;
+	const fieldError = validateParameterKeys(recordOrError, CREATE_PARAMETER_FIELDS);
+	if (fieldError) return fieldError;
 
 	const name = validateParameterName(recordOrError.name, 'Parameter name is required');
 	if (name instanceof Response) return name;
@@ -23,6 +27,8 @@ export function validateCreateParameterInput(body: unknown): CreateParameterInpu
 export function validateUpdateParameterInput(body: unknown): ParameterInput | Response {
 	const recordOrError = validateRequestBody(body);
 	if (recordOrError instanceof Response) return recordOrError;
+	const fieldError = validateParameterKeys(recordOrError, UPDATE_PARAMETER_FIELDS);
+	if (fieldError) return fieldError;
 
 	const input: ParameterInput = {};
 	if (recordOrError.name !== undefined) {
@@ -36,8 +42,21 @@ export function validateUpdateParameterInput(body: unknown): ParameterInput | Re
 		if (orderIndex instanceof Response) return orderIndex;
 		input.orderIndex = orderIndex;
 	}
+	if (Object.keys(input).length === 0) {
+		return badRequest('No fields to update');
+	}
 
 	return input;
+}
+
+function validateParameterKeys(
+	body: Record<string, unknown>,
+	allowedFields: Set<string>
+): Response | null {
+	if (Object.keys(body).some((key) => !allowedFields.has(key))) {
+		return badRequest('Invalid parameter field');
+	}
+	return null;
 }
 
 function validateParameterName(value: unknown, emptyMessage: string): string | Response {

@@ -29,10 +29,14 @@ type CreateCustomFieldInput = CustomFieldInput & {
 const MAX_NAME_LENGTH = 200;
 const MAX_OPTIONS = 100;
 const MAX_OPTION_LENGTH = 200;
+const CREATE_CUSTOM_FIELD_FIELDS = new Set(['name', 'fieldType', 'options', 'required']);
+const UPDATE_CUSTOM_FIELD_FIELDS = new Set(['name', 'options', 'required', 'sortOrder']);
 
 export function validateCreateCustomFieldInput(body: unknown): CreateCustomFieldInput | Response {
 	const recordOrError = validateRequestBody(body);
 	if (recordOrError instanceof Response) return recordOrError;
+	const fieldError = validateCustomFieldKeys(recordOrError, CREATE_CUSTOM_FIELD_FIELDS);
+	if (fieldError) return fieldError;
 
 	const name = validateCustomFieldName(recordOrError.name, 'Name is required');
 	if (name instanceof Response) return name;
@@ -49,6 +53,8 @@ export function validateCreateCustomFieldInput(body: unknown): CreateCustomField
 export function validateUpdateCustomFieldInput(body: unknown): CustomFieldInput | Response {
 	const recordOrError = validateRequestBody(body);
 	if (recordOrError instanceof Response) return recordOrError;
+	const fieldError = validateCustomFieldKeys(recordOrError, UPDATE_CUSTOM_FIELD_FIELDS);
+	if (fieldError) return fieldError;
 
 	const updates = validateCommonCustomFieldInput(recordOrError);
 	if (updates instanceof Response) return updates;
@@ -58,8 +64,21 @@ export function validateUpdateCustomFieldInput(body: unknown): CustomFieldInput 
 		if (name instanceof Response) return name;
 		updates.name = name;
 	}
+	if (Object.keys(updates).length === 0) {
+		return badRequest('No fields to update');
+	}
 
 	return updates;
+}
+
+function validateCustomFieldKeys(
+	body: Record<string, unknown>,
+	allowedFields: Set<string>
+): Response | null {
+	if (Object.keys(body).some((key) => !allowedFields.has(key))) {
+		return badRequest('Invalid custom field field');
+	}
+	return null;
 }
 
 function validateCommonCustomFieldInput(

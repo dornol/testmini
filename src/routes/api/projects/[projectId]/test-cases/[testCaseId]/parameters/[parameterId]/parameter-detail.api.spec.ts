@@ -245,7 +245,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters/[paramete
 			expect(response.status).toBe(200);
 		});
 
-		it('should return success even with no updates', async () => {
+		it('should return 400 with no updates', async () => {
 			(mockDb.query.testCaseParameter.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
 				sampleParam
 			);
@@ -257,7 +257,29 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters/[paramete
 				user: testUser
 			});
 			const response = await PATCH(event);
-			expect(response.status).toBe(200);
+			const data = await response.json();
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('No fields to update');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for unknown fields before updating', async () => {
+			(mockDb.query.testCaseParameter.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+				sampleParam
+			);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'device', value: 'chrome' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Invalid parameter field');
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 

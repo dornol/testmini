@@ -107,7 +107,7 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 			expect(updateChain.where).toHaveBeenCalledWith(expect.arrayContaining([['project_id', 1]]));
 		});
 
-		it('should return 200 with success when no fields provided', async () => {
+		it('should return 400 when no fields provided', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -117,8 +117,24 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 			const response = await PATCH(event);
 			const body = await response.json();
 
-			expect(response.status).toBe(200);
-			expect(body.success).toBe(true);
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('No fields to update');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for unknown fields before updating', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Updated Template', owner: 'qa' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Invalid template field');
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when name is empty string', async () => {

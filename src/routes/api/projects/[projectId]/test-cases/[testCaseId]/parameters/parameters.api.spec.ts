@@ -124,6 +124,22 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for unknown fields before creating parameter', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'param1', value: 'chrome' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Invalid parameter field');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when name is not a string', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
 			const event = createMockEvent({

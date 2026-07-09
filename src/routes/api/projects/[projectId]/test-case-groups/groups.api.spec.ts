@@ -113,6 +113,23 @@ describe('/api/projects/[projectId]/test-case-groups', () => {
 			expect(data.error).toMatch(/color must be a string or null/i);
 			expect(mockDb.query.testCaseGroup.findFirst).not.toHaveBeenCalled();
 		});
+
+		it('should return 400 for unknown fields before creating group', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Group A', sortOrder: 1000 },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Invalid group field');
+			expect(mockDb.query.testCaseGroup.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
 	});
 
 	describe('POST - color validation', () => {

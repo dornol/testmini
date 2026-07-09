@@ -195,6 +195,21 @@ describe('/api/projects/[projectId]/templates', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for unknown fields before inserting', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'New Template', owner: 'qa' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Invalid template field');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when steps is not an array', async () => {
 			const event = createMockEvent({
 				method: 'POST',

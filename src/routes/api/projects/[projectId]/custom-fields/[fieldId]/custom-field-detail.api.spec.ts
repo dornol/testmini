@@ -179,7 +179,7 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
-		it('should return existing field when no updates provided', async () => {
+		it('should return 400 when no updates provided', async () => {
 			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
 
 			const event = createMockEvent({
@@ -190,9 +190,28 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 			});
 
 			const response = await PATCH(event);
-			expect(response.status).toBe(200);
 			const body = await response.json();
-			expect(body.name).toBe('Browser');
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('No fields to update');
+			expect(mockDb.query.customField.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for unknown fields before updating', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { name: 'Platform', fieldType: 'TEXT' }
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Invalid custom field field');
+			expect(mockDb.query.customField.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should update field name successfully', async () => {

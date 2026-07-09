@@ -6,6 +6,7 @@ const MAX_NAME_LENGTH = 200;
 const MAX_TEXT_LENGTH = 10000;
 const MAX_PRIORITY_LENGTH = 30;
 const MAX_STEPS = 500;
+const TEMPLATE_FIELDS = new Set(['name', 'description', 'precondition', 'steps', 'priority']);
 
 type TemplateInput = {
 	name?: string;
@@ -20,6 +21,8 @@ type CreateTemplateInput = TemplateInput & { name: string };
 export function validateCreateTemplateInput(body: unknown): CreateTemplateInput | Response {
 	const recordOrError = validateRequestBody(body);
 	if (recordOrError instanceof Response) return recordOrError;
+	const fieldError = validateTemplateFields(recordOrError);
+	if (fieldError) return fieldError;
 
 	const name = validateTemplateName(recordOrError.name);
 	if (name instanceof Response) return name;
@@ -33,6 +36,8 @@ export function validateCreateTemplateInput(body: unknown): CreateTemplateInput 
 export function validateUpdateTemplateInput(body: unknown): TemplateInput | Response {
 	const recordOrError = validateRequestBody(body);
 	if (recordOrError instanceof Response) return recordOrError;
+	const fieldError = validateTemplateFields(recordOrError);
+	if (fieldError) return fieldError;
 
 	const commonOrError = validateTemplateCommonFields(recordOrError);
 	if (commonOrError instanceof Response) return commonOrError;
@@ -43,8 +48,18 @@ export function validateUpdateTemplateInput(body: unknown): TemplateInput | Resp
 		if (name instanceof Response) return name;
 		updates.name = name;
 	}
+	if (Object.keys(updates).length === 0) {
+		return badRequest('No fields to update');
+	}
 
 	return updates;
+}
+
+function validateTemplateFields(body: Record<string, unknown>): Response | null {
+	if (Object.keys(body).some((key) => !TEMPLATE_FIELDS.has(key))) {
+		return badRequest('Invalid template field');
+	}
+	return null;
 }
 
 function validateTemplateCommonFields(body: Record<string, unknown>): TemplateInput | Response {

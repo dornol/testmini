@@ -67,6 +67,40 @@ describe('/api/projects/[projectId]/test-case-groups/[groupId] — PATCH & DELET
 			expect(mockDb.query.testCaseGroup.findFirst).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 when no fields are provided', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: {},
+				user: adminUser
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('No fields to update');
+			expect(mockDb.query.testCaseGroup.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for unknown fields before updating', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Regression Tests', sortOrder: 2000 },
+				user: adminUser
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Invalid group field');
+			expect(mockDb.query.testCaseGroup.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when name is not a string', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',

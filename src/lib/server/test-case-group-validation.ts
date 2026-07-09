@@ -3,6 +3,7 @@ import { validateRequestBody } from './id-list-validation';
 
 const HEX_COLOR_PATTERN = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 const MAX_GROUP_NAME_LENGTH = 120;
+const GROUP_FIELDS = new Set(['name', 'color']);
 
 type CreateGroupInput = {
 	name: string;
@@ -17,6 +18,8 @@ type UpdateGroupInput = {
 export function validateCreateTestCaseGroupInput(body: unknown): CreateGroupInput | Response {
 	const bodyOrError = validateRequestBody(body);
 	if (bodyOrError instanceof Response) return bodyOrError;
+	const fieldError = validateGroupKeys(bodyOrError);
+	if (fieldError) return fieldError;
 
 	const nameOrError = validateGroupName(bodyOrError.name, { required: true });
 	if (nameOrError instanceof Response) return nameOrError;
@@ -33,6 +36,8 @@ export function validateCreateTestCaseGroupInput(body: unknown): CreateGroupInpu
 export function validateUpdateTestCaseGroupInput(body: unknown): UpdateGroupInput | Response {
 	const bodyOrError = validateRequestBody(body);
 	if (bodyOrError instanceof Response) return bodyOrError;
+	const fieldError = validateGroupKeys(bodyOrError);
+	if (fieldError) return fieldError;
 
 	const updates: UpdateGroupInput = {};
 
@@ -47,14 +52,21 @@ export function validateUpdateTestCaseGroupInput(body: unknown): UpdateGroupInpu
 		if (colorOrError instanceof Response) return colorOrError;
 		updates.color = colorOrError ?? null;
 	}
+	if (Object.keys(updates).length === 0) {
+		return badRequest('No fields to update');
+	}
 
 	return updates;
 }
 
-function validateGroupName(
-	value: unknown,
-	options: { required: boolean }
-): string | Response {
+function validateGroupKeys(body: Record<string, unknown>): Response | null {
+	if (Object.keys(body).some((key) => !GROUP_FIELDS.has(key))) {
+		return badRequest('Invalid group field');
+	}
+	return null;
+}
+
+function validateGroupName(value: unknown, options: { required: boolean }): string | Response {
 	if (typeof value !== 'string') {
 		return badRequest(options.required ? 'Name is required' : 'Name must be a string');
 	}

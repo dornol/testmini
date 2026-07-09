@@ -3,7 +3,7 @@
  * When project.requireSignoff is true, completing a plan requires an APPROVED signoff.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -160,9 +160,9 @@ describe('Test Plan PATCH - Sign-off Guard', () => {
 
 	it('should allow COMPLETED when latest signoff is APPROVED', async () => {
 		const completedPlan = { ...samplePlan, status: 'COMPLETED' };
-		(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testPlan.findFirst
-			.mockResolvedValueOnce(samplePlan)
-			.mockResolvedValueOnce(completedPlan);
+		(
+			mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>
+		).testPlan.findFirst.mockResolvedValueOnce(samplePlan);
 
 		let selectCall = 0;
 		mockDb.select.mockImplementation(() => {
@@ -183,12 +183,7 @@ describe('Test Plan PATCH - Sign-off Guard', () => {
 			} as never;
 		});
 
-		const updateChain = {
-			set: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-		};
-		mockDb.update.mockReturnValue(updateChain as never);
+		mockUpdateReturning(mockDb, [completedPlan]);
 
 		const event = createMockEvent({
 			method: 'PATCH',
@@ -205,9 +200,9 @@ describe('Test Plan PATCH - Sign-off Guard', () => {
 
 	it('should skip signoff check when requireSignoff is false', async () => {
 		const completedPlan = { ...samplePlan, status: 'COMPLETED' };
-		(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testPlan.findFirst
-			.mockResolvedValueOnce(samplePlan)
-			.mockResolvedValueOnce(completedPlan);
+		(
+			mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>
+		).testPlan.findFirst.mockResolvedValueOnce(samplePlan);
 
 		mockDb.select.mockImplementation(
 			() =>
@@ -218,12 +213,7 @@ describe('Test Plan PATCH - Sign-off Guard', () => {
 				}) as never
 		);
 
-		const updateChain = {
-			set: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-		};
-		mockDb.update.mockReturnValue(updateChain as never);
+		mockUpdateReturning(mockDb, [completedPlan]);
 
 		const event = createMockEvent({
 			method: 'PATCH',
@@ -238,16 +228,11 @@ describe('Test Plan PATCH - Sign-off Guard', () => {
 
 	it('should not check signoff when status is not COMPLETED', async () => {
 		const activePlan = { ...samplePlan, status: 'ACTIVE' };
-		(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testPlan.findFirst
-			.mockResolvedValueOnce(samplePlan)
-			.mockResolvedValueOnce(activePlan);
+		(
+			mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>
+		).testPlan.findFirst.mockResolvedValueOnce(samplePlan);
 
-		const updateChain = {
-			set: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-		};
-		mockDb.update.mockReturnValue(updateChain as never);
+		mockUpdateReturning(mockDb, [activePlan]);
 
 		const event = createMockEvent({
 			method: 'PATCH',
@@ -264,16 +249,11 @@ describe('Test Plan PATCH - Sign-off Guard', () => {
 
 	it('should allow setting releaseId on a plan', async () => {
 		const updatedPlan = { ...samplePlan, releaseId: 300 };
-		(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testPlan.findFirst
-			.mockResolvedValueOnce(samplePlan)
-			.mockResolvedValueOnce(updatedPlan);
+		(
+			mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>
+		).testPlan.findFirst.mockResolvedValueOnce(samplePlan);
 
-		const updateChain = {
-			set: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-		};
-		mockDb.update.mockReturnValue(updateChain as never);
+		mockUpdateReturning(mockDb, [updatedPlan]);
 
 		const event = createMockEvent({
 			method: 'PATCH',

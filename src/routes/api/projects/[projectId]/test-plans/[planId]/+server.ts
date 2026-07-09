@@ -123,14 +123,13 @@ export const PATCH = withProjectRole(
 			return badRequest('No fields to update');
 		}
 
-		await db
+		const [updated] = await db
 			.update(testPlan)
 			.set(updates)
-			.where(and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId)));
+			.where(and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId)))
+			.returning();
 
-		const updated = await db.query.testPlan.findFirst({
-			where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
-		});
+		if (!updated) error(404, 'Plan not found');
 
 		return json(updated);
 	}
@@ -147,7 +146,12 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projec
 		error(404, 'Plan not found');
 	}
 
-	await db.delete(testPlan).where(and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId)));
+	const [deleted] = await db
+		.delete(testPlan)
+		.where(and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId)))
+		.returning();
+
+	if (!deleted) error(404, 'Plan not found');
 
 	return json({ success: true });
 });

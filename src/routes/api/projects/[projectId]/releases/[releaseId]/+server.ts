@@ -113,6 +113,8 @@ export const PATCH = withProjectRole(
 			.where(and(eq(release.id, releaseId), eq(release.projectId, projectId)))
 			.returning();
 
+		if (!updated) return notFound('Release not found');
+
 		return json(updated);
 	}
 );
@@ -125,7 +127,12 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projec
 	});
 	if (!rel) return notFound('Release not found');
 
-	await db.delete(release).where(and(eq(release.id, releaseId), eq(release.projectId, projectId)));
+	const [deleted] = await db
+		.delete(release)
+		.where(and(eq(release.id, releaseId), eq(release.projectId, projectId)))
+		.returning();
+
+	if (!deleted) return notFound('Release not found');
 
 	return json({ success: true });
 });

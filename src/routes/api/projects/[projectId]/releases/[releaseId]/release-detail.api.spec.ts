@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockSelectResult,
 	mockUpdateReturning
 } from '$lib/server/test-helpers/mock-db';
@@ -174,6 +175,20 @@ describe('/api/projects/[projectId]/releases/[releaseId]', () => {
 
 			const event = createMockEvent({ method: 'GET', params: PARAMS, user: testUser });
 			const response = await GET(event);
+
+			expect(response.status).toBe(404);
+		});
+
+		it('should return 404 when release disappears before update', async () => {
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'New' },
+				user: testUser
+			});
+			const response = await PATCH(event);
 
 			expect(response.status).toBe(404);
 		});
@@ -358,11 +373,7 @@ describe('/api/projects/[projectId]/releases/[releaseId]', () => {
 
 	describe('DELETE', () => {
 		it('should delete release successfully', async () => {
-			const deleteChain = {
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			mockDeleteReturning(mockDb, [sampleRelease]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -374,6 +385,19 @@ describe('/api/projects/[projectId]/releases/[releaseId]', () => {
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
+		});
+
+		it('should return 404 when release disappears before delete', async () => {
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: adminUser
+			});
+			const response = await DELETE(event);
+
+			expect(response.status).toBe(404);
 		});
 
 		it('should return 404 when release not found', async () => {

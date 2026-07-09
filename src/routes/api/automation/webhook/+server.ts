@@ -109,7 +109,10 @@ export const POST: RequestHandler = async ({ request }) => {
 	let body: unknown;
 	try {
 		body = await parseJsonBody(request);
-	} catch {
+	} catch (err) {
+		if (err && typeof err === 'object' && 'status' in err && err.status === 413) {
+			return payloadTooLarge();
+		}
 		return badRequest('Invalid request body');
 	}
 	if (!isRecord(body)) {

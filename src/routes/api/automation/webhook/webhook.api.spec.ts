@@ -110,6 +110,22 @@ describe('/api/automation/webhook POST', () => {
 			expect(response.status).toBe(413);
 			expect(data.error).toContain('1MB');
 		});
+
+		it('should return 413 when body exceeds 1MB without content-length', async () => {
+			const request = new Request('http://localhost:5173/api/automation/webhook', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ data: 'x'.repeat(1024 * 1024) })
+			});
+
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(413);
+			expect(data.error).toContain('1MB');
+		});
 	});
 
 	// ─── Unknown platform ────────────────────────────────────────────────

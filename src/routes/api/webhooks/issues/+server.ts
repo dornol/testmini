@@ -6,6 +6,7 @@ import { issueLink, issueTrackerConfig, testCase } from '$lib/server/db/schema';
 import { eq, and, or, inArray } from 'drizzle-orm';
 import { childLogger } from '$lib/server/logger';
 import crypto from 'node:crypto';
+import { readRequestText } from '$lib/server/auth-utils';
 
 const log = childLogger('issue-webhook');
 
@@ -148,7 +149,15 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	// Read raw body for signature verification
-	const rawBody = await request.text();
+	let rawBody: string;
+	try {
+		rawBody = await readRequestText(request, MAX_WEBHOOK_BODY_SIZE);
+	} catch (err) {
+		if (err && typeof err === 'object' && 'status' in err && err.status === 413) {
+			return payloadTooLarge();
+		}
+		throw err;
+	}
 
 	let body: unknown;
 	try {

@@ -85,16 +85,44 @@ export function parseId(raw: string | undefined, label: string): number {
 
 const MAX_JSON_BODY_SIZE = 1024 * 1024; // 1MB
 
-export async function parseJsonBody(request: Request): Promise<unknown> {
+export async function readRequestText(
+	request: Request,
+	maxBytes = MAX_JSON_BODY_SIZE
+): Promise<string> {
 	const contentLength = Number(request.headers.get('content-length') ?? 0);
-	if (contentLength > MAX_JSON_BODY_SIZE) {
+	if (contentLength > maxBytes) {
 		error(413, 'Request body must not exceed 1MB');
 	}
+
+	if (!request.body) return '';
+
+	const reader = request.body.getReader();
+	const decoder = new TextDecoder();
+	let bytesRead = 0;
+	let text = '';
+
 	try {
-		const text = await request.text();
-		if (text.length > MAX_JSON_BODY_SIZE) {
-			error(413, 'Request body must not exceed 1MB');
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+
+			bytesRead += value.byteLength;
+			if (bytesRead > maxBytes) {
+				error(413, 'Request body must not exceed 1MB');
+			}
+
+			text += decoder.decode(value, { stream: true });
 		}
+		text += decoder.decode();
+		return text;
+	} finally {
+		reader.releaseLock();
+	}
+}
+
+export async function parseJsonBody(request: Request): Promise<unknown> {
+	try {
+		const text = await readRequestText(request, MAX_JSON_BODY_SIZE);
 		return JSON.parse(text);
 	} catch (e) {
 		if (e && typeof e === 'object' && 'status' in e) throw e;

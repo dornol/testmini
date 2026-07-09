@@ -281,6 +281,20 @@ describe('/api/webhooks/issues POST', () => {
 			expect(data.error).toBe('Request body must not exceed 1MB');
 		});
 
+		it('returns 413 when body exceeds 1MB without content-length', async () => {
+			const event = createWebhookRequest(
+				{ data: 'x'.repeat(1024 * 1024) },
+				{ 'x-github-event': 'issues' }
+			);
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(413);
+			expect(data.error).toBe('Request body must not exceed 1MB');
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
 		it('acknowledges GitHub ping event', async () => {
 			const event = createWebhookRequest({ zen: 'Keep it simple' }, { 'x-github-event': 'ping' });
 

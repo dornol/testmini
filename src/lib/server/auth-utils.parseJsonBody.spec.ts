@@ -50,6 +50,16 @@ describe('parseJsonBody', () => {
 		await expect(parseJsonBody(request)).rejects.toThrow();
 	});
 
+	it('should throw 413 while streaming when body exceeds 1MB without content-length', async () => {
+		const request = new Request('http://localhost/api/test', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ data: 'x'.repeat(1024 * 1024) })
+		});
+
+		await expect(parseJsonBody(request)).rejects.toMatchObject({ status: 413 });
+	});
+
 	it('should allow requests at exactly 1MB', async () => {
 		const request = new Request('http://localhost/api/test', {
 			method: 'POST',

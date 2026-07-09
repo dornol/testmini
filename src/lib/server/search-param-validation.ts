@@ -1,3 +1,5 @@
+const NON_NEGATIVE_INTEGER_PATTERN = /^(0|[1-9]\d*)$/;
+
 export function parsePositiveIntegerSearchParam(
 	value: string | null,
 	defaultValue: number,
@@ -61,6 +63,7 @@ export function parseNonNegativeIntegerSearchParam(
 
 function parseSearchInteger(value: string | null): number | null {
 	if (value === null || value.trim() === '') return null;
+	if (!NON_NEGATIVE_INTEGER_PATTERN.test(value)) return null;
 
 	const parsed = Number(value);
 	return Number.isSafeInteger(parsed) ? parsed : null;

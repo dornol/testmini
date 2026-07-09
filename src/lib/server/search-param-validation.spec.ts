@@ -8,12 +8,24 @@ import {
 
 describe('search-param-validation', () => {
 	describe('parsePositiveIntegerSearchParam', () => {
-		it.each([null, '', ' ', 'abc', '0', '-1', '1.5', 'Infinity', '9007199254740992'])(
-			'should return the default for invalid value %s',
-			(value) => {
-				expect(parsePositiveIntegerSearchParam(value, 7)).toBe(7);
-			}
-		);
+		it.each([
+			null,
+			'',
+			' ',
+			'abc',
+			'0',
+			'-1',
+			'+1',
+			'01',
+			'1.5',
+			'1e3',
+			' 12',
+			'12 ',
+			'Infinity',
+			'9007199254740992'
+		])('should return the default for invalid value %s', (value) => {
+			expect(parsePositiveIntegerSearchParam(value, 7)).toBe(7);
+		});
 
 		it('should parse positive safe integers', () => {
 			expect(parsePositiveIntegerSearchParam('12', 1)).toBe(12);
@@ -36,7 +48,7 @@ describe('search-param-validation', () => {
 			expect(parseOptionalPositiveIntegerSearchParam('', 'id')).toBeNull();
 		});
 
-		it.each(['0', '-1', '1.5', 'Infinity', '9007199254740992'])(
+		it.each(['0', '-1', '+1', '01', '1.5', '1e3', ' 12', '12 ', 'Infinity', '9007199254740992'])(
 			'should reject invalid value %s',
 			(value) => {
 				expect(() => parseOptionalPositiveIntegerSearchParam(value, 'id')).toThrow('Invalid id');
@@ -53,7 +65,7 @@ describe('search-param-validation', () => {
 			expect(parsePositiveIntegerSearchParamStrict('500', 'limit', { max: 100 })).toBe(100);
 		});
 
-		it.each(['0', '-1', '1.5', 'Infinity', '9007199254740992'])(
+		it.each(['0', '-1', '+1', '01', '1.5', '1e3', ' 12', '12 ', 'Infinity', '9007199254740992'])(
 			'should reject invalid value %s',
 			(value) => {
 				expect(() => parsePositiveIntegerSearchParamStrict(value, 'limit')).toThrow(
@@ -69,7 +81,7 @@ describe('search-param-validation', () => {
 			expect(parseNonNegativeIntegerSearchParam('500', 'offset', { max: 100 })).toBe(100);
 		});
 
-		it.each(['-1', '1.5', 'Infinity', '9007199254740992'])(
+		it.each(['-1', '+1', '01', '1.5', '1e3', ' 12', '12 ', 'Infinity', '9007199254740992'])(
 			'should reject invalid value %s',
 			(value) => {
 				expect(() => parseNonNegativeIntegerSearchParam(value, 'offset')).toThrow('Invalid offset');

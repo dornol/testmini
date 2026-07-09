@@ -8,9 +8,19 @@ import {
 	testExecution,
 	testFailureDetail
 } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator, mcpPositiveIdSchema, mcpIdListSchema } from '../helpers';
+import {
+	ok,
+	err,
+	requireProjectCreator,
+	mcpPositiveIdSchema,
+	mcpIdListSchema,
+	mcpLimitSchema
+} from '../helpers';
 import { eq, and, inArray, desc } from 'drizzle-orm';
 import { createTestRunSchema, updateTestRunSchema } from '$lib/schemas/test-run.schema';
+
+const DEFAULT_TEST_RUN_LIMIT = 50;
+const MAX_TEST_RUN_LIMIT = 100;
 
 const mcpCreateTestRunSchema = createTestRunSchema
 	.omit({ testCaseIds: true })
@@ -29,7 +39,9 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 				.enum(['CREATED', 'IN_PROGRESS', 'COMPLETED'])
 				.optional()
 				.describe('Filter by status'),
-			limit: z.number().optional().describe('Max results (default 50)')
+			limit: mcpLimitSchema(MAX_TEST_RUN_LIMIT)
+				.optional()
+				.describe('Max results (default 50, max 100)')
 		},
 		async ({ status, limit }) => {
 			const conditions = [eq(testRun.projectId, projectId)];
@@ -47,7 +59,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 				.from(testRun)
 				.where(and(...conditions))
 				.orderBy(desc(testRun.createdAt))
-				.limit(limit ?? 50);
+				.limit(limit ?? DEFAULT_TEST_RUN_LIMIT);
 
 			return ok(runs);
 		}

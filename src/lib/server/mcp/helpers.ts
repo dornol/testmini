@@ -5,6 +5,15 @@ import { z } from 'zod';
 
 const MAX_MCP_ID_LIST_ITEMS = 500;
 
+export function mcpLimitSchema(max: number) {
+	return z
+		.number()
+		.int()
+		.positive()
+		.max(max)
+		.refine(Number.isSafeInteger, 'limit must be a safe integer');
+}
+
 export const mcpPositiveIdSchema = z
 	.number()
 	.int()

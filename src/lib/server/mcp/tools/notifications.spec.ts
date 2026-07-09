@@ -5,7 +5,17 @@ const mockDb = createMockDb();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
-	notification: { id: 'id', userId: 'user_id', type: 'type', title: 'title', message: 'message', link: 'link', projectId: 'project_id', isRead: 'is_read', createdAt: 'created_at' }
+	notification: {
+		id: 'id',
+		userId: 'user_id',
+		type: 'type',
+		title: 'title',
+		message: 'message',
+		link: 'link',
+		projectId: 'project_id',
+		isRead: 'is_read',
+		createdAt: 'created_at'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -13,7 +23,7 @@ vi.mock('drizzle-orm', () => ({
 	desc: vi.fn((a: unknown) => a)
 }));
 vi.mock('../helpers', async () => {
-	const actual = await vi.importActual('../helpers') as Record<string, unknown>;
+	const actual = (await vi.importActual('../helpers')) as Record<string, unknown>;
 	return { ...actual };
 });
 
@@ -56,6 +66,7 @@ describe('MCP notification tools', () => {
 	let close: () => Promise<void>;
 
 	beforeEach(async () => {
+		vi.clearAllMocks();
 		const c = await createClient();
 		client = c.client;
 		close = c.close;
@@ -107,6 +118,19 @@ describe('MCP notification tools', () => {
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed).toHaveLength(1);
+		});
+
+		it('should reject invalid limits before querying', async () => {
+			const result = await client.callTool({
+				name: 'list-notifications',
+				arguments: { limit: 0 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 	});
 });

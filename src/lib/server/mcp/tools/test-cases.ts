@@ -10,7 +10,14 @@ import {
 	testCaseGroup,
 	projectMember
 } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator, mcpPositiveIdSchema, mcpIdListSchema } from '../helpers';
+import {
+	ok,
+	err,
+	requireProjectCreator,
+	mcpPositiveIdSchema,
+	mcpIdListSchema,
+	mcpLimitSchema
+} from '../helpers';
 import { eq, and, sql, desc, inArray } from 'drizzle-orm';
 import {
 	validateTestCaseCreatePayload,
@@ -20,13 +27,6 @@ import {
 const DEFAULT_LIST_LIMIT = 50;
 const DEFAULT_SEARCH_LIMIT = 20;
 const MAX_TEST_CASE_LIMIT = 100;
-
-const mcpTestCaseLimitSchema = z
-	.number()
-	.int()
-	.positive()
-	.max(MAX_TEST_CASE_LIMIT)
-	.refine(Number.isSafeInteger, 'limit must be a safe integer');
 
 async function mcpValidationError(
 	response: Response,
@@ -41,7 +41,9 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 		'list-test-cases',
 		'List all test cases for the project',
 		{
-			limit: mcpTestCaseLimitSchema.optional().describe('Max results (default 50, max 100)'),
+			limit: mcpLimitSchema(MAX_TEST_CASE_LIMIT)
+				.optional()
+				.describe('Max results (default 50, max 100)'),
 			groupId: mcpPositiveIdSchema.optional().describe('Filter by group ID')
 		},
 		async ({ limit, groupId }) => {
@@ -73,7 +75,9 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 		'Search test cases by keyword in title, key, or steps',
 		{
 			query: z.string().describe('Search keyword'),
-			limit: mcpTestCaseLimitSchema.optional().describe('Max results (default 20, max 100)')
+			limit: mcpLimitSchema(MAX_TEST_CASE_LIMIT)
+				.optional()
+				.describe('Max results (default 20, max 100)')
 		},
 		async ({ query, limit }) => {
 			const results = await db

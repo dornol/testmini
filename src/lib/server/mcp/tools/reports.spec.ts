@@ -6,9 +6,28 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
-	testCase: { id: 'id', projectId: 'project_id', riskImpact: 'risk_impact', riskLikelihood: 'risk_likelihood', riskLevel: 'risk_level' },
-	testRun: { id: 'id', projectId: 'project_id', status: 'status', createdAt: 'created_at', finishedAt: 'finished_at', name: 'name', environment: 'environment' },
-	testExecution: { id: 'id', testRunId: 'test_run_id', status: 'status', testCaseVersionId: 'test_case_version_id' }
+	testCase: {
+		id: 'id',
+		projectId: 'project_id',
+		riskImpact: 'risk_impact',
+		riskLikelihood: 'risk_likelihood',
+		riskLevel: 'risk_level'
+	},
+	testRun: {
+		id: 'id',
+		projectId: 'project_id',
+		status: 'status',
+		createdAt: 'created_at',
+		finishedAt: 'finished_at',
+		name: 'name',
+		environment: 'environment'
+	},
+	testExecution: {
+		id: 'id',
+		testRunId: 'test_run_id',
+		status: 'status',
+		testCaseVersionId: 'test_case_version_id'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -20,7 +39,7 @@ vi.mock('drizzle-orm', () => ({
 	desc: vi.fn((a: unknown) => a)
 }));
 vi.mock('../helpers', async () => {
-	const actual = await vi.importActual('../helpers') as Record<string, unknown>;
+	const actual = (await vi.importActual('../helpers')) as Record<string, unknown>;
 	return { ...actual };
 });
 
@@ -53,6 +72,7 @@ describe('MCP report tools', () => {
 	let close: () => Promise<void>;
 
 	beforeEach(async () => {
+		vi.clearAllMocks();
 		const c = await createClient();
 		client = c.client;
 		close = c.close;
@@ -67,9 +87,31 @@ describe('MCP report tools', () => {
 	describe('get-project-stats', () => {
 		it('should return counts and passRate', async () => {
 			// Sequential select mocks: tcCount, runCount, execCounts
-			const chain1 = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), innerJoin: vi.fn().mockReturnThis(), groupBy: vi.fn().mockReturnThis(), then: (r: (v: unknown) => void) => Promise.resolve([{ tcCount: 5 }]).then(r) };
-			const chain2 = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), innerJoin: vi.fn().mockReturnThis(), groupBy: vi.fn().mockReturnThis(), then: (r: (v: unknown) => void) => Promise.resolve([{ runCount: 3 }]).then(r) };
-			const chain3 = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), innerJoin: vi.fn().mockReturnThis(), groupBy: vi.fn().mockReturnThis(), then: (r: (v: unknown) => void) => Promise.resolve([{ status: 'PASS', count: 10 }, { status: 'FAIL', count: 2 }]).then(r) };
+			const chain1 = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				innerJoin: vi.fn().mockReturnThis(),
+				groupBy: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([{ tcCount: 5 }]).then(r)
+			};
+			const chain2 = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				innerJoin: vi.fn().mockReturnThis(),
+				groupBy: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([{ runCount: 3 }]).then(r)
+			};
+			const chain3 = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				innerJoin: vi.fn().mockReturnThis(),
+				groupBy: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) =>
+					Promise.resolve([
+						{ status: 'PASS', count: 10 },
+						{ status: 'FAIL', count: 2 }
+					]).then(r)
+			};
 
 			mockDb.select
 				.mockReturnValueOnce(chain1 as never)
@@ -96,7 +138,13 @@ describe('MCP report tools', () => {
 	describe('get-trends', () => {
 		it('should return empty array when no completed runs', async () => {
 			// First select returns empty runs
-			const chain1 = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), orderBy: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), then: (r: (v: unknown) => void) => Promise.resolve([]).then(r) };
+			const chain1 = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				orderBy: vi.fn().mockReturnThis(),
+				limit: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+			};
 
 			mockDb.select.mockReturnValueOnce(chain1 as never);
 
@@ -113,13 +161,27 @@ describe('MCP report tools', () => {
 		it('should return trends for completed runs', async () => {
 			const finishedAt = new Date('2025-01-15');
 			// First select: runs
-			const chain1 = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), orderBy: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), then: (r: (v: unknown) => void) => Promise.resolve([{ id: 1, name: 'Run1', environment: 'DEV', finishedAt }]).then(r) };
+			const chain1 = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				orderBy: vi.fn().mockReturnThis(),
+				limit: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) =>
+					Promise.resolve([{ id: 1, name: 'Run1', environment: 'DEV', finishedAt }]).then(r)
+			};
 			// Second select: exec counts
-			const chain2 = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), groupBy: vi.fn().mockReturnThis(), then: (r: (v: unknown) => void) => Promise.resolve([{ testRunId: 1, status: 'PASS', count: 8 }, { testRunId: 1, status: 'FAIL', count: 2 }]).then(r) };
+			const chain2 = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				groupBy: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) =>
+					Promise.resolve([
+						{ testRunId: 1, status: 'PASS', count: 8 },
+						{ testRunId: 1, status: 'FAIL', count: 2 }
+					]).then(r)
+			};
 
-			mockDb.select
-				.mockReturnValueOnce(chain1 as never)
-				.mockReturnValueOnce(chain2 as never);
+			mockDb.select.mockReturnValueOnce(chain1 as never).mockReturnValueOnce(chain2 as never);
 
 			const result = await client.callTool({
 				name: 'get-trends',
@@ -135,6 +197,19 @@ describe('MCP report tools', () => {
 			expect(parsed[0].totalCount).toBe(10);
 			expect(parsed[0].passRate).toBe(80);
 		});
+
+		it('should reject invalid limits before querying', async () => {
+			const result = await client.callTool({
+				name: 'get-trends',
+				arguments: { limit: 0 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
 	});
 
 	// ── get-risk-matrix ──────────────────────────────────
@@ -142,13 +217,23 @@ describe('MCP report tools', () => {
 	describe('get-risk-matrix', () => {
 		it('should return matrix and totals', async () => {
 			// First select: risk matrix rows
-			const chain1 = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), groupBy: vi.fn().mockReturnThis(), then: (r: (v: unknown) => void) => Promise.resolve([{ riskImpact: 'HIGH', riskLikelihood: 'HIGH', riskLevel: 'CRITICAL', count: 3 }]).then(r) };
+			const chain1 = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				groupBy: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) =>
+					Promise.resolve([
+						{ riskImpact: 'HIGH', riskLikelihood: 'HIGH', riskLevel: 'CRITICAL', count: 3 }
+					]).then(r)
+			};
 			// Second select: totals
-			const chain2 = { from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), then: (r: (v: unknown) => void) => Promise.resolve([{ total: 10, assessed: 5 }]).then(r) };
+			const chain2 = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([{ total: 10, assessed: 5 }]).then(r)
+			};
 
-			mockDb.select
-				.mockReturnValueOnce(chain1 as never)
-				.mockReturnValueOnce(chain2 as never);
+			mockDb.select.mockReturnValueOnce(chain1 as never).mockReturnValueOnce(chain2 as never);
 
 			const result = await client.callTool({
 				name: 'get-risk-matrix',

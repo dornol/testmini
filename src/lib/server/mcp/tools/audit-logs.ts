@@ -3,14 +3,19 @@ import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { auditLog } from '$lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
-import { ok } from '../helpers';
+import { mcpLimitSchema, ok } from '../helpers';
+
+const DEFAULT_AUDIT_LOG_LIMIT = 50;
+const MAX_AUDIT_LOG_LIMIT = 100;
 
 export function registerAuditLogTools(server: McpServer, projectId: number) {
 	server.tool(
 		'list-audit-logs',
 		'List recent audit logs for the project',
 		{
-			limit: z.number().optional().describe('Max results (default 50)'),
+			limit: mcpLimitSchema(MAX_AUDIT_LOG_LIMIT)
+				.optional()
+				.describe('Max results (default 50, max 100)'),
 			action: z.string().optional().describe('Filter by action type')
 		},
 		async ({ limit, action }) => {
@@ -30,7 +35,7 @@ export function registerAuditLogTools(server: McpServer, projectId: number) {
 				.from(auditLog)
 				.where(and(...conditions))
 				.orderBy(desc(auditLog.createdAt))
-				.limit(limit ?? 50);
+				.limit(limit ?? DEFAULT_AUDIT_LOG_LIMIT);
 
 			return ok(logs);
 		}

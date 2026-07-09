@@ -3,7 +3,10 @@ import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { testCase, testRun, testExecution } from '$lib/server/db/schema';
 import { eq, and, count, sql, isNotNull, inArray, desc } from 'drizzle-orm';
-import { ok } from '../helpers';
+import { mcpLimitSchema, ok } from '../helpers';
+
+const DEFAULT_TREND_LIMIT = 20;
+const MAX_TREND_LIMIT = 50;
 
 export function registerReportTools(server: McpServer, projectId: number) {
 	server.tool(
@@ -28,7 +31,13 @@ export function registerReportTools(server: McpServer, projectId: number) {
 				.where(eq(testRun.projectId, projectId))
 				.groupBy(testExecution.status);
 
-			const executionCounts: Record<string, number> = { PASS: 0, FAIL: 0, BLOCKED: 0, SKIPPED: 0, PENDING: 0 };
+			const executionCounts: Record<string, number> = {
+				PASS: 0,
+				FAIL: 0,
+				BLOCKED: 0,
+				SKIPPED: 0,
+				PENDING: 0
+			};
 			let total = 0;
 			for (const row of execCounts) {
 				executionCounts[row.status] = row.count;
@@ -45,11 +54,11 @@ export function registerReportTools(server: McpServer, projectId: number) {
 		'get-trends',
 		'Get pass rate trend from recent completed test runs (up to 20)',
 		{
-			limit: z.number().optional().describe('Number of recent runs to include (default: 20, max: 50)')
+			limit: mcpLimitSchema(MAX_TREND_LIMIT)
+				.optional()
+				.describe('Number of recent runs to include (default: 20, max: 50)')
 		},
 		async ({ limit }) => {
-			const maxRuns = Math.min(limit ?? 20, 50);
-
 			const runs = await db
 				.select({
 					id: testRun.id,
@@ -60,7 +69,7 @@ export function registerReportTools(server: McpServer, projectId: number) {
 				.from(testRun)
 				.where(and(eq(testRun.projectId, projectId), eq(testRun.status, 'COMPLETED')))
 				.orderBy(desc(testRun.createdAt))
-				.limit(maxRuns);
+				.limit(limit ?? DEFAULT_TREND_LIMIT);
 
 			if (runs.length === 0) return ok([]);
 

@@ -5,7 +5,16 @@ const mockDb = createMockDb();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
-	auditLog: { id: 'id', userId: 'user_id', action: 'action', entityType: 'entity_type', entityId: 'entity_id', projectId: 'project_id', metadata: 'metadata', createdAt: 'created_at' }
+	auditLog: {
+		id: 'id',
+		userId: 'user_id',
+		action: 'action',
+		entityType: 'entity_type',
+		entityId: 'entity_id',
+		projectId: 'project_id',
+		metadata: 'metadata',
+		createdAt: 'created_at'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -13,7 +22,7 @@ vi.mock('drizzle-orm', () => ({
 	desc: vi.fn((a: unknown) => a)
 }));
 vi.mock('../helpers', async () => {
-	const actual = await vi.importActual('../helpers') as Record<string, unknown>;
+	const actual = (await vi.importActual('../helpers')) as Record<string, unknown>;
 	return { ...actual };
 });
 
@@ -56,6 +65,7 @@ describe('MCP audit-log tools', () => {
 	let close: () => Promise<void>;
 
 	beforeEach(async () => {
+		vi.clearAllMocks();
 		const c = await createClient();
 		client = c.client;
 		close = c.close;
@@ -108,6 +118,19 @@ describe('MCP audit-log tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed).toHaveLength(1);
 			expect(parsed[0].action).toBe('test_case.created');
+		});
+
+		it('should reject invalid limits before querying', async () => {
+			const result = await client.callTool({
+				name: 'list-audit-logs',
+				arguments: { limit: 0 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 	});
 });

@@ -2,8 +2,11 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { notification } from '$lib/server/db/schema';
-import { ok } from '../helpers';
+import { mcpLimitSchema, ok } from '../helpers';
 import { eq, and, desc } from 'drizzle-orm';
+
+const DEFAULT_NOTIFICATION_LIMIT = 20;
+const MAX_NOTIFICATION_LIMIT = 100;
 
 export function registerNotificationTools(server: McpServer, projectId: number) {
 	server.tool(
@@ -11,7 +14,9 @@ export function registerNotificationTools(server: McpServer, projectId: number) 
 		'List recent notifications for the project',
 		{
 			unreadOnly: z.boolean().optional().describe('Only show unread notifications'),
-			limit: z.number().optional().describe('Max results (default 20)')
+			limit: mcpLimitSchema(MAX_NOTIFICATION_LIMIT)
+				.optional()
+				.describe('Max results (default 20, max 100)')
 		},
 		async ({ unreadOnly, limit }) => {
 			const conditions = [eq(notification.projectId, projectId)];
@@ -30,7 +35,7 @@ export function registerNotificationTools(server: McpServer, projectId: number) 
 				.from(notification)
 				.where(and(...conditions))
 				.orderBy(desc(notification.createdAt))
-				.limit(limit ?? 20);
+				.limit(limit ?? DEFAULT_NOTIFICATION_LIMIT);
 
 			return ok(notes);
 		}

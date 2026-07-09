@@ -46,6 +46,7 @@ vi.mock('$lib/server/db/schema', () => ({
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args),
+	desc: vi.fn((a: unknown) => a),
 	sql: Object.assign(
 		(strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }),
 		{ raw: (s: string) => s }
@@ -90,6 +91,23 @@ describe('MCP test-run tools', () => {
 
 	afterEach(async () => {
 		await close();
+	});
+
+	// ── list-test-runs ───────────────────────────────────
+
+	describe('list-test-runs', () => {
+		it('should reject invalid limits before querying', async () => {
+			const result = await client.callTool({
+				name: 'list-test-runs',
+				arguments: { limit: 0 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
 	});
 
 	// ── get-test-run ─────────────────────────────────────

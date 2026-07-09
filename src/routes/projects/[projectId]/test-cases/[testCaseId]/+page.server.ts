@@ -24,6 +24,17 @@ import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils
 import { loadTestCaseMetadata } from '$lib/server/queries';
 import { cacheDelete } from '$lib/server/cache';
 
+const MAX_USER_ID_LENGTH = 255;
+
+function parseUserId(value: FormDataEntryValue | null): string | null {
+	if (typeof value !== 'string') return null;
+	const userId = value.trim();
+	if (!userId || userId.length > MAX_USER_ID_LENGTH || /[\x00-\x1F\x7F]/.test(userId)) {
+		return null;
+	}
+	return userId;
+}
+
 async function requireActionTestCase(testCaseId: number, projectId: number) {
 	const tc = await db.query.testCase.findFirst({
 		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
@@ -358,7 +369,7 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const userId = formData.get('userId') as string;
+		const userId = parseUserId(formData.get('userId'));
 
 		if (!userId) {
 			return fail(400, { error: 'Missing userId' });
@@ -394,7 +405,7 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const userId = formData.get('userId') as string;
+		const userId = parseUserId(formData.get('userId'));
 
 		if (!userId) {
 			return fail(400, { error: 'Missing userId' });

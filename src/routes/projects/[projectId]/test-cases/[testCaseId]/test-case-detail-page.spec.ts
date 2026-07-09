@@ -55,7 +55,7 @@ const authUtils = await import('$lib/server/auth-utils');
 
 const PARAMS = { projectId: '1', testCaseId: '10' };
 
-function makeFormData(entries: Record<string, string>): FormData {
+function makeFormData(entries: Record<string, FormDataEntryValue>): FormData {
 	const fd = new FormData();
 	for (const [key, value] of Object.entries(entries)) {
 		fd.set(key, value);
@@ -147,6 +147,28 @@ describe('test case detail page actions', () => {
 	});
 
 	describe('assignAssignee', () => {
+		it.each([
+			[''],
+			['   '],
+			['x'.repeat(256)],
+			['user\u0000id'],
+			[new File(['user-2'], 'user.txt')]
+		])('rejects invalid userId before querying test case for assignment', async (userId) => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ userId }),
+				user: testUser
+			});
+
+			const result = await actions.assignAssignee(event);
+
+			expect(result).toMatchObject({ status: 400, data: { error: 'Missing userId' } });
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('rejects assignment when the test case is outside the current project', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(null);
 			const event = createMockEvent({
@@ -163,6 +185,27 @@ describe('test case detail page actions', () => {
 	});
 
 	describe('removeAssignee', () => {
+		it.each([
+			[''],
+			['   '],
+			['x'.repeat(256)],
+			['user\u0000id'],
+			[new File(['user-2'], 'user.txt')]
+		])('rejects invalid userId before deleting assignee for removal', async (userId) => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ userId }),
+				user: testUser
+			});
+
+			const result = await actions.removeAssignee(event);
+
+			expect(result).toMatchObject({ status: 400, data: { error: 'Missing userId' } });
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
 		it('rejects removal when the test case is outside the current project', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(null);
 			const event = createMockEvent({

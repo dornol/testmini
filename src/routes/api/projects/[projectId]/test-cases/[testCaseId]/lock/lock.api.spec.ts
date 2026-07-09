@@ -10,6 +10,7 @@ const mockAcquireLock = vi.fn();
 const mockReleaseLock = vi.fn();
 const mockRefreshLock = vi.fn();
 const mockGetLockInfo = vi.fn();
+const mockRequireTestCase = vi.fn();
 
 vi.mock('$lib/server/lock', () => ({
 	acquireLock: mockAcquireLock,
@@ -18,10 +19,13 @@ vi.mock('$lib/server/lock', () => ({
 	getLockInfo: mockGetLockInfo
 }));
 
+vi.mock('$lib/server/queries', () => ({
+	requireTestCase: mockRequireTestCase
+}));
+
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' })
@@ -51,6 +55,7 @@ describe('GET /lock', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'QA' });
+		mockRequireTestCase.mockResolvedValue({ id: 10, projectId: 1, key: 'TC-0010' });
 	});
 
 	it('should return 401 when not authenticated', async () => {
@@ -88,7 +93,17 @@ describe('GET /lock', () => {
 
 		await GET(event);
 
+		expect(mockRequireTestCase).toHaveBeenCalledWith(10, 1);
 		expect(mockGetLockInfo).toHaveBeenCalledWith(10);
+	});
+
+	it('should not reveal lock state when test case is outside the project', async () => {
+		mockRequireTestCase.mockRejectedValue(Object.assign(new Error('Not found'), { status: 404 }));
+		const event = createMockEvent({ method: 'GET', params: PARAMS, user: testUser });
+
+		await expect(GET(event)).rejects.toThrow();
+
+		expect(mockGetLockInfo).not.toHaveBeenCalled();
 	});
 });
 
@@ -100,6 +115,7 @@ describe('POST /lock', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'QA' });
+		mockRequireTestCase.mockResolvedValue({ id: 10, projectId: 1, key: 'TC-0010' });
 	});
 
 	it('should return 401 when not authenticated', async () => {
@@ -124,7 +140,17 @@ describe('POST /lock', () => {
 
 		await POST(event);
 
+		expect(mockRequireTestCase).toHaveBeenCalledWith(10, 1);
 		expect(mockAcquireLock).toHaveBeenCalledWith(10, testUser.id, testUser.name);
+	});
+
+	it('should not acquire a lock when test case is outside the project', async () => {
+		mockRequireTestCase.mockRejectedValue(Object.assign(new Error('Not found'), { status: 404 }));
+		const event = createMockEvent({ method: 'POST', params: PARAMS, user: testUser });
+
+		await expect(POST(event)).rejects.toThrow();
+
+		expect(mockAcquireLock).not.toHaveBeenCalled();
 	});
 
 	it('should return 409 with holder info when locked by another user', async () => {
@@ -169,6 +195,7 @@ describe('PUT /lock', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'QA' });
+		mockRequireTestCase.mockResolvedValue({ id: 10, projectId: 1, key: 'TC-0010' });
 	});
 
 	it('should return 401 when not authenticated', async () => {
@@ -193,7 +220,17 @@ describe('PUT /lock', () => {
 
 		await PUT(event);
 
+		expect(mockRequireTestCase).toHaveBeenCalledWith(10, 1);
 		expect(mockRefreshLock).toHaveBeenCalledWith(10, testUser.id);
+	});
+
+	it('should not refresh a lock when test case is outside the project', async () => {
+		mockRequireTestCase.mockRejectedValue(Object.assign(new Error('Not found'), { status: 404 }));
+		const event = createMockEvent({ method: 'PUT', params: PARAMS, user: testUser });
+
+		await expect(PUT(event)).rejects.toThrow();
+
+		expect(mockRefreshLock).not.toHaveBeenCalled();
 	});
 
 	it('should return 409 when lock does not belong to the caller or does not exist', async () => {
@@ -216,6 +253,7 @@ describe('DELETE /lock', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'QA' });
+		mockRequireTestCase.mockResolvedValue({ id: 10, projectId: 1, key: 'TC-0010' });
 	});
 
 	it('should return 401 when not authenticated', async () => {
@@ -240,7 +278,17 @@ describe('DELETE /lock', () => {
 
 		await DELETE(event);
 
+		expect(mockRequireTestCase).toHaveBeenCalledWith(10, 1);
 		expect(mockReleaseLock).toHaveBeenCalledWith(10, testUser.id);
+	});
+
+	it('should not release a lock when test case is outside the project', async () => {
+		mockRequireTestCase.mockRejectedValue(Object.assign(new Error('Not found'), { status: 404 }));
+		const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
+
+		await expect(DELETE(event)).rejects.toThrow();
+
+		expect(mockReleaseLock).not.toHaveBeenCalled();
 	});
 
 	it('should still return released:true even if the lock was held by another user (route always returns released)', async () => {

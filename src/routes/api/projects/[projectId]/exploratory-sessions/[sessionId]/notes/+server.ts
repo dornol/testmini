@@ -5,7 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
 import { parseId } from '$lib/server/auth-utils';
-import { saveFile } from '$lib/server/storage';
+import { deleteFile, saveFile } from '$lib/server/storage';
 import { randomUUID } from 'node:crypto';
 import { assertMultipartContentLength } from '$lib/server/multipart-limits';
 import { parseCanonicalNonNegativeInteger } from '$lib/server/search-param-validation';
@@ -37,6 +37,15 @@ function validateScreenshotFile(file: File): Response | null {
 		return badRequest('Screenshot must be a PNG, JPEG, GIF, or WebP image');
 	}
 	return null;
+}
+
+async function cleanupScreenshot(screenshotPath: string | null) {
+	if (!screenshotPath) return;
+	try {
+		await deleteFile(screenshotPath);
+	} catch {
+		// Preserve the primary failure; cleanup can be retried from storage tooling.
+	}
 }
 
 export const POST = withProjectRole(
@@ -85,16 +94,27 @@ export const POST = withProjectRole(
 			await saveFile(screenshotPath, buffer);
 		}
 
-		const [created] = await db
-			.insert(sessionNote)
-			.values({
-				sessionId,
-				content,
-				noteType,
-				timestamp,
-				screenshotPath
-			})
-			.returning();
+		let created;
+		try {
+			[created] = await db
+				.insert(sessionNote)
+				.values({
+					sessionId,
+					content,
+					noteType,
+					timestamp,
+					screenshotPath
+				})
+				.returning();
+		} catch (insertError) {
+			await cleanupScreenshot(screenshotPath);
+			throw insertError;
+		}
+
+		if (!created) {
+			await cleanupScreenshot(screenshotPath);
+			error(500, 'Failed to create session note');
+		}
 
 		return json(created, { status: 201 });
 	}

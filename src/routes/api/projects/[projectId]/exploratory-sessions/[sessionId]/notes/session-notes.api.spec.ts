@@ -5,6 +5,7 @@ import { testUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 const mockSaveFile = vi.fn();
+const mockDeleteFile = vi.fn();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
@@ -35,6 +36,7 @@ vi.mock('$lib/server/auth-utils', async () => {
 	};
 });
 vi.mock('$lib/server/storage', () => ({
+	deleteFile: mockDeleteFile,
 	saveFile: mockSaveFile
 }));
 vi.mock('node:crypto', () => ({
@@ -69,6 +71,8 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockDb.query.exploratorySession = { findFirst: vi.fn() };
+		mockSaveFile.mockResolvedValue(undefined);
+		mockDeleteFile.mockResolvedValue(undefined);
 	});
 
 	describe('POST', () => {
@@ -315,6 +319,48 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 				expect.stringContaining('exploratory/10/'),
 				expect.any(Buffer)
 			);
+		});
+
+		it('should remove screenshot when note insert fails', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+			const insertChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockRejectedValue(new Error('database unavailable'))
+			};
+			mockDb.insert.mockReturnValueOnce(insertChain as never);
+
+			const event = createFormDataEvent({
+				content: 'Bug with screenshot',
+				noteType: 'BUG',
+				timestamp: '200',
+				screenshot: new File(['fake image data'], 'screenshot.png', { type: 'image/png' })
+			});
+
+			await expect(POST(event)).rejects.toThrow('database unavailable');
+			expect(mockSaveFile).toHaveBeenCalledWith(
+				'exploratory/10/test-uuid-1234_screenshot.png',
+				expect.any(Buffer)
+			);
+			expect(mockDeleteFile).toHaveBeenCalledWith('exploratory/10/test-uuid-1234_screenshot.png');
+		});
+
+		it('should remove screenshot when note insert returns no created note', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+			mockInsertReturning(mockDb, []);
+
+			const event = createFormDataEvent({
+				content: 'Bug with screenshot',
+				noteType: 'BUG',
+				timestamp: '200',
+				screenshot: new File(['fake image data'], 'screenshot.png', { type: 'image/png' })
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+			expect(mockSaveFile).toHaveBeenCalledWith(
+				'exploratory/10/test-uuid-1234_screenshot.png',
+				expect.any(Buffer)
+			);
+			expect(mockDeleteFile).toHaveBeenCalledWith('exploratory/10/test-uuid-1234_screenshot.png');
 		});
 
 		it('should reject active content as screenshots before saving', async () => {

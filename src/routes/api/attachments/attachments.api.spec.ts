@@ -17,7 +17,10 @@ vi.mock('$lib/server/db/schema', () => ({
 		fileSize: 'file_size',
 		uploadedBy: 'uploaded_by',
 		uploadedAt: 'uploaded_at'
-	}
+	},
+	testCase: { id: 'id', projectId: 'project_id' },
+	testExecution: { id: 'id' },
+	testFailureDetail: { id: 'id' }
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
@@ -36,13 +39,20 @@ vi.mock('$lib/server/storage', () => ({
 	generateObjectKey: vi.fn(() => 'attachments/TESTCASE/1/test.png'),
 	saveFile: vi.fn().mockResolvedValue(undefined)
 }));
+vi.mock('$lib/server/auth-utils', async () => {
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	return {
+		...actual,
+		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'MEMBER' })
+	};
+});
 
 // Import after mocks
-const { POST } = await import('./+server');
+const { GET, POST } = await import('./+server');
+const authUtils = await import('$lib/server/auth-utils');
 
-function createFileFormData(
-	overrides: { name?: string; type?: string; size?: number } = {}
-) {
+function createFileFormData(overrides: { name?: string; type?: string; size?: number } = {}) {
 	const { name = 'test.png', type = 'image/png', size = 1024 } = overrides;
 	const content = new Uint8Array(size);
 	const file = new File([content], name, { type });
@@ -56,6 +66,41 @@ function createFileFormData(
 describe('/api/attachments', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockDb.query.testCase = { findFirst: vi.fn().mockResolvedValue({ projectId: 1 }) };
+		mockDb.query.testExecution = { findFirst: vi.fn() };
+		mockDb.query.testFailureDetail = { findFirst: vi.fn() };
+		vi.mocked(authUtils.requireProjectAccess).mockResolvedValue({ role: 'MEMBER' });
+	});
+
+	describe('GET', () => {
+		it('should require project access before listing attachments', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				searchParams: { referenceType: 'TESTCASE', referenceId: '1' },
+				user: testUser
+			});
+
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(authUtils.requireProjectAccess).toHaveBeenCalledWith(testUser, 1);
+			expect(mockDb.select).toHaveBeenCalled();
+		});
+
+		it('should not list attachments when project access is denied', async () => {
+			vi.mocked(authUtils.requireProjectAccess).mockRejectedValue(
+				Object.assign(new Error(), { status: 403, body: { message: 'Forbidden' } })
+			);
+			const event = createMockEvent({
+				method: 'GET',
+				searchParams: { referenceType: 'TESTCASE', referenceId: '1' },
+				user: testUser
+			});
+
+			await expect(GET(event)).rejects.toThrow();
+			expect(authUtils.requireProjectAccess).toHaveBeenCalledWith(testUser, 1);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
 	});
 
 	describe('POST', () => {
@@ -87,6 +132,7 @@ describe('/api/attachments', () => {
 			expect(response.status).toBe(201);
 			const data = await response.json();
 			expect(data.id).toBe(sampleAttachment.id);
+			expect(authUtils.requireProjectAccess).toHaveBeenCalledWith(testUser, 1);
 		});
 
 		it('should allow valid MIME types (application/pdf)', async () => {
@@ -110,6 +156,7 @@ describe('/api/attachments', () => {
 			expect(response.status).toBe(201);
 			const data = await response.json();
 			expect(data.id).toBe(sampleAttachment.id);
+			expect(authUtils.requireProjectAccess).toHaveBeenCalledWith(testUser, 1);
 		});
 
 		it('should return 400 when file exceeds 10MB size limit', async () => {
@@ -118,6 +165,18 @@ describe('/api/attachments', () => {
 			const event = createMockEvent({ method: 'POST', formData, user: testUser });
 
 			await expect(POST(event)).rejects.toThrow();
+		});
+
+		it('should not save file when project access is denied', async () => {
+			vi.mocked(authUtils.requireProjectAccess).mockRejectedValue(
+				Object.assign(new Error(), { status: 403, body: { message: 'Forbidden' } })
+			);
+			const formData = createFileFormData({ name: 'test.png', type: 'image/png' });
+			const event = createMockEvent({ method: 'POST', formData, user: testUser });
+
+			await expect(POST(event)).rejects.toThrow();
+			expect(authUtils.requireProjectAccess).toHaveBeenCalledWith(testUser, 1);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 	});
 });

@@ -1,45 +1,14 @@
 import { error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { attachment, testCase, testExecution, testFailureDetail } from '$lib/server/db/schema';
+import { attachment } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { requireProjectAccess, parseId } from '$lib/server/auth-utils';
 import { withAuth } from '$lib/server/api-handler';
 import { getFile, deleteFile } from '$lib/server/storage';
-
-async function getProjectIdForAttachment(record: { referenceType: string; referenceId: number }): Promise<number> {
-	if (record.referenceType === 'TESTCASE') {
-		const tc = await db.query.testCase.findFirst({
-			where: eq(testCase.id, record.referenceId),
-			columns: { projectId: true }
-		});
-		if (!tc) error(404, 'Referenced test case not found');
-		return tc.projectId;
-	}
-
-	if (record.referenceType === 'EXECUTION') {
-		const exec = await db.query.testExecution.findFirst({
-			where: eq(testExecution.id, record.referenceId),
-			with: { testRun: { columns: { projectId: true } } }
-		});
-		if (!exec) error(404, 'Referenced execution not found');
-		return exec.testRun.projectId;
-	}
-
-	if (record.referenceType === 'FAILURE') {
-		const failure = await db.query.testFailureDetail.findFirst({
-			where: eq(testFailureDetail.id, record.referenceId),
-			with: {
-				testExecution: {
-					with: { testRun: { columns: { projectId: true } } }
-				}
-			}
-		});
-		if (!failure) error(404, 'Referenced failure detail not found');
-		return failure.testExecution.testRun.projectId;
-	}
-
-	error(400, 'Unknown reference type');
-}
+import {
+	getProjectIdForAttachmentReference,
+	isAttachmentReferenceType
+} from '$lib/server/attachment-access';
 
 export const GET = withAuth(async ({ params, user }) => {
 	const attachmentId = parseId(params.attachmentId, 'attachment ID');
@@ -52,7 +21,13 @@ export const GET = withAuth(async ({ params, user }) => {
 		error(404, 'Attachment not found');
 	}
 
-	const projectId = await getProjectIdForAttachment(record);
+	if (!isAttachmentReferenceType(record.referenceType)) {
+		error(400, 'Unknown reference type');
+	}
+	const projectId = await getProjectIdForAttachmentReference(
+		record.referenceType,
+		record.referenceId
+	);
 	await requireProjectAccess(user, projectId);
 
 	const fileBuffer = await getFile(record.objectKey);
@@ -78,7 +53,13 @@ export const DELETE = withAuth(async ({ params, user }) => {
 		error(404, 'Attachment not found');
 	}
 
-	const projectId = await getProjectIdForAttachment(record);
+	if (!isAttachmentReferenceType(record.referenceType)) {
+		error(400, 'Unknown reference type');
+	}
+	const projectId = await getProjectIdForAttachmentReference(
+		record.referenceType,
+		record.referenceId
+	);
 	await requireProjectAccess(user, projectId);
 
 	await deleteFile(record.objectKey);

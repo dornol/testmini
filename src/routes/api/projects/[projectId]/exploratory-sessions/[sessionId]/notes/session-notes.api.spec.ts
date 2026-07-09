@@ -98,8 +98,6 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 		});
 
 		it('should reject missing content', async () => {
-			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
-
 			const event = createFormDataEvent({
 				content: '',
 				noteType: 'NOTE',
@@ -108,11 +106,11 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 			const response = await POST(event);
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Content is required');
+			expect(mockDb.query.exploratorySession.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should reject non-text content before inserting', async () => {
-			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
-
 			const event = createFormDataEvent({
 				content: new File(['Some note'], 'content.txt'),
 				noteType: 'NOTE',
@@ -122,12 +120,11 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Content is required');
+			expect(mockDb.query.exploratorySession.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should reject oversized multipart bodies before parsing form data', async () => {
-			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
-
 			const event = createMockEvent({
 				method: 'POST',
 				params: PARAMS,
@@ -136,13 +133,12 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 			});
 
 			await expect(POST(event)).rejects.toMatchObject({ status: 413 });
+			expect(mockDb.query.exploratorySession.findFirst).not.toHaveBeenCalled();
 			expect(mockSaveFile).not.toHaveBeenCalled();
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should reject oversized content before inserting', async () => {
-			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
-
 			const event = createFormDataEvent({
 				content: 'a'.repeat(10_001),
 				noteType: 'NOTE',
@@ -152,6 +148,7 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('10000 characters or fewer');
+			expect(mockDb.query.exploratorySession.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
@@ -207,8 +204,6 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 		});
 
 		it('should reject invalid note type', async () => {
-			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
-
 			const event = createFormDataEvent({
 				content: 'Some note',
 				noteType: 'INVALID_TYPE',
@@ -217,11 +212,11 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 			const response = await POST(event);
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Invalid note type');
+			expect(mockDb.query.exploratorySession.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should reject non-text note type before inserting', async () => {
-			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
-
 			const event = createFormDataEvent({
 				content: 'Some note',
 				noteType: new File(['NOTE'], 'note-type.txt'),
@@ -231,12 +226,11 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Invalid note type');
+			expect(mockDb.query.exploratorySession.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should reject negative timestamp', async () => {
-			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
-
 			const event = createFormDataEvent({
 				content: 'Some note',
 				noteType: 'NOTE',
@@ -245,13 +239,13 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 			const response = await POST(event);
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Invalid timestamp');
+			expect(mockDb.query.exploratorySession.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it.each(['-1', '+1', '01', '1.5', '1e3', ' 1', '1 ', 'Infinity', '9007199254740992'])(
 			'should reject invalid timestamp %s before inserting',
 			async (timestamp) => {
-				mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
-
 				const event = createFormDataEvent({
 					content: 'Some note',
 					noteType: 'NOTE',
@@ -261,13 +255,12 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 
 				expect(response.status).toBe(400);
 				expect((await response.json()).error).toContain('Invalid timestamp');
+				expect(mockDb.query.exploratorySession.findFirst).not.toHaveBeenCalled();
 				expect(mockDb.insert).not.toHaveBeenCalled();
 			}
 		);
 
 		it('should reject non-text timestamp before inserting', async () => {
-			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
-
 			const event = createFormDataEvent({
 				content: 'Some note',
 				noteType: 'NOTE',
@@ -277,6 +270,7 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Invalid timestamp');
+			expect(mockDb.query.exploratorySession.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.insert).not.toHaveBeenCalled();
 			expect(mockSaveFile).not.toHaveBeenCalled();
 		});
@@ -364,8 +358,6 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 		});
 
 		it('should reject active content as screenshots before saving', async () => {
-			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
-
 			for (const file of [
 				new File(['<svg><script>alert(1)</script></svg>'], 'screenshot.svg', {
 					type: 'image/svg+xml'
@@ -387,6 +379,7 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 
 				expect(response.status).toBe(400);
 				expect((await response.json()).error).toContain('Screenshot must be');
+				expect(mockDb.query.exploratorySession.findFirst).not.toHaveBeenCalled();
 				expect(mockSaveFile).not.toHaveBeenCalled();
 				expect(mockDb.insert).not.toHaveBeenCalled();
 			}

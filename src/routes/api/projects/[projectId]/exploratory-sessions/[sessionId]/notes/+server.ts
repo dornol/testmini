@@ -53,11 +53,6 @@ export const POST = withProjectRole(
 	async ({ request, projectId, params }) => {
 		const sessionId = parseId(params.sessionId, 'session ID');
 
-		const session = await db.query.exploratorySession.findFirst({
-			where: and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
-		});
-		if (!session) return notFound('Session not found');
-
 		assertMultipartContentLength(request, MAX_SCREENSHOT_SIZE);
 
 		const formData = await request.formData();
@@ -90,6 +85,14 @@ export const POST = withProjectRole(
 			const uuid = randomUUID();
 			const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
 			screenshotPath = `exploratory/${sessionId}/${uuid}_${safeName}`;
+		}
+
+		const session = await db.query.exploratorySession.findFirst({
+			where: and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
+		});
+		if (!session) return notFound('Session not found');
+
+		if (file && file instanceof File && file.size > 0 && screenshotPath) {
 			const buffer = Buffer.from(await file.arrayBuffer());
 			await saveFile(screenshotPath, buffer);
 		}

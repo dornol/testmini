@@ -31,9 +31,8 @@ vi.mock('drizzle-orm', () => ({
 	desc: vi.fn((a: unknown) => ['desc', a])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -101,6 +100,32 @@ describe('/api/projects/[projectId]/issue-links', () => {
 			const response = await GET(event);
 			expect(response.status).toBe(200);
 		});
+
+		it('should reject invalid testCaseId filter', async () => {
+			const event = createMockEvent({
+				params: PARAMS,
+				user: testUser,
+				searchParams: { testCaseId: 'abc' }
+			});
+
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('testCaseId must be a positive integer');
+		});
+
+		it('should reject invalid testExecutionId filter', async () => {
+			const event = createMockEvent({
+				params: PARAMS,
+				user: testUser,
+				searchParams: { testExecutionId: '0' }
+			});
+
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('testExecutionId must be a positive integer');
+		});
 	});
 
 	// ── POST ────────────────────────────────────────────
@@ -160,6 +185,84 @@ describe('/api/projects/[projectId]/issue-links', () => {
 			const response = await POST(event);
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('testCaseId or testExecutionId');
+		});
+
+		it('should reject non-object request body', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: null
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid request body');
+		});
+
+		it('should reject invalid testCaseId', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { testCaseId: -1, externalUrl: 'https://github.com/org/repo/issues/1' }
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('testCaseId must be a positive integer');
+		});
+
+		it('should reject external URL with credentials', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { testCaseId: 10, externalUrl: 'https://user:password@example.com/issue/1' }
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('must not include credentials');
+		});
+
+		it('should reject non-string external key', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					testCaseId: 10,
+					externalUrl: 'https://github.com/org/repo/issues/1',
+					externalKey: 123
+				}
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('External key must be a string');
+		});
+
+		it('should reject non-string title', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					testCaseId: 10,
+					externalUrl: 'https://github.com/org/repo/issues/1',
+					title: { text: 'Login bug' }
+				}
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Title must be a string');
 		});
 
 		it('should create link with testCaseId', async () => {

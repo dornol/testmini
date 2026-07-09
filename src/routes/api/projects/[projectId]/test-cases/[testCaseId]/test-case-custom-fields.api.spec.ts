@@ -1,18 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockInsertReturning, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockInsertReturning,
+	mockSelectResult
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
-import { adminUser, sampleTestCase, sampleTestCaseVersion } from '$lib/server/test-helpers/fixtures';
+import {
+	adminUser,
+	sampleTestCase,
+	sampleTestCaseVersion
+} from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 const mockFindTestCase = vi.fn();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, findTestCaseWithLatestVersion: mockFindTestCase }));
 vi.mock('$lib/server/db/schema', () => ({
-	testCase: { id: 'id', projectId: 'project_id', key: 'key', automationKey: 'automation_key', latestVersionId: 'latest_version_id' },
+	testCase: {
+		id: 'id',
+		projectId: 'project_id',
+		key: 'key',
+		automationKey: 'automation_key',
+		latestVersionId: 'latest_version_id'
+	},
 	testCaseVersion: {
-		id: 'id', testCaseId: 'test_case_id', versionNo: 'version_no',
-		title: 'title', priority: 'priority', customFields: 'custom_fields',
-		revision: 'revision', updatedBy: 'updated_by', createdAt: 'created_at'
+		id: 'id',
+		testCaseId: 'test_case_id',
+		versionNo: 'version_no',
+		title: 'title',
+		priority: 'priority',
+		customFields: 'custom_fields',
+		revision: 'revision',
+		updatedBy: 'updated_by',
+		createdAt: 'created_at'
 	},
 	user: { id: 'id', name: 'name', image: 'image' },
 	tag: { id: 'id', name: 'name', color: 'color', projectId: 'project_id' },
@@ -33,14 +53,20 @@ vi.mock('drizzle-orm', () => ({
 	)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' })
 	};
 });
 vi.mock('$lib/server/queries', () => ({
-	loadTestCaseMetadata: vi.fn().mockResolvedValue({ assignedTags: [], projectTags: [], assignedAssignees: [], projectMembers: [] })
+	loadTestCaseMetadata: vi.fn().mockResolvedValue({
+		assignedTags: [],
+		projectTags: [],
+		assignedAssignees: [],
+		projectMembers: []
+	})
 }));
 vi.mock('$lib/server/errors', () => ({
 	badRequest: vi.fn((msg: string) => new Response(JSON.stringify({ error: msg }), { status: 400 })),
@@ -51,7 +77,9 @@ const { PATCH } = await import('./+server');
 
 const PARAMS = { projectId: '1', testCaseId: '10' };
 
-function makeTcWithVersion(customFields: Record<string, unknown> | null = { '1': 'existing_value', '2': 42 }) {
+function makeTcWithVersion(
+	customFields: Record<string, unknown> | null = { '1': 'existing_value', '2': 42 }
+) {
 	return {
 		...sampleTestCase,
 		automationKey: null,
@@ -201,7 +229,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH customFiel
 		const event = createMockEvent({
 			method: 'PATCH',
 			params: PARAMS,
-			body: { customFields: { '1': 'ok', 'not_defined': 'malicious' } },
+			body: { customFields: { '1': 'ok', not_defined: 'malicious' } },
 			user: adminUser
 		});
 		const response = await PATCH(event);
@@ -258,7 +286,9 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH customFiel
 		const event = createMockEvent({
 			method: 'PATCH',
 			params: PARAMS,
-			body: { customFields: { '1': 'ok', '2': 'also_ok', 'hacked_field': 'bad', 'another_bad': 'evil' } },
+			body: {
+				customFields: { '1': 'ok', '2': 'also_ok', hacked_field: 'bad', another_bad: 'evil' }
+			},
 			user: adminUser
 		});
 		const response = await PATCH(event);
@@ -337,7 +367,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH customFiel
 		const event = createMockEvent({
 			method: 'PATCH',
 			params: PARAMS,
-			body: { customFields: { 'foo': 1, 'bar': 2, 'baz': 3 } },
+			body: { customFields: { foo: 1, bar: 2, baz: 3 } },
 			user: adminUser
 		});
 		const response = await PATCH(event);
@@ -348,5 +378,59 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH customFiel
 		expect(body.error).toContain('bar');
 		expect(body.error).toContain('baz');
 		expect(body.error).toMatch(/Unknown custom field/);
+	});
+
+	it('should reject nested custom field values before querying test case', async () => {
+		const event = createMockEvent({
+			method: 'PATCH',
+			params: PARAMS,
+			body: { customFields: { '1': { nested: true } } },
+			user: adminUser
+		});
+		const response = await PATCH(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain(
+			'customFields values must be strings, numbers, booleans, or null'
+		);
+		expect(mockFindTestCase).not.toHaveBeenCalled();
+		expect(mockDb.insert).not.toHaveBeenCalled();
+	});
+
+	it('should reject overlong custom field values before querying test case', async () => {
+		const event = createMockEvent({
+			method: 'PATCH',
+			params: PARAMS,
+			body: { customFields: { '1': 'x'.repeat(2001) } },
+			user: adminUser
+		});
+		const response = await PATCH(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain(
+			'customFields string values must be 2000 characters or less'
+		);
+		expect(mockFindTestCase).not.toHaveBeenCalled();
+		expect(mockDb.insert).not.toHaveBeenCalled();
+	});
+
+	it('should reject too many custom fields before querying test case', async () => {
+		const customFields = Object.fromEntries(
+			Array.from({ length: 101 }, (_, index) => [`field_${index}`, 'value'])
+		);
+		const event = createMockEvent({
+			method: 'PATCH',
+			params: PARAMS,
+			body: { customFields },
+			user: adminUser
+		});
+		const response = await PATCH(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain(
+			'customFields must contain 100 entries or fewer'
+		);
+		expect(mockFindTestCase).not.toHaveBeenCalled();
+		expect(mockDb.insert).not.toHaveBeenCalled();
 	});
 });

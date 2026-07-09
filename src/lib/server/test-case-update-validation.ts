@@ -6,6 +6,9 @@ const MAX_PRIORITY_LENGTH = 30;
 const MAX_AUTOMATION_KEY_LENGTH = 200;
 const MAX_KEY_LENGTH = 100;
 const MAX_STEPS = 500;
+const MAX_CUSTOM_FIELD_ENTRIES = 100;
+const MAX_CUSTOM_FIELD_VALUE_LENGTH = 2000;
+const MAX_CUSTOM_FIELDS_JSON_LENGTH = 20_000;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -65,6 +68,48 @@ function validateNullableText(value: unknown, field: string): string | null | Re
 	return value || null;
 }
 
+function validateCustomFields(value: unknown): Record<string, unknown> | Response {
+	if (!isRecord(value)) {
+		return badRequest('customFields must be an object');
+	}
+
+	const entries = Object.entries(value);
+	if (entries.length > MAX_CUSTOM_FIELD_ENTRIES) {
+		return badRequest(`customFields must contain ${MAX_CUSTOM_FIELD_ENTRIES} entries or fewer`);
+	}
+
+	for (const [key, fieldValue] of entries) {
+		if (!key.trim()) {
+			return badRequest('customFields keys cannot be empty');
+		}
+
+		if (fieldValue === null) continue;
+		if (
+			typeof fieldValue !== 'string' &&
+			typeof fieldValue !== 'number' &&
+			typeof fieldValue !== 'boolean'
+		) {
+			return badRequest('customFields values must be strings, numbers, booleans, or null');
+		}
+
+		if (typeof fieldValue === 'number' && !Number.isFinite(fieldValue)) {
+			return badRequest('customFields number values must be finite');
+		}
+
+		if (typeof fieldValue === 'string' && fieldValue.length > MAX_CUSTOM_FIELD_VALUE_LENGTH) {
+			return badRequest(
+				`customFields string values must be ${MAX_CUSTOM_FIELD_VALUE_LENGTH} characters or less`
+			);
+		}
+	}
+
+	if (JSON.stringify(value).length > MAX_CUSTOM_FIELDS_JSON_LENGTH) {
+		return badRequest(`customFields must be ${MAX_CUSTOM_FIELDS_JSON_LENGTH} characters or less`);
+	}
+
+	return value;
+}
+
 export function validateTestCasePatchPayload(body: unknown): ValidatedTestCasePatch | Response {
 	if (!isRecord(body)) {
 		return badRequest('Request body must be an object');
@@ -109,10 +154,9 @@ export function validateTestCasePatchPayload(body: unknown): ValidatedTestCasePa
 	}
 
 	if (body.customFields !== undefined) {
-		if (!isRecord(body.customFields)) {
-			return badRequest('customFields must be an object');
-		}
-		result.customFields = body.customFields;
+		const customFields = validateCustomFields(body.customFields);
+		if (customFields instanceof Response) return customFields;
+		result.customFields = customFields;
 	}
 
 	return result;

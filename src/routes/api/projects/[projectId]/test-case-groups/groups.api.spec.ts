@@ -31,7 +31,8 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
@@ -46,6 +47,72 @@ describe('/api/projects/[projectId]/test-case-groups', () => {
 		vi.clearAllMocks();
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 		mockDb.query.testCaseGroup = { findFirst: vi.fn().mockResolvedValue(null) };
+	});
+
+	describe('POST - body validation', () => {
+		it('should return 400 when request body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: ['Group A'],
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toMatch(/request body/i);
+			expect(mockDb.query.testCaseGroup.findFirst).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when name is not a string', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 123 },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Name is required');
+			expect(mockDb.query.testCaseGroup.findFirst).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when name is too long', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'x'.repeat(121) },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toMatch(/120 characters/i);
+			expect(mockDb.query.testCaseGroup.findFirst).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when color is not a string or null', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Group A', color: 123 },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toMatch(/color must be a string or null/i);
+			expect(mockDb.query.testCaseGroup.findFirst).not.toHaveBeenCalled();
+		});
 	});
 
 	describe('POST - color validation', () => {

@@ -88,14 +88,19 @@ export const POST = withProjectRole(
 		}
 
 		await db.transaction(async (tx) => {
-			await tx
+			const updatedExecutions = await tx
 				.update(testExecution)
 				.set({
 					status: 'FAIL',
 					executedBy: user.id,
 					executedAt: new Date()
 				})
-				.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)));
+				.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)))
+				.returning({ id: testExecution.id });
+
+			if (updatedExecutions.length === 0) {
+				error(404, 'Execution not found');
+			}
 
 			await tx.insert(testFailureDetail).values({
 				testExecutionId: executionId,

@@ -107,7 +107,8 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/f
 		it('should create failure detail for non-VIEWER', async () => {
 			const txUpdateChain = {
 				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockResolvedValue(undefined)
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: sampleExecution.id }])
 			};
 			const txInsertChain = {
 				values: vi.fn().mockResolvedValue(undefined)
@@ -142,6 +143,38 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/f
 					['test_run_id', 50]
 				])
 			);
+			expect(txUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });
+			expect(txInsertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({ testExecutionId: 200 })
+			);
+		});
+
+		it('should return 404 without inserting failure detail when execution update finds no row', async () => {
+			const txUpdateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([])
+			};
+			const txInsertChain = {
+				values: vi.fn().mockResolvedValue(undefined)
+			};
+			mockDb.transaction.mockImplementationOnce(async (fn) =>
+				fn({
+					update: vi.fn().mockReturnValue(txUpdateChain),
+					insert: vi.fn().mockReturnValue(txInsertChain)
+				})
+			);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { errorMessage: 'Error' },
+				user: adminUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 404 });
+			expect(txUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });
+			expect(txInsertChain.values).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for missing required fields', async () => {

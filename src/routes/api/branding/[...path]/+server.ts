@@ -6,7 +6,6 @@ const MIME_TYPES: Record<string, string> = {
 	png: 'image/png',
 	jpg: 'image/jpeg',
 	jpeg: 'image/jpeg',
-	svg: 'image/svg+xml',
 	webp: 'image/webp',
 	ico: 'image/x-icon'
 };
@@ -26,7 +25,8 @@ export const GET: RequestHandler = async ({ params }) => {
 		return new Response(new Uint8Array(fileBuffer), {
 			headers: {
 				'Content-Type': contentType,
-				'Cache-Control': 'public, max-age=86400'
+				'Cache-Control': 'public, max-age=86400',
+				'X-Content-Type-Options': 'nosniff'
 			}
 		});
 	} catch {

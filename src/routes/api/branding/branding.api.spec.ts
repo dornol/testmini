@@ -29,7 +29,25 @@ describe('/api/branding/[...path]', () => {
 			expect(response.status).toBe(200);
 			expect(response.headers.get('Content-Type')).toBe('image/png');
 			expect(response.headers.get('Cache-Control')).toBe('public, max-age=86400');
+			expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
 			expect(mockGetFile).toHaveBeenCalledWith('branding/logo.png');
+		});
+
+		it('should not serve svg branding files as active image content', async () => {
+			const fileBuffer = Buffer.from('<svg><script>alert(1)</script></svg>');
+			mockGetFile.mockResolvedValue(fileBuffer);
+
+			const event = createMockEvent({
+				method: 'GET',
+				params: { path: 'branding/logo.svg' }
+			});
+
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(response.headers.get('Content-Type')).toBe('application/octet-stream');
+			expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+			expect(mockGetFile).toHaveBeenCalledWith('branding/logo.svg');
 		});
 
 		it('should return 400 for path traversal with ..', async () => {

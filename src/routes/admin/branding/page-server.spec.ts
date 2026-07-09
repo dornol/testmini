@@ -153,7 +153,10 @@ describe('admin/branding +page.server', () => {
 				logo: bigFile as unknown as string
 			});
 			const result = await actions.save(event);
-			expect(result).toMatchObject({ status: 400, data: { error: 'Logo file too large (max 2MB)' } });
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'Logo file too large (max 2MB)' }
+			});
 		});
 
 		it('should return 400 for invalid logo file type', async () => {
@@ -171,6 +174,25 @@ describe('admin/branding +page.server', () => {
 				status: 400,
 				data: { error: 'Invalid logo file type' }
 			});
+		});
+
+		it('should reject svg logo uploads', async () => {
+			(mockDb.query as Record<string, unknown>).appConfig = {
+				findFirst: vi.fn().mockResolvedValue(null)
+			};
+
+			const svgFile = createTestFile('logo.svg', 100, 'image/svg+xml');
+			const event = createActionEvent(adminUser, {
+				appName: 'MyApp',
+				logo: svgFile as unknown as string
+			});
+			const result = await actions.save(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'Invalid logo file type' }
+			});
+			expect(saveFile).not.toHaveBeenCalled();
 		});
 
 		it('should upload logo file on success', async () => {
@@ -241,6 +263,25 @@ describe('admin/branding +page.server', () => {
 				status: 400,
 				data: { error: 'Invalid favicon file type' }
 			});
+		});
+
+		it('should reject svg favicon uploads', async () => {
+			(mockDb.query as Record<string, unknown>).appConfig = {
+				findFirst: vi.fn().mockResolvedValue(null)
+			};
+
+			const svgFile = createTestFile('favicon.svg', 100, 'image/svg+xml');
+			const event = createActionEvent(adminUser, {
+				appName: 'MyApp',
+				favicon: svgFile as unknown as string
+			});
+			const result = await actions.save(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'Invalid favicon file type' }
+			});
+			expect(saveFile).not.toHaveBeenCalled();
 		});
 	});
 });

@@ -9,7 +9,13 @@ import { cacheDelete } from '$lib/server/cache';
 import { randomUUID } from 'node:crypto';
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
-const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp', 'image/x-icon', 'image/vnd.microsoft.icon'];
+const ALLOWED_IMAGE_TYPES = [
+	'image/png',
+	'image/jpeg',
+	'image/webp',
+	'image/x-icon',
+	'image/vnd.microsoft.icon'
+];
 
 export const load: PageServerLoad = async () => {
 	let config = null;
@@ -102,7 +108,10 @@ export const actions: Actions = {
 		}
 
 		if (existing) {
-			await db.update(appConfig).set({ appName, logoUrl, faviconUrl }).where(eq(appConfig.id, existing.id));
+			await db
+				.update(appConfig)
+				.set({ appName, logoUrl, faviconUrl })
+				.where(eq(appConfig.id, existing.id));
 		} else {
 			await db.insert(appConfig).values({ appName, logoUrl, faviconUrl });
 		}

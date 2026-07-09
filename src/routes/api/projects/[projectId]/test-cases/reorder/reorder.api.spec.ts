@@ -78,7 +78,20 @@ describe('/api/projects/[projectId]/test-cases/reorder', () => {
 		});
 
 		it('should return 400 for invalid item id', async () => {
-			const cases = ['abc', 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
+			const cases = [
+				'abc',
+				0,
+				-1,
+				1.5,
+				Number.MAX_SAFE_INTEGER + 1,
+				'+1',
+				'01',
+				'1.5',
+				'1e3',
+				' 1',
+				'1 ',
+				{}
+			];
 
 			for (const id of cases) {
 				vi.clearAllMocks();
@@ -101,7 +114,20 @@ describe('/api/projects/[projectId]/test-cases/reorder', () => {
 		});
 
 		it('should return 400 for invalid groupId', async () => {
-			const cases = ['abc', 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
+			const cases = [
+				'abc',
+				0,
+				-1,
+				1.5,
+				Number.MAX_SAFE_INTEGER + 1,
+				'+1',
+				'01',
+				'1.5',
+				'1e3',
+				' 1',
+				'1 ',
+				{}
+			];
 
 			for (const groupId of cases) {
 				vi.clearAllMocks();

@@ -1,4 +1,5 @@
 import { badRequest } from '$lib/server/errors';
+import { parseCanonicalPositiveInteger } from '$lib/server/search-param-validation';
 
 const MAX_REORDER_ITEMS = 1000;
 
@@ -21,10 +22,17 @@ export function validateRequestBody(body: unknown): Record<string, unknown> | Re
 }
 
 function parsePositiveInteger(value: unknown, label: string): number | Response {
-	const parsed = typeof value === 'number' ? value : Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-		return badRequest(`${label} must be a positive integer`);
+	if (typeof value === 'number') {
+		if (!Number.isSafeInteger(value) || value <= 0) {
+			return badRequest(`${label} must be a positive integer`);
+		}
+		return value;
 	}
+
+	if (typeof value !== 'string') return badRequest(`${label} must be a positive integer`);
+
+	const parsed = parseCanonicalPositiveInteger(value);
+	if (parsed === null) return badRequest(`${label} must be a positive integer`);
 	return parsed;
 }
 

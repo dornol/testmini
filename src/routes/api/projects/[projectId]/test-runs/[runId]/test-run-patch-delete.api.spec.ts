@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser, sampleTestRun } from '$lib/server/test-helpers/fixtures';
 
@@ -43,12 +47,7 @@ describe('/api/projects/[projectId]/test-runs/[runId] — PATCH & DELETE', () =>
 	describe('PATCH', () => {
 		it('should update run name', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			mockUpdateReturning(mockDb, [sampleTestRun]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -65,12 +64,7 @@ describe('/api/projects/[projectId]/test-runs/[runId] — PATCH & DELETE', () =>
 
 		it('should update environment', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			mockUpdateReturning(mockDb, [{ ...sampleTestRun, environment: 'PROD' }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -81,6 +75,20 @@ describe('/api/projects/[projectId]/test-runs/[runId] — PATCH & DELETE', () =>
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(200);
+		});
+
+		it('should return 404 when run disappears before update', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Updated Run Name' },
+				user: adminUser
+			});
+
+			await expect(PATCH(event)).rejects.toMatchObject({ status: 404 });
 		});
 
 		it('should return 403 for VIEWER', async () => {
@@ -208,11 +216,7 @@ describe('/api/projects/[projectId]/test-runs/[runId] — PATCH & DELETE', () =>
 	describe('DELETE', () => {
 		it('should require PROJECT_ADMIN and delete run', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-			const deleteChain = {
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			mockDeleteReturning(mockDb, [sampleTestRun]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -224,6 +228,19 @@ describe('/api/projects/[projectId]/test-runs/[runId] — PATCH & DELETE', () =>
 
 			expect(response.status).toBe(200);
 			expect(body.success).toBe(true);
+		});
+
+		it('should return 404 when run disappears before delete', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: adminUser
+			});
+
+			await expect(DELETE(event)).rejects.toMatchObject({ status: 404 });
 		});
 
 		it('should return 403 for non-admin', async () => {

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser, sampleTestRun } from '$lib/server/test-helpers/fixtures';
 
@@ -7,14 +11,21 @@ const mockDb = createMockDb();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
-	testRun: { id: 'id', projectId: 'project_id', name: 'name', status: 'status', environment: 'environment' }
+	testRun: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		status: 'status',
+		environment: 'environment'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
 	eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
@@ -100,12 +111,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]', () => {
 
 		it('should update run on success', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			mockUpdateReturning(mockDb, [sampleTestRun]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -122,12 +128,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]', () => {
 
 		it('should update environment on success', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			mockUpdateReturning(mockDb, [{ ...sampleTestRun, environment: 'PROD' }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -138,6 +139,20 @@ describe('/api/projects/[projectId]/test-runs/[runId]', () => {
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(200);
+		});
+
+		it('should return 404 when run disappears before update', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Updated Run Name' },
+				user: adminUser
+			});
+
+			await expect(PATCH(event)).rejects.toMatchObject({ status: 404 });
 		});
 	});
 
@@ -167,11 +182,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]', () => {
 
 		it('should delete run on success', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-			const deleteChain = {
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			mockDeleteReturning(mockDb, [sampleTestRun]);
 
 			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: adminUser });
 			const response = await DELETE(event);
@@ -179,6 +190,15 @@ describe('/api/projects/[projectId]/test-runs/[runId]', () => {
 
 			expect(response.status).toBe(200);
 			expect(body.success).toBe(true);
+		});
+
+		it('should return 404 when run disappears before delete', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: adminUser });
+
+			await expect(DELETE(event)).rejects.toMatchObject({ status: 404 });
 		});
 	});
 });

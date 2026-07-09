@@ -45,10 +45,13 @@ export const PATCH = withProjectRole(
 			return badRequest('No fields to update');
 		}
 
-		await db
+		const [updated] = await db
 			.update(testRun)
 			.set(updates)
-			.where(and(eq(testRun.id, runId), eq(testRun.projectId, projectId)));
+			.where(and(eq(testRun.id, runId), eq(testRun.projectId, projectId)))
+			.returning();
+
+		if (!updated) error(404, 'Test run not found');
 
 		return json({ success: true });
 	}
@@ -66,7 +69,12 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projec
 	}
 
 	// Cascade delete: executions + failure_details are deleted via FK cascade
-	await db.delete(testRun).where(and(eq(testRun.id, runId), eq(testRun.projectId, projectId)));
+	const [deleted] = await db
+		.delete(testRun)
+		.where(and(eq(testRun.id, runId), eq(testRun.projectId, projectId)))
+		.returning();
+
+	if (!deleted) error(404, 'Test run not found');
 
 	return json({ success: true });
 });

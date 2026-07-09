@@ -54,12 +54,18 @@ export const actions: Actions = {
 			return fail(400, { duplicate: true, name, color });
 		}
 
-		await db.insert(tag).values({
-			projectId,
-			name: parsed.data.name,
-			color: parsed.data.color,
-			createdBy: authUser.id
-		});
+		const [created] = await db
+			.insert(tag)
+			.values({
+				projectId,
+				name: parsed.data.name,
+				color: parsed.data.color,
+				createdBy: authUser.id
+			})
+			.returning();
+		if (!created) {
+			return fail(500, { error: 'Failed to create tag' });
+		}
 
 		cacheDelete(`project:${projectId}:tags`);
 		return { created: true };
@@ -97,10 +103,14 @@ export const actions: Actions = {
 			return fail(400, { duplicate: true });
 		}
 
-		await db
+		const [updated] = await db
 			.update(tag)
 			.set({ name: parsed.data.name, color: parsed.data.color })
-			.where(and(eq(tag.id, parsed.data.tagId), eq(tag.projectId, projectId)));
+			.where(and(eq(tag.id, parsed.data.tagId), eq(tag.projectId, projectId)))
+			.returning();
+		if (!updated) {
+			return fail(404, { error: 'Tag not found' });
+		}
 
 		cacheDelete(`project:${projectId}:tags`);
 		return { updated: true };
@@ -126,10 +136,17 @@ export const actions: Actions = {
 			return fail(404, { error: 'Tag not found' });
 		}
 
-		await db.transaction(async (tx) => {
+		const deleted = await db.transaction(async (tx) => {
 			await tx.delete(testCaseTag).where(eq(testCaseTag.tagId, tagId));
-			await tx.delete(tag).where(and(eq(tag.id, tagId), eq(tag.projectId, projectId)));
+			const [deletedTag] = await tx
+				.delete(tag)
+				.where(and(eq(tag.id, tagId), eq(tag.projectId, projectId)))
+				.returning();
+			return deletedTag;
 		});
+		if (!deleted) {
+			return fail(404, { error: 'Tag not found' });
+		}
 
 		cacheDelete(`project:${projectId}:tags`);
 		return { deleted: true };

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockInsertReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -35,6 +39,7 @@ vi.mock('$lib/server/cache', () => ({ cacheDelete: vi.fn() }));
 
 const { actions } = await import('./+page.server');
 const authUtils = await import('$lib/server/auth-utils');
+const { cacheDelete } = await import('$lib/server/cache');
 
 const PARAMS = { projectId: '1' };
 
@@ -70,6 +75,23 @@ describe('tags settings page server', () => {
 			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
+
+		it('returns 500 without cache invalidation when insert returns no tag', async () => {
+			mockDb.query.tag.findFirst.mockResolvedValueOnce(null);
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ name: 'Smoke', color: '#ef4444' }),
+				user: testUser
+			});
+
+			const result = await actions.create(event);
+
+			expect(result).toMatchObject({ status: 500, data: { error: 'Failed to create tag' } });
+			expect(cacheDelete).not.toHaveBeenCalled();
+		});
 	});
 
 	describe('actions.update', () => {
@@ -95,6 +117,7 @@ describe('tags settings page server', () => {
 			mockDb.query.tag.findFirst
 				.mockResolvedValueOnce({ id: 7, projectId: 1, name: 'Smoke', color: '#ef4444' })
 				.mockResolvedValueOnce(null);
+			const updateChain = mockUpdateReturning(mockDb, [{ id: 7 }]);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -110,7 +133,7 @@ describe('tags settings page server', () => {
 			const result = await actions.update(event);
 
 			expect(result).toEqual({ updated: true });
-			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 7],
 					['project_id', 1]
@@ -151,6 +174,29 @@ describe('tags settings page server', () => {
 				expect(mockDb.update).not.toHaveBeenCalled();
 			}
 		});
+
+		it('returns 404 without cache invalidation when update affects no rows', async () => {
+			mockDb.query.tag.findFirst
+				.mockResolvedValueOnce({ id: 7, projectId: 1, name: 'Smoke', color: '#ef4444' })
+				.mockResolvedValueOnce(null);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({
+					tagId: '7',
+					name: 'Regression',
+					color: '#3b82f6'
+				}),
+				user: testUser
+			});
+
+			const result = await actions.update(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Tag not found' } });
+			expect(cacheDelete).not.toHaveBeenCalled();
+		});
 	});
 
 	describe('actions.delete', () => {
@@ -161,8 +207,13 @@ describe('tags settings page server', () => {
 				name: 'Smoke',
 				color: '#ef4444'
 			});
-			const txDeleteWhere = vi.fn();
-			const txDelete = vi.fn(() => ({ where: txDeleteWhere }));
+			const assignmentWhere = vi.fn().mockResolvedValue(undefined);
+			const tagReturning = vi.fn().mockResolvedValue([{ id: 7 }]);
+			const tagWhere = vi.fn(() => ({ returning: tagReturning }));
+			const txDelete = vi
+				.fn()
+				.mockReturnValueOnce({ where: assignmentWhere })
+				.mockReturnValueOnce({ where: tagWhere });
 			mockDb.transaction.mockImplementationOnce(async (fn) => fn({ delete: txDelete }));
 
 			const event = createMockEvent({
@@ -177,16 +228,45 @@ describe('tags settings page server', () => {
 			expect(result).toEqual({ deleted: true });
 			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 			expect(txDelete).toHaveBeenNthCalledWith(1, { tagId: 'tag_id' });
-			expect(txDeleteWhere).toHaveBeenNthCalledWith(1, ['tag_id', 7]);
+			expect(assignmentWhere).toHaveBeenCalledWith(['tag_id', 7]);
 			expect(txDelete).toHaveBeenNthCalledWith(2, expect.objectContaining({ id: 'id' }));
-			expect(txDeleteWhere).toHaveBeenNthCalledWith(
-				2,
+			expect(tagWhere).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 7],
 					['project_id', 1]
 				])
 			);
+			expect(tagReturning).toHaveBeenCalled();
 			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
+		it('returns 404 without cache invalidation when tag delete affects no rows', async () => {
+			mockDb.query.tag.findFirst.mockResolvedValueOnce({
+				id: 7,
+				projectId: 1,
+				name: 'Smoke',
+				color: '#ef4444'
+			});
+			const assignmentWhere = vi.fn().mockResolvedValue(undefined);
+			const tagReturning = vi.fn().mockResolvedValue([]);
+			const tagWhere = vi.fn(() => ({ returning: tagReturning }));
+			const txDelete = vi
+				.fn()
+				.mockReturnValueOnce({ where: assignmentWhere })
+				.mockReturnValueOnce({ where: tagWhere });
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn({ delete: txDelete }));
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ tagId: '7' }),
+				user: testUser
+			});
+
+			const result = await actions.delete(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Tag not found' } });
+			expect(cacheDelete).not.toHaveBeenCalled();
 		});
 
 		it('rejects invalid tagId before querying existing tag', async () => {

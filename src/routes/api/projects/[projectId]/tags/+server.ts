@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { tag, testCaseTag } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -48,7 +48,13 @@ export const POST = withProjectRole(
 					where: and(eq(testCaseTag.testCaseId, testCaseId), eq(testCaseTag.tagId, existing.id))
 				});
 				if (!alreadyAssigned) {
-					await db.insert(testCaseTag).values({ testCaseId, tagId: existing.id });
+					const [assigned] = await db
+						.insert(testCaseTag)
+						.values({ testCaseId, tagId: existing.id })
+						.returning();
+					if (!assigned) {
+						error(500, 'Failed to assign tag');
+					}
 				}
 				return json({
 					tag: { id: existing.id, name: existing.name, color: existing.color },
@@ -81,9 +87,22 @@ export const POST = withProjectRole(
 								createdBy: user.id
 							})
 							.returning();
-						await tx.insert(testCaseTag).values({ testCaseId, tagId: created.id });
+						if (!created) {
+							error(500, 'Failed to create tag');
+						}
+						const [assigned] = await tx
+							.insert(testCaseTag)
+							.values({ testCaseId, tagId: created.id })
+							.returning();
+						if (!assigned) {
+							error(500, 'Failed to assign tag');
+						}
 						return created;
 					});
+
+		if (!newTag) {
+			error(500, 'Failed to create tag');
+		}
 
 		cacheDelete(`project:${projectId}:tags`);
 		return json({

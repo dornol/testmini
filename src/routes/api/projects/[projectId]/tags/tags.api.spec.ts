@@ -43,6 +43,7 @@ vi.mock('$lib/server/queries', () => ({
 
 const { POST } = await import('./+server');
 const authUtils = await import('$lib/server/auth-utils');
+const { cacheDelete } = await import('$lib/server/cache');
 
 describe('/api/projects/[projectId]/tags', () => {
 	beforeEach(() => {
@@ -76,7 +77,8 @@ describe('/api/projects/[projectId]/tags', () => {
 			const created = { id: 2, name: 'Feature', color: '#00ff00' };
 			const returning = vi.fn().mockResolvedValue([created]);
 			const tagValues = vi.fn(() => ({ returning }));
-			const assignmentValues = vi.fn().mockResolvedValue(undefined);
+			const assignmentReturning = vi.fn().mockResolvedValue([{ testCaseId: 10, tagId: 2 }]);
+			const assignmentValues = vi.fn(() => ({ returning: assignmentReturning }));
 			const txInsert = vi
 				.fn()
 				.mockReturnValueOnce({ values: tagValues })
@@ -109,7 +111,63 @@ describe('/api/projects/[projectId]/tags', () => {
 				tagId: 'tag_id'
 			});
 			expect(assignmentValues).toHaveBeenCalledWith({ testCaseId: 10, tagId: 2 });
+			expect(assignmentReturning).toHaveBeenCalled();
 			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 500 when tag insert returns no created tag', async () => {
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Bug', color: '#ff0000' },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+			expect(cacheDelete).not.toHaveBeenCalled();
+		});
+
+		it('should return 500 when transaction tag insert returns no created tag', async () => {
+			const returning = vi.fn().mockResolvedValue([]);
+			const tagValues = vi.fn(() => ({ returning }));
+			const txInsert = vi.fn().mockReturnValueOnce({ values: tagValues });
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn({ insert: txInsert }));
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Feature', color: '#00ff00', testCaseId: 10 },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+			expect(txInsert).toHaveBeenCalledTimes(1);
+			expect(cacheDelete).not.toHaveBeenCalled();
+		});
+
+		it('should return 500 when transaction assignment insert returns no assignment', async () => {
+			const created = { id: 2, name: 'Feature', color: '#00ff00' };
+			const tagReturning = vi.fn().mockResolvedValue([created]);
+			const tagValues = vi.fn(() => ({ returning: tagReturning }));
+			const assignmentReturning = vi.fn().mockResolvedValue([]);
+			const assignmentValues = vi.fn(() => ({ returning: assignmentReturning }));
+			const txInsert = vi
+				.fn()
+				.mockReturnValueOnce({ values: tagValues })
+				.mockReturnValueOnce({ values: assignmentValues });
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn({ insert: txInsert }));
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Feature', color: '#00ff00', testCaseId: 10 },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+			expect(cacheDelete).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for missing name', async () => {
@@ -231,6 +289,7 @@ describe('/api/projects/[projectId]/tags', () => {
 			const existingTag = { id: 1, name: 'Bug', color: '#ff0000' };
 			mockDb.query.tag.findFirst.mockResolvedValue(existingTag);
 			mockDb.query.testCaseTag.findFirst.mockResolvedValue(null);
+			mockInsertReturning(mockDb, [{ testCaseId: 10, tagId: 1 }]);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -244,6 +303,22 @@ describe('/api/projects/[projectId]/tags', () => {
 			expect(response.status).toBe(200);
 			expect(data.tag.id).toBe(1);
 			expect(data.assigned).toBe(true);
+		});
+
+		it('should return 500 when existing tag assignment insert returns no assignment', async () => {
+			const existingTag = { id: 1, name: 'Bug', color: '#ff0000' };
+			mockDb.query.tag.findFirst.mockResolvedValue(existingTag);
+			mockDb.query.testCaseTag.findFirst.mockResolvedValue(null);
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Bug', color: '#ff0000', testCaseId: 10 },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
 		});
 
 		it('should not duplicate assignment when tag already assigned to test case', async () => {

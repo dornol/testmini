@@ -116,6 +116,33 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]/items', () => {
 			const data = await response.json();
 			expect(data.error).toBe('Some test cases do not belong to this project');
 		});
+
+		it('should add test cases with one conflict-safe insert', async () => {
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
+			const onConflictDoNothing = vi.fn().mockResolvedValue([]);
+			const values = vi.fn(() => ({ onConflictDoNothing }));
+			mockDb.insert.mockReturnValue({ values } as never);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { testCaseIds: [10, 11] },
+				user: adminUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.success).toBe(true);
+			expect(mockDb.insert).toHaveBeenCalledTimes(1);
+			expect(mockDb.insert).toHaveBeenCalledWith(expect.objectContaining({ suiteId: 'suite_id' }));
+			expect(values).toHaveBeenCalledWith([
+				{ suiteId: 5, testCaseId: 10 },
+				{ suiteId: 5, testCaseId: 11 }
+			]);
+			expect(onConflictDoNothing).toHaveBeenCalledTimes(1);
+		});
 	});
 
 	describe('DELETE', () => {

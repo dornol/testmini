@@ -45,14 +45,7 @@ export const POST = withProjectRole(
 			testCaseId: tcId
 		}));
 
-		// Use ON CONFLICT DO NOTHING to ignore duplicates
-		for (const value of values) {
-			try {
-				await db.insert(testSuiteItem).values(value);
-			} catch {
-				// ignore duplicate constraint violations
-			}
-		}
+		await db.insert(testSuiteItem).values(values).onConflictDoNothing();
 
 		return json({ success: true });
 	}

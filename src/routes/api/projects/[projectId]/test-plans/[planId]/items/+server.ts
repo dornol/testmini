@@ -43,18 +43,16 @@ export const POST = withProjectRole(
 
 		let nextPosition = (maxPos?.maxPosition ?? -1) + 1;
 
-		// Insert with conflict handling (skip duplicates)
-		for (const tcId of testCaseIds) {
-			try {
-				await db.insert(testPlanTestCase).values({
+		await db
+			.insert(testPlanTestCase)
+			.values(
+				testCaseIds.map((tcId) => ({
 					testPlanId: planId,
 					testCaseId: tcId,
 					position: nextPosition++
-				});
-			} catch {
-				// ignore duplicate constraint violations
-			}
-		}
+				}))
+			)
+			.onConflictDoNothing();
 
 		return json({ success: true });
 	}

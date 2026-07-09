@@ -79,12 +79,9 @@ describe('/api/projects/[projectId]/test-plans/[planId]/items', () => {
 				}
 			});
 
-			// Mock insert for each test case
-			const insertChain = {
-				values: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.insert.mockReturnValue(insertChain as never);
+			const onConflictDoNothing = vi.fn().mockResolvedValue([]);
+			const values = vi.fn(() => ({ onConflictDoNothing }));
+			mockDb.insert.mockReturnValue({ values } as never);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -97,6 +94,15 @@ describe('/api/projects/[projectId]/test-plans/[planId]/items', () => {
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
+			expect(mockDb.insert).toHaveBeenCalledTimes(1);
+			expect(mockDb.insert).toHaveBeenCalledWith(
+				expect.objectContaining({ testPlanId: 'test_plan_id' })
+			);
+			expect(values).toHaveBeenCalledWith([
+				{ testPlanId: 1, testCaseId: 10, position: 3 },
+				{ testPlanId: 1, testCaseId: 11, position: 4 }
+			]);
+			expect(onConflictDoNothing).toHaveBeenCalledTimes(1);
 		});
 
 		it('should return 400 when test cases do not belong to project', async () => {

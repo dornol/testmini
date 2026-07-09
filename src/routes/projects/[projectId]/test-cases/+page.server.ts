@@ -25,6 +25,9 @@ import {
 	parseCanonicalPositiveIntegerList
 } from '$lib/server/search-param-validation';
 import { parseOptionalFormString, parseOptionalTrimmedFormString } from '$lib/server/form-utils';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+
+const MAX_TEST_CASE_QUICK_CREATE_FORM_BODY_SIZE = 16 * 1024;
 
 async function loadExecutionMap(
 	selectedRunIds: number[],
@@ -319,6 +322,11 @@ export const actions: Actions = {
 		const authUser = requireAuth(locals);
 		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertContentLengthUnderLimit(
+			request,
+			MAX_TEST_CASE_QUICK_CREATE_FORM_BODY_SIZE,
+			'Test case quick create form body is too large'
+		);
 
 		const formData = await request.formData();
 		const title = parseOptionalTrimmedFormString(formData.get('title'));

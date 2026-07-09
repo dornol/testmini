@@ -54,6 +54,8 @@ const { actions } = await import('./+page.server');
 const authUtils = await import('$lib/server/auth-utils');
 
 const PARAMS = { projectId: '1', testCaseId: '10' };
+const MAX_TEST_CASE_EDIT_FORM_BODY_SIZE = 256 * 1024;
+const MAX_TEST_CASE_ACTION_FORM_BODY_SIZE = 16 * 1024;
 
 function makeFormData(entries: Record<string, FormDataEntryValue>): FormData {
 	const fd = new FormData();
@@ -69,7 +71,44 @@ describe('test case detail page actions', () => {
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'DEV' });
 	});
 
+	describe('update', () => {
+		it('rejects oversized edit form bodies before querying the test case', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				headers: { 'content-length': String(MAX_TEST_CASE_EDIT_FORM_BODY_SIZE + 1) },
+				formData: makeFormData({ title: 'New title', revision: '1' }),
+				user: testUser
+			});
+
+			await expect(actions.update(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Test case edit form body is too large' }
+			});
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+	});
+
 	describe('createTag', () => {
+		it('rejects oversized action form bodies before querying test case', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				headers: { 'content-length': String(MAX_TEST_CASE_ACTION_FORM_BODY_SIZE + 1) },
+				formData: makeFormData({ name: 'Regression', color: '#3b82f6' }),
+				user: testUser
+			});
+
+			await expect(actions.createTag(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Test case action form body is too large' }
+			});
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('creates a new tag and assignment in one transaction', async () => {
 			const created = { id: 7, name: 'Regression', color: '#3b82f6' };
 			mockDb.query.testCase.findFirst.mockResolvedValueOnce({ id: 10, projectId: 1 });
@@ -228,6 +267,24 @@ describe('test case detail page actions', () => {
 	});
 
 	describe('assignAssignee', () => {
+		it('rejects invalid content-length before querying test case for assignment', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				headers: { 'content-length': 'invalid' },
+				formData: makeFormData({ userId: 'user-2' }),
+				user: testUser
+			});
+
+			await expect(actions.assignAssignee(event)).rejects.toMatchObject({
+				status: 400,
+				body: { message: 'Invalid content-length header' }
+			});
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it.each([
 			[''],
 			['   '],

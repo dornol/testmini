@@ -103,6 +103,7 @@ vi.mock('$lib/server/test-case-filters', () => ({
 const { actions, load } = await import('./+page.server');
 
 const PARAMS = { projectId: '1' };
+const MAX_TEST_CASE_QUICK_CREATE_FORM_BODY_SIZE = 16 * 1024;
 
 function makeFormData(entries: Record<string, FormDataEntryValue>): FormData {
 	const formData = new FormData();
@@ -131,6 +132,22 @@ describe('test cases page server actions', () => {
 	});
 
 	describe('quickCreate', () => {
+		it('rejects oversized form bodies before creating a test case', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				headers: { 'content-length': String(MAX_TEST_CASE_QUICK_CREATE_FORM_BODY_SIZE + 1) },
+				user: testUser,
+				formData: makeFormData({ title: 'New case', priority: 'MEDIUM' })
+			});
+
+			await expect(actions.quickCreate(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Test case quick create form body is too large' }
+			});
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it.each([
 			[{ title: new File(['New case'], 'title.txt'), priority: 'MEDIUM' }, 'Title is required'],
 			[{ title: 'New case', priority: new File(['MEDIUM'], 'priority.txt') }, 'Invalid priority'],

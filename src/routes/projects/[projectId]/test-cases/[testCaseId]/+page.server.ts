@@ -24,8 +24,27 @@ import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils
 import { loadTestCaseMetadata } from '$lib/server/queries';
 import { cacheDelete } from '$lib/server/cache';
 import { parseOptionalFormString, parseOptionalTrimmedFormString } from '$lib/server/form-utils';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
 
+const MAX_TEST_CASE_EDIT_FORM_BODY_SIZE = 256 * 1024;
+const MAX_TEST_CASE_ACTION_FORM_BODY_SIZE = 16 * 1024;
 const MAX_USER_ID_LENGTH = 255;
+
+function assertTestCaseEditFormBodySize(request: Request): void {
+	assertContentLengthUnderLimit(
+		request,
+		MAX_TEST_CASE_EDIT_FORM_BODY_SIZE,
+		'Test case edit form body is too large'
+	);
+}
+
+function assertTestCaseActionFormBodySize(request: Request): void {
+	assertContentLengthUnderLimit(
+		request,
+		MAX_TEST_CASE_ACTION_FORM_BODY_SIZE,
+		'Test case action form body is too large'
+	);
+}
 
 function parseUserId(value: FormDataEntryValue | null): string | null {
 	if (typeof value !== 'string') return null;
@@ -165,6 +184,7 @@ export const actions: Actions = {
 		const projectId = parseId(params.projectId, 'project ID');
 		const testCaseId = parseId(params.testCaseId, 'test case ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertTestCaseEditFormBodySize(request);
 
 		const form = await validateForm(updateTestCaseSchema, request);
 
@@ -263,6 +283,7 @@ export const actions: Actions = {
 		const projectId = parseId(params.projectId, 'project ID');
 		const testCaseId = parseId(params.testCaseId, 'test case ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertTestCaseActionFormBodySize(request);
 
 		const formData = await request.formData();
 		const name = parseOptionalTrimmedFormString(formData.get('name'));
@@ -317,6 +338,7 @@ export const actions: Actions = {
 		const projectId = parseId(params.projectId, 'project ID');
 		const testCaseId = parseId(params.testCaseId, 'test case ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertTestCaseActionFormBodySize(request);
 
 		const formData = await request.formData();
 		const tagId = parsePositiveFormId(formData.get('tagId'));
@@ -353,6 +375,7 @@ export const actions: Actions = {
 		const projectId = parseId(params.projectId, 'project ID');
 		const testCaseId = parseId(params.testCaseId, 'test case ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertTestCaseActionFormBodySize(request);
 
 		const formData = await request.formData();
 		const tagId = parsePositiveFormId(formData.get('tagId'));
@@ -375,6 +398,7 @@ export const actions: Actions = {
 		const projectId = parseId(params.projectId, 'project ID');
 		const testCaseId = parseId(params.testCaseId, 'test case ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertTestCaseActionFormBodySize(request);
 
 		const formData = await request.formData();
 		const userId = parseUserId(formData.get('userId'));
@@ -411,6 +435,7 @@ export const actions: Actions = {
 		const projectId = parseId(params.projectId, 'project ID');
 		const testCaseId = parseId(params.testCaseId, 'test case ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertTestCaseActionFormBodySize(request);
 
 		const formData = await request.formData();
 		const userId = parseUserId(formData.get('userId'));

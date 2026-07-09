@@ -199,6 +199,21 @@ describe('/api/projects/[projectId]/api-keys', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 when body has unknown fields', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Key', scope: 'read' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Invalid API key field');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when name is not a string', async () => {
 			const event = createMockEvent({
 				method: 'POST',

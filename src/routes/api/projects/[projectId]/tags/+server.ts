@@ -10,12 +10,17 @@ import { badRequest, conflict } from '$lib/server/errors';
 import { validatePositiveInteger, validateRequestBody } from '$lib/server/id-list-validation';
 import { requireTestCase } from '$lib/server/queries';
 
+const TAG_CREATE_FIELDS = new Set(['name', 'color', 'testCaseId']);
+
 /** Create a new tag and optionally assign it to a test case */
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ request, user, projectId }) => {
 		const bodyOrError = validateRequestBody(await parseJsonBody(request));
 		if (bodyOrError instanceof Response) return bodyOrError;
+		if (Object.keys(bodyOrError).some((key) => !TAG_CREATE_FIELDS.has(key))) {
+			return badRequest('Invalid tag field');
+		}
 		const { name, color } = bodyOrError as { name?: string; color?: string };
 
 		const parsed = createTagSchema.safeParse({ name: name?.trim(), color });

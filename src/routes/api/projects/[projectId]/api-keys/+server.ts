@@ -8,10 +8,14 @@ import { generateApiKey, hashApiKey } from '$lib/server/api-key-auth';
 import { parseJsonBody } from '$lib/server/auth-utils';
 
 const MAX_API_KEY_NAME_LENGTH = 100;
+const API_KEY_CREATE_FIELDS = new Set(['name']);
 
 function validateRequestBody(body: unknown): Record<string, unknown> | Response {
 	if (!body || typeof body !== 'object' || Array.isArray(body)) {
 		return badRequest('Invalid request body');
+	}
+	if (Object.keys(body).some((key) => !API_KEY_CREATE_FIELDS.has(key))) {
+		return badRequest('Invalid API key field');
 	}
 	return body as Record<string, unknown>;
 }

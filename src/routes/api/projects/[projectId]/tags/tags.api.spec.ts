@@ -142,6 +142,22 @@ describe('/api/projects/[projectId]/tags', () => {
 			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 when request body has unknown fields', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Tag', color: '#ff0000', description: 'unexpected' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Invalid tag field');
+			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when testCaseId is not a positive integer', async () => {
 			const event = createMockEvent({
 				method: 'POST',

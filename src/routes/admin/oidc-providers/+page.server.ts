@@ -4,13 +4,7 @@ import { db } from '$lib/server/db';
 import { oidcProvider, oidcAccount } from '$lib/server/db/schema';
 import { eq, count, asc } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
-
-function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
-	if (typeof value !== 'string') return null;
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
-	return parsed;
-}
+import { parsePositiveFormId } from '$lib/server/form-utils';
 
 export const load: PageServerLoad = async () => {
 	const providers = await db

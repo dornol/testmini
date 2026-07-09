@@ -219,7 +219,18 @@ describe('/teams/[teamId]/settings/members', () => {
 		});
 
 		it('should return 400 for invalid memberId before looking up target member', async () => {
-			for (const memberId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
+			for (const memberId of [
+				'abc',
+				'0',
+				'-1',
+				'+1',
+				'01',
+				'1.5',
+				'1e3',
+				' 1',
+				'1 ',
+				String(Number.MAX_SAFE_INTEGER + 1)
+			]) {
 				vi.clearAllMocks();
 				mockDb.query.teamMember.findFirst.mockResolvedValueOnce({
 					id: 1,
@@ -340,7 +351,18 @@ describe('/teams/[teamId]/settings/members', () => {
 		});
 
 		it('should return 400 for invalid memberId before looking up target member', async () => {
-			for (const memberId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
+			for (const memberId of [
+				'abc',
+				'0',
+				'-1',
+				'+1',
+				'01',
+				'1.5',
+				'1e3',
+				' 1',
+				'1 ',
+				String(Number.MAX_SAFE_INTEGER + 1)
+			]) {
 				vi.clearAllMocks();
 				mockDb.query.teamMember.findFirst.mockResolvedValueOnce({
 					id: 1,

@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { message } from 'sveltekit-superforms';
 import { addTeamMemberSchema } from '$lib/schemas/team.schema';
-import { emptyForm, validateForm } from '$lib/server/form-utils';
+import { emptyForm, validateForm, parsePositiveFormId } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { teamMember, user } from '$lib/server/db/schema';
 import { eq, and, count } from 'drizzle-orm';
@@ -11,13 +11,6 @@ import { loadTeamMembers } from '$lib/server/queries';
 
 const TEAM_ROLES = ['OWNER', 'ADMIN', 'MEMBER'] as const;
 type TeamRole = (typeof TEAM_ROLES)[number];
-
-function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
-	if (typeof value !== 'string') return null;
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
-	return parsed;
-}
 
 function parseTeamRole(value: FormDataEntryValue | null): TeamRole | null {
 	if (typeof value !== 'string') return null;

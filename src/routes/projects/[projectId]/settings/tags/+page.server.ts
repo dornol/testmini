@@ -6,13 +6,7 @@ import { eq, and } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { createTagSchema, updateTagSchema } from '$lib/schemas/tag.schema';
 import { cacheDelete } from '$lib/server/cache';
-
-function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
-	if (typeof value !== 'string') return null;
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
-	return parsed;
-}
+import { parsePositiveFormId } from '$lib/server/form-utils';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = parseId(params.projectId, 'project ID');

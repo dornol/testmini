@@ -5,13 +5,7 @@ import { oidcProvider, oidcAccount } from '$lib/server/db/schema';
 import { account } from '$lib/server/db/auth.schema';
 import { eq, and, asc, count } from 'drizzle-orm';
 import { requireAuth } from '$lib/server/auth-utils';
-
-function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
-	if (typeof value !== 'string') return null;
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
-	return parsed;
-}
+import { parsePositiveFormId } from '$lib/server/form-utils';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const user = requireAuth(locals);

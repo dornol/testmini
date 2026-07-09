@@ -7,13 +7,7 @@ import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils
 import { createPrioritySchema, updatePrioritySchema } from '$lib/schemas/priority.schema';
 import { cacheDelete } from '$lib/server/cache';
 import { getNextPosition } from '$lib/server/queries';
-
-function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
-	if (typeof value !== 'string') return null;
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
-	return parsed;
-}
+import { parsePositiveFormId } from '$lib/server/form-utils';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = parseId(params.projectId, 'project ID');

@@ -81,7 +81,7 @@ describe('/account/profile +page.server', () => {
 	});
 
 	describe('actions.unlink', () => {
-		it.each(['', '0', '-1', '1.5', 'Infinity', '9007199254740992'])(
+		it.each(['', '0', '-1', '+1', '01', '1.5', '1e3', ' 7', '7 ', 'Infinity', '9007199254740992'])(
 			'should reject invalid accountId %s before querying ownership',
 			async (accountId) => {
 				const event = createMockEvent({

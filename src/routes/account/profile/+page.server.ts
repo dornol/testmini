@@ -6,13 +6,7 @@ import { account, user } from '$lib/server/db/auth.schema';
 import { eq, and, asc, count } from 'drizzle-orm';
 import { requireAuth } from '$lib/server/auth-utils';
 import { auth } from '$lib/server/auth';
-
-function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
-	if (typeof value !== 'string') return null;
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
-	return parsed;
-}
+import { parsePositiveFormId } from '$lib/server/form-utils';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const authUser = requireAuth(locals);

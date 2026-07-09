@@ -5,13 +5,7 @@ import { project, projectMember } from '$lib/server/db/schema';
 import { eq, ilike, count, desc, sql } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
 import { parsePositiveIntegerSearchParam } from '$lib/server/search-param-validation';
-
-function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
-	if (typeof value !== 'string') return null;
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
-	return parsed;
-}
+import { parsePositiveFormId } from '$lib/server/form-utils';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const pg = parsePositiveIntegerSearchParam(url.searchParams.get('page'), 1);

@@ -1,12 +1,32 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
-import { zodAdapter, validateForm, emptyForm } from './form-utils';
+import { zodAdapter, validateForm, emptyForm, parsePositiveFormId } from './form-utils';
 
 const testSchema = z.object({
 	name: z.string().min(1)
 });
 
 describe('server form-utils', () => {
+	describe('parsePositiveFormId', () => {
+		it('should parse canonical positive form IDs', () => {
+			expect(parsePositiveFormId('1')).toBe(1);
+			expect(parsePositiveFormId('42')).toBe(42);
+		});
+
+		it.each(['', '0', '-1', '+1', '01', '1.5', '1e3', ' 12', '12 ', '9007199254740992'])(
+			'should reject invalid form ID value %s',
+			(value) => {
+				expect(parsePositiveFormId(value)).toBeNull();
+			}
+		);
+
+		it('should reject non-string form data entries', () => {
+			const file = new File(['content'], 'test.txt');
+			expect(parsePositiveFormId(file)).toBeNull();
+			expect(parsePositiveFormId(null)).toBeNull();
+		});
+	});
+
 	// ── zodAdapter ──────────────────────────────────────
 
 	describe('zodAdapter', () => {

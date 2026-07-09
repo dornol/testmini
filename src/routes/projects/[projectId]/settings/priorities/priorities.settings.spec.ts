@@ -118,7 +118,18 @@ describe('priorities settings page server', () => {
 		});
 
 		it('rejects invalid priorityId before querying existing priority', async () => {
-			for (const priorityId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
+			for (const priorityId of [
+				'abc',
+				'0',
+				'-1',
+				'+1',
+				'01',
+				'1.5',
+				'1e3',
+				' 1',
+				'1 ',
+				String(Number.MAX_SAFE_INTEGER + 1)
+			]) {
 				vi.clearAllMocks();
 				vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 				const event = createMockEvent({
@@ -170,7 +181,18 @@ describe('priorities settings page server', () => {
 		});
 
 		it('rejects invalid priorityId before querying existing priority', async () => {
-			for (const priorityId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
+			for (const priorityId of [
+				'abc',
+				'0',
+				'-1',
+				'+1',
+				'01',
+				'1.5',
+				'1e3',
+				' 1',
+				'1 ',
+				String(Number.MAX_SAFE_INTEGER + 1)
+			]) {
 				vi.clearAllMocks();
 				vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 				const event = createMockEvent({

@@ -82,7 +82,18 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 		});
 
 		it('returns 400 for invalid memberId before querying member records', async () => {
-			for (const memberId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
+			for (const memberId of [
+				'abc',
+				'0',
+				'-1',
+				'+1',
+				'01',
+				'1.5',
+				'1e3',
+				' 1',
+				'1 ',
+				String(Number.MAX_SAFE_INTEGER + 1)
+			]) {
 				vi.clearAllMocks();
 				mockRequireProjectRole.mockResolvedValue({ role: 'PROJECT_ADMIN' });
 				const event = createMockEvent({
@@ -144,7 +155,18 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 		});
 
 		it('returns 400 for invalid memberId before querying member records', async () => {
-			for (const memberId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
+			for (const memberId of [
+				'abc',
+				'0',
+				'-1',
+				'+1',
+				'01',
+				'1.5',
+				'1e3',
+				' 1',
+				'1 ',
+				String(Number.MAX_SAFE_INTEGER + 1)
+			]) {
 				vi.clearAllMocks();
 				mockRequireProjectRole.mockResolvedValue({ role: 'PROJECT_ADMIN' });
 				const event = createMockEvent({

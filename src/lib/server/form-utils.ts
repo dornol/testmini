@@ -1,6 +1,7 @@
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import type { ZodType } from 'zod';
+import { parseCanonicalPositiveInteger } from '$lib/server/search-param-validation';
 
 type FormSchema = ZodType<Record<string, unknown>>;
 
@@ -15,4 +16,9 @@ export async function validateForm<T extends FormSchema>(schema: T, request: Req
 /** Create empty form (for initial load) */
 export async function emptyForm<T extends FormSchema>(schema: T) {
 	return superValidate(zod4(schema));
+}
+
+export function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
+	if (typeof value !== 'string') return null;
+	return parseCanonicalPositiveInteger(value);
 }

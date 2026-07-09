@@ -132,15 +132,25 @@ describe('admin/projects +page.server', () => {
 			await expect(actions.toggleActive(event)).rejects.toThrow();
 		});
 
-		it.each(['abc', '', '0', '-1', '1.5', 'Infinity', '9007199254740992'])(
-			'should return 400 for invalid projectId %s',
-			async (projectId) => {
-				const event = createActionEvent(adminUser, { projectId, active: 'true' });
-				const result = await actions.toggleActive(event);
-				expect(result).toMatchObject({ status: 400, data: { error: 'Invalid project ID' } });
-				expect(mockDb.update).not.toHaveBeenCalled();
-			}
-		);
+		it.each([
+			'abc',
+			'',
+			'0',
+			'-1',
+			'+1',
+			'01',
+			'1.5',
+			'1e3',
+			' 1',
+			'1 ',
+			'Infinity',
+			'9007199254740992'
+		])('should return 400 for invalid projectId %s', async (projectId) => {
+			const event = createActionEvent(adminUser, { projectId, active: 'true' });
+			const result = await actions.toggleActive(event);
+			expect(result).toMatchObject({ status: 400, data: { error: 'Invalid project ID' } });
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
 
 		it('should toggle active status on success', async () => {
 			const event = createActionEvent(adminUser, { projectId: '1', active: 'true' });

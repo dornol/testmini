@@ -409,7 +409,18 @@ describe('environments settings page server', () => {
 		});
 
 		it('should reject invalid environmentId before querying existing environment', async () => {
-			for (const environmentId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
+			for (const environmentId of [
+				'abc',
+				'0',
+				'-1',
+				'+1',
+				'01',
+				'1.5',
+				'1e3',
+				' 1',
+				'1 ',
+				String(Number.MAX_SAFE_INTEGER + 1)
+			]) {
 				vi.clearAllMocks();
 				vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 				const event = createMockEvent({
@@ -555,7 +566,18 @@ describe('environments settings page server', () => {
 		});
 
 		it('should return 400 for invalid environmentId before querying existing environment', async () => {
-			for (const environmentId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
+			for (const environmentId of [
+				'abc',
+				'0',
+				'-1',
+				'+1',
+				'01',
+				'1.5',
+				'1e3',
+				' 1',
+				'1 ',
+				String(Number.MAX_SAFE_INTEGER + 1)
+			]) {
 				vi.clearAllMocks();
 				vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 				const event = createMockEvent({

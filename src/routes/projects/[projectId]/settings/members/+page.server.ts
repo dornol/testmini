@@ -6,7 +6,7 @@ import {
 	updateMemberRoleSchema,
 	type AddMemberInput
 } from '$lib/schemas/member.schema';
-import { emptyForm, validateForm } from '$lib/server/form-utils';
+import { emptyForm, validateForm, parsePositiveFormId } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { projectMember, user } from '$lib/server/db/schema';
 import { eq, and, count } from 'drizzle-orm';
@@ -14,13 +14,6 @@ import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils
 import { logAudit } from '$lib/server/audit';
 import { createNotification } from '$lib/server/notifications';
 import { cacheDelete } from '$lib/server/cache';
-
-function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
-	if (typeof value !== 'string') return null;
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
-	return parsed;
-}
 
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = parseId(params.projectId, 'project ID');

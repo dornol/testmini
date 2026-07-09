@@ -78,7 +78,18 @@ describe('tags settings page server', () => {
 		});
 
 		it('rejects invalid tagId before querying existing tag', async () => {
-			for (const tagId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
+			for (const tagId of [
+				'abc',
+				'0',
+				'-1',
+				'+1',
+				'01',
+				'1.5',
+				'1e3',
+				' 1',
+				'1 ',
+				String(Number.MAX_SAFE_INTEGER + 1)
+			]) {
 				vi.clearAllMocks();
 				vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 				const event = createMockEvent({
@@ -129,7 +140,18 @@ describe('tags settings page server', () => {
 		});
 
 		it('rejects invalid tagId before querying existing tag', async () => {
-			for (const tagId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
+			for (const tagId of [
+				'abc',
+				'0',
+				'-1',
+				'+1',
+				'01',
+				'1.5',
+				'1e3',
+				' 1',
+				'1 ',
+				String(Number.MAX_SAFE_INTEGER + 1)
+			]) {
 				vi.clearAllMocks();
 				vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 				const event = createMockEvent({

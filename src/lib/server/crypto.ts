@@ -5,6 +5,9 @@ const PBKDF2_SALT = 'testmini-encryption-salt';
 const PBKDF2_ITERATIONS = 100_000;
 const PBKDF2_KEY_LENGTH = 32;
 const PBKDF2_DIGEST = 'sha256';
+const IV_HEX_LENGTH = 24;
+const AUTH_TAG_HEX_LENGTH = 32;
+const HEX_PATTERN = /^[0-9a-f]*$/i;
 
 function deriveKey(): Buffer {
 	const secret = env.BETTER_AUTH_SECRET;
@@ -30,7 +33,21 @@ export function encrypt(plaintext: string): string {
  */
 export function decrypt(encrypted: string): string {
 	const key = deriveKey();
-	const [ivHex, authTagHex, ciphertextHex] = encrypted.split(':');
+	const parts = encrypted.split(':');
+	if (parts.length !== 3) {
+		throw new Error('Invalid encrypted payload format');
+	}
+	const [ivHex, authTagHex, ciphertextHex] = parts;
+	if (
+		ivHex.length !== IV_HEX_LENGTH ||
+		authTagHex.length !== AUTH_TAG_HEX_LENGTH ||
+		!HEX_PATTERN.test(ivHex) ||
+		!HEX_PATTERN.test(authTagHex) ||
+		!HEX_PATTERN.test(ciphertextHex) ||
+		ciphertextHex.length % 2 !== 0
+	) {
+		throw new Error('Invalid encrypted payload format');
+	}
 	const iv = Buffer.from(ivHex, 'hex');
 	const authTag = Buffer.from(authTagHex, 'hex');
 	const ciphertext = Buffer.from(ciphertextHex, 'hex');

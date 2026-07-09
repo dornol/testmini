@@ -71,4 +71,17 @@ describe('encrypt / decrypt', () => {
 	it('should throw on invalid format', () => {
 		expect(() => decrypt('not-valid-format')).toThrow();
 	});
+
+	it.each([
+		['missing auth tag and ciphertext', '00'.repeat(12)],
+		['short iv', `${'00'.repeat(11)}:${'00'.repeat(16)}:abcd`],
+		['short auth tag', `${'00'.repeat(12)}:${'00'.repeat(15)}:abcd`],
+		['non-hex iv', `${'zz'.repeat(12)}:${'00'.repeat(16)}:abcd`],
+		['non-hex auth tag', `${'00'.repeat(12)}:${'zz'.repeat(16)}:abcd`],
+		['non-hex ciphertext', `${'00'.repeat(12)}:${'00'.repeat(16)}:zz`],
+		['odd-length ciphertext', `${'00'.repeat(12)}:${'00'.repeat(16)}:abc`],
+		['extra separator', `${'00'.repeat(12)}:${'00'.repeat(16)}:abcd:ef`]
+	])('should reject malformed encrypted payloads: %s', (_label, payload) => {
+		expect(() => decrypt(payload)).toThrow('Invalid encrypted payload format');
+	});
 });

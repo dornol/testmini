@@ -287,6 +287,38 @@ describe('oidc-jwt', () => {
 			expect(result.warning).toContain('aud mismatch');
 		});
 
+		it('rejects tokens without a non-empty string subject', async () => {
+			mockFetchJwks();
+			const token = createTestJwt({ extraClaims: { sub: { id: 'user-123' } } });
+
+			const result = await verifyIdToken({
+				idToken: token,
+				jwksUri: TEST_JWKS_URI,
+				issuer: TEST_ISSUER,
+				audience: TEST_AUDIENCE
+			});
+
+			expect(result.verified).toBe(false);
+			expect(result.claims).toBeNull();
+			expect(result.warning).toContain('sub must be a non-empty string');
+		});
+
+		it('rejects tokens with non-string audience entries', async () => {
+			mockFetchJwks();
+			const token = createTestJwt({ extraClaims: { aud: [TEST_AUDIENCE, 123] } });
+
+			const result = await verifyIdToken({
+				idToken: token,
+				jwksUri: TEST_JWKS_URI,
+				issuer: TEST_ISSUER,
+				audience: TEST_AUDIENCE
+			});
+
+			expect(result.verified).toBe(false);
+			expect(result.claims).toBeNull();
+			expect(result.warning).toContain('aud must be a string or string array');
+		});
+
 		it('accepts token with audience as array containing expected value', async () => {
 			mockFetchJwks();
 			const token = createTestJwt({ aud: [TEST_AUDIENCE, 'other-client'] });

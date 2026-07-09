@@ -228,6 +228,17 @@ function validateClaims(claims: IdTokenClaims, opts: ClaimValidationOptions): st
 		return `iss mismatch: expected "${opts.issuer}", got "${claims.iss}"`;
 	}
 
+	if (typeof claims.sub !== 'string' || !claims.sub) {
+		return 'sub must be a non-empty string';
+	}
+
+	if (!(
+		typeof claims.aud === 'string' ||
+		(Array.isArray(claims.aud) && claims.aud.every((aud) => typeof aud === 'string'))
+	)) {
+		return 'aud must be a string or string array';
+	}
+
 	const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
 	if (!audiences.includes(opts.audience)) {
 		return `aud mismatch: "${opts.audience}" not in ${JSON.stringify(audiences)}`;

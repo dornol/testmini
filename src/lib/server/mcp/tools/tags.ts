@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { testCase, tag, testCaseTag } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator } from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 import { createTagSchema, updateTagSchema } from '$lib/schemas/tag.schema';
 
@@ -59,7 +59,7 @@ export function registerTagTools(server: McpServer, projectId: number) {
 	server.tool(
 		'delete-tag',
 		'Delete a tag by ID',
-		{ tagId: z.number().describe('Tag ID') },
+		{ tagId: mcpPositiveIdSchema.describe('Tag ID') },
 		async ({ tagId }) => {
 			const t = await db.query.tag.findFirst({
 				where: and(eq(tag.id, tagId), eq(tag.projectId, projectId))
@@ -76,8 +76,8 @@ export function registerTagTools(server: McpServer, projectId: number) {
 		'add-tag-to-test-case',
 		'Add a tag to a test case',
 		{
-			testCaseId: z.number().describe('Test case ID'),
-			tagId: z.number().describe('Tag ID')
+			testCaseId: mcpPositiveIdSchema.describe('Test case ID'),
+			tagId: mcpPositiveIdSchema.describe('Tag ID')
 		},
 		async ({ testCaseId, tagId }) => {
 			const tc = await db.query.testCase.findFirst({
@@ -100,8 +100,8 @@ export function registerTagTools(server: McpServer, projectId: number) {
 		'remove-tag-from-test-case',
 		'Remove a tag from a test case',
 		{
-			testCaseId: z.number().describe('Test case ID'),
-			tagId: z.number().describe('Tag ID')
+			testCaseId: mcpPositiveIdSchema.describe('Test case ID'),
+			tagId: mcpPositiveIdSchema.describe('Tag ID')
 		},
 		async ({ testCaseId, tagId }) => {
 			const tc = await db.query.testCase.findFirst({
@@ -126,11 +126,13 @@ export function registerTagTools(server: McpServer, projectId: number) {
 		'update-tag',
 		'Update a tag name or color',
 		{
-			tagId: z.number().describe('Tag ID'),
+			tagId: mcpPositiveIdSchema.describe('Tag ID'),
 			name: z.string().min(1).max(50).optional().describe('New name'),
 			color: z.string().optional().describe('New color hex')
 		},
 		async ({ tagId, name, color }) => {
+			if (name === undefined && color === undefined) return err('No fields to update');
+
 			const t = await db.query.tag.findFirst({
 				where: and(eq(tag.id, tagId), eq(tag.projectId, projectId))
 			});

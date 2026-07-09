@@ -385,5 +385,19 @@ describe('MCP tag tools', () => {
 			);
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
+
+		it('should reject an empty update', async () => {
+			const result = await client.callTool({
+				name: 'update-tag',
+				arguments: { tagId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'No fields to update'
+			);
+			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
 	});
 });

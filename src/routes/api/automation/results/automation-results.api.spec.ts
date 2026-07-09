@@ -164,6 +164,39 @@ describe('/api/automation/results POST', () => {
 			expect(data.error).toBe('Invalid request body');
 		});
 
+		it('should return 413 when content-length exceeds 1MB', async () => {
+			const request = new Request('http://localhost:5173/api/automation/results', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'content-length': String(2 * 1024 * 1024)
+				},
+				body: JSON.stringify({})
+			});
+
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(413);
+			expect(data.error).toContain('1MB');
+			expect(mockDb.query.project.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return 413 when streamed body exceeds 1MB without content-length', async () => {
+			const request = makeRequest({ data: 'x'.repeat(1024 * 1024) });
+
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(413);
+			expect(data.error).toContain('1MB');
+			expect(mockDb.query.project.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for non-object JSON body', async () => {
 			const request = makeRequest(null);
 			const response = await POST({ request } as never);

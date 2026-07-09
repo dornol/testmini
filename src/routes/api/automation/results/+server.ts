@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { unauthorized, badRequest, notFound } from '$lib/server/errors';
+import { unauthorized, badRequest, notFound, payloadTooLarge } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import {
 	project,
@@ -64,7 +64,10 @@ export const POST: RequestHandler = async ({ request }) => {
 	let body: AutomationResultsRequest;
 	try {
 		body = (await parseJsonBody(request)) as typeof body;
-	} catch {
+	} catch (err) {
+		if (err && typeof err === 'object' && 'status' in err && err.status === 413) {
+			return payloadTooLarge();
+		}
 		return badRequest('Invalid request body');
 	}
 	if (!isRecord(body)) {

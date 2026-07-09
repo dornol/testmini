@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { priorityConfig, testCaseVersion, testCase, testCaseTemplate } from '$lib/server/db/schema';
-import { eq, and, asc, sql } from 'drizzle-orm';
+import { eq, and, asc, sql, inArray } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { createPrioritySchema, updatePrioritySchema } from '$lib/schemas/priority.schema';
 import { cacheDelete } from '$lib/server/cache';
@@ -240,6 +240,16 @@ export const actions: Actions = {
 		const order = parseReorderIds(formData.get('order'));
 		if (!order) {
 			return fail(400, { error: 'Invalid order data' });
+		}
+
+		if (order.length > 0) {
+			const existingPriorities = await db
+				.select({ id: priorityConfig.id })
+				.from(priorityConfig)
+				.where(and(inArray(priorityConfig.id, order), eq(priorityConfig.projectId, projectId)));
+			if (existingPriorities.length !== order.length) {
+				return fail(400, { error: 'Some priorities do not belong to this project' });
+			}
 		}
 
 		await db.transaction(async (tx) => {

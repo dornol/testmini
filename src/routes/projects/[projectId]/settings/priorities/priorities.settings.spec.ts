@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -36,6 +36,7 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
 	asc: vi.fn((a: unknown) => a),
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
+	inArray: vi.fn((a: unknown, b: unknown) => ['inArray', a, b]),
 	sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }))
 }));
 vi.mock('$lib/server/auth-utils', async () => {
@@ -310,6 +311,7 @@ describe('priorities settings page server', () => {
 		});
 
 		it('reorders priorities successfully', async () => {
+			mockSelectResult(mockDb, [{ id: 3 }, { id: 1 }, { id: 2 }]);
 			const event = createMockEvent({
 				method: 'POST',
 				params: PARAMS,
@@ -321,6 +323,24 @@ describe('priorities settings page server', () => {
 
 			expect(result).toEqual({ reordered: true });
 			expect(mockDb.transaction).toHaveBeenCalled();
+		});
+
+		it('rejects reorder when priorities are outside the current project', async () => {
+			mockSelectResult(mockDb, [{ id: 3 }, { id: 1 }]);
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ order: JSON.stringify([3, 1, 999]) }),
+				user: testUser
+			});
+
+			const result = await actions.reorder(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'Some priorities do not belong to this project' }
+			});
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
 		it.each([

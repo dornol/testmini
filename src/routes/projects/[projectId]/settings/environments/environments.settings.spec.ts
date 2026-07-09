@@ -29,6 +29,7 @@ vi.mock('$lib/server/db/schema', () => ({
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
+	inArray: vi.fn((a: unknown, b: unknown) => ['inArray', a, b]),
 	asc: vi.fn((a: unknown) => a)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
@@ -899,6 +900,7 @@ describe('environments settings page server', () => {
 
 	describe('actions.reorder', () => {
 		it('should reorder environments successfully', async () => {
+			mockSelectResult(mockDb, [{ id: 3 }, { id: 1 }, { id: 2 }]);
 			const event = createMockEvent({
 				method: 'POST',
 				params: PARAMS,
@@ -927,6 +929,7 @@ describe('environments settings page server', () => {
 		});
 
 		it('should succeed with single item order', async () => {
+			mockSelectResult(mockDb, [{ id: 5 }]);
 			const event = createMockEvent({
 				method: 'POST',
 				params: PARAMS,
@@ -938,6 +941,24 @@ describe('environments settings page server', () => {
 
 			expect(result).toEqual({ reordered: true });
 			expect(mockDb.transaction).toHaveBeenCalled();
+		});
+
+		it('should reject reorder when environments are outside the current project', async () => {
+			mockSelectResult(mockDb, [{ id: 3 }, { id: 1 }]);
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ order: JSON.stringify([3, 1, 999]) }),
+				user: testUser
+			});
+
+			const result = await actions.reorder(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'Some environments do not belong to this project' }
+			});
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for invalid order JSON', async () => {

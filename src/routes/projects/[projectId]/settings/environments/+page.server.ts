@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { environmentConfig, testRun } from '$lib/server/db/schema';
-import { eq, and, asc } from 'drizzle-orm';
+import { eq, and, asc, inArray } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { createEnvironmentSchema, updateEnvironmentSchema } from '$lib/schemas/environment.schema';
 import { cacheDelete } from '$lib/server/cache';
@@ -260,6 +260,18 @@ export const actions: Actions = {
 		const order = parseReorderIds(formData.get('order'));
 		if (!order) {
 			return fail(400, { error: 'Invalid order data' });
+		}
+
+		if (order.length > 0) {
+			const existingEnvironments = await db
+				.select({ id: environmentConfig.id })
+				.from(environmentConfig)
+				.where(
+					and(inArray(environmentConfig.id, order), eq(environmentConfig.projectId, projectId))
+				);
+			if (existingEnvironments.length !== order.length) {
+				return fail(400, { error: 'Some environments do not belong to this project' });
+			}
 		}
 
 		await db.transaction(async (tx) => {

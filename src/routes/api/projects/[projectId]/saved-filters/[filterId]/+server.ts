@@ -8,6 +8,19 @@ import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 
 const MAX_FILTER_NAME_LENGTH = 100;
 const MAX_FILTER_JSON_LENGTH = 20_000;
+const UNSAFE_FILTER_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function validateRequestBody(body: unknown): Record<string, unknown> | Response {
+	if (
+		!body ||
+		typeof body !== 'object' ||
+		Array.isArray(body) ||
+		Object.getPrototypeOf(body) !== Object.prototype
+	) {
+		return badRequest('Invalid request body');
+	}
+	return body as Record<string, unknown>;
+}
 
 function validateFilterName(value: unknown): string | Response {
 	if (typeof value !== 'string') return badRequest('Name must be a string');
@@ -31,7 +44,25 @@ function validateFilters(value: unknown): Record<string, unknown> | Response {
 	if (JSON.stringify(value).length > MAX_FILTER_JSON_LENGTH) {
 		return badRequest(`Filters must be ${MAX_FILTER_JSON_LENGTH} characters or less`);
 	}
+	if (containsUnsafeFilterKey(value)) {
+		return badRequest('Filters contain an unsafe key');
+	}
 	return value as Record<string, unknown>;
+}
+
+function containsUnsafeFilterKey(value: unknown): boolean {
+	if (Array.isArray(value)) {
+		return value.some((item) => containsUnsafeFilterKey(item));
+	}
+	if (!value || typeof value !== 'object') {
+		return false;
+	}
+	for (const [key, child] of Object.entries(value)) {
+		if (UNSAFE_FILTER_KEYS.has(key) || containsUnsafeFilterKey(child)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 async function findOwnedFilter(userId: string, projectId: number, filterId: number) {
@@ -50,7 +81,9 @@ export const PATCH = withProjectAccess(async ({ request, user, projectId, params
 	const existing = await findOwnedFilter(user.id, projectId, filterId);
 	if (!existing) return notFound('Saved filter not found');
 
-	const body = (await parseJsonBody(request)) as Record<string, unknown>;
+	const bodyOrError = validateRequestBody(await parseJsonBody(request));
+	if (bodyOrError instanceof Response) return bodyOrError;
+	const body = bodyOrError;
 
 	const updates: Record<string, unknown> = {};
 

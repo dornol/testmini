@@ -158,6 +158,27 @@ describe('/api/projects/[projectId]/saved-filters', () => {
 			await expect(POST(event)).rejects.toThrow();
 		});
 
+		it('should return 400 when request body is not an object', async () => {
+			for (const body of [null, ['Filter']]) {
+				vi.clearAllMocks();
+				mockDb.query.savedFilter = { findFirst: vi.fn() };
+
+				const event = createMockEvent({
+					method: 'POST',
+					params: PARAMS,
+					body,
+					user: testUser
+				});
+				const response = await POST(event);
+				const data = await response.json();
+
+				expect(response.status).toBe(400);
+				expect(data.error).toMatch(/request body/i);
+				expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
+				expect(mockDb.insert).not.toHaveBeenCalled();
+			}
+		});
+
 		it('should create a saved filter successfully', async () => {
 			mockDb.query.savedFilter.findFirst.mockResolvedValue(null);
 
@@ -294,6 +315,33 @@ describe('/api/projects/[projectId]/saved-filters', () => {
 			const response = await POST(event);
 
 			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 when filters contain unsafe keys', async () => {
+			const unsafeFilters = [
+				JSON.parse('{"__proto__":"polluted"}') as Record<string, unknown>,
+				{ nested: JSON.parse('{"constructor":"polluted"}') },
+				{ nested: [JSON.parse('{"prototype":"polluted"}')] }
+			];
+
+			for (const filters of unsafeFilters) {
+				vi.clearAllMocks();
+				mockDb.query.savedFilter = { findFirst: vi.fn() };
+
+				const event = createMockEvent({
+					method: 'POST',
+					params: PARAMS,
+					body: { name: 'Filter', filters },
+					user: testUser
+				});
+				const response = await POST(event);
+				const data = await response.json();
+
+				expect(response.status).toBe(400);
+				expect(data.error).toMatch(/unsafe key/i);
+				expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
+				expect(mockDb.insert).not.toHaveBeenCalled();
+			}
 		});
 
 		it('should return 400 when filters payload is too large', async () => {

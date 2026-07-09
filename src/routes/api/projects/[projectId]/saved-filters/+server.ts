@@ -9,6 +9,19 @@ import { parseJsonBody } from '$lib/server/auth-utils';
 const MAX_FILTER_NAME_LENGTH = 100;
 const MAX_FILTER_JSON_LENGTH = 20_000;
 const ALLOWED_FILTER_TYPES = new Set(['test_cases', 'test_runs']);
+const UNSAFE_FILTER_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function validateRequestBody(body: unknown): Record<string, unknown> | Response {
+	if (
+		!body ||
+		typeof body !== 'object' ||
+		Array.isArray(body) ||
+		Object.getPrototypeOf(body) !== Object.prototype
+	) {
+		return badRequest('Invalid request body');
+	}
+	return body as Record<string, unknown>;
+}
 
 function validateFilterType(value: unknown): string | Response {
 	const filterType = value ?? 'test_cases';
@@ -43,7 +56,25 @@ function validateFilters(
 	if (JSON.stringify(value).length > MAX_FILTER_JSON_LENGTH) {
 		return badRequest(`Filters must be ${MAX_FILTER_JSON_LENGTH} characters or less`);
 	}
+	if (containsUnsafeFilterKey(value)) {
+		return badRequest('Filters contain an unsafe key');
+	}
 	return value as Record<string, unknown>;
+}
+
+function containsUnsafeFilterKey(value: unknown): boolean {
+	if (Array.isArray(value)) {
+		return value.some((item) => containsUnsafeFilterKey(item));
+	}
+	if (!value || typeof value !== 'object') {
+		return false;
+	}
+	for (const [key, child] of Object.entries(value)) {
+		if (UNSAFE_FILTER_KEYS.has(key) || containsUnsafeFilterKey(child)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 export const GET = withProjectAccess(async ({ user, projectId, url }) => {
@@ -67,7 +98,9 @@ export const GET = withProjectAccess(async ({ user, projectId, url }) => {
 });
 
 export const POST = withProjectAccess(async ({ request, user, projectId }) => {
-	const body = (await parseJsonBody(request)) as Record<string, unknown>;
+	const bodyOrError = validateRequestBody(await parseJsonBody(request));
+	if (bodyOrError instanceof Response) return bodyOrError;
+	const body = bodyOrError;
 
 	const nameOrError = validateFilterName(body.name);
 	if (nameOrError instanceof Response) return nameOrError;

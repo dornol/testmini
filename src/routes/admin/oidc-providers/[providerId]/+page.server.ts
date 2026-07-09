@@ -111,6 +111,13 @@ export const actions: Actions = {
 			return fail(400, { error: urlValidationError });
 		}
 
+		const [provider] = await db
+			.select({ id: oidcProvider.id })
+			.from(oidcProvider)
+			.where(eq(oidcProvider.id, providerId));
+
+		if (!provider) return fail(404, { error: 'Provider not found' });
+
 		const existing = await db
 			.select({ id: oidcProvider.id })
 			.from(oidcProvider)

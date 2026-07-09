@@ -278,7 +278,7 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 		});
 
 		it('should return 400 when slug already exists on another provider', async () => {
-			mockSelectResult(mockDb, [{ id: 2 }]); // another provider has the slug
+			mockSelectSequence([[{ id: 1 }], [{ id: 2 }]]); // provider exists, another provider has the slug
 
 			const event = createActionEvent(adminUser, validUpdateData);
 			const result = await actions.update(event);
@@ -288,8 +288,18 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 			});
 		});
 
+		it('should return 404 when updating a missing provider', async () => {
+			mockSelectSequence([[]]);
+
+			const event = createActionEvent(adminUser, validUpdateData, { providerId: '99' });
+			const result = await actions.update(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Provider not found' } });
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should update provider on success without secret', async () => {
-			mockSelectResult(mockDb, []); // no slug conflict
+			mockSelectSequence([[{ id: 1 }], []]); // provider exists, no slug conflict
 
 			const event = createActionEvent(adminUser, validUpdateData);
 			const result = await actions.update(event);
@@ -298,7 +308,7 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 		});
 
 		it('should encrypt clientSecret when provided', async () => {
-			mockSelectResult(mockDb, []); // no slug conflict
+			mockSelectSequence([[{ id: 1 }], []]); // provider exists, no slug conflict
 			const { encrypt } = await import('$lib/server/crypto');
 
 			const event = createActionEvent(adminUser, {
@@ -313,7 +323,7 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 		it.each(['-1', '1.5', 'Infinity', '9007199254740992'])(
 			'should normalize invalid displayOrder %s to zero',
 			async (displayOrder) => {
-				mockSelectResult(mockDb, []); // no slug conflict
+				mockSelectSequence([[{ id: 1 }], []]); // provider exists, no slug conflict
 				const updateChain = {
 					set: vi.fn().mockReturnThis(),
 					where: vi.fn().mockResolvedValue(undefined)

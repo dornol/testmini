@@ -16,7 +16,8 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' }),
@@ -180,11 +181,100 @@ describe('/api/projects/[projectId]/column-settings', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 when column item is not an object', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1' },
+				body: { columnSettings: [null] },
+				user: adminUser
+			});
+			const response = await PUT(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/object/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when column id is unknown', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1' },
+				body: { columnSettings: [{ id: 'unknown', visible: true }] },
+				user: adminUser
+			});
+			const response = await PUT(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/column id/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when column ids are duplicated', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1' },
+				body: {
+					columnSettings: [
+						{ id: 'priority', visible: true },
+						{ id: 'priority', visible: false }
+					]
+				},
+				user: adminUser
+			});
+			const response = await PUT(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/duplicate/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when columnSettings contains too many items', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1' },
+				body: {
+					columnSettings: Array.from({ length: 201 }, (_, index) => ({
+						id: `cf_${index + 1}`,
+						visible: true
+					}))
+				},
+				user: adminUser
+			});
+			const response = await PUT(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/200 items/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should save valid column settings successfully', async () => {
 			const settings = [
 				{ id: 'priority', visible: true },
 				{ id: 'status', visible: false },
 				{ id: 'assignee', visible: true }
+			];
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1' },
+				body: { columnSettings: settings },
+				user: adminUser
+			});
+			const response = await PUT(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(body.success).toBe(true);
+			expect(mockDb.update).toHaveBeenCalled();
+		});
+
+		it('should allow dynamic custom field and run columns', async () => {
+			const settings = [
+				{ id: 'cf_1', visible: true },
+				{ id: 'run_42', visible: false }
 			];
 			const event = createMockEvent({
 				method: 'PUT',

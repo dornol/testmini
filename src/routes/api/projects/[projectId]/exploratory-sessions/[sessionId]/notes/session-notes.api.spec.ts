@@ -213,7 +213,7 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 			expect((await response.json()).error).toContain('Invalid timestamp');
 		});
 
-		it.each(['1.5', 'Infinity', '9007199254740992'])(
+		it.each(['-1', '+1', '01', '1.5', '1e3', ' 1', '1 ', 'Infinity', '9007199254740992'])(
 			'should reject invalid timestamp %s before inserting',
 			async (timestamp) => {
 				mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);

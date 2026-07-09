@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	parseCanonicalNonNegativeInteger,
 	parseCanonicalPositiveInteger,
 	parseCanonicalPositiveIntegerList,
 	parseNonNegativeIntegerSearchParam,
@@ -20,6 +21,20 @@ describe('search-param-validation', () => {
 			'should reject non-canonical positive integer value %s',
 			(value) => {
 				expect(parseCanonicalPositiveInteger(value)).toBeNull();
+			}
+		);
+	});
+
+	describe('parseCanonicalNonNegativeInteger', () => {
+		it('should parse canonical non-negative safe integers', () => {
+			expect(parseCanonicalNonNegativeInteger('0')).toBe(0);
+			expect(parseCanonicalNonNegativeInteger('42')).toBe(42);
+		});
+
+		it.each(['', '-1', '+1', '01', '1.5', '1e3', ' 12', '12 ', '9007199254740992'])(
+			'should reject non-canonical non-negative integer value %s',
+			(value) => {
+				expect(parseCanonicalNonNegativeInteger(value)).toBeNull();
 			}
 		);
 	});

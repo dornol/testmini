@@ -8,6 +8,7 @@ import { parseId } from '$lib/server/auth-utils';
 import { saveFile } from '$lib/server/storage';
 import { randomUUID } from 'node:crypto';
 import { assertMultipartContentLength } from '$lib/server/multipart-limits';
+import { parseCanonicalNonNegativeInteger } from '$lib/server/search-param-validation';
 
 const MAX_NOTE_CONTENT_LENGTH = 10_000;
 const MAX_SCREENSHOT_SIZE = 10 * 1024 * 1024; // 10MB
@@ -46,8 +47,10 @@ export const POST = withProjectRole(
 			return badRequest('Invalid note type');
 		}
 
-		const timestamp = Number(formData.get('timestamp') ?? '0');
-		if (!Number.isSafeInteger(timestamp) || timestamp < 0) {
+		const timestampValue = formData.get('timestamp');
+		const timestamp =
+			timestampValue === null ? 0 : parseCanonicalNonNegativeInteger(String(timestampValue));
+		if (timestamp === null) {
 			return badRequest('Invalid timestamp');
 		}
 

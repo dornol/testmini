@@ -8,6 +8,13 @@ export function parseCanonicalPositiveInteger(value: string): number | null {
 	return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
+export function parseCanonicalNonNegativeInteger(value: string): number | null {
+	if (!NON_NEGATIVE_INTEGER_PATTERN.test(value)) return null;
+
+	const parsed = Number(value);
+	return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
 export function parseCanonicalPositiveIntegerList(value: string): number[] {
 	return value
 		.split(',')
@@ -95,8 +102,5 @@ export function parseNonNegativeIntegerSearchParam(
 
 function parseSearchInteger(value: string | null): number | null {
 	if (value === null || value.trim() === '') return null;
-	if (!NON_NEGATIVE_INTEGER_PATTERN.test(value)) return null;
-
-	const parsed = Number(value);
-	return Number.isSafeInteger(parsed) ? parsed : null;
+	return parseCanonicalNonNegativeInteger(value);
 }

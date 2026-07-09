@@ -113,7 +113,14 @@ export const actions: Actions = {
 			return fail(400, { error: 'Name is required (1-100 characters)' });
 		}
 
-		await db.update(user).set({ name }).where(eq(user.id, authUser.id));
+		const [updated] = await db
+			.update(user)
+			.set({ name })
+			.where(eq(user.id, authUser.id))
+			.returning();
+		if (!updated) {
+			return fail(404, { error: 'User not found' });
+		}
 
 		return { nameSuccess: true };
 	},

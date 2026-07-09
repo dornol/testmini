@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -110,6 +110,21 @@ describe('/account/profile +page.server', () => {
 	});
 
 	describe('actions.updateName', () => {
+		it('should update name on success', async () => {
+			mockUpdateReturning(mockDb, [{ id: testUser.id }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createNameFormData(' Updated Name '),
+				user: testUser
+			});
+
+			const result = await actions.updateName(event);
+
+			expect(result).toMatchObject({ nameSuccess: true });
+			expect(mockDb.update).toHaveBeenCalled();
+		});
+
 		it('should reject file values for name before updating', async () => {
 			const event = createMockEvent({
 				method: 'POST',
@@ -140,6 +155,20 @@ describe('/account/profile +page.server', () => {
 				data: { error: 'Name is required (1-100 characters)' }
 			});
 			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 404 when user disappears before update', async () => {
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createNameFormData('Updated Name'),
+				user: testUser
+			});
+
+			const result = await actions.updateName(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'User not found' } });
 		});
 	});
 

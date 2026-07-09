@@ -1,5 +1,6 @@
 import { badRequest } from './errors';
 import { validateRequestBody } from './id-list-validation';
+import { isPlainRecord } from './object-validation';
 
 const STATIC_COLUMN_IDS = new Set([
 	'key',
@@ -47,11 +48,11 @@ export function validateColumnSettingsInput(body: unknown): ColumnSetting[] | Re
 }
 
 function validateColumnSetting(value: unknown): ColumnSetting | Response {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+	if (!isPlainRecord(value)) {
 		return badRequest('Each column must be an object');
 	}
 
-	const column = value as Record<string, unknown>;
+	const column = value;
 	if (typeof column.id !== 'string' || typeof column.visible !== 'boolean') {
 		return badRequest('Each column must have id (string) and visible (boolean)');
 	}

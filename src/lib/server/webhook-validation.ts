@@ -1,4 +1,5 @@
 import { badRequest } from '$lib/server/errors';
+import { isPlainRecord } from '$lib/server/object-validation';
 import { validatePublicHttpUrl } from '$lib/server/url-safety';
 
 export const VALID_WEBHOOK_EVENTS = [
@@ -59,11 +60,11 @@ export async function validateWebhookFields(
 	body: unknown,
 	options: WebhookFieldValidationOptions = {}
 ): Promise<ValidatedWebhookFields | Response> {
-	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+	if (!isPlainRecord(body)) {
 		return badRequest('Invalid request body');
 	}
 
-	const input = body as Record<string, unknown>;
+	const input = body;
 	if (Object.keys(input).some((key) => !WEBHOOK_FIELDS.has(key))) {
 		return badRequest('Invalid webhook field');
 	}

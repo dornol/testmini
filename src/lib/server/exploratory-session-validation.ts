@@ -1,4 +1,5 @@
 import { badRequest } from '$lib/server/errors';
+import { isPlainRecord } from '$lib/server/object-validation';
 
 const MAX_TITLE_LENGTH = 500;
 const MAX_TEXT_LENGTH = 10_000;
@@ -36,10 +37,6 @@ export type ValidatedUpdateExploratorySession = {
 	tags?: string[];
 	pausedDuration?: number;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function validateRequiredString(
 	value: unknown,
@@ -92,7 +89,7 @@ function validateTags(value: unknown): string[] | Response {
 export function validateCreateExploratorySessionPayload(
 	body: unknown
 ): ValidatedCreateExploratorySession | Response {
-	if (!isRecord(body)) return badRequest('Request body must be an object');
+	if (!isPlainRecord(body)) return badRequest('Request body must be an object');
 	const fieldError = validateSessionKeys(body, CREATE_SESSION_FIELDS);
 	if (fieldError) return fieldError;
 
@@ -116,7 +113,7 @@ export function validateCreateExploratorySessionPayload(
 export function validateUpdateExploratorySessionPayload(
 	body: unknown
 ): ValidatedUpdateExploratorySession | Response {
-	if (!isRecord(body)) return badRequest('Request body must be an object');
+	if (!isPlainRecord(body)) return badRequest('Request body must be an object');
 	const fieldError = validateSessionKeys(body, UPDATE_SESSION_FIELDS);
 	if (fieldError) return fieldError;
 

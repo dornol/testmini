@@ -1,5 +1,6 @@
 import { badRequest } from '$lib/server/errors';
 import { validateRequestBody } from '$lib/server/id-list-validation';
+import { isPlainRecord } from '$lib/server/object-validation';
 import type { TestStep } from '$lib/server/db/schema';
 
 const MAX_NAME_LENGTH = 200;
@@ -136,10 +137,10 @@ function validateTemplateSteps(value: unknown): TestStep[] | Response {
 
 	const steps: TestStep[] = [];
 	for (const [index, step] of value.entries()) {
-		if (!step || typeof step !== 'object' || Array.isArray(step)) {
+		if (!isPlainRecord(step)) {
 			return badRequest('Each step must be an object');
 		}
-		const record = step as Record<string, unknown>;
+		const record = step;
 		if (typeof record.action !== 'string') {
 			return badRequest('Step action must be a string');
 		}

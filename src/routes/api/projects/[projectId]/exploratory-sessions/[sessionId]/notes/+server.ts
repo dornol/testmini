@@ -8,6 +8,8 @@ import { parseId } from '$lib/server/auth-utils';
 import { saveFile } from '$lib/server/storage';
 import { randomUUID } from 'node:crypto';
 
+const MAX_NOTE_CONTENT_LENGTH = 10_000;
+
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ request, projectId, params }) => {
@@ -21,6 +23,9 @@ export const POST = withProjectRole(
 		const formData = await request.formData();
 		const content = ((formData.get('content') as string) ?? '').trim();
 		if (!content) return badRequest('Content is required');
+		if (content.length > MAX_NOTE_CONTENT_LENGTH) {
+			return badRequest(`Content must be ${MAX_NOTE_CONTENT_LENGTH} characters or fewer`);
+		}
 
 		const noteType = (formData.get('noteType') as string) ?? 'NOTE';
 		if (!['NOTE', 'BUG', 'QUESTION', 'IDEA'].includes(noteType)) {

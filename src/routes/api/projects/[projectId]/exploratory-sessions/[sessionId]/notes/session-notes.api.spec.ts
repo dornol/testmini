@@ -106,6 +106,21 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 			expect((await response.json()).error).toContain('Content is required');
 		});
 
+		it('should reject oversized content before inserting', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+			const event = createFormDataEvent({
+				content: 'a'.repeat(10_001),
+				noteType: 'NOTE',
+				timestamp: '100'
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('10000 characters or fewer');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should create note with specified note type', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
 

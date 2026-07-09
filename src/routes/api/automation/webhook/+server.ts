@@ -8,9 +8,8 @@ import {
 } from '$lib/server/errors';
 import { authenticateApiKey } from '$lib/server/api-key-auth';
 import { childLogger } from '$lib/server/logger';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonObjectBody } from '$lib/server/auth-utils';
 import { parseContentLengthHeader } from '$lib/server/request-size';
-import { isPlainRecord } from '$lib/server/object-validation';
 
 const log = childLogger('webhook');
 const MAX_EVENT_NAME_LENGTH = 100;
@@ -111,14 +110,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	let body: unknown;
 	try {
-		body = await parseJsonBody(request);
+		body = await parseJsonObjectBody(request);
 	} catch (err) {
 		if (err && typeof err === 'object' && 'status' in err && err.status === 413) {
 			return payloadTooLarge();
 		}
-		return badRequest('Invalid request body');
-	}
-	if (!isPlainRecord(body)) {
 		return badRequest('Invalid request body');
 	}
 

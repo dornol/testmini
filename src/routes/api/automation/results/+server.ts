@@ -13,7 +13,7 @@ import {
 import { eq, and, inArray } from 'drizzle-orm';
 import { authenticateApiKey } from '$lib/server/api-key-auth';
 import { createNotification } from '$lib/server/notifications';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonObjectBody } from '$lib/server/auth-utils';
 import { isPlainRecord } from '$lib/server/object-validation';
 
 interface AutomationResult {
@@ -60,14 +60,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	let body: AutomationResultsRequest;
 	try {
-		body = (await parseJsonBody(request)) as typeof body;
+		body = (await parseJsonObjectBody(request)) as unknown as AutomationResultsRequest;
 	} catch (err) {
 		if (err && typeof err === 'object' && 'status' in err && err.status === 413) {
 			return payloadTooLarge();
 		}
-		return badRequest('Invalid request body');
-	}
-	if (!isPlainRecord(body)) {
 		return badRequest('Invalid request body');
 	}
 

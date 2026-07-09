@@ -6,9 +6,9 @@ const releaseDateStringSchema = z
 
 export const createReleaseSchema = z
 	.object({
-		name: z.string().min(1).max(200),
-		version: z.string().max(100).optional(),
-		description: z.string().max(2000).optional(),
+		name: z.string().trim().min(1).max(200),
+		version: z.string().trim().max(100).optional(),
+		description: z.string().trim().max(2000).optional(),
 		status: z.enum(['PLANNING', 'IN_PROGRESS', 'READY', 'RELEASED']).optional(),
 		targetDate: releaseDateStringSchema.optional(),
 		releaseDate: releaseDateStringSchema.optional()
@@ -17,9 +17,9 @@ export const createReleaseSchema = z
 
 export const updateReleaseSchema = z
 	.object({
-		name: z.string().min(1).max(200).optional(),
-		version: z.string().max(100).nullable().optional(),
-		description: z.string().max(2000).nullable().optional(),
+		name: z.string().trim().min(1).max(200).optional(),
+		version: z.string().trim().max(100).nullable().optional(),
+		description: z.string().trim().max(2000).nullable().optional(),
 		status: z.enum(['PLANNING', 'IN_PROGRESS', 'READY', 'RELEASED']).optional(),
 		targetDate: releaseDateStringSchema.nullable().optional(),
 		releaseDate: releaseDateStringSchema.nullable().optional()

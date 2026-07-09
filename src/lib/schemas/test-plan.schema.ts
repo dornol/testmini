@@ -31,9 +31,9 @@ const testCaseIdsSchema = z
 
 export const createTestPlanSchema = z
 	.object({
-		name: z.string().min(1).max(200),
-		description: z.string().max(2000).optional(),
-		milestone: z.string().max(200).optional(),
+		name: z.string().trim().min(1).max(200),
+		description: z.string().trim().max(2000).optional(),
+		milestone: z.string().trim().max(200).optional(),
 		startDate: testPlanDateSchema.optional(),
 		endDate: testPlanDateSchema.optional(),
 		releaseId: z.number().int().positive().nullable().optional(),
@@ -47,12 +47,12 @@ export const createTestPlanSchema = z
 
 export const updateTestPlanSchema = z
 	.object({
-		name: z.string().min(1).max(200).optional(),
-		description: z.string().max(2000).nullable().optional(),
+		name: z.string().trim().min(1).max(200).optional(),
+		description: z.string().trim().max(2000).nullable().optional(),
 		status: z
 			.enum(['DRAFT', 'IN_REVIEW', 'APPROVED', 'ACTIVE', 'COMPLETED', 'ARCHIVED'])
 			.optional(),
-		milestone: z.string().max(200).nullable().optional(),
+		milestone: z.string().trim().max(200).nullable().optional(),
 		startDate: testPlanDateSchema.nullable().optional(),
 		endDate: testPlanDateSchema.nullable().optional(),
 		releaseId: z.number().int().positive().nullable().optional()

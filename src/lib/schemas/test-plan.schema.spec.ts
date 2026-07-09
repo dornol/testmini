@@ -19,6 +19,25 @@ describe('createTestPlanSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
+	it('should reject whitespace-only name', () => {
+		const result = createTestPlanSchema.safeParse({ name: '   ' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim test plan text fields before returning parsed data', () => {
+		const result = createTestPlanSchema.parse({
+			name: '  Sprint 1 Plan  ',
+			description: '  Regression coverage  ',
+			milestone: '  v1.0  '
+		});
+
+		expect(result).toMatchObject({
+			name: 'Sprint 1 Plan',
+			description: 'Regression coverage',
+			milestone: 'v1.0'
+		});
+	});
+
 	it('should reject name longer than 200 chars', () => {
 		const result = createTestPlanSchema.safeParse({ name: 'A'.repeat(201) });
 		expect(result.success).toBe(false);
@@ -153,6 +172,25 @@ describe('updateTestPlanSchema', () => {
 	it('should reject empty name', () => {
 		const result = updateTestPlanSchema.safeParse({ name: '' });
 		expect(result.success).toBe(false);
+	});
+
+	it('should reject whitespace-only name when provided', () => {
+		const result = updateTestPlanSchema.safeParse({ name: '   ' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim update test plan text fields before returning parsed data', () => {
+		const result = updateTestPlanSchema.parse({
+			name: '  Updated Plan  ',
+			description: '  Updated coverage  ',
+			milestone: '  v1.1  '
+		});
+
+		expect(result).toEqual({
+			name: 'Updated Plan',
+			description: 'Updated coverage',
+			milestone: 'v1.1'
+		});
 	});
 
 	it('should reject invalid dates', () => {

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -56,6 +60,8 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockDb.query.issueLink = { findFirst: vi.fn() };
+		mockUpdateReturning(mockDb, [sampleLink]);
+		mockDeleteReturning(mockDb, [{ id: sampleLink.id }]);
 	});
 
 	// ── PATCH ───────────────────────────────────────────
@@ -182,9 +188,8 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 		});
 
 		it('should update title', async () => {
-			mockDb.query.issueLink.findFirst
-				.mockResolvedValueOnce(sampleLink)
-				.mockResolvedValueOnce({ ...sampleLink, title: 'Updated title' });
+			mockDb.query.issueLink.findFirst.mockResolvedValueOnce(sampleLink);
+			mockUpdateReturning(mockDb, [{ ...sampleLink, title: 'Updated title' }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -201,6 +206,7 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 			expect(mockDb.update).toHaveBeenCalled();
 			const updateChain = mockDb.update.mock.results[0]?.value as {
 				where: ReturnType<typeof vi.fn>;
+				returning: ReturnType<typeof vi.fn>;
 			};
 			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
@@ -208,12 +214,12 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 					['project_id', 1]
 				])
 			);
+			expect(updateChain.returning).toHaveBeenCalled();
 		});
 
 		it('should trim title before update', async () => {
-			mockDb.query.issueLink.findFirst
-				.mockResolvedValueOnce(sampleLink)
-				.mockResolvedValueOnce({ ...sampleLink, title: 'Updated title' });
+			mockDb.query.issueLink.findFirst.mockResolvedValueOnce(sampleLink);
+			mockUpdateReturning(mockDb, [{ ...sampleLink, title: 'Updated title' }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -229,9 +235,8 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 		});
 
 		it('should update status', async () => {
-			mockDb.query.issueLink.findFirst
-				.mockResolvedValueOnce(sampleLink)
-				.mockResolvedValueOnce({ ...sampleLink, status: 'CLOSED' });
+			mockDb.query.issueLink.findFirst.mockResolvedValueOnce(sampleLink);
+			mockUpdateReturning(mockDb, [{ ...sampleLink, status: 'CLOSED' }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -246,9 +251,8 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 		});
 
 		it('should update both title and status', async () => {
-			mockDb.query.issueLink.findFirst
-				.mockResolvedValueOnce(sampleLink)
-				.mockResolvedValueOnce({ ...sampleLink, title: 'New', status: 'OPEN' });
+			mockDb.query.issueLink.findFirst.mockResolvedValueOnce(sampleLink);
+			mockUpdateReturning(mockDb, [{ ...sampleLink, title: 'New', status: 'OPEN' }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -265,9 +269,8 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 		});
 
 		it('should set title to null when empty string', async () => {
-			mockDb.query.issueLink.findFirst
-				.mockResolvedValueOnce(sampleLink)
-				.mockResolvedValueOnce({ ...sampleLink, title: null });
+			mockDb.query.issueLink.findFirst.mockResolvedValueOnce(sampleLink);
+			mockUpdateReturning(mockDb, [{ ...sampleLink, title: null }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -281,9 +284,8 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 		});
 
 		it('should set status to null when null is provided', async () => {
-			mockDb.query.issueLink.findFirst
-				.mockResolvedValueOnce(sampleLink)
-				.mockResolvedValueOnce({ ...sampleLink, status: null });
+			mockDb.query.issueLink.findFirst.mockResolvedValueOnce(sampleLink);
+			mockUpdateReturning(mockDb, [{ ...sampleLink, status: null }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -296,6 +298,20 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 
 			expect(response.status).toBe(200);
 			expect(mockDb.update().set).toHaveBeenCalledWith({ status: null });
+		});
+
+		it('should return 404 when link disappears before update', async () => {
+			mockDb.query.issueLink.findFirst.mockResolvedValueOnce(sampleLink);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { title: 'Updated title' }
+			});
+
+			await expect(PATCH(event)).rejects.toThrow();
 		});
 	});
 
@@ -323,6 +339,7 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 			expect(mockDb.delete).toHaveBeenCalled();
 			const deleteChain = mockDb.delete.mock.results[0]?.value as {
 				where: ReturnType<typeof vi.fn>;
+				returning: ReturnType<typeof vi.fn>;
 			};
 			expect(deleteChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
@@ -330,6 +347,15 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 					['project_id', 1]
 				])
 			);
+			expect(deleteChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should return 404 when link disappears before delete', async () => {
+			mockDb.query.issueLink.findFirst.mockResolvedValue(sampleLink);
+			mockDeleteReturning(mockDb, []);
+			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
+
+			await expect(DELETE(event)).rejects.toThrow();
 		});
 	});
 });

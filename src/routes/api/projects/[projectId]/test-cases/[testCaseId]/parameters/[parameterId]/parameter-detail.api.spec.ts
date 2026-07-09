@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -43,6 +47,8 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters/[paramete
 		vi.clearAllMocks();
 		mockRequireTestCase.mockResolvedValue({ id: 10, projectId: 1 });
 		mockDb.query.testCaseParameter = { findFirst: vi.fn() };
+		mockUpdateReturning(mockDb, [{ id: sampleParam.id }]);
+		mockDeleteReturning(mockDb, [{ id: sampleParam.id }]);
 	});
 
 	describe('PATCH', () => {
@@ -197,12 +203,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters/[paramete
 				}
 			);
 
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			const updateChain = mockUpdateReturning(mockDb, [{ id: sampleParam.id }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -228,12 +229,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters/[paramete
 				sampleParam
 			);
 
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			mockUpdateReturning(mockDb, [{ id: sampleParam.id }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -243,6 +239,25 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters/[paramete
 			});
 			const response = await PATCH(event);
 			expect(response.status).toBe(200);
+		});
+
+		it('should return 404 when parameter disappears before update', async () => {
+			(mockDb.query.testCaseParameter.findFirst as ReturnType<typeof vi.fn>)
+				.mockResolvedValueOnce(sampleParam)
+				.mockResolvedValueOnce(null);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'device' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(404);
+			expect(data.error).toContain('Parameter not found');
 		});
 
 		it('should return 400 with no updates', async () => {
@@ -303,11 +318,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters/[paramete
 				sampleParam
 			);
 
-			const deleteChain = {
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: sampleParam.id }]);
 
 			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
 			const response = await DELETE(event);
@@ -321,6 +332,21 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters/[paramete
 					['test_case_id', 10]
 				])
 			);
+			expect(deleteChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should return 404 when parameter disappears before delete', async () => {
+			(mockDb.query.testCaseParameter.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+				sampleParam
+			);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
+			const response = await DELETE(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(404);
+			expect(data.error).toContain('Parameter not found');
 		});
 	});
 });

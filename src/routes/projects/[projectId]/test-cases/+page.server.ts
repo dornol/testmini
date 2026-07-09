@@ -24,6 +24,7 @@ import {
 	parseCanonicalPositiveInteger,
 	parseCanonicalPositiveIntegerList
 } from '$lib/server/search-param-validation';
+import { parseOptionalFormString, parseOptionalTrimmedFormString } from '$lib/server/form-utils';
 
 async function loadExecutionMap(
 	selectedRunIds: number[],
@@ -315,21 +316,25 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const title = (formData.get('title') as string)?.trim();
-		const priority = (formData.get('priority') as string) || 'MEDIUM';
-		const groupIdStr = formData.get('groupId') as string | null;
-		const groupId = groupIdStr ? parseCanonicalPositiveInteger(groupIdStr) : null;
+		const title = parseOptionalTrimmedFormString(formData.get('title'));
+		const priorityValue = parseOptionalFormString(formData.get('priority'));
+		const priority = priorityValue ?? 'MEDIUM';
+		const groupIdStr = parseOptionalFormString(formData.get('groupId'));
+		const groupId =
+			typeof groupIdStr === 'string' && groupIdStr
+				? parseCanonicalPositiveInteger(groupIdStr)
+				: null;
 
-		if (!title || title.length < 1 || title.length > 200) {
+		if (title === null || !title || title.length < 1 || title.length > 200) {
 			return fail(400, { error: 'Title is required (1-200 characters)' });
 		}
 
-		if (groupIdStr && groupId === null) {
-			return fail(400, { error: 'Invalid group ID' });
+		if (priorityValue === null || !priority) {
+			return fail(400, { error: 'Invalid priority' });
 		}
 
-		if (!priority) {
-			return fail(400, { error: 'Invalid priority' });
+		if (groupIdStr === null || (groupIdStr && groupId === null)) {
+			return fail(400, { error: 'Invalid group ID' });
 		}
 
 		await db.transaction(async (tx) => {

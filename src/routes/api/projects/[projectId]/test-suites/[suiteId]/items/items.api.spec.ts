@@ -204,6 +204,7 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]/items', () => {
 		});
 
 		it('should remove test cases from suite', async () => {
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
 			const deleteChain = mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const event = createMockEvent({
@@ -222,6 +223,7 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]/items', () => {
 		});
 
 		it('should report zero removed when suite items are already gone', async () => {
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
 			mockDeleteReturning(mockDb, []);
 
 			const event = createMockEvent({
@@ -236,6 +238,23 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]/items', () => {
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
 			expect(data.removed).toBe(0);
+		});
+
+		it('should return 400 when delete test cases do not belong to project', async () => {
+			mockSelectResult(mockDb, [{ id: 10 }]);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				body: { testCaseIds: [10, 999] },
+				user: adminUser
+			});
+			const response = await DELETE(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Some test cases do not belong to this project');
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 	});
 });

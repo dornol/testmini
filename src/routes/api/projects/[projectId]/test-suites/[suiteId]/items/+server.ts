@@ -77,6 +77,14 @@ export const DELETE = withProjectRole(
 		const testCaseIds = validatePositiveIntegerList(bodyOrError.testCaseIds, 'testCaseIds');
 		if (testCaseIds instanceof Response) return testCaseIds;
 
+		const validTestCases = await db
+			.select({ id: testCase.id })
+			.from(testCase)
+			.where(and(inArray(testCase.id, testCaseIds), eq(testCase.projectId, projectId)));
+		if (validTestCases.length !== testCaseIds.length) {
+			return badRequest('Some test cases do not belong to this project');
+		}
+
 		const deleted = await db
 			.delete(testSuiteItem)
 			.where(

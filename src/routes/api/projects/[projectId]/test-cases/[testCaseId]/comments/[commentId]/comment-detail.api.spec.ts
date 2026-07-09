@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser, sampleTestCase } from '$lib/server/test-helpers/fixtures';
 
@@ -198,15 +202,24 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments/[commentId]
 			});
 			await expect(PATCH(event)).rejects.toThrow();
 		});
+
+		it('should return 404 when comment disappears before update', async () => {
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { content: 'Updated comment' },
+				user: testUser
+			});
+
+			await expect(PATCH(event)).rejects.toMatchObject({ status: 404 });
+		});
 	});
 
 	describe('DELETE', () => {
 		it('should allow author to delete their own comment', async () => {
-			const deleteChain = {
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			const deleteChain = mockDeleteReturning(mockDb, [authorComment]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -229,12 +242,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments/[commentId]
 		it('should allow PROJECT_ADMIN to delete any comment', async () => {
 			mockDb.query.testCaseComment.findFirst.mockResolvedValue(otherUserComment);
 			mockDb.query.projectMember.findFirst.mockResolvedValue({ role: 'PROJECT_ADMIN' });
-
-			const deleteChain = {
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			mockDeleteReturning(mockDb, [otherUserComment]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -251,12 +259,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments/[commentId]
 		it('should allow global admin to delete any comment', async () => {
 			vi.mocked(authUtils.isGlobalAdmin).mockReturnValue(true);
 			mockDb.query.testCaseComment.findFirst.mockResolvedValue(otherUserComment);
-
-			const deleteChain = {
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			mockDeleteReturning(mockDb, [otherUserComment]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -314,6 +317,18 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments/[commentId]
 				user: testUser
 			});
 			await expect(DELETE(event)).rejects.toThrow();
+		});
+
+		it('should return 404 when comment disappears before delete', async () => {
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: testUser
+			});
+
+			await expect(DELETE(event)).rejects.toMatchObject({ status: 404 });
 		});
 	});
 });

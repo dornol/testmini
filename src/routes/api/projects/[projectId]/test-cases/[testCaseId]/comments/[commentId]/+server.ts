@@ -41,7 +41,6 @@ export const PATCH = withProjectAccess(async ({ params, request, user, projectId
 	const isAdmin = isGlobalAdmin(user);
 	const memberRole = isAdmin ? null : await getMemberRole(user.id, projectId);
 	const isAuthor = comment.userId === user.id;
-	const isProjectAdmin = memberRole === 'PROJECT_ADMIN';
 
 	if (!isAuthor && !isAdmin) {
 		error(403, 'You can only edit your own comments');
@@ -64,6 +63,10 @@ export const PATCH = withProjectAccess(async ({ params, request, user, projectId
 		.where(and(eq(testCaseComment.id, commentId), eq(testCaseComment.testCaseId, testCaseId)))
 		.returning();
 
+	if (!updated) {
+		error(404, 'Comment not found');
+	}
+
 	return json(updated);
 });
 
@@ -84,9 +87,14 @@ export const DELETE = withProjectAccess(async ({ params, user, projectId }) => {
 		}
 	}
 
-	await db
+	const [deleted] = await db
 		.delete(testCaseComment)
-		.where(and(eq(testCaseComment.id, commentId), eq(testCaseComment.testCaseId, testCaseId)));
+		.where(and(eq(testCaseComment.id, commentId), eq(testCaseComment.testCaseId, testCaseId)))
+		.returning();
+
+	if (!deleted) {
+		error(404, 'Comment not found');
+	}
 
 	return json({ success: true });
 });

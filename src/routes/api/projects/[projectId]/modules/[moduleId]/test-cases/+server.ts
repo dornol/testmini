@@ -38,9 +38,13 @@ export const POST = withProjectRole(
 		}
 
 		const values = testCaseIds.map((tcId) => ({ moduleId, testCaseId: tcId }));
-		await db.insert(moduleTestCase).values(values).onConflictDoNothing();
+		const inserted = await db
+			.insert(moduleTestCase)
+			.values(values)
+			.onConflictDoNothing()
+			.returning({ id: moduleTestCase.id });
 
-		return json({ added: testCaseIds.length });
+		return json({ added: inserted.length });
 	}
 );
 

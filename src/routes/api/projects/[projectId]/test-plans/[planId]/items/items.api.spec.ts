@@ -79,7 +79,8 @@ describe('/api/projects/[projectId]/test-plans/[planId]/items', () => {
 				}
 			});
 
-			const onConflictDoNothing = vi.fn().mockResolvedValue([]);
+			const returning = vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }]);
+			const onConflictDoNothing = vi.fn(() => ({ returning }));
 			const values = vi.fn(() => ({ onConflictDoNothing }));
 			mockDb.insert.mockReturnValue({ values } as never);
 
@@ -94,6 +95,7 @@ describe('/api/projects/[projectId]/test-plans/[planId]/items', () => {
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
+			expect(data.added).toBe(2);
 			expect(mockDb.insert).toHaveBeenCalledTimes(1);
 			expect(mockDb.insert).toHaveBeenCalledWith(
 				expect.objectContaining({ testPlanId: 'test_plan_id' })
@@ -103,6 +105,42 @@ describe('/api/projects/[projectId]/test-plans/[planId]/items', () => {
 				{ testPlanId: 1, testCaseId: 11, position: 4 }
 			]);
 			expect(onConflictDoNothing).toHaveBeenCalledTimes(1);
+			expect(returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should report zero added when all plan items already exist', async () => {
+			let selectCall = 0;
+			mockDb.select.mockImplementation(() => {
+				selectCall++;
+				if (selectCall === 1) {
+					return {
+						from: vi.fn().mockReturnThis(),
+						where: vi.fn().mockReturnThis(),
+						then: (r: (v: unknown) => void) => Promise.resolve([{ id: 10 }, { id: 11 }]).then(r)
+					} as never;
+				}
+				return {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([{ maxPosition: 2 }]).then(r)
+				} as never;
+			});
+			const returning = vi.fn().mockResolvedValue([]);
+			const onConflictDoNothing = vi.fn(() => ({ returning }));
+			const values = vi.fn(() => ({ onConflictDoNothing }));
+			mockDb.insert.mockReturnValue({ values } as never);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { testCaseIds: [10, 11] },
+				user: adminUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data).toEqual({ success: true, added: 0 });
 		});
 
 		it('should return 400 when test cases do not belong to project', async () => {

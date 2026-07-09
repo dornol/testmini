@@ -45,9 +45,13 @@ export const POST = withProjectRole(
 			testCaseId: tcId
 		}));
 
-		await db.insert(testSuiteItem).values(values).onConflictDoNothing();
+		const inserted = await db
+			.insert(testSuiteItem)
+			.values(values)
+			.onConflictDoNothing()
+			.returning({ id: testSuiteItem.id });
 
-		return json({ success: true });
+		return json({ success: true, added: inserted.length });
 	}
 );
 

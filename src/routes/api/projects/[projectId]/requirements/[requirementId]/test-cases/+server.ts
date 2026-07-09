@@ -38,17 +38,17 @@ export const POST = withProjectRole(
 			return badRequest('Some test cases do not belong to this project');
 		}
 
-		await db
+		const values = testCaseIds.map((testCaseId) => ({
+			requirementId,
+			testCaseId
+		}));
+		const inserted = await db
 			.insert(requirementTestCase)
-			.values(
-				testCaseIds.map((testCaseId) => ({
-					requirementId,
-					testCaseId
-				}))
-			)
-			.onConflictDoNothing();
+			.values(values)
+			.onConflictDoNothing()
+			.returning({ id: requirementTestCase.id });
 
-		return json({ linked: testCaseIds.length }, { status: 201 });
+		return json({ linked: inserted.length }, { status: 201 });
 	}
 );
 

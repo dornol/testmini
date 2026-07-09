@@ -10,7 +10,7 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testSuite: { id: 'id', projectId: 'project_id' },
-	testSuiteItem: { suiteId: 'suite_id', testCaseId: 'test_case_id' },
+	testSuiteItem: { id: 'id', suiteId: 'suite_id', testCaseId: 'test_case_id' },
 	testCase: { id: 'id', projectId: 'project_id' }
 }));
 vi.mock('drizzle-orm', () => ({
@@ -119,7 +119,8 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]/items', () => {
 
 		it('should add test cases with one conflict-safe insert', async () => {
 			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
-			const onConflictDoNothing = vi.fn().mockResolvedValue([]);
+			const returning = vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }]);
+			const onConflictDoNothing = vi.fn(() => ({ returning }));
 			const values = vi.fn(() => ({ onConflictDoNothing }));
 			mockDb.insert.mockReturnValue({ values } as never);
 
@@ -135,6 +136,7 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]/items', () => {
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
+			expect(data.added).toBe(2);
 			expect(mockDb.insert).toHaveBeenCalledTimes(1);
 			expect(mockDb.insert).toHaveBeenCalledWith(expect.objectContaining({ suiteId: 'suite_id' }));
 			expect(values).toHaveBeenCalledWith([
@@ -142,6 +144,28 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]/items', () => {
 				{ suiteId: 5, testCaseId: 11 }
 			]);
 			expect(onConflictDoNothing).toHaveBeenCalledTimes(1);
+			expect(returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should report zero added when all suite items already exist', async () => {
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
+			const returning = vi.fn().mockResolvedValue([]);
+			const onConflictDoNothing = vi.fn(() => ({ returning }));
+			const values = vi.fn(() => ({ onConflictDoNothing }));
+			mockDb.insert.mockReturnValue({ values } as never);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { testCaseIds: [10, 11] },
+				user: adminUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data).toEqual({ success: true, added: 0 });
 		});
 	});
 

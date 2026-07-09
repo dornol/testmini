@@ -131,7 +131,7 @@ describe('/api/projects/[projectId]/modules/[moduleId]/test-cases', () => {
 			const insertChain = {
 				values: vi.fn().mockReturnThis(),
 				onConflictDoNothing: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+				returning: vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }, { id: 3 }])
 			};
 			mockDb.insert.mockReturnValue(insertChain as never);
 
@@ -145,6 +145,29 @@ describe('/api/projects/[projectId]/modules/[moduleId]/test-cases', () => {
 			expect(response.status).toBe(200);
 			const body = await response.json();
 			expect(body.added).toBe(3);
+		});
+
+		it('should report zero added when all module links already exist', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
+			mockSelectResult(mockDb, [{ id: 1 }, { id: 2 }]);
+			const insertChain = {
+				values: vi.fn().mockReturnThis(),
+				onConflictDoNothing: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([])
+			};
+			mockDb.insert.mockReturnValue(insertChain as never);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { testCaseIds: [1, 2] },
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(body.added).toBe(0);
 		});
 
 		it('should reject test cases outside the current project', async () => {

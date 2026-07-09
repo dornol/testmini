@@ -16,6 +16,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		projectId: 'project_id'
 	},
 	requirementTestCase: {
+		id: 'id',
 		requirementId: 'requirement_id',
 		testCaseId: 'test_case_id'
 	},
@@ -189,7 +190,7 @@ describe('/api/projects/[projectId]/requirements/[requirementId]/test-cases', ()
 		it('should link test cases and return 201', async () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
 			mockSelectResult(mockDb, [{ id: 1 }, { id: 2 }, { id: 3 }]);
-			mockInsertReturning(mockDb, []);
+			mockInsertReturning(mockDb, [{ id: 1 }, { id: 2 }, { id: 3 }]);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -202,6 +203,24 @@ describe('/api/projects/[projectId]/requirements/[requirementId]/test-cases', ()
 			expect(response.status).toBe(201);
 			const body = await response.json();
 			expect(body.linked).toBe(3);
+		});
+
+		it('should report zero linked when all requirement links already exist', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockSelectResult(mockDb, [{ id: 1 }, { id: 2 }]);
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { testCaseIds: [1, 2] }
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(201);
+			const body = await response.json();
+			expect(body.linked).toBe(0);
 		});
 
 		it('should reject test cases outside the current project', async () => {
@@ -225,7 +244,7 @@ describe('/api/projects/[projectId]/requirements/[requirementId]/test-cases', ()
 		it('should link a single test case', async () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
 			mockSelectResult(mockDb, [{ id: 42 }]);
-			mockInsertReturning(mockDb, []);
+			mockInsertReturning(mockDb, [{ id: 42 }]);
 
 			const event = createMockEvent({
 				method: 'POST',

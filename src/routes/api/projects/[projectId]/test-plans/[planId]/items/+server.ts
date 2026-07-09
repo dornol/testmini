@@ -43,18 +43,18 @@ export const POST = withProjectRole(
 
 		let nextPosition = (maxPos?.maxPosition ?? -1) + 1;
 
-		await db
+		const values = testCaseIds.map((tcId) => ({
+			testPlanId: planId,
+			testCaseId: tcId,
+			position: nextPosition++
+		}));
+		const inserted = await db
 			.insert(testPlanTestCase)
-			.values(
-				testCaseIds.map((tcId) => ({
-					testPlanId: planId,
-					testCaseId: tcId,
-					position: nextPosition++
-				}))
-			)
-			.onConflictDoNothing();
+			.values(values)
+			.onConflictDoNothing()
+			.returning({ id: testPlanTestCase.id });
 
-		return json({ success: true });
+		return json({ success: true, added: inserted.length });
 	}
 );
 

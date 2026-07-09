@@ -6,6 +6,7 @@ import { and, eq } from 'drizzle-orm';
 import { withProjectRole, withProjectAccess } from '$lib/server/api-handler';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { childLogger } from '$lib/server/logger';
+import { validatePublicHttpUrl } from '$lib/server/url-safety';
 
 const log = childLogger('issue-tracker-config');
 
@@ -86,7 +87,7 @@ function optionalBoolean(value: unknown, label: string): boolean | undefined | R
 	return value;
 }
 
-function validateBaseUrl(value: unknown): string | Response {
+async function validateBaseUrl(value: unknown): Promise<string | Response> {
 	const baseUrl = requireTrimmedString(value, 'Base URL', MAX_BASE_URL_LENGTH);
 	if (baseUrl instanceof Response) return baseUrl;
 
@@ -102,17 +103,22 @@ function validateBaseUrl(value: unknown): string | Response {
 		return badRequest('Invalid base URL');
 	}
 
+	const urlValidation = await validatePublicHttpUrl(baseUrl);
+	if (!urlValidation.ok) return badRequest(urlValidation.error ?? 'Invalid base URL');
+
 	return baseUrl;
 }
 
-function validatePayload(body: Record<string, unknown>): IssueTrackerConfigPayload | Response {
+async function validatePayload(
+	body: Record<string, unknown>
+): Promise<IssueTrackerConfigPayload | Response> {
 	const provider = requireTrimmedString(body.provider, 'Provider', 32);
 	if (provider instanceof Response) return provider;
 	if (!VALID_PROVIDERS.includes(provider)) {
 		return badRequest(`Provider must be one of: ${VALID_PROVIDERS.join(', ')}`);
 	}
 
-	const baseUrl = validateBaseUrl(body.baseUrl);
+	const baseUrl = await validateBaseUrl(body.baseUrl);
 	if (baseUrl instanceof Response) return baseUrl;
 
 	const apiToken = optionalTrimmedString(body.apiToken, 'API token', MAX_SECRET_LENGTH);
@@ -175,7 +181,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 	const bodyOrError = validateRequestBody(rawBody);
 	if (bodyOrError instanceof Response) return bodyOrError;
 
-	const payloadOrError = validatePayload(bodyOrError);
+	const payloadOrError = await validatePayload(bodyOrError);
 	if (payloadOrError instanceof Response) return payloadOrError;
 	const body = payloadOrError;
 

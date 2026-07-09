@@ -49,10 +49,20 @@ export function isPrivateOrReservedIp(address: string): boolean {
 		}
 
 		const expanded = expandIpv6(normalized);
+		const mappedIpv4 = ipv4FromMappedIpv6(expanded);
+		if (mappedIpv4) return isPrivateOrReservedIpv4(mappedIpv4);
+
 		if (expanded === '0000:0000:0000:0000:0000:0000:0000:0000') return true;
 		if (expanded === '0000:0000:0000:0000:0000:0000:0000:0001') return true;
+		if (expanded.startsWith('0064:ff9b:0001:')) return true;
+		if (expanded.startsWith('0064:ff9b:0000:0000:0000:0000:')) return true;
+		if (expanded.startsWith('0100:0000:0000:0000:')) return true;
+		if (/^2001:0[0-1][0-9a-f]:/.test(expanded)) return true;
+		if (/^2001:0db8:/.test(expanded)) return true;
+		if (/^2002:/.test(expanded)) return true;
 		if (/^fe[89ab][0-9a-f]:/.test(expanded)) return true;
 		if (/^f[cd][0-9a-f]{2}:/.test(expanded)) return true;
+		if (/^ff[0-9a-f]{2}:/.test(expanded)) return true;
 		return false;
 	}
 
@@ -76,8 +86,13 @@ function isPrivateOrReservedIpv4(address: string): boolean {
 	if (a === 127) return true;
 	if (a === 169 && b === 254) return true;
 	if (a === 172 && b >= 16 && b <= 31) return true;
+	if (a === 192 && b === 0) return true;
+	if (a === 192 && b === 0 && parts[2] === 2) return true;
+	if (a === 192 && b === 88 && parts[2] === 99) return true;
 	if (a === 192 && b === 168) return true;
 	if (a === 198 && (b === 18 || b === 19)) return true;
+	if (a === 198 && b === 51 && parts[2] === 100) return true;
+	if (a === 203 && b === 0 && parts[2] === 113) return true;
 	if (a >= 224) return true;
 
 	return false;
@@ -101,4 +116,21 @@ function expandIpv6(address: string): string {
 	}
 
 	return groups.map((group) => group.padStart(4, '0')).join(':');
+}
+
+function ipv4FromMappedIpv6(expanded: string): string | null {
+	const groups = expanded.split(':');
+	if (
+		groups.length !== 8 ||
+		!groups.slice(0, 5).every((group) => group === '0000') ||
+		groups[5] !== 'ffff'
+	) {
+		return null;
+	}
+
+	const high = Number.parseInt(groups[6], 16);
+	const low = Number.parseInt(groups[7], 16);
+	if (!Number.isInteger(high) || !Number.isInteger(low)) return null;
+
+	return `${(high >> 8) & 255}.${high & 255}.${(low >> 8) & 255}.${low & 255}`;
 }

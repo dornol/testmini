@@ -4,8 +4,12 @@ import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
+const mockLookup = vi.fn();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
+vi.mock('dns/promises', () => ({
+	lookup: mockLookup
+}));
 vi.mock('$lib/server/db/schema', () => ({
 	issueTrackerConfig: {
 		id: 'id',
@@ -57,6 +61,7 @@ const sampleConfig = {
 describe('/api/projects/[projectId]/issue-tracker', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockLookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
 		mockDb.query.issueTrackerConfig = { findFirst: vi.fn() };
 	});
 
@@ -233,6 +238,25 @@ describe('/api/projects/[projectId]/issue-tracker', () => {
 
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('must not include credentials');
+		});
+
+		it('should reject base URL resolving to a private address before querying config', async () => {
+			mockLookup.mockResolvedValue([{ address: '127.0.0.1', family: 4 }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { provider: 'GITLAB', baseUrl: 'https://gitlab.internal.example' }
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('private or reserved IP');
+			expect(mockDb.query.issueTrackerConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should reject non-string API token', async () => {

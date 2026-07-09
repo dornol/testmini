@@ -52,12 +52,8 @@ function validateParameterName(value: unknown, emptyMessage: string): string | R
 }
 
 function validateNonNegativeInteger(value: unknown, label: string): number | Response {
-	if (typeof value === 'string' && value.trim().length === 0) {
+	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
 		return badRequest(`${label} must be a non-negative integer`);
 	}
-	const parsed = typeof value === 'number' ? value : Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed < 0) {
-		return badRequest(`${label} must be a non-negative integer`);
-	}
-	return parsed;
+	return value;
 }

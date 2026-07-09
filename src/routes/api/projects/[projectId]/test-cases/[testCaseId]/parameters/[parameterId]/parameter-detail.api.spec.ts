@@ -123,7 +123,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters/[paramete
 		});
 
 		it('should return 400 when orderIndex is invalid', async () => {
-			const cases = ['abc', -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
+			const cases = ['1', 'abc', null, true, {}, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
 
 			for (const orderIndex of cases) {
 				vi.clearAllMocks();

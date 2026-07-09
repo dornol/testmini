@@ -26,6 +26,7 @@ vi.mock('drizzle-orm', () => ({
 
 // Import after mocks
 const { GET } = await import('./+server');
+const drizzle = await import('drizzle-orm');
 
 describe('/api/notifications', () => {
 	beforeEach(() => {
@@ -126,6 +127,80 @@ describe('/api/notifications', () => {
 			expect(data.items).toHaveLength(5);
 			expect(data.hasMore).toBe(true);
 			expect(data.nextCursor).toBe(String(notifications[4].id));
+		});
+
+		it('should cap limit at 100', async () => {
+			const selectChain = mockSelectResult(mockDb, []);
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { limit: '500' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(selectChain.limit).toHaveBeenCalledWith(101);
+		});
+
+		it('should apply cursor condition with a validated cursor ID', async () => {
+			mockSelectResult(mockDb, []);
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { cursor: '42' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(drizzle.lt).toHaveBeenCalledWith('id', 42);
+		});
+
+		it('should return 400 for invalid limit before querying notifications', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { limit: 'abc' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for zero limit before querying notifications', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { limit: '0' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for invalid cursor before querying notifications', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { cursor: 'abc' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for unsafe cursor before querying notifications', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { cursor: String(Number.MAX_SAFE_INTEGER + 1) }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 	});
 });

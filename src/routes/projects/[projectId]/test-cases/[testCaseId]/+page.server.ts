@@ -217,7 +217,7 @@ export const actions: Actions = {
 			await db
 				.update(testCase)
 				.set({ automationKey: trimmedAk })
-				.where(eq(testCase.id, testCaseId));
+				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
 		}
 
 		await db.transaction(async (tx) => {
@@ -244,7 +244,7 @@ export const actions: Actions = {
 			await tx
 				.update(testCase)
 				.set({ latestVersionId: version.id })
-				.where(eq(testCase.id, testCaseId));
+				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
 		});
 
 		return message(form, 'Test case updated successfully');

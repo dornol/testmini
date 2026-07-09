@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { oidcProvider } from '$lib/server/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { auth } from '$lib/server/auth';
+import { parseOptionalFormString } from '$lib/server/form-utils';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) {
@@ -27,11 +28,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	default: async ({ request }) => {
 		const formData = await request.formData();
-		const email = String(formData.get('email') ?? '');
-		const password = String(formData.get('password') ?? '');
+		const email = parseOptionalFormString(formData.get('email'));
+		const password = parseOptionalFormString(formData.get('password'));
 
-		if (!email || !password) {
-			return fail(400, { email, error: 'Email and password are required.' });
+		if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
+			return fail(400, {
+				email: typeof email === 'string' ? email : '',
+				error: 'Email and password are required.'
+			});
 		}
 
 		try {

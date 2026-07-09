@@ -139,26 +139,30 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 		});
 
 		it('should reject invalid sortOrder', async () => {
-			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
+			const cases = ['abc', -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
 
-			const event = createMockEvent({
-				method: 'PATCH',
-				params: PARAMS,
-				user: testUser,
-				body: { sortOrder: -1 }
-			});
+			for (const sortOrder of cases) {
+				vi.clearAllMocks();
+				mockDb.query.customField = { findFirst: vi.fn() };
 
-			const response = await PATCH(event);
-			const body = await response.json();
+				const event = createMockEvent({
+					method: 'PATCH',
+					params: PARAMS,
+					user: testUser,
+					body: { sortOrder }
+				});
 
-			expect(response.status).toBe(400);
-			expect(body.error).toMatch(/non-negative integer/i);
-			expect(mockDb.update).not.toHaveBeenCalled();
+				const response = await PATCH(event);
+				const body = await response.json();
+
+				expect(response.status).toBe(400);
+				expect(body.error).toMatch(/non-negative integer/i);
+				expect(mockDb.query.customField.findFirst).not.toHaveBeenCalled();
+				expect(mockDb.update).not.toHaveBeenCalled();
+			}
 		});
 
 		it('should reject null sortOrder', async () => {
-			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -171,6 +175,7 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toMatch(/non-negative integer/i);
+			expect(mockDb.query.customField.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 

@@ -9,13 +9,13 @@ import { validateUpdateCustomFieldInput } from '$lib/server/custom-field-validat
 export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ params, request, projectId }) => {
 	const fieldId = parseId(params.fieldId, 'field ID');
 
+	const fieldOrError = validateUpdateCustomFieldInput(await parseJsonBody(request));
+	if (fieldOrError instanceof Response) return fieldOrError;
+
 	const existing = await db.query.customField.findFirst({
 		where: and(eq(customField.id, fieldId), eq(customField.projectId, projectId))
 	});
 	if (!existing) error(404, 'Custom field not found');
-
-	const fieldOrError = validateUpdateCustomFieldInput(await parseJsonBody(request));
-	if (fieldOrError instanceof Response) return fieldOrError;
 
 	const updates: Record<string, unknown> = {};
 	if (fieldOrError.name !== undefined) updates.name = fieldOrError.name;

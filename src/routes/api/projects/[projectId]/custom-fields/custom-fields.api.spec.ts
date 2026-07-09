@@ -289,6 +289,30 @@ describe('/api/projects/[projectId]/custom-fields', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 when sortOrder is invalid', async () => {
+			const cases = ['abc', -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
+
+			for (const sortOrder of cases) {
+				vi.clearAllMocks();
+				vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
+
+				const event = createMockEvent({
+					method: 'POST',
+					params: PARAMS,
+					body: { name: 'Field', fieldType: 'TEXT', sortOrder },
+					user: testUser
+				});
+
+				const response = await POST(event);
+				const body = await response.json();
+
+				expect(response.status).toBe(400);
+				expect(body.error).toMatch(/non-negative integer/i);
+				expect(mockDb.select).not.toHaveBeenCalled();
+				expect(mockDb.insert).not.toHaveBeenCalled();
+			}
+		});
+
 		it('should return 400 when options contain duplicates', async () => {
 			const event = createMockEvent({
 				method: 'POST',

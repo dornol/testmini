@@ -1,9 +1,17 @@
 import { badRequest } from '$lib/server/errors';
 import { validateRequestBody } from '$lib/server/id-list-validation';
 
-export const CUSTOM_FIELD_TYPES = ['TEXT', 'NUMBER', 'SELECT', 'MULTISELECT', 'DATE', 'CHECKBOX', 'URL'] as const;
+export const CUSTOM_FIELD_TYPES = [
+	'TEXT',
+	'NUMBER',
+	'SELECT',
+	'MULTISELECT',
+	'DATE',
+	'CHECKBOX',
+	'URL'
+] as const;
 
-type CustomFieldType = typeof CUSTOM_FIELD_TYPES[number];
+type CustomFieldType = (typeof CUSTOM_FIELD_TYPES)[number];
 
 type CustomFieldInput = {
 	name?: string;
@@ -147,7 +155,7 @@ function validateNonNegativeInteger(value: unknown, label: string): number | Res
 		return badRequest(`${label} must be a non-negative integer`);
 	}
 	const parsed = typeof value === 'number' ? value : Number(value);
-	if (!Number.isInteger(parsed) || parsed < 0) {
+	if (!Number.isSafeInteger(parsed) || parsed < 0) {
 		return badRequest(`${label} must be a non-negative integer`);
 	}
 	return parsed;

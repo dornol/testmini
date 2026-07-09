@@ -7,6 +7,9 @@ import { eq, and, asc } from 'drizzle-orm';
 import { requireAuth } from '$lib/server/auth-utils';
 import { parsePositiveFormId } from '$lib/server/form-utils';
 import { unlinkOidcAccount } from '$lib/server/oidc-account-links';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+
+const MAX_ACCOUNT_FORM_BODY_SIZE = 16 * 1024;
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const user = requireAuth(locals);
@@ -56,6 +59,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	unlink: async ({ request, locals }) => {
 		const user = requireAuth(locals);
+
+		assertContentLengthUnderLimit(
+			request,
+			MAX_ACCOUNT_FORM_BODY_SIZE,
+			'Account form body is too large'
+		);
 
 		const formData = await request.formData();
 		const accountId = parsePositiveFormId(formData.get('accountId'));

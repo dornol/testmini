@@ -5,6 +5,9 @@ import { oidcProvider } from '$lib/server/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { auth } from '$lib/server/auth';
 import { parseOptionalFormString } from '$lib/server/form-utils';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+
+const MAX_AUTH_FORM_BODY_SIZE = 16 * 1024;
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) {
@@ -27,6 +30,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	default: async ({ request }) => {
+		assertContentLengthUnderLimit(request, MAX_AUTH_FORM_BODY_SIZE, 'Login form body is too large');
+
 		const formData = await request.formData();
 		const email = parseOptionalFormString(formData.get('email'));
 		const password = parseOptionalFormString(formData.get('password'));

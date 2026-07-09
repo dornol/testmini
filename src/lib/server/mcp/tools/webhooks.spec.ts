@@ -264,6 +264,25 @@ describe('MCP webhook tools', () => {
 			expect(mockDb.insert).toHaveBeenCalledTimes(insertCallCount);
 		});
 
+		it('should reject control characters in webhook names before insert', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			const insertCallCount = mockDb.insert.mock.calls.length;
+
+			const result = await client.callTool({
+				name: 'create-webhook',
+				arguments: {
+					name: 'Hook\nName',
+					url: 'https://ci.example.com/hook'
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Name must not contain control characters'
+			);
+			expect(mockDb.insert).toHaveBeenCalledTimes(insertCallCount);
+		});
+
 		it('should reject overlong secrets', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
 			const insertCallCount = mockDb.insert.mock.calls.length;

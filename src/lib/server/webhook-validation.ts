@@ -14,6 +14,7 @@ export const MAX_WEBHOOK_NAME_LENGTH = 100;
 export const MAX_WEBHOOK_SECRET_LENGTH = 4000;
 export const MAX_WEBHOOK_EVENTS = VALID_WEBHOOK_EVENTS.length;
 const WEBHOOK_FIELDS = new Set(['name', 'url', 'secret', 'events', 'enabled']);
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 
 export interface WebhookFieldValidationOptions {
 	requireName?: boolean;
@@ -36,6 +37,9 @@ export function validateWebhookEventList(events: string[]): string | null {
 
 	const seen = new Set<string>();
 	for (const event of events) {
+		if (CONTROL_CHAR_PATTERN.test(event)) {
+			return 'Events must not contain control characters';
+		}
 		if (!(VALID_WEBHOOK_EVENTS as readonly string[]).includes(event)) {
 			return `Invalid event type: ${event}`;
 		}
@@ -49,8 +53,12 @@ export function validateWebhookEventList(events: string[]): string | null {
 }
 
 export function validateWebhookSecret(secret: string): string | null {
-	if (secret.trim().length > MAX_WEBHOOK_SECRET_LENGTH) {
+	const trimmed = secret.trim();
+	if (trimmed.length > MAX_WEBHOOK_SECRET_LENGTH) {
 		return `Secret must be ${MAX_WEBHOOK_SECRET_LENGTH} characters or less`;
+	}
+	if (CONTROL_CHAR_PATTERN.test(trimmed)) {
+		return 'Secret must not contain control characters';
 	}
 
 	return null;
@@ -76,6 +84,9 @@ export async function validateWebhookFields(
 		const name = input.name.trim();
 		if (!name || name.length > MAX_WEBHOOK_NAME_LENGTH) {
 			return badRequest('Name is required (max 100 chars)');
+		}
+		if (CONTROL_CHAR_PATTERN.test(name)) {
+			return badRequest('Name must not contain control characters');
 		}
 		result.name = name;
 	} else if (options.requireName) {

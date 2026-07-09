@@ -10,6 +10,7 @@ import {
 	MAX_WEBHOOK_EVENTS,
 	MAX_WEBHOOK_SECRET_LENGTH,
 	validateWebhookEventList,
+	validateWebhookFields,
 	validateWebhookSecret
 } from '$lib/server/webhook-validation';
 
@@ -36,11 +37,15 @@ async function validateWebhookInput(input: {
 	const result: { name?: string; url?: string; events?: string[]; secret?: string | null } = {};
 
 	if (input.name !== undefined) {
-		const name = input.name.trim();
-		if (!name || name.length > MAX_WEBHOOK_NAME_LENGTH) {
-			return { ok: false, error: 'Name is required (max 100 chars)' };
+		const fields = await validateWebhookFields(
+			{ name: input.name },
+			{ requireName: true, requireUrl: false }
+		);
+		if (fields instanceof Response) {
+			const body = (await fields.json()) as { error?: string };
+			return { ok: false, error: body.error ?? 'Invalid webhook field' };
 		}
-		result.name = name;
+		result.name = fields.name;
 	}
 
 	if (input.url !== undefined) {

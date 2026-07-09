@@ -504,8 +504,13 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			});
 			if (!member) return err('User is not a project member');
 
-			await db.insert(testCaseAssignee).values({ testCaseId, userId }).onConflictDoNothing();
-			return ok({ success: true, testCaseId, userId });
+			const [inserted] = await db
+				.insert(testCaseAssignee)
+				.values({ testCaseId, userId })
+				.onConflictDoNothing()
+				.returning({ testCaseId: testCaseAssignee.testCaseId });
+
+			return ok({ success: true, testCaseId, userId, added: Boolean(inserted) });
 		}
 	);
 

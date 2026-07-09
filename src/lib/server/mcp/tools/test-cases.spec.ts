@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
 	mockDeleteReturning,
+	mockInsertReturning,
 	mockSelectResult,
 	mockUpdateReturning
 } from '$lib/server/test-helpers/mock-db';
@@ -945,6 +946,7 @@ describe('MCP test-case tools', () => {
 				userId: 'user-1',
 				role: 'QA'
 			});
+			mockInsertReturning(mockDb, [{ testCaseId: 10 }]);
 
 			const result = await client.callTool({
 				name: 'assign-test-case',
@@ -956,7 +958,28 @@ describe('MCP test-case tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.testCaseId).toBe(10);
 			expect(parsed.userId).toBe('user-1');
+			expect(parsed.added).toBe(true);
 			expect(mockDb.insert).toHaveBeenCalled();
+		});
+
+		it('should report when assignment already exists', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDb.query.projectMember.findFirst.mockResolvedValue({
+				projectId: 1,
+				userId: 'user-1',
+				role: 'QA'
+			});
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'assign-test-case',
+				arguments: { testCaseId: 10, userId: 'user-1' }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.added).toBe(false);
 		});
 
 		it('should reject assignment when user is not a project member', async () => {

@@ -28,7 +28,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -84,8 +85,52 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/comment', () => {
 		expect(response.status).toBe(400);
 	});
 
+	it('should return 400 when body is not an object', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: null,
+			user: testUser
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('Invalid request body');
+	});
+
+	it('should return 400 when comment is not a string', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { comment: 123 },
+			user: testUser
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('Comment is required');
+	});
+
+	it('should return 400 when comment is too long', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { comment: 'a'.repeat(10001) },
+			user: testUser
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('10000 characters or less');
+	});
+
 	it('should return 404 when issue link not found', async () => {
-		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(null);
+		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(
+			null
+		);
 		const event = createMockEvent({
 			method: 'POST',
 			params: PARAMS,
@@ -97,10 +142,16 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/comment', () => {
 	});
 
 	it('should return 404 when issue tracker not configured', async () => {
-		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue({
-			id: 20, projectId: 1, externalUrl: 'https://jira.example.com/PROJ-1'
-		});
-		(mockDb.query.issueTrackerConfig as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(null);
+		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(
+			{
+				id: 20,
+				projectId: 1,
+				externalUrl: 'https://jira.example.com/PROJ-1'
+			}
+		);
+		(
+			mockDb.query.issueTrackerConfig as { findFirst: ReturnType<typeof vi.fn> }
+		).findFirst.mockResolvedValue(null);
 
 		const event = createMockEvent({
 			method: 'POST',
@@ -113,12 +164,22 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/comment', () => {
 	});
 
 	it('should post comment on success', async () => {
-		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue({
-			id: 20, projectId: 1, externalUrl: 'https://jira.example.com/PROJ-1'
-		});
-		(mockDb.query.issueTrackerConfig as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue({
-			projectId: 1, provider: 'JIRA', baseUrl: 'https://jira.example.com',
-			apiToken: 'token', projectKey: 'PROJ', customTemplate: null
+		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(
+			{
+				id: 20,
+				projectId: 1,
+				externalUrl: 'https://jira.example.com/PROJ-1'
+			}
+		);
+		(
+			mockDb.query.issueTrackerConfig as { findFirst: ReturnType<typeof vi.fn> }
+		).findFirst.mockResolvedValue({
+			projectId: 1,
+			provider: 'JIRA',
+			baseUrl: 'https://jira.example.com',
+			apiToken: 'token',
+			projectKey: 'PROJ',
+			customTemplate: null
 		});
 		mockAddIssueComment.mockResolvedValue(undefined);
 

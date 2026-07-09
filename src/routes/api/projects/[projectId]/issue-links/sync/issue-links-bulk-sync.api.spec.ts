@@ -38,9 +38,8 @@ vi.mock('drizzle-orm', () => ({
 	inArray: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -197,6 +196,23 @@ describe('/api/projects/[projectId]/issue-links/sync', () => {
 		expect(body.synced).toBe(1);
 	});
 
+	it('should reject invalid testCaseId scoping', async () => {
+		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser,
+			searchParams: { testCaseId: 'abc' }
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('testCaseId must be a positive integer');
+		expect(mockFetchIssueStatus).not.toHaveBeenCalled();
+	});
+
 	it('should support testExecutionId scoping via search params', async () => {
 		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
 		mockSelectResult(mockDb, [sampleLinks[0]]);
@@ -213,6 +229,23 @@ describe('/api/projects/[projectId]/issue-links/sync', () => {
 		expect(response.status).toBe(200);
 		const body = await response.json();
 		expect(body.total).toBe(1);
+	});
+
+	it('should reject invalid testExecutionId scoping', async () => {
+		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser,
+			searchParams: { testExecutionId: '0' }
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('testExecutionId must be a positive integer');
+		expect(mockFetchIssueStatus).not.toHaveBeenCalled();
 	});
 
 	it('should return retestMarked count when issues resolve to done', async () => {
@@ -235,7 +268,10 @@ describe('/api/projects/[projectId]/issue-links/sync', () => {
 	it('should return retestMarked 0 when issues are not done', async () => {
 		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
 		mockSelectResult(mockDb, sampleLinks);
-		mockFetchIssueStatus.mockResolvedValue({ status: 'In Progress', statusCategory: 'in_progress' });
+		mockFetchIssueStatus.mockResolvedValue({
+			status: 'In Progress',
+			statusCategory: 'in_progress'
+		});
 
 		const event = createMockEvent({
 			method: 'POST',

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -8,12 +12,26 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testCycle: {
-		id: 'id', projectId: 'project_id', name: 'name', cycleNumber: 'cycle_number',
-		status: 'status', releaseId: 'release_id', startDate: 'start_date',
-		endDate: 'end_date', createdBy: 'created_by', createdAt: 'created_at',
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		cycleNumber: 'cycle_number',
+		status: 'status',
+		releaseId: 'release_id',
+		startDate: 'start_date',
+		endDate: 'end_date',
+		createdBy: 'created_by',
+		createdAt: 'created_at',
 		updatedAt: 'updated_at'
 	},
-	testRun: { id: 'id', testCycleId: 'test_cycle_id', name: 'name', environment: 'environment', status: 'status', createdAt: 'created_at' },
+	testRun: {
+		id: 'id',
+		testCycleId: 'test_cycle_id',
+		name: 'name',
+		environment: 'environment',
+		status: 'status',
+		createdAt: 'created_at'
+	},
 	testExecution: { id: 'id', testRunId: 'test_run_id', status: 'status' },
 	user: { id: 'id', name: 'name' }
 }));
@@ -21,13 +39,16 @@ vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args),
 	sql: Object.assign(
-		(strings: TemplateStringsArray, ...values: unknown[]) => ({ as: () => ({ sql: strings, values }) }),
+		(strings: TemplateStringsArray, ...values: unknown[]) => ({
+			as: () => ({ sql: strings, values })
+		}),
 		{ raw: (s: string) => s }
 	)
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' }),
@@ -45,8 +66,24 @@ describe('/api/projects/[projectId]/test-cycles/[cycleId]', () => {
 	describe('GET', () => {
 		it('should return cycle detail with runs', async () => {
 			// First select for cycle detail, second for runs
-			const cycleData = { id: 1, name: 'Cycle 1', cycleNumber: 1, status: 'PLANNED', createdBy: 'Test User' };
-			const runsData = [{ id: 10, name: 'Run 1', environment: 'QA', status: 'COMPLETED', total: 5, passed: 4, failed: 1 }];
+			const cycleData = {
+				id: 1,
+				name: 'Cycle 1',
+				cycleNumber: 1,
+				status: 'PLANNED',
+				createdBy: 'Test User'
+			};
+			const runsData = [
+				{
+					id: 10,
+					name: 'Run 1',
+					environment: 'QA',
+					status: 'COMPLETED',
+					total: 5,
+					passed: 4,
+					failed: 1
+				}
+			];
 			mockDb.select
 				.mockReturnValueOnce({
 					from: vi.fn().mockReturnValue({
@@ -110,6 +147,27 @@ describe('/api/projects/[projectId]/test-cycles/[cycleId]', () => {
 			expect(response.status).toBe(200);
 		});
 
+		it('should trim name before updating cycle', async () => {
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnValue({
+					returning: vi.fn().mockResolvedValue([{ id: 1, name: 'Updated' }])
+				})
+			};
+			mockDb.update.mockReturnValue(updateChain as never);
+
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1', cycleId: '1' },
+				body: { name: '  Updated  ' },
+				user: testUser
+			});
+			const response = await PUT(event);
+
+			expect(response.status).toBe(200);
+			expect(updateChain.set).toHaveBeenCalledWith(expect.objectContaining({ name: 'Updated' }));
+		});
+
 		it('should return 400 for empty update', async () => {
 			const event = createMockEvent({
 				method: 'PUT',
@@ -119,6 +177,42 @@ describe('/api/projects/[projectId]/test-cycles/[cycleId]', () => {
 			});
 			const response = await PUT(event);
 			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 for whitespace-only name', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1', cycleId: '1' },
+				body: { name: '   ' },
+				user: testUser
+			});
+			const response = await PUT(event);
+			expect(response.status).toBe(400);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for invalid end date', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1', cycleId: '1' },
+				body: { endDate: 'not-a-date' },
+				user: testUser
+			});
+			const response = await PUT(event);
+			expect(response.status).toBe(400);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when endDate is before startDate', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1', cycleId: '1' },
+				body: { startDate: '2026-02-02', endDate: '2026-02-01' },
+				user: testUser
+			});
+			const response = await PUT(event);
+			expect(response.status).toBe(400);
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 404 for non-existent cycle', async () => {

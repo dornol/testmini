@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockInsertReturning, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockInsertReturning,
+	mockSelectResult
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -8,9 +12,16 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testCycle: {
-		id: 'id', projectId: 'project_id', name: 'name', cycleNumber: 'cycle_number',
-		status: 'status', releaseId: 'release_id', startDate: 'start_date',
-		endDate: 'end_date', createdBy: 'created_by', createdAt: 'created_at'
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		cycleNumber: 'cycle_number',
+		status: 'status',
+		releaseId: 'release_id',
+		startDate: 'start_date',
+		endDate: 'end_date',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
 	},
 	testRun: { id: 'id', testCycleId: 'test_cycle_id' },
 	user: { id: 'id', name: 'name' }
@@ -19,14 +30,17 @@ vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args),
 	sql: Object.assign(
-		(strings: TemplateStringsArray, ...values: unknown[]) => ({ as: () => ({ sql: strings, values }) }),
+		(strings: TemplateStringsArray, ...values: unknown[]) => ({
+			as: () => ({ sql: strings, values })
+		}),
 		{ raw: (s: string) => s }
 	),
 	count: vi.fn(() => 'count')
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -79,6 +93,23 @@ describe('/api/projects/[projectId]/test-cycles', () => {
 			expect(data.name).toBe('Cycle 1');
 		});
 
+		it('should trim name before creating a cycle', async () => {
+			const created = { id: 1, name: 'Cycle 1', cycleNumber: 1, status: 'PLANNED' };
+			mockInsertReturning(mockDb, [created]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: '  Cycle 1  ', cycleNumber: 1 },
+				user: testUser
+			});
+			await POST(event);
+
+			expect(mockDb.insert().values).toHaveBeenCalledWith(
+				expect.objectContaining({ name: 'Cycle 1' })
+			);
+		});
+
 		it('should return 409 for duplicate cycle number', async () => {
 			mockDb.query.testCycle.findFirst.mockResolvedValue({ id: 1 });
 
@@ -112,6 +143,42 @@ describe('/api/projects/[projectId]/test-cycles', () => {
 			});
 			const response = await POST(event);
 			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 for whitespace-only name', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: '   ', cycleNumber: 1 },
+				user: testUser
+			});
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect(mockDb.query.testCycle.findFirst).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for invalid start date', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Cycle 1', cycleNumber: 1, startDate: 'not-a-date' },
+				user: testUser
+			});
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect(mockDb.query.testCycle.findFirst).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when endDate is before startDate', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Cycle 1', cycleNumber: 1, startDate: '2026-02-02', endDate: '2026-02-01' },
+				user: testUser
+			});
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect(mockDb.query.testCycle.findFirst).not.toHaveBeenCalled();
 		});
 
 		it('should return 401 for unauthenticated', async () => {

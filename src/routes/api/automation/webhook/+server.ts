@@ -10,6 +10,7 @@ import { authenticateApiKey } from '$lib/server/api-key-auth';
 import { childLogger } from '$lib/server/logger';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { parseContentLengthHeader } from '$lib/server/request-size';
+import { isPlainRecord } from '$lib/server/object-validation';
 
 const log = childLogger('webhook');
 const MAX_EVENT_NAME_LENGTH = 100;
@@ -48,10 +49,6 @@ interface GitLabPipelinePayload {
 		path_with_namespace: string;
 		web_url?: string;
 	};
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 function safeString(value: unknown, field: string, maxLength = MAX_META_STRING_LENGTH): string {
@@ -121,7 +118,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 		return badRequest('Invalid request body');
 	}
-	if (!isRecord(body)) {
+	if (!isPlainRecord(body)) {
 		return badRequest('Invalid request body');
 	}
 

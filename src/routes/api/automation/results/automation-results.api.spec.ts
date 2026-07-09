@@ -206,6 +206,20 @@ describe('/api/automation/results POST', () => {
 			expect(data.error).toBe('Invalid request body');
 		});
 
+		it('should return 400 when result entries are not plain objects', async () => {
+			const request = makeRequest({
+				results: [new Date('2026-01-01T00:00:00Z')]
+			});
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Each result must be an object');
+			expect(mockDb.query.project.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when results is missing', async () => {
 			const request = makeRequest({});
 			const response = await POST({ request } as never);

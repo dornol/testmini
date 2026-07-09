@@ -14,6 +14,7 @@ import { eq, and, inArray } from 'drizzle-orm';
 import { authenticateApiKey } from '$lib/server/api-key-auth';
 import { createNotification } from '$lib/server/notifications';
 import { parseJsonBody } from '$lib/server/auth-utils';
+import { isPlainRecord } from '$lib/server/object-validation';
 
 interface AutomationResult {
 	automationKey: string;
@@ -49,10 +50,6 @@ function validateOptionalString(
 	return trimmed;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return !!value && typeof value === 'object' && !Array.isArray(value);
-}
-
 export const POST: RequestHandler = async ({ request }) => {
 	// Authenticate via API key (no user session)
 	const auth = await authenticateApiKey(request);
@@ -70,7 +67,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 		return badRequest('Invalid request body');
 	}
-	if (!isRecord(body)) {
+	if (!isPlainRecord(body)) {
 		return badRequest('Invalid request body');
 	}
 
@@ -102,7 +99,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const normalizedResults: AutomationResult[] = [];
 	const seenAutomationKeys = new Set<string>();
 	for (const r of results) {
-		if (!isRecord(r)) {
+		if (!isPlainRecord(r)) {
 			return badRequest('Each result must be an object');
 		}
 		if (!r.automationKey || typeof r.automationKey !== 'string') {

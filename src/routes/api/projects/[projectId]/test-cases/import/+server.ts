@@ -12,8 +12,13 @@ import { eq, and, sql } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { parseCSV } from '$lib/server/csv-utils';
 import { assertMultipartContentLength } from '$lib/server/multipart-limits';
+import { isPlainRecord } from '$lib/server/object-validation';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_TITLE_LENGTH = 200;
+const MAX_TEXT_LENGTH = 2000;
+const MAX_PRIORITY_LENGTH = 30;
+const MAX_STEPS = 500;
 
 interface ImportRow {
 	title: string;
@@ -28,7 +33,7 @@ interface ImportRow {
 class ImportValidationError extends Error {}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
+	return isPlainRecord(value);
 }
 
 function stringField(obj: Record<string, unknown>, ...keys: string[]): string {
@@ -41,6 +46,25 @@ function stringField(obj: Record<string, unknown>, ...keys: string[]): string {
 
 function normalizeRow(obj: Record<string, unknown>): ImportRow {
 	const priority = (stringField(obj, 'Priority', 'priority') || 'MEDIUM').toUpperCase();
+	if (priority.length > MAX_PRIORITY_LENGTH) {
+		throw new ImportValidationError(`priority must be ${MAX_PRIORITY_LENGTH} characters or less`);
+	}
+
+	const title = stringField(obj, 'Title', 'title');
+	if (title.length > MAX_TITLE_LENGTH) {
+		throw new ImportValidationError(`title must be ${MAX_TITLE_LENGTH} characters or less`);
+	}
+
+	const precondition = stringField(obj, 'Precondition', 'precondition');
+	if (precondition.length > MAX_TEXT_LENGTH) {
+		throw new ImportValidationError(`precondition must be ${MAX_TEXT_LENGTH} characters or less`);
+	}
+
+	const expectedResult = stringField(obj, 'Expected Result', 'expectedResult', 'expected_result');
+	if (expectedResult.length > MAX_TEXT_LENGTH) {
+		throw new ImportValidationError(`expectedResult must be ${MAX_TEXT_LENGTH} characters or less`);
+	}
+
 	let steps: { order: number; action: string; expected: string }[] = [];
 	const rawSteps = obj['Steps'] ?? obj['steps'] ?? '';
 	if (rawSteps) {
@@ -53,14 +77,27 @@ function normalizeRow(obj: Record<string, unknown>): ImportRow {
 			}
 		}
 		if (Array.isArray(parsed)) {
+			if (parsed.length > MAX_STEPS) {
+				throw new ImportValidationError(`steps must contain ${MAX_STEPS} items or less`);
+			}
 			steps = parsed.map((step, i) => {
 				if (!isRecord(step)) {
 					throw new ImportValidationError(`steps[${i + 1}] must be an object`);
 				}
+				const action = stringField(step, 'action');
+				const expected = stringField(step, 'expected');
+				if (!action.trim()) {
+					throw new ImportValidationError(`steps[${i + 1}].action is required`);
+				}
+				if (action.length > MAX_TEXT_LENGTH || expected.length > MAX_TEXT_LENGTH) {
+					throw new ImportValidationError(
+						`steps[${i + 1}] text must be ${MAX_TEXT_LENGTH} characters or less`
+					);
+				}
 				return {
 					order: i + 1,
-					action: stringField(step, 'action'),
-					expected: stringField(step, 'expected')
+					action,
+					expected
 				};
 			});
 		}
@@ -77,11 +114,11 @@ function normalizeRow(obj: Record<string, unknown>): ImportRow {
 			: [];
 
 	return {
-		title: stringField(obj, 'Title', 'title'),
+		title,
 		priority: priority || 'MEDIUM',
-		precondition: stringField(obj, 'Precondition', 'precondition'),
+		precondition,
 		steps,
-		expectedResult: stringField(obj, 'Expected Result', 'expectedResult', 'expected_result'),
+		expectedResult,
 		tags,
 		group: stringField(obj, 'Group', 'group')
 	};

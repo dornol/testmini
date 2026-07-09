@@ -276,6 +276,53 @@ describe('/api/projects/[projectId]/test-cases/import', () => {
 		expect(mockDb.transaction).not.toHaveBeenCalled();
 	});
 
+	it('should reject oversized JSON import fields before DB work', async () => {
+		const fd = createJsonFormData([{ title: 'x'.repeat(201) }]);
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: fd,
+			user: adminUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		expect(mockDb.select).not.toHaveBeenCalled();
+		expect(mockDb.transaction).not.toHaveBeenCalled();
+	});
+
+	it('should reject oversized JSON import step arrays before DB work', async () => {
+		const fd = createJsonFormData([
+			{
+				title: 'Too many steps',
+				steps: Array.from({ length: 501 }, () => ({ action: 'Do it', expected: 'Done' }))
+			}
+		]);
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: fd,
+			user: adminUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		expect(mockDb.select).not.toHaveBeenCalled();
+		expect(mockDb.transaction).not.toHaveBeenCalled();
+	});
+
+	it('should reject JSON import steps without actions before DB work', async () => {
+		const fd = createJsonFormData([{ title: 'Bad step', steps: [{ expected: 'Done' }] }]);
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: fd,
+			user: adminUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		expect(mockDb.select).not.toHaveBeenCalled();
+		expect(mockDb.transaction).not.toHaveBeenCalled();
+	});
+
 	it('should normalize scalar JSON field values without crashing', async () => {
 		const fd = createJsonFormData([{ title: 123, priority: 'medium', tags: [1, 'smoke'] }]);
 

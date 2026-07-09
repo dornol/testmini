@@ -42,7 +42,14 @@ vi.mock('$lib/server/db', async () => {
 });
 
 import { db } from '$lib/server/db';
-import { findOrFail, parseAndValidate, buildUpdates, deleteResource } from './crud-helpers';
+import {
+	findOrFail,
+	parseAndValidate,
+	buildUpdates,
+	deleteResource,
+	validateCommentRequestBody,
+	COMMENT_CREATE_FIELDS
+} from './crud-helpers';
 import { mockSelectResult } from './test-helpers/mock-db';
 import type { Column } from 'drizzle-orm';
 import type { AnyPgTable } from 'drizzle-orm/pg-core';
@@ -171,6 +178,27 @@ describe('buildUpdates', () => {
 		const result = buildUpdates(data, ['name']);
 		expect(result).toEqual({ name: 'New' });
 		expect(result).not.toHaveProperty('extra');
+	});
+});
+
+// ── validateCommentRequestBody ───────────────────────
+describe('validateCommentRequestBody', () => {
+	class CommentPayload {
+		content = 'Looks good';
+	}
+
+	it('accepts plain comment request bodies', () => {
+		const result = validateCommentRequestBody({ content: 'Looks good' }, COMMENT_CREATE_FIELDS);
+
+		expect(result).toEqual({ content: 'Looks good' });
+	});
+
+	it('rejects non-plain comment request bodies', async () => {
+		const result = validateCommentRequestBody(new CommentPayload(), COMMENT_CREATE_FIELDS);
+
+		expect(result).toBeInstanceOf(Response);
+		expect((result as Response).status).toBe(400);
+		expect(await (result as Response).json()).toEqual({ error: 'Invalid request body' });
 	});
 });
 

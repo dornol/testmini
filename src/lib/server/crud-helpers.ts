@@ -5,6 +5,7 @@ import { eq, and, type Column } from 'drizzle-orm';
 import type { AnyPgTable } from 'drizzle-orm/pg-core';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { badRequest } from '$lib/server/errors';
+import { isPlainRecord } from '$lib/server/object-validation';
 
 export const COMMENT_CREATE_FIELDS = new Set(['content', 'parentId']);
 export const COMMENT_UPDATE_FIELDS = new Set(['content']);
@@ -90,14 +91,13 @@ export function validateCommentRequestBody(
 	body: unknown,
 	allowedFields: Set<string>
 ): Record<string, unknown> | Response {
-	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+	if (!isPlainRecord(body)) {
 		return badRequest('Invalid request body');
 	}
-	const record = body as Record<string, unknown>;
-	if (Object.keys(record).some((key) => !allowedFields.has(key))) {
+	if (Object.keys(body).some((key) => !allowedFields.has(key))) {
 		return badRequest('Invalid comment field');
 	}
-	return record;
+	return body;
 }
 
 /**

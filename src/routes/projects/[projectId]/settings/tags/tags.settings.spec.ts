@@ -50,6 +50,33 @@ describe('tags settings page server', () => {
 	});
 
 	describe('actions.update', () => {
+		it('scopes tag updates to the current project', async () => {
+			mockDb.query.tag.findFirst
+				.mockResolvedValueOnce({ id: 7, projectId: 1, name: 'Smoke', color: '#ef4444' })
+				.mockResolvedValueOnce(null);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({
+					tagId: '7',
+					name: 'Regression',
+					color: '#3b82f6'
+				}),
+				user: testUser
+			});
+
+			const result = await actions.update(event);
+
+			expect(result).toEqual({ updated: true });
+			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 7],
+					['project_id', 1]
+				])
+			);
+		});
+
 		it('rejects invalid tagId before querying existing tag', async () => {
 			for (const tagId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
 				vi.clearAllMocks();
@@ -75,6 +102,32 @@ describe('tags settings page server', () => {
 	});
 
 	describe('actions.delete', () => {
+		it('scopes tag deletes to the current project', async () => {
+			mockDb.query.tag.findFirst.mockResolvedValueOnce({
+				id: 7,
+				projectId: 1,
+				name: 'Smoke',
+				color: '#ef4444'
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ tagId: '7' }),
+				user: testUser
+			});
+
+			const result = await actions.delete(event);
+
+			expect(result).toEqual({ deleted: true });
+			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 7],
+					['project_id', 1]
+				])
+			);
+		});
+
 		it('rejects invalid tagId before querying existing tag', async () => {
 			for (const tagId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
 				vi.clearAllMocks();

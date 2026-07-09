@@ -102,7 +102,7 @@ export const actions: Actions = {
 		await db
 			.update(tag)
 			.set({ name: parsed.data.name, color: parsed.data.color })
-			.where(eq(tag.id, parsed.data.tagId));
+			.where(and(eq(tag.id, parsed.data.tagId), eq(tag.projectId, projectId)));
 
 		cacheDelete(`project:${projectId}:tags`);
 		return { updated: true };
@@ -128,7 +128,7 @@ export const actions: Actions = {
 			return fail(404, { error: 'Tag not found' });
 		}
 
-		await db.delete(tag).where(eq(tag.id, tagId));
+		await db.delete(tag).where(and(eq(tag.id, tagId), eq(tag.projectId, projectId)));
 
 		cacheDelete(`project:${projectId}:tags`);
 		return { deleted: true };

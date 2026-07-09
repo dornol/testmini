@@ -174,7 +174,12 @@ export const actions: Actions = {
 					credentials: parsed.data.credentials || null,
 					memo: parsed.data.memo || null
 				})
-				.where(eq(environmentConfig.id, parsed.data.environmentId));
+				.where(
+					and(
+						eq(environmentConfig.id, parsed.data.environmentId),
+						eq(environmentConfig.projectId, projectId)
+					)
+				);
 		});
 
 		cacheDelete(`project:${projectId}:environments`);
@@ -201,7 +206,11 @@ export const actions: Actions = {
 			return fail(404, { error: 'Environment not found' });
 		}
 
-		await db.delete(environmentConfig).where(eq(environmentConfig.id, environmentId));
+		await db
+			.delete(environmentConfig)
+			.where(
+				and(eq(environmentConfig.id, environmentId), eq(environmentConfig.projectId, projectId))
+			);
 
 		cacheDelete(`project:${projectId}:environments`);
 		return { deleted: true };

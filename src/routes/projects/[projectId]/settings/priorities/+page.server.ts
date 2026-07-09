@@ -156,7 +156,12 @@ export const actions: Actions = {
 					color: parsed.data.color,
 					isDefault: parsed.data.isDefault
 				})
-				.where(eq(priorityConfig.id, parsed.data.priorityId));
+				.where(
+					and(
+						eq(priorityConfig.id, parsed.data.priorityId),
+						eq(priorityConfig.projectId, projectId)
+					)
+				);
 		});
 
 		cacheDelete(`project:${projectId}:priorities`);
@@ -183,7 +188,9 @@ export const actions: Actions = {
 			return fail(404, { error: 'Priority not found' });
 		}
 
-		await db.delete(priorityConfig).where(eq(priorityConfig.id, priorityId));
+		await db
+			.delete(priorityConfig)
+			.where(and(eq(priorityConfig.id, priorityId), eq(priorityConfig.projectId, projectId)));
 
 		cacheDelete(`project:${projectId}:priorities`);
 		return { deleted: true };

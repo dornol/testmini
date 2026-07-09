@@ -95,6 +95,18 @@ function makeFormData(entries: Record<string, string>): FormData {
 	return fd;
 }
 
+function createTxUpdateChain() {
+	const updateChain = {
+		set: vi.fn().mockReturnThis(),
+		where: vi.fn().mockReturnThis()
+	};
+	const tx = {
+		update: vi.fn().mockReturnValue(updateChain),
+		insert: vi.fn()
+	};
+	return { tx, updateChain };
+}
+
 describe('environments settings page server', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -250,6 +262,36 @@ describe('environments settings page server', () => {
 
 			expect(result).toEqual({ updated: true });
 			expect(mockDb.transaction).toHaveBeenCalled();
+		});
+
+		it('scopes environment updates to the current project', async () => {
+			mockDb.query.environmentConfig.findFirst
+				.mockResolvedValueOnce(sampleEnvironments[0])
+				.mockResolvedValueOnce(null);
+			const { tx, updateChain } = createTxUpdateChain();
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({
+					environmentId: '1',
+					name: 'Development',
+					color: '#3b82f6',
+					isDefault: 'false'
+				}),
+				user: testUser
+			});
+
+			const result = await actions.update(event);
+
+			expect(result).toEqual({ updated: true });
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should cascade name change to testRun', async () => {
@@ -489,6 +531,12 @@ describe('environments settings page server', () => {
 
 			expect(result).toEqual({ deleted: true });
 			expect(mockDb.delete).toHaveBeenCalled();
+			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 2],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return 400 when environmentId is missing', async () => {

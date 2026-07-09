@@ -62,6 +62,18 @@ function makeFormData(entries: Record<string, string>): FormData {
 	return fd;
 }
 
+function createTxUpdateChain() {
+	const updateChain = {
+		set: vi.fn().mockReturnThis(),
+		where: vi.fn().mockReturnThis()
+	};
+	const tx = {
+		update: vi.fn().mockReturnValue(updateChain),
+		insert: vi.fn()
+	};
+	return { tx, updateChain };
+}
+
 describe('priorities settings page server', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -69,6 +81,42 @@ describe('priorities settings page server', () => {
 	});
 
 	describe('actions.update', () => {
+		it('scopes priority updates to the current project', async () => {
+			mockDb.query.priorityConfig.findFirst
+				.mockResolvedValueOnce({
+					id: 7,
+					projectId: 1,
+					name: 'HIGH',
+					color: '#ef4444',
+					isDefault: false
+				})
+				.mockResolvedValueOnce(null);
+			const { tx, updateChain } = createTxUpdateChain();
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({
+					priorityId: '7',
+					name: 'HIGH',
+					color: '#3b82f6',
+					isDefault: 'false'
+				}),
+				user: testUser
+			});
+
+			const result = await actions.update(event);
+
+			expect(result).toEqual({ updated: true });
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 7],
+					['project_id', 1]
+				])
+			);
+		});
+
 		it('rejects invalid priorityId before querying existing priority', async () => {
 			for (const priorityId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
 				vi.clearAllMocks();
@@ -95,6 +143,32 @@ describe('priorities settings page server', () => {
 	});
 
 	describe('actions.delete', () => {
+		it('scopes priority deletes to the current project', async () => {
+			mockDb.query.priorityConfig.findFirst.mockResolvedValueOnce({
+				id: 7,
+				projectId: 1,
+				name: 'HIGH',
+				color: '#ef4444'
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ priorityId: '7' }),
+				user: testUser
+			});
+
+			const result = await actions.delete(event);
+
+			expect(result).toEqual({ deleted: true });
+			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 7],
+					['project_id', 1]
+				])
+			);
+		});
+
 		it('rejects invalid priorityId before querying existing priority', async () => {
 			for (const priorityId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
 				vi.clearAllMocks();

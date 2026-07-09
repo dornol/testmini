@@ -266,6 +266,18 @@ describe('MCP test-plan tools', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should reject duplicate test case IDs before querying the database', async () => {
+			const result = await client.callTool({
+				name: 'add-plan-items',
+				arguments: { planId: 1, testCaseIds: [10, 10] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(mockDb.query.testPlan.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return error when plan not found', async () => {
 			mockDb.query.testPlan.findFirst.mockResolvedValue(null);
 
@@ -293,6 +305,17 @@ describe('MCP test-plan tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.success).toBe(true);
 			expect(parsed.removedCount).toBe(1);
+		});
+
+		it('should reject empty test case IDs before querying the database', async () => {
+			const result = await client.callTool({
+				name: 'remove-plan-items',
+				arguments: { planId: 1, testCaseIds: [] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(mockDb.query.testPlan.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 
 		it('should return error when plan not found', async () => {

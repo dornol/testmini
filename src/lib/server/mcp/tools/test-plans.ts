@@ -10,14 +10,21 @@ import {
 	testPlanTestCase,
 	testPlanSignoff
 } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
+import {
+	ok,
+	err,
+	requireProjectCreator,
+	buildUpdates,
+	mcpPositiveIdSchema,
+	mcpIdListSchema
+} from '../helpers';
 import { eq, and, sql, inArray } from 'drizzle-orm';
 
 export function registerTestPlanTools(server: McpServer, projectId: number) {
 	server.tool(
 		'get-test-plan',
 		'Get a test plan with its items',
-		{ planId: z.number().describe('Test plan ID') },
+		{ planId: mcpPositiveIdSchema.describe('Test plan ID') },
 		async ({ planId }) => {
 			const plan = await db.query.testPlan.findFirst({
 				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
@@ -80,7 +87,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 		'update-test-plan',
 		'Update an existing test plan',
 		{
-			planId: z.number().describe('Test plan ID'),
+			planId: mcpPositiveIdSchema.describe('Test plan ID'),
 			name: z.string().optional().describe('Plan name'),
 			description: z.string().optional().describe('Plan description'),
 			status: z
@@ -121,8 +128,8 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 		'add-plan-items',
 		'Add test cases to a test plan',
 		{
-			planId: z.number().describe('Test plan ID'),
-			testCaseIds: z.array(z.number()).describe('Test case IDs to add')
+			planId: mcpPositiveIdSchema.describe('Test plan ID'),
+			testCaseIds: mcpIdListSchema.describe('Test case IDs to add')
 		},
 		async ({ planId, testCaseIds }) => {
 			const plan = await db.query.testPlan.findFirst({
@@ -161,8 +168,8 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 		'remove-plan-items',
 		'Remove test cases from a test plan',
 		{
-			planId: z.number().describe('Test plan ID'),
-			testCaseIds: z.array(z.number()).describe('Test case IDs to remove')
+			planId: mcpPositiveIdSchema.describe('Test plan ID'),
+			testCaseIds: mcpIdListSchema.describe('Test case IDs to remove')
 		},
 		async ({ planId, testCaseIds }) => {
 			const plan = await db.query.testPlan.findFirst({
@@ -187,7 +194,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 		'create-run-from-plan',
 		'Create a test run from a test plan',
 		{
-			planId: z.number().describe('Test plan ID'),
+			planId: mcpPositiveIdSchema.describe('Test plan ID'),
 			environment: z.string().describe('Environment name'),
 			runName: z.string().optional().describe('Custom run name')
 		},
@@ -252,7 +259,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 	server.tool(
 		'list-plan-signoffs',
 		'List signoff decisions for a test plan',
-		{ planId: z.number().describe('Test plan ID') },
+		{ planId: mcpPositiveIdSchema.describe('Test plan ID') },
 		async ({ planId }) => {
 			const plan = await db.query.testPlan.findFirst({
 				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
@@ -270,7 +277,7 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 	server.tool(
 		'delete-test-plan',
 		'Delete a test plan',
-		{ planId: z.number().describe('Test plan ID') },
+		{ planId: mcpPositiveIdSchema.describe('Test plan ID') },
 		async ({ planId }) => {
 			const plan = await db.query.testPlan.findFirst({
 				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))

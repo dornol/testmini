@@ -276,6 +276,18 @@ describe('MCP module tools', () => {
 			);
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
+
+		it('should reject duplicate test case IDs before querying the database', async () => {
+			const result = await client.callTool({
+				name: 'add-module-test-cases',
+				arguments: { moduleId: 1, testCaseIds: [10, 10] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(mockDb.query.module.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
 	});
 
 	// ── remove-module-test-cases ────────────────────────
@@ -295,6 +307,17 @@ describe('MCP module tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.moduleId).toBe(1);
 			expect(parsed.removedCount).toBe(2);
+		});
+
+		it('should reject empty test case IDs before querying the database', async () => {
+			const result = await client.callTool({
+				name: 'remove-module-test-cases',
+				arguments: { moduleId: 1, testCaseIds: [] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(mockDb.query.module.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 
 		it('should reject removal when module is not in the current project', async () => {

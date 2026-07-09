@@ -2,7 +2,14 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { module, moduleTestCase, testCase } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
+import {
+	ok,
+	err,
+	requireProjectCreator,
+	buildUpdates,
+	mcpPositiveIdSchema,
+	mcpIdListSchema
+} from '../helpers';
 import { eq, and, sql, inArray } from 'drizzle-orm';
 
 export function registerModuleTools(server: McpServer, projectId: number) {
@@ -21,7 +28,7 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 		{
 			name: z.string().describe('Module name'),
 			description: z.string().optional().describe('Module description'),
-			parentModuleId: z.number().optional().describe('Parent module ID for nesting')
+			parentModuleId: mcpPositiveIdSchema.optional().describe('Parent module ID for nesting')
 		},
 		async ({ name, description, parentModuleId }) => {
 			const creator = await requireProjectCreator(projectId);
@@ -52,7 +59,7 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 	server.tool(
 		'delete-module',
 		'Delete a module by ID',
-		{ moduleId: z.number().describe('Module ID') },
+		{ moduleId: mcpPositiveIdSchema.describe('Module ID') },
 		async ({ moduleId }) => {
 			const m = await db.query.module.findFirst({
 				where: and(eq(module.id, moduleId), eq(module.projectId, projectId))
@@ -92,7 +99,7 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 		'update-module',
 		'Update a module name or description',
 		{
-			moduleId: z.number().describe('Module ID'),
+			moduleId: mcpPositiveIdSchema.describe('Module ID'),
 			name: z.string().optional().describe('New name'),
 			description: z.string().optional().describe('New description')
 		},
@@ -119,8 +126,8 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 		'add-module-test-cases',
 		'Add test cases to a module',
 		{
-			moduleId: z.number().describe('Module ID'),
-			testCaseIds: z.array(z.number()).describe('Test case IDs to add')
+			moduleId: mcpPositiveIdSchema.describe('Module ID'),
+			testCaseIds: mcpIdListSchema.describe('Test case IDs to add')
 		},
 		async ({ moduleId, testCaseIds }) => {
 			const m = await db.query.module.findFirst({
@@ -145,8 +152,8 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 		'remove-module-test-cases',
 		'Remove test cases from a module',
 		{
-			moduleId: z.number().describe('Module ID'),
-			testCaseIds: z.array(z.number()).describe('Test case IDs to remove')
+			moduleId: mcpPositiveIdSchema.describe('Module ID'),
+			testCaseIds: mcpIdListSchema.describe('Test case IDs to remove')
 		},
 		async ({ moduleId, testCaseIds }) => {
 			const m = await db.query.module.findFirst({

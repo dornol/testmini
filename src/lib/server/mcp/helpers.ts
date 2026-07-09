@@ -1,6 +1,33 @@
 import { db } from '$lib/server/db';
 import { project, testCase } from '$lib/server/db/schema';
 import { eq, sql } from 'drizzle-orm';
+import { z } from 'zod';
+
+const MAX_MCP_ID_LIST_ITEMS = 500;
+
+export const mcpPositiveIdSchema = z
+	.number()
+	.int()
+	.positive()
+	.refine(Number.isSafeInteger, 'ID must be a safe integer');
+
+export const mcpIdListSchema = z
+	.array(mcpPositiveIdSchema)
+	.min(1, 'At least one ID is required')
+	.max(MAX_MCP_ID_LIST_ITEMS, `IDs must contain ${MAX_MCP_ID_LIST_ITEMS} items or less`)
+	.superRefine((ids, ctx) => {
+		const seen = new Set<number>();
+		for (const [index, id] of ids.entries()) {
+			if (seen.has(id)) {
+				ctx.addIssue({
+					code: 'custom',
+					message: 'IDs must not contain duplicates',
+					path: [index]
+				});
+			}
+			seen.add(id);
+		}
+	});
 
 // ── Response helpers ─────────────────────────────────────
 

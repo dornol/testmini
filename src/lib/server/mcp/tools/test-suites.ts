@@ -2,14 +2,21 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, testSuite, testSuiteItem } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
+import {
+	ok,
+	err,
+	requireProjectCreator,
+	buildUpdates,
+	mcpPositiveIdSchema,
+	mcpIdListSchema
+} from '../helpers';
 import { eq, and, inArray } from 'drizzle-orm';
 
 export function registerTestSuiteTools(server: McpServer, projectId: number) {
 	server.tool(
 		'get-test-suite',
 		'Get a test suite with its items',
-		{ suiteId: z.number().describe('Test suite ID') },
+		{ suiteId: mcpPositiveIdSchema.describe('Test suite ID') },
 		async ({ suiteId }) => {
 			const suite = await db.query.testSuite.findFirst({
 				where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
@@ -59,8 +66,8 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 		'add-suite-items',
 		'Add test cases to a test suite',
 		{
-			suiteId: z.number().describe('Test suite ID'),
-			testCaseIds: z.array(z.number()).describe('Test case IDs to add')
+			suiteId: mcpPositiveIdSchema.describe('Test suite ID'),
+			testCaseIds: mcpIdListSchema.describe('Test case IDs to add')
 		},
 		async ({ suiteId, testCaseIds }) => {
 			const suite = await db.query.testSuite.findFirst({
@@ -86,8 +93,8 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 		'remove-suite-items',
 		'Remove test cases from a test suite',
 		{
-			suiteId: z.number().describe('Test suite ID'),
-			testCaseIds: z.array(z.number()).describe('Test case IDs to remove')
+			suiteId: mcpPositiveIdSchema.describe('Test suite ID'),
+			testCaseIds: mcpIdListSchema.describe('Test case IDs to remove')
 		},
 		async ({ suiteId, testCaseIds }) => {
 			const suite = await db.query.testSuite.findFirst({
@@ -109,7 +116,7 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 		'update-test-suite',
 		'Update a test suite name or description',
 		{
-			suiteId: z.number().describe('Suite ID'),
+			suiteId: mcpPositiveIdSchema.describe('Suite ID'),
 			name: z.string().optional().describe('New name'),
 			description: z.string().optional().describe('New description')
 		},
@@ -135,7 +142,7 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 	server.tool(
 		'delete-test-suite',
 		'Delete a test suite',
-		{ suiteId: z.number().describe('Suite ID') },
+		{ suiteId: mcpPositiveIdSchema.describe('Suite ID') },
 		async ({ suiteId }) => {
 			const s = await db.query.testSuite.findFirst({
 				where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))

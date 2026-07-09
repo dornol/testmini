@@ -27,9 +27,8 @@ vi.mock('drizzle-orm', () => ({
 	count: vi.fn()
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -38,6 +37,7 @@ vi.mock('$lib/server/auth-utils', async () => {
 });
 
 const { DELETE } = await import('./+server');
+const authUtils = await import('$lib/server/auth-utils');
 
 const PARAMS = { projectId: '1', shareId: '10' };
 
@@ -55,6 +55,7 @@ const sampleDeletedReport = {
 describe('/api/projects/[projectId]/reports/share/[shareId]', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'QA' });
 	});
 
 	describe('DELETE', () => {
@@ -110,6 +111,25 @@ describe('/api/projects/[projectId]/reports/share/[shareId]', () => {
 
 			const body = await response.json();
 			expect(body.success).toBe(true);
+			expect(authUtils.requireProjectRole).toHaveBeenCalledWith(testUser, 1, [
+				'PROJECT_ADMIN',
+				'QA'
+			]);
+		});
+
+		it('should reject users without share deletion role', async () => {
+			vi.mocked(authUtils.requireProjectRole).mockRejectedValue(
+				Object.assign(new Error(), { status: 403, body: { message: 'Forbidden' } })
+			);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: testUser
+			});
+
+			await expect(DELETE(event)).rejects.toThrow();
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 	});
 });

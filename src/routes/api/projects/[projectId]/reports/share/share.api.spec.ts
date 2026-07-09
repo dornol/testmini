@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -28,9 +32,8 @@ vi.mock('drizzle-orm', () => ({
 	count: vi.fn()
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -44,6 +47,7 @@ vi.mock('crypto', () => ({
 }));
 
 const { GET, POST } = await import('./+server');
+const authUtils = await import('$lib/server/auth-utils');
 
 const PARAMS = { projectId: '1' };
 
@@ -61,6 +65,7 @@ const sampleSharedReport = {
 describe('/api/projects/[projectId]/reports/share', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'QA' });
 	});
 
 	describe('GET', () => {
@@ -127,6 +132,17 @@ describe('/api/projects/[projectId]/reports/share', () => {
 			await expect(POST(event)).rejects.toThrow();
 		});
 
+		it('should reject name longer than 120 characters', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { name: 'x'.repeat(121), config: {} }
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		});
+
 		it('should reject missing name', async () => {
 			const event = createMockEvent({
 				method: 'POST',
@@ -154,6 +170,10 @@ describe('/api/projects/[projectId]/reports/share', () => {
 
 			const body = await response.json();
 			expect(body.name).toBe('Weekly Report');
+			expect(authUtils.requireProjectRole).toHaveBeenCalledWith(testUser, 1, [
+				'PROJECT_ADMIN',
+				'QA'
+			]);
 		});
 
 		it('should generate token using crypto.randomBytes', async () => {
@@ -185,6 +205,55 @@ describe('/api/projects/[projectId]/reports/share', () => {
 
 			const response = await POST(event);
 			expect(response.status).toBe(201);
+		});
+
+		it('should reject invalid expiresInDays values', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { name: 'Report', config: {}, expiresInDays: 0 }
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		});
+
+		it('should reject invalid report preset', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { name: 'Report', config: { preset: 'everything' } }
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		});
+
+		it('should reject malformed date range values', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { name: 'Report', config: { from: '01/01/2025' } }
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		});
+
+		it('should reject users without share creation role', async () => {
+			vi.mocked(authUtils.requireProjectRole).mockRejectedValue(
+				Object.assign(new Error(), { status: 403, body: { message: 'Forbidden' } })
+			);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { name: 'Report', config: {} }
+			});
+
+			await expect(POST(event)).rejects.toThrow();
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should set expiresAt to null when expiresInDays is not provided', async () => {

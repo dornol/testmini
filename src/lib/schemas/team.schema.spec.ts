@@ -28,6 +28,19 @@ describe('team schemas', () => {
 			expect(result.success).toBe(false);
 		});
 
+		it('should reject whitespace-only name', () => {
+			const result = createTeamSchema.safeParse({ name: '   ' });
+			expect(result.success).toBe(false);
+		});
+
+		it('should trim team fields before returning parsed data', () => {
+			const result = createTeamSchema.parse({
+				name: '  My Team  ',
+				description: '  A great team  '
+			});
+			expect(result).toEqual({ name: 'My Team', description: 'A great team' });
+		});
+
 		it('should reject name longer than 100 characters', () => {
 			const result = createTeamSchema.safeParse({ name: 'a'.repeat(101) });
 			expect(result.success).toBe(false);
@@ -65,6 +78,19 @@ describe('team schemas', () => {
 		it('should accept empty object (all fields optional)', () => {
 			const result = updateTeamSchema.safeParse({});
 			expect(result.success).toBe(true);
+		});
+
+		it('should reject whitespace-only name when provided', () => {
+			const result = updateTeamSchema.safeParse({ name: '   ' });
+			expect(result.success).toBe(false);
+		});
+
+		it('should trim team fields before returning parsed data', () => {
+			const result = updateTeamSchema.parse({
+				name: '  Updated Team  ',
+				description: '  Updated description  '
+			});
+			expect(result).toEqual({ name: 'Updated Team', description: 'Updated description' });
 		});
 
 		it('should reject name longer than 100 characters', () => {

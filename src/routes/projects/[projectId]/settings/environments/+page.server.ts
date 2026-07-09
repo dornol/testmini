@@ -8,6 +8,13 @@ import { createEnvironmentSchema, updateEnvironmentSchema } from '$lib/schemas/e
 import { cacheDelete } from '$lib/server/cache';
 import { getNextPosition } from '$lib/server/queries';
 
+function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
+	if (typeof value !== 'string') return null;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+	return parsed;
+}
+
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = parseId(params.projectId, 'project ID');
 
@@ -44,14 +51,24 @@ export const actions: Actions = {
 		const credentials = (formData.get('credentials') as string)?.trim() ?? '';
 		const memo = (formData.get('memo') as string)?.trim() ?? '';
 
-		const parsed = createEnvironmentSchema.safeParse({ name, color, isDefault, baseUrl, credentials, memo });
+		const parsed = createEnvironmentSchema.safeParse({
+			name,
+			color,
+			isDefault,
+			baseUrl,
+			credentials,
+			memo
+		});
 		if (!parsed.success) {
 			const errors = parsed.error.flatten().fieldErrors;
 			return fail(400, { errors, name, color });
 		}
 
 		const existing = await db.query.environmentConfig.findFirst({
-			where: and(eq(environmentConfig.projectId, projectId), eq(environmentConfig.name, parsed.data.name))
+			where: and(
+				eq(environmentConfig.projectId, projectId),
+				eq(environmentConfig.name, parsed.data.name)
+			)
 		});
 
 		if (existing) {
@@ -91,7 +108,7 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const environmentId = Number(formData.get('environmentId'));
+		const environmentId = parsePositiveFormId(formData.get('environmentId'));
 		const name = (formData.get('name') as string)?.trim();
 		const color = formData.get('color') as string;
 		const isDefault = formData.get('isDefault') === 'true';
@@ -99,13 +116,21 @@ export const actions: Actions = {
 		const credentials = (formData.get('credentials') as string)?.trim() ?? '';
 		const memo = (formData.get('memo') as string)?.trim() ?? '';
 
-		const parsed = updateEnvironmentSchema.safeParse({ environmentId, name, color, isDefault, baseUrl, credentials, memo });
+		const parsed = updateEnvironmentSchema.safeParse({
+			environmentId,
+			name,
+			color,
+			isDefault,
+			baseUrl,
+			credentials,
+			memo
+		});
 		if (!parsed.success) {
 			return fail(400, { errors: parsed.error.flatten().fieldErrors });
 		}
 
 		const existing = await db.query.environmentConfig.findFirst({
-			where: eq(environmentConfig.id, environmentId)
+			where: eq(environmentConfig.id, parsed.data.environmentId)
 		});
 
 		if (!existing || existing.projectId !== projectId) {
@@ -113,10 +138,13 @@ export const actions: Actions = {
 		}
 
 		const duplicate = await db.query.environmentConfig.findFirst({
-			where: and(eq(environmentConfig.projectId, projectId), eq(environmentConfig.name, parsed.data.name))
+			where: and(
+				eq(environmentConfig.projectId, projectId),
+				eq(environmentConfig.name, parsed.data.name)
+			)
 		});
 
-		if (duplicate && duplicate.id !== environmentId) {
+		if (duplicate && duplicate.id !== parsed.data.environmentId) {
 			return fail(400, { duplicate: true });
 		}
 
@@ -146,7 +174,7 @@ export const actions: Actions = {
 					credentials: parsed.data.credentials || null,
 					memo: parsed.data.memo || null
 				})
-				.where(eq(environmentConfig.id, environmentId));
+				.where(eq(environmentConfig.id, parsed.data.environmentId));
 		});
 
 		cacheDelete(`project:${projectId}:environments`);
@@ -159,10 +187,10 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const environmentId = Number(formData.get('environmentId'));
+		const environmentId = parsePositiveFormId(formData.get('environmentId'));
 
 		if (!environmentId) {
-			return fail(400, { error: 'Missing environmentId' });
+			return fail(400, { error: 'Invalid environmentId' });
 		}
 
 		const existing = await db.query.environmentConfig.findFirst({
@@ -198,7 +226,9 @@ export const actions: Actions = {
 				await tx
 					.update(environmentConfig)
 					.set({ position: i })
-					.where(and(eq(environmentConfig.id, order[i]), eq(environmentConfig.projectId, projectId)));
+					.where(
+						and(eq(environmentConfig.id, order[i]), eq(environmentConfig.projectId, projectId))
+					);
 			}
 		});
 

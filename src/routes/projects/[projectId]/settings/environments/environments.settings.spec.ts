@@ -32,7 +32,8 @@ vi.mock('drizzle-orm', () => ({
 	asc: vi.fn((a: unknown) => a)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
@@ -45,9 +46,45 @@ const authUtils = await import('$lib/server/auth-utils');
 const PARAMS = { projectId: '1' };
 
 const sampleEnvironments = [
-	{ id: 1, projectId: 1, name: 'Development', color: '#3b82f6', position: 0, isDefault: true, baseUrl: 'http://dev.example.com', credentials: 'dev@test.com / dev123', memo: 'Local dev server', createdBy: 'user-1', createdAt: new Date('2025-01-01') },
-	{ id: 2, projectId: 1, name: 'Staging', color: '#f97316', position: 1, isDefault: false, baseUrl: null, credentials: null, memo: null, createdBy: 'user-1', createdAt: new Date('2025-01-01') },
-	{ id: 3, projectId: 1, name: 'Production', color: '#ef4444', position: 2, isDefault: false, baseUrl: 'https://prod.example.com', credentials: null, memo: 'VPN required', createdBy: 'user-1', createdAt: new Date('2025-01-01') }
+	{
+		id: 1,
+		projectId: 1,
+		name: 'Development',
+		color: '#3b82f6',
+		position: 0,
+		isDefault: true,
+		baseUrl: 'http://dev.example.com',
+		credentials: 'dev@test.com / dev123',
+		memo: 'Local dev server',
+		createdBy: 'user-1',
+		createdAt: new Date('2025-01-01')
+	},
+	{
+		id: 2,
+		projectId: 1,
+		name: 'Staging',
+		color: '#f97316',
+		position: 1,
+		isDefault: false,
+		baseUrl: null,
+		credentials: null,
+		memo: null,
+		createdBy: 'user-1',
+		createdAt: new Date('2025-01-01')
+	},
+	{
+		id: 3,
+		projectId: 1,
+		name: 'Production',
+		color: '#ef4444',
+		position: 2,
+		isDefault: false,
+		baseUrl: 'https://prod.example.com',
+		credentials: null,
+		memo: 'VPN required',
+		createdBy: 'user-1',
+		createdAt: new Date('2025-01-01')
+	}
 ];
 
 function makeFormData(entries: Record<string, string>): FormData {
@@ -72,7 +109,7 @@ describe('environments settings page server', () => {
 		it('should return environments ordered by position', async () => {
 			mockSelectResult(mockDb, sampleEnvironments);
 
-			const result = await load({ params: PARAMS } as never) as Record<string, unknown>;
+			const result = (await load({ params: PARAMS } as never)) as Record<string, unknown>;
 
 			expect(result.environments).toEqual(sampleEnvironments);
 			expect(mockDb.select).toHaveBeenCalled();
@@ -81,7 +118,7 @@ describe('environments settings page server', () => {
 		it('should return empty array when no environments exist', async () => {
 			mockSelectResult(mockDb, []);
 
-			const result = await load({ params: PARAMS } as never) as Record<string, unknown>;
+			const result = (await load({ params: PARAMS } as never)) as Record<string, unknown>;
 
 			expect(result.environments).toEqual([]);
 		});
@@ -200,7 +237,12 @@ describe('environments settings page server', () => {
 			const event = createMockEvent({
 				method: 'POST',
 				params: PARAMS,
-				formData: makeFormData({ environmentId: '1', name: 'Dev Updated', color: '#0000ff', isDefault: 'false' }),
+				formData: makeFormData({
+					environmentId: '1',
+					name: 'Dev Updated',
+					color: '#0000ff',
+					isDefault: 'false'
+				}),
 				user: testUser
 			});
 
@@ -218,7 +260,12 @@ describe('environments settings page server', () => {
 			const event = createMockEvent({
 				method: 'POST',
 				params: PARAMS,
-				formData: makeFormData({ environmentId: '1', name: 'NewName', color: '#3b82f6', isDefault: 'false' }),
+				formData: makeFormData({
+					environmentId: '1',
+					name: 'NewName',
+					color: '#3b82f6',
+					isDefault: 'false'
+				}),
 				user: testUser
 			});
 
@@ -236,7 +283,12 @@ describe('environments settings page server', () => {
 			const event = createMockEvent({
 				method: 'POST',
 				params: PARAMS,
-				formData: makeFormData({ environmentId: '1', name: 'Staging', color: '#3b82f6', isDefault: 'false' }),
+				formData: makeFormData({
+					environmentId: '1',
+					name: 'Staging',
+					color: '#3b82f6',
+					isDefault: 'false'
+				}),
 				user: testUser
 			});
 
@@ -253,7 +305,12 @@ describe('environments settings page server', () => {
 			const event = createMockEvent({
 				method: 'POST',
 				params: PARAMS,
-				formData: makeFormData({ environmentId: '999', name: 'NotFound', color: '#000000', isDefault: 'false' }),
+				formData: makeFormData({
+					environmentId: '999',
+					name: 'NotFound',
+					color: '#000000',
+					isDefault: 'false'
+				}),
 				user: testUser
 			});
 
@@ -273,7 +330,12 @@ describe('environments settings page server', () => {
 			const event = createMockEvent({
 				method: 'POST',
 				params: PARAMS,
-				formData: makeFormData({ environmentId: '1', name: 'Dev', color: '#000000', isDefault: 'false' }),
+				formData: makeFormData({
+					environmentId: '1',
+					name: 'Dev',
+					color: '#000000',
+					isDefault: 'false'
+				}),
 				user: testUser
 			});
 
@@ -288,7 +350,12 @@ describe('environments settings page server', () => {
 			const event = createMockEvent({
 				method: 'POST',
 				params: PARAMS,
-				formData: makeFormData({ environmentId: '1', name: '', color: '#ff0000', isDefault: 'false' }),
+				formData: makeFormData({
+					environmentId: '1',
+					name: '',
+					color: '#ff0000',
+					isDefault: 'false'
+				}),
 				user: testUser
 			});
 
@@ -297,6 +364,30 @@ describe('environments settings page server', () => {
 			expect(result).toBeDefined();
 			const data = (result as { status: number; data: Record<string, unknown> }).data;
 			expect(data.errors).toBeDefined();
+		});
+
+		it('should reject invalid environmentId before querying existing environment', async () => {
+			for (const environmentId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
+				vi.clearAllMocks();
+				vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
+				const event = createMockEvent({
+					method: 'POST',
+					params: PARAMS,
+					formData: makeFormData({
+						environmentId,
+						name: 'Development',
+						color: '#3b82f6',
+						isDefault: 'false'
+					}),
+					user: testUser
+				});
+
+				const result = await actions.update(event);
+
+				expect(result).toMatchObject({ status: 400 });
+				expect(mockDb.query.environmentConfig.findFirst).not.toHaveBeenCalled();
+				expect(mockDb.transaction).not.toHaveBeenCalled();
+			}
 		});
 	});
 
@@ -413,6 +504,25 @@ describe('environments settings page server', () => {
 			expect(result).toBeDefined();
 			const status = (result as { status: number }).status;
 			expect(status).toBe(400);
+		});
+
+		it('should return 400 for invalid environmentId before querying existing environment', async () => {
+			for (const environmentId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
+				vi.clearAllMocks();
+				vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
+				const event = createMockEvent({
+					method: 'POST',
+					params: PARAMS,
+					formData: makeFormData({ environmentId }),
+					user: testUser
+				});
+
+				const result = await actions.delete(event);
+
+				expect(result).toMatchObject({ status: 400, data: { error: 'Invalid environmentId' } });
+				expect(mockDb.query.environmentConfig.findFirst).not.toHaveBeenCalled();
+				expect(mockDb.delete).not.toHaveBeenCalled();
+			}
 		});
 
 		it('should return 404 when environment not found', async () => {

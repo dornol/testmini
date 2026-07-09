@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { tag } from '$lib/server/db/schema';
+import { tag, testCaseTag } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { createTagSchema, updateTagSchema } from '$lib/schemas/tag.schema';
@@ -126,7 +126,10 @@ export const actions: Actions = {
 			return fail(404, { error: 'Tag not found' });
 		}
 
-		await db.delete(tag).where(and(eq(tag.id, tagId), eq(tag.projectId, projectId)));
+		await db.transaction(async (tx) => {
+			await tx.delete(testCaseTag).where(eq(testCaseTag.tagId, tagId));
+			await tx.delete(tag).where(and(eq(tag.id, tagId), eq(tag.projectId, projectId)));
+		});
 
 		cacheDelete(`project:${projectId}:tags`);
 		return { deleted: true };

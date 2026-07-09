@@ -14,6 +14,9 @@ vi.mock('$lib/server/db/schema', () => ({
 		color: 'color',
 		createdAt: 'created_at',
 		createdBy: 'created_by'
+	},
+	testCaseTag: {
+		tagId: 'tag_id'
 	}
 }));
 vi.mock('drizzle-orm', () => ({
@@ -151,13 +154,16 @@ describe('tags settings page server', () => {
 	});
 
 	describe('actions.delete', () => {
-		it('scopes tag deletes to the current project', async () => {
+		it('deletes tag assignments and the scoped tag in a transaction', async () => {
 			mockDb.query.tag.findFirst.mockResolvedValueOnce({
 				id: 7,
 				projectId: 1,
 				name: 'Smoke',
 				color: '#ef4444'
 			});
+			const txDeleteWhere = vi.fn();
+			const txDelete = vi.fn(() => ({ where: txDeleteWhere }));
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn({ delete: txDelete }));
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -169,12 +175,18 @@ describe('tags settings page server', () => {
 			const result = await actions.delete(event);
 
 			expect(result).toEqual({ deleted: true });
-			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+			expect(txDelete).toHaveBeenNthCalledWith(1, { tagId: 'tag_id' });
+			expect(txDeleteWhere).toHaveBeenNthCalledWith(1, ['tag_id', 7]);
+			expect(txDelete).toHaveBeenNthCalledWith(2, expect.objectContaining({ id: 'id' }));
+			expect(txDeleteWhere).toHaveBeenNthCalledWith(
+				2,
 				expect.arrayContaining([
 					['id', 7],
 					['project_id', 1]
 				])
 			);
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 
 		it('rejects invalid tagId before querying existing tag', async () => {

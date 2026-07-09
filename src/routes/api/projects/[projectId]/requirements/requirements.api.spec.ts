@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -28,14 +32,17 @@ vi.mock('drizzle-orm', () => ({
 	desc: vi.fn((a: unknown) => a),
 	inArray: vi.fn((a: unknown, b: unknown) => [a, b]),
 	sql: Object.assign(
-		(strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values, as: vi.fn().mockReturnValue('sql_expr') }),
+		(strings: TemplateStringsArray, ...values: unknown[]) => ({
+			strings,
+			values,
+			as: vi.fn().mockReturnValue('sql_expr')
+		}),
 		{ join: vi.fn((...args: unknown[]) => args), raw: vi.fn((s: string) => s) }
 	)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -86,8 +93,24 @@ describe('/api/projects/[projectId]/requirements', () => {
 						if (selectCall === 1) {
 							// Requirements
 							return Promise.resolve([
-								{ id: 1, externalId: 'REQ-001', title: 'Login', description: 'Login flow', source: 'PRD', testCaseCount: 2, createdAt: new Date() },
-								{ id: 2, externalId: 'REQ-002', title: 'Logout', description: null, source: null, testCaseCount: 0, createdAt: new Date() }
+								{
+									id: 1,
+									externalId: 'REQ-001',
+									title: 'Login',
+									description: 'Login flow',
+									source: 'PRD',
+									testCaseCount: 2,
+									createdAt: new Date()
+								},
+								{
+									id: 2,
+									externalId: 'REQ-002',
+									title: 'Logout',
+									description: null,
+									source: null,
+									testCaseCount: 0,
+									createdAt: new Date()
+								}
 							]).then(r);
 						}
 						if (selectCall === 2) {
@@ -145,13 +168,19 @@ describe('/api/projects/[projectId]/requirements', () => {
 					then: (r: (v: unknown) => void) => {
 						if (selectCall === 1) {
 							return Promise.resolve([
-								{ id: 1, externalId: 'REQ-001', title: 'Feature', description: null, source: null, testCaseCount: 1, createdAt: new Date() }
+								{
+									id: 1,
+									externalId: 'REQ-001',
+									title: 'Feature',
+									description: null,
+									source: null,
+									testCaseCount: 1,
+									createdAt: new Date()
+								}
 							]).then(r);
 						}
 						if (selectCall === 2) {
-							return Promise.resolve([
-								{ requirementId: 1, testCaseId: 100 }
-							]).then(r);
+							return Promise.resolve([{ requirementId: 1, testCaseId: 100 }]).then(r);
 						}
 						return Promise.resolve([]).then(r);
 					}
@@ -182,7 +211,15 @@ describe('/api/projects/[projectId]/requirements', () => {
 					then: (r: (v: unknown) => void) => {
 						if (selectCall === 1) {
 							return Promise.resolve([
-								{ id: 1, externalId: null, title: 'All statuses', description: null, source: null, testCaseCount: 5, createdAt: new Date() }
+								{
+									id: 1,
+									externalId: null,
+									title: 'All statuses',
+									description: null,
+									source: null,
+									testCaseCount: 5,
+									createdAt: new Date()
+								}
 							]).then(r);
 						}
 						if (selectCall === 2) {
@@ -245,6 +282,57 @@ describe('/api/projects/[projectId]/requirements', () => {
 			const response = await POST(event);
 
 			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 when body is not an object', async () => {
+			vi.mocked(authUtils.parseJsonBody).mockResolvedValue(null);
+
+			const event = createMockEvent({ method: 'POST', params: PARAMS, user: testUser });
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid request body');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when requirement fields have invalid types', async () => {
+			const cases = [
+				{ title: 123 },
+				{ title: 'Requirement', externalId: 123 },
+				{ title: 'Requirement', description: 123 },
+				{ title: 'Requirement', source: 123 }
+			];
+
+			for (const body of cases) {
+				vi.clearAllMocks();
+				vi.mocked(authUtils.parseJsonBody).mockResolvedValue(body);
+
+				const event = createMockEvent({ method: 'POST', params: PARAMS, user: testUser });
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+				expect(mockDb.insert).not.toHaveBeenCalled();
+			}
+		});
+
+		it('should return 400 when requirement fields exceed maximum lengths', async () => {
+			const cases = [
+				{ title: 't'.repeat(256) },
+				{ title: 'Requirement', externalId: 'e'.repeat(256) },
+				{ title: 'Requirement', description: 'd'.repeat(10_001) },
+				{ title: 'Requirement', source: 's'.repeat(256) }
+			];
+
+			for (const body of cases) {
+				vi.clearAllMocks();
+				vi.mocked(authUtils.parseJsonBody).mockResolvedValue(body);
+
+				const event = createMockEvent({ method: 'POST', params: PARAMS, user: testUser });
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+				expect(mockDb.insert).not.toHaveBeenCalled();
+			}
 		});
 
 		it('should create a requirement successfully', async () => {

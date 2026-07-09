@@ -21,9 +21,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -88,6 +87,91 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 			const response = await PATCH(event);
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('No fields to update');
+		});
+
+		it('should return 400 when request body is not an object', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: null
+			});
+
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid request body');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when title is empty', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { title: '   ' }
+			});
+
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Title is required');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when patch fields have invalid types', async () => {
+			const cases = [{ title: 123 }, { externalId: 123 }, { description: 123 }, { source: 123 }];
+
+			for (const body of cases) {
+				vi.clearAllMocks();
+				mockDb.query.requirement = {
+					findFirst: vi.fn().mockResolvedValue(sampleRequirement)
+				};
+
+				const event = createMockEvent({
+					method: 'PATCH',
+					params: PARAMS,
+					user: testUser,
+					body
+				});
+
+				const response = await PATCH(event);
+
+				expect(response.status).toBe(400);
+				expect(mockDb.update).not.toHaveBeenCalled();
+			}
+		});
+
+		it('should return 400 when patch fields exceed maximum lengths', async () => {
+			const cases = [
+				{ title: 't'.repeat(256) },
+				{ externalId: 'e'.repeat(256) },
+				{ description: 'd'.repeat(10_001) },
+				{ source: 's'.repeat(256) }
+			];
+
+			for (const body of cases) {
+				vi.clearAllMocks();
+				mockDb.query.requirement = {
+					findFirst: vi.fn().mockResolvedValue(sampleRequirement)
+				};
+
+				const event = createMockEvent({
+					method: 'PATCH',
+					params: PARAMS,
+					user: testUser,
+					body
+				});
+
+				const response = await PATCH(event);
+
+				expect(response.status).toBe(400);
+				expect(mockDb.update).not.toHaveBeenCalled();
+			}
 		});
 
 		it('should update requirement title', async () => {

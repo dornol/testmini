@@ -1,14 +1,11 @@
 import { json } from '@sveltejs/kit';
-import { badRequest } from '$lib/server/errors';
 import { db } from '$lib/server/db';
-import {
-	requirement,
-	requirementTestCase
-} from '$lib/server/db/schema';
+import { requirement, requirementTestCase } from '$lib/server/db/schema';
 import { eq, sql, desc, inArray } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { loadLatestTestCaseExecutionMap } from '$lib/server/queries';
+import { validateRequirementFields } from '$lib/server/requirement-validation';
 
 export const GET = withProjectAccess(async ({ projectId }) => {
 	// Get all requirements with test case count
@@ -85,29 +82,25 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 	return json(result);
 });
 
-export const POST = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ request, user, projectId }) => {
-	const body = (await parseJsonBody(request)) as {
-		title?: string;
-		externalId?: string;
-		description?: string;
-		source?: string;
-	};
+export const POST = withProjectRole(
+	['PROJECT_ADMIN', 'QA'],
+	async ({ request, user, projectId }) => {
+		const body = await parseJsonBody(request);
+		const fields = validateRequirementFields(body, { requireTitle: true });
+		if (fields instanceof Response) return fields;
 
-	if (!body.title?.trim()) {
-		return badRequest('Title is required');
+		const [created] = await db
+			.insert(requirement)
+			.values({
+				projectId,
+				title: fields.title!,
+				externalId: fields.externalId ?? null,
+				description: fields.description ?? null,
+				source: fields.source ?? null,
+				createdBy: user.id
+			})
+			.returning();
+
+		return json(created, { status: 201 });
 	}
-
-	const [created] = await db
-		.insert(requirement)
-		.values({
-			projectId,
-			title: body.title.trim(),
-			externalId: body.externalId?.trim() || null,
-			description: body.description?.trim() || null,
-			source: body.source?.trim() || null,
-			createdBy: user.id
-		})
-		.returning();
-
-	return json(created, { status: 201 });
-});
+);

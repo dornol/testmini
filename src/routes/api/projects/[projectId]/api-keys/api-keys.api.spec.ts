@@ -123,6 +123,20 @@ describe('/api/projects/[projectId]/api-keys', () => {
 				expect(key).not.toHaveProperty('keyHash');
 			}
 		});
+
+		it('should require PROJECT_ADMIN role to list keys', async () => {
+			vi.mocked(authUtils.requireProjectRole).mockRejectedValue(new Error('Forbidden'));
+
+			const event = createMockEvent({
+				method: 'GET',
+				params: PARAMS,
+				user: testUser
+			});
+
+			await expect(GET(event)).rejects.toThrow('Forbidden');
+			expect(authUtils.requireProjectRole).toHaveBeenCalledWith(testUser, 1, ['PROJECT_ADMIN']);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
 	});
 
 	describe('POST - create key', () => {

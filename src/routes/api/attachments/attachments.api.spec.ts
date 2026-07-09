@@ -197,6 +197,27 @@ describe('/api/attachments', () => {
 			await expect(POST(event)).rejects.toThrow();
 		});
 
+		it('should reject oversized multipart bodies before parsing form data', async () => {
+			const formData = vi.fn();
+			const baseEvent = createMockEvent({ method: 'POST', user: testUser }) as Record<
+				string,
+				unknown
+			>;
+			const event = {
+				...baseEvent,
+				request: {
+					headers: new Headers({ 'content-length': String(11 * 1024 * 1024 + 1) }),
+					formData
+				}
+			};
+
+			await expect(POST(event as never)).rejects.toMatchObject({ status: 413 });
+			expect(formData).not.toHaveBeenCalled();
+			expect(authUtils.requireProjectAccess).not.toHaveBeenCalled();
+			expect(storage.saveFile).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should not save file when project access is denied', async () => {
 			vi.mocked(authUtils.requireProjectAccess).mockRejectedValue(
 				Object.assign(new Error(), { status: 403, body: { message: 'Forbidden' } })

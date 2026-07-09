@@ -30,25 +30,22 @@ function validateKeyName(value: unknown): string | Response {
 	return name;
 }
 
-export const GET = withProjectRole(
-	['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'],
-	async ({ projectId }) => {
-		const keys = await db
-			.select({
-				id: projectApiKey.id,
-				name: projectApiKey.name,
-				prefix: projectApiKey.prefix,
-				lastUsedAt: projectApiKey.lastUsedAt,
-				createdBy: projectApiKey.createdBy,
-				createdAt: projectApiKey.createdAt
-			})
-			.from(projectApiKey)
-			.where(eq(projectApiKey.projectId, projectId))
-			.orderBy(desc(projectApiKey.createdAt));
+export const GET = withProjectRole(['PROJECT_ADMIN'], async ({ projectId }) => {
+	const keys = await db
+		.select({
+			id: projectApiKey.id,
+			name: projectApiKey.name,
+			prefix: projectApiKey.prefix,
+			lastUsedAt: projectApiKey.lastUsedAt,
+			createdBy: projectApiKey.createdBy,
+			createdAt: projectApiKey.createdAt
+		})
+		.from(projectApiKey)
+		.where(eq(projectApiKey.projectId, projectId))
+		.orderBy(desc(projectApiKey.createdAt));
 
-		return json(keys);
-	}
-);
+	return json(keys);
+});
 
 export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, projectId }) => {
 	const bodyOrError = validateRequestBody(await parseJsonBody(request));

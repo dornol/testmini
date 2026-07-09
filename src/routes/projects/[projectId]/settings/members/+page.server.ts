@@ -1,7 +1,11 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { message } from 'sveltekit-superforms';
-import { addMemberSchema, type AddMemberInput } from '$lib/schemas/member.schema';
+import {
+	addMemberSchema,
+	updateMemberRoleSchema,
+	type AddMemberInput
+} from '$lib/schemas/member.schema';
 import { emptyForm, validateForm } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { projectMember, user } from '$lib/server/db/schema';
@@ -10,6 +14,13 @@ import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils
 import { logAudit } from '$lib/server/audit';
 import { createNotification } from '$lib/server/notifications';
 import { cacheDelete } from '$lib/server/cache';
+
+function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
+	if (typeof value !== 'string') return null;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+	return parsed;
+}
 
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = parseId(params.projectId, 'project ID');
@@ -49,10 +60,7 @@ export const actions: Actions = {
 
 		// Check if user is already a member
 		const existing = await db.query.projectMember.findFirst({
-			where: and(
-				eq(projectMember.projectId, projectId),
-				eq(projectMember.userId, userId)
-			)
+			where: and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userId))
 		});
 
 		if (existing) {
@@ -96,22 +104,23 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
 
 		const formData = await request.formData();
-		const memberId = Number(formData.get('memberId'));
+		const memberId = parsePositiveFormId(formData.get('memberId'));
 		const role = formData.get('role') as string;
 
-		if (!memberId || !role) {
-			return fail(400, { error: 'Missing memberId or role' });
+		const parsed = updateMemberRoleSchema.safeParse({ memberId, role });
+		if (!parsed.success) {
+			return fail(400, { errors: parsed.error.flatten().fieldErrors });
 		}
 
 		const member = await db.query.projectMember.findFirst({
-			where: eq(projectMember.id, memberId)
+			where: eq(projectMember.id, parsed.data.memberId)
 		});
 
 		if (!member || member.projectId !== projectId) {
 			return fail(404, { error: 'Member not found' });
 		}
 
-		if (member.role === 'PROJECT_ADMIN' && role !== 'PROJECT_ADMIN') {
+		if (member.role === 'PROJECT_ADMIN' && parsed.data.role !== 'PROJECT_ADMIN') {
 			const [adminCount] = await db
 				.select({ count: count() })
 				.from(projectMember)
@@ -126,8 +135,8 @@ export const actions: Actions = {
 
 		await db
 			.update(projectMember)
-			.set({ role: role as 'PROJECT_ADMIN' | 'QA' | 'DEV' | 'VIEWER' })
-			.where(eq(projectMember.id, memberId));
+			.set({ role: parsed.data.role })
+			.where(eq(projectMember.id, parsed.data.memberId));
 
 		cacheDelete(`project:${projectId}:members`);
 
@@ -138,7 +147,7 @@ export const actions: Actions = {
 			entityType: 'MEMBER',
 			entityId: member.userId,
 			projectId,
-			metadata: { memberId, oldRole: member.role, newRole: role }
+			metadata: { memberId: parsed.data.memberId, oldRole: member.role, newRole: parsed.data.role }
 		});
 
 		return { success: true };
@@ -150,10 +159,10 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
 
 		const formData = await request.formData();
-		const memberId = Number(formData.get('memberId'));
+		const memberId = parsePositiveFormId(formData.get('memberId'));
 
 		if (!memberId) {
-			return fail(400, { error: 'Missing memberId' });
+			return fail(400, { error: 'Invalid memberId' });
 		}
 
 		const member = await db.query.projectMember.findFirst({

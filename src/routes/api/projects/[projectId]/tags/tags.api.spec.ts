@@ -4,6 +4,7 @@ import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
+const mockRequireTestCase = vi.fn().mockResolvedValue({ id: 10, projectId: 1 });
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
@@ -25,7 +26,8 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' })
@@ -34,6 +36,9 @@ vi.mock('$lib/server/auth-utils', async () => {
 
 vi.mock('$lib/server/cache', () => ({
 	cacheDelete: vi.fn()
+}));
+vi.mock('$lib/server/queries', () => ({
+	requireTestCase: mockRequireTestCase
 }));
 
 const { POST } = await import('./+server');
@@ -45,6 +50,7 @@ describe('/api/projects/[projectId]/tags', () => {
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'QA' });
 		mockDb.query.tag = { findFirst: vi.fn().mockResolvedValue(null) };
 		mockDb.query.testCaseTag = { findFirst: vi.fn().mockResolvedValue(null) };
+		mockRequireTestCase.mockResolvedValue({ id: 10, projectId: 1 });
 	});
 
 	describe('POST - create tag', () => {
@@ -82,6 +88,7 @@ describe('/api/projects/[projectId]/tags', () => {
 			expect(response.status).toBe(200);
 			expect(data.tag.name).toBe('Feature');
 			expect(data.assigned).toBe(true);
+			expect(mockRequireTestCase).toHaveBeenCalledWith(10, 1);
 		});
 
 		it('should return 400 for missing name', async () => {
@@ -118,6 +125,53 @@ describe('/api/projects/[projectId]/tags', () => {
 			const response = await POST(event);
 
 			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 when request body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: ['Tag'],
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toMatch(/request body/i);
+			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when testCaseId is not a positive integer', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Tag', color: '#ff0000', testCaseId: 0 },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toMatch(/positive integer/i);
+			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
+		});
+
+		it('should reject assignment when test case is outside the project', async () => {
+			mockRequireTestCase.mockRejectedValue(
+				Object.assign(new Error(), { status: 404, body: { message: 'Test case not found' } })
+			);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Tag', color: '#ff0000', testCaseId: 999 },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toThrow();
+			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return 409 for duplicate tag name without testCaseId', async () => {

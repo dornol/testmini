@@ -78,45 +78,72 @@ describe('/api/projects/[projectId]/test-cases/reorder', () => {
 		});
 
 		it('should return 400 for invalid item id', async () => {
-			const event = createMockEvent({
-				method: 'PUT',
-				params: PARAMS,
-				body: { items: [{ id: 0, groupId: null, sortOrder: 0 }] },
-				user: adminUser
-			});
-			const response = await PUT(event);
+			const cases = ['abc', 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
 
-			expect(response.status).toBe(400);
-			const data = await response.json();
-			expect(data.error).toContain('id must be a positive integer');
+			for (const id of cases) {
+				vi.clearAllMocks();
+				vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
+
+				const event = createMockEvent({
+					method: 'PUT',
+					params: PARAMS,
+					body: { items: [{ id, groupId: null, sortOrder: 0 }] },
+					user: adminUser
+				});
+				const response = await PUT(event);
+
+				expect(response.status).toBe(400);
+				const data = await response.json();
+				expect(data.error).toContain('id must be a positive integer');
+				expect(mockDb.select).not.toHaveBeenCalled();
+				expect(mockDb.transaction).not.toHaveBeenCalled();
+			}
 		});
 
 		it('should return 400 for invalid groupId', async () => {
-			const event = createMockEvent({
-				method: 'PUT',
-				params: PARAMS,
-				body: { items: [{ id: 10, groupId: -1, sortOrder: 0 }] },
-				user: adminUser
-			});
-			const response = await PUT(event);
+			const cases = ['abc', 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
 
-			expect(response.status).toBe(400);
-			const data = await response.json();
-			expect(data.error).toContain('groupId must be a positive integer');
+			for (const groupId of cases) {
+				vi.clearAllMocks();
+				vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
+
+				const event = createMockEvent({
+					method: 'PUT',
+					params: PARAMS,
+					body: { items: [{ id: 10, groupId, sortOrder: 0 }] },
+					user: adminUser
+				});
+				const response = await PUT(event);
+
+				expect(response.status).toBe(400);
+				const data = await response.json();
+				expect(data.error).toContain('groupId must be a positive integer');
+				expect(mockDb.select).not.toHaveBeenCalled();
+				expect(mockDb.transaction).not.toHaveBeenCalled();
+			}
 		});
 
-		it('should return 400 for negative sortOrder', async () => {
-			const event = createMockEvent({
-				method: 'PUT',
-				params: PARAMS,
-				body: { items: [{ id: 10, groupId: null, sortOrder: -5 }] },
-				user: adminUser
-			});
-			const response = await PUT(event);
+		it('should return 400 for invalid sortOrder', async () => {
+			const cases = ['abc', -5, 1.5, Number.MAX_SAFE_INTEGER + 1];
 
-			expect(response.status).toBe(400);
-			const data = await response.json();
-			expect(data.error).toBe('sortOrder must be a non-negative integer');
+			for (const sortOrder of cases) {
+				vi.clearAllMocks();
+				vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
+
+				const event = createMockEvent({
+					method: 'PUT',
+					params: PARAMS,
+					body: { items: [{ id: 10, groupId: null, sortOrder }] },
+					user: adminUser
+				});
+				const response = await PUT(event);
+
+				expect(response.status).toBe(400);
+				const data = await response.json();
+				expect(data.error).toBe('sortOrder must be a non-negative integer');
+				expect(mockDb.select).not.toHaveBeenCalled();
+				expect(mockDb.transaction).not.toHaveBeenCalled();
+			}
 		});
 
 		it('should return 400 for duplicate item ids', async () => {

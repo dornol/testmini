@@ -22,14 +22,14 @@ export function validateRequestBody(body: unknown): Record<string, unknown> | Re
 
 function parsePositiveInteger(value: unknown, label: string): number | Response {
 	const parsed = typeof value === 'number' ? value : Number(value);
-	if (!Number.isInteger(parsed) || parsed <= 0) {
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
 		return badRequest(`${label} must be a positive integer`);
 	}
 	return parsed;
 }
 
 function parseSortOrder(value: unknown): number | Response {
-	if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
 		return badRequest('sortOrder must be a non-negative integer');
 	}
 	return value;
@@ -45,7 +45,11 @@ function validateArray(value: unknown, label: string): unknown[] | Response {
 	return value;
 }
 
-function validateItemObject(item: unknown, label: string, index: number): Record<string, unknown> | Response {
+function validateItemObject(
+	item: unknown,
+	label: string,
+	index: number
+): Record<string, unknown> | Response {
 	if (!item || typeof item !== 'object' || Array.isArray(item)) {
 		return badRequest(`${label} ${index + 1} must be an object`);
 	}

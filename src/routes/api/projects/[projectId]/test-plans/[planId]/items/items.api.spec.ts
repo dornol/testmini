@@ -30,7 +30,8 @@ vi.mock('drizzle-orm', () => ({
 	)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
@@ -140,7 +141,7 @@ describe('/api/projects/[projectId]/test-plans/[planId]/items', () => {
 
 			expect(response.status).toBe(400);
 			const data = await response.json();
-			expect(data.error).toBe('Invalid input');
+			expect(data.error).toContain('testCaseIds must be a non-empty array');
 		});
 
 		it('should return 400 when testCaseIds is missing', async () => {
@@ -154,7 +155,49 @@ describe('/api/projects/[projectId]/test-plans/[planId]/items', () => {
 
 			expect(response.status).toBe(400);
 			const data = await response.json();
-			expect(data.error).toBe('Invalid input');
+			expect(data.error).toContain('testCaseIds must be a non-empty array');
+		});
+
+		it('should return 400 when body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: null,
+				user: adminUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toContain('Invalid request body');
+		});
+
+		it('should return 400 when testCaseIds contains duplicates', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { testCaseIds: [10, 10] },
+				user: adminUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toContain('duplicates');
+		});
+
+		it('should return 400 when testCaseIds is too large', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { testCaseIds: Array.from({ length: 501 }, (_, i) => i + 1) },
+				user: adminUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toContain('500 items or less');
 		});
 
 		it('should return 403 for VIEWER role', async () => {
@@ -218,7 +261,21 @@ describe('/api/projects/[projectId]/test-plans/[planId]/items', () => {
 
 			expect(response.status).toBe(400);
 			const data = await response.json();
-			expect(data.error).toBe('Invalid input');
+			expect(data.error).toContain('testCaseIds must be a non-empty array');
+		});
+
+		it('should return 400 when delete testCaseIds contains duplicates', async () => {
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				body: { testCaseIds: [10, 10] },
+				user: adminUser
+			});
+			const response = await DELETE(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toContain('duplicates');
 		});
 
 		it('should return 403 for VIEWER role', async () => {

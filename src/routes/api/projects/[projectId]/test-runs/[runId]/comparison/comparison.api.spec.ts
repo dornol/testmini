@@ -8,7 +8,12 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testRun: { id: 'id', projectId: 'project_id', retestOfRunId: 'retest_of_run_id' },
-	testExecution: { id: 'id', testRunId: 'test_run_id', testCaseVersionId: 'test_case_version_id', status: 'status' },
+	testExecution: {
+		id: 'id',
+		testRunId: 'test_run_id',
+		testCaseVersionId: 'test_case_version_id',
+		status: 'status'
+	},
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id', title: 'title', priority: 'priority' },
 	testCase: { id: 'id', key: 'key' }
 }));
@@ -18,7 +23,8 @@ vi.mock('drizzle-orm', () => ({
 	inArray: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' })
@@ -45,11 +51,24 @@ const nonRetestRun = {
 	status: 'COMPLETED'
 };
 
+const originalRun = {
+	id: 40,
+	projectId: 1,
+	name: 'Sprint 1',
+	retestOfRunId: null,
+	status: 'COMPLETED'
+};
+
 describe('/api/projects/[projectId]/test-runs/[runId]/comparison', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockDb.select.mockReset();
+		let testRunLookup = 0;
 		(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testRun = {
-			findFirst: vi.fn().mockResolvedValue(retestRun)
+			findFirst: vi.fn(async () => {
+				testRunLookup += 1;
+				return testRunLookup === 1 ? retestRun : originalRun;
+			})
 		};
 	});
 
@@ -65,9 +84,27 @@ describe('/api/projects/[projectId]/test-runs/[runId]/comparison', () => {
 					where: vi.fn().mockReturnThis(),
 					then: (r: (v: unknown) => void) =>
 						Promise.resolve([
-							{ testCaseVersionId: 100, status: 'FAIL', testCaseKey: 'TC-0001', title: 'Login test', priority: 'HIGH' },
-							{ testCaseVersionId: 101, status: 'BLOCKED', testCaseKey: 'TC-0002', title: 'Signup test', priority: 'MEDIUM' },
-							{ testCaseVersionId: 102, status: 'PASS', testCaseKey: 'TC-0003', title: 'Logout test', priority: 'LOW' }
+							{
+								testCaseVersionId: 100,
+								status: 'FAIL',
+								testCaseKey: 'TC-0001',
+								title: 'Login test',
+								priority: 'HIGH'
+							},
+							{
+								testCaseVersionId: 101,
+								status: 'BLOCKED',
+								testCaseKey: 'TC-0002',
+								title: 'Signup test',
+								priority: 'MEDIUM'
+							},
+							{
+								testCaseVersionId: 102,
+								status: 'PASS',
+								testCaseKey: 'TC-0003',
+								title: 'Logout test',
+								priority: 'LOW'
+							}
 						]).then(r)
 				} as never;
 			}
@@ -97,14 +134,18 @@ describe('/api/projects/[projectId]/test-runs/[runId]/comparison', () => {
 		expect(data.summary.unchanged).toBe(0);
 		expect(data.comparisons).toHaveLength(3);
 
-		const loginComp = data.comparisons.find((c: { testCaseKey: string }) => c.testCaseKey === 'TC-0001');
+		const loginComp = data.comparisons.find(
+			(c: { testCaseKey: string }) => c.testCaseKey === 'TC-0001'
+		);
 		expect(loginComp.originalStatus).toBe('FAIL');
 		expect(loginComp.retestStatus).toBe('PASS');
 		expect(loginComp.improved).toBe(true);
 	});
 
 	it('should return 400 when run is not a retest run', async () => {
-		(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testRun.findFirst.mockResolvedValue(nonRetestRun);
+		(
+			mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>
+		).testRun.findFirst.mockResolvedValue(nonRetestRun);
 
 		const event = createMockEvent({
 			method: 'GET',
@@ -119,12 +160,26 @@ describe('/api/projects/[projectId]/test-runs/[runId]/comparison', () => {
 	});
 
 	it('should return 404 when run not found', async () => {
-		(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testRun.findFirst.mockResolvedValue(null);
+		(
+			mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>
+		).testRun.findFirst.mockResolvedValue(null);
 
 		const event = createMockEvent({ method: 'GET', params: PARAMS, user: testUser });
 		const response = await GET(event);
 
 		expect(response.status).toBe(404);
+	});
+
+	it('should return 404 when original run is outside the project', async () => {
+		(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testRun.findFirst
+			.mockResolvedValueOnce(retestRun)
+			.mockResolvedValueOnce(null);
+
+		const event = createMockEvent({ method: 'GET', params: PARAMS, user: testUser });
+		const response = await GET(event);
+
+		expect(response.status).toBe(404);
+		expect(mockDb.select).not.toHaveBeenCalled();
 	});
 
 	it('should handle empty comparison (no matching versions)', async () => {
@@ -138,7 +193,13 @@ describe('/api/projects/[projectId]/test-runs/[runId]/comparison', () => {
 					where: vi.fn().mockReturnThis(),
 					then: (r: (v: unknown) => void) =>
 						Promise.resolve([
-							{ testCaseVersionId: 100, status: 'FAIL', testCaseKey: 'TC-0001', title: 'Test', priority: 'HIGH' }
+							{
+								testCaseVersionId: 100,
+								status: 'FAIL',
+								testCaseKey: 'TC-0001',
+								title: 'Test',
+								priority: 'HIGH'
+							}
 						]).then(r)
 				} as never;
 			}
@@ -172,7 +233,13 @@ describe('/api/projects/[projectId]/test-runs/[runId]/comparison', () => {
 					where: vi.fn().mockReturnThis(),
 					then: (r: (v: unknown) => void) =>
 						Promise.resolve([
-							{ testCaseVersionId: 100, status: 'FAIL', testCaseKey: 'TC-0001', title: 'Test', priority: 'HIGH' }
+							{
+								testCaseVersionId: 100,
+								status: 'FAIL',
+								testCaseKey: 'TC-0001',
+								title: 'Test',
+								priority: 'HIGH'
+							}
 						]).then(r)
 				} as never;
 			}
@@ -180,9 +247,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/comparison', () => {
 				from: vi.fn().mockReturnThis(),
 				where: vi.fn().mockReturnThis(),
 				then: (r: (v: unknown) => void) =>
-					Promise.resolve([
-						{ testCaseVersionId: 100, status: 'FAIL' }
-					]).then(r)
+					Promise.resolve([{ testCaseVersionId: 100, status: 'FAIL' }]).then(r)
 			} as never;
 		});
 

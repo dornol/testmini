@@ -10,8 +10,20 @@ import {
 	testCaseGroup,
 	projectMember
 } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator } from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema, mcpIdListSchema } from '../helpers';
 import { eq, and, sql, desc, inArray } from 'drizzle-orm';
+import {
+	validateTestCaseCreatePayload,
+	validateTestCaseVersionFields
+} from '$lib/server/test-case-update-validation';
+
+async function mcpValidationError(
+	response: Response,
+	fallback: string
+): Promise<ReturnType<typeof err>> {
+	const body = (await response.json().catch(() => null)) as { error?: string } | null;
+	return err(body?.error ?? fallback);
+}
 
 export function registerTestCaseTools(server: McpServer, projectId: number) {
 	server.tool(
@@ -117,6 +129,17 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			expectedResult: z.string().optional()
 		},
 		async ({ title, priority, precondition, steps, expectedResult }) => {
+			const fields = validateTestCaseCreatePayload({
+				title,
+				priority,
+				precondition,
+				steps,
+				expectedResult
+			});
+			if (fields instanceof Response) {
+				return mcpValidationError(fields, 'Invalid test case');
+			}
+
 			// Get next key
 			const [maxRow] = await db
 				.select({ maxKey: sql<string>`max(key)` })
@@ -129,12 +152,6 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			// Get project creator for attribution
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
-
-			const formattedSteps = (steps ?? []).map((s, i) => ({
-				order: i + 1,
-				action: s.action,
-				expected: s.expected ?? ''
-			}));
 
 			const result = await db.transaction(async (tx) => {
 				const [tc] = await tx
@@ -152,11 +169,11 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 					.values({
 						testCaseId: tc.id,
 						versionNo: 1,
-						title,
-						precondition: precondition ?? null,
-						steps: formattedSteps,
-						expectedResult: expectedResult ?? null,
-						priority: priority ?? 'MEDIUM',
+						title: fields.title,
+						precondition: fields.precondition,
+						steps: fields.steps,
+						expectedResult: fields.expectedResult,
+						priority: fields.priority,
 						updatedBy: creator
 					})
 					.returning();
@@ -177,7 +194,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 		'update-test-case',
 		'Update an existing test case (creates a new version)',
 		{
-			id: z.number().optional().describe('Test case ID'),
+			id: mcpPositiveIdSchema.optional().describe('Test case ID'),
 			key: z.string().optional().describe('Test case key (e.g., TC-0001)'),
 			title: z.string().optional().describe('New title'),
 			priority: z.string().optional().describe('New priority name'),
@@ -189,6 +206,18 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			expectedResult: z.string().optional().describe('New expected result')
 		},
 		async ({ id, key, title, priority, precondition, steps, expectedResult }) => {
+			const fields = validateTestCaseVersionFields({
+				title,
+				priority,
+				precondition,
+				steps,
+				expectedResult
+			});
+			if (fields instanceof Response) {
+				return mcpValidationError(fields, 'Invalid test case');
+			}
+			if (Object.keys(fields).length === 0) return err('No fields to update');
+
 			let tc;
 			if (id) {
 				tc = await findTestCaseWithLatestVersion(id, projectId);
@@ -206,21 +235,19 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
 
-			const formattedSteps = steps
-				? steps.map((s, i) => ({ order: i + 1, action: s.action, expected: s.expected ?? '' }))
-				: prev.steps;
-
 			const result = await db.transaction(async (tx) => {
 				const [version] = await tx
 					.insert(testCaseVersion)
 					.values({
 						testCaseId: tc.id,
 						versionNo: prev.versionNo + 1,
-						title: title ?? prev.title,
-						precondition: precondition !== undefined ? precondition : prev.precondition,
-						steps: formattedSteps,
-						expectedResult: expectedResult !== undefined ? expectedResult : prev.expectedResult,
-						priority: priority ?? prev.priority,
+						title: fields.title ?? prev.title,
+						precondition:
+							fields.precondition !== undefined ? fields.precondition : prev.precondition,
+						steps: fields.steps ?? prev.steps,
+						expectedResult:
+							fields.expectedResult !== undefined ? fields.expectedResult : prev.expectedResult,
+						priority: fields.priority ?? prev.priority,
 						updatedBy: creator
 					})
 					.returning();
@@ -241,7 +268,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 		'delete-test-case',
 		'Delete a test case by ID or key',
 		{
-			id: z.number().optional().describe('Test case ID'),
+			id: mcpPositiveIdSchema.optional().describe('Test case ID'),
 			key: z.string().optional().describe('Test case key (e.g., TC-0001)')
 		},
 		async ({ id, key }) => {
@@ -267,7 +294,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 		'clone-test-case',
 		'Clone (duplicate) a test case with all its data',
 		{
-			id: z.number().optional().describe('Test case ID'),
+			id: mcpPositiveIdSchema.optional().describe('Test case ID'),
 			key: z.string().optional().describe('Test case key (e.g., TC-0001)')
 		},
 		async ({ id, key }) => {
@@ -344,7 +371,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 		'get-test-case-versions',
 		'Get version history of a test case',
 		{
-			id: z.number().optional().describe('Test case ID'),
+			id: mcpPositiveIdSchema.optional().describe('Test case ID'),
 			key: z.string().optional().describe('Test case key (e.g., TC-0001)')
 		},
 		async ({ id, key }) => {
@@ -377,8 +404,8 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 		'move-test-case-to-group',
 		'Move a test case to a group (or remove from group by passing null)',
 		{
-			testCaseId: z.number().describe('Test case ID'),
-			groupId: z.number().nullable().describe('Target group ID (null to ungroup)')
+			testCaseId: mcpPositiveIdSchema.describe('Test case ID'),
+			groupId: mcpPositiveIdSchema.nullable().describe('Target group ID (null to ungroup)')
 		},
 		async ({ testCaseId, groupId }) => {
 			const tc = await db.query.testCase.findFirst({
@@ -405,7 +432,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 		'assign-test-case',
 		'Assign a user to a test case',
 		{
-			testCaseId: z.number().describe('Test case ID'),
+			testCaseId: mcpPositiveIdSchema.describe('Test case ID'),
 			userId: z.string().describe('User ID to assign')
 		},
 		async ({ testCaseId, userId }) => {
@@ -428,7 +455,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 		'unassign-test-case',
 		'Remove a user assignment from a test case',
 		{
-			testCaseId: z.number().describe('Test case ID'),
+			testCaseId: mcpPositiveIdSchema.describe('Test case ID'),
 			userId: z.string().describe('User ID to unassign')
 		},
 		async ({ testCaseId, userId }) => {
@@ -450,7 +477,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 		'update-test-case-risk',
 		'Set risk assessment for a test case',
 		{
-			testCaseId: z.number().describe('Test case ID'),
+			testCaseId: mcpPositiveIdSchema.describe('Test case ID'),
 			riskImpact: z.enum(['LOW', 'MEDIUM', 'HIGH']).nullable().describe('Risk impact level'),
 			riskLikelihood: z.enum(['LOW', 'MEDIUM', 'HIGH']).nullable().describe('Risk likelihood level')
 		},
@@ -482,9 +509,11 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 		'batch-create-test-cases',
 		'Create multiple test cases at once with optional group, tags, and requirement links. Ideal for bulk creation from specs or planning docs.',
 		{
-			groupId: z.number().optional().describe('Group ID to assign all created TCs to'),
-			tagIds: z.array(z.number()).optional().describe('Tag IDs to attach to all created TCs'),
-			requirementId: z.number().optional().describe('Requirement ID to link all created TCs to'),
+			groupId: mcpPositiveIdSchema.optional().describe('Group ID to assign all created TCs to'),
+			tagIds: mcpIdListSchema.optional().describe('Tag IDs to attach to all created TCs'),
+			requirementId: mcpPositiveIdSchema
+				.optional()
+				.describe('Requirement ID to link all created TCs to'),
 			testCases: z
 				.array(
 					z.object({
@@ -506,6 +535,16 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				.describe('Array of test cases to create')
 		},
 		async ({ groupId, tagIds, requirementId, testCases: tcList }) => {
+			const testCaseFields = [];
+			for (const [index, tc] of tcList.entries()) {
+				const fields = validateTestCaseCreatePayload(tc);
+				if (fields instanceof Response) {
+					const body = (await fields.json().catch(() => null)) as { error?: string } | null;
+					return err(`testCases[${index}]: ${body?.error ?? 'Invalid test case'}`);
+				}
+				testCaseFields.push(fields);
+			}
+
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
 
@@ -539,13 +578,8 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			let nextNum = maxResult?.maxKey ? parseInt(maxResult.maxKey.replace(/^TC-/, ''), 10) + 1 : 1;
 			if (isNaN(nextNum)) nextNum = 1;
 
-			for (const tc of tcList) {
+			for (const tc of testCaseFields) {
 				const key = `TC-${String(nextNum++).padStart(4, '0')}`;
-				const steps = tc.steps?.map((s, i) => ({
-					order: i + 1,
-					action: s.action,
-					expected: s.expected ?? ''
-				}));
 
 				const result = await db.transaction(async (tx) => {
 					const [newTc] = await tx
@@ -559,10 +593,10 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 							testCaseId: newTc.id,
 							versionNo: 1,
 							title: tc.title,
-							precondition: tc.precondition ?? null,
-							steps: steps ?? [],
-							expectedResult: tc.expectedResult ?? null,
-							priority: tc.priority ?? 'MEDIUM',
+							precondition: tc.precondition,
+							steps: tc.steps,
+							expectedResult: tc.expectedResult,
+							priority: tc.priority,
 							updatedBy: creator
 						})
 						.returning();

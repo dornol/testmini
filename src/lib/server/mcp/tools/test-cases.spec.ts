@@ -246,6 +246,34 @@ describe('MCP test-case tools', () => {
 			);
 		});
 
+		it('should reject blank titles before querying for the next key', async () => {
+			const result = await client.callTool({
+				name: 'create-test-case',
+				arguments: { title: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Title cannot be empty'
+			);
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should reject blank step actions before querying for the next key', async () => {
+			const result = await client.callTool({
+				name: 'create-test-case',
+				arguments: { title: 'New test', steps: [{ action: '   ', expected: 'Expected' }] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'steps[0].action cannot be empty'
+			);
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should return error when project not found', async () => {
 			mockSelectResult(mockDb, [{ maxKey: null }]);
 			mockDb.query.project.findFirst.mockResolvedValue(null);
@@ -305,6 +333,34 @@ describe('MCP test-case tools', () => {
 					['project_id', PROJECT_ID]
 				])
 			);
+		});
+
+		it('should reject empty updates before loading the test case', async () => {
+			const result = await client.callTool({
+				name: 'update-test-case',
+				arguments: { id: 10 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'No fields to update'
+			);
+			expect(mockFindTestCaseWithLatestVersion).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should reject blank update titles before loading the test case', async () => {
+			const result = await client.callTool({
+				name: 'update-test-case',
+				arguments: { id: 10, title: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Title cannot be empty'
+			);
+			expect(mockFindTestCaseWithLatestVersion).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
 		it('should return error when test case not found', async () => {
@@ -508,6 +564,20 @@ describe('MCP test-case tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'testCases array is empty'
 			);
+		});
+
+		it('should reject invalid test cases before project lookup', async () => {
+			const result = await client.callTool({
+				name: 'batch-create-test-cases',
+				arguments: { testCases: [{ title: 'Valid' }, { title: '   ' }] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'testCases[1]: Title cannot be empty'
+			);
+			expect(mockDb.query.project.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
 		it('should return error when group not found', async () => {

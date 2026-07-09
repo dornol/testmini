@@ -30,6 +30,16 @@ export type ValidatedTestCasePut = {
 	stepFormat?: 'STEPS' | 'GHERKIN';
 };
 
+export type ValidatedTestCaseVersionFields = {
+	title?: string;
+	precondition?: string | null;
+	steps?: { order: number; action: string; expected: string }[];
+	expectedResult?: string | null;
+	priority?: string;
+};
+
+export type ValidatedTestCaseCreatePayload = Required<ValidatedTestCaseVersionFields>;
+
 function isRecord(value: unknown): value is JsonRecord {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -162,6 +172,74 @@ export function validateTestCasePatchPayload(body: unknown): ValidatedTestCasePa
 	return result;
 }
 
+export function validateTestCaseCreatePayload(
+	body: unknown
+): ValidatedTestCaseCreatePayload | Response {
+	const fields = validateTestCaseVersionFields(body, { requireTitle: true, defaultPriority: true });
+	if (fields instanceof Response) return fields;
+
+	return {
+		title: fields.title!,
+		precondition: fields.precondition ?? null,
+		steps: fields.steps ?? [],
+		expectedResult: fields.expectedResult ?? null,
+		priority: fields.priority ?? 'MEDIUM'
+	};
+}
+
+export function validateTestCaseVersionFields(
+	body: unknown,
+	options: { requireTitle?: boolean; defaultPriority?: boolean } = {}
+): ValidatedTestCaseVersionFields | Response {
+	if (!isRecord(body)) {
+		return badRequest('Request body must be an object');
+	}
+
+	const fields: ValidatedTestCaseVersionFields = {};
+
+	if (options.requireTitle || body.title !== undefined) {
+		const title = validateStringField(body.title, 'Title', {
+			required: options.requireTitle,
+			maxLength: MAX_TITLE_LENGTH
+		});
+		if (title instanceof Response || title === null) {
+			return title instanceof Response ? title : badRequest('Title is required');
+		}
+		fields.title = title;
+	}
+
+	if (options.defaultPriority || body.priority !== undefined) {
+		const priority = validateStringField(body.priority ?? 'MEDIUM', 'Priority', {
+			required: true,
+			maxLength: MAX_PRIORITY_LENGTH
+		});
+		if (priority instanceof Response || priority === null) {
+			return priority instanceof Response ? priority : badRequest('Priority is required');
+		}
+		fields.priority = priority;
+	}
+
+	if (body.steps !== undefined) {
+		const steps = validateTestCaseSteps(body.steps);
+		if (steps instanceof Response) return steps;
+		fields.steps = steps;
+	}
+
+	if (body.precondition !== undefined) {
+		const precondition = validateNullableText(body.precondition, 'precondition');
+		if (precondition instanceof Response) return precondition;
+		fields.precondition = precondition;
+	}
+
+	if (body.expectedResult !== undefined) {
+		const expectedResult = validateNullableText(body.expectedResult, 'expectedResult');
+		if (expectedResult instanceof Response) return expectedResult;
+		fields.expectedResult = expectedResult;
+	}
+
+	return fields;
+}
+
 export function validateTestCasePutPayload(body: unknown): ValidatedTestCasePut | Response {
 	if (!isRecord(body)) {
 		return badRequest('Request body must be an object');
@@ -201,6 +279,31 @@ export function validateTestCasePutPayload(body: unknown): ValidatedTestCasePut 
 	}
 
 	const rawSteps = body.steps === undefined ? [] : body.steps;
+	const steps = validateTestCaseSteps(rawSteps);
+	if (steps instanceof Response) return steps;
+
+	const precondition = validateNullableText(body.precondition, 'precondition');
+	if (precondition instanceof Response) return precondition;
+
+	const expectedResult = validateNullableText(body.expectedResult, 'expectedResult');
+	if (expectedResult instanceof Response) return expectedResult;
+
+	return {
+		title,
+		precondition,
+		steps,
+		expectedResult,
+		priority,
+		revision,
+		stepFormat: body.stepFormat
+	};
+}
+
+function validateTestCaseSteps(value: unknown): ValidatedTestCasePut['steps'] | Response {
+	if (!Array.isArray(value)) {
+		return badRequest('steps must be an array');
+	}
+	const rawSteps = value;
 	if (rawSteps.length > MAX_STEPS) {
 		return badRequest(`steps must contain ${MAX_STEPS} items or less`);
 	}
@@ -228,19 +331,5 @@ export function validateTestCasePutPayload(body: unknown): ValidatedTestCasePut 
 		steps.push({ order: index + 1, action, expected: expected ?? '' });
 	}
 
-	const precondition = validateNullableText(body.precondition, 'precondition');
-	if (precondition instanceof Response) return precondition;
-
-	const expectedResult = validateNullableText(body.expectedResult, 'expectedResult');
-	if (expectedResult instanceof Response) return expectedResult;
-
-	return {
-		title,
-		precondition,
-		steps,
-		expectedResult,
-		priority,
-		revision,
-		stepFormat: body.stepFormat
-	};
+	return steps;
 }

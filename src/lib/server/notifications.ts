@@ -73,10 +73,12 @@ export async function createNotification(params: CreateNotificationParams): Prom
 				where: eq(userTable.id, params.userId)
 			});
 			if (recipient?.email) {
-				sendEmail({
+				void sendEmail({
 					to: recipient.email,
 					subject: `[testmini] ${params.title}`,
 					text: `${params.message}${params.link ? `\n\nView: ${params.link}` : ''}`
+				}).catch((err) => {
+					log.error({ err, userId: params.userId }, 'Failed to send email notification');
 				});
 			}
 		} catch (err) {
@@ -87,10 +89,12 @@ export async function createNotification(params: CreateNotificationParams): Prom
 	// Trigger outgoing webhooks (fire-and-forget, only if project-scoped)
 	// Webhooks are always sent regardless of user notification preferences
 	if (params.projectId) {
-		sendProjectWebhooks(params.projectId, params.type, {
+		void sendProjectWebhooks(params.projectId, params.type, {
 			title: params.title,
 			message: params.message,
 			link: params.link ?? null
+		}).catch((err) => {
+			log.error({ err, projectId: params.projectId, type: params.type }, 'Failed to send webhooks');
 		});
 	}
 }

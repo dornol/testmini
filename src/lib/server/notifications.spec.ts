@@ -3,11 +3,14 @@ import { createMockDb } from '$lib/server/test-helpers/mock-db';
 
 const mockDb = createMockDb();
 const mockSendProjectWebhooks = vi.fn();
+const mockSendEmail = vi.fn();
+const mockIsEmailConfigured = vi.fn(() => false);
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	notification: { id: 'id' },
-	userPreference: { userId: 'user_id' }
+	userPreference: { userId: 'user_id' },
+	user: { id: 'id', email: 'email' }
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b])
@@ -18,6 +21,10 @@ vi.mock('$lib/server/logger', () => ({
 vi.mock('$lib/server/webhooks', () => ({
 	sendProjectWebhooks: mockSendProjectWebhooks
 }));
+vi.mock('$lib/server/email', () => ({
+	sendEmail: mockSendEmail,
+	isEmailConfigured: mockIsEmailConfigured
+}));
 
 const { createNotification } = await import('./notifications');
 
@@ -26,6 +33,10 @@ describe('createNotification', () => {
 		vi.clearAllMocks();
 		// Default: no preferences set
 		mockDb.query.userPreference = { findFirst: vi.fn().mockResolvedValue(undefined) };
+		mockDb.query.user = { findFirst: vi.fn().mockResolvedValue(undefined) };
+		mockIsEmailConfigured.mockReturnValue(false);
+		mockSendProjectWebhooks.mockResolvedValue(undefined);
+		mockSendEmail.mockResolvedValue(undefined);
 	});
 
 	it('should insert into the DB with all provided fields', async () => {
@@ -186,6 +197,52 @@ describe('createNotification', () => {
 			title: 'Test failed',
 			message: 'TC-0001 failed',
 			link: null
+		});
+	});
+
+	it('should not leak webhook delivery rejections', async () => {
+		mockSendProjectWebhooks.mockRejectedValueOnce(new Error('webhook unavailable'));
+
+		await expect(
+			createNotification({
+				userId: 'user-1',
+				type: 'TEST_FAILED',
+				title: 'Test failed',
+				message: 'TC-0001 failed',
+				projectId: 1
+			})
+		).resolves.toBeUndefined();
+
+		await Promise.resolve();
+
+		expect(mockSendProjectWebhooks).toHaveBeenCalledWith(1, 'TEST_FAILED', {
+			title: 'Test failed',
+			message: 'TC-0001 failed',
+			link: null
+		});
+	});
+
+	it('should not leak email delivery rejections', async () => {
+		mockIsEmailConfigured.mockReturnValue(true);
+		mockDb.query.user.findFirst.mockResolvedValue({ email: 'user@example.com' });
+		mockSendEmail.mockRejectedValueOnce(new Error('smtp unavailable'));
+
+		await expect(
+			createNotification({
+				userId: 'user-1',
+				type: 'TEST_FAILED',
+				title: 'Test failed',
+				message: 'TC-0001 failed',
+				link: '/projects/1/test-runs/2'
+			})
+		).resolves.toBeUndefined();
+
+		await Promise.resolve();
+
+		expect(mockSendEmail).toHaveBeenCalledWith({
+			to: 'user@example.com',
+			subject: '[testmini] Test failed',
+			text: 'TC-0001 failed\n\nView: /projects/1/test-runs/2'
 		});
 	});
 

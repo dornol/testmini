@@ -53,7 +53,7 @@ vi.mock('$lib/server/queries', () => ({
 
 const { load, actions } = await import('./+page.server');
 
-function createFormData(data: Record<string, string | string[]>): FormData {
+function createFormData(data: Record<string, FormDataEntryValue | FormDataEntryValue[]>): FormData {
 	const fd = new FormData();
 	for (const [key, value] of Object.entries(data)) {
 		if (Array.isArray(value)) {
@@ -235,6 +235,38 @@ describe('/projects/[projectId]/test-runs/new', () => {
 			expect(result?.status).toBe(400);
 		});
 
+		it('should return 400 for non-text name before querying selected cases', async () => {
+			const event = createActionEvent(
+				createFormData({
+					name: new File(['Run 1'], 'name.txt'),
+					environment: 'QA',
+					testCaseIds: ['10']
+				})
+			);
+			const result = await actions.default(event);
+
+			expect(result?.status).toBe(400);
+			expect(result?.data?.errors).toBeDefined();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for non-text environment before querying selected cases', async () => {
+			const event = createActionEvent(
+				createFormData({
+					name: 'Run 1',
+					environment: new File(['QA'], 'environment.txt'),
+					testCaseIds: ['10']
+				})
+			);
+			const result = await actions.default(event);
+
+			expect(result?.status).toBe(400);
+			expect(result?.data?.errors).toBeDefined();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for empty testCaseIds', async () => {
 			const event = createActionEvent(createFormData({ name: 'Run 1', environment: 'QA' }));
 			const result = await actions.default(event);
@@ -270,20 +302,7 @@ describe('/projects/[projectId]/test-runs/new', () => {
 			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
-		it('should filter invalid testCaseIds before creating executions', async () => {
-			const createdRun = { ...sampleTestRun, id: 77 };
-			const insertedValues: unknown[] = [];
-
-			let dbSelectCount = 0;
-			mockDb.select.mockImplementation(() => {
-				dbSelectCount++;
-				if (dbSelectCount === 1) {
-					return createChain([{ id: 10, latestVersionId: 100 }]);
-				}
-				return createChain([]);
-			});
-			setupTransactionCapture(createdRun, insertedValues);
-
+		it('should reject mixed valid and invalid testCaseIds before querying selected cases', async () => {
 			const event = createActionEvent(
 				createFormData({
 					name: 'Run 1',
@@ -304,18 +323,12 @@ describe('/projects/[projectId]/test-runs/new', () => {
 				})
 			);
 
-			try {
-				await actions.default(event);
-			} catch {
-				/* redirect */
-			}
+			const result = await actions.default(event);
 
-			const execInsert = insertedValues.find(
-				(v) => Array.isArray(v) && v.length > 0 && v[0]?.testRunId
-			) as Array<{ testCaseVersionId: number }> | undefined;
-			expect(execInsert).toBeDefined();
-			expect(execInsert).toHaveLength(1);
-			expect(execInsert![0].testCaseVersionId).toBe(100);
+			expect(result?.status).toBe(400);
+			expect(result?.data?.errors).toBeDefined();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
 		it('should create test run and redirect on valid input', async () => {

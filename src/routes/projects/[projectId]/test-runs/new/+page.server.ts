@@ -18,6 +18,10 @@ import { loadProjectTags } from '$lib/server/queries';
 import { createTestRunSchema, type CreateTestRunInput } from '$lib/schemas/test-run.schema';
 import { parsePositiveFormId } from '$lib/server/form-utils';
 
+function parseTextField(value: FormDataEntryValue | null): string | null {
+	return typeof value === 'string' ? value : null;
+}
+
 export const load: PageServerLoad = async ({ params, parent, url }) => {
 	const { userRole } = await parent();
 	if (userRole === 'VIEWER') {
@@ -116,12 +120,19 @@ export const actions: Actions = {
 		await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const name = formData.get('name') as string;
-		const environment = formData.get('environment') as string;
+		const name = parseTextField(formData.get('name'));
+		const environment = parseTextField(formData.get('environment'));
 		const testCaseIdsRaw = formData.getAll('testCaseIds');
-		const testCaseIds = testCaseIdsRaw
-			.map(parsePositiveFormId)
-			.filter((id): id is number => id !== null);
+		const parsedTestCaseIds = testCaseIdsRaw.map(parsePositiveFormId);
+		if (parsedTestCaseIds.some((id) => id === null)) {
+			return fail(400, {
+				name,
+				environment,
+				testCaseIds: [],
+				errors: { testCaseIds: ['Invalid test case IDs'] }
+			});
+		}
+		const testCaseIds = parsedTestCaseIds as number[];
 
 		const parsed = createTestRunSchema.safeParse({ name, environment, testCaseIds });
 		if (!parsed.success) {

@@ -368,6 +368,25 @@ describe('/api/attachments/[attachmentId]', () => {
 			);
 		});
 
+		it('should not delete the stored file when DB delete fails', async () => {
+			setupAttachmentQuery(sampleAttachment);
+			setupTestCaseQuery({ projectId: 1 });
+			const deleteChain = {
+				where: vi.fn().mockRejectedValue(new Error('database unavailable'))
+			};
+			mockDb.delete.mockReturnValueOnce(deleteChain as never);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: { attachmentId: '1' },
+				user: testUser
+			});
+
+			await expect(DELETE(event)).rejects.toThrow('database unavailable');
+			expect(deleteChain.where).toHaveBeenCalled();
+			expect(storage.deleteFile).not.toHaveBeenCalled();
+		});
+
 		it('should delete attachment with EXECUTION reference for authorized user', async () => {
 			setupAttachmentQuery(executionAttachment);
 			setupExecutionQuery({ testRun: { projectId: 5 } });

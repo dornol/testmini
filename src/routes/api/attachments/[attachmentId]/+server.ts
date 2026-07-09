@@ -76,7 +76,6 @@ export const DELETE = withAuth(async ({ params, user }) => {
 	);
 	await requireProjectAccess(user, projectId);
 
-	await deleteFile(record.objectKey);
 	await db
 		.delete(attachment)
 		.where(
@@ -87,6 +86,7 @@ export const DELETE = withAuth(async ({ params, user }) => {
 				eq(attachment.objectKey, record.objectKey)
 			)
 		);
+	await deleteFile(record.objectKey);
 
 	return new Response(null, { status: 204 });
 });

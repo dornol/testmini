@@ -37,7 +37,8 @@ vi.mock('drizzle-orm', () => ({
 }));
 vi.mock('$lib/server/storage', () => ({
 	generateObjectKey: vi.fn(() => 'attachments/TESTCASE/1/test.png'),
-	saveFile: vi.fn().mockResolvedValue(undefined)
+	saveFile: vi.fn().mockResolvedValue(undefined),
+	deleteFile: vi.fn().mockResolvedValue(undefined)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
 	const actual =
@@ -71,6 +72,8 @@ describe('/api/attachments', () => {
 		mockDb.query.testExecution = { findFirst: vi.fn() };
 		mockDb.query.testFailureDetail = { findFirst: vi.fn() };
 		vi.mocked(authUtils.requireProjectAccess).mockResolvedValue({ role: 'MEMBER' });
+		vi.mocked(storage.saveFile).mockResolvedValue(undefined);
+		vi.mocked(storage.deleteFile).mockResolvedValue(undefined);
 	});
 
 	describe('GET', () => {
@@ -228,6 +231,39 @@ describe('/api/attachments', () => {
 			await expect(POST(event)).rejects.toThrow();
 			expect(authUtils.requireProjectAccess).toHaveBeenCalledWith(testUser, 1);
 			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should remove the saved file when DB insert fails', async () => {
+			const insertChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockRejectedValue(new Error('database unavailable'))
+			};
+			mockDb.insert.mockReturnValueOnce(insertChain as never);
+
+			const formData = createFileFormData({ name: 'test.png', type: 'image/png' });
+			const event = createMockEvent({ method: 'POST', formData, user: testUser });
+
+			await expect(POST(event)).rejects.toThrow('database unavailable');
+			expect(storage.saveFile).toHaveBeenCalledWith(
+				'attachments/TESTCASE/1/test.png',
+				expect.any(Buffer)
+			);
+			expect(storage.deleteFile).toHaveBeenCalledWith('attachments/TESTCASE/1/test.png');
+		});
+
+		it('should preserve the DB insert error when cleanup also fails', async () => {
+			const insertChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockRejectedValue(new Error('database unavailable'))
+			};
+			mockDb.insert.mockReturnValueOnce(insertChain as never);
+			vi.mocked(storage.deleteFile).mockRejectedValueOnce(new Error('storage unavailable'));
+
+			const formData = createFileFormData({ name: 'test.png', type: 'image/png' });
+			const event = createMockEvent({ method: 'POST', formData, user: testUser });
+
+			await expect(POST(event)).rejects.toThrow('database unavailable');
+			expect(storage.deleteFile).toHaveBeenCalledWith('attachments/TESTCASE/1/test.png');
 		});
 
 		it('should reject unsafe reference IDs before saving file', async () => {

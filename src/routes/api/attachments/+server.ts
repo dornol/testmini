@@ -3,7 +3,7 @@ import { db } from '$lib/server/db';
 import { attachment } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withAuth } from '$lib/server/api-handler';
-import { generateObjectKey, saveFile } from '$lib/server/storage';
+import { deleteFile, generateObjectKey, saveFile } from '$lib/server/storage';
 import { requireProjectAccess } from '$lib/server/auth-utils';
 import {
 	getProjectIdForAttachmentReference,
@@ -100,18 +100,28 @@ export const POST = withAuth(async ({ request, user }) => {
 
 	await saveFile(objectKey, buffer);
 
-	const [created] = await db
-		.insert(attachment)
-		.values({
-			referenceType,
-			referenceId,
-			fileName: file.name,
-			contentType: file.type || null,
-			objectKey,
-			fileSize: file.size,
-			uploadedBy: user.id
-		})
-		.returning();
+	let created;
+	try {
+		[created] = await db
+			.insert(attachment)
+			.values({
+				referenceType,
+				referenceId,
+				fileName: file.name,
+				contentType: file.type || null,
+				objectKey,
+				fileSize: file.size,
+				uploadedBy: user.id
+			})
+			.returning();
+	} catch (insertError) {
+		try {
+			await deleteFile(objectKey);
+		} catch {
+			// Preserve the database failure; cleanup can be retried from storage tooling.
+		}
+		throw insertError;
+	}
 
 	return json(created, { status: 201 });
 });

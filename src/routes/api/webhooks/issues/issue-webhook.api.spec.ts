@@ -316,6 +316,39 @@ describe('/api/webhooks/issues POST', () => {
 			expect(data.received).toBe(true);
 			expect(data.message).toBe('Event type not handled');
 		});
+
+		it('returns 400 for malformed handled event payload before querying configs', async () => {
+			const payload = {
+				...makeGitHubIssuePayload(),
+				issue: {
+					...makeGitHubIssuePayload().issue,
+					state: { value: 'closed' }
+				}
+			};
+			const event = createWebhookRequest(payload, { 'x-github-event': 'issues' });
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Invalid issue webhook payload');
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('returns 400 for unsafe issue numbers before querying configs', async () => {
+			const event = createWebhookRequest(makeGitHubIssuePayload({ number: 0 }), {
+				'x-github-event': 'issues'
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Invalid issue webhook payload');
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
 	});
 
 	// ── GitHub issues ───────────────────────────────────

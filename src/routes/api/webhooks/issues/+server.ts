@@ -9,6 +9,10 @@ import crypto from 'node:crypto';
 import { readRequestText } from '$lib/server/auth-utils';
 
 const log = childLogger('issue-webhook');
+const MAX_ACTION_LENGTH = 100;
+const MAX_STATE_LENGTH = 100;
+const MAX_ISSUE_URL_LENGTH = 2_000;
+const MAX_REPO_KEY_LENGTH = 500;
 
 // ── Types ───────────────────────────────────────────────
 
@@ -99,6 +103,24 @@ function timingSafeStringEqual(expected: string, provided: string | null): boole
 	return crypto.timingSafeEqual(expectedBuffer, providedBuffer);
 }
 
+function safeString(value: unknown, field: string, maxLength: number): string {
+	if (typeof value !== 'string' || !value.trim()) {
+		throw new Error(`${field} must be a non-empty string`);
+	}
+	const trimmed = value.trim();
+	if (trimmed.length > maxLength) {
+		throw new Error(`${field} is too long`);
+	}
+	return trimmed;
+}
+
+function safePositiveInteger(value: unknown, field: string): number {
+	if (!Number.isSafeInteger(value) || typeof value !== 'number' || value <= 0) {
+		throw new Error(`${field} must be a positive safe integer`);
+	}
+	return value;
+}
+
 function parseEvent(request: Request, body: unknown): ParsedEvent | null {
 	const githubEvent = request.headers.get('x-github-event');
 	const gitlabEvent = request.headers.get('x-gitlab-event');
@@ -109,11 +131,11 @@ function parseEvent(request: Request, body: unknown): ParsedEvent | null {
 		if (!p.issue || !p.repository) return null;
 		return {
 			provider: 'GITHUB',
-			action: p.action,
-			issueNumber: p.issue.number,
-			issueState: p.issue.state,
-			issueUrl: p.issue.html_url,
-			repoKey: p.repository.full_name
+			action: safeString(p.action, 'action', MAX_ACTION_LENGTH),
+			issueNumber: safePositiveInteger(p.issue.number, 'issue.number'),
+			issueState: safeString(p.issue.state, 'issue.state', MAX_STATE_LENGTH),
+			issueUrl: safeString(p.issue.html_url, 'issue.html_url', MAX_ISSUE_URL_LENGTH),
+			repoKey: safeString(p.repository.full_name, 'repository.full_name', MAX_REPO_KEY_LENGTH)
 		};
 	}
 
@@ -122,11 +144,15 @@ function parseEvent(request: Request, body: unknown): ParsedEvent | null {
 		if (!p.object_attributes || !p.project) return null;
 		return {
 			provider: 'GITLAB',
-			action: p.object_attributes.action,
-			issueNumber: p.object_attributes.iid,
-			issueState: p.object_attributes.state,
-			issueUrl: p.object_attributes.url,
-			repoKey: String(p.project.id)
+			action: safeString(p.object_attributes.action, 'object_attributes.action', MAX_ACTION_LENGTH),
+			issueNumber: safePositiveInteger(p.object_attributes.iid, 'object_attributes.iid'),
+			issueState: safeString(
+				p.object_attributes.state,
+				'object_attributes.state',
+				MAX_STATE_LENGTH
+			),
+			issueUrl: safeString(p.object_attributes.url, 'object_attributes.url', MAX_ISSUE_URL_LENGTH),
+			repoKey: String(safePositiveInteger(p.project.id, 'project.id'))
 		};
 	}
 
@@ -135,11 +161,11 @@ function parseEvent(request: Request, body: unknown): ParsedEvent | null {
 		if (!p.issue || !p.repository) return null;
 		return {
 			provider: 'GITEA',
-			action: p.action,
-			issueNumber: p.issue.number,
-			issueState: p.issue.state,
-			issueUrl: p.issue.html_url,
-			repoKey: p.repository.full_name
+			action: safeString(p.action, 'action', MAX_ACTION_LENGTH),
+			issueNumber: safePositiveInteger(p.issue.number, 'issue.number'),
+			issueState: safeString(p.issue.state, 'issue.state', MAX_STATE_LENGTH),
+			issueUrl: safeString(p.issue.html_url, 'issue.html_url', MAX_ISSUE_URL_LENGTH),
+			repoKey: safeString(p.repository.full_name, 'repository.full_name', MAX_REPO_KEY_LENGTH)
 		};
 	}
 
@@ -185,7 +211,13 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json({ received: true, message: 'Ping acknowledged' });
 	}
 
-	const event = parseEvent(request, body);
+	let event: ParsedEvent | null;
+	try {
+		event = parseEvent(request, body);
+	} catch (err) {
+		log.warn({ err }, 'Invalid issue webhook payload');
+		return badRequest('Invalid issue webhook payload');
+	}
 	if (!event) {
 		return json({ received: true, message: 'Event type not handled' });
 	}

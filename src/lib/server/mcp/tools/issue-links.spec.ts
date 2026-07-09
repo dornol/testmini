@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
 	mockSelectResult,
+	mockDeleteReturning,
 	mockInsertReturning
 } from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
@@ -128,6 +129,7 @@ describe('MCP issue-link tools', () => {
 	describe('delete-issue-link', () => {
 		it('should delete an issue link', async () => {
 			mockDb.query.issueLink.findFirst.mockResolvedValue(sampleIssueLink);
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'delete-issue-link',
@@ -147,6 +149,21 @@ describe('MCP issue-link tools', () => {
 					['id', 1],
 					['project_id', 1]
 				])
+			);
+		});
+
+		it('should return error when delete does not remove an issue link', async () => {
+			mockDb.query.issueLink.findFirst.mockResolvedValue(sampleIssueLink);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-issue-link',
+				arguments: { linkId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Issue link not found'
 			);
 		});
 
@@ -195,6 +212,26 @@ describe('MCP issue-link tools', () => {
 					title: 'Login button broken',
 					provider: 'jira'
 				})
+			);
+		});
+
+		it('should return error when issue link insert returns no row', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: PROJECT_ID });
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'create-issue-link',
+				arguments: {
+					externalUrl: 'https://jira.example.com/PROJ-123',
+					provider: 'jira',
+					testCaseId: 10
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create issue link'
 			);
 		});
 

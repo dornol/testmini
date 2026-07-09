@@ -117,6 +117,7 @@ export function registerIssueLinkTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create issue link');
 			return ok(created);
 		}
 	);
@@ -131,9 +132,11 @@ export function registerIssueLinkTools(server: McpServer, projectId: number) {
 			});
 			if (!link) return err('Issue link not found');
 
-			await db
+			const [deleted] = await db
 				.delete(issueLink)
-				.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)));
+				.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)))
+				.returning({ id: issueLink.id });
+			if (!deleted) return err('Issue link not found');
 			return ok({ success: true, deletedId: linkId });
 		}
 	);

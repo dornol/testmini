@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
 	mockSelectResult,
-	mockInsertReturning
+	mockInsertReturning,
+	mockTransactionDeleteReturning
 } from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
@@ -505,6 +506,7 @@ describe('MCP test-plan tools', () => {
 	describe('delete-test-plan', () => {
 		it('should delete a test plan', async () => {
 			mockDb.query.testPlan.findFirst.mockResolvedValue(samplePlan);
+			const { deleteChain } = mockTransactionDeleteReturning(mockDb, [samplePlan]);
 
 			const result = await client.callTool({
 				name: 'delete-test-plan',
@@ -517,6 +519,7 @@ describe('MCP test-plan tools', () => {
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 			expect(mockDb.delete).not.toHaveBeenCalled();
+			expect(deleteChain.returning).toHaveBeenCalledTimes(1);
 		});
 
 		it('should return error when plan not found', async () => {
@@ -532,6 +535,21 @@ describe('MCP test-plan tools', () => {
 				'Test plan not found'
 			);
 			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return error when delete affects no test plan', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue(samplePlan);
+			mockTransactionDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-test-plan',
+				arguments: { planId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test plan not found'
+			);
 		});
 	});
 

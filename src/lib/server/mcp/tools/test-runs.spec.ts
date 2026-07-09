@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockSelectResult,
 	mockInsertReturning,
 	mockUpdateReturning
@@ -542,6 +543,7 @@ describe('MCP test-run tools', () => {
 	describe('delete-test-run', () => {
 		it('should delete a test run', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			const deleteChain = mockDeleteReturning(mockDb, [sampleTestRun]);
 
 			const result = await client.callTool({
 				name: 'delete-test-run',
@@ -553,12 +555,13 @@ describe('MCP test-run tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(50);
 			expect(mockDb.delete).toHaveBeenCalledTimes(1);
-			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+			expect(deleteChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 50],
 					['project_id', PROJECT_ID]
 				])
 			);
+			expect(deleteChain.returning).toHaveBeenCalledTimes(1);
 		});
 
 		it('should return error when run not found', async () => {
@@ -567,6 +570,21 @@ describe('MCP test-run tools', () => {
 			const result = await client.callTool({
 				name: 'delete-test-run',
 				arguments: { runId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test run not found'
+			);
+		});
+
+		it('should return error when delete affects no test run', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-test-run',
+				arguments: { runId: 50 }
 			});
 
 			expect(result.isError).toBe(true);

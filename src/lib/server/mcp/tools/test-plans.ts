@@ -306,12 +306,16 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			});
 			if (!plan) return err('Test plan not found');
 
-			await db.transaction(async (tx) => {
+			const deleted = await db.transaction(async (tx) => {
 				await tx.delete(testPlanTestCase).where(eq(testPlanTestCase.testPlanId, planId));
-				await tx
+				const [deletedPlan] = await tx
 					.delete(testPlan)
-					.where(and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId)));
+					.where(and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId)))
+					.returning();
+				return deletedPlan;
 			});
+			if (!deleted) return err('Test plan not found');
+
 			return ok({ success: true, deletedId: planId });
 		}
 	);

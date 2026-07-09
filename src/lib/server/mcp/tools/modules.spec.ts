@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockInsertReturning,
 	mockSelectResult,
 	mockUpdateReturning
@@ -171,6 +172,7 @@ describe('MCP module tools', () => {
 	describe('delete-module', () => {
 		it('should delete successfully', async () => {
 			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
+			const deleteChain = mockDeleteReturning(mockDb, [sampleModule]);
 
 			const result = await client.callTool({
 				name: 'delete-module',
@@ -182,15 +184,13 @@ describe('MCP module tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.delete).toHaveBeenCalledTimes(1);
-			const deleteChain = mockDb.delete.mock.results[0]?.value as {
-				where: ReturnType<typeof vi.fn>;
-			};
 			expect(deleteChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 1],
 					['project_id', 1]
 				])
 			);
+			expect(deleteChain.returning).toHaveBeenCalledTimes(1);
 		});
 
 		it('should return error when not found', async () => {
@@ -199,6 +199,21 @@ describe('MCP module tools', () => {
 			const result = await client.callTool({
 				name: 'delete-module',
 				arguments: { moduleId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Module not found'
+			);
+		});
+
+		it('should return error when delete affects no module', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-module',
+				arguments: { moduleId: 1 }
 			});
 
 			expect(result.isError).toBe(true);

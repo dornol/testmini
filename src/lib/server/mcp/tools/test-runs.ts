@@ -459,7 +459,12 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			});
 			if (!run) return err('Test run not found');
 
-			await db.delete(testRun).where(and(eq(testRun.id, runId), eq(testRun.projectId, projectId)));
+			const [deleted] = await db
+				.delete(testRun)
+				.where(and(eq(testRun.id, runId), eq(testRun.projectId, projectId)))
+				.returning();
+			if (!deleted) return err('Test run not found');
+
 			return ok({ success: true, deletedId: runId });
 		}
 	);

@@ -144,3 +144,26 @@ export function mockDeleteReturning(db: ReturnType<typeof createMockDb>, result:
 	db.delete.mockReturnValue(chain);
 	return chain;
 }
+
+/**
+ * Sets what tx.delete().where().returning() resolves to inside db.transaction().
+ */
+export function mockTransactionDeleteReturning(
+	db: ReturnType<typeof createMockDb>,
+	result: unknown[]
+) {
+	const txSelectChain = chainable();
+	const txInsertChain = chainable();
+	const txUpdateChain = chainable();
+	const txDeleteChain = chainable(() => result);
+	const tx = {
+		select: vi.fn().mockReturnValue(txSelectChain),
+		insert: vi.fn().mockReturnValue(txInsertChain),
+		update: vi.fn().mockReturnValue(txUpdateChain),
+		delete: vi.fn().mockReturnValue(txDeleteChain)
+	};
+
+	db.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => fn(tx));
+
+	return { tx, deleteChain: txDeleteChain };
+}

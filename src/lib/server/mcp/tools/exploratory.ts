@@ -233,14 +233,18 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 			});
 			if (!s) return err('Session not found');
 
-			await db.transaction(async (tx) => {
+			const deleted = await db.transaction(async (tx) => {
 				await tx.delete(sessionNote).where(eq(sessionNote.sessionId, sessionId));
-				await tx
+				const [deletedSession] = await tx
 					.delete(exploratorySession)
 					.where(
 						and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
-					);
+					)
+					.returning();
+				return deletedSession;
 			});
+			if (!deleted) return err('Session not found');
+
 			return ok({ success: true, deletedId: sessionId });
 		}
 	);

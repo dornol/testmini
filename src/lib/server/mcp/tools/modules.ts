@@ -78,7 +78,12 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 			});
 			if (!m) return err('Module not found');
 
-			await db.delete(module).where(and(eq(module.id, moduleId), eq(module.projectId, projectId)));
+			const [deleted] = await db
+				.delete(module)
+				.where(and(eq(module.id, moduleId), eq(module.projectId, projectId)))
+				.returning();
+			if (!deleted) return err('Module not found');
+
 			return {
 				content: [
 					{ type: 'text' as const, text: JSON.stringify({ success: true, deletedId: moduleId }) }

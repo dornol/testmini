@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
 	mockSelectResult,
-	mockInsertReturning
+	mockInsertReturning,
+	mockTransactionDeleteReturning
 } from '$lib/server/test-helpers/mock-db';
 import {
 	sampleProject,
@@ -1898,14 +1899,9 @@ describe('MCP Server', () => {
 				name: 'smoke',
 				color: '#ff0000'
 			});
-			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
-				const tx = {
-					delete: vi.fn().mockReturnValue({
-						where: vi.fn().mockReturnThis()
-					})
-				};
-				return fn(tx);
-			});
+			mockTransactionDeleteReturning(mockDb, [
+				{ id: 1, projectId: 1, name: 'smoke', color: '#ff0000' }
+			]);
 
 			const result = await client.callTool({ name: 'delete-tag', arguments: { tagId: 1 } });
 

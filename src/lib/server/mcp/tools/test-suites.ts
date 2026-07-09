@@ -166,12 +166,16 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 			});
 			if (!s) return err('Test suite not found');
 
-			await db.transaction(async (tx) => {
+			const deleted = await db.transaction(async (tx) => {
 				await tx.delete(testSuiteItem).where(eq(testSuiteItem.suiteId, suiteId));
-				await tx
+				const [deletedSuite] = await tx
 					.delete(testSuite)
-					.where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)));
+					.where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)))
+					.returning();
+				return deletedSuite;
 			});
+			if (!deleted) return err('Test suite not found');
+
 			return ok({ success: true, deletedId: suiteId });
 		}
 	);

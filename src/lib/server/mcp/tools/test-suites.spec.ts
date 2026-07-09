@@ -3,6 +3,7 @@ import {
 	createMockDb,
 	mockSelectResult,
 	mockInsertReturning,
+	mockTransactionDeleteReturning,
 	mockUpdateReturning
 } from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
@@ -360,6 +361,7 @@ describe('MCP test-suite tools', () => {
 	describe('delete-test-suite', () => {
 		it('should delete a suite', async () => {
 			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
+			const { deleteChain } = mockTransactionDeleteReturning(mockDb, [sampleSuite]);
 
 			const result = await client.callTool({
 				name: 'delete-test-suite',
@@ -372,6 +374,7 @@ describe('MCP test-suite tools', () => {
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 			expect(mockDb.delete).not.toHaveBeenCalled();
+			expect(deleteChain.returning).toHaveBeenCalledTimes(1);
 		});
 
 		it('should return error when suite not found', async () => {
@@ -387,6 +390,21 @@ describe('MCP test-suite tools', () => {
 				'Test suite not found'
 			);
 			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return error when delete affects no suite', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
+			mockTransactionDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-test-suite',
+				arguments: { suiteId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test suite not found'
+			);
 		});
 	});
 });

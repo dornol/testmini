@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
 	mockSelectResult,
-	mockInsertReturning
+	mockInsertReturning,
+	mockTransactionDeleteReturning
 } from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
@@ -367,6 +368,7 @@ describe('MCP exploratory tools', () => {
 	describe('delete-exploratory-session', () => {
 		it('should delete a session', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+			const { deleteChain } = mockTransactionDeleteReturning(mockDb, [sampleSession]);
 
 			const result = await client.callTool({
 				name: 'delete-exploratory-session',
@@ -379,6 +381,7 @@ describe('MCP exploratory tools', () => {
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 			expect(mockDb.delete).not.toHaveBeenCalled();
+			expect(deleteChain.returning).toHaveBeenCalledTimes(1);
 		});
 
 		it('should return error when session not found', async () => {
@@ -394,6 +397,21 @@ describe('MCP exploratory tools', () => {
 				'Session not found'
 			);
 			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return error when delete affects no session', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+			mockTransactionDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-exploratory-session',
+				arguments: { sessionId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Session not found'
+			);
 		});
 
 		it('should reject invalid IDs before deleting', async () => {

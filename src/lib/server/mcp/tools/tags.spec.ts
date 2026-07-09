@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
 	mockInsertReturning,
+	mockTransactionDeleteReturning,
 	mockUpdateReturning
 } from '$lib/server/test-helpers/mock-db';
 import { sampleProject, sampleTestCase } from '$lib/server/test-helpers/fixtures';
@@ -178,6 +179,7 @@ describe('MCP tag tools', () => {
 	describe('delete-tag', () => {
 		it('should delete a tag and its associations', async () => {
 			mockDb.query.tag.findFirst.mockResolvedValue(sampleTag);
+			const { deleteChain } = mockTransactionDeleteReturning(mockDb, [sampleTag]);
 
 			const result = await client.callTool({
 				name: 'delete-tag',
@@ -190,6 +192,7 @@ describe('MCP tag tools', () => {
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 			expect(mockDb.delete).not.toHaveBeenCalled();
+			expect(deleteChain.returning).toHaveBeenCalledTimes(1);
 		});
 
 		it('should return error when tag not found', async () => {
@@ -205,6 +208,21 @@ describe('MCP tag tools', () => {
 				'Tag not found'
 			);
 			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return error when delete affects no tag', async () => {
+			mockDb.query.tag.findFirst.mockResolvedValue(sampleTag);
+			mockTransactionDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-tag',
+				arguments: { tagId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Tag not found'
+			);
 		});
 	});
 

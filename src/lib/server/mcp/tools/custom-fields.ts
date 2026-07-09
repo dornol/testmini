@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { customField } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator } from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 const FIELD_TYPES = [
@@ -139,7 +139,7 @@ export function registerCustomFieldTools(server: McpServer, projectId: number) {
 	server.tool(
 		'delete-custom-field',
 		'Delete a custom field by ID',
-		{ fieldId: z.number().describe('Custom field ID') },
+		{ fieldId: mcpPositiveIdSchema.describe('Custom field ID') },
 		async ({ fieldId }) => {
 			const f = await db.query.customField.findFirst({
 				where: and(eq(customField.id, fieldId), eq(customField.projectId, projectId))

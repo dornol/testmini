@@ -169,7 +169,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 		it('should update comment successfully', async () => {
 			mockSelectResult(mockDb, [sampleComment]);
 			const updatedComment = { ...sampleComment, content: 'Updated comment' };
-			mockUpdateReturning(mockDb, [updatedComment]);
+			const updateChain = mockUpdateReturning(mockDb, [updatedComment]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -182,6 +182,12 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 			expect(response.status).toBe(200);
 			const body = await response.json();
 			expect(body.content).toBe('Updated comment');
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['test_execution_id', 200]
+				])
+			);
 		});
 
 		it('should reject invalid comment ID', async () => {
@@ -264,6 +270,24 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 			expect(response.status).toBe(200);
 			// Should call delete twice: once for replies, once for the comment itself
 			expect(mockDb.delete).toHaveBeenCalledTimes(2);
+			const replyDeleteChain = mockDb.delete.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			const commentDeleteChain = mockDb.delete.mock.results[1]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(replyDeleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['parent_id', 1],
+					['test_execution_id', 200]
+				])
+			);
+			expect(commentDeleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['test_execution_id', 200]
+				])
+			);
 		});
 	});
 });

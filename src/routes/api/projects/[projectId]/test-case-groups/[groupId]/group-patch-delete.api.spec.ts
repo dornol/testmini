@@ -141,6 +141,12 @@ describe('/api/projects/[projectId]/test-case-groups/[groupId] — PATCH & DELET
 
 			expect(response.status).toBe(200);
 			expect(body.name).toBe('Regression Tests');
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 20],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should update group color', async () => {
@@ -309,6 +315,12 @@ describe('/api/projects/[projectId]/test-case-groups/[groupId] — PATCH & DELET
 
 			expect(response.status).toBe(200);
 			expect(body.success).toBe(true);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 20],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return 403 for non-admin', async () => {

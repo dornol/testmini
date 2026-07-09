@@ -29,7 +29,10 @@ export const PATCH = withProjectRole(
 		if (updatesOrError.orderIndex !== undefined) updates.orderIndex = updatesOrError.orderIndex;
 
 		if (Object.keys(updates).length > 0) {
-			await db.update(testCaseDataSet).set(updates).where(eq(testCaseDataSet.id, datasetId));
+			await db
+				.update(testCaseDataSet)
+				.set(updates)
+				.where(and(eq(testCaseDataSet.id, datasetId), eq(testCaseDataSet.testCaseId, testCaseId)));
 		}
 
 		return json({ success: true });
@@ -48,7 +51,9 @@ export const DELETE = withProjectRole(
 		});
 		if (!ds) return notFound('Data set not found');
 
-		await db.delete(testCaseDataSet).where(eq(testCaseDataSet.id, datasetId));
+		await db
+			.delete(testCaseDataSet)
+			.where(and(eq(testCaseDataSet.id, datasetId), eq(testCaseDataSet.testCaseId, testCaseId)));
 
 		return json({ success: true });
 	}

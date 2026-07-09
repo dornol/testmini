@@ -24,7 +24,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		isGlobalAdmin: vi.fn().mockReturnValue(false)
@@ -63,7 +64,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments/[commentId]
 	describe('PATCH', () => {
 		it('should allow author to edit their own comment', async () => {
 			const updated = { ...authorComment, content: 'Updated comment' };
-			mockUpdateReturning(mockDb, [updated]);
+			const updateChain = mockUpdateReturning(mockDb, [updated]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -76,6 +77,12 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments/[commentId]
 
 			expect(response.status).toBe(200);
 			expect(body.content).toBe('Updated comment');
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['test_case_id', 10]
+				])
+			);
 		});
 
 		it('should allow global admin to edit any comment', async () => {
@@ -180,6 +187,12 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments/[commentId]
 
 			expect(response.status).toBe(200);
 			expect(body.success).toBe(true);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['test_case_id', 10]
+				])
+			);
 		});
 
 		it('should allow PROJECT_ADMIN to delete any comment', async () => {

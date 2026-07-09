@@ -62,7 +62,9 @@ export const PATCH = withProjectAccess(async ({ params, request, user, projectId
 	const [updated] = await db
 		.update(executionComment)
 		.set({ content })
-		.where(eq(executionComment.id, commentId))
+		.where(
+			and(eq(executionComment.id, commentId), eq(executionComment.testExecutionId, executionId))
+		)
 		.returning();
 
 	return json(updated);
@@ -79,8 +81,19 @@ export const DELETE = withProjectAccess(async ({ params, user, projectId }) => {
 	}
 
 	// Delete comment and its replies
-	await db.delete(executionComment).where(eq(executionComment.parentId, commentId));
-	await db.delete(executionComment).where(eq(executionComment.id, commentId));
+	await db
+		.delete(executionComment)
+		.where(
+			and(
+				eq(executionComment.parentId, commentId),
+				eq(executionComment.testExecutionId, executionId)
+			)
+		);
+	await db
+		.delete(executionComment)
+		.where(
+			and(eq(executionComment.id, commentId), eq(executionComment.testExecutionId, executionId))
+		);
 
 	return json({ success: true });
 });

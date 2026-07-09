@@ -7,11 +7,7 @@ import { withProjectAccess } from '$lib/server/api-handler';
 import { validateCommentContent } from '$lib/server/crud-helpers';
 import { getMemberRole } from '$lib/server/queries';
 
-async function resolveComment(
-	testCaseId: number,
-	projectId: number,
-	commentId: number
-) {
+async function resolveComment(testCaseId: number, projectId: number, commentId: number) {
 	const tc = await db.query.testCase.findFirst({
 		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
 	});
@@ -57,7 +53,7 @@ export const PATCH = withProjectAccess(async ({ params, request, user, projectId
 	const [updated] = await db
 		.update(testCaseComment)
 		.set({ content })
-		.where(eq(testCaseComment.id, commentId))
+		.where(and(eq(testCaseComment.id, commentId), eq(testCaseComment.testCaseId, testCaseId)))
 		.returning();
 
 	return json(updated);
@@ -80,7 +76,9 @@ export const DELETE = withProjectAccess(async ({ params, user, projectId }) => {
 		}
 	}
 
-	await db.delete(testCaseComment).where(eq(testCaseComment.id, commentId));
+	await db
+		.delete(testCaseComment)
+		.where(and(eq(testCaseComment.id, commentId), eq(testCaseComment.testCaseId, testCaseId)));
 
 	return json({ success: true });
 });

@@ -162,6 +162,12 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 30],
+					['test_case_id', 10]
+				])
+			);
 		});
 
 		it('should update values on success', async () => {
@@ -276,6 +282,12 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 30],
+					['test_case_id', 10]
+				])
+			);
 		});
 	});
 });

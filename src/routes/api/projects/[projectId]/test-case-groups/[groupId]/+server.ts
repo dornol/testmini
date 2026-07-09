@@ -42,7 +42,10 @@ export const PATCH = withProjectRole(
 		}
 
 		if (Object.keys(updates).length > 0) {
-			await db.update(testCaseGroup).set(updates).where(eq(testCaseGroup.id, groupId));
+			await db
+				.update(testCaseGroup)
+				.set(updates)
+				.where(and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId)));
 		}
 
 		const updated = await db.query.testCaseGroup.findFirst({
@@ -65,7 +68,9 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projec
 	}
 
 	// FK SET NULL handles moving TCs to uncategorized
-	await db.delete(testCaseGroup).where(eq(testCaseGroup.id, groupId));
+	await db
+		.delete(testCaseGroup)
+		.where(and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId)));
 
 	return json({ success: true });
 });

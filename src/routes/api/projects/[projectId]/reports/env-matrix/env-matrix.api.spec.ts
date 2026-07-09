@@ -28,7 +28,7 @@ vi.mock('$lib/server/db/schema', () => ({
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args),
-	inArray: vi.fn((a: unknown, b: unknown) => [a, b]),
+	inArray: vi.fn((a: unknown, b: unknown) => ['inArray', a, b]),
 	sql: Object.assign(
 		(strings: TemplateStringsArray, ...values: unknown[]) => ({
 			as: () => ({ sql: strings, values })
@@ -37,7 +37,8 @@ vi.mock('drizzle-orm', () => ({
 	)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -73,6 +74,56 @@ describe('/api/projects/[projectId]/reports/env-matrix', () => {
 		});
 		const response = await GET(event);
 		expect(response.status).toBe(400);
+	});
+
+	it('should return 400 when too many run IDs are provided', async () => {
+		const event = createMockEvent({
+			params: PARAMS,
+			user: testUser,
+			searchParams: { runIds: Array.from({ length: 21 }, (_, i) => String(i + 1)).join(',') }
+		});
+
+		const response = await GET(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('20 runs');
+		expect(mockDb.select).not.toHaveBeenCalled();
+	});
+
+	it('should deduplicate run IDs before querying', async () => {
+		const runsWhere = vi.fn().mockReturnThis();
+		let callCount = 0;
+		mockDb.select.mockImplementation(() => {
+			callCount++;
+			const data =
+				callCount === 1
+					? [
+							{ id: 1, name: 'QA Run', environment: 'QA' },
+							{ id: 2, name: 'Staging Run', environment: 'STAGING' }
+						]
+					: [];
+			const chain: Record<string, unknown> = {};
+			for (const m of ['from', 'orderBy', 'innerJoin', 'leftJoin', 'groupBy']) {
+				chain[m] = vi.fn().mockReturnValue(chain);
+			}
+			chain.where = runsWhere;
+			chain.then = (r: (v: unknown) => void) => Promise.resolve(data).then(r);
+			return chain;
+		});
+
+		const event = createMockEvent({
+			params: PARAMS,
+			user: testUser,
+			searchParams: { runIds: '1,1,2,2' }
+		});
+
+		const response = await GET(event);
+
+		expect(response.status).toBe(200);
+		expect(runsWhere).toHaveBeenNthCalledWith(1, [
+			['project_id', 1],
+			['inArray', 'id', [1, 2]]
+		]);
 	});
 
 	it('should return 400 when fewer than 2 valid runs found', async () => {

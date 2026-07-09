@@ -40,11 +40,13 @@ vi.mock('$lib/server/db/schema', () => ({
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
-	and: vi.fn((...args: unknown[]) => args)
+	and: vi.fn((...args: unknown[]) => args),
+	inArray: vi.fn((a: unknown, b: unknown[]) => ['inArray', a, b])
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' })
@@ -70,6 +72,7 @@ describe('/api/projects/[projectId]/test-plans/[planId]/create-run', () => {
 	it('should create a test run from plan', async () => {
 		// Mock plan items query
 		let selectCall = 0;
+		const dataSetWhere = vi.fn().mockReturnThis();
 		mockDb.select.mockImplementation(() => {
 			selectCall++;
 			if (selectCall === 1) {
@@ -78,22 +81,25 @@ describe('/api/projects/[projectId]/test-plans/[planId]/create-run', () => {
 					from: vi.fn().mockReturnThis(),
 					where: vi.fn().mockReturnThis(),
 					orderBy: vi.fn().mockReturnThis(),
-					then: (r: (v: unknown) => void) => Promise.resolve([{ testCaseId: 10 }, { testCaseId: 11 }]).then(r)
+					then: (r: (v: unknown) => void) =>
+						Promise.resolve([{ testCaseId: 10 }, { testCaseId: 11 }]).then(r)
 				} as never;
 			} else if (selectCall === 2) {
 				// selected cases with latest versions
 				return {
 					from: vi.fn().mockReturnThis(),
 					where: vi.fn().mockReturnThis(),
-					then: (r: (v: unknown) => void) => Promise.resolve([
-						{ id: 10, latestVersionId: 100 },
-						{ id: 11, latestVersionId: 101 }
-					]).then(r)
+					then: (r: (v: unknown) => void) =>
+						Promise.resolve([
+							{ id: 10, latestVersionId: 100 },
+							{ id: 11, latestVersionId: 101 }
+						]).then(r)
 				} as never;
 			} else {
 				// data sets
 				return {
 					from: vi.fn().mockReturnThis(),
+					where: dataSetWhere,
 					orderBy: vi.fn().mockReturnThis(),
 					then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
 				} as never;
@@ -101,7 +107,14 @@ describe('/api/projects/[projectId]/test-plans/[planId]/create-run', () => {
 		});
 
 		// Mock transaction
-		const createdRun = { id: 99, projectId: 1, name: 'Run from Plan', environment: 'QA', testPlanId: 1, createdBy: 'user-1' };
+		const createdRun = {
+			id: 99,
+			projectId: 1,
+			name: 'Run from Plan',
+			environment: 'QA',
+			testPlanId: 1,
+			createdBy: 'user-1'
+		};
 		mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
 			const txInsertChain = {
 				values: vi.fn().mockReturnThis(),
@@ -128,6 +141,37 @@ describe('/api/projects/[projectId]/test-plans/[planId]/create-run', () => {
 
 		expect(response.status).toBe(201);
 		expect(data.runId).toBe(99);
+		expect(dataSetWhere).toHaveBeenCalledWith(['inArray', 'test_case_id', [10, 11]]);
+	});
+
+	it('should reject when plan items do not resolve to project test cases', async () => {
+		let selectCall = 0;
+		mockDb.select.mockImplementation(() => {
+			selectCall++;
+			if (selectCall === 1) {
+				return {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					orderBy: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([{ testCaseId: 999 }]).then(r)
+				} as never;
+			}
+			return {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+			} as never;
+		});
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { name: 'Run', environment: 'QA' },
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toThrow();
+		expect(mockDb.transaction).not.toHaveBeenCalled();
 	});
 
 	it('should return 404 when plan not found', async () => {

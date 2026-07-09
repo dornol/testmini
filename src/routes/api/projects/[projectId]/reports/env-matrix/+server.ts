@@ -5,16 +5,25 @@ import { eq, and, inArray, sql } from 'drizzle-orm';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
 
+const MAX_RUN_IDS = 20;
+
 export const GET = withProjectAccess(async ({ projectId, url }) => {
 	const runIdsParam = url.searchParams.get('runIds');
 	if (!runIdsParam) return badRequest('runIds parameter required');
 
-	const runIds = runIdsParam
-		.split(',')
-		.map(Number)
-		.filter((id) => !isNaN(id) && id > 0);
+	const runIds = [
+		...new Set(
+			runIdsParam
+				.split(',')
+				.map(Number)
+				.filter((id) => Number.isSafeInteger(id) && id > 0)
+		)
+	];
 
 	if (runIds.length < 2) return badRequest('At least 2 run IDs required');
+	if (runIds.length > MAX_RUN_IDS) {
+		return badRequest(`Cannot compare more than ${MAX_RUN_IDS} runs at once`);
+	}
 
 	// Verify runs belong to project
 	const runs = await db
@@ -35,10 +44,18 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 		})
 		.from(testExecution)
 		.innerJoin(testCaseVersion, eq(testCaseVersion.id, testExecution.testCaseVersionId))
-		.where(inArray(testExecution.testRunId, runs.map((r) => r.id)));
+		.where(
+			inArray(
+				testExecution.testRunId,
+				runs.map((r) => r.id)
+			)
+		);
 
 	// Build matrix: testCaseId -> { env -> status }
-	const matrixMap = new Map<number, { testCaseId: number; title: string; results: Record<string, string> }>();
+	const matrixMap = new Map<
+		number,
+		{ testCaseId: number; title: string; results: Record<string, string> }
+	>();
 
 	for (const exec of executions) {
 		const tcId = exec.testCaseId;

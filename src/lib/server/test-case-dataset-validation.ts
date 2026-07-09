@@ -5,6 +5,7 @@ const MAX_DATASET_NAME_LENGTH = 120;
 const MAX_DATASET_VALUE_COUNT = 200;
 const MAX_DATASET_KEY_LENGTH = 120;
 const MAX_DATASET_VALUE_LENGTH = 5000;
+const UNSAFE_DATASET_VALUE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 type CreateDataSetInput = {
 	name: string | null;
@@ -87,6 +88,9 @@ function validateDataSetValues(value: unknown): Record<string, string> | Respons
 	for (const [key, entryValue] of entries) {
 		if (!key || key.length > MAX_DATASET_KEY_LENGTH) {
 			return badRequest(`values keys must be ${MAX_DATASET_KEY_LENGTH} characters or less`);
+		}
+		if (UNSAFE_DATASET_VALUE_KEYS.has(key)) {
+			return badRequest('values contains an unsafe key');
 		}
 		if (typeof entryValue !== 'string') {
 			return badRequest('values must contain only string values');

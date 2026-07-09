@@ -111,6 +111,30 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 			expect(mockDb.query.testCaseDataSet.findFirst).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 when values contain unsafe keys', async () => {
+			const unsafeKeys = ['__proto__', 'constructor', 'prototype'];
+
+			for (const key of unsafeKeys) {
+				vi.clearAllMocks();
+				mockDb.query.testCaseDataSet = { findFirst: vi.fn() };
+
+				const event = createMockEvent({
+					method: 'PATCH',
+					params: PARAMS,
+					body: { values: { [key]: 'polluted' } },
+					user: testUser
+				});
+
+				const response = await PATCH(event);
+				const body = await response.json();
+
+				expect(response.status).toBe(400);
+				expect(body.error).toMatch(/unsafe key/i);
+				expect(mockDb.query.testCaseDataSet.findFirst).not.toHaveBeenCalled();
+				expect(mockDb.update).not.toHaveBeenCalled();
+			}
+		});
+
 		it('should return 400 when orderIndex is negative', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',

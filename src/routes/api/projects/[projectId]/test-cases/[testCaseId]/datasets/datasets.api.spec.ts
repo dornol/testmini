@@ -157,6 +157,30 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 when values contain unsafe keys', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+			const unsafeKeys = ['__proto__', 'constructor', 'prototype'];
+
+			for (const key of unsafeKeys) {
+				vi.clearAllMocks();
+				mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+
+				const event = createMockEvent({
+					method: 'POST',
+					params: PARAMS,
+					body: { values: { [key]: 'polluted' } },
+					user: testUser
+				});
+
+				const response = await POST(event);
+				const body = await response.json();
+
+				expect(response.status).toBe(400);
+				expect(body.error).toMatch(/unsafe key/i);
+				expect(mockDb.insert).not.toHaveBeenCalled();
+			}
+		});
+
 		it('should return 400 when name is too long', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
 			const event = createMockEvent({

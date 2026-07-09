@@ -9,7 +9,8 @@ vi.mock('$lib/server/url-safety', () => ({
 }));
 vi.stubGlobal('fetch', mockFetch);
 
-const { createExternalIssue, testConnection } = await import('./issue-tracker');
+const { createExternalIssue, fetchIssueStatus, testConnection, updateIssueState } =
+	await import('./issue-tracker');
 
 function jsonResponse(data: unknown, status = 200): Response {
 	return new Response(JSON.stringify(data), {
@@ -83,6 +84,24 @@ describe('issue-tracker', () => {
 				await expect(createExternalIssue(jiraConfig, 'title', 'desc')).rejects.toThrow(
 					'Jira returned 401'
 				);
+			});
+
+			it('should redact Jira tokens from create errors', async () => {
+				const encodedToken = Buffer.from('user@test.com:api-token-123', 'utf8').toString('base64');
+				mockFetch.mockResolvedValue(
+					new Response(`Authorization: Basic ${encodedToken}`, { status: 401 })
+				);
+
+				let message = '';
+				try {
+					await createExternalIssue(jiraConfig, 'title', 'desc');
+				} catch (err) {
+					message = err instanceof Error ? err.message : '';
+				}
+
+				expect(message).toContain('Jira returned 401');
+				expect(message).toContain('[redacted]');
+				expect(message).not.toContain(encodedToken);
 			});
 
 			it('should throw when projectKey is missing', async () => {
@@ -276,6 +295,47 @@ describe('issue-tracker', () => {
 				expect(result.url).toBe('https://api.example.com/issues');
 				expect(result.key).toBe('1');
 			});
+		});
+	});
+
+	describe('external issue follow-up operations', () => {
+		const githubConfig: IssueTrackerConfig = {
+			provider: 'GITHUB',
+			baseUrl: 'https://github.com',
+			apiToken: 'ghp_secret123456',
+			projectKey: 'org/repo',
+			customTemplate: null
+		};
+
+		it('redacts tokens from status sync errors', async () => {
+			mockFetch.mockResolvedValue(
+				new Response('Authorization: Bearer ghp_secret123456', { status: 401 })
+			);
+
+			let message = '';
+			try {
+				await fetchIssueStatus(githubConfig, 'https://github.com/org/repo/issues/42', '#42');
+			} catch (err) {
+				message = err instanceof Error ? err.message : '';
+			}
+
+			expect(message).toContain('GitHub returned 401');
+			expect(message).toContain('[redacted]');
+			expect(message).not.toContain('ghp_secret123456');
+		});
+
+		it('redacts tokens from state update errors', async () => {
+			mockFetch.mockResolvedValue(new Response('token=ghp_secret123456 rejected', { status: 403 }));
+
+			let message = '';
+			try {
+				await updateIssueState(githubConfig, 'https://github.com/org/repo/issues/42', 'closed');
+			} catch (err) {
+				message = err instanceof Error ? err.message : '';
+			}
+
+			expect(message).toMatch(/GitHub returned 403: token=\[redacted\] rejected/);
+			expect(message).not.toContain('ghp_secret123456');
 		});
 	});
 

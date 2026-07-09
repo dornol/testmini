@@ -9,7 +9,7 @@ import { validateRequestBody } from '$lib/server/shared-dataset-validation';
 
 function parsePositiveInteger(value: unknown, label: string): number | Response {
 	const parsed = typeof value === 'number' ? value : Number(value);
-	if (!Number.isInteger(parsed) || parsed <= 0) {
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
 		return badRequest(`${label} must be a positive integer`);
 	}
 	return parsed;
@@ -43,6 +43,15 @@ export const POST = withProjectRole(
 	async ({ params, request, projectId }) => {
 		const datasetId = parseId(params.datasetId, 'dataset ID');
 
+		const bodyOrError = validateRequestBody(await parseJsonBody(request));
+		if (bodyOrError instanceof Response) return bodyOrError;
+
+		if (bodyOrError.testCaseId === undefined || bodyOrError.testCaseId === null) {
+			return badRequest('testCaseId is required');
+		}
+		const testCaseId = parsePositiveInteger(bodyOrError.testCaseId, 'testCaseId');
+		if (testCaseId instanceof Response) return testCaseId;
+
 		const ds = await db.query.sharedDataSet.findFirst({
 			where: and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId))
 		});
@@ -53,15 +62,6 @@ export const POST = withProjectRole(
 
 		const dsRows = getRows(ds.rows);
 		if (dsRows instanceof Response) return dsRows;
-
-		const bodyOrError = validateRequestBody(await parseJsonBody(request));
-		if (bodyOrError instanceof Response) return bodyOrError;
-
-		if (bodyOrError.testCaseId === undefined || bodyOrError.testCaseId === null) {
-			return badRequest('testCaseId is required');
-		}
-		const testCaseId = parsePositiveInteger(bodyOrError.testCaseId, 'testCaseId');
-		if (testCaseId instanceof Response) return testCaseId;
 
 		const tc = await db.query.testCase.findFirst({
 			where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))

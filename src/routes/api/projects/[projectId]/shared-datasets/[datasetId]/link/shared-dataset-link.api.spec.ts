@@ -116,20 +116,27 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 	});
 
 	it('should return 400 when testCaseId is invalid', async () => {
-		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
-			sampleSharedDataSet
-		);
-		const event = createMockEvent({
-			method: 'POST',
-			params: PARAMS,
-			body: { testCaseId: 'abc' },
-			user: testUser
-		});
+		const cases = ['abc', 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
 
-		const response = await POST(event);
+		for (const testCaseId of cases) {
+			vi.clearAllMocks();
 
-		expect(response.status).toBe(400);
-		expect((await response.json()).error).toContain('testCaseId must be a positive integer');
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { testCaseId },
+				user: testUser
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('testCaseId must be a positive integer');
+			expect(mockDb.query.sharedDataSet.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		}
 	});
 
 	it('should return 404 when test case not found', async () => {

@@ -2,6 +2,7 @@ import Redis from 'ioredis';
 import { env } from '$env/dynamic/private';
 import { childLogger } from './logger';
 import { EventEmitter } from 'events';
+import { redactSecrets } from './secret-redaction';
 
 const log = childLogger('redis');
 
@@ -12,18 +13,32 @@ const redisUrl = env.REDIS_URL;
 function createClient(url: string): Redis {
 	const client = new Redis(url, { maxRetriesPerRequest: 3, lazyConnect: true });
 	client.on('error', (err) => {
-		log.warn(
-			{ err: { message: err.message, code: (err as NodeJS.ErrnoException).code } },
-			'Connection error'
-		);
+		log.warn({ err: sanitizeRedisError(err) }, 'Connection error');
 	});
 	client.on('connect', () => {
 		log.info('Connected');
 	});
 	client.connect().catch((err) => {
-		log.warn({ err: { message: err.message } }, 'Initial connection failed');
+		log.warn({ err: sanitizeRedisError(err) }, 'Initial connection failed');
 	});
 	return client;
+}
+
+function sanitizeRedisError(
+	err: unknown
+): { message: string; name?: string; code?: string } | string {
+	if (err instanceof Error) {
+		return {
+			name: err.name,
+			message: redactSecrets(err.message),
+			code:
+				typeof (err as NodeJS.ErrnoException).code === 'string'
+					? (err as NodeJS.ErrnoException).code
+					: undefined
+		};
+	}
+
+	return redactSecrets(String(err));
 }
 
 export const redis: Redis | null = redisUrl ? createClient(redisUrl) : null;

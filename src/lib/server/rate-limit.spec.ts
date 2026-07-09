@@ -1,4 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createHash } from 'node:crypto';
+
+const mockLog = vi.hoisted(() => ({
+	info: vi.fn(),
+	warn: vi.fn(),
+	error: vi.fn()
+}));
 
 // Mock Redis as unavailable (no REDIS_URL) to test in-memory fallback
 vi.mock('ioredis', () => {
@@ -9,7 +16,7 @@ vi.mock('ioredis', () => {
 });
 vi.mock('$env/dynamic/private', () => ({ env: {} }));
 vi.mock('$lib/server/logger', () => ({
-	childLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })
+	childLogger: () => mockLog
 }));
 
 const { checkRateLimit } = await import('$lib/server/rate-limit');
@@ -112,5 +119,46 @@ describe('checkRateLimit (in-memory fallback)', () => {
 
 	afterEach(() => {
 		vi.useRealTimers();
+	});
+});
+
+describe('checkRateLimit (redis logging)', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		vi.resetModules();
+	});
+
+	it('redacts redis errors and logs only a hashed rate limit key', async () => {
+		const sensitiveKey = 'ip:1.2.3.4:token=rate-limit-token-12345';
+		const expectedHash = createHash('sha256').update(sensitiveKey).digest('hex').slice(0, 16);
+		const pipeline = {
+			zremrangebyscore: vi.fn(),
+			zadd: vi.fn(),
+			zcard: vi.fn(),
+			expire: vi.fn(),
+			exec: vi.fn().mockResolvedValue([
+				[null, 1],
+				[null, 1],
+				[new Error('redis failed apiToken=rate-limit-token-12345'), 0],
+				[null, 1]
+			])
+		};
+		vi.doMock('$lib/server/redis', () => ({
+			redis: {
+				multi: () => pipeline
+			}
+		}));
+
+		const { checkRateLimit: checkRateLimitWithRedis } = await import('$lib/server/rate-limit');
+
+		const result = await checkRateLimitWithRedis(sensitiveKey, 5, 60_000);
+
+		const [logMeta] = mockLog.warn.mock.calls[0];
+
+		expect(result.allowed).toBe(true);
+		expect(logMeta.keyHash).toBe(expectedHash);
+		expect(logMeta).not.toHaveProperty('key');
+		expect(logMeta.err.message).not.toContain('rate-limit-token-12345');
+		expect(logMeta.err).not.toHaveProperty('stack');
 	});
 });

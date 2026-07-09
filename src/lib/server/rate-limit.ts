@@ -1,5 +1,7 @@
 import { redis } from './redis';
 import { childLogger } from './logger';
+import { createHash } from 'node:crypto';
+import { redactSecrets } from './secret-redaction';
 
 const log = childLogger('rate-limit');
 
@@ -12,6 +14,21 @@ export interface RateLimitResult {
 // --- In-memory fallback ---
 
 const memWindows = new Map<string, number[]>();
+
+function hashRateLimitKey(key: string): string {
+	return createHash('sha256').update(key).digest('hex').slice(0, 16);
+}
+
+function sanitizeRedisError(err: unknown): { message: string; name?: string } | string {
+	if (err instanceof Error) {
+		return {
+			name: err.name,
+			message: redactSecrets(err.message)
+		};
+	}
+
+	return redactSecrets(String(err));
+}
 
 function checkRateLimitMemory(key: string, limit: number, windowMs: number): RateLimitResult {
 	const now = Date.now();
@@ -76,7 +93,10 @@ export async function checkRateLimit(
 		const [cardErr, count] = results[2] as [Error | null, number];
 
 		if (cardErr) {
-			log.warn({ err: { message: cardErr.message }, key }, 'Redis ZCARD error');
+			log.warn(
+				{ err: sanitizeRedisError(cardErr), keyHash: hashRateLimitKey(key) },
+				'Redis ZCARD error'
+			);
 			return { allowed: true, remaining: limit };
 		}
 
@@ -87,9 +107,7 @@ export async function checkRateLimit(
 			await redis.zrem(redisKey, member).catch(() => {});
 
 			// Estimate when the oldest entry in the window will expire
-			const oldestScore = await redis
-				.zrange(redisKey, 0, 0, 'WITHSCORES')
-				.catch(() => null);
+			const oldestScore = await redis.zrange(redisKey, 0, 0, 'WITHSCORES').catch(() => null);
 
 			let retryAfter = Math.ceil(windowMs / 1000);
 			if (oldestScore && oldestScore.length === 2) {
@@ -103,7 +121,10 @@ export async function checkRateLimit(
 		return { allowed: true, remaining: Math.max(0, limit - currentCount) };
 	} catch (err) {
 		// Graceful degradation: if Redis is down, allow the request
-		log.warn({ err: { message: (err as Error).message }, key }, 'Redis error, allowing request');
+		log.warn(
+			{ err: sanitizeRedisError(err), keyHash: hashRateLimitKey(key) },
+			'Redis error, allowing request'
+		);
 		return { allowed: true, remaining: limit };
 	}
 }

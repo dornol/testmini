@@ -4,10 +4,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Hoisted mocks (available before any module loads)
 // ---------------------------------------------------------------------------
 
-const { mockOn, mockConnect, mockPublish } = vi.hoisted(() => ({
+const { mockOn, mockConnect, mockPublish, mockLog } = vi.hoisted(() => ({
 	mockOn: vi.fn(),
 	mockConnect: vi.fn().mockResolvedValue(undefined),
-	mockPublish: vi.fn().mockResolvedValue(1)
+	mockPublish: vi.fn().mockResolvedValue(1),
+	mockLog: {
+		info: vi.fn(),
+		warn: vi.fn(),
+		error: vi.fn()
+	}
 }));
 
 vi.mock('ioredis', () => {
@@ -22,11 +27,7 @@ vi.mock('ioredis', () => {
 });
 
 vi.mock('$lib/server/logger', () => ({
-	childLogger: () => ({
-		info: vi.fn(),
-		warn: vi.fn(),
-		error: vi.fn()
-	})
+	childLogger: () => mockLog
 }));
 
 // ---------------------------------------------------------------------------
@@ -161,6 +162,7 @@ describe('redis module (with REDIS_URL)', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.resetModules();
+		mockConnect.mockResolvedValue(undefined);
 	});
 
 	async function importRedisWithUrl() {
@@ -203,10 +205,33 @@ describe('redis module (with REDIS_URL)', () => {
 	});
 
 	it('should handle initial connection failure gracefully', async () => {
-		mockConnect.mockRejectedValueOnce(new Error('Connection refused'));
+		mockConnect.mockRejectedValueOnce(new Error('Connection refused password=redis-secret-12345'));
 
 		// Should not throw during import
 		const mod = await importRedisWithUrl();
+		await Promise.resolve();
+
+		const [logMeta] = mockLog.warn.mock.calls[0];
+
 		expect(mod.redis).not.toBeNull();
+		expect(logMeta.err.message).not.toContain('redis-secret-12345');
+		expect(logMeta.err).not.toHaveProperty('stack');
+	});
+
+	it('should redact redis error event logs', async () => {
+		await importRedisWithUrl();
+		const errorHandler = mockOn.mock.calls.find((call: unknown[]) => call[0] === 'error')?.[1] as
+			((err: Error) => void) | undefined;
+		const err = Object.assign(new Error('Connection error secret=redis-secret-12345'), {
+			code: 'ECONNREFUSED'
+		});
+
+		errorHandler?.(err);
+
+		const [logMeta] = mockLog.warn.mock.calls[0];
+
+		expect(logMeta.err.message).not.toContain('redis-secret-12345');
+		expect(logMeta.err.code).toBe('ECONNREFUSED');
+		expect(logMeta.err).not.toHaveProperty('stack');
 	});
 });

@@ -46,6 +46,7 @@ vi.mock('$lib/server/db/schema', () => ({
 	testCaseTag: { testCaseId: 'test_case_id', tagId: 'tag_id' },
 	testCaseAssignee: { testCaseId: 'test_case_id', userId: 'user_id' },
 	testCaseGroup: { id: 'id', projectId: 'project_id' },
+	projectMember: { projectId: 'project_id', userId: 'user_id', role: 'role' },
 	requirementTestCase: { requirementId: 'requirement_id', testCaseId: 'test_case_id' }
 }));
 vi.mock('drizzle-orm', () => ({
@@ -587,6 +588,11 @@ describe('MCP test-case tools', () => {
 	describe('assign-test-case', () => {
 		it('should assign a user to a test case', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDb.query.projectMember.findFirst.mockResolvedValue({
+				projectId: 1,
+				userId: 'user-1',
+				role: 'QA'
+			});
 
 			const result = await client.callTool({
 				name: 'assign-test-case',
@@ -599,6 +605,38 @@ describe('MCP test-case tools', () => {
 			expect(parsed.testCaseId).toBe(10);
 			expect(parsed.userId).toBe('user-1');
 			expect(mockDb.insert).toHaveBeenCalled();
+		});
+
+		it('should reject assignment when user is not a project member', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDb.query.projectMember.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'assign-test-case',
+				arguments: { testCaseId: 10, userId: 'external-user' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'User is not a project member'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject assignment when test case is outside the project', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'assign-test-case',
+				arguments: { testCaseId: 999, userId: 'user-1' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
+			expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 	});
 

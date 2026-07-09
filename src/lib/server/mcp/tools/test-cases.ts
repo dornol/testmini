@@ -7,7 +7,8 @@ import {
 	tag,
 	testCaseTag,
 	testCaseAssignee,
-	testCaseGroup
+	testCaseGroup,
+	projectMember
 } from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and, sql, desc, inArray } from 'drizzle-orm';
@@ -412,6 +413,11 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
 			});
 			if (!tc) return err('Test case not found');
+
+			const member = await db.query.projectMember.findFirst({
+				where: and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userId))
+			});
+			if (!member) return err('User is not a project member');
 
 			await db.insert(testCaseAssignee).values({ testCaseId, userId }).onConflictDoNothing();
 			return ok({ success: true, testCaseId, userId });

@@ -32,7 +32,8 @@ vi.mock('drizzle-orm', () => ({
 	inArray: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -61,7 +62,14 @@ describe('/api/projects/[projectId]/test-cases/retest-run', () => {
 		mockSelectResult(mockDb, retestCases);
 
 		// Transaction mock
-		const createdRun = { id: 99, projectId: 1, name: 'Retest Run', environment: 'QA', createdBy: 'user-1' };
+		const createdRun = {
+			id: 99,
+			projectId: 1,
+			name: 'Retest Run',
+			environment: 'QA',
+			createdBy: 'user-1'
+		};
+		const updateWhere = vi.fn().mockReturnThis();
 		mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 			const txInsertChain = {
 				values: vi.fn().mockReturnThis(),
@@ -74,7 +82,7 @@ describe('/api/projects/[projectId]/test-cases/retest-run', () => {
 			};
 			const txUpdateChain = {
 				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
+				where: updateWhere,
 				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
 			};
 			let insertCall = 0;
@@ -100,12 +108,24 @@ describe('/api/projects/[projectId]/test-cases/retest-run', () => {
 		expect(response.status).toBe(201);
 		expect(data.runId).toBe(99);
 		expect(data.executionCount).toBe(2);
+		expect(updateWhere).toHaveBeenCalledWith(
+			expect.arrayContaining([
+				['project_id', 1],
+				['id', [10, 11]]
+			])
+		);
 	});
 
 	it('should use custom name and environment', async () => {
 		mockSelectResult(mockDb, retestCases);
 
-		const createdRun = { id: 100, projectId: 1, name: 'Custom Retest', environment: 'STAGING', createdBy: 'user-1' };
+		const createdRun = {
+			id: 100,
+			projectId: 1,
+			name: 'Custom Retest',
+			environment: 'STAGING',
+			createdBy: 'user-1'
+		};
 		mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 			const txInsertChain = {
 				values: vi.fn().mockReturnThis(),
@@ -148,7 +168,13 @@ describe('/api/projects/[projectId]/test-cases/retest-run', () => {
 	it('should accept specific testCaseIds', async () => {
 		mockSelectResult(mockDb, [retestCases[0]]);
 
-		const createdRun = { id: 101, projectId: 1, name: 'Retest Run', environment: 'QA', createdBy: 'user-1' };
+		const createdRun = {
+			id: 101,
+			projectId: 1,
+			name: 'Retest Run',
+			environment: 'QA',
+			createdBy: 'user-1'
+		};
 		mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 			const txInsertChain = {
 				values: vi.fn().mockReturnThis(),
@@ -188,6 +214,104 @@ describe('/api/projects/[projectId]/test-cases/retest-run', () => {
 		expect(data.executionCount).toBe(1);
 	});
 
+	it('should reject non-object payloads before querying test cases', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: ['invalid'],
+			user: testUser
+		});
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect(mockDb.select).not.toHaveBeenCalled();
+		expect(mockDb.transaction).not.toHaveBeenCalled();
+	});
+
+	it('should reject non-string name', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { name: 123 },
+			user: testUser
+		});
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('name');
+		expect(mockDb.select).not.toHaveBeenCalled();
+	});
+
+	it('should reject name longer than 200 characters', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { name: 'x'.repeat(201) },
+			user: testUser
+		});
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('200 characters');
+		expect(mockDb.select).not.toHaveBeenCalled();
+	});
+
+	it('should reject environment longer than 30 characters', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { environment: 'x'.repeat(31) },
+			user: testUser
+		});
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('30 characters');
+		expect(mockDb.select).not.toHaveBeenCalled();
+	});
+
+	it('should reject empty testCaseIds when explicitly provided', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { testCaseIds: [] },
+			user: testUser
+		});
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('testCaseIds');
+		expect(mockDb.select).not.toHaveBeenCalled();
+	});
+
+	it('should reject invalid testCaseIds before querying test cases', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { testCaseIds: [10, 0] },
+			user: testUser
+		});
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('positive integer');
+		expect(mockDb.select).not.toHaveBeenCalled();
+	});
+
+	it('should reject duplicate testCaseIds before querying test cases', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { testCaseIds: [10, 10] },
+			user: testUser
+		});
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('duplicates');
+		expect(mockDb.select).not.toHaveBeenCalled();
+	});
+
 	it('should return 400 when no cases need retesting', async () => {
 		mockSelectResult(mockDb, []);
 
@@ -210,7 +334,13 @@ describe('/api/projects/[projectId]/test-cases/retest-run', () => {
 			{ id: 11, latestVersionId: null }
 		]);
 
-		const createdRun = { id: 102, projectId: 1, name: 'Retest Run', environment: 'QA', createdBy: 'user-1' };
+		const createdRun = {
+			id: 102,
+			projectId: 1,
+			name: 'Retest Run',
+			environment: 'QA',
+			createdBy: 'user-1'
+		};
 		mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 			const txInsertChain = {
 				values: vi.fn().mockReturnThis(),

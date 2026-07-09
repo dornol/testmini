@@ -5,17 +5,18 @@ import { eq, and, inArray } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
+import { validateRetestRunPayload } from '$lib/server/retest-run-validation';
 
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ request, projectId, user: currentUser }) => {
-		const body = await parseJsonBody(request) as Record<string, unknown>;
-		const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : 'Retest Run';
-		const environment = typeof body.environment === 'string' && body.environment.trim() ? body.environment.trim() : 'QA';
+		const payload = validateRetestRunPayload(await parseJsonBody(request));
+		if (payload instanceof Response) return payload;
+		const { name, environment, testCaseIds } = payload;
 
 		// Get test cases needing retest
 		let cases;
-		if (Array.isArray(body.testCaseIds) && body.testCaseIds.length > 0) {
+		if (testCaseIds !== undefined) {
 			cases = await db
 				.select({ id: testCase.id, latestVersionId: testCase.latestVersionId })
 				.from(testCase)
@@ -23,7 +24,7 @@ export const POST = withProjectRole(
 					and(
 						eq(testCase.projectId, projectId),
 						eq(testCase.retestNeeded, true),
-						inArray(testCase.id, body.testCaseIds as number[])
+						inArray(testCase.id, testCaseIds)
 					)
 				);
 		} else {
@@ -61,9 +62,12 @@ export const POST = withProjectRole(
 				.update(testCase)
 				.set({ retestNeeded: false })
 				.where(
-					inArray(
-						testCase.id,
-						validCases.map((c) => c.id)
+					and(
+						eq(testCase.projectId, projectId),
+						inArray(
+							testCase.id,
+							validCases.map((c) => c.id)
+						)
 					)
 				);
 

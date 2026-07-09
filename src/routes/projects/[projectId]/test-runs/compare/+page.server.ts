@@ -1,12 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import {
-	testRun,
-	testExecution,
-	testCaseVersion,
-	testCase
-} from '$lib/server/db/schema';
+import { testRun, testExecution, testCaseVersion, testCase } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { parseId } from '$lib/server/auth-utils';
 
@@ -19,14 +14,21 @@ type ComparisonRow = {
 	statusB: string | null;
 };
 
+function parsePositiveSearchId(value: string | null): number | null {
+	if (value === null) return null;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+	return parsed;
+}
+
 export const load: PageServerLoad = async ({ params, url, parent }) => {
 	await parent();
 	const projectId = parseId(params.projectId, 'project ID');
 
-	const runAId = Number(url.searchParams.get('runA'));
-	const runBId = Number(url.searchParams.get('runB'));
+	const runAId = parsePositiveSearchId(url.searchParams.get('runA'));
+	const runBId = parsePositiveSearchId(url.searchParams.get('runB'));
 
-	if (isNaN(runAId) || isNaN(runBId) || runAId === runBId) {
+	if (!runAId || !runBId || runAId === runBId) {
 		error(400, 'Provide two different run IDs as runA and runB');
 	}
 

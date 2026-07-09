@@ -13,13 +13,24 @@ vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql 
 vi.mock('$lib/server/db/schema', () => ({
 	testCase: { id: 'id', projectId: 'project_id', key: 'key', latestVersionId: 'latest_version_id' },
 	testCaseVersion: { id: 'id', title: 'title', priority: 'priority' },
-	testRun: { id: 'id', projectId: 'project_id', name: 'name', environment: 'environment', createdBy: 'created_by' },
+	testRun: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		environment: 'environment',
+		createdBy: 'created_by'
+	},
 	testExecution: { id: 'id', testRunId: 'test_run_id', testCaseVersionId: 'test_case_version_id' },
 	tag: { id: 'id', name: 'name', color: 'color', projectId: 'project_id' },
 	testCaseTag: { testCaseId: 'test_case_id', tagId: 'tag_id' },
 	testSuite: { id: 'id', name: 'name', projectId: 'project_id' },
 	testSuiteItem: { suiteId: 'suite_id', testCaseId: 'test_case_id' },
-	testCaseDataSet: { id: 'id', testCaseId: 'test_case_id', orderIndex: 'order_index', values: 'values' }
+	testCaseDataSet: {
+		id: 'id',
+		testCaseId: 'test_case_id',
+		orderIndex: 'order_index',
+		values: 'values'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
@@ -69,7 +80,9 @@ describe('/projects/[projectId]/test-runs/new', () => {
 	});
 
 	describe('load', () => {
-		function createLoadEvent(opts: { userRole?: string; searchParams?: Record<string, string> } = {}) {
+		function createLoadEvent(
+			opts: { userRole?: string; searchParams?: Record<string, string> } = {}
+		) {
 			const { userRole = 'QA', searchParams = {} } = opts;
 			const event = createMockEvent({
 				params: { projectId: PROJECT_ID },
@@ -86,18 +99,10 @@ describe('/projects/[projectId]/test-runs/new', () => {
 		});
 
 		it('should return test cases, project tags, suites, and preselectedIds', async () => {
-			const testCasesData = [
-				{ id: 10, key: 'TC-0001', title: 'Login test', priority: 'MEDIUM' }
-			];
-			const tcTagsData = [
-				{ testCaseId: 10, tagId: 1, tagName: 'Smoke', tagColor: '#ff0000' }
-			];
-			const suitesData = [
-				{ id: 1, name: 'Smoke Suite', itemCount: 3 }
-			];
-			const projectTags = [
-				{ id: 1, name: 'Smoke', color: '#ff0000' }
-			];
+			const testCasesData = [{ id: 10, key: 'TC-0001', title: 'Login test', priority: 'MEDIUM' }];
+			const tcTagsData = [{ testCaseId: 10, tagId: 1, tagName: 'Smoke', tagColor: '#ff0000' }];
+			const suitesData = [{ id: 1, name: 'Smoke Suite', itemCount: 3 }];
+			const projectTags = [{ id: 1, name: 'Smoke', color: '#ff0000' }];
 
 			// db.select() is called 3 times: testCases, tcTags, suites
 			mockDb.select
@@ -107,7 +112,7 @@ describe('/projects/[projectId]/test-runs/new', () => {
 			mockLoadProjectTags.mockResolvedValue(projectTags);
 
 			const event = createLoadEvent();
-			const result = await load(event) as Record<string, any>;
+			const result = (await load(event)) as Record<string, any>;
 
 			expect(result.testCases).toHaveLength(1);
 			expect(result.testCases[0]).toMatchObject({
@@ -126,10 +131,7 @@ describe('/projects/[projectId]/test-runs/new', () => {
 				{ id: 10, key: 'TC-0001', title: 'Test 1', priority: 'HIGH' },
 				{ id: 11, key: 'TC-0002', title: 'Test 2', priority: 'LOW' }
 			];
-			const suiteItems = [
-				{ testCaseId: 10 },
-				{ testCaseId: 11 }
-			];
+			const suiteItems = [{ testCaseId: 10 }, { testCaseId: 11 }];
 
 			let selectCallCount = 0;
 			mockDb.select.mockImplementation(() => {
@@ -142,17 +144,38 @@ describe('/projects/[projectId]/test-runs/new', () => {
 			mockLoadProjectTags.mockResolvedValue([]);
 
 			const event = createLoadEvent({ searchParams: { suiteId: '5' } });
-			const result = await load(event) as Record<string, any>;
+			const result = (await load(event)) as Record<string, any>;
 
 			expect(result.preselectedIds).toEqual([10, 11]);
 		});
+
+		it.each(['0', '-1', '1.5', 'Infinity', '9007199254740992'])(
+			'should ignore invalid suiteId %s before loading suite items',
+			async (suiteId) => {
+				let selectCallCount = 0;
+				mockDb.select.mockImplementation(() => {
+					selectCallCount++;
+					if (selectCallCount === 1) {
+						return createChain([{ id: 10, key: 'TC-0001', title: 'Test 1', priority: 'HIGH' }]);
+					}
+					return createChain([]);
+				});
+				mockLoadProjectTags.mockResolvedValue([]);
+
+				const event = createLoadEvent({ searchParams: { suiteId } });
+				const result = (await load(event)) as Record<string, any>;
+
+				expect(result.preselectedIds).toEqual([]);
+				expect(selectCallCount).toBe(3);
+			}
+		);
 
 		it('should return empty tags when no test cases exist', async () => {
 			mockDb.select.mockImplementation(() => createChain([]));
 			mockLoadProjectTags.mockResolvedValue([]);
 
 			const event = createLoadEvent();
-			const result = await load(event) as Record<string, any>;
+			const result = (await load(event)) as Record<string, any>;
 
 			expect(result.testCases).toEqual([]);
 			expect(result.preselectedIds).toEqual([]);
@@ -183,9 +206,7 @@ describe('/projects/[projectId]/test-runs/new', () => {
 		});
 
 		it('should return 400 for missing name', async () => {
-			const event = createActionEvent(
-				createFormData({ environment: 'QA', testCaseIds: ['10'] })
-			);
+			const event = createActionEvent(createFormData({ environment: 'QA', testCaseIds: ['10'] }));
 			const result = await actions.default(event);
 			expect(result?.status).toBe(400);
 			expect(result?.data?.errors).toBeDefined();
@@ -200,9 +221,7 @@ describe('/projects/[projectId]/test-runs/new', () => {
 		});
 
 		it('should return 400 for missing environment', async () => {
-			const event = createActionEvent(
-				createFormData({ name: 'Run 1', testCaseIds: ['10'] })
-			);
+			const event = createActionEvent(createFormData({ name: 'Run 1', testCaseIds: ['10'] }));
 			const result = await actions.default(event);
 			expect(result?.status).toBe(400);
 			expect(result?.data?.errors).toBeDefined();
@@ -217,12 +236,63 @@ describe('/projects/[projectId]/test-runs/new', () => {
 		});
 
 		it('should return 400 for empty testCaseIds', async () => {
-			const event = createActionEvent(
-				createFormData({ name: 'Run 1', environment: 'QA' })
-			);
+			const event = createActionEvent(createFormData({ name: 'Run 1', environment: 'QA' }));
 			const result = await actions.default(event);
 			expect(result?.status).toBe(400);
 			expect(result?.data?.errors).toBeDefined();
+		});
+
+		it('should reject invalid testCaseIds before querying selected cases', async () => {
+			const event = createActionEvent(
+				createFormData({
+					name: 'Run 1',
+					environment: 'QA',
+					testCaseIds: ['0', '-1', '1.5', 'Infinity', '9007199254740992']
+				})
+			);
+
+			const result = await actions.default(event);
+
+			expect(result?.status).toBe(400);
+			expect(result?.data?.errors).toBeDefined();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should filter invalid testCaseIds before creating executions', async () => {
+			const createdRun = { ...sampleTestRun, id: 77 };
+			const insertedValues: unknown[] = [];
+
+			let dbSelectCount = 0;
+			mockDb.select.mockImplementation(() => {
+				dbSelectCount++;
+				if (dbSelectCount === 1) {
+					return createChain([{ id: 10, latestVersionId: 100 }]);
+				}
+				return createChain([]);
+			});
+			setupTransactionCapture(createdRun, insertedValues);
+
+			const event = createActionEvent(
+				createFormData({
+					name: 'Run 1',
+					environment: 'QA',
+					testCaseIds: ['10', '0', '-1', '1.5', 'Infinity', '9007199254740992']
+				})
+			);
+
+			try {
+				await actions.default(event);
+			} catch {
+				/* redirect */
+			}
+
+			const execInsert = insertedValues.find(
+				(v) => Array.isArray(v) && v.length > 0 && v[0]?.testRunId
+			) as Array<{ testCaseVersionId: number }> | undefined;
+			expect(execInsert).toBeDefined();
+			expect(execInsert).toHaveLength(1);
+			expect(execInsert![0].testCaseVersionId).toBe(100);
 		});
 
 		it('should create test run and redirect on valid input', async () => {
@@ -288,7 +358,11 @@ describe('/projects/[projectId]/test-runs/new', () => {
 				createFormData({ name: 'Run', environment: 'DEV', testCaseIds: ['10', '11'] })
 			);
 
-			try { await actions.default(event); } catch { /* redirect */ }
+			try {
+				await actions.default(event);
+			} catch {
+				/* redirect */
+			}
 
 			// Find the testExecution insert values
 			const execInsert = insertedValues.find(
@@ -332,12 +406,23 @@ describe('/projects/[projectId]/test-runs/new', () => {
 				createFormData({ name: 'Param Run', environment: 'QA', testCaseIds: ['10'] })
 			);
 
-			try { await actions.default(event); } catch { /* redirect */ }
+			try {
+				await actions.default(event);
+			} catch {
+				/* redirect */
+			}
 
 			// Should have 2 executions (one per data set row)
 			const execInsert = insertedValues.find(
 				(v) => Array.isArray(v) && v.length > 0 && v[0]?.testRunId && v[0]?.dataSetId
-			) as Array<{ testRunId: number; testCaseVersionId: number; dataSetId: number; parameterValues: Record<string, string> }> | undefined;
+			) as
+				| Array<{
+						testRunId: number;
+						testCaseVersionId: number;
+						dataSetId: number;
+						parameterValues: Record<string, string>;
+				  }>
+				| undefined;
 
 			expect(execInsert).toBeDefined();
 			expect(execInsert).toHaveLength(2);
@@ -370,7 +455,11 @@ describe('/projects/[projectId]/test-runs/new', () => {
 				createFormData({ name: 'Run', environment: 'QA', testCaseIds: ['10', '999'] })
 			);
 
-			try { await actions.default(event); } catch { /* redirect */ }
+			try {
+				await actions.default(event);
+			} catch {
+				/* redirect */
+			}
 
 			// Only 1 execution should be created (for ID 10), 999 has no version
 			const execInsert = insertedValues.find(
@@ -398,8 +487,7 @@ describe('/projects/[projectId]/test-runs/new', () => {
 					returning: vi.fn().mockResolvedValue([createdRun]),
 					then: undefined as unknown
 				};
-				txInsertChain.then = (r: (v: unknown) => void) =>
-					Promise.resolve([createdRun]).then(r);
+				txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([createdRun]).then(r);
 
 				const tx = {
 					insert: vi.fn().mockReturnValue(txInsertChain)
@@ -411,7 +499,11 @@ describe('/projects/[projectId]/test-runs/new', () => {
 				createFormData({ name: 'Run', environment: 'QA', testCaseIds: ['999'] })
 			);
 
-			try { await actions.default(event); } catch { /* redirect */ }
+			try {
+				await actions.default(event);
+			} catch {
+				/* redirect */
+			}
 
 			// Only 1 insert call (testRun), no testExecution insert
 			expect(txInsertCallCount).toBe(1);
@@ -447,20 +539,42 @@ describe('/projects/[projectId]/test-runs/new', () => {
 				createFormData({ name: 'Run', environment: 'QA', testCaseIds: ['10'] })
 			);
 
-			try { await actions.default(event); } catch { /* redirect */ }
+			try {
+				await actions.default(event);
+			} catch {
+				/* redirect */
+			}
 
 			expect(mockRequireAuth).toHaveBeenCalledWith((event as any).locals);
-			expect(mockRequireProjectRole).toHaveBeenCalledWith(testUser, 1, ['PROJECT_ADMIN', 'QA', 'DEV']);
+			expect(mockRequireProjectRole).toHaveBeenCalledWith(testUser, 1, [
+				'PROJECT_ADMIN',
+				'QA',
+				'DEV'
+			]);
 		});
 	});
 });
-
 
 // --- Helpers ---
 
 function createChain(result: unknown[]) {
 	const chain: Record<string, unknown> = {};
-	const methods = ['from', 'where', 'orderBy', 'limit', 'offset', 'innerJoin', 'leftJoin', 'groupBy', 'as', 'set', 'values', 'returning', 'onConflictDoNothing', 'onConflictDoUpdate'];
+	const methods = [
+		'from',
+		'where',
+		'orderBy',
+		'limit',
+		'offset',
+		'innerJoin',
+		'leftJoin',
+		'groupBy',
+		'as',
+		'set',
+		'values',
+		'returning',
+		'onConflictDoNothing',
+		'onConflictDoUpdate'
+	];
 	for (const m of methods) {
 		chain[m] = vi.fn().mockImplementation(() => chain);
 	}
@@ -475,8 +589,7 @@ function setupTransaction(createdRun: typeof sampleTestRun) {
 			returning: vi.fn().mockResolvedValue([createdRun]),
 			then: undefined as unknown
 		};
-		txInsertChain.then = (r: (v: unknown) => void) =>
-			Promise.resolve([createdRun]).then(r);
+		txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([createdRun]).then(r);
 
 		const tx = {
 			insert: vi.fn().mockReturnValue(txInsertChain)
@@ -485,10 +598,7 @@ function setupTransaction(createdRun: typeof sampleTestRun) {
 	});
 }
 
-function setupTransactionCapture(
-	createdRun: typeof sampleTestRun,
-	insertedValues: unknown[]
-) {
+function setupTransactionCapture(createdRun: typeof sampleTestRun, insertedValues: unknown[]) {
 	mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 		const txInsertChain = {
 			values: vi.fn().mockImplementation(function (this: typeof txInsertChain, vals: unknown) {
@@ -498,8 +608,7 @@ function setupTransactionCapture(
 			returning: vi.fn().mockResolvedValue([createdRun]),
 			then: undefined as unknown
 		};
-		txInsertChain.then = (r: (v: unknown) => void) =>
-			Promise.resolve([createdRun]).then(r);
+		txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([createdRun]).then(r);
 
 		const tx = {
 			insert: vi.fn().mockReturnValue(txInsertChain)

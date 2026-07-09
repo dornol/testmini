@@ -1,11 +1,28 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { db, col } from '$lib/server/db';
-import { testCase, testCaseVersion, testRun, testExecution, tag, testCaseTag, testSuite, testSuiteItem, testCaseDataSet } from '$lib/server/db/schema';
+import {
+	testCase,
+	testCaseVersion,
+	testRun,
+	testExecution,
+	tag,
+	testCaseTag,
+	testSuite,
+	testSuiteItem,
+	testCaseDataSet
+} from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { loadProjectTags } from '$lib/server/queries';
 import { createTestRunSchema, type CreateTestRunInput } from '$lib/schemas/test-run.schema';
+
+function parsePositiveId(value: string | FormDataEntryValue | null): number | null {
+	if (typeof value !== 'string') return null;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+	return parsed;
+}
 
 export const load: PageServerLoad = async ({ params, parent, url }) => {
 	const { userRole } = await parent();
@@ -66,16 +83,19 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		.select({
 			id: testSuite.id,
 			name: testSuite.name,
-			itemCount: sql<number>`(select count(*)::int from test_suite_item where suite_id = ${col(testSuite.id)})`.as('item_count')
+			itemCount:
+				sql<number>`(select count(*)::int from test_suite_item where suite_id = ${col(testSuite.id)})`.as(
+					'item_count'
+				)
 		})
 		.from(testSuite)
 		.where(eq(testSuite.projectId, projectId))
 		.orderBy(testSuite.name);
 
 	// If suiteId is provided, preload suite items
-	const suiteIdParam = Number(url.searchParams.get('suiteId'));
+	const suiteIdParam = parsePositiveId(url.searchParams.get('suiteId'));
 	let preselectedIds: number[] = [];
-	if (suiteIdParam && !isNaN(suiteIdParam)) {
+	if (suiteIdParam) {
 		const suiteItems = await db
 			.select({ testCaseId: testSuiteItem.testCaseId })
 			.from(testSuiteItem)
@@ -105,7 +125,9 @@ export const actions: Actions = {
 		const name = formData.get('name') as string;
 		const environment = formData.get('environment') as string;
 		const testCaseIdsRaw = formData.getAll('testCaseIds');
-		const testCaseIds = testCaseIdsRaw.map((id) => Number(id)).filter((id) => !isNaN(id));
+		const testCaseIds = testCaseIdsRaw
+			.map(parsePositiveId)
+			.filter((id): id is number => id !== null);
 
 		const parsed = createTestRunSchema.safeParse({ name, environment, testCaseIds });
 		if (!parsed.success) {
@@ -127,19 +149,17 @@ export const actions: Actions = {
 		const caseMap = new Map(selectedCases.map((c) => [c.id, c.latestVersionId]));
 
 		// Load data sets for all selected test cases (for parameterized expansion)
-		const allDataSets = input.testCaseIds.length > 0
-			? await db
-				.select()
-				.from(testCaseDataSet)
-				.where(eq(testCaseDataSet.testCaseId, input.testCaseIds[0]))
-			: [];
+		const allDataSets =
+			input.testCaseIds.length > 0
+				? await db
+						.select()
+						.from(testCaseDataSet)
+						.where(eq(testCaseDataSet.testCaseId, input.testCaseIds[0]))
+				: [];
 		// Load for all test case IDs
 		const dataSetsByTcId = new Map<number, typeof allDataSets>();
 		if (input.testCaseIds.length > 0) {
-			const dsRows = await db
-				.select()
-				.from(testCaseDataSet)
-				.orderBy(testCaseDataSet.orderIndex);
+			const dsRows = await db.select().from(testCaseDataSet).orderBy(testCaseDataSet.orderIndex);
 			for (const row of dsRows) {
 				if (!input.testCaseIds.includes(row.testCaseId)) continue;
 				if (!dataSetsByTcId.has(row.testCaseId)) {

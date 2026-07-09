@@ -411,12 +411,35 @@ describe('hooks.server.ts — same-origin guard', () => {
 		expect(resolve).toHaveBeenCalledTimes(1);
 	});
 
+	it('should reject cross-site unsafe requests identified by Fetch Metadata before route handling', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			pathname: '/api/projects/1/tags',
+			headers: { 'sec-fetch-site': 'cross-site' }
+		});
+		const resolve = vi.fn(async () => new Response('ok'));
+
+		const response = await handle({ event: event as never, resolve: resolve as never });
+
+		expect(response.status).toBe(403);
+		expect(await response.text()).toBe('Forbidden');
+		expect(resolve).not.toHaveBeenCalled();
+		expect(mockLogger.warn).toHaveBeenCalledWith(
+			expect.objectContaining({
+				method: 'POST',
+				path: '/api/projects/1/tags'
+			}),
+			'Rejected cross-site unsafe request'
+		);
+	});
+
 	it('should allow API key unsafe requests without same-origin origin', async () => {
 		const event = createMockEvent({
 			method: 'POST',
 			pathname: '/api/mcp',
 			headers: {
 				origin: 'https://automation.example',
+				'sec-fetch-site': 'cross-site',
 				authorization: 'Bearer tmk_test'
 			}
 		});
@@ -432,7 +455,7 @@ describe('hooks.server.ts — same-origin guard', () => {
 		const event = createMockEvent({
 			method: 'POST',
 			pathname: '/api/webhooks/issues',
-			headers: { origin: 'https://jira.example' }
+			headers: { origin: 'https://jira.example', 'sec-fetch-site': 'cross-site' }
 		});
 		const resolve = vi.fn(async () => new Response('ok'));
 

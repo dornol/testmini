@@ -237,6 +237,10 @@ function isSameOriginExemptPath(pathname: string): boolean {
 	);
 }
 
+function isCrossSiteFetchMetadata(request: Request): boolean {
+	return request.headers.get('sec-fetch-site')?.toLowerCase() === 'cross-site';
+}
+
 const handleSameOrigin: Handle = async ({ event, resolve }) => {
 	const method = event.request.method.toUpperCase();
 	if (!UNSAFE_METHODS.has(method)) {
@@ -246,6 +250,11 @@ const handleSameOrigin: Handle = async ({ event, resolve }) => {
 	const { pathname, origin: requestOrigin } = event.url;
 	if (isApiKeyRequest(event.request) || isSameOriginExemptPath(pathname)) {
 		return resolve(event);
+	}
+
+	if (isCrossSiteFetchMetadata(event.request)) {
+		logger.warn({ method, path: pathname }, 'Rejected cross-site unsafe request');
+		return new Response('Forbidden', { status: 403 });
 	}
 
 	const origin = event.request.headers.get('origin');

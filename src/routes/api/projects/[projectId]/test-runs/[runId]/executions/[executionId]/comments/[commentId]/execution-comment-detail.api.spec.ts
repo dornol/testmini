@@ -57,6 +57,21 @@ const sampleComment = {
 	updatedAt: new Date('2025-01-01')
 };
 
+function mockDeleteReturningSequence(...results: unknown[][]) {
+	let call = 0;
+	const chains: Array<{ where: ReturnType<typeof vi.fn>; returning: ReturnType<typeof vi.fn> }> =
+		[];
+	mockDb.delete.mockImplementation(() => {
+		const chain = {
+			where: vi.fn().mockReturnThis(),
+			returning: vi.fn().mockResolvedValue(results[call++] ?? [])
+		};
+		chains.push(chain);
+		return chain as never;
+	});
+	return chains;
+}
+
 describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/comments/[commentId]', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -222,6 +237,20 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 			);
 		});
 
+		it('should return 404 when comment disappears before update', async () => {
+			mockSelectResult(mockDb, [sampleComment]);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { content: 'Updated comment' }
+			});
+
+			await expect(PATCH(event)).rejects.toMatchObject({ status: 404 });
+		});
+
 		it('should reject invalid comment ID', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -276,6 +305,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 					userId: 'other-user'
 				}
 			]);
+			mockDeleteReturningSequence([], [sampleComment]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -291,6 +321,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 
 		it('should delete comment and its replies', async () => {
 			mockSelectResult(mockDb, [sampleComment]);
+			const deleteChains = mockDeleteReturningSequence([], [sampleComment]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -302,12 +333,8 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 			expect(response.status).toBe(200);
 			// Should call delete twice: once for replies, once for the comment itself
 			expect(mockDb.delete).toHaveBeenCalledTimes(2);
-			const replyDeleteChain = mockDb.delete.mock.results[0]?.value as {
-				where: ReturnType<typeof vi.fn>;
-			};
-			const commentDeleteChain = mockDb.delete.mock.results[1]?.value as {
-				where: ReturnType<typeof vi.fn>;
-			};
+			const replyDeleteChain = deleteChains[0];
+			const commentDeleteChain = deleteChains[1];
 			expect(replyDeleteChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['parent_id', 1],
@@ -320,6 +347,20 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 					['test_execution_id', 200]
 				])
 			);
+		});
+
+		it('should return 404 when comment disappears before delete', async () => {
+			mockSelectResult(mockDb, [sampleComment]);
+			mockDeleteReturningSequence([], []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: testUser
+			});
+
+			await expect(DELETE(event)).rejects.toMatchObject({ status: 404 });
+			expect(mockDb.delete).toHaveBeenCalledTimes(2);
 		});
 	});
 });

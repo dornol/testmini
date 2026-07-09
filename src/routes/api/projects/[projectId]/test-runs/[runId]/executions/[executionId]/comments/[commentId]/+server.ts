@@ -75,6 +75,10 @@ export const PATCH = withProjectAccess(async ({ params, request, user, projectId
 		)
 		.returning();
 
+	if (!updated) {
+		error(404, 'Comment not found');
+	}
+
 	return json(updated);
 });
 
@@ -97,11 +101,16 @@ export const DELETE = withProjectAccess(async ({ params, user, projectId }) => {
 				eq(executionComment.testExecutionId, executionId)
 			)
 		);
-	await db
+	const [deleted] = await db
 		.delete(executionComment)
 		.where(
 			and(eq(executionComment.id, commentId), eq(executionComment.testExecutionId, executionId))
-		);
+		)
+		.returning();
+
+	if (!deleted) {
+		error(404, 'Comment not found');
+	}
 
 	return json({ success: true });
 });

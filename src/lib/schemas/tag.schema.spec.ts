@@ -27,6 +27,16 @@ describe('createTagSchema', () => {
 		expect(result).toEqual({ name: 'Bug', color: '#ff0000' });
 	});
 
+	it('should reject control characters in name', () => {
+		const result = createTagSchema.safeParse({ name: 'Bug\nTag', color: '#ff0000' });
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.map((issue) => issue.message)).toContain(
+				'Name must not contain control characters'
+			);
+		}
+	});
+
 	it('should reject name exceeding 50 characters', () => {
 		const result = createTagSchema.safeParse({ name: 'a'.repeat(51), color: '#ff0000' });
 		expect(result.success).toBe(false);
@@ -82,6 +92,20 @@ describe('updateTagSchema', () => {
 	it('should trim tag names before returning parsed data', () => {
 		const result = updateTagSchema.parse({ tagId: 1, name: '  Updated  ', color: '#00ff00' });
 		expect(result).toEqual({ tagId: 1, name: 'Updated', color: '#00ff00' });
+	});
+
+	it('should reject control characters in name', () => {
+		const result = updateTagSchema.safeParse({
+			tagId: 1,
+			name: 'Updated\nTag',
+			color: '#00ff00'
+		});
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.map((issue) => issue.message)).toContain(
+				'Name must not contain control characters'
+			);
+		}
 	});
 
 	it('should reject unknown fields', () => {

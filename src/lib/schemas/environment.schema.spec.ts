@@ -39,6 +39,19 @@ describe('createEnvironmentSchema', () => {
 		});
 	});
 
+	it('should reject control characters in name', () => {
+		const result = createEnvironmentSchema.safeParse({
+			name: 'Prod\nQA',
+			color: '#ff0000'
+		});
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.map((issue) => issue.message)).toContain(
+				'Name must not contain control characters'
+			);
+		}
+	});
+
 	it('should reject name exceeding 30 characters', () => {
 		const result = createEnvironmentSchema.safeParse({ name: 'a'.repeat(31), color: '#ff0000' });
 		expect(result.success).toBe(false);
@@ -142,6 +155,22 @@ describe('createEnvironmentSchema', () => {
 			expect(result.data.baseUrl).toBe('https://qa.example.com');
 			expect(result.data.credentials).toBe('admin@test.com / pass123');
 			expect(result.data.memo).toBe('VPN required');
+		}
+	});
+
+	it.each([
+		['baseUrl', 'https://qa.example.com\ninternal', 'Base URL must not contain control characters'],
+		['credentials', 'admin\npass', 'Credentials must not contain control characters'],
+		['memo', 'VPN required\u0007', 'Memo must not contain control characters']
+	])('should reject control characters in %s', (field, value, message) => {
+		const result = createEnvironmentSchema.safeParse({
+			name: 'QA',
+			color: '#ff0000',
+			[field]: value
+		});
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.map((issue) => issue.message)).toContain(message);
 		}
 	});
 
@@ -279,6 +308,20 @@ describe('updateEnvironmentSchema', () => {
 			credentials: '  deploy / token  ',
 			memo: '  Shared env  '
 		});
+	});
+
+	it('should reject control characters in name', () => {
+		const result = updateEnvironmentSchema.safeParse({
+			environmentId: 1,
+			name: 'Staging\nQA',
+			color: '#00ff00'
+		});
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.map((issue) => issue.message)).toContain(
+				'Name must not contain control characters'
+			);
+		}
 	});
 
 	it('should reject name exceeding 30 characters', () => {
@@ -442,6 +485,23 @@ describe('updateEnvironmentSchema', () => {
 			expect(result.data.baseUrl).toBe('https://qa.example.com');
 			expect(result.data.credentials).toBe('admin / pass');
 			expect(result.data.memo).toBe('Reset daily');
+		}
+	});
+
+	it.each([
+		['baseUrl', 'https://qa.example.com\ninternal', 'Base URL must not contain control characters'],
+		['credentials', 'admin\npass', 'Credentials must not contain control characters'],
+		['memo', 'Reset daily\u0007', 'Memo must not contain control characters']
+	])('should reject control characters in %s', (field, value, message) => {
+		const result = updateEnvironmentSchema.safeParse({
+			environmentId: 1,
+			name: 'QA',
+			color: '#ff0000',
+			[field]: value
+		});
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.map((issue) => issue.message)).toContain(message);
 		}
 	});
 

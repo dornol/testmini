@@ -6,7 +6,8 @@ vi.mock('./url-safety', () => ({
 	validatePublicHttpsUrl: mockValidatePublicHttpsUrl
 }));
 
-const { validateOidcProviderUrls } = await import('./oidc-provider-validation');
+const { validateOidcProviderFields, validateOidcProviderUrls } =
+	await import('./oidc-provider-validation');
 
 describe('validateOidcProviderUrls', () => {
 	beforeEach(() => {
@@ -42,5 +43,61 @@ describe('validateOidcProviderUrls', () => {
 				tokenUrl: 'https://127.0.0.1/token'
 			})
 		).resolves.toBe('tokenUrl: URL resolves to a private or reserved IP address');
+	});
+
+	it('rejects unsupported provider types', async () => {
+		await expect(
+			validateOidcProviderFields({
+				name: 'Example',
+				slug: 'example',
+				providerType: 'SAML',
+				clientId: 'client-id',
+				clientSecret: 'secret',
+				scopes: 'openid profile email'
+			})
+		).resolves.toEqual({ ok: false, error: 'providerType must be OIDC' });
+	});
+
+	it('rejects overlong provider secrets', async () => {
+		await expect(
+			validateOidcProviderFields(
+				{
+					name: 'Example',
+					slug: 'example',
+					providerType: 'OIDC',
+					clientId: 'client-id',
+					clientSecret: 's'.repeat(4001),
+					scopes: 'openid profile email'
+				},
+				{ requireClientSecret: true }
+			)
+		).resolves.toEqual({
+			ok: false,
+			error: 'Client secret must be 4000 characters or less'
+		});
+	});
+
+	it('validates optional icon URLs before storing them', async () => {
+		mockValidatePublicHttpsUrl.mockImplementation(async (url: string) => {
+			if (url === 'https://127.0.0.1/icon.svg') {
+				return { ok: false, error: 'URL resolves to a private or reserved IP address' };
+			}
+			return { ok: true };
+		});
+
+		await expect(
+			validateOidcProviderFields({
+				name: 'Example',
+				slug: 'example',
+				providerType: 'OIDC',
+				clientId: 'client-id',
+				clientSecret: 'secret',
+				scopes: 'openid profile email',
+				iconUrl: 'https://127.0.0.1/icon.svg'
+			})
+		).resolves.toEqual({
+			ok: false,
+			error: 'iconUrl: URL resolves to a private or reserved IP address'
+		});
 	});
 });

@@ -38,7 +38,9 @@ vi.mock('$lib/server/crypto', () => ({
 	encrypt: vi.fn((s: string) => `encrypted:${s}`)
 }));
 const mockValidateOidcProviderUrls = vi.hoisted(() => vi.fn());
+const mockValidateOidcProviderFields = vi.hoisted(() => vi.fn());
 vi.mock('$lib/server/oidc-provider-validation', () => ({
+	validateOidcProviderFields: mockValidateOidcProviderFields,
 	validateOidcProviderUrls: mockValidateOidcProviderUrls
 }));
 
@@ -85,6 +87,34 @@ function createActionEvent(
 describe('admin/oidc-providers/[providerId] +page.server', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockValidateOidcProviderFields.mockImplementation(async (input) => {
+			if (
+				!input.name?.trim() ||
+				!input.slug?.trim() ||
+				!input.clientId?.trim() ||
+				!input.scopes?.trim()
+			) {
+				return { ok: false, error: 'Missing required fields' };
+			}
+			if (!/^[a-z0-9-]+$/.test(input.slug.trim())) {
+				return {
+					ok: false,
+					error: 'Slug must contain only lowercase letters, numbers, and hyphens'
+				};
+			}
+			return {
+				ok: true,
+				fields: {
+					name: input.name.trim(),
+					slug: input.slug.trim(),
+					providerType: 'OIDC',
+					clientId: input.clientId.trim(),
+					clientSecret: input.clientSecret?.trim() || undefined,
+					scopes: input.scopes.trim(),
+					iconUrl: input.iconUrl?.trim() || null
+				}
+			};
+		});
 		mockValidateOidcProviderUrls.mockResolvedValue(null);
 	});
 
@@ -187,6 +217,26 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 				status: 400,
 				data: { error: 'jwksUri: URL resolves to a private or reserved IP address' }
 			});
+		});
+
+		it('should return 400 when provider field validation fails before checking slug conflicts', async () => {
+			mockValidateOidcProviderFields.mockResolvedValueOnce({
+				ok: false,
+				error: 'providerType must be OIDC'
+			});
+
+			const event = createActionEvent(adminUser, {
+				...validUpdateData,
+				providerType: 'SAML'
+			});
+			const result = await actions.update(event);
+
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'providerType must be OIDC' }
+			});
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when slug already exists on another provider', async () => {

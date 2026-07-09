@@ -5,7 +5,10 @@ import { oidcProvider, oidcAccount } from '$lib/server/db/schema';
 import { eq, and, ne, count } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin, parseId } from '$lib/server/auth-utils';
 import { encrypt } from '$lib/server/crypto';
-import { validateOidcProviderUrls } from '$lib/server/oidc-provider-validation';
+import {
+	validateOidcProviderFields,
+	validateOidcProviderUrls
+} from '$lib/server/oidc-provider-validation';
 
 function parseDisplayOrder(value: FormDataEntryValue | null): number {
 	if (value === null || value === '') return 0;
@@ -72,12 +75,23 @@ export const actions: Actions = {
 		const iconUrl = (formData.get('iconUrl') as string)?.trim() || null;
 		const displayOrder = parseDisplayOrder(formData.get('displayOrder'));
 
-		if (!name || !slug || !clientId || !authorizationUrl || !tokenUrl) {
-			return fail(400, { error: 'Missing required fields' });
+		const fieldValidation = await validateOidcProviderFields({
+			name,
+			slug,
+			providerType,
+			clientId,
+			clientSecret,
+			scopes,
+			iconUrl
+		});
+		if (!fieldValidation.ok) {
+			return fail(400, { error: fieldValidation.error });
 		}
 
-		if (!/^[a-z0-9-]+$/.test(slug)) {
-			return fail(400, { error: 'Slug must contain only lowercase letters, numbers, and hyphens' });
+		const fields = fieldValidation.fields;
+
+		if (!authorizationUrl || !tokenUrl) {
+			return fail(400, { error: 'Missing required fields' });
 		}
 
 		const urlValidationError = await validateOidcProviderUrls({
@@ -94,30 +108,30 @@ export const actions: Actions = {
 		const existing = await db
 			.select({ id: oidcProvider.id })
 			.from(oidcProvider)
-			.where(and(eq(oidcProvider.slug, slug), ne(oidcProvider.id, providerId)));
+			.where(and(eq(oidcProvider.slug, fields.slug), ne(oidcProvider.id, providerId)));
 
 		if (existing.length > 0) {
 			return fail(400, { error: 'A provider with this slug already exists' });
 		}
 
 		const updateData: Record<string, unknown> = {
-			name,
-			slug,
-			providerType,
-			clientId,
+			name: fields.name,
+			slug: fields.slug,
+			providerType: fields.providerType,
+			clientId: fields.clientId,
 			issuerUrl,
 			jwksUri,
 			authorizationUrl,
 			tokenUrl,
 			userinfoUrl,
-			scopes,
+			scopes: fields.scopes,
 			autoRegister,
-			iconUrl,
+			iconUrl: fields.iconUrl,
 			displayOrder
 		};
 
-		if (clientSecret) {
-			updateData.clientSecretEncrypted = encrypt(clientSecret);
+		if (fields.clientSecret) {
+			updateData.clientSecretEncrypted = encrypt(fields.clientSecret);
 		}
 
 		await db.update(oidcProvider).set(updateData).where(eq(oidcProvider.id, providerId));

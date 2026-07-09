@@ -88,7 +88,7 @@ describe('MCP comment tools', () => {
 		it('should add a comment to a test case', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockInsertReturning(mockDb, [
+			const insertChain = mockInsertReturning(mockDb, [
 				{
 					id: 1,
 					testCaseId: 10,
@@ -101,13 +101,30 @@ describe('MCP comment tools', () => {
 
 			const result = await client.callTool({
 				name: 'add-test-case-comment',
-				arguments: { testCaseId: 10, content: 'Looks good' }
+				arguments: { testCaseId: 10, content: ' Looks good ' }
 			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.content).toBe('Looks good');
 			expect(parsed.userId).toBe('user-1');
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({ content: 'Looks good' })
+			);
+		});
+
+		it('should reject blank content before looking up the test case', async () => {
+			const result = await client.callTool({
+				name: 'add-test-case-comment',
+				arguments: { testCaseId: 10, content: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Content is required'
+			);
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return error when test case not found', async () => {
@@ -188,7 +205,7 @@ describe('MCP comment tools', () => {
 	describe('update-test-case-comment', () => {
 		it('should update a comment', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
-			mockUpdateReturning(mockDb, [
+			const updateChain = mockUpdateReturning(mockDb, [
 				{
 					id: 1,
 					testCaseId: 10,
@@ -201,12 +218,27 @@ describe('MCP comment tools', () => {
 
 			const result = await client.callTool({
 				name: 'update-test-case-comment',
-				arguments: { testCaseId: 10, commentId: 1, content: 'Updated content' }
+				arguments: { testCaseId: 10, commentId: 1, content: ' Updated content ' }
 			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.content).toBe('Updated content');
+			expect(updateChain.set).toHaveBeenCalledWith({ content: 'Updated content' });
+		});
+
+		it('should reject blank update content before looking up the test case', async () => {
+			const result = await client.callTool({
+				name: 'update-test-case-comment',
+				arguments: { testCaseId: 10, commentId: 1, content: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Content is required'
+			);
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return error when test case is not in the project', async () => {
@@ -325,7 +357,7 @@ describe('MCP comment tools', () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			mockDb.query.testExecution.findFirst.mockResolvedValue(sampleExecution);
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockInsertReturning(mockDb, [
+			const insertChain = mockInsertReturning(mockDb, [
 				{
 					id: 5,
 					testExecutionId: 200,
@@ -338,12 +370,29 @@ describe('MCP comment tools', () => {
 
 			const result = await client.callTool({
 				name: 'add-execution-comment',
-				arguments: { runId: 50, executionId: 200, content: 'Failed on retry' }
+				arguments: { runId: 50, executionId: 200, content: ' Failed on retry ' }
 			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.content).toBe('Failed on retry');
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({ content: 'Failed on retry' })
+			);
+		});
+
+		it('should reject blank execution comment before looking up the run', async () => {
+			const result = await client.callTool({
+				name: 'add-execution-comment',
+				arguments: { runId: 50, executionId: 200, content: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Content is required'
+			);
+			expect(mockDb.query.testRun.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return error when run not found', async () => {

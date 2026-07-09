@@ -8,8 +8,17 @@ import {
 	testCaseComment,
 	executionComment
 } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator } from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
 import { eq, and, desc } from 'drizzle-orm';
+import { validateCommentContent } from '$lib/server/crud-helpers';
+
+async function mcpValidationError(
+	response: Response,
+	fallback: string
+): Promise<ReturnType<typeof err>> {
+	const body = (await response.json().catch(() => null)) as { error?: string } | null;
+	return err(body?.error ?? fallback);
+}
 
 export function registerCommentTools(server: McpServer, projectId: number) {
 	async function requireProjectTestCase(testCaseId: number) {
@@ -35,10 +44,15 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 		'add-test-case-comment',
 		'Add a comment to a test case',
 		{
-			testCaseId: z.number().describe('Test case ID'),
+			testCaseId: mcpPositiveIdSchema.describe('Test case ID'),
 			content: z.string().describe('Comment content')
 		},
 		async ({ testCaseId, content }) => {
+			const contentOrError = validateCommentContent(content);
+			if (contentOrError instanceof Response) {
+				return mcpValidationError(contentOrError, 'Invalid comment');
+			}
+
 			const validationError = await requireProjectTestCase(testCaseId);
 			if (validationError) return validationError;
 
@@ -50,7 +64,7 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 				.values({
 					testCaseId,
 					userId: creator,
-					content
+					content: contentOrError
 				})
 				.returning();
 
@@ -62,7 +76,7 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 		'list-test-case-comments',
 		'List comments on a test case',
 		{
-			testCaseId: z.number().describe('Test case ID')
+			testCaseId: mcpPositiveIdSchema.describe('Test case ID')
 		},
 		async ({ testCaseId }) => {
 			const validationError = await requireProjectTestCase(testCaseId);
@@ -88,11 +102,16 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 		'add-execution-comment',
 		'Add a comment to a test execution',
 		{
-			runId: z.number().describe('Test run ID'),
-			executionId: z.number().describe('Execution ID'),
+			runId: mcpPositiveIdSchema.describe('Test run ID'),
+			executionId: mcpPositiveIdSchema.describe('Execution ID'),
 			content: z.string().describe('Comment content')
 		},
 		async ({ runId, executionId, content }) => {
+			const contentOrError = validateCommentContent(content);
+			if (contentOrError instanceof Response) {
+				return mcpValidationError(contentOrError, 'Invalid comment');
+			}
+
 			const validationError = await requireProjectExecution(runId, executionId);
 			if (validationError) return validationError;
 
@@ -104,7 +123,7 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 				.values({
 					testExecutionId: executionId,
 					userId: creator,
-					content
+					content: contentOrError
 				})
 				.returning();
 
@@ -116,17 +135,22 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 		'update-test-case-comment',
 		'Update a test case comment',
 		{
-			testCaseId: z.number().describe('Test case ID'),
-			commentId: z.number().describe('Comment ID'),
+			testCaseId: mcpPositiveIdSchema.describe('Test case ID'),
+			commentId: mcpPositiveIdSchema.describe('Comment ID'),
 			content: z.string().describe('Updated content')
 		},
 		async ({ testCaseId, commentId, content }) => {
+			const contentOrError = validateCommentContent(content);
+			if (contentOrError instanceof Response) {
+				return mcpValidationError(contentOrError, 'Invalid comment');
+			}
+
 			const validationError = await requireProjectTestCase(testCaseId);
 			if (validationError) return validationError;
 
 			const [updated] = await db
 				.update(testCaseComment)
-				.set({ content })
+				.set({ content: contentOrError })
 				.where(and(eq(testCaseComment.id, commentId), eq(testCaseComment.testCaseId, testCaseId)))
 				.returning();
 			if (!updated) return err('Comment not found');
@@ -138,8 +162,8 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 		'delete-test-case-comment',
 		'Delete a test case comment',
 		{
-			testCaseId: z.number().describe('Test case ID'),
-			commentId: z.number().describe('Comment ID')
+			testCaseId: mcpPositiveIdSchema.describe('Test case ID'),
+			commentId: mcpPositiveIdSchema.describe('Comment ID')
 		},
 		async ({ testCaseId, commentId }) => {
 			const validationError = await requireProjectTestCase(testCaseId);
@@ -156,8 +180,8 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 		'list-execution-comments',
 		'List comments on a test execution',
 		{
-			runId: z.number().describe('Test run ID'),
-			executionId: z.number().describe('Execution ID')
+			runId: mcpPositiveIdSchema.describe('Test run ID'),
+			executionId: mcpPositiveIdSchema.describe('Execution ID')
 		},
 		async ({ runId, executionId }) => {
 			const validationError = await requireProjectExecution(runId, executionId);

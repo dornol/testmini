@@ -4,6 +4,17 @@ import { isPlainRecord } from './object-validation';
 const MAX_BULK_TEST_CASES = 200;
 const MAX_PRIORITY_LENGTH = 30;
 const MAX_USER_ID_LENGTH = 255;
+const BASE_FIELDS = new Set(['action', 'testCaseIds']);
+const ACTION_FIELDS: Record<BulkTestCaseAction, Set<string>> = {
+	addTag: new Set([...BASE_FIELDS, 'tagId']),
+	removeTag: new Set([...BASE_FIELDS, 'tagId']),
+	setPriority: new Set([...BASE_FIELDS, 'priority']),
+	moveToGroup: new Set([...BASE_FIELDS, 'groupId']),
+	delete: BASE_FIELDS,
+	clone: BASE_FIELDS,
+	addAssignee: new Set([...BASE_FIELDS, 'userId']),
+	removeAssignee: new Set([...BASE_FIELDS, 'userId'])
+};
 
 const BULK_ACTIONS = [
 	'addTag',
@@ -81,6 +92,18 @@ function validateRequiredString(
 	return trimmed;
 }
 
+function validateAllowedFields(
+	body: Record<string, unknown>,
+	action: BulkTestCaseAction
+): Response | null {
+	const allowedFields = ACTION_FIELDS[action];
+	const unknownFields = Object.keys(body).filter((key) => !allowedFields.has(key));
+	if (unknownFields.length > 0) {
+		return badRequest(`Unknown field(s): ${unknownFields.join(', ')}`);
+	}
+	return null;
+}
+
 export function validateBulkTestCasePayload(
 	body: unknown
 ): ValidatedBulkTestCasePayload | Response {
@@ -92,12 +115,16 @@ export function validateBulkTestCasePayload(
 	if (typeof action !== 'string' || !BULK_ACTIONS.includes(action as BulkTestCaseAction)) {
 		return badRequest('Invalid action');
 	}
+	const bulkAction = action as BulkTestCaseAction;
+
+	const fieldError = validateAllowedFields(body, bulkAction);
+	if (fieldError) return fieldError;
 
 	const testCaseIds = validateTestCaseIds(body.testCaseIds);
 	if (testCaseIds instanceof Response) return testCaseIds;
 
 	const result: ValidatedBulkTestCasePayload = {
-		action: action as BulkTestCaseAction,
+		action: bulkAction,
 		testCaseIds
 	};
 

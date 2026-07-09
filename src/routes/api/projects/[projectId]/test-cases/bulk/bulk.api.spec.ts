@@ -158,6 +158,38 @@ describe('/api/projects/[projectId]/test-cases/bulk', () => {
 			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for unknown fields before DB reads', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'clone', testCaseIds: [1], force: true },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Unknown field(s): force');
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for fields that do not belong to the selected action', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'delete', testCaseIds: [1], priority: 'HIGH' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Unknown field(s): priority');
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when testCaseIds contains invalid IDs', async () => {
 			const event = createMockEvent({
 				method: 'POST',

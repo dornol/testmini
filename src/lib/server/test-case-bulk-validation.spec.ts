@@ -23,4 +23,28 @@ describe('test-case-bulk-validation', () => {
 			priority: 'HIGH'
 		});
 	});
+
+	it('rejects unknown fields', async () => {
+		const result = validateBulkTestCasePayload({
+			action: 'clone',
+			testCaseIds: [1],
+			force: true
+		});
+
+		expect(result).toBeInstanceOf(Response);
+		expect((result as Response).status).toBe(400);
+		expect(await (result as Response).json()).toEqual({ error: 'Unknown field(s): force' });
+	});
+
+	it('rejects fields that do not belong to the selected action', async () => {
+		const result = validateBulkTestCasePayload({
+			action: 'delete',
+			testCaseIds: [1],
+			priority: 'HIGH'
+		});
+
+		expect(result).toBeInstanceOf(Response);
+		expect((result as Response).status).toBe(400);
+		expect(await (result as Response).json()).toEqual({ error: 'Unknown field(s): priority' });
+	});
 });

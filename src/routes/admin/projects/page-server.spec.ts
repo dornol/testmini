@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { adminUser, testUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -164,11 +168,22 @@ describe('admin/projects +page.server', () => {
 
 		it('should toggle active status on success', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue({ id: 1 });
+			mockUpdateReturning(mockDb, [{ id: 1 }]);
 
 			const event = createActionEvent(adminUser, { projectId: '1', active: 'true' });
 			const result = await actions.toggleActive(event);
 			expect(result).toMatchObject({ success: true });
 			expect(mockDb.update).toHaveBeenCalled();
+		});
+
+		it('should return 404 when project disappears before update', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue({ id: 1 });
+			mockUpdateReturning(mockDb, []);
+
+			const event = createActionEvent(adminUser, { projectId: '1', active: 'true' });
+			const result = await actions.toggleActive(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Project not found' } });
 		});
 	});
 });

@@ -83,7 +83,14 @@ export const actions: Actions = {
 			return fail(404, { error: 'Project not found' });
 		}
 
-		await db.update(project).set({ active }).where(eq(project.id, projectId));
+		const [updated] = await db
+			.update(project)
+			.set({ active })
+			.where(eq(project.id, projectId))
+			.returning();
+		if (!updated) {
+			return fail(404, { error: 'Project not found' });
+		}
 
 		return { success: true };
 	}

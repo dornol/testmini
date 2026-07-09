@@ -164,6 +164,15 @@ describe('/api/automation/results POST', () => {
 			expect(data.error).toBe('Invalid request body');
 		});
 
+		it('should return 400 for non-object JSON body', async () => {
+			const request = makeRequest(null);
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Invalid request body');
+		});
+
 		it('should return 400 when results is missing', async () => {
 			const request = makeRequest({});
 			const response = await POST({ request } as never);
@@ -193,6 +202,17 @@ describe('/api/automation/results POST', () => {
 
 			expect(response.status).toBe(400);
 			expect(data.error).toContain('must not exceed 10,000');
+		});
+
+		it('should return 400 when a result is not an object', async () => {
+			const request = makeRequest({
+				results: [null]
+			});
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Each result must be an object');
 		});
 
 		it('should return 400 when a result has no automationKey', async () => {

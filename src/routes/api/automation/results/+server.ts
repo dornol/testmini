@@ -49,6 +49,10 @@ function validateOptionalString(
 	return trimmed;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
 export const POST: RequestHandler = async ({ request }) => {
 	// Authenticate via API key (no user session)
 	const auth = await authenticateApiKey(request);
@@ -61,6 +65,9 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		body = (await parseJsonBody(request)) as typeof body;
 	} catch {
+		return badRequest('Invalid request body');
+	}
+	if (!isRecord(body)) {
 		return badRequest('Invalid request body');
 	}
 
@@ -91,6 +98,9 @@ export const POST: RequestHandler = async ({ request }) => {
 	const validStatuses = ['PASS', 'FAIL', 'SKIP'];
 	const normalizedResults: AutomationResult[] = [];
 	for (const r of results) {
+		if (!isRecord(r)) {
+			return badRequest('Each result must be an object');
+		}
 		if (!r.automationKey || typeof r.automationKey !== 'string') {
 			return badRequest('Each result must have an automationKey');
 		}

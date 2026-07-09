@@ -209,9 +209,11 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/sync', () => {
 			where: vi.fn().mockReturnThis(),
 			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
 		};
-		mockDb.update
-			.mockReturnValueOnce(linkUpdateChain as never)
-			.mockReturnValueOnce(retestUpdateChain as never);
+		const txUpdate = vi
+			.fn()
+			.mockReturnValueOnce(linkUpdateChain)
+			.mockReturnValueOnce(retestUpdateChain);
+		mockDb.transaction.mockImplementationOnce(async (fn) => fn({ update: txUpdate }));
 
 		const event = createMockEvent({
 			method: 'POST',
@@ -221,8 +223,13 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/sync', () => {
 
 		const response = await POST(event);
 		expect(response.status).toBe(200);
-		// The update mock should have been called twice: once for link, once for testCase retest
-		expect(mockDb.update).toHaveBeenCalledTimes(2);
+		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+		expect(txUpdate).toHaveBeenCalledTimes(2);
+		expect(txUpdate).toHaveBeenNthCalledWith(1, expect.objectContaining({ id: 'id' }));
+		expect(txUpdate).toHaveBeenNthCalledWith(
+			2,
+			expect.objectContaining({ retestNeeded: 'retest_needed' })
+		);
 		expect(linkUpdateChain.where).toHaveBeenCalledWith(
 			expect.arrayContaining([
 				['id', 10],
@@ -235,6 +242,7 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/sync', () => {
 				['project_id', 1]
 			])
 		);
+		expect(mockDb.update).not.toHaveBeenCalled();
 	});
 
 	it('should not mark retest when issue is not resolved', async () => {

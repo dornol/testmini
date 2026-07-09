@@ -67,18 +67,25 @@ export const POST = withProjectRole(
 			state
 		);
 
-		// Update local status
-		await db
-			.update(issueLink)
-			.set({ status: state, statusSyncedAt: new Date() })
-			.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)));
-
 		// Mark test case for retest when issue is closed
 		if (state === 'closed' && link.testCaseId) {
+			const linkedTestCaseId = link.testCaseId;
+			await db.transaction(async (tx) => {
+				await tx
+					.update(issueLink)
+					.set({ status: state, statusSyncedAt: new Date() })
+					.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)));
+
+				await tx
+					.update(testCase)
+					.set({ retestNeeded: true })
+					.where(and(eq(testCase.id, linkedTestCaseId), eq(testCase.projectId, projectId)));
+			});
+		} else {
 			await db
-				.update(testCase)
-				.set({ retestNeeded: true })
-				.where(and(eq(testCase.id, link.testCaseId), eq(testCase.projectId, projectId)));
+				.update(issueLink)
+				.set({ status: state, statusSyncedAt: new Date() })
+				.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)));
 		}
 
 		return json({ success: true, state });

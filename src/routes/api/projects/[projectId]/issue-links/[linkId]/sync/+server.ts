@@ -38,19 +38,31 @@ export const POST = withProjectRole(
 			link.externalKey
 		);
 
+		// Auto-mark linked test case as retest needed when issue is resolved
+		if (result.statusCategory === 'done' && link.testCaseId) {
+			const linkedTestCaseId = link.testCaseId;
+			const updated = await db.transaction(async (tx) => {
+				const [updatedLink] = await tx
+					.update(issueLink)
+					.set({ status: result.status, statusSyncedAt: new Date() })
+					.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)))
+					.returning();
+
+				await tx
+					.update(testCase)
+					.set({ retestNeeded: true })
+					.where(and(eq(testCase.id, linkedTestCaseId), eq(testCase.projectId, projectId)));
+
+				return updatedLink;
+			});
+			return json({ ...updated, statusCategory: result.statusCategory });
+		}
+
 		const [updated] = await db
 			.update(issueLink)
 			.set({ status: result.status, statusSyncedAt: new Date() })
 			.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)))
 			.returning();
-
-		// Auto-mark linked test case as retest needed when issue is resolved
-		if (result.statusCategory === 'done' && link.testCaseId) {
-			await db
-				.update(testCase)
-				.set({ retestNeeded: true })
-				.where(and(eq(testCase.id, link.testCaseId), eq(testCase.projectId, projectId)));
-		}
 
 		return json({ ...updated, statusCategory: result.statusCategory });
 	}

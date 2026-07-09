@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { project } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -22,7 +22,13 @@ export const PUT = withProjectRole(
 		if (columnSettingsOrError instanceof Response) return columnSettingsOrError;
 		const columnSettings = columnSettingsOrError;
 
-		await db.update(project).set({ columnSettings }).where(eq(project.id, projectId));
+		const [updated] = await db
+			.update(project)
+			.set({ columnSettings })
+			.where(eq(project.id, projectId))
+			.returning();
+
+		if (!updated) error(404, 'Project not found');
 
 		return json({ success: true });
 	}

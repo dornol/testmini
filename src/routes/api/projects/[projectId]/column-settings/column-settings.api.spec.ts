@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser } from '$lib/server/test-helpers/fixtures';
 
@@ -257,6 +257,7 @@ describe('/api/projects/[projectId]/column-settings', () => {
 				{ id: 'status', visible: false },
 				{ id: 'assignee', visible: true }
 			];
+			mockUpdateReturning(mockDb, [{ id: 1 }]);
 			const event = createMockEvent({
 				method: 'PUT',
 				params: { projectId: '1' },
@@ -271,11 +272,25 @@ describe('/api/projects/[projectId]/column-settings', () => {
 			expect(mockDb.update).toHaveBeenCalled();
 		});
 
+		it('should return 404 when project disappears before update', async () => {
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1' },
+				body: { columnSettings: [{ id: 'priority', visible: true }] },
+				user: adminUser
+			});
+
+			await expect(PUT(event)).rejects.toMatchObject({ status: 404 });
+		});
+
 		it('should allow dynamic custom field and run columns', async () => {
 			const settings = [
 				{ id: 'cf_1', visible: true },
 				{ id: 'run_42', visible: false }
 			];
+			mockUpdateReturning(mockDb, [{ id: 1 }]);
 			const event = createMockEvent({
 				method: 'PUT',
 				params: { projectId: '1' },
@@ -291,6 +306,7 @@ describe('/api/projects/[projectId]/column-settings', () => {
 		});
 
 		it('should handle empty array (valid case)', async () => {
+			mockUpdateReturning(mockDb, [{ id: 1 }]);
 			const event = createMockEvent({
 				method: 'PUT',
 				params: { projectId: '1' },

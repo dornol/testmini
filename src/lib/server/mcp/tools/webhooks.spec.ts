@@ -78,6 +78,7 @@ describe('MCP webhook tools', () => {
 	let close: () => Promise<void>;
 
 	beforeEach(async () => {
+		vi.clearAllMocks();
 		mockValidatePublicHttpUrl.mockResolvedValue({ ok: true });
 		const c = await createClient();
 		client = c.client;
@@ -320,6 +321,20 @@ describe('MCP webhook tools', () => {
 				'Webhook not found'
 			);
 		});
+
+		it('should reject invalid IDs before deleting', async () => {
+			const result = await client.callTool({
+				name: 'delete-webhook',
+				arguments: { webhookId: -1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
 	});
 
 	// ── update-webhook ──────────────────────────────────
@@ -361,6 +376,20 @@ describe('MCP webhook tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Webhook not found'
 			);
+		});
+
+		it('should reject invalid IDs before updating', async () => {
+			const result = await client.callTool({
+				name: 'update-webhook',
+				arguments: { webhookId: -1, name: 'Updated' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should validate URLs before updating a webhook', async () => {

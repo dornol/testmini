@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { projectWebhook } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator } from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 import { validatePublicHttpUrl } from '$lib/server/url-safety';
 import {
@@ -126,7 +126,7 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 	server.tool(
 		'delete-webhook',
 		'Delete a webhook by ID',
-		{ webhookId: z.number().describe('Webhook ID') },
+		{ webhookId: mcpPositiveIdSchema.describe('Webhook ID') },
 		async ({ webhookId }) => {
 			const wh = await db.query.projectWebhook.findFirst({
 				where: and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId))
@@ -144,7 +144,7 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 		'update-webhook',
 		'Update a webhook',
 		{
-			webhookId: z.number().describe('Webhook ID'),
+			webhookId: mcpPositiveIdSchema.describe('Webhook ID'),
 			name: z.string().optional().describe('New name'),
 			url: z.string().optional().describe('New URL'),
 			events: z.array(z.string()).max(MAX_WEBHOOK_EVENTS).optional().describe('New events'),

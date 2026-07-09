@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { environmentConfig } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator } from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 import { createEnvironmentSchema } from '$lib/schemas/environment.schema';
 import { getNextPosition } from '$lib/server/queries';
@@ -98,7 +98,7 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 	server.tool(
 		'delete-environment',
 		'Delete an environment by ID',
-		{ environmentId: z.number().describe('Environment ID') },
+		{ environmentId: mcpPositiveIdSchema.describe('Environment ID') },
 		async ({ environmentId }) => {
 			const env = await db.query.environmentConfig.findFirst({
 				where: and(
@@ -121,7 +121,7 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 		'update-environment',
 		'Update an environment',
 		{
-			environmentId: z.number().describe('Environment ID'),
+			environmentId: mcpPositiveIdSchema.describe('Environment ID'),
 			name: z.string().min(1).max(30).optional().describe('New name'),
 			color: z
 				.string()

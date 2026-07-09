@@ -235,6 +235,20 @@ describe('MCP environment tools', () => {
 				'Environment not found'
 			);
 		});
+
+		it('should reject invalid IDs before deleting', async () => {
+			const result = await client.callTool({
+				name: 'delete-environment',
+				arguments: { environmentId: -1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.query.environmentConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
 	});
 
 	// ── update-environment ──────────────────────────────
@@ -275,6 +289,20 @@ describe('MCP environment tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Environment not found'
 			);
+		});
+
+		it('should reject invalid IDs before updating', async () => {
+			const result = await client.callTool({
+				name: 'update-environment',
+				arguments: { environmentId: -1, name: 'STAGING' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.query.environmentConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should clear existing default and normalize optional fields when updating default', async () => {

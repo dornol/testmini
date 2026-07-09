@@ -75,6 +75,14 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid project ID' });
 		}
 
+		const target = await db.query.project.findFirst({
+			where: eq(project.id, projectId),
+			columns: { id: true }
+		});
+		if (!target) {
+			return fail(404, { error: 'Project not found' });
+		}
+
 		await db.update(project).set({ active }).where(eq(project.id, projectId));
 
 		return { success: true };

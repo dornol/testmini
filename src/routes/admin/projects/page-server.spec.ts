@@ -152,7 +152,19 @@ describe('admin/projects +page.server', () => {
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
+		it('should return 404 when project does not exist', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(null);
+
+			const event = createActionEvent(adminUser, { projectId: '99', active: 'true' });
+			const result = await actions.toggleActive(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Project not found' } });
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should toggle active status on success', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue({ id: 1 });
+
 			const event = createActionEvent(adminUser, { projectId: '1', active: 'true' });
 			const result = await actions.toggleActive(event);
 			expect(result).toMatchObject({ success: true });

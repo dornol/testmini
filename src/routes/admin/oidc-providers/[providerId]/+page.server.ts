@@ -151,6 +151,13 @@ export const actions: Actions = {
 
 		const providerId = parseId(params.providerId, 'provider ID');
 
+		const [provider] = await db
+			.select({ id: oidcProvider.id })
+			.from(oidcProvider)
+			.where(eq(oidcProvider.id, providerId));
+
+		if (!provider) return fail(404, { error: 'Provider not found' });
+
 		const [accountCount] = await db
 			.select({ count: count() })
 			.from(oidcAccount)

@@ -54,6 +54,19 @@ function createActionEvent(
 	} as never;
 }
 
+function mockSelectSequence(results: unknown[][]) {
+	let index = 0;
+	mockDb.select.mockImplementation(() => {
+		const chain: Record<string, unknown> = {};
+		for (const method of ['from', 'where', 'leftJoin', 'groupBy', 'orderBy']) {
+			chain[method] = vi.fn().mockReturnValue(chain);
+		}
+		chain.then = (resolve: (value: unknown[]) => void) =>
+			Promise.resolve(results[index++] ?? []).then(resolve);
+		return chain as never;
+	});
+}
+
 describe('admin/oidc-providers +page.server', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -164,7 +177,7 @@ describe('admin/oidc-providers +page.server', () => {
 		});
 
 		it('should disable provider instead of deleting when accounts exist', async () => {
-			mockSelectResult(mockDb, [{ count: 3 }]);
+			mockSelectSequence([[{ id: 1 }], [{ count: 3 }]]);
 
 			const event = createActionEvent(adminUser, { providerId: '1' });
 			const result = await actions.deleteProvider(event);
@@ -172,8 +185,19 @@ describe('admin/oidc-providers +page.server', () => {
 			expect(mockDb.update).toHaveBeenCalled();
 		});
 
+		it('should return 404 when deleting a missing provider', async () => {
+			mockSelectResult(mockDb, []);
+
+			const event = createActionEvent(adminUser, { providerId: '99' });
+			const result = await actions.deleteProvider(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Provider not found' } });
+			expect(mockDb.update).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
 		it('should delete provider when no accounts linked', async () => {
-			mockSelectResult(mockDb, [{ count: 0 }]);
+			mockSelectSequence([[{ id: 1 }], [{ count: 0 }]]);
 
 			const event = createActionEvent(adminUser, { providerId: '1' });
 			const result = await actions.deleteProvider(event);

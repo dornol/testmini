@@ -18,6 +18,17 @@ const VALID_TRANSITIONS: Record<
 	REJECTED: ['DRAFT']
 };
 
+class ApprovalTransactionError extends Error {}
+
+function rollback(message: string): never {
+	throw new ApprovalTransactionError(message);
+}
+
+function toApprovalTransactionError(error: unknown): ReturnType<typeof err> {
+	if (error instanceof ApprovalTransactionError) return err(error.message);
+	throw error;
+}
+
 function validateApprovalTransition(
 	fromStatus: (typeof APPROVAL_STATUSES)[number],
 	toStatus: (typeof APPROVAL_STATUSES)[number]
@@ -76,20 +87,30 @@ export function registerApprovalTools(server: McpServer, projectId: number) {
 			const comment = validateApprovalComment(toStatus, approvalComment);
 			if (typeof comment !== 'string' && comment !== null) return comment;
 
-			await db.transaction(async (tx) => {
-				await tx
-					.update(testCase)
-					.set({ approvalStatus: toStatus })
-					.where(and(eq(testCase.id, tcId), eq(testCase.projectId, projectId)));
+			try {
+				await db.transaction(async (tx) => {
+					const [updated] = await tx
+						.update(testCase)
+						.set({ approvalStatus: toStatus })
+						.where(and(eq(testCase.id, tcId), eq(testCase.projectId, projectId)))
+						.returning({ id: testCase.id });
+					if (!updated) rollback('Test case not found');
 
-				await tx.insert(approvalHistory).values({
-					testCaseId: tcId,
-					fromStatus,
-					toStatus,
-					userId: creator,
-					comment
+					const [history] = await tx
+						.insert(approvalHistory)
+						.values({
+							testCaseId: tcId,
+							fromStatus,
+							toStatus,
+							userId: creator,
+							comment
+						})
+						.returning({ id: approvalHistory.id });
+					if (!history) rollback('Failed to record approval history');
 				});
-			});
+			} catch (error) {
+				return toApprovalTransactionError(error);
+			}
 
 			return ok({ success: true, testCaseId: tcId, fromStatus, toStatus });
 		}

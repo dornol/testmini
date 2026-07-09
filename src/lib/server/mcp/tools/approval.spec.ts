@@ -75,12 +75,14 @@ describe('MCP approval tools', () => {
 				approvalStatus: 'DRAFT'
 			});
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			const txUpdateWhere = vi.fn().mockReturnValue({
-				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+			const txUpdateReturning = vi.fn().mockReturnValue({
+				then: (resolve: (v: unknown) => void) => Promise.resolve([{ id: 10 }]).then(resolve)
 			});
-			const txInsertValues = vi.fn().mockReturnValue({
-				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+			const txUpdateWhere = vi.fn().mockReturnValue({ returning: txUpdateReturning });
+			const txInsertReturning = vi.fn().mockReturnValue({
+				then: (resolve: (v: unknown) => void) => Promise.resolve([{ id: 123 }]).then(resolve)
 			});
+			const txInsertValues = vi.fn().mockReturnValue({ returning: txInsertReturning });
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 				const tx = {
 					update: vi.fn().mockReturnValue({
@@ -112,6 +114,7 @@ describe('MCP approval tools', () => {
 					['project_id', PROJECT_ID]
 				])
 			);
+			expect(txUpdateReturning).toHaveBeenCalledWith({ id: 'id' });
 			expect(txInsertValues).toHaveBeenCalledWith(
 				expect.objectContaining({
 					testCaseId: 10,
@@ -120,6 +123,7 @@ describe('MCP approval tools', () => {
 					comment: 'Ready for review'
 				})
 			);
+			expect(txInsertReturning).toHaveBeenCalledWith({ id: 'id' });
 		});
 
 		it('should return error when test case not found', async () => {
@@ -205,6 +209,79 @@ describe('MCP approval tools', () => {
 				'Comment must be 2000 characters or less'
 			);
 			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return error when the test case update affects no row', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({
+				...sampleTestCase,
+				approvalStatus: 'DRAFT'
+			});
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+				const tx = {
+					update: vi.fn().mockReturnValue({
+						set: vi.fn().mockReturnValue({
+							where: vi.fn().mockReturnValue({
+								returning: vi.fn().mockReturnValue({
+									then: (resolve: (v: unknown) => void) => Promise.resolve([]).then(resolve)
+								})
+							})
+						})
+					}),
+					insert: vi.fn()
+				};
+				return fn(tx);
+			});
+
+			const result = await client.callTool({
+				name: 'update-approval-status',
+				arguments: { testCaseId: 10, toStatus: 'IN_REVIEW' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
+		});
+
+		it('should return error when approval history insert returns no row', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({
+				...sampleTestCase,
+				approvalStatus: 'DRAFT'
+			});
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+				const tx = {
+					update: vi.fn().mockReturnValue({
+						set: vi.fn().mockReturnValue({
+							where: vi.fn().mockReturnValue({
+								returning: vi.fn().mockReturnValue({
+									then: (resolve: (v: unknown) => void) =>
+										Promise.resolve([{ id: 10 }]).then(resolve)
+								})
+							})
+						})
+					}),
+					insert: vi.fn().mockReturnValue({
+						values: vi.fn().mockReturnValue({
+							returning: vi.fn().mockReturnValue({
+								then: (resolve: (v: unknown) => void) => Promise.resolve([]).then(resolve)
+							})
+						})
+					})
+				};
+				return fn(tx);
+			});
+
+			const result = await client.callTool({
+				name: 'update-approval-status',
+				arguments: { testCaseId: 10, toStatus: 'IN_REVIEW' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to record approval history'
+			);
 		});
 	});
 });

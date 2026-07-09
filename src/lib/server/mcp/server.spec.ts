@@ -2846,7 +2846,10 @@ describe('MCP Server', () => {
 					update: vi.fn().mockReturnValue({
 						set: vi.fn().mockReturnThis(),
 						where: vi.fn().mockReturnThis(),
-						then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+						then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve),
+						returning: vi.fn().mockReturnValue({
+							then: (resolve: (v: unknown) => void) => Promise.resolve([{ id: 10 }]).then(resolve)
+						})
 					}),
 					insert: vi.fn().mockReturnValue({
 						values: vi.fn().mockReturnThis(),

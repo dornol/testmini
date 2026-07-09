@@ -36,6 +36,7 @@ vi.mock('$lib/server/audit', () => ({
 
 const { actions, load } = await import('./+page.server');
 const { logAudit } = await import('$lib/server/audit');
+const MAX_ADMIN_USER_FORM_BODY_SIZE = 16 * 1024;
 
 function createFormData(entries: Record<string, string>): FormData {
 	const fd = new FormData();
@@ -47,11 +48,14 @@ function createFormData(entries: Record<string, string>): FormData {
 
 function createActionEvent(
 	user: NonNullable<App.Locals['user']> | null,
-	formEntries: Record<string, string>
+	formEntries: Record<string, string>,
+	headers?: HeadersInit
 ) {
 	const formData = createFormData(formEntries);
+	const requestHeaders = new Headers(headers);
 	return {
 		request: {
+			headers: requestHeaders,
 			formData: () => Promise.resolve(formData)
 		},
 		locals: {
@@ -72,6 +76,22 @@ describe('admin/users approval actions', () => {
 	});
 
 	describe('approve', () => {
+		it('should reject oversized form bodies before querying target user', async () => {
+			const event = createActionEvent(
+				adminUser,
+				{ userId: 'user-2' },
+				{ 'content-length': String(MAX_ADMIN_USER_FORM_BODY_SIZE + 1) }
+			);
+
+			await expect(actions.approve(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Admin user form body is too large' }
+			});
+			expect(mockDb.query.user.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+			expect(logAudit).not.toHaveBeenCalled();
+		});
+
 		it('should return 403 for non-admin users', async () => {
 			const event = createActionEvent(testUser, { userId: 'user-2' });
 			const result = await actions.approve(event);
@@ -146,6 +166,22 @@ describe('admin/users approval actions', () => {
 	});
 
 	describe('reject', () => {
+		it('should reject invalid content-length before querying target user', async () => {
+			const event = createActionEvent(
+				adminUser,
+				{ userId: 'user-2' },
+				{ 'content-length': 'invalid' }
+			);
+
+			await expect(actions.reject(event)).rejects.toMatchObject({
+				status: 400,
+				body: { message: 'Invalid content-length header' }
+			});
+			expect(mockDb.query.user.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
+			expect(logAudit).not.toHaveBeenCalled();
+		});
+
 		it('should return 403 for non-admin users', async () => {
 			const event = createActionEvent(testUser, { userId: 'user-2' });
 			const result = await actions.reject(event);

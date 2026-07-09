@@ -7,9 +7,11 @@ import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
 import { logAudit } from '$lib/server/audit';
 import { parsePositiveIntegerSearchParam } from '$lib/server/search-param-validation';
 import { parseOptionalFormString } from '$lib/server/form-utils';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
 
 const MAX_USER_ID_LENGTH = 255;
 const MAX_BAN_REASON_LENGTH = 500;
+const MAX_ADMIN_USER_FORM_BODY_SIZE = 16 * 1024;
 
 function parseUserId(value: FormDataEntryValue | null): string | null {
 	if (typeof value !== 'string') return null;
@@ -32,6 +34,15 @@ function parseBanReason(value: FormDataEntryValue | null): string | null | 'inva
 		return 'invalid';
 	}
 	return banReason;
+}
+
+async function parseAdminUserFormData(request: Request): Promise<FormData> {
+	assertContentLengthUnderLimit(
+		request,
+		MAX_ADMIN_USER_FORM_BODY_SIZE,
+		'Admin user form body is too large'
+	);
+	return request.formData();
 }
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -89,7 +100,7 @@ export const actions: Actions = {
 			return fail(403, { error: 'Admin access required' });
 		}
 
-		const formData = await request.formData();
+		const formData = await parseAdminUserFormData(request);
 		const userId = parseUserId(formData.get('userId'));
 		const role = parseOptionalFormString(formData.get('role'));
 
@@ -123,7 +134,7 @@ export const actions: Actions = {
 			return fail(403, { error: 'Admin access required' });
 		}
 
-		const formData = await request.formData();
+		const formData = await parseAdminUserFormData(request);
 		const userId = parseUserId(formData.get('userId'));
 		const banReason = parseBanReason(formData.get('banReason'));
 
@@ -164,7 +175,7 @@ export const actions: Actions = {
 			return fail(403, { error: 'Admin access required' });
 		}
 
-		const formData = await request.formData();
+		const formData = await parseAdminUserFormData(request);
 		const userId = parseUserId(formData.get('userId'));
 
 		if (!userId) {
@@ -197,7 +208,7 @@ export const actions: Actions = {
 			return fail(403, { error: 'Admin access required' });
 		}
 
-		const formData = await request.formData();
+		const formData = await parseAdminUserFormData(request);
 		const userId = parseUserId(formData.get('userId'));
 
 		if (!userId) {
@@ -240,7 +251,7 @@ export const actions: Actions = {
 			return fail(403, { error: 'Admin access required' });
 		}
 
-		const formData = await request.formData();
+		const formData = await parseAdminUserFormData(request);
 		const userId = parseUserId(formData.get('userId'));
 
 		if (!userId) {

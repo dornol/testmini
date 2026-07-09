@@ -44,10 +44,13 @@ export const actions: Actions = {
 
 		if (!provider) return fail(404, { error: 'Provider not found' });
 
-		await db
+		const [updated] = await db
 			.update(oidcProvider)
 			.set({ enabled: !provider.enabled })
-			.where(eq(oidcProvider.id, providerId));
+			.where(eq(oidcProvider.id, providerId))
+			.returning();
+
+		if (!updated) return fail(404, { error: 'Provider not found' });
 
 		return { success: true, enabled: !provider.enabled };
 	},
@@ -75,7 +78,12 @@ export const actions: Actions = {
 			.where(eq(oidcAccount.providerId, providerId));
 
 		if (accountCount.count > 0) {
-			await db.update(oidcProvider).set({ enabled: false }).where(eq(oidcProvider.id, providerId));
+			const [updated] = await db
+				.update(oidcProvider)
+				.set({ enabled: false })
+				.where(eq(oidcProvider.id, providerId))
+				.returning();
+			if (!updated) return fail(404, { error: 'Provider not found' });
 			return { success: true, disabled: true };
 		}
 

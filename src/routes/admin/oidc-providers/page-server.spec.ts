@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { adminUser, testUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -139,11 +143,22 @@ describe('admin/oidc-providers +page.server', () => {
 
 		it('should toggle enabled status on success', async () => {
 			mockSelectResult(mockDb, [{ enabled: true }]);
+			mockUpdateReturning(mockDb, [{ id: 1 }]);
 
 			const event = createActionEvent(adminUser, { providerId: '1' });
 			const result = await actions.toggle(event);
 			expect(result).toMatchObject({ success: true, enabled: false });
 			expect(mockDb.update).toHaveBeenCalled();
+		});
+
+		it('should return 404 when provider disappears before toggle update', async () => {
+			mockSelectResult(mockDb, [{ enabled: true }]);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createActionEvent(adminUser, { providerId: '1' });
+			const result = await actions.toggle(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Provider not found' } });
 		});
 	});
 
@@ -178,11 +193,22 @@ describe('admin/oidc-providers +page.server', () => {
 
 		it('should disable provider instead of deleting when accounts exist', async () => {
 			mockSelectSequence([[{ id: 1 }], [{ count: 3 }]]);
+			mockUpdateReturning(mockDb, [{ id: 1 }]);
 
 			const event = createActionEvent(adminUser, { providerId: '1' });
 			const result = await actions.deleteProvider(event);
 			expect(result).toMatchObject({ success: true, disabled: true });
 			expect(mockDb.update).toHaveBeenCalled();
+		});
+
+		it('should return 404 when provider disappears before disable fallback', async () => {
+			mockSelectSequence([[{ id: 1 }], [{ count: 3 }]]);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createActionEvent(adminUser, { providerId: '1' });
+			const result = await actions.deleteProvider(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Provider not found' } });
 		});
 
 		it('should return 404 when deleting a missing provider', async () => {

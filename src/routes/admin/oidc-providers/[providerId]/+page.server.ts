@@ -147,7 +147,12 @@ export const actions: Actions = {
 			updateData.clientSecretEncrypted = encrypt(fields.clientSecret);
 		}
 
-		await db.update(oidcProvider).set(updateData).where(eq(oidcProvider.id, providerId));
+		const [updated] = await db
+			.update(oidcProvider)
+			.set(updateData)
+			.where(eq(oidcProvider.id, providerId))
+			.returning();
+		if (!updated) return fail(404, { error: 'Provider not found' });
 
 		return { success: true };
 	},
@@ -171,7 +176,12 @@ export const actions: Actions = {
 			.where(eq(oidcAccount.providerId, providerId));
 
 		if (accountCount.count > 0) {
-			await db.update(oidcProvider).set({ enabled: false }).where(eq(oidcProvider.id, providerId));
+			const [updated] = await db
+				.update(oidcProvider)
+				.set({ enabled: false })
+				.where(eq(oidcProvider.id, providerId))
+				.returning();
+			if (!updated) return fail(404, { error: 'Provider not found' });
 			return fail(400, { error: 'Provider has linked accounts. It has been disabled instead.' });
 		}
 

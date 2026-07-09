@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { adminUser, testUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -300,6 +304,7 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 
 		it('should update provider on success without secret', async () => {
 			mockSelectSequence([[{ id: 1 }], []]); // provider exists, no slug conflict
+			mockUpdateReturning(mockDb, [{ id: 1 }]);
 
 			const event = createActionEvent(adminUser, validUpdateData);
 			const result = await actions.update(event);
@@ -309,6 +314,7 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 
 		it('should encrypt clientSecret when provided', async () => {
 			mockSelectSequence([[{ id: 1 }], []]); // provider exists, no slug conflict
+			mockUpdateReturning(mockDb, [{ id: 1 }]);
 			const { encrypt } = await import('$lib/server/crypto');
 
 			const event = createActionEvent(adminUser, {
@@ -320,15 +326,21 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 			expect(encrypt).toHaveBeenCalledWith('new-secret');
 		});
 
+		it('should return 404 when provider disappears before update', async () => {
+			mockSelectSequence([[{ id: 1 }], []]); // provider exists, no slug conflict
+			mockUpdateReturning(mockDb, []);
+
+			const event = createActionEvent(adminUser, validUpdateData);
+			const result = await actions.update(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Provider not found' } });
+		});
+
 		it.each(['-1', '1.5', 'Infinity', '9007199254740992'])(
 			'should normalize invalid displayOrder %s to zero',
 			async (displayOrder) => {
 				mockSelectSequence([[{ id: 1 }], []]); // provider exists, no slug conflict
-				const updateChain = {
-					set: vi.fn().mockReturnThis(),
-					where: vi.fn().mockResolvedValue(undefined)
-				};
-				mockDb.update.mockReturnValue(updateChain as never);
+				const updateChain = mockUpdateReturning(mockDb, [{ id: 1 }]);
 
 				const event = createActionEvent(adminUser, {
 					...validUpdateData,
@@ -356,6 +368,7 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 
 		it('should disable provider when accounts are linked', async () => {
 			mockSelectSequence([[{ id: 1 }], [{ count: 5 }]]);
+			mockUpdateReturning(mockDb, [{ id: 1 }]);
 
 			const event = createActionEvent(adminUser, {});
 			const result = await actions.deleteProvider(event);
@@ -364,6 +377,16 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 				data: { error: 'Provider has linked accounts. It has been disabled instead.' }
 			});
 			expect(mockDb.update).toHaveBeenCalled();
+		});
+
+		it('should return 404 when provider disappears before disable fallback', async () => {
+			mockSelectSequence([[{ id: 1 }], [{ count: 5 }]]);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createActionEvent(adminUser, {});
+			const result = await actions.deleteProvider(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Provider not found' } });
 		});
 
 		it('should return 404 when deleting a missing provider', async () => {

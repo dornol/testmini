@@ -192,6 +192,36 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('unknown parameter');
 		});
+
+		it('should return 400 when updated parameters contain unsafe names', async () => {
+			const unsafeNames = ['__proto__', 'constructor', 'prototype'];
+
+			for (const parameter of unsafeNames) {
+				vi.clearAllMocks();
+				(
+					mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
+				).findFirst.mockResolvedValue({
+					id: 10,
+					name: 'Name',
+					projectId: 1,
+					parameters: ['user'],
+					rows: []
+				});
+
+				const event = createMockEvent({
+					method: 'PATCH',
+					params: PARAMS,
+					body: { parameters: [parameter] },
+					user: testUser
+				});
+
+				const response = await PATCH(event);
+
+				expect(response.status).toBe(400);
+				expect((await response.json()).error).toContain('unsafe name');
+				expect(mockDb.update).not.toHaveBeenCalled();
+			}
+		});
 	});
 
 	describe('DELETE', () => {

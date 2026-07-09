@@ -160,6 +160,27 @@ describe('/api/projects/[projectId]/shared-datasets', () => {
 			expect((await response.json()).error).toContain('Parameters must be unique');
 		});
 
+		it('should return 400 when parameters contain unsafe names', async () => {
+			const unsafeNames = ['__proto__', 'constructor', 'prototype'];
+
+			for (const parameter of unsafeNames) {
+				vi.clearAllMocks();
+
+				const event = createMockEvent({
+					method: 'POST',
+					params: PARAMS,
+					body: { name: 'DS', parameters: [parameter], rows: [] },
+					user: testUser
+				});
+
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+				expect((await response.json()).error).toContain('unsafe name');
+				expect(mockDb.insert).not.toHaveBeenCalled();
+			}
+		});
+
 		it('should return 400 when rows contain unknown parameters', async () => {
 			const event = createMockEvent({
 				method: 'POST',

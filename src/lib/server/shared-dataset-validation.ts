@@ -6,6 +6,7 @@ const MAX_PARAMETER_LENGTH = 100;
 const MAX_ROW_COUNT = 1000;
 const MAX_ROW_VALUE_LENGTH = 5000;
 const MAX_ROWS_JSON_LENGTH = 200000;
+const UNSAFE_DATASET_PARAMETER_NAMES = new Set(['__proto__', 'constructor', 'prototype']);
 
 export function validateRequestBody(body: unknown): Record<string, unknown> | Response {
 	if (!body || typeof body !== 'object' || Array.isArray(body)) {
@@ -44,6 +45,9 @@ export function validateDataSetParameters(value: unknown): string[] | Response {
 		if (!trimmed) return badRequest('Parameters must not be empty');
 		if (trimmed.length > MAX_PARAMETER_LENGTH) {
 			return badRequest(`Parameters must be ${MAX_PARAMETER_LENGTH} characters or less`);
+		}
+		if (UNSAFE_DATASET_PARAMETER_NAMES.has(trimmed)) {
+			return badRequest('Parameters contain an unsafe name');
 		}
 		if (seen.has(trimmed)) return badRequest('Parameters must be unique');
 		seen.add(trimmed);

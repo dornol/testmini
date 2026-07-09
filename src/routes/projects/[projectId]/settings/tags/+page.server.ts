@@ -7,6 +7,13 @@ import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils
 import { createTagSchema, updateTagSchema } from '$lib/schemas/tag.schema';
 import { cacheDelete } from '$lib/server/cache';
 
+function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
+	if (typeof value !== 'string') return null;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+	return parsed;
+}
+
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = parseId(params.projectId, 'project ID');
 
@@ -66,7 +73,7 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const tagId = Number(formData.get('tagId'));
+		const tagId = parsePositiveFormId(formData.get('tagId'));
 		const name = (formData.get('name') as string)?.trim();
 		const color = formData.get('color') as string;
 
@@ -76,7 +83,7 @@ export const actions: Actions = {
 		}
 
 		const existing = await db.query.tag.findFirst({
-			where: eq(tag.id, tagId)
+			where: eq(tag.id, parsed.data.tagId)
 		});
 
 		if (!existing || existing.projectId !== projectId) {
@@ -88,14 +95,14 @@ export const actions: Actions = {
 			where: and(eq(tag.projectId, projectId), eq(tag.name, parsed.data.name))
 		});
 
-		if (duplicate && duplicate.id !== tagId) {
+		if (duplicate && duplicate.id !== parsed.data.tagId) {
 			return fail(400, { duplicate: true });
 		}
 
 		await db
 			.update(tag)
 			.set({ name: parsed.data.name, color: parsed.data.color })
-			.where(eq(tag.id, tagId));
+			.where(eq(tag.id, parsed.data.tagId));
 
 		cacheDelete(`project:${projectId}:tags`);
 		return { updated: true };
@@ -107,10 +114,10 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const tagId = Number(formData.get('tagId'));
+		const tagId = parsePositiveFormId(formData.get('tagId'));
 
 		if (!tagId) {
-			return fail(400, { error: 'Missing tagId' });
+			return fail(400, { error: 'Invalid tagId' });
 		}
 
 		const existing = await db.query.tag.findFirst({

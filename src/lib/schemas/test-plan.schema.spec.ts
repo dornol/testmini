@@ -48,6 +48,27 @@ describe('createTestPlanSchema', () => {
 		}
 	});
 
+	it('should reject duplicate testCaseIds', () => {
+		const result = createTestPlanSchema.safeParse({ name: 'Plan', testCaseIds: [1, 1] });
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject unsafe testCaseIds', () => {
+		const result = createTestPlanSchema.safeParse({
+			name: 'Plan',
+			testCaseIds: [Number.MAX_SAFE_INTEGER + 1]
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject more than 500 testCaseIds', () => {
+		const result = createTestPlanSchema.safeParse({
+			name: 'Plan',
+			testCaseIds: Array.from({ length: 501 }, (_, index) => index + 1)
+		});
+		expect(result.success).toBe(false);
+	});
+
 	it('should accept name at exactly 200 chars', () => {
 		const result = createTestPlanSchema.safeParse({ name: 'A'.repeat(200) });
 		expect(result.success).toBe(true);

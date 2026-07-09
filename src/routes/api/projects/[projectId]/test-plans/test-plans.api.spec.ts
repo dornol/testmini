@@ -246,6 +246,22 @@ describe('/api/projects/[projectId]/test-plans', () => {
 			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
+		it('should reject duplicate testCaseIds before project lookup', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Plan with Cases', testCaseIds: [1, 1] },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Invalid input');
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should create test plan for PROJECT_ADMIN', async () => {
 			const created = {
 				id: 12,

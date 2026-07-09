@@ -224,6 +224,18 @@ describe('/api/projects/[projectId]/dashboard-layout', () => {
 			await expect(PUT(event)).rejects.toThrow();
 		});
 
+		it('should return 400 when a layout item is not an object', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1' },
+				body: { layout: [[]] },
+				user: testUser
+			});
+
+			await expect(PUT(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for invalid size value', async () => {
 			const event = createMockEvent({
 				method: 'PUT',

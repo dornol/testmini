@@ -6,30 +6,30 @@ import { and, eq } from 'drizzle-orm';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { DEFAULT_LAYOUT, WIDGET_DEFINITIONS } from '$lib/dashboard-widgets';
 import { parseJsonBody } from '$lib/server/auth-utils';
+import { isPlainRecord } from '$lib/server/object-validation';
 
 const VALID_SIZES = new Set<string>(['sm', 'md', 'lg']);
 const KNOWN_WIDGET_IDS = new Set(WIDGET_DEFINITIONS.map((w) => w.id));
 const MAX_LAYOUT_ITEMS = WIDGET_DEFINITIONS.length;
 
 function validateWidgetConfig(value: unknown): WidgetConfig | null {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-	const item = value as Record<string, unknown>;
-	const order = item.order;
+	if (!isPlainRecord(value)) return null;
+	const order = value.order;
 	if (
-		typeof item.id === 'string' &&
-		KNOWN_WIDGET_IDS.has(item.id) &&
-		typeof item.visible === 'boolean' &&
+		typeof value.id === 'string' &&
+		KNOWN_WIDGET_IDS.has(value.id) &&
+		typeof value.visible === 'boolean' &&
 		typeof order === 'number' &&
 		Number.isInteger(order) &&
 		order >= 0 &&
 		order < MAX_LAYOUT_ITEMS &&
-		typeof item.size === 'string' &&
-		VALID_SIZES.has(item.size)
+		typeof value.size === 'string' &&
+		VALID_SIZES.has(value.size)
 	) {
-		const size = item.size as WidgetConfig['size'];
+		const size = value.size as WidgetConfig['size'];
 		return {
-			id: item.id,
-			visible: item.visible,
+			id: value.id,
+			visible: value.visible,
 			order,
 			size
 		};
@@ -39,10 +39,10 @@ function validateWidgetConfig(value: unknown): WidgetConfig | null {
 }
 
 function validateRequestBody(body: unknown): Record<string, unknown> {
-	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+	if (!isPlainRecord(body)) {
 		error(400, 'Invalid request body');
 	}
-	return body as Record<string, unknown>;
+	return body;
 }
 
 export const GET = withProjectAccess(async ({ user, projectId }) => {

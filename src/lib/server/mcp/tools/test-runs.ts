@@ -25,6 +25,12 @@ const MAX_TEST_RUN_LIMIT = 100;
 const mcpCreateTestRunSchema = createTestRunSchema
 	.omit({ testCaseIds: true })
 	.extend({ testCaseIds: mcpIdListSchema.optional() });
+const mcpExecutionStatusUpdateSchema = z
+	.object({
+		executionId: mcpPositiveIdSchema.describe('Execution ID'),
+		status: z.enum(['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING']).describe('New status')
+	})
+	.strict();
 
 function firstValidationError(error: { issues: Array<{ message: string }> }): string {
 	return error.issues[0]?.message ?? 'Invalid test run';
@@ -366,12 +372,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 		{
 			runId: mcpPositiveIdSchema.describe('Test run ID'),
 			updates: z
-				.array(
-					z.object({
-						executionId: mcpPositiveIdSchema.describe('Execution ID'),
-						status: z.enum(['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING']).describe('New status')
-					})
-				)
+				.array(mcpExecutionStatusUpdateSchema)
 				.describe('Array of { executionId, status } updates')
 		},
 		async ({ runId, updates }) => {

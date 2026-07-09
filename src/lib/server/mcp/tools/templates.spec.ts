@@ -182,6 +182,20 @@ describe('MCP template tools', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should reject unknown step fields before project lookup', async () => {
+			const result = await client.callTool({
+				name: 'create-template',
+				arguments: {
+					name: 'Template',
+					steps: [{ action: 'Do thing', expected: 'Done', id: 'client-only' }]
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(mockDb.query.project.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return error when project not found', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(null);
 
@@ -362,6 +376,20 @@ describe('MCP template tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Template name is required'
 			);
+			expect(mockDb.query.testCaseTemplate.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject unknown update step fields before loading the template', async () => {
+			const result = await client.callTool({
+				name: 'update-template',
+				arguments: {
+					templateId: 1,
+					steps: [{ action: 'Do thing', expected: 'Done', id: 'client-only' }]
+				}
+			});
+
+			expect(result.isError).toBe(true);
 			expect(mockDb.query.testCaseTemplate.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});

@@ -328,6 +328,20 @@ describe('MCP test-case tools', () => {
 			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
+		it('should reject unknown step fields before querying for the next key', async () => {
+			const result = await client.callTool({
+				name: 'create-test-case',
+				arguments: {
+					title: 'New test',
+					steps: [{ action: 'Click', expected: 'OK', id: 'client-only' }]
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should return error when project not found', async () => {
 			mockSelectResult(mockDb, [{ maxKey: null }]);
 			mockDb.query.project.findFirst.mockResolvedValue(null);
@@ -413,6 +427,20 @@ describe('MCP test-case tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Title cannot be empty'
 			);
+			expect(mockFindTestCaseWithLatestVersion).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should reject unknown update step fields before loading the test case', async () => {
+			const result = await client.callTool({
+				name: 'update-test-case',
+				arguments: {
+					id: 10,
+					steps: [{ action: 'Click', expected: 'OK', id: 'client-only' }]
+				}
+			});
+
+			expect(result.isError).toBe(true);
 			expect(mockFindTestCaseWithLatestVersion).not.toHaveBeenCalled();
 			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
@@ -630,6 +658,17 @@ describe('MCP test-case tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'testCases[1]: Title cannot be empty'
 			);
+			expect(mockDb.query.project.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should reject unknown batch test case fields before project lookup', async () => {
+			const result = await client.callTool({
+				name: 'batch-create-test-cases',
+				arguments: { testCases: [{ title: 'Valid', status: 'DRAFT' }] }
+			});
+
+			expect(result.isError).toBe(true);
 			expect(mockDb.query.project.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});

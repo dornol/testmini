@@ -10,6 +10,12 @@ import {
 } from '$lib/server/template-validation';
 
 const MAX_TEST_CASE_TITLE_LENGTH = 200;
+const mcpTemplateStepSchema = z
+	.object({
+		action: z.string(),
+		expected: z.string().optional()
+	})
+	.strict();
 
 async function mcpValidationError(
 	response: Response,
@@ -52,7 +58,7 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 			description: z.string().nullable().optional(),
 			priority: z.string().optional(),
 			precondition: z.string().nullable().optional(),
-			steps: z.array(z.object({ action: z.string(), expected: z.string().optional() })).optional()
+			steps: z.array(mcpTemplateStepSchema).optional()
 		},
 		async ({ name, description, priority, precondition, steps }) => {
 			const templateOrError = validateCreateTemplateInput({
@@ -158,10 +164,7 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 			description: z.string().nullable().optional().describe('New description'),
 			priority: z.string().optional().describe('New priority'),
 			precondition: z.string().nullable().optional().describe('New precondition'),
-			steps: z
-				.array(z.object({ action: z.string(), expected: z.string().optional() }))
-				.optional()
-				.describe('New steps')
+			steps: z.array(mcpTemplateStepSchema).optional().describe('New steps')
 		},
 		async ({ templateId, name, description, priority, precondition, steps }) => {
 			const input: Record<string, unknown> = {};

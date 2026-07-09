@@ -27,6 +27,21 @@ import {
 const DEFAULT_LIST_LIMIT = 50;
 const DEFAULT_SEARCH_LIMIT = 20;
 const MAX_TEST_CASE_LIMIT = 100;
+const mcpTestCaseStepSchema = z
+	.object({
+		action: z.string(),
+		expected: z.string().optional()
+	})
+	.strict();
+const mcpTestCaseCreateSchema = z
+	.object({
+		title: z.string().describe('Test case title'),
+		priority: z.string().optional().describe('Priority (default: MEDIUM)'),
+		precondition: z.string().optional().describe('Precondition'),
+		steps: z.array(mcpTestCaseStepSchema).optional().describe('Test steps'),
+		expectedResult: z.string().optional().describe('Expected result')
+	})
+	.strict();
 
 async function mcpValidationError(
 	response: Response,
@@ -139,7 +154,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			title: z.string().describe('Test case title'),
 			priority: z.string().optional().describe('Priority name (default: MEDIUM)'),
 			precondition: z.string().optional(),
-			steps: z.array(z.object({ action: z.string(), expected: z.string().optional() })).optional(),
+			steps: z.array(mcpTestCaseStepSchema).optional(),
 			expectedResult: z.string().optional()
 		},
 		async ({ title, priority, precondition, steps, expectedResult }) => {
@@ -213,10 +228,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			title: z.string().optional().describe('New title'),
 			priority: z.string().optional().describe('New priority name'),
 			precondition: z.string().optional().describe('New precondition'),
-			steps: z
-				.array(z.object({ action: z.string(), expected: z.string().optional() }))
-				.optional()
-				.describe('New steps'),
+			steps: z.array(mcpTestCaseStepSchema).optional().describe('New steps'),
 			expectedResult: z.string().optional().describe('New expected result')
 		},
 		async ({ id, key, title, priority, precondition, steps, expectedResult }) => {
@@ -528,25 +540,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			requirementId: mcpPositiveIdSchema
 				.optional()
 				.describe('Requirement ID to link all created TCs to'),
-			testCases: z
-				.array(
-					z.object({
-						title: z.string().describe('Test case title'),
-						priority: z.string().optional().describe('Priority (default: MEDIUM)'),
-						precondition: z.string().optional().describe('Precondition'),
-						steps: z
-							.array(
-								z.object({
-									action: z.string(),
-									expected: z.string().optional()
-								})
-							)
-							.optional()
-							.describe('Test steps'),
-						expectedResult: z.string().optional().describe('Expected result')
-					})
-				)
-				.describe('Array of test cases to create')
+			testCases: z.array(mcpTestCaseCreateSchema).describe('Array of test cases to create')
 		},
 		async ({ groupId, tagIds, requirementId, testCases: tcList }) => {
 			const testCaseFields = [];

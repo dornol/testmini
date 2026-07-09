@@ -405,6 +405,25 @@ describe('MCP test-run tools', () => {
 		});
 	});
 
+	// ── bulk-update-execution-status ─────────────────────
+
+	describe('bulk-update-execution-status', () => {
+		it('should reject unknown update fields before run lookup', async () => {
+			const result = await client.callTool({
+				name: 'bulk-update-execution-status',
+				arguments: {
+					runId: 50,
+					updates: [{ executionId: 200, status: 'PASS', comment: 'extra' }]
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(mockDb.query.testRun.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+	});
+
 	// ── complete-test-run ────────────────────────────────
 
 	describe('complete-test-run', () => {

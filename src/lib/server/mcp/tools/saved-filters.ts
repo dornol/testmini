@@ -108,6 +108,7 @@ export function registerSavedFilterTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create saved filter');
 			return ok(created);
 		}
 	);
@@ -122,9 +123,11 @@ export function registerSavedFilterTools(server: McpServer, projectId: number) {
 			});
 			if (!f) return err('Saved filter not found');
 
-			await db
+			const [deleted] = await db
 				.delete(savedFilter)
-				.where(and(eq(savedFilter.id, filterId), eq(savedFilter.projectId, projectId)));
+				.where(and(eq(savedFilter.id, filterId), eq(savedFilter.projectId, projectId)))
+				.returning({ id: savedFilter.id });
+			if (!deleted) return err('Saved filter not found');
 			return ok({ success: true, deletedId: filterId });
 		}
 	);

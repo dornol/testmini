@@ -80,6 +80,7 @@ export function registerSharedDataSetTools(server: McpServer, projectId: number)
 				})
 				.returning();
 
+			if (!created) return err('Failed to create shared dataset');
 			return ok(created);
 		}
 	);
@@ -94,9 +95,11 @@ export function registerSharedDataSetTools(server: McpServer, projectId: number)
 			});
 			if (!ds) return err('Shared dataset not found');
 
-			await db
+			const [deleted] = await db
 				.delete(sharedDataSet)
-				.where(and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId)));
+				.where(and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId)))
+				.returning({ id: sharedDataSet.id });
+			if (!deleted) return err('Shared dataset not found');
 			return ok({ success: true, deletedId: datasetId });
 		}
 	);
@@ -160,6 +163,7 @@ export function registerSharedDataSetTools(server: McpServer, projectId: number)
 				.set(updates)
 				.where(and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId)))
 				.returning();
+			if (!updated) return err('Shared dataset not found');
 			return ok(updated);
 		}
 	);

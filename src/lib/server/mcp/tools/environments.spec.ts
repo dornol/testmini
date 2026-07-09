@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockInsertReturning,
 	mockSelectResult,
 	mockUpdateReturning
@@ -193,6 +194,21 @@ describe('MCP environment tools', () => {
 				})
 			);
 		});
+
+		it('should return error when environment insert returns no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'create-environment',
+				arguments: { name: 'DEV' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create environment'
+			);
+		});
 	});
 
 	// ── delete-environment ───────────────────────────────
@@ -200,6 +216,7 @@ describe('MCP environment tools', () => {
 	describe('delete-environment', () => {
 		it('should delete successfully', async () => {
 			mockDb.query.environmentConfig.findFirst.mockResolvedValue(sampleEnv);
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'delete-environment',
@@ -249,6 +266,21 @@ describe('MCP environment tools', () => {
 			expect(mockDb.query.environmentConfig.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
+
+		it('should return error when environment disappears before delete', async () => {
+			mockDb.query.environmentConfig.findFirst.mockResolvedValue(sampleEnv);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-environment',
+				arguments: { environmentId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Environment not found'
+			);
+		});
 	});
 
 	// ── update-environment ──────────────────────────────
@@ -284,6 +316,21 @@ describe('MCP environment tools', () => {
 			const result = await client.callTool({
 				name: 'update-environment',
 				arguments: { environmentId: 999, name: 'Nope' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Environment not found'
+			);
+		});
+
+		it('should return error when environment disappears before update', async () => {
+			mockDb.query.environmentConfig.findFirst.mockResolvedValue(sampleEnv);
+			mockUpdateReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'update-environment',
+				arguments: { environmentId: 1, name: 'STAGING' }
 			});
 
 			expect(result.isError).toBe(true);

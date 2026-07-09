@@ -93,6 +93,7 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create environment');
 			return ok(created);
 		}
 	);
@@ -110,11 +111,13 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 			});
 			if (!env) return err('Environment not found');
 
-			await db
+			const [deleted] = await db
 				.delete(environmentConfig)
 				.where(
 					and(eq(environmentConfig.id, environmentId), eq(environmentConfig.projectId, projectId))
-				);
+				)
+				.returning({ id: environmentConfig.id });
+			if (!deleted) return err('Environment not found');
 			return ok({ success: true, deletedId: environmentId });
 		}
 	);
@@ -173,6 +176,7 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 					and(eq(environmentConfig.id, environmentId), eq(environmentConfig.projectId, projectId))
 				)
 				.returning();
+			if (!updated) return err('Environment not found');
 			return ok(updated);
 		}
 	);

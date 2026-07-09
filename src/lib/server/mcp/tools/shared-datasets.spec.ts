@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockInsertReturning,
 	mockSelectResult,
 	mockUpdateReturning
@@ -210,6 +211,21 @@ describe('MCP shared-dataset tools', () => {
 			);
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
+
+		it('should return error when shared dataset insert returns no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'create-shared-dataset',
+				arguments: { name: 'Dataset', parameters: ['col1'] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create shared dataset'
+			);
+		});
 	});
 
 	// ── delete-shared-dataset ───────────────────────────
@@ -217,6 +233,7 @@ describe('MCP shared-dataset tools', () => {
 	describe('delete-shared-dataset', () => {
 		it('should delete a shared dataset', async () => {
 			mockDb.query.sharedDataSet.findFirst.mockResolvedValue(sampleDataset);
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'delete-shared-dataset',
@@ -245,6 +262,21 @@ describe('MCP shared-dataset tools', () => {
 			const result = await client.callTool({
 				name: 'delete-shared-dataset',
 				arguments: { datasetId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Shared dataset not found'
+			);
+		});
+
+		it('should return error when shared dataset disappears before delete', async () => {
+			mockDb.query.sharedDataSet.findFirst.mockResolvedValue(sampleDataset);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-shared-dataset',
+				arguments: { datasetId: 1 }
 			});
 
 			expect(result.isError).toBe(true);
@@ -299,6 +331,21 @@ describe('MCP shared-dataset tools', () => {
 				'No fields to update'
 			);
 			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return error when shared dataset disappears before update', async () => {
+			mockDb.query.sharedDataSet.findFirst.mockResolvedValue(sampleDataset);
+			mockUpdateReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'update-shared-dataset',
+				arguments: { datasetId: 1, name: 'Updated Dataset' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Shared dataset not found'
+			);
 		});
 
 		it('should reject rows that do not match existing parameters before updating', async () => {

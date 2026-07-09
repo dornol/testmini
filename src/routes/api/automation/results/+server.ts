@@ -97,6 +97,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	// Validate each result entry
 	const validStatuses = ['PASS', 'FAIL', 'SKIP'];
 	const normalizedResults: AutomationResult[] = [];
+	const seenAutomationKeys = new Set<string>();
 	for (const r of results) {
 		if (!isRecord(r)) {
 			return badRequest('Each result must be an object');
@@ -111,6 +112,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (automationKey.length > MAX_AUTOMATION_KEY_LENGTH) {
 			return badRequest(`automationKey must not exceed ${MAX_AUTOMATION_KEY_LENGTH} characters`);
 		}
+		if (seenAutomationKeys.has(automationKey)) {
+			return badRequest(`Duplicate automationKey "${automationKey}"`);
+		}
+		seenAutomationKeys.add(automationKey);
 		if (!validStatuses.includes(r.status)) {
 			return badRequest(`Invalid status "${r.status}". Must be PASS, FAIL, or SKIP`);
 		}

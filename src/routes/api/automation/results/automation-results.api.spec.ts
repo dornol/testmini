@@ -238,6 +238,23 @@ describe('/api/automation/results POST', () => {
 			expect(data.error).toContain('255');
 		});
 
+		it('should return 400 when automationKey is duplicated after trimming', async () => {
+			const request = makeRequest({
+				results: [
+					{ automationKey: 'login-test', status: 'PASS' },
+					{ automationKey: '  login-test  ', status: 'FAIL' }
+				]
+			});
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Duplicate automationKey');
+			expect(mockDb.query.project.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when a result has invalid status', async () => {
 			const request = makeRequest({
 				results: [{ automationKey: 'test-1', status: 'INVALID' }]

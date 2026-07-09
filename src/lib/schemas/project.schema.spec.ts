@@ -25,6 +25,19 @@ describe('createProjectSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
+	it('should reject whitespace-only names', () => {
+		const result = createProjectSchema.safeParse({ name: '   ' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim project fields before returning parsed data', () => {
+		const result = createProjectSchema.parse({
+			name: '  My Project  ',
+			description: '  A desc  '
+		});
+		expect(result).toEqual({ name: 'My Project', description: 'A desc' });
+	});
+
 	it('should reject name exceeding 100 characters', () => {
 		const result = createProjectSchema.safeParse({ name: 'a'.repeat(101) });
 		expect(result.success).toBe(false);
@@ -60,6 +73,19 @@ describe('updateProjectSchema', () => {
 	it('should reject empty name when provided', () => {
 		const result = updateProjectSchema.safeParse({ name: '' });
 		expect(result.success).toBe(false);
+	});
+
+	it('should reject whitespace-only names when provided', () => {
+		const result = updateProjectSchema.safeParse({ name: '   ' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim project fields before returning parsed data', () => {
+		const result = updateProjectSchema.parse({
+			name: '  Updated  ',
+			description: '  new desc  '
+		});
+		expect(result).toEqual({ name: 'Updated', description: 'new desc' });
 	});
 
 	it('should reject unknown fields', () => {

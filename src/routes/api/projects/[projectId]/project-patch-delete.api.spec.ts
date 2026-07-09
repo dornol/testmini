@@ -95,6 +95,19 @@ describe('/api/projects/[projectId] — PATCH & DELETE', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 for whitespace-only project name before updating', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: '   ' },
+				user: adminUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for invalid projectId', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -132,6 +145,25 @@ describe('/api/projects/[projectId] — PATCH & DELETE', () => {
 
 			expect(response.status).toBe(200);
 			expect(body.data.description).toBe('New description');
+		});
+
+		it('should trim project fields before updating', async () => {
+			const updated = { ...sampleProject, name: 'Updated', description: 'New description' };
+			const updateChain = mockUpdateReturning(mockDb, [updated]);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: '  Updated  ', description: '  New description  ' },
+				user: adminUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(200);
+			expect(updateChain.set).toHaveBeenCalledWith({
+				name: 'Updated',
+				description: 'New description'
+			});
 		});
 
 		it('should update project description without overwriting name', async () => {

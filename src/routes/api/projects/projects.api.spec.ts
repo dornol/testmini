@@ -266,6 +266,18 @@ describe('/api/projects', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 for whitespace-only project name before creating a project', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				body: { name: '   ' },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for unknown fields before creating a project', async () => {
 			const event = createMockEvent({
 				method: 'POST',
@@ -311,6 +323,38 @@ describe('/api/projects', () => {
 			// 1. project, 2. projectMember, 3. priorityConfig, 4. environmentConfig
 			expect(capturedTx).not.toBeNull();
 			expect(capturedTx!.insert).toHaveBeenCalledTimes(4);
+		});
+
+		it('should trim project fields before creating a project', async () => {
+			const created = { ...sampleProject, id: 100, name: 'Trimmed Project', description: 'desc' };
+			let projectInsertValues: unknown;
+			mockDb.transaction.mockImplementation(async (fn) => {
+				let insertCount = 0;
+				const txInsertChain = {
+					values: vi.fn((values: unknown) => {
+						insertCount++;
+						if (insertCount === 1) projectInsertValues = values;
+						return txInsertChain;
+					}),
+					returning: vi.fn().mockResolvedValue([created])
+				};
+				const tx = {
+					insert: vi.fn().mockReturnValue(txInsertChain)
+				};
+				return fn(tx);
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				body: { name: '  Trimmed Project  ', description: '  desc  ' },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(201);
+			expect(projectInsertValues).toEqual(
+				expect.objectContaining({ name: 'Trimmed Project', description: 'desc' })
+			);
 		});
 	});
 });

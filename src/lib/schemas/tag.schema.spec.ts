@@ -17,6 +17,16 @@ describe('createTagSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
+	it('should reject whitespace-only names', () => {
+		const result = createTagSchema.safeParse({ name: '   ', color: '#ff0000' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim tag names before returning parsed data', () => {
+		const result = createTagSchema.parse({ name: '  Bug  ', color: '#ff0000' });
+		expect(result).toEqual({ name: 'Bug', color: '#ff0000' });
+	});
+
 	it('should reject name exceeding 50 characters', () => {
 		const result = createTagSchema.safeParse({ name: 'a'.repeat(51), color: '#ff0000' });
 		expect(result.success).toBe(false);
@@ -62,6 +72,16 @@ describe('updateTagSchema', () => {
 	it('should reject non-positive tagId', () => {
 		const result = updateTagSchema.safeParse({ tagId: 0, name: 'T', color: '#000000' });
 		expect(result.success).toBe(false);
+	});
+
+	it('should reject whitespace-only names', () => {
+		const result = updateTagSchema.safeParse({ tagId: 1, name: '   ', color: '#00ff00' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim tag names before returning parsed data', () => {
+		const result = updateTagSchema.parse({ tagId: 1, name: '  Updated  ', color: '#00ff00' });
+		expect(result).toEqual({ tagId: 1, name: 'Updated', color: '#00ff00' });
 	});
 
 	it('should reject unknown fields', () => {

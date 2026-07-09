@@ -104,6 +104,7 @@ export const PATCH = withProjectRole(
 			.set(updates)
 			.where(and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId)))
 			.returning();
+		if (!updated) return notFound('Session not found');
 
 		return json(updated);
 	}
@@ -117,11 +118,11 @@ export const DELETE = withProjectRole(
 		const session = await findSession(projectId, sessionId);
 		if (!session) return notFound('Session not found');
 
-		await db
+		const [deleted] = await db
 			.delete(exploratorySession)
-			.where(
-				and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
-			);
+			.where(and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId)))
+			.returning({ id: exploratorySession.id });
+		if (!deleted) return notFound('Session not found');
 
 		return json({ success: true });
 	}

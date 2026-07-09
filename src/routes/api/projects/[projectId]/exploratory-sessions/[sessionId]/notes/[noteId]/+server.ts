@@ -24,14 +24,16 @@ export const DELETE = withProjectRole(
 		});
 		if (!note) return notFound('Note not found');
 
-		// Delete screenshot file if exists
+		const [deleted] = await db
+			.delete(sessionNote)
+			.where(and(eq(sessionNote.id, noteId), eq(sessionNote.sessionId, sessionId)))
+			.returning({ id: sessionNote.id });
+		if (!deleted) return notFound('Note not found');
+
+		// Delete screenshot file only after the note row was actually removed.
 		if (note.screenshotPath) {
 			await deleteFile(note.screenshotPath);
 		}
-
-		await db
-			.delete(sessionNote)
-			.where(and(eq(sessionNote.id, noteId), eq(sessionNote.sessionId, sessionId)));
 
 		return json({ success: true });
 	}

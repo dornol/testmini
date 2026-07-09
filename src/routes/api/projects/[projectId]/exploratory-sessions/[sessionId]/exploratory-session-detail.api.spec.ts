@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockSelectResult,
 	mockUpdateReturning
 } from '$lib/server/test-helpers/mock-db';
@@ -189,6 +190,25 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]', () => {
 					['project_id', 1]
 				])
 			);
+		});
+
+		it('should return 404 when session disappears before update', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue({
+				...sampleSession,
+				status: 'ACTIVE'
+			});
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { action: 'pause', pausedDuration: 0 }
+			});
+
+			const response = await PATCH(event);
+			expect(response.status).toBe(404);
+			expect((await response.json()).error).toContain('Session not found');
 		});
 
 		it('should reject pausing a non-active session', async () => {
@@ -494,6 +514,7 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]', () => {
 
 		it('should delete session successfully', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: sampleSession.id }]);
 
 			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
 			const response = await DELETE(event);
@@ -502,15 +523,24 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]', () => {
 			const body = await response.json();
 			expect(body.success).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
-			const deleteChain = mockDb.delete.mock.results[0]?.value as {
-				where: ReturnType<typeof vi.fn>;
-			};
 			expect(deleteChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 10],
 					['project_id', 1]
 				])
 			);
+			expect(deleteChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should return 404 when session disappears before delete', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
+			const response = await DELETE(event);
+
+			expect(response.status).toBe(404);
+			expect((await response.json()).error).toContain('Session not found');
 		});
 	});
 });

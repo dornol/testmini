@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockDeleteReturning } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -104,6 +104,7 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes/[note
 		it('should delete note successfully', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
 			mockDb.query.sessionNote.findFirst.mockResolvedValue(sampleNote);
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: sampleNote.id }]);
 
 			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
 			const response = await DELETE(event);
@@ -113,20 +114,19 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes/[note
 			expect(body.success).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
 			expect(mockDeleteFile).not.toHaveBeenCalled();
-			const deleteChain = mockDb.delete.mock.results[0]?.value as {
-				where: ReturnType<typeof vi.fn>;
-			};
 			expect(deleteChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 5],
 					['session_id', 10]
 				])
 			);
+			expect(deleteChain.returning).toHaveBeenCalledWith({ id: 'id' });
 		});
 
 		it('should delete screenshot file when note has a screenshot', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
 			mockDb.query.sessionNote.findFirst.mockResolvedValue(sampleNoteWithScreenshot);
+			mockDeleteReturning(mockDb, [{ id: sampleNote.id }]);
 
 			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
 			const response = await DELETE(event);
@@ -136,6 +136,19 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes/[note
 			expect(body.success).toBe(true);
 			expect(mockDeleteFile).toHaveBeenCalledWith('exploratory/10/test-uuid_screenshot.png');
 			expect(mockDb.delete).toHaveBeenCalled();
+		});
+
+		it('should return 404 without deleting file when note disappears before delete', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+			mockDb.query.sessionNote.findFirst.mockResolvedValue(sampleNoteWithScreenshot);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
+			const response = await DELETE(event);
+
+			expect(response.status).toBe(404);
+			expect((await response.json()).error).toContain('Note not found');
+			expect(mockDeleteFile).not.toHaveBeenCalled();
 		});
 	});
 });

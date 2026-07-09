@@ -215,7 +215,9 @@ describe('MCP test-run tools', () => {
 							values: vi.fn().mockReturnThis(),
 							returning: vi.fn().mockReturnThis(),
 							then: (resolve: (v: unknown) => void) => {
-								return Promise.resolve(insertCallCount === 1 ? [createdRun] : []).then(resolve);
+								return Promise.resolve(
+									insertCallCount === 1 ? [createdRun] : [{ id: 1 }, { id: 2 }]
+								).then(resolve);
 							}
 						};
 						return chain;
@@ -233,6 +235,71 @@ describe('MCP test-run tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('New Run');
 			expect(parsed.executionCount).toBe(2);
+		});
+
+		it('should return error when test run insert creates no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockSelectResult(mockDb, [{ id: 10, latestVersionId: 100 }]);
+			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+				const tx = {
+					insert: vi.fn().mockReturnValue({
+						values: vi.fn().mockReturnThis(),
+						returning: vi.fn().mockReturnThis(),
+						then: (resolve: (v: unknown) => void) => Promise.resolve([]).then(resolve)
+					})
+				};
+				return fn(tx);
+			});
+
+			const result = await client.callTool({
+				name: 'create-test-run',
+				arguments: { name: 'Run', environment: 'QA' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create test run'
+			);
+		});
+
+		it('should return error when execution insert creates fewer rows than requested', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockSelectResult(mockDb, [
+				{ id: 10, latestVersionId: 100 },
+				{ id: 11, latestVersionId: 101 }
+			]);
+			const createdRun = {
+				id: 60,
+				projectId: 1,
+				name: 'Run',
+				environment: 'QA',
+				createdBy: 'user-1'
+			};
+			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+				let insertCallCount = 0;
+				const tx = {
+					insert: vi.fn().mockImplementation(() => {
+						insertCallCount++;
+						return {
+							values: vi.fn().mockReturnThis(),
+							returning: vi.fn().mockReturnThis(),
+							then: (resolve: (v: unknown) => void) =>
+								Promise.resolve(insertCallCount === 1 ? [createdRun] : [{ id: 1 }]).then(resolve)
+						};
+					})
+				};
+				return fn(tx);
+			});
+
+			const result = await client.callTool({
+				name: 'create-test-run',
+				arguments: { name: 'Run', environment: 'QA' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create all test run executions'
+			);
 		});
 
 		it('should reject blank names before project lookup', async () => {

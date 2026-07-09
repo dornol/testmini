@@ -36,6 +36,15 @@ function firstValidationError(error: { issues: Array<{ message: string }> }): st
 	return error.issues[0]?.message ?? 'Invalid test run';
 }
 
+function isMcpErrorResult(result: unknown): result is ReturnType<typeof err> {
+	return (
+		typeof result === 'object' &&
+		result !== null &&
+		'isError' in result &&
+		(result as { isError?: unknown }).isError === true
+	);
+}
+
 export function registerTestRunTools(server: McpServer, projectId: number) {
 	server.tool(
 		'list-test-runs',
@@ -186,7 +195,11 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 						environment: parsed.data.environment,
 						createdBy: creator
 					})
-					.returning();
+					.returning({ id: testRun.id });
+
+				if (!run) {
+					return err('Failed to create test run');
+				}
 
 				const executionValues = cases
 					.filter((c) => c.latestVersionId !== null)
@@ -196,12 +209,19 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 					}));
 
 				if (executionValues.length > 0) {
-					await tx.insert(testExecution).values(executionValues);
+					const insertedExecutions = await tx
+						.insert(testExecution)
+						.values(executionValues)
+						.returning({ id: testExecution.id });
+					if (insertedExecutions.length !== executionValues.length) {
+						return err('Failed to create all test run executions');
+					}
 				}
 
 				return { ...run, executionCount: executionValues.length };
 			});
 
+			if (isMcpErrorResult(result)) return result;
 			return ok(result);
 		}
 	);

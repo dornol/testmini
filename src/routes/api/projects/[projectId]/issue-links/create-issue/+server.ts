@@ -8,6 +8,10 @@ import { createExternalIssue } from '$lib/server/issue-tracker';
 import { env } from '$env/dynamic/private';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { redactSecrets } from '$lib/server/secret-redaction';
+import {
+	validateOptionalTestCaseId,
+	validateOptionalTestExecutionId
+} from '$lib/server/project-reference-validation';
 
 const MAX_TITLE_LENGTH = 500;
 const MAX_DESCRIPTION_LENGTH = 10000;
@@ -119,6 +123,14 @@ export const POST = withProjectRole(
 		const payloadOrError = validatePayload(bodyOrError);
 		if (payloadOrError instanceof Response) return payloadOrError;
 		const body = payloadOrError;
+
+		const testCaseError = await validateOptionalTestCaseId(body.testCaseId, projectId);
+		if (testCaseError) return testCaseError;
+		const testExecutionError = await validateOptionalTestExecutionId(
+			body.testExecutionId,
+			projectId
+		);
+		if (testExecutionError) return testExecutionError;
 
 		const config = await db.query.issueTrackerConfig.findFirst({
 			where: eq(issueTrackerConfig.projectId, projectId)

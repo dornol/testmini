@@ -24,10 +24,13 @@ vi.mock('$lib/server/db/schema', () => ({
 		provider: 'provider',
 		createdBy: 'created_by',
 		createdAt: 'created_at'
-	}
+	},
+	testCase: { id: 'id', projectId: 'project_id' },
+	testExecution: { id: 'id' }
 }));
 vi.mock('drizzle-orm', () => ({
-	eq: vi.fn((a: unknown, b: unknown) => [a, b])
+	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
+	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
 	const actual =
@@ -78,6 +81,11 @@ describe('/api/projects/[projectId]/issue-links/create-issue', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockDb.query.issueTrackerConfig = { findFirst: vi.fn() };
+		mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+		mockDb.query.testExecution.findFirst.mockResolvedValue({
+			id: 200,
+			testRun: { projectId: 1 }
+		});
 	});
 
 	it('should return 401 when not authenticated', async () => {
@@ -198,6 +206,49 @@ describe('/api/projects/[projectId]/issue-links/create-issue', () => {
 		const response = await POST(event);
 		expect(response.status).toBe(404);
 		expect((await response.json()).error).toContain('not configured');
+	});
+
+	it('should reject testCaseId outside the project before issue tracker lookup', async () => {
+		mockDb.query.testCase.findFirst.mockResolvedValue(null);
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser,
+			body: { testCaseId: 999, title: 'Bug', description: 'desc' }
+		});
+
+		const response = await POST(event);
+		const body = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(body.error).toContain('Test case not found');
+		expect(mockDb.query.issueTrackerConfig.findFirst).not.toHaveBeenCalled();
+		expect(mockCreateExternalIssue).not.toHaveBeenCalled();
+		expect(mockDb.insert).not.toHaveBeenCalled();
+	});
+
+	it('should reject testExecutionId outside the project before creating external issue', async () => {
+		mockDb.query.testExecution.findFirst.mockResolvedValue({
+			id: 999,
+			testRun: { projectId: 2 }
+		});
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser,
+			body: { testExecutionId: 999, title: 'Bug', description: 'desc' }
+		});
+
+		const response = await POST(event);
+		const body = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(body.error).toContain('Test execution not found');
+		expect(mockDb.query.issueTrackerConfig.findFirst).not.toHaveBeenCalled();
+		expect(mockCreateExternalIssue).not.toHaveBeenCalled();
+		expect(mockDb.insert).not.toHaveBeenCalled();
 	});
 
 	it('should reject when issue tracker is disabled', async () => {

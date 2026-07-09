@@ -1,7 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { badRequest } from './errors';
 import { db } from './db';
-import { release, testCase, testCycle, testPlan } from './db/schema';
+import { release, testCase, testCycle, testExecution, testPlan } from './db/schema';
 
 export async function validateOptionalReleaseId(
 	releaseId: number | null | undefined,
@@ -37,6 +37,37 @@ export async function validateOptionalTestCycleId(
 		where: and(eq(testCycle.id, testCycleId), eq(testCycle.projectId, projectId))
 	});
 	return existing ? null : badRequest('Test cycle not found in this project');
+}
+
+export async function validateOptionalTestCaseId(
+	testCaseId: number | null | undefined,
+	projectId: number
+): Promise<Response | null> {
+	if (testCaseId == null) return null;
+
+	const existing = await db.query.testCase.findFirst({
+		where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
+	});
+	return existing ? null : badRequest('Test case not found in this project');
+}
+
+export async function validateOptionalTestExecutionId(
+	testExecutionId: number | null | undefined,
+	projectId: number
+): Promise<Response | null> {
+	if (testExecutionId == null) return null;
+
+	const existing = await db.query.testExecution.findFirst({
+		where: eq(testExecution.id, testExecutionId),
+		with: {
+			testRun: {
+				columns: { projectId: true }
+			}
+		}
+	});
+	return existing?.testRun?.projectId === projectId
+		? null
+		: badRequest('Test execution not found in this project');
 }
 
 export async function validateTestCaseIdsInProject(

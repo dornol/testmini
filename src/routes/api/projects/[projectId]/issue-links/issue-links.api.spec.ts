@@ -23,7 +23,9 @@ vi.mock('$lib/server/db/schema', () => ({
 	issueTrackerConfig: {
 		projectId: 'project_id',
 		provider: 'provider'
-	}
+	},
+	testCase: { id: 'id', projectId: 'project_id' },
+	testExecution: { id: 'id' }
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -62,6 +64,11 @@ describe('/api/projects/[projectId]/issue-links', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockDb.query.issueTrackerConfig = { findFirst: vi.fn() };
+		mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+		mockDb.query.testExecution.findFirst.mockResolvedValue({
+			id: 200,
+			testRun: { projectId: 1 }
+		});
 	});
 
 	// ── GET ─────────────────────────────────────────────
@@ -339,6 +346,28 @@ describe('/api/projects/[projectId]/issue-links', () => {
 			expect(body.externalKey).toBe('PROJ-123');
 		});
 
+		it('should reject testCaseId outside the project before creating link', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					testCaseId: 999,
+					externalUrl: 'https://github.com/org/repo/issues/1'
+				}
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Test case not found');
+			expect(mockDb.query.issueTrackerConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should create link with testExecutionId', async () => {
 			mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(null);
 			mockInsertReturning(mockDb, [{ ...sampleLink, testCaseId: null, testExecutionId: 200 }]);
@@ -355,6 +384,31 @@ describe('/api/projects/[projectId]/issue-links', () => {
 
 			const response = await POST(event);
 			expect(response.status).toBe(201);
+		});
+
+		it('should reject testExecutionId outside the project before creating link', async () => {
+			mockDb.query.testExecution.findFirst.mockResolvedValue({
+				id: 999,
+				testRun: { projectId: 2 }
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					testExecutionId: 999,
+					externalUrl: 'https://github.com/org/repo/issues/1'
+				}
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Test execution not found');
+			expect(mockDb.query.issueTrackerConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should default provider to CUSTOM when no config exists', async () => {

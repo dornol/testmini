@@ -5,6 +5,10 @@ import { issueLink, issueTrackerConfig } from '$lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { withProjectRole, withProjectAccess } from '$lib/server/api-handler';
 import { parseJsonBody } from '$lib/server/auth-utils';
+import {
+	validateOptionalTestCaseId,
+	validateOptionalTestExecutionId
+} from '$lib/server/project-reference-validation';
 
 const MAX_EXTERNAL_URL_LENGTH = 2000;
 const MAX_EXTERNAL_KEY_LENGTH = 128;
@@ -152,6 +156,14 @@ export const POST = withProjectRole(
 		const payloadOrError = validatePayload(bodyOrError);
 		if (payloadOrError instanceof Response) return payloadOrError;
 		const body = payloadOrError;
+
+		const testCaseError = await validateOptionalTestCaseId(body.testCaseId, projectId);
+		if (testCaseError) return testCaseError;
+		const testExecutionError = await validateOptionalTestExecutionId(
+			body.testExecutionId,
+			projectId
+		);
+		if (testExecutionError) return testExecutionError;
 
 		// Determine provider from project config or default to 'CUSTOM'
 		const config = await db.query.issueTrackerConfig.findFirst({

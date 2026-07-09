@@ -171,9 +171,11 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 			const validationError = await requireProjectTestCase(testCaseId);
 			if (validationError) return validationError;
 
-			await db
+			const [deleted] = await db
 				.delete(testCaseComment)
-				.where(and(eq(testCaseComment.id, commentId), eq(testCaseComment.testCaseId, testCaseId)));
+				.where(and(eq(testCaseComment.id, commentId), eq(testCaseComment.testCaseId, testCaseId)))
+				.returning({ id: testCaseComment.id });
+			if (!deleted) return err('Comment not found');
 			return ok({ success: true, deletedId: commentId });
 		}
 	);

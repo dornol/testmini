@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
 	mockSelectResult,
+	mockDeleteReturning,
 	mockInsertReturning,
 	mockUpdateReturning
 } from '$lib/server/test-helpers/mock-db';
@@ -278,6 +279,7 @@ describe('MCP comment tools', () => {
 	describe('delete-test-case-comment', () => {
 		it('should delete a comment', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'delete-test-case-comment',
@@ -288,6 +290,21 @@ describe('MCP comment tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
+		});
+
+		it('should return error when delete does not remove a comment', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-test-case-comment',
+				arguments: { testCaseId: 10, commentId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Comment not found'
+			);
 		});
 
 		it('should return error when test case is not in the project', async () => {

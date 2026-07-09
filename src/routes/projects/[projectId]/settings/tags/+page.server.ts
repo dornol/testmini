@@ -6,7 +6,11 @@ import { eq, and } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { createTagSchema, updateTagSchema } from '$lib/schemas/tag.schema';
 import { cacheDelete } from '$lib/server/cache';
-import { parsePositiveFormId } from '$lib/server/form-utils';
+import {
+	parseOptionalFormString,
+	parseOptionalTrimmedFormString,
+	parsePositiveFormId
+} from '$lib/server/form-utils';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = parseId(params.projectId, 'project ID');
@@ -32,8 +36,8 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const name = (formData.get('name') as string)?.trim();
-		const color = formData.get('color') as string;
+		const name = parseOptionalTrimmedFormString(formData.get('name'));
+		const color = parseOptionalFormString(formData.get('color'));
 
 		const parsed = createTagSchema.safeParse({ name, color });
 		if (!parsed.success) {
@@ -68,8 +72,8 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const tagId = parsePositiveFormId(formData.get('tagId'));
-		const name = (formData.get('name') as string)?.trim();
-		const color = formData.get('color') as string;
+		const name = parseOptionalTrimmedFormString(formData.get('name'));
+		const color = parseOptionalFormString(formData.get('color'));
 
 		const parsed = updateTagSchema.safeParse({ tagId, name, color });
 		if (!parsed.success) {

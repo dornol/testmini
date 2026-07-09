@@ -54,7 +54,7 @@ const authUtils = await import('$lib/server/auth-utils');
 
 const PARAMS = { projectId: '1' };
 
-function makeFormData(entries: Record<string, string>): FormData {
+function makeFormData(entries: Record<string, FormDataEntryValue>): FormData {
 	const fd = new FormData();
 	for (const [key, value] of Object.entries(entries)) {
 		fd.set(key, value);
@@ -80,7 +80,48 @@ describe('priorities settings page server', () => {
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 	});
 
+	describe('actions.create', () => {
+		it.each([
+			[{ name: new File(['HIGH'], 'name.txt'), color: '#ef4444', isDefault: 'false' }],
+			[{ name: 'HIGH', color: new File(['#ef4444'], 'color.txt'), isDefault: 'false' }]
+		])('rejects non-text priority field %# before querying duplicates', async (form) => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData(form),
+				user: testUser
+			});
+
+			const result = await actions.create(event);
+
+			expect(result).toMatchObject({ status: 400 });
+			expect(mockDb.query.priorityConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+	});
+
 	describe('actions.update', () => {
+		it.each([
+			[{ priorityId: '7', name: new File(['HIGH'], 'name.txt'), color: '#ef4444' }],
+			[{ priorityId: '7', name: 'HIGH', color: new File(['#ef4444'], 'color.txt') }]
+		])(
+			'rejects non-text priority update field %# before querying existing priority',
+			async (form) => {
+				const event = createMockEvent({
+					method: 'POST',
+					params: PARAMS,
+					formData: makeFormData(form),
+					user: testUser
+				});
+
+				const result = await actions.update(event);
+
+				expect(result).toMatchObject({ status: 400 });
+				expect(mockDb.query.priorityConfig.findFirst).not.toHaveBeenCalled();
+				expect(mockDb.transaction).not.toHaveBeenCalled();
+			}
+		);
+
 		it('scopes priority updates to the current project', async () => {
 			mockDb.query.priorityConfig.findFirst
 				.mockResolvedValueOnce({

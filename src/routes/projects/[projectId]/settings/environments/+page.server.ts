@@ -7,7 +7,11 @@ import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils
 import { createEnvironmentSchema, updateEnvironmentSchema } from '$lib/schemas/environment.schema';
 import { cacheDelete } from '$lib/server/cache';
 import { getNextPosition } from '$lib/server/queries';
-import { parsePositiveFormId } from '$lib/server/form-utils';
+import {
+	parseOptionalFormString,
+	parseOptionalTrimmedFormString,
+	parsePositiveFormId
+} from '$lib/server/form-utils';
 
 const MAX_REORDER_ITEMS = 500;
 
@@ -61,12 +65,12 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const name = (formData.get('name') as string)?.trim();
-		const color = formData.get('color') as string;
+		const name = parseOptionalTrimmedFormString(formData.get('name'));
+		const color = parseOptionalFormString(formData.get('color'));
 		const isDefault = formData.get('isDefault') === 'true';
-		const baseUrl = (formData.get('baseUrl') as string)?.trim() ?? '';
-		const credentials = (formData.get('credentials') as string)?.trim() ?? '';
-		const memo = (formData.get('memo') as string)?.trim() ?? '';
+		const baseUrl = parseOptionalTrimmedFormString(formData.get('baseUrl'));
+		const credentials = parseOptionalTrimmedFormString(formData.get('credentials'));
+		const memo = parseOptionalTrimmedFormString(formData.get('memo'));
 
 		const parsed = createEnvironmentSchema.safeParse({
 			name,
@@ -126,12 +130,12 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const environmentId = parsePositiveFormId(formData.get('environmentId'));
-		const name = (formData.get('name') as string)?.trim();
-		const color = formData.get('color') as string;
+		const name = parseOptionalTrimmedFormString(formData.get('name'));
+		const color = parseOptionalFormString(formData.get('color'));
 		const isDefault = formData.get('isDefault') === 'true';
-		const baseUrl = (formData.get('baseUrl') as string)?.trim() ?? '';
-		const credentials = (formData.get('credentials') as string)?.trim() ?? '';
-		const memo = (formData.get('memo') as string)?.trim() ?? '';
+		const baseUrl = parseOptionalTrimmedFormString(formData.get('baseUrl'));
+		const credentials = parseOptionalTrimmedFormString(formData.get('credentials'));
+		const memo = parseOptionalTrimmedFormString(formData.get('memo'));
 
 		const parsed = updateEnvironmentSchema.safeParse({
 			environmentId,

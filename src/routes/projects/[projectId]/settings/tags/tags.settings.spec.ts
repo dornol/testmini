@@ -35,7 +35,7 @@ const authUtils = await import('$lib/server/auth-utils');
 
 const PARAMS = { projectId: '1' };
 
-function makeFormData(entries: Record<string, string>): FormData {
+function makeFormData(entries: Record<string, FormDataEntryValue>): FormData {
 	const fd = new FormData();
 	for (const [key, value] of Object.entries(entries)) {
 		fd.set(key, value);
@@ -49,7 +49,45 @@ describe('tags settings page server', () => {
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 	});
 
+	describe('actions.create', () => {
+		it.each([
+			[{ name: new File(['Bug'], 'name.txt'), color: '#ef4444' }],
+			[{ name: 'Bug', color: new File(['#ef4444'], 'color.txt') }]
+		])('rejects non-text tag field %# before querying duplicates', async (form) => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData(form),
+				user: testUser
+			});
+
+			const result = await actions.create(event);
+
+			expect(result).toMatchObject({ status: 400 });
+			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+	});
+
 	describe('actions.update', () => {
+		it.each([
+			[{ tagId: '7', name: new File(['Bug'], 'name.txt'), color: '#ef4444' }],
+			[{ tagId: '7', name: 'Bug', color: new File(['#ef4444'], 'color.txt') }]
+		])('rejects non-text tag update field %# before querying existing tag', async (form) => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData(form),
+				user: testUser
+			});
+
+			const result = await actions.update(event);
+
+			expect(result).toMatchObject({ status: 400 });
+			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('scopes tag updates to the current project', async () => {
 			mockDb.query.tag.findFirst
 				.mockResolvedValueOnce({ id: 7, projectId: 1, name: 'Smoke', color: '#ef4444' })

@@ -22,3 +22,17 @@ export function parsePositiveFormId(value: FormDataEntryValue | null): number | 
 	if (typeof value !== 'string') return null;
 	return parseCanonicalPositiveInteger(value);
 }
+
+export function parseOptionalFormString(
+	value: FormDataEntryValue | null
+): string | null | undefined {
+	if (value === null) return undefined;
+	return typeof value === 'string' ? value : null;
+}
+
+export function parseOptionalTrimmedFormString(
+	value: FormDataEntryValue | null
+): string | null | undefined {
+	if (value === null) return undefined;
+	return typeof value === 'string' ? value.trim() : null;
+}

@@ -7,7 +7,11 @@ import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils
 import { createPrioritySchema, updatePrioritySchema } from '$lib/schemas/priority.schema';
 import { cacheDelete } from '$lib/server/cache';
 import { getNextPosition } from '$lib/server/queries';
-import { parsePositiveFormId } from '$lib/server/form-utils';
+import {
+	parseOptionalFormString,
+	parseOptionalTrimmedFormString,
+	parsePositiveFormId
+} from '$lib/server/form-utils';
 
 const MAX_REORDER_ITEMS = 500;
 
@@ -58,8 +62,8 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const name = (formData.get('name') as string)?.trim();
-		const color = formData.get('color') as string;
+		const name = parseOptionalTrimmedFormString(formData.get('name'));
+		const color = parseOptionalFormString(formData.get('color'));
 		const isDefault = formData.get('isDefault') === 'true';
 
 		const parsed = createPrioritySchema.safeParse({ name, color, isDefault });
@@ -109,8 +113,8 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const priorityId = parsePositiveFormId(formData.get('priorityId'));
-		const name = (formData.get('name') as string)?.trim();
-		const color = formData.get('color') as string;
+		const name = parseOptionalTrimmedFormString(formData.get('name'));
+		const color = parseOptionalFormString(formData.get('color'));
 		const isDefault = formData.get('isDefault') === 'true';
 
 		const parsed = updatePrioritySchema.safeParse({ priorityId, name, color, isDefault });

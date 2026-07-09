@@ -87,7 +87,7 @@ const sampleEnvironments = [
 	}
 ];
 
-function makeFormData(entries: Record<string, string>): FormData {
+function makeFormData(entries: Record<string, FormDataEntryValue>): FormData {
 	const fd = new FormData();
 	for (const [key, value] of Object.entries(entries)) {
 		fd.set(key, value);
@@ -137,6 +137,34 @@ describe('environments settings page server', () => {
 	});
 
 	describe('actions.create', () => {
+		it.each([
+			[{ name: new File(['QA'], 'name.txt'), color: '#10b981', isDefault: 'false' }],
+			[{ name: 'QA', color: new File(['#10b981'], 'color.txt'), isDefault: 'false' }],
+			[{ name: 'QA', color: '#10b981', isDefault: 'false', baseUrl: new File([], 'url.txt') }],
+			[
+				{
+					name: 'QA',
+					color: '#10b981',
+					isDefault: 'false',
+					credentials: new File([], 'credentials.txt')
+				}
+			],
+			[{ name: 'QA', color: '#10b981', isDefault: 'false', memo: new File([], 'memo.txt') }]
+		])('rejects non-text environment field %# before querying duplicates', async (form) => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData(form),
+				user: testUser
+			});
+
+			const result = await actions.create(event);
+
+			expect(result).toMatchObject({ status: 400 });
+			expect(mockDb.query.environmentConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should create an environment successfully', async () => {
 			// No duplicate found
 			mockDb.query.environmentConfig.findFirst.mockResolvedValue(null);
@@ -240,6 +268,37 @@ describe('environments settings page server', () => {
 	});
 
 	describe('actions.update', () => {
+		it.each([
+			[{ environmentId: '1', name: new File(['QA'], 'name.txt'), color: '#10b981' }],
+			[{ environmentId: '1', name: 'QA', color: new File(['#10b981'], 'color.txt') }],
+			[{ environmentId: '1', name: 'QA', color: '#10b981', baseUrl: new File([], 'url.txt') }],
+			[
+				{
+					environmentId: '1',
+					name: 'QA',
+					color: '#10b981',
+					credentials: new File([], 'credentials.txt')
+				}
+			],
+			[{ environmentId: '1', name: 'QA', color: '#10b981', memo: new File([], 'memo.txt') }]
+		])(
+			'rejects non-text environment update field %# before querying existing environment',
+			async (form) => {
+				const event = createMockEvent({
+					method: 'POST',
+					params: PARAMS,
+					formData: makeFormData(form),
+					user: testUser
+				});
+
+				const result = await actions.update(event);
+
+				expect(result).toMatchObject({ status: 400 });
+				expect(mockDb.query.environmentConfig.findFirst).not.toHaveBeenCalled();
+				expect(mockDb.transaction).not.toHaveBeenCalled();
+			}
+		);
+
 		it('should update an environment successfully', async () => {
 			// findFirst for existing check
 			mockDb.query.environmentConfig.findFirst

@@ -69,6 +69,27 @@ describe('test case detail page actions', () => {
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'DEV' });
 	});
 
+	describe('createTag', () => {
+		it.each([
+			[{ name: new File(['Bug'], 'name.txt'), color: '#ef4444' }],
+			[{ name: 'Bug', color: new File(['#ef4444'], 'color.txt') }]
+		])('rejects non-text tag field %# before querying test case', async (form) => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData(form),
+				user: testUser
+			});
+
+			const result = await actions.createTag(event);
+
+			expect(result).toMatchObject({ status: 400, data: { error: 'Invalid tag data' } });
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+	});
+
 	describe('assignTag', () => {
 		it('rejects invalid tagId before querying tag records', async () => {
 			for (const tagId of [

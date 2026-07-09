@@ -23,6 +23,7 @@ import { eq, and, desc, asc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { loadTestCaseMetadata } from '$lib/server/queries';
 import { cacheDelete } from '$lib/server/cache';
+import { parseOptionalFormString, parseOptionalTrimmedFormString } from '$lib/server/form-utils';
 
 const MAX_USER_ID_LENGTH = 255;
 
@@ -261,8 +262,8 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const name = (formData.get('name') as string)?.trim();
-		const color = formData.get('color') as string;
+		const name = parseOptionalTrimmedFormString(formData.get('name'));
+		const color = parseOptionalFormString(formData.get('color'));
 
 		const parsed = createTagSchema.safeParse({ name, color });
 		if (!parsed.success) {

@@ -2281,12 +2281,19 @@ describe('MCP Server', () => {
 				status: 'CREATED'
 			};
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+				let insertCallCount = 0;
 				const tx = {
-					insert: vi.fn().mockImplementation(() => ({
-						values: vi.fn().mockReturnThis(),
-						returning: vi.fn().mockReturnThis(),
-						then: (resolve: (v: unknown) => void) => Promise.resolve([createdRun]).then(resolve)
-					}))
+					insert: vi.fn().mockImplementation(() => {
+						insertCallCount++;
+						return {
+							values: vi.fn().mockReturnThis(),
+							returning: vi.fn().mockReturnThis(),
+							then: (resolve: (v: unknown) => void) =>
+								Promise.resolve(insertCallCount === 1 ? [createdRun] : [{ id: 1 }, { id: 2 }]).then(
+									resolve
+								)
+						};
+					})
 				};
 				return fn(tx);
 			});

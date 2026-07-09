@@ -18,6 +18,15 @@ function firstValidationError(error: { issues: Array<{ message: string }> }): st
 	return error.issues[0]?.message ?? 'Invalid test plan';
 }
 
+function isMcpErrorResult(result: unknown): result is ReturnType<typeof err> {
+	return (
+		typeof result === 'object' &&
+		result !== null &&
+		'isError' in result &&
+		(result as { isError?: unknown }).isError === true
+	);
+}
+
 export function registerTestPlanTools(server: McpServer, projectId: number) {
 	server.tool(
 		'get-test-plan',
@@ -257,7 +266,11 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 						createdBy: creator,
 						testPlanId: planId
 					})
-					.returning();
+					.returning({ id: testRun.id, name: testRun.name, environment: testRun.environment });
+
+				if (!run) {
+					return err('Failed to create test run from plan');
+				}
 
 				const executions = tcIds
 					.map((tcId) => {
@@ -268,12 +281,19 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 					.filter((e): e is NonNullable<typeof e> => e !== null);
 
 				if (executions.length > 0) {
-					await tx.insert(testExecution).values(executions);
+					const insertedExecutions = await tx
+						.insert(testExecution)
+						.values(executions)
+						.returning({ id: testExecution.id });
+					if (insertedExecutions.length !== executions.length) {
+						return err('Failed to create all test run executions');
+					}
 				}
 
 				return { ...run, executionCount: executions.length, planId };
 			});
 
+			if (isMcpErrorResult(result)) return result;
 			return ok(result);
 		}
 	);

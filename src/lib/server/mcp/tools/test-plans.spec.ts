@@ -449,7 +449,9 @@ describe('MCP test-plan tools', () => {
 							values: vi.fn().mockReturnThis(),
 							returning: vi.fn().mockReturnThis(),
 							then: (resolve: (v: unknown) => void) =>
-								Promise.resolve(insertCallCount === 1 ? [createdRun] : []).then(resolve)
+								Promise.resolve(insertCallCount === 1 ? [createdRun] : [{ id: 1 }, { id: 2 }]).then(
+									resolve
+								)
 						};
 					})
 				};
@@ -470,6 +472,91 @@ describe('MCP test-plan tools', () => {
 					['project_id', PROJECT_ID],
 					['id', [10, 11]]
 				])
+			);
+		});
+
+		it('should return error when run insert creates no row', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue(samplePlan);
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			let selectCallCount = 0;
+			mockDb.select.mockImplementation(() => {
+				selectCallCount++;
+				const data =
+					selectCallCount === 1 ? [{ testCaseId: 10 }] : [{ id: 10, latestVersionId: 100 }];
+				return {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					orderBy: vi.fn().mockReturnThis(),
+					then: (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve)
+				} as never;
+			});
+			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
+				const tx = {
+					insert: vi.fn().mockReturnValue({
+						values: vi.fn().mockReturnThis(),
+						returning: vi.fn().mockReturnThis(),
+						then: (resolve: (v: unknown) => void) => Promise.resolve([]).then(resolve)
+					})
+				};
+				return fn(tx);
+			});
+
+			const result = await client.callTool({
+				name: 'create-run-from-plan',
+				arguments: { planId: 1, environment: 'QA' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create test run from plan'
+			);
+		});
+
+		it('should return error when execution insert creates fewer rows than requested', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue(samplePlan);
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			let selectCallCount = 0;
+			mockDb.select.mockImplementation(() => {
+				selectCallCount++;
+				const data =
+					selectCallCount === 1
+						? [{ testCaseId: 10 }, { testCaseId: 11 }]
+						: [
+								{ id: 10, latestVersionId: 100 },
+								{ id: 11, latestVersionId: 101 }
+							];
+				return {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					orderBy: vi.fn().mockReturnThis(),
+					then: (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve)
+				} as never;
+			});
+			const createdRun = { id: 60, projectId: 1, name: 'Run', environment: 'QA' };
+			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
+				let insertCallCount = 0;
+				const tx = {
+					insert: vi.fn().mockImplementation(() => {
+						insertCallCount++;
+						return {
+							values: vi.fn().mockReturnThis(),
+							returning: vi.fn().mockReturnThis(),
+							then: (resolve: (v: unknown) => void) =>
+								Promise.resolve(insertCallCount === 1 ? [createdRun] : [{ id: 1 }]).then(resolve)
+						};
+					})
+				};
+				return fn(tx);
+			});
+
+			const result = await client.callTool({
+				name: 'create-run-from-plan',
+				arguments: { planId: 1, environment: 'QA' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create all test run executions'
 			);
 		});
 

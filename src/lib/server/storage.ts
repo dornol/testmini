@@ -57,7 +57,22 @@ async function initS3(): Promise<void> {
 
 const UPLOAD_DIR = resolve(process.cwd(), 'data', 'uploads');
 
+function validateObjectKey(objectKey: string): void {
+	if (
+		!objectKey ||
+		objectKey.startsWith('/') ||
+		objectKey.includes('\\') ||
+		objectKey.includes('//') ||
+		/[\x00-\x1F\x7F]/.test(objectKey) ||
+		objectKey.split('/').some((segment) => segment === '.' || segment === '..')
+	) {
+		throw new Error('Invalid object key');
+	}
+}
+
 function safePath(objectKey: string): string {
+	validateObjectKey(objectKey);
+
 	const filePath = resolve(UPLOAD_DIR, objectKey);
 	if (!filePath.startsWith(UPLOAD_DIR + '/')) {
 		throw new Error('Invalid object key');
@@ -66,9 +81,7 @@ function safePath(objectKey: string): string {
 }
 
 function safeKey(objectKey: string): void {
-	if (objectKey.includes('..')) {
-		throw new Error('Invalid object key');
-	}
+	validateObjectKey(objectKey);
 }
 
 function isNotFoundError(error: unknown): boolean {

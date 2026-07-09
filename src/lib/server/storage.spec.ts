@@ -186,6 +186,17 @@ describe('storage', () => {
 				);
 			});
 
+			it.each([
+				'',
+				'testcase//file.txt',
+				'testcase\\1\\file.txt',
+				'testcase/./file.txt',
+				'testcase/\u0000/file.txt'
+			])('rejects malformed object key %#', async (objectKey) => {
+				await expect(saveFile(objectKey, Buffer.from('x'))).rejects.toThrow('Invalid object key');
+				expect(mockWriteFile).not.toHaveBeenCalled();
+			});
+
 			it('propagates filesystem write errors', async () => {
 				mockWriteFile.mockRejectedValueOnce(new Error('ENOSPC'));
 				await expect(saveFile('testcase/1/abc.txt', Buffer.from('x'))).rejects.toThrow('ENOSPC');
@@ -218,6 +229,11 @@ describe('storage', () => {
 
 			it('rejects directory traversal', async () => {
 				await expect(getFile('../../etc/shadow')).rejects.toThrow('Invalid object key');
+			});
+
+			it('rejects backslash object keys before reading', async () => {
+				await expect(getFile('testcase\\1\\abc.txt')).rejects.toThrow('Invalid object key');
+				expect(mockReadFile).not.toHaveBeenCalled();
 			});
 
 			it('propagates filesystem read errors (file not found)', async () => {
@@ -274,6 +290,14 @@ describe('storage', () => {
 				expect(await fileExists('../../etc/passwd')).toBe(false);
 				expect(mockStat).not.toHaveBeenCalled();
 			});
+
+			it.each(['', 'testcase//abc.txt', 'testcase\\1\\abc.txt', 'testcase/./abc.txt'])(
+				'returns false for malformed object key %#',
+				async (objectKey) => {
+					expect(await fileExists(objectKey)).toBe(false);
+					expect(mockStat).not.toHaveBeenCalled();
+				}
+			);
 		});
 	});
 
@@ -326,6 +350,21 @@ describe('storage', () => {
 
 			it('rejects .. traversal in fileExists', async () => {
 				await expect(fileExists('../etc/passwd')).rejects.toThrow('Invalid object key');
+				expect(mockSend).not.toHaveBeenCalled();
+			});
+
+			it.each([
+				'',
+				'/absolute/key',
+				'testcase//abc.txt',
+				'testcase\\1\\abc.txt',
+				'testcase/./abc.txt',
+				'testcase/\u0000/abc.txt'
+			])('rejects malformed S3 object key %#', async (objectKey) => {
+				await expect(getFile(objectKey)).rejects.toThrow('Invalid object key');
+				await expect(saveFile(objectKey, Buffer.from('x'))).rejects.toThrow('Invalid object key');
+				await expect(deleteFile(objectKey)).rejects.toThrow('Invalid object key');
+				await expect(fileExists(objectKey)).rejects.toThrow('Invalid object key');
 				expect(mockSend).not.toHaveBeenCalled();
 			});
 		});

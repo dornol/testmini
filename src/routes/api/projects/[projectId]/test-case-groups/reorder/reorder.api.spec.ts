@@ -15,7 +15,8 @@ vi.mock('drizzle-orm', () => ({
 	inArray: vi.fn((a: unknown, b: unknown) => ['inArray', a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
@@ -34,6 +35,62 @@ describe('/api/projects/[projectId]/test-case-groups/reorder', () => {
 	});
 
 	describe('PUT', () => {
+		it('should return 400 when body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: null,
+				user: adminUser
+			});
+			const response = await PUT(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toContain('Invalid request body');
+		});
+
+		it('should return 400 when groups is not an array', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { groups: 'not-array' },
+				user: adminUser
+			});
+			const response = await PUT(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toContain('groups array is required');
+		});
+
+		it('should return 400 when group item is not an object', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { groups: [123] },
+				user: adminUser
+			});
+			const response = await PUT(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toContain('groups 1 must be an object');
+		});
+
+		it('should return 400 for invalid group id', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { groups: [{ id: 0, sortOrder: 0 }] },
+				user: adminUser
+			});
+			const response = await PUT(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toContain('id must be a positive integer');
+		});
+
 		it('should return 400 for negative sortOrder', async () => {
 			const event = createMockEvent({
 				method: 'PUT',
@@ -62,6 +119,44 @@ describe('/api/projects/[projectId]/test-case-groups/reorder', () => {
 			expect(data.error).toBe('sortOrder must be a non-negative integer');
 		});
 
+		it('should return 400 for duplicate group ids', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: {
+					groups: [
+						{ id: 1, sortOrder: 0 },
+						{ id: 1, sortOrder: 1 }
+					]
+				},
+				user: adminUser
+			});
+			const response = await PUT(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toContain('duplicate ids');
+		});
+
+		it('should return 400 when groups is too large', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: {
+					groups: Array.from({ length: 1001 }, (_, i) => ({
+						id: i + 1,
+						sortOrder: i
+					}))
+				},
+				user: adminUser
+			});
+			const response = await PUT(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toContain('1000 items or less');
+		});
+
 		it('should return 400 when groups do not belong to project', async () => {
 			// Return fewer groups than requested, simulating some not belonging to the project
 			mockSelectResult(mockDb, [{ id: 1 }]);
@@ -69,7 +164,12 @@ describe('/api/projects/[projectId]/test-case-groups/reorder', () => {
 			const event = createMockEvent({
 				method: 'PUT',
 				params: PARAMS,
-				body: { groups: [{ id: 1, sortOrder: 0 }, { id: 999, sortOrder: 1 }] },
+				body: {
+					groups: [
+						{ id: 1, sortOrder: 0 },
+						{ id: 999, sortOrder: 1 }
+					]
+				},
 				user: adminUser
 			});
 			const response = await PUT(event);

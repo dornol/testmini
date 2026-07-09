@@ -30,7 +30,8 @@ vi.mock('$lib/server/webhooks', () => ({
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
@@ -75,10 +76,15 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]/test', () => {
 
 		expect(response.status).toBe(200);
 		expect(data.success).toBe(true);
-		expect(mockSendProjectWebhooks).toHaveBeenCalledWith(1, 'TEST', {
-			title: 'Test webhook',
-			message: 'This is a test notification from testmini.'
-		});
+		expect(mockSendProjectWebhooks).toHaveBeenCalledWith(
+			1,
+			'TEST',
+			{
+				title: 'Test webhook',
+				message: 'This is a test notification from testmini.'
+			},
+			{ webhookId: 5 }
+		);
 	});
 
 	it('should return 404 when webhook does not exist', async () => {

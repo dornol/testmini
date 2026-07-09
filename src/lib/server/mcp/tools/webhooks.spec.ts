@@ -8,6 +8,7 @@ import {
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
+const mockValidatePublicHttpUrl = vi.fn();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
@@ -27,6 +28,9 @@ vi.mock('$lib/server/db/schema', () => ({
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args)
+}));
+vi.mock('$lib/server/url-safety', () => ({
+	validatePublicHttpUrl: mockValidatePublicHttpUrl
 }));
 vi.mock('../helpers', async () => {
 	const actual = (await vi.importActual('../helpers')) as Record<string, unknown>;
@@ -62,7 +66,7 @@ const sampleWebhook = {
 	projectId: 1,
 	name: 'CI Webhook',
 	url: 'https://ci.example.com/hook',
-	events: ['run.completed'],
+	events: ['TEST_RUN_COMPLETED'],
 	enabled: true,
 	secret: null,
 	createdBy: 'user-1',
@@ -74,6 +78,7 @@ describe('MCP webhook tools', () => {
 	let close: () => Promise<void>;
 
 	beforeEach(async () => {
+		mockValidatePublicHttpUrl.mockResolvedValue({ ok: true });
 		const c = await createClient();
 		client = c.client;
 		close = c.close;
@@ -143,14 +148,14 @@ describe('MCP webhook tools', () => {
 
 		it('should create a webhook', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockInsertReturning(mockDb, [sampleWebhook]);
+			const insertChain = mockInsertReturning(mockDb, [sampleWebhook]);
 
 			const result = await client.callTool({
 				name: 'create-webhook',
 				arguments: {
 					name: 'CI Webhook',
 					url: 'https://ci.example.com/hook',
-					events: ['run.completed']
+					events: ['TEST_RUN_COMPLETED']
 				}
 			});
 
@@ -158,7 +163,83 @@ describe('MCP webhook tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('CI Webhook');
 			expect(parsed.url).toBe('https://ci.example.com/hook');
-			expect(parsed.events).toEqual(['run.completed']);
+			expect(parsed.events).toEqual(['TEST_RUN_COMPLETED']);
+			expect(parsed.secret).toBeUndefined();
+			expect(insertChain.values).toHaveBeenCalledWith({
+				projectId: 1,
+				name: 'CI Webhook',
+				url: 'https://ci.example.com/hook',
+				events: ['TEST_RUN_COMPLETED'],
+				secret: null,
+				createdBy: sampleProject.createdBy
+			});
+		});
+
+		it('should trim secret and not return it after create', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			const insertChain = mockInsertReturning(mockDb, [
+				{ ...sampleWebhook, secret: 'stored-secret' }
+			]);
+
+			const result = await client.callTool({
+				name: 'create-webhook',
+				arguments: {
+					name: '  CI Webhook  ',
+					url: 'https://ci.example.com/hook',
+					events: ['TEST_FAILED'],
+					secret: '  stored-secret  '
+				}
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.secret).toBeUndefined();
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: 'CI Webhook',
+					secret: 'stored-secret'
+				})
+			);
+		});
+
+		it('should reject private webhook URLs', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockValidatePublicHttpUrl.mockResolvedValue({
+				ok: false,
+				error: 'URL resolves to a private or reserved IP address'
+			});
+			const insertCallCount = mockDb.insert.mock.calls.length;
+
+			const result = await client.callTool({
+				name: 'create-webhook',
+				arguments: { name: 'Hook', url: 'http://127.0.0.1:9000/hook' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'URL resolves to a private or reserved IP address'
+			);
+			expect(mockDb.insert).toHaveBeenCalledTimes(insertCallCount);
+		});
+
+		it('should reject unknown events', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			const insertCallCount = mockDb.insert.mock.calls.length;
+
+			const result = await client.callTool({
+				name: 'create-webhook',
+				arguments: {
+					name: 'Hook',
+					url: 'https://ci.example.com/hook',
+					events: ['run.completed']
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Invalid event type: run.completed'
+			);
+			expect(mockDb.insert).toHaveBeenCalledTimes(insertCallCount);
 		});
 	});
 
@@ -210,7 +291,7 @@ describe('MCP webhook tools', () => {
 		it('should update a webhook', async () => {
 			mockDb.query.projectWebhook.findFirst.mockResolvedValue(sampleWebhook);
 			const updateChain = mockUpdateReturning(mockDb, [
-				{ ...sampleWebhook, name: 'Updated Hook', enabled: false }
+				{ ...sampleWebhook, name: 'Updated Hook', enabled: false, secret: 'hidden' }
 			]);
 
 			const result = await client.callTool({
@@ -222,6 +303,7 @@ describe('MCP webhook tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('Updated Hook');
 			expect(parsed.enabled).toBe(false);
+			expect(parsed.secret).toBeUndefined();
 			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 1],
@@ -242,6 +324,23 @@ describe('MCP webhook tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Webhook not found'
 			);
+		});
+
+		it('should validate URLs before updating a webhook', async () => {
+			mockDb.query.projectWebhook.findFirst.mockResolvedValue(sampleWebhook);
+			mockValidatePublicHttpUrl.mockResolvedValue({ ok: false, error: 'Invalid URL' });
+			const updateCallCount = mockDb.update.mock.calls.length;
+
+			const result = await client.callTool({
+				name: 'update-webhook',
+				arguments: { webhookId: 1, url: 'http://localhost/hook' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Invalid URL'
+			);
+			expect(mockDb.update).toHaveBeenCalledTimes(updateCallCount);
 		});
 	});
 });

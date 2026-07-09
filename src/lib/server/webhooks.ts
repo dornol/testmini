@@ -26,7 +26,8 @@ export interface WebhookPayload {
 export async function sendProjectWebhooks(
 	projectId: number,
 	event: string,
-	data: Record<string, unknown>
+	data: Record<string, unknown>,
+	options: { webhookId?: number } = {}
 ): Promise<void> {
 	try {
 		const webhooks = await db
@@ -34,7 +35,11 @@ export async function sendProjectWebhooks(
 			.from(projectWebhook)
 			.where(and(eq(projectWebhook.projectId, projectId), eq(projectWebhook.enabled, true)));
 
-		const matching = webhooks.filter((w) => w.events.length === 0 || w.events.includes(event));
+		const matching = webhooks.filter(
+			(w) =>
+				(options.webhookId === undefined || w.id === options.webhookId) &&
+				(w.events.length === 0 || w.events.includes(event))
+		);
 
 		if (matching.length === 0) return;
 

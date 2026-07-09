@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { fail, redirect } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { updateTeamSchema, type UpdateTeamInput } from '$lib/schemas/team.schema';
 import { zodAdapter } from '$lib/server/form-utils';
@@ -12,10 +12,7 @@ const adapter = zodAdapter(updateTeamSchema);
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { team: t } = await parent();
-	const form = await superValidate(
-		{ name: t.name, description: t.description ?? '' },
-		adapter
-	);
+	const form = await superValidate({ name: t.name, description: t.description ?? '' }, adapter);
 
 	return { form };
 };
@@ -42,13 +39,18 @@ export const actions: Actions = {
 		}
 
 		const { name, description } = form.data as UpdateTeamInput;
-		await db
+		const [updated] = await db
 			.update(team)
 			.set({
 				...(name !== undefined && { name }),
 				...(description !== undefined && { description: description || null })
 			})
-			.where(eq(team.id, teamId));
+			.where(eq(team.id, teamId))
+			.returning();
+
+		if (!updated) {
+			error(404, 'Team not found');
+		}
 
 		return message(form, 'Team updated successfully');
 	},
@@ -71,7 +73,10 @@ export const actions: Actions = {
 		await db.update(project).set({ teamId: null }).where(eq(project.teamId, teamId));
 
 		// Delete team (cascade will remove team_member rows)
-		await db.delete(team).where(eq(team.id, teamId));
+		const [deleted] = await db.delete(team).where(eq(team.id, teamId)).returning();
+		if (!deleted) {
+			error(404, 'Team not found');
+		}
 
 		redirect(303, '/teams');
 	}

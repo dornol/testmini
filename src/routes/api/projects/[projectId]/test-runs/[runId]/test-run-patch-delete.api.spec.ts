@@ -137,8 +137,6 @@ describe('/api/projects/[projectId]/test-runs/[runId] — PATCH & DELETE', () =>
 		});
 
 		it('should return 400 for empty name', async () => {
-			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -148,11 +146,11 @@ describe('/api/projects/[projectId]/test-runs/[runId] — PATCH & DELETE', () =>
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+			expect(mockDb.query.testRun.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should reject non-object JSON before updating', async () => {
-			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -161,12 +159,11 @@ describe('/api/projects/[projectId]/test-runs/[runId] — PATCH & DELETE', () =>
 			});
 
 			await expect(PATCH(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.query.testRun.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when no fields provided', async () => {
-			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -176,11 +173,11 @@ describe('/api/projects/[projectId]/test-runs/[runId] — PATCH & DELETE', () =>
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+			expect(mockDb.query.testRun.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for unknown fields before updating', async () => {
-			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -190,6 +187,7 @@ describe('/api/projects/[projectId]/test-runs/[runId] — PATCH & DELETE', () =>
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+			expect(mockDb.query.testRun.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 

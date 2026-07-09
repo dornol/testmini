@@ -13,18 +13,27 @@ export const PATCH = withProjectRole(
 	async ({ request, params, projectId }) => {
 		const runId = parseId(params.runId, 'run ID');
 
+		const body = await parseJsonObjectBody(request);
+		const parsed = updateTestRunSchema.safeParse(body);
+		if (!parsed.success) {
+			return validationError('Invalid input', parsed.error.flatten().fieldErrors);
+		}
+
+		const updates: Record<string, unknown> = {};
+		if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+		if (parsed.data.environment !== undefined) updates.environment = parsed.data.environment;
+		if (parsed.data.releaseId !== undefined) updates.releaseId = parsed.data.releaseId;
+
+		if (Object.keys(updates).length === 0) {
+			return badRequest('No fields to update');
+		}
+
 		const run = await db.query.testRun.findFirst({
 			where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
 		});
 
 		if (!run) {
 			error(404, 'Test run not found');
-		}
-
-		const body = await parseJsonObjectBody(request);
-		const parsed = updateTestRunSchema.safeParse(body);
-		if (!parsed.success) {
-			return validationError('Invalid input', parsed.error.flatten().fieldErrors);
 		}
 
 		// Name/environment edits only allowed in CREATED status; releaseId can be set anytime
@@ -35,15 +44,6 @@ export const PATCH = withProjectRole(
 
 		const releaseError = await validateOptionalReleaseId(parsed.data.releaseId, projectId);
 		if (releaseError) return releaseError;
-
-		const updates: Record<string, unknown> = {};
-		if (parsed.data.name !== undefined) updates.name = parsed.data.name;
-		if (parsed.data.environment !== undefined) updates.environment = parsed.data.environment;
-		if (parsed.data.releaseId !== undefined) updates.releaseId = parsed.data.releaseId;
-
-		if (Object.keys(updates).length === 0) {
-			return badRequest('No fields to update');
-		}
 
 		const [updated] = await db
 			.update(testRun)

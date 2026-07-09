@@ -9,6 +9,7 @@ import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 const MAX_FILTER_NAME_LENGTH = 100;
 const MAX_FILTER_JSON_LENGTH = 20_000;
 const UNSAFE_FILTER_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 const UPDATE_FILTER_FIELDS = new Set(['name', 'filters']);
 
 function validateRequestBody(body: unknown): Record<string, unknown> | Response {
@@ -37,6 +38,9 @@ function validateFilterName(value: unknown): string | Response {
 	if (typeof value !== 'string') return badRequest('Name must be a string');
 	const name = value.trim();
 	if (!name) return badRequest('Name cannot be empty');
+	if (CONTROL_CHAR_PATTERN.test(name)) {
+		return badRequest('Name must not contain control characters');
+	}
 	if (name.length > MAX_FILTER_NAME_LENGTH) {
 		return badRequest(`Name must be ${MAX_FILTER_NAME_LENGTH} characters or less`);
 	}

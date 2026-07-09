@@ -10,6 +10,7 @@ const MAX_FILTER_NAME_LENGTH = 100;
 const MAX_FILTER_JSON_LENGTH = 20_000;
 const ALLOWED_FILTER_TYPES = new Set(['test_cases', 'test_runs']);
 const UNSAFE_FILTER_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 const CREATE_FILTER_FIELDS = new Set(['name', 'filterType', 'filters']);
 
 function validateRequestBody(body: unknown): Record<string, unknown> | Response {
@@ -46,6 +47,9 @@ function validateFilterName(value: unknown): string | Response {
 	if (typeof value !== 'string') return badRequest('Name is required');
 	const name = value.trim();
 	if (!name) return badRequest('Name is required');
+	if (CONTROL_CHAR_PATTERN.test(name)) {
+		return badRequest('Name must not contain control characters');
+	}
 	if (name.length > MAX_FILTER_NAME_LENGTH) {
 		return badRequest(`Name must be ${MAX_FILTER_NAME_LENGTH} characters or less`);
 	}

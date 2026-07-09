@@ -140,6 +140,23 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
 		});
 
+		it('should reject names with control characters', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { name: 'Updated\u0000Filter' }
+			});
+
+			const response = await PATCH(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Name must not contain control characters');
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should reject non-string name', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',

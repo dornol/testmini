@@ -311,6 +311,22 @@ describe('/api/projects/[projectId]/saved-filters', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 when name contains control characters', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Active\u0000Cases', filters: { status: ['ACTIVE'] } },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Name must not contain control characters');
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when filters is missing', async () => {
 			const event = createMockEvent({
 				method: 'POST',

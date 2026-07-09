@@ -174,6 +174,22 @@ describe('MCP saved-filter tools', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should reject names with control characters before insert', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-saved-filter',
+				arguments: { name: 'High\u0000Priority', filters: { priority: 'HIGH' } }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Name must not contain control characters'
+			);
+			expect(mockDb.query.savedFilter.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should reject oversized filter payloads before insert', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
 

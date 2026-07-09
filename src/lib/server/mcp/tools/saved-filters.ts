@@ -9,10 +9,14 @@ const MAX_FILTER_NAME_LENGTH = 100;
 const MAX_FILTER_JSON_LENGTH = 20_000;
 const ALLOWED_FILTER_TYPES = ['test_cases', 'test_runs'] as const;
 const UNSAFE_FILTER_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 
 function validateFilterName(value: string): string | ReturnType<typeof err> {
 	const name = value.trim();
 	if (!name) return err('Name is required');
+	if (CONTROL_CHAR_PATTERN.test(name)) {
+		return err('Name must not contain control characters');
+	}
 	if (name.length > MAX_FILTER_NAME_LENGTH) {
 		return err(`Name must be ${MAX_FILTER_NAME_LENGTH} characters or less`);
 	}

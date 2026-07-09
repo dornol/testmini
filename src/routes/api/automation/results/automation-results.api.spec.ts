@@ -593,6 +593,12 @@ describe('/api/automation/results POST', () => {
 			const setCall = (chain.set as ReturnType<typeof vi.fn>).mock.calls[0][0];
 			expect(setCall.status).toBe('COMPLETED');
 			expect(setCall.finishedAt).toBeInstanceOf(Date);
+			expect(chain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 99],
+					['project_id', 1]
+				])
+			);
 		});
 	});
 

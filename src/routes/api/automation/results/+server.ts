@@ -247,7 +247,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		await tx
 			.update(testRun)
 			.set({ status: 'COMPLETED', finishedAt: new Date() })
-			.where(eq(testRun.id, run.id));
+			.where(and(eq(testRun.id, run.id), eq(testRun.projectId, projectId)));
 
 		return run.id;
 	});

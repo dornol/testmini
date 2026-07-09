@@ -88,6 +88,18 @@ describe('/api/projects/[projectId]/test-cases/import', () => {
 		await expect(POST(event)).rejects.toThrow();
 	});
 
+	it('should reject oversized multipart bodies before parsing form data', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			headers: { 'content-length': String(11 * 1024 * 1024 + 1) },
+			user: adminUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 413 });
+		expect(mockDb.transaction).not.toHaveBeenCalled();
+	});
+
 	it('should import CSV with key auto-generation', async () => {
 		const csv = 'Title,Priority\nLogin Test,HIGH\nLogout Test,LOW';
 		const fd = createCsvFormData(csv);

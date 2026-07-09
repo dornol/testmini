@@ -106,6 +106,21 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 			expect((await response.json()).error).toContain('Content is required');
 		});
 
+		it('should reject oversized multipart bodies before parsing form data', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				headers: { 'content-length': String(11 * 1024 * 1024 + 1) },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 413 });
+			expect(mockSaveFile).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should reject oversized content before inserting', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
 

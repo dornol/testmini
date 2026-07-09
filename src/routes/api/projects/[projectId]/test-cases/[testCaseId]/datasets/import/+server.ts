@@ -6,6 +6,7 @@ import { parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { requireTestCase } from '$lib/server/queries';
 import { badRequest } from '$lib/server/errors';
+import { assertMultipartContentLength } from '$lib/server/multipart-limits';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_IMPORT_ROWS = 5_000;
@@ -46,6 +47,8 @@ export const POST = withProjectRole(
 	async ({ params, request, projectId }) => {
 		const testCaseId = parseId(params.testCaseId, 'test case ID');
 		await requireTestCase(testCaseId, projectId);
+
+		assertMultipartContentLength(request, MAX_FILE_SIZE);
 
 		const formData = await request.formData();
 		const file = formData.get('file') as File | null;

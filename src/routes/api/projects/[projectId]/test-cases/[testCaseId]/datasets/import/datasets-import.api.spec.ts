@@ -82,6 +82,18 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/import', ()
 		expect(data.error).toContain('CSV file is required');
 	});
 
+	it('should reject oversized multipart bodies before parsing form data', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			headers: { 'content-length': String(11 * 1024 * 1024 + 1) },
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 413 });
+		expect(mockDb.insert).not.toHaveBeenCalled();
+	});
+
 	it('should return 400 when CSV has only header (no data rows)', async () => {
 		const formData = createCsvFormData('param1,param2');
 		const event = createMockEvent({ method: 'POST', params: PARAMS, formData, user: testUser });

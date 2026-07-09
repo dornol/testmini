@@ -9,9 +9,9 @@ import {
 	getProjectIdForAttachmentReference,
 	isAttachmentReferenceType
 } from '$lib/server/attachment-access';
+import { assertMultipartContentLength } from '$lib/server/multipart-limits';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const MAX_MULTIPART_BODY_SIZE = MAX_FILE_SIZE + 1024 * 1024; // allow multipart overhead
 const ALLOWED_MIME_TYPES = [
 	'image/jpeg',
 	'image/png',
@@ -67,10 +67,7 @@ export const GET = withAuth(async ({ url, user }) => {
 });
 
 export const POST = withAuth(async ({ request, user }) => {
-	const contentLength = Number(request.headers.get('content-length') ?? 0);
-	if (contentLength > MAX_MULTIPART_BODY_SIZE) {
-		error(413, 'Request body exceeds upload limit');
-	}
+	assertMultipartContentLength(request, MAX_FILE_SIZE);
 
 	const formData = await request.formData();
 	const file = formData.get('file') as File | null;

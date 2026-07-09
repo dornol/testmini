@@ -9,10 +9,19 @@ interface MockEventOptions {
 	user?: NonNullable<App.Locals['user']> | null;
 	searchParams?: Record<string, string>;
 	formData?: FormData;
+	headers?: HeadersInit;
 }
 
 export function createMockEvent(opts: MockEventOptions = {}) {
-	const { method = 'GET', params = {}, body, user = null, searchParams = {}, formData } = opts;
+	const {
+		method = 'GET',
+		params = {},
+		body,
+		user = null,
+		searchParams = {},
+		formData,
+		headers
+	} = opts;
 
 	const url = new URL('http://localhost:5173/api/test');
 	for (const [key, value] of Object.entries(searchParams)) {
@@ -20,16 +29,20 @@ export function createMockEvent(opts: MockEventOptions = {}) {
 	}
 
 	let request: Request;
+	const requestHeaders = new Headers(headers);
 	if (formData) {
-		request = new Request(url, { method, body: formData });
+		request = new Request(url, { method, body: formData, headers: requestHeaders });
 	} else if (body !== undefined) {
+		if (!requestHeaders.has('Content-Type')) {
+			requestHeaders.set('Content-Type', 'application/json');
+		}
 		request = new Request(url, {
 			method,
-			headers: { 'Content-Type': 'application/json' },
+			headers: requestHeaders,
 			body: JSON.stringify(body)
 		});
 	} else {
-		request = new Request(url, { method });
+		request = new Request(url, { method, headers: requestHeaders });
 	}
 
 	const locals: App.Locals = {

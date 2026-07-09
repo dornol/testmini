@@ -7,8 +7,10 @@ import { badRequest, notFound } from '$lib/server/errors';
 import { parseId } from '$lib/server/auth-utils';
 import { saveFile } from '$lib/server/storage';
 import { randomUUID } from 'node:crypto';
+import { assertMultipartContentLength } from '$lib/server/multipart-limits';
 
 const MAX_NOTE_CONTENT_LENGTH = 10_000;
+const MAX_SCREENSHOT_SIZE = 10 * 1024 * 1024; // 10MB
 
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
@@ -19,6 +21,8 @@ export const POST = withProjectRole(
 			where: and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
 		});
 		if (!session) return notFound('Session not found');
+
+		assertMultipartContentLength(request, MAX_SCREENSHOT_SIZE);
 
 		const formData = await request.formData();
 		const content = ((formData.get('content') as string) ?? '').trim();
@@ -40,7 +44,7 @@ export const POST = withProjectRole(
 		let screenshotPath: string | null = null;
 		const file = formData.get('screenshot') as File | null;
 		if (file && file instanceof File && file.size > 0) {
-			if (file.size > 10 * 1024 * 1024) {
+			if (file.size > MAX_SCREENSHOT_SIZE) {
 				return badRequest('Screenshot must be under 10MB');
 			}
 			const uuid = randomUUID();

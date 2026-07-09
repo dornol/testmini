@@ -11,6 +11,9 @@ import {
 import { eq, and, sql } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { parseCSV } from '$lib/server/csv-utils';
+import { assertMultipartContentLength } from '$lib/server/multipart-limits';
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 interface ImportRow {
 	title: string;
@@ -68,6 +71,8 @@ function normalizeRow(obj: Record<string, string>): ImportRow {
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA'],
 	async ({ request, user, projectId }) => {
+		assertMultipartContentLength(request, MAX_FILE_SIZE);
+
 		const formData = await request.formData();
 		const file = formData.get('file') as File | null;
 
@@ -75,7 +80,6 @@ export const POST = withProjectRole(
 			error(400, 'No file uploaded');
 		}
 
-		const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 		if (file.size > MAX_FILE_SIZE) {
 			error(400, 'File size must not exceed 10MB');
 		}

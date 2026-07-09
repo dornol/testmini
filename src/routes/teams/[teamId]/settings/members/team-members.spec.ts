@@ -124,6 +124,7 @@ describe('/teams/[teamId]/settings/members', () => {
 			mockDb.query.teamMember.findFirst
 				.mockResolvedValueOnce({ id: 1, teamId: 5, userId: testUser.id, role: 'OWNER' }) // requireTeamAdmin
 				.mockResolvedValueOnce(undefined); // existing check
+			mockSelectResult(mockDb, [{ id: 'user-3' }]);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -137,6 +138,25 @@ describe('/teams/[teamId]/settings/members', () => {
 			expect(mockDb.insert).toHaveBeenCalled();
 			// Should return a message form
 			expect(result).toBeDefined();
+		});
+
+		it('should return 400 before insert when target user does not exist', async () => {
+			mockDb.query.teamMember.findFirst
+				.mockResolvedValueOnce({ id: 1, teamId: 5, userId: testUser.id, role: 'OWNER' }) // requireTeamAdmin
+				.mockResolvedValueOnce(undefined); // existing check
+			mockSelectResult(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createFormData({ userId: 'missing-user', role: 'MEMBER' }),
+				params: { teamId: '5' },
+				user: testUser
+			});
+
+			const result = await actions.addMember(event);
+
+			expect(result).toMatchObject({ status: 400 });
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should reject when user is already a member', async () => {

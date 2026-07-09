@@ -167,6 +167,18 @@ describe('/api/notifications', () => {
 			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for unsafe limit before querying notifications', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { limit: 'Infinity' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for zero limit before querying notifications', async () => {
 			const event = createMockEvent({
 				method: 'GET',

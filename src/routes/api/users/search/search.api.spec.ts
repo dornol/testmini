@@ -149,6 +149,18 @@ describe('/api/users/search', () => {
 			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for unsafe offset', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { q: 'Test', offset: 'Infinity', excludeProjectId: '42' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for invalid excludeProjectId', async () => {
 			const event = createMockEvent({
 				method: 'GET',

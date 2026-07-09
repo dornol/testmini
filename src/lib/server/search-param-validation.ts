@@ -12,6 +12,53 @@ export function parsePositiveIntegerSearchParam(
 	return options.max === undefined ? normalized : Math.min(options.max, normalized);
 }
 
+export function parseOptionalPositiveIntegerSearchParam(
+	value: string | null,
+	label: string,
+	options: { max?: number } = {}
+): number | null {
+	if (value === null || value.trim() === '') return null;
+
+	const parsed = parseSearchInteger(value);
+	if (parsed === null || parsed <= 0) {
+		throw new Error(`Invalid ${label}`);
+	}
+
+	return options.max === undefined ? parsed : Math.min(options.max, parsed);
+}
+
+export function parsePositiveIntegerSearchParamStrict(
+	value: string | null,
+	label: string,
+	options: { defaultValue?: number; max?: number } = {}
+): number {
+	if (value === null || value.trim() === '') {
+		if (options.defaultValue !== undefined) return options.defaultValue;
+		throw new Error(`Invalid ${label}`);
+	}
+
+	const parsed = parseOptionalPositiveIntegerSearchParam(value, label, options);
+	if (parsed === null) {
+		throw new Error(`Invalid ${label}`);
+	}
+	return parsed;
+}
+
+export function parseNonNegativeIntegerSearchParam(
+	value: string | null,
+	label: string,
+	options: { defaultValue?: number; max?: number } = {}
+): number {
+	if (value === null || value.trim() === '') return options.defaultValue ?? 0;
+
+	const parsed = parseSearchInteger(value);
+	if (parsed === null || parsed < 0) {
+		throw new Error(`Invalid ${label}`);
+	}
+
+	return options.max === undefined ? parsed : Math.min(options.max, parsed);
+}
+
 function parseSearchInteger(value: string | null): number | null {
 	if (value === null || value.trim() === '') return null;
 

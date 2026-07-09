@@ -5,30 +5,20 @@ import { withAuth } from '$lib/server/api-handler';
 import { isGlobalAdmin, requireProjectRole } from '$lib/server/auth-utils';
 import { ilike, or, notInArray, and, eq } from 'drizzle-orm';
 import { badRequest } from '$lib/server/errors';
+import {
+	parseNonNegativeIntegerSearchParam,
+	parseOptionalPositiveIntegerSearchParam
+} from '$lib/server/search-param-validation';
 
 const MAX_OFFSET = 10_000;
 const MAX_QUERY_LENGTH = 100;
 
 function parseNonNegativeIntegerParam(value: string | null, label: string): number {
-	if (value === null || value === '') return 0;
-
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed < 0) {
-		throw new Error(`Invalid ${label}`);
-	}
-
-	return Math.min(parsed, MAX_OFFSET);
+	return parseNonNegativeIntegerSearchParam(value, label, { max: MAX_OFFSET });
 }
 
 function parsePositiveIntegerParam(value: string | null, label: string): number | null {
-	if (value === null || value === '') return null;
-
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-		throw new Error(`Invalid ${label}`);
-	}
-
-	return parsed;
+	return parseOptionalPositiveIntegerSearchParam(value, label);
 }
 
 async function requireTeamAdmin(currentUser: NonNullable<App.Locals['user']>, teamId: number) {

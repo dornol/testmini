@@ -4,30 +4,23 @@ import { notification } from '$lib/server/db/schema';
 import { withAuth } from '$lib/server/api-handler';
 import { and, eq, lt, desc } from 'drizzle-orm';
 import { badRequest } from '$lib/server/errors';
+import {
+	parseOptionalPositiveIntegerSearchParam,
+	parsePositiveIntegerSearchParamStrict
+} from '$lib/server/search-param-validation';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
 function parseLimit(value: string | null): number {
-	if (value === null || value === '') return DEFAULT_LIMIT;
-
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-		throw new Error('Invalid limit');
-	}
-
-	return Math.min(parsed, MAX_LIMIT);
+	return parsePositiveIntegerSearchParamStrict(value, 'limit', {
+		defaultValue: DEFAULT_LIMIT,
+		max: MAX_LIMIT
+	});
 }
 
 function parseCursor(value: string | null): number | null {
-	if (value === null || value === '') return null;
-
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-		throw new Error('Invalid cursor');
-	}
-
-	return parsed;
+	return parseOptionalPositiveIntegerSearchParam(value, 'cursor');
 }
 
 export const GET = withAuth(async ({ user, url }) => {

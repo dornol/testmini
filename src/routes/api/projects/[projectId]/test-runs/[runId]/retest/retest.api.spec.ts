@@ -7,8 +7,18 @@ const mockDb = createMockDb();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
-	testRun: { id: 'id', projectId: 'project_id', name: 'name', status: 'status', environment: 'environment' },
-	testExecution: { testRunId: 'test_run_id', testCaseVersionId: 'test_case_version_id', status: 'status' },
+	testRun: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		status: 'status',
+		environment: 'environment'
+	},
+	testExecution: {
+		testRunId: 'test_run_id',
+		testCaseVersionId: 'test_case_version_id',
+		status: 'status'
+	},
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id' },
 	testCase: { id: 'id', latestVersionId: 'latest_version_id' }
 }));
@@ -18,7 +28,8 @@ vi.mock('drizzle-orm', () => ({
 	inArray: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' })
@@ -108,6 +119,60 @@ describe('/api/projects/[projectId]/test-runs/[runId]/retest', () => {
 			await expect(POST(event)).rejects.toThrow();
 		});
 
+		it('should return 400 when request body is not an object', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: ['retest'],
+				user: adminUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toMatch(/request body/i);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when name is not a string', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 123 },
+				user: adminUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('name must be a string');
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when name is too long', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'x'.repeat(201) },
+				user: adminUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toMatch(/200 characters/i);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
 		it('should create retest run with FAIL/BLOCKED executions', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			setupSelectChain([
@@ -147,6 +212,24 @@ describe('/api/projects/[projectId]/test-runs/[runId]/retest', () => {
 
 			const runInsert = insertValues.mock.calls[0][0];
 			expect(runInsert.name).toBe(`Retest of ${sampleTestRun.name}`);
+		});
+
+		it('should trim custom retest name before insert', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			setupSelectChain([{ testCaseId: 1, latestVersionId: 10 }]);
+			const { insertValues } = setupTransactionSuccess(106);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: '  Trimmed Retest  ' },
+				user: adminUser
+			});
+
+			await POST(event);
+
+			const runInsert = insertValues.mock.calls[0][0];
+			expect(runInsert.name).toBe('Trimmed Retest');
 		});
 
 		it('should set retestOfRunId on the new run', async () => {

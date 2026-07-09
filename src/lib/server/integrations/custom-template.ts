@@ -1,3 +1,5 @@
+import { isPlainRecord } from '$lib/server/object-validation';
+
 const MAX_CUSTOM_TEMPLATE_JSON_LENGTH = 20_000;
 const MAX_TEMPLATE_STRING_LENGTH = 4_000;
 const MAX_HEADER_COUNT = 20;
@@ -27,7 +29,7 @@ export type CustomIssueTemplate = {
 export function validateCustomIssueTemplate(
 	value: unknown
 ): { ok: true; template: CustomIssueTemplate } | { ok: false; error: string } {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+	if (!isPlainRecord(value)) {
 		return { ok: false, error: 'Custom template must be an object' };
 	}
 
@@ -35,7 +37,7 @@ export function validateCustomIssueTemplate(
 		return { ok: false, error: 'Custom template is too large' };
 	}
 
-	const input = value as Record<string, unknown>;
+	const input = value;
 	const template: CustomIssueTemplate = {};
 
 	for (const key of ['titleTemplate', 'bodyTemplate'] as const) {
@@ -65,13 +67,16 @@ export function validateCustomIssueTemplate(
 	}
 
 	if (input.headers !== undefined) {
-		if (!input.headers || typeof input.headers !== 'object' || Array.isArray(input.headers)) {
+		if (!isPlainRecord(input.headers)) {
 			return { ok: false, error: 'Custom template headers must be an object' };
 		}
 
-		const headerEntries = Object.entries(input.headers as Record<string, unknown>);
+		const headerEntries = Object.entries(input.headers);
 		if (headerEntries.length > MAX_HEADER_COUNT) {
-			return { ok: false, error: `Custom template headers must contain ${MAX_HEADER_COUNT} or fewer entries` };
+			return {
+				ok: false,
+				error: `Custom template headers must contain ${MAX_HEADER_COUNT} or fewer entries`
+			};
 		}
 
 		const headers: Record<string, string> = {};

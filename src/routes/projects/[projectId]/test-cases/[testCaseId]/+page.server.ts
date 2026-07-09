@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { updateTestCaseSchema, type UpdateTestCaseInput } from '$lib/schemas/test-case.schema';
-import { zodAdapter, validateForm } from '$lib/server/form-utils';
+import { zodAdapter, validateForm, parsePositiveFormId } from '$lib/server/form-utils';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
 import {
 	testCase,
@@ -23,13 +23,6 @@ import { eq, and, desc, asc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { loadTestCaseMetadata } from '$lib/server/queries';
 import { cacheDelete } from '$lib/server/cache';
-
-function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
-	if (typeof value !== 'string') return null;
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
-	return parsed;
-}
 
 async function requireActionTestCase(testCaseId: number, projectId: number) {
 	const tc = await db.query.testCase.findFirst({

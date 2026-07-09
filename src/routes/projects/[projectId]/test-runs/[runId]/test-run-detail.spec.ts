@@ -481,7 +481,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			expect(result).toEqual(expect.objectContaining({ status: 400 }));
 		});
 
-		it.each(['0', '-1', '1.5', '9007199254740992'])(
+		it.each(['0', '-1', '+1', '01', '1.5', '1e3', ' 1', '1 ', '9007199254740992'])(
 			'should return 400 for invalid executionId %s',
 			async (executionId) => {
 				mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
@@ -615,7 +615,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			expect(result).toEqual(expect.objectContaining({ status: 400 }));
 		});
 
-		it.each(['0', '-1', '1.5', '9007199254740992'])(
+		it.each(['0', '-1', '+1', '01', '1.5', '1e3', ' 1', '1 ', '9007199254740992'])(
 			'should return 400 for invalid executionId %s',
 			async (executionId) => {
 				mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
@@ -1031,7 +1031,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 	// ─── updateFailure ────────────────────────────────────────────
 
 	describe('actions.updateFailure', () => {
-		it.each(['', '0', '-1', '1.5', '9007199254740992'])(
+		it.each(['', '0', '-1', '+1', '01', '1.5', '1e3', ' 1', '1 ', '9007199254740992'])(
 			'should return 400 for invalid failureId %s',
 			async (failureId) => {
 				mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
@@ -1103,7 +1103,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			expect(result).toEqual(expect.objectContaining({ status: 400 }));
 		});
 
-		it.each(['0', '-1', '1.5', '9007199254740992'])(
+		it.each(['0', '-1', '+1', '01', '1.5', '1e3', ' 1', '1 ', '9007199254740992'])(
 			'should return 400 for invalid failureId %s',
 			async (failureId) => {
 				mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);

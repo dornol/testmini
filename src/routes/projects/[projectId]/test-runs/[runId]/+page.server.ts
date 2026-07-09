@@ -16,6 +16,7 @@ import { createFailureSchema, type CreateFailureInput } from '$lib/schemas/failu
 import { publish } from '$lib/server/redis';
 import { createNotification } from '$lib/server/notifications';
 import type { RunEvent } from '$lib/types/events';
+import { parsePositiveFormId } from '$lib/server/form-utils';
 
 // ── Local helpers ──────────────────────────────────────────────────
 
@@ -48,13 +49,6 @@ async function requireRunInProject(projectId: number, runId: number) {
 		return fail(404, { error: 'Test run not found' });
 	}
 	return null;
-}
-
-function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
-	if (typeof value !== 'string') return null;
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
-	return parsed;
 }
 
 function parseFailureFormData(formData: FormData): CreateFailureInput {

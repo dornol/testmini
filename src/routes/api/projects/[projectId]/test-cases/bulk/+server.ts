@@ -7,40 +7,21 @@ import {
 	testCaseAssignee,
 	tag,
 	projectMember,
-	priorityConfig
+	priorityConfig,
+	testCaseGroup
 } from '$lib/server/db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
 import { createNotification } from '$lib/server/notifications';
+import { validateBulkTestCasePayload } from '$lib/server/test-case-bulk-validation';
 
 export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 	const body = await parseJsonBody(request);
-	const { action, testCaseIds, tagId, priority, groupId, userId } = body as {
-		action:
-			| 'addTag'
-			| 'removeTag'
-			| 'setPriority'
-			| 'moveToGroup'
-			| 'delete'
-			| 'clone'
-			| 'addAssignee'
-			| 'removeAssignee';
-		testCaseIds: number[];
-		tagId?: number;
-		priority?: string;
-		groupId?: number | null;
-		userId?: string;
-	};
-
-	if (!testCaseIds || !Array.isArray(testCaseIds) || testCaseIds.length === 0) {
-		return badRequest('No test cases specified');
-	}
-
-	if (testCaseIds.length > 200) {
-		return badRequest('Batch size cannot exceed 200 items');
-	}
+	const payload = validateBulkTestCasePayload(body);
+	if (payload instanceof Response) return payload;
+	const { action, testCaseIds, tagId, priority, groupId, userId } = payload;
 
 	// delete requires PROJECT_ADMIN, others require QA/DEV+
 	if (action === 'delete') {
@@ -58,6 +39,13 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 	const validIds = tcs.map((tc) => tc.id);
 	if (validIds.length === 0) {
 		return badRequest('No valid test cases found');
+	}
+
+	if (action === 'moveToGroup' && groupId !== null && groupId !== undefined) {
+		const groupRecord = await db.query.testCaseGroup.findFirst({
+			where: and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId))
+		});
+		if (!groupRecord) return notFound('Test case group not found');
 	}
 
 	let affected = 0;

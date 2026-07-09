@@ -33,7 +33,9 @@ vi.mock('$lib/server/db/schema', () => ({
 	testCaseTag: { testCaseId: 'test_case_id', tagId: 'tag_id' },
 	testCaseAssignee: { testCaseId: 'test_case_id', userId: 'user_id' },
 	tag: { id: 'id', projectId: 'project_id' },
-	projectMember: { projectId: 'project_id', userId: 'user_id', role: 'role' }
+	projectMember: { projectId: 'project_id', userId: 'user_id', role: 'role' },
+	testCaseGroup: { id: 'id', projectId: 'project_id' },
+	priorityConfig: { projectId: 'project_id', name: 'name' }
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
@@ -126,6 +128,96 @@ describe('/api/projects/[projectId]/test-cases/bulk', () => {
 			expect(data.error).toBe('No test cases specified');
 		});
 
+		it('should return 400 when request body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: ['invalid'],
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when action is invalid', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'publish', testCaseIds: [1] },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Invalid action');
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when testCaseIds contains invalid IDs', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'clone', testCaseIds: [1, 0] },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when testCaseIds contains duplicates', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'clone', testCaseIds: [1, 1] },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('duplicates');
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when addTag has an invalid tagId', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'addTag', testCaseIds: [1], tagId: '1' },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when setPriority has an invalid priority', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'setPriority', testCaseIds: [1], priority: '' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Invalid priority');
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should return 403 for unauthorized role (VIEWER)', async () => {
 			// Mock requireProjectRole: user has VIEWER role (not in allowed list)
 			mockDb.query.projectMember.findFirst.mockResolvedValue({ role: 'VIEWER' });
@@ -141,6 +233,7 @@ describe('/api/projects/[projectId]/test-cases/bulk', () => {
 
 		it('should scope moveToGroup updates to the current project', async () => {
 			mockDb.query.projectMember.findFirst.mockResolvedValue({ role: 'QA' });
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue({ id: 3, projectId: 1 });
 			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
 			const { tx, updateChain } = createTxWriteChains();
 			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
@@ -163,6 +256,32 @@ describe('/api/projects/[projectId]/test-cases/bulk', () => {
 					['project_id', 1]
 				])
 			);
+		});
+
+		it('should reject moveToGroup when the group is not in the current project', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValue({ role: 'QA' });
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(null);
+			mockSelectResult(mockDb, [{ id: 10 }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'moveToGroup', testCaseIds: [10], groupId: 99 },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(404);
+			expect(data.error).toBe('Test case group not found');
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+			expect(mockDb.query.testCaseGroup.findFirst).toHaveBeenCalledWith({
+				where: expect.arrayContaining([
+					['id', 99],
+					['project_id', 1]
+				])
+			});
 		});
 
 		it('should scope bulk deletes to the current project', async () => {

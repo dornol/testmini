@@ -39,9 +39,8 @@ vi.mock('drizzle-orm', () => ({
 	desc: vi.fn((a: unknown) => a)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -390,6 +389,50 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/approval', () => {
 			expect(body.fromStatus).toBe('IN_REVIEW');
 		});
 
+		it('should reject non-string comments', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({
+				...sampleTestCase,
+				approvalStatus: 'IN_REVIEW',
+				createdBy: 'other-user'
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { action: 'reject', comment: 123 }
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/comment must be a string/i);
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should reject overly long comments', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({
+				...sampleTestCase,
+				approvalStatus: 'IN_REVIEW',
+				createdBy: 'other-user'
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { action: 'reject', comment: 'x'.repeat(2001) }
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/2000 characters/i);
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should require a comment', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue({
 				...sampleTestCase,
@@ -510,6 +553,36 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/approval', () => {
 				})
 			);
 		});
+
+		it('should trim comment before notification', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({
+				...sampleTestCase,
+				approvalStatus: 'IN_REVIEW',
+				createdBy: 'other-user',
+				key: 'TC-0001'
+			});
+			mockDb.query.projectMember.findFirst.mockResolvedValue({
+				projectId: 1,
+				userId: 'user-1',
+				role: 'QA'
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { action: 'reject', comment: '  Needs trimming  ' }
+			});
+
+			await POST(event);
+
+			expect(mockCreateNotification).toHaveBeenCalledWith(
+				expect.objectContaining({
+					message: expect.stringContaining(': Needs trimming')
+				})
+			);
+			expect(mockCreateNotification.mock.calls[0][0].message).not.toContain('  Needs trimming  ');
+		});
 	});
 
 	// ──────── POST - revert_draft ────────
@@ -618,6 +691,38 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/approval', () => {
 	// ──────── POST - invalid action ────────
 
 	describe('POST - invalid action', () => {
+		it('should return 400 when request body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: ['submit_review']
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/request body/i);
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when action is not a string', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { action: 1 }
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Invalid action');
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for unknown action', async () => {
 			const event = createMockEvent({
 				method: 'POST',

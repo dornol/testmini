@@ -212,30 +212,26 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 			updates.webhookSecret = body.webhookSecret;
 		}
 
-		await db
+		const [updated] = await db
 			.update(issueTrackerConfig)
 			.set(updates)
 			.where(
 				and(eq(issueTrackerConfig.id, existing.id), eq(issueTrackerConfig.projectId, projectId))
-			);
-
-		const updated = await db.query.issueTrackerConfig.findFirst({
-			where: and(
-				eq(issueTrackerConfig.id, existing.id),
-				eq(issueTrackerConfig.projectId, projectId)
 			)
-		});
+			.returning();
+
+		if (!updated) error(404, 'Issue tracker config not found');
 
 		return json({
-			id: updated!.id,
-			provider: updated!.provider,
-			baseUrl: updated!.baseUrl,
-			projectKey: updated!.projectKey,
-			customTemplate: updated!.customTemplate,
-			enabled: updated!.enabled,
-			hasApiToken: !!updated!.apiToken,
-			hasWebhookSecret: !!updated!.webhookSecret,
-			createdAt: updated!.createdAt
+			id: updated.id,
+			provider: updated.provider,
+			baseUrl: updated.baseUrl,
+			projectKey: updated.projectKey,
+			customTemplate: updated.customTemplate,
+			enabled: updated.enabled,
+			hasApiToken: !!updated.apiToken,
+			hasWebhookSecret: !!updated.webhookSecret,
+			createdAt: updated.createdAt
 		});
 	}
 

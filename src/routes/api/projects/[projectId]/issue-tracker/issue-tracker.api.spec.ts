@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockInsertReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -449,9 +453,10 @@ describe('/api/projects/[projectId]/issue-tracker', () => {
 		});
 
 		it('should update existing config', async () => {
-			mockDb.query.issueTrackerConfig.findFirst
-				.mockResolvedValueOnce(sampleConfig) // existing check
-				.mockResolvedValueOnce({ ...sampleConfig, baseUrl: 'https://new.atlassian.net' }); // after update
+			mockDb.query.issueTrackerConfig.findFirst.mockResolvedValueOnce(sampleConfig);
+			const updateChain = mockUpdateReturning(mockDb, [
+				{ ...sampleConfig, baseUrl: 'https://new.atlassian.net' }
+			]);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -469,18 +474,31 @@ describe('/api/projects/[projectId]/issue-tracker', () => {
 
 			const body = await response.json();
 			expect(body.baseUrl).toBe('https://new.atlassian.net');
-			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 1],
 					['project_id', 1]
 				])
 			);
-			expect(mockDb.query.issueTrackerConfig.findFirst).toHaveBeenLastCalledWith({
-				where: expect.arrayContaining([
-					['id', 1],
-					['project_id', 1]
-				])
+			expect(mockDb.query.issueTrackerConfig.findFirst).toHaveBeenCalledTimes(1);
+		});
+
+		it('should return 404 when existing config disappears before update', async () => {
+			mockDb.query.issueTrackerConfig.findFirst.mockResolvedValueOnce(sampleConfig);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					provider: 'JIRA',
+					baseUrl: 'https://new.atlassian.net',
+					projectKey: 'PROJ'
+				}
 			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 404 });
 		});
 
 		it('should accept all valid providers', async () => {

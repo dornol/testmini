@@ -30,7 +30,8 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -105,7 +106,14 @@ describe('/api/projects/[projectId]/test-suites', () => {
 
 	describe('POST', () => {
 		it('should create test suite for QA', async () => {
-			const created = { id: 10, projectId: 1, name: 'New Suite', description: null, createdBy: 'user-1', createdAt: new Date() };
+			const created = {
+				id: 10,
+				projectId: 1,
+				name: 'New Suite',
+				description: null,
+				createdBy: 'user-1',
+				createdAt: new Date()
+			};
 			// POST uses db.transaction; mock it to return the created suite
 			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
 				const txInsertChain = {
@@ -136,7 +144,14 @@ describe('/api/projects/[projectId]/test-suites', () => {
 		});
 
 		it('should create test suite for ADMIN', async () => {
-			const created = { id: 11, projectId: 1, name: 'Admin Suite', description: 'desc', createdBy: 'admin-1', createdAt: new Date() };
+			const created = {
+				id: 11,
+				projectId: 1,
+				name: 'Admin Suite',
+				description: 'desc',
+				createdBy: 'admin-1',
+				createdAt: new Date()
+			};
 			vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
 				const txInsertChain = {
@@ -164,6 +179,46 @@ describe('/api/projects/[projectId]/test-suites', () => {
 
 			expect(response.status).toBe(201);
 			expect(data.id).toBe(11);
+		});
+
+		it('should trim name and blank description before creating', async () => {
+			const created = {
+				id: 12,
+				projectId: 1,
+				name: 'Trimmed Suite',
+				description: null,
+				createdBy: 'user-1',
+				createdAt: new Date()
+			};
+			const insertValues = vi.fn().mockReturnThis();
+			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
+				const txInsertChain = {
+					values: insertValues,
+					returning: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([created]).then(r)
+				};
+				const tx = {
+					insert: vi.fn().mockReturnValue(txInsertChain),
+					update: vi.fn(),
+					delete: vi.fn(),
+					select: vi.fn()
+				};
+				return fn(tx);
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: '  Trimmed Suite  ', description: '   ', testCaseIds: [] },
+				user: testUser
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(201);
+			expect(insertValues).toHaveBeenCalledWith(
+				expect.objectContaining({ name: 'Trimmed Suite', description: null })
+			);
 		});
 
 		it('should return 403 for VIEWER', async () => {
@@ -216,6 +271,45 @@ describe('/api/projects/[projectId]/test-suites', () => {
 			expect(response.status).toBe(400);
 			const data = await response.json();
 			expect(data.error).toBe('Invalid input');
+		});
+
+		it('should return 400 when name is whitespace only', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: '   ', testCaseIds: [] },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when testCaseIds contain duplicates', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'New Suite', testCaseIds: [10, 10] },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when testCaseIds contain unsafe integers', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'New Suite', testCaseIds: [Number.MAX_SAFE_INTEGER + 1] },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 	});
 });

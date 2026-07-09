@@ -28,7 +28,8 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -99,7 +100,8 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 
 		it('should return 404 when suite not found', async () => {
 			vi.mocked(
-				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite.findFirst
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite
+					.findFirst
 			).mockResolvedValue(null);
 
 			const event = createMockEvent({
@@ -124,9 +126,10 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 		it('should update suite name', async () => {
 			const updatedSuite = { ...sampleSuite, name: 'Regression Tests' };
 			vi.mocked(
-				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite.findFirst
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite
+					.findFirst
 			)
-				.mockResolvedValueOnce(sampleSuite)  // initial fetch
+				.mockResolvedValueOnce(sampleSuite) // initial fetch
 				.mockResolvedValueOnce(updatedSuite); // re-fetch after update
 
 			const updateChain = {
@@ -149,10 +152,42 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 			expect(data.name).toBe('Regression Tests');
 		});
 
+		it('should trim name and blank description before update', async () => {
+			const updatedSuite = { ...sampleSuite, name: 'Regression Tests', description: null };
+			vi.mocked(
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite
+					.findFirst
+			)
+				.mockResolvedValueOnce(sampleSuite)
+				.mockResolvedValueOnce(updatedSuite);
+
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+			};
+			mockDb.update.mockReturnValue(updateChain as never);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: '  Regression Tests  ', description: '   ' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(200);
+			expect(updateChain.set).toHaveBeenCalledWith({
+				name: 'Regression Tests',
+				description: null
+			});
+		});
+
 		it('should update suite description', async () => {
 			const updatedSuite = { ...sampleSuite, description: 'Updated description' };
 			vi.mocked(
-				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite.findFirst
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite
+					.findFirst
 			)
 				.mockResolvedValueOnce(sampleSuite)
 				.mockResolvedValueOnce(updatedSuite);
@@ -191,9 +226,23 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 			expect(data.error).toBe('No fields to update');
 		});
 
+		it('should return 400 when name is whitespace only', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: '   ' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 404 when suite not found', async () => {
 			vi.mocked(
-				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite.findFirst
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite
+					.findFirst
 			).mockResolvedValue(null);
 
 			const event = createMockEvent({
@@ -255,7 +304,8 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 
 		it('should return 404 when suite not found', async () => {
 			vi.mocked(
-				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite.findFirst
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite
+					.findFirst
 			).mockResolvedValue(null);
 
 			const event = createMockEvent({

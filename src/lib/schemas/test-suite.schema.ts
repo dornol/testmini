@@ -1,18 +1,48 @@
 import { z } from 'zod';
 
+const MAX_TEST_CASE_IDS = 500;
+
+const testSuiteNameSchema = z.string().trim().min(1, 'Name is required').max(200);
+const testSuiteDescriptionSchema = z
+	.string()
+	.trim()
+	.max(1000)
+	.transform((value) => (value.length > 0 ? value : null));
+const testCaseIdSchema = z
+	.number()
+	.int()
+	.positive()
+	.refine(Number.isSafeInteger, 'Test case ID must be a safe integer');
+const testCaseIdsSchema = z
+	.array(testCaseIdSchema)
+	.max(MAX_TEST_CASE_IDS, `testCaseIds must contain ${MAX_TEST_CASE_IDS} items or less`)
+	.superRefine((ids, ctx) => {
+		const seen = new Set<number>();
+		for (const [index, id] of ids.entries()) {
+			if (seen.has(id)) {
+				ctx.addIssue({
+					code: 'custom',
+					message: 'testCaseIds must not contain duplicates',
+					path: [index]
+				});
+			}
+			seen.add(id);
+		}
+	});
+
 export const createTestSuiteSchema = z.object({
-	name: z.string().min(1, 'Name is required').max(200),
-	description: z.string().max(1000).optional(),
-	testCaseIds: z.array(z.number().int().positive()).default([])
+	name: testSuiteNameSchema,
+	description: testSuiteDescriptionSchema.nullish(),
+	testCaseIds: testCaseIdsSchema.default([])
 });
 
 export const updateTestSuiteSchema = z.object({
-	name: z.string().min(1).max(200).optional(),
-	description: z.string().max(1000).optional().nullable()
+	name: testSuiteNameSchema.optional(),
+	description: testSuiteDescriptionSchema.nullish()
 });
 
 export const suiteItemsSchema = z.object({
-	testCaseIds: z.array(z.number().int().positive()).min(1, 'At least one test case ID is required')
+	testCaseIds: testCaseIdsSchema.min(1, 'At least one test case ID is required')
 });
 
 export type CreateTestSuiteInput = z.infer<typeof createTestSuiteSchema>;

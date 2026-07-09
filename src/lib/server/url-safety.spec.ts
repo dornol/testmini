@@ -100,4 +100,20 @@ describe('validatePublicHttpUrl', () => {
 		});
 		expect(mockLookup).not.toHaveBeenCalled();
 	});
+
+	it('rejects http URLs with embedded credentials before DNS lookup', async () => {
+		await expect(validatePublicHttpUrl('https://user:token@example.com/hook')).resolves.toEqual({
+			ok: false,
+			error: 'URL must not include credentials'
+		});
+		expect(mockLookup).not.toHaveBeenCalled();
+	});
+
+	it('rejects https URLs with embedded credentials before DNS lookup', async () => {
+		await expect(validatePublicHttpsUrl('https://user:token@example.com/hook')).resolves.toEqual({
+			ok: false,
+			error: 'URL must not include credentials'
+		});
+		expect(mockLookup).not.toHaveBeenCalled();
+	});
 });

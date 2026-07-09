@@ -18,6 +18,10 @@ export async function validatePublicHttpUrl(rawUrl: string): Promise<UrlValidati
 		return { ok: false, error: 'URL must use http or https' };
 	}
 
+	if (parsed.username || parsed.password) {
+		return { ok: false, error: 'URL must not include credentials' };
+	}
+
 	const hostname = parsed.hostname.replace(/^\[|\]$/g, '');
 	if (!hostname) {
 		return { ok: false, error: 'URL must include a hostname' };

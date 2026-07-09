@@ -28,6 +28,15 @@ describe('createTestRunSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
+	it('should reject blank name after trimming', () => {
+		const result = createTestRunSchema.safeParse({
+			name: '   ',
+			environment: 'QA',
+			testCaseIds: [1]
+		});
+		expect(result.success).toBe(false);
+	});
+
 	it('should reject missing environment', () => {
 		const result = createTestRunSchema.safeParse({
 			name: 'Run',
@@ -43,6 +52,28 @@ describe('createTestRunSchema', () => {
 			testCaseIds: [1]
 		});
 		expect(result.success).toBe(false);
+	});
+
+	it('should reject blank environment after trimming', () => {
+		const result = createTestRunSchema.safeParse({
+			name: 'Run',
+			environment: '   ',
+			testCaseIds: [1]
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim accepted name and environment', () => {
+		const result = createTestRunSchema.safeParse({
+			name: '  Run  ',
+			environment: ' QA ',
+			testCaseIds: [1]
+		});
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.name).toBe('Run');
+			expect(result.data.environment).toBe('QA');
+		}
 	});
 
 	it('should accept any non-empty environment string', () => {
@@ -70,6 +101,24 @@ describe('createTestRunSchema', () => {
 			name: 'Run',
 			environment: 'QA',
 			testCaseIds: []
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject duplicate testCaseIds', () => {
+		const result = createTestRunSchema.safeParse({
+			name: 'Run',
+			environment: 'QA',
+			testCaseIds: [1, 1]
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject more than 500 testCaseIds', () => {
+		const result = createTestRunSchema.safeParse({
+			name: 'Run',
+			environment: 'QA',
+			testCaseIds: Array.from({ length: 501 }, (_, index) => index + 1)
 		});
 		expect(result.success).toBe(false);
 	});
@@ -111,5 +160,19 @@ describe('updateTestRunSchema', () => {
 	it('should reject empty environment', () => {
 		const result = updateTestRunSchema.safeParse({ environment: '' });
 		expect(result.success).toBe(false);
+	});
+
+	it('should reject blank updated name and environment after trimming', () => {
+		expect(updateTestRunSchema.safeParse({ name: '   ' }).success).toBe(false);
+		expect(updateTestRunSchema.safeParse({ environment: '   ' }).success).toBe(false);
+	});
+
+	it('should trim updated name and environment', () => {
+		const result = updateTestRunSchema.safeParse({ name: '  New name  ', environment: ' QA ' });
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.name).toBe('New name');
+			expect(result.data.environment).toBe('QA');
+		}
 	});
 });

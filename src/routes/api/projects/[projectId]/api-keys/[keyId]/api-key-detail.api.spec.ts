@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockDeleteReturning } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -71,11 +71,7 @@ describe('/api/projects/[projectId]/api-keys/[keyId]', () => {
 
 		it('should delete API key successfully', async () => {
 			mockDb.query.projectApiKey.findFirst.mockResolvedValue(sampleApiKey);
-			const deleteChain = {
-				where: vi.fn().mockReturnThis(),
-				then: (resolve: (value: unknown) => void) => Promise.resolve(undefined).then(resolve)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			const deleteChain = mockDeleteReturning(mockDb, [sampleApiKey]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -89,6 +85,19 @@ describe('/api/projects/[projectId]/api-keys/[keyId]', () => {
 			expect(body.success).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
 			expect(deleteChain.where).toHaveBeenCalledWith(expect.arrayContaining([['project_id', 1]]));
+		});
+
+		it('should return 404 when API key disappears before delete', async () => {
+			mockDb.query.projectApiKey.findFirst.mockResolvedValue(sampleApiKey);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: testUser
+			});
+
+			await expect(DELETE(event)).rejects.toMatchObject({ status: 404 });
 		});
 
 		it('should reject non-PROJECT_ADMIN role', async () => {

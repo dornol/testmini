@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockDeleteReturning } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -343,6 +343,7 @@ describe('/api/attachments/[attachmentId]', () => {
 		it('should delete attachment with TESTCASE reference for authorized user', async () => {
 			setupAttachmentQuery(sampleAttachment);
 			setupTestCaseQuery({ projectId: 1 });
+			mockDeleteReturning(mockDb, [sampleAttachment]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -372,7 +373,8 @@ describe('/api/attachments/[attachmentId]', () => {
 			setupAttachmentQuery(sampleAttachment);
 			setupTestCaseQuery({ projectId: 1 });
 			const deleteChain = {
-				where: vi.fn().mockRejectedValue(new Error('database unavailable'))
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockRejectedValue(new Error('database unavailable'))
 			};
 			mockDb.delete.mockReturnValueOnce(deleteChain as never);
 
@@ -387,9 +389,25 @@ describe('/api/attachments/[attachmentId]', () => {
 			expect(storage.deleteFile).not.toHaveBeenCalled();
 		});
 
+		it('should not delete the stored file when attachment disappears before DB delete', async () => {
+			setupAttachmentQuery(sampleAttachment);
+			setupTestCaseQuery({ projectId: 1 });
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: { attachmentId: '1' },
+				user: testUser
+			});
+
+			await expect(DELETE(event)).rejects.toMatchObject({ status: 404 });
+			expect(storage.deleteFile).not.toHaveBeenCalled();
+		});
+
 		it('should surface stored file deletion failures', async () => {
 			setupAttachmentQuery(sampleAttachment);
 			setupTestCaseQuery({ projectId: 1 });
+			mockDeleteReturning(mockDb, [sampleAttachment]);
 			vi.mocked(storage.deleteFile).mockRejectedValueOnce(new Error('EPERM'));
 
 			const event = createMockEvent({
@@ -406,6 +424,7 @@ describe('/api/attachments/[attachmentId]', () => {
 		it('should delete attachment with EXECUTION reference for authorized user', async () => {
 			setupAttachmentQuery(executionAttachment);
 			setupExecutionQuery({ testRun: { projectId: 5 } });
+			mockDeleteReturning(mockDb, [executionAttachment]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -423,6 +442,7 @@ describe('/api/attachments/[attachmentId]', () => {
 		it('should delete attachment with FAILURE reference for authorized user', async () => {
 			setupAttachmentQuery(failureAttachment);
 			setupFailureQuery({ testExecution: { testRun: { projectId: 7 } } });
+			mockDeleteReturning(mockDb, [failureAttachment]);
 
 			const event = createMockEvent({
 				method: 'DELETE',

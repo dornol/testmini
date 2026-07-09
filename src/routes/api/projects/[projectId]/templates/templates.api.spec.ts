@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser } from '$lib/server/test-helpers/fixtures';
 
@@ -26,7 +30,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' }),
@@ -175,6 +180,51 @@ describe('/api/projects/[projectId]/templates', () => {
 			expect(body.error).toMatch(/name/i);
 		});
 
+		it('should return 400 when request body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: ['New Template'],
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/request body/i);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when steps is not an array', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'New Template', steps: { action: 'Open page' } },
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/steps/i);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when a step is malformed', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'New Template', steps: [{ action: 'Open page', expected: 200 }] },
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/expected/i);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should accept custom priority values', async () => {
 			const created = {
 				id: 3,
@@ -205,7 +255,7 @@ describe('/api/projects/[projectId]/templates', () => {
 
 		it('should number steps with order on creation', async () => {
 			const steps = [
-				{ action: 'Step 1 action', expected: 'Step 1 expected' },
+				{ action: ' Step 1 action ', expected: ' Step 1 expected ' },
 				{ action: 'Step 2 action', expected: 'Step 2 expected' }
 			];
 			const created = {
@@ -220,7 +270,7 @@ describe('/api/projects/[projectId]/templates', () => {
 				createdAt: new Date('2025-01-01'),
 				updatedAt: new Date('2025-01-01')
 			};
-			mockInsertReturning(mockDb, [created]);
+			const insertChain = mockInsertReturning(mockDb, [created]);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -233,6 +283,15 @@ describe('/api/projects/[projectId]/templates', () => {
 
 			expect(response.status).toBe(201);
 			expect(body.id).toBe(created.id);
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: 'Template with Steps',
+					steps: [
+						{ order: 1, action: 'Step 1 action', expected: 'Step 1 expected' },
+						{ order: 2, action: 'Step 2 action', expected: 'Step 2 expected' }
+					]
+				})
+			);
 		});
 	});
 });

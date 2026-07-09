@@ -1,10 +1,10 @@
-import { json, error } from '@sveltejs/kit';
-import { badRequest } from '$lib/server/errors';
+import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCaseTemplate, user } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
+import { validateCreateTemplateInput } from '$lib/server/template-validation';
 
 export const GET = withProjectAccess(async ({ projectId }) => {
 	const templates = await db
@@ -27,42 +27,25 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 	return json(templates);
 });
 
-export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ request, user, projectId }) => {
-	const body = await parseJsonBody(request);
-	const { name, description, precondition, steps, priority } = body as {
-		name: string;
-		description?: string;
-		precondition?: string;
-		steps?: { action: string; expected: string }[];
-		priority?: string;
-	};
+export const POST = withProjectRole(
+	['PROJECT_ADMIN', 'QA', 'DEV'],
+	async ({ request, user, projectId }) => {
+		const templateOrError = validateCreateTemplateInput(await parseJsonBody(request));
+		if (templateOrError instanceof Response) return templateOrError;
 
-	if (!name || name.trim().length === 0) {
-		return badRequest('Template name is required');
+		const [created] = await db
+			.insert(testCaseTemplate)
+			.values({
+				projectId,
+				name: templateOrError.name,
+				description: templateOrError.description ?? null,
+				precondition: templateOrError.precondition ?? null,
+				steps: templateOrError.steps ?? [],
+				priority: templateOrError.priority ?? 'MEDIUM',
+				createdBy: user.id
+			})
+			.returning();
+
+		return json({ id: created.id }, { status: 201 });
 	}
-
-	if (name.length > 200) {
-		return badRequest('Template name must be 200 characters or less');
-	}
-
-	const numberedSteps = (steps ?? []).map((s, i) => ({
-		order: i + 1,
-		action: s.action,
-		expected: s.expected
-	}));
-
-	const [created] = await db
-		.insert(testCaseTemplate)
-		.values({
-			projectId,
-			name: name.trim(),
-			description: description || null,
-			precondition: precondition || null,
-			steps: numberedSteps,
-			priority: priority ?? 'MEDIUM',
-			createdBy: user.id
-		})
-		.returning();
-
-	return json({ id: created.id }, { status: 201 });
-});
+);

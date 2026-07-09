@@ -25,7 +25,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' }),
@@ -133,6 +134,51 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 			expect(body.error).toMatch(/name/i);
 		});
 
+		it('should return 400 when request body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: ['Updated Template'],
+				user: testUser
+			});
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/request body/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when steps is not an array', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { steps: 'Open page' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/steps/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when priority is not a string', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { priority: 1 },
+				user: testUser
+			});
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/priority/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should accept custom priority values', async () => {
 			const updateChain = {
 				set: vi.fn().mockReturnThis(),
@@ -152,6 +198,38 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 
 			expect(response.status).toBe(200);
 			expect(body.success).toBe(true);
+		});
+
+		it('should trim and number steps on update', async () => {
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+			};
+			mockDb.update.mockReturnValue(updateChain as never);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: {
+					steps: [
+						{ action: ' Do it ', expected: ' Done ' },
+						{ action: 'Verify', expected: 'OK' }
+					]
+				},
+				user: testUser
+			});
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(body.success).toBe(true);
+			expect(updateChain.set).toHaveBeenCalledWith({
+				steps: [
+					{ order: 1, action: 'Do it', expected: 'Done' },
+					{ order: 2, action: 'Verify', expected: 'OK' }
+				]
+			});
 		});
 
 		it('should return 403 when lacking required role', async () => {

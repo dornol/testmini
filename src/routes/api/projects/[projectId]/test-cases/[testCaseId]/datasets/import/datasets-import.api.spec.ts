@@ -187,12 +187,17 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/import', ()
 			return chain as never;
 		});
 
-		// Mock insert for parameters and datasets
-		const insertChain = {
-			values: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
-		};
-		mockDb.insert.mockReturnValue(insertChain as never);
+		const firstParamConflict = vi.fn().mockResolvedValue([]);
+		const secondParamConflict = vi.fn().mockResolvedValue([]);
+		const firstParamValues = vi.fn(() => ({ onConflictDoNothing: firstParamConflict }));
+		const secondParamValues = vi.fn(() => ({ onConflictDoNothing: secondParamConflict }));
+		const dataSetValues = vi.fn().mockResolvedValue([]);
+		const txInsert = vi
+			.fn()
+			.mockReturnValueOnce({ values: firstParamValues })
+			.mockReturnValueOnce({ values: secondParamValues })
+			.mockReturnValueOnce({ values: dataSetValues });
+		mockDb.transaction.mockImplementationOnce(async (fn) => fn({ insert: txInsert }));
 
 		const csv = 'browser,os\nChrome,Windows\nFirefox,Linux';
 		const formData = createCsvFormData(csv);
@@ -202,6 +207,37 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/import', ()
 
 		expect(response.status).toBe(200);
 		expect(data.imported).toBe(2);
+		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+		expect(txInsert).toHaveBeenNthCalledWith(1, expect.objectContaining({ name: 'name' }));
+		expect(firstParamValues).toHaveBeenCalledWith({
+			testCaseId: 10,
+			name: 'browser',
+			orderIndex: 0
+		});
+		expect(firstParamConflict).toHaveBeenCalledTimes(1);
+		expect(txInsert).toHaveBeenNthCalledWith(2, expect.objectContaining({ name: 'name' }));
+		expect(secondParamValues).toHaveBeenCalledWith({
+			testCaseId: 10,
+			name: 'os',
+			orderIndex: 1
+		});
+		expect(secondParamConflict).toHaveBeenCalledTimes(1);
+		expect(txInsert).toHaveBeenNthCalledWith(3, expect.objectContaining({ values: 'values' }));
+		expect(dataSetValues).toHaveBeenCalledWith([
+			{
+				testCaseId: 10,
+				name: null,
+				values: { browser: 'Chrome', os: 'Windows' },
+				orderIndex: 0
+			},
+			{
+				testCaseId: 10,
+				name: null,
+				values: { browser: 'Firefox', os: 'Linux' },
+				orderIndex: 1
+			}
+		]);
+		expect(mockDb.insert).not.toHaveBeenCalled();
 	});
 
 	it('should handle CSV with quoted fields', async () => {

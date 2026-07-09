@@ -84,9 +84,10 @@ export const POST = withProjectRole(
 		let maxOrder =
 			existingParams.length > 0 ? existingParams[existingParams.length - 1].orderIndex + 1 : 0;
 
+		const newParameters: { testCaseId: number; name: string; orderIndex: number }[] = [];
 		for (const header of headers) {
 			if (!existingParamNames.has(header)) {
-				await db.insert(testCaseParameter).values({
+				newParameters.push({
 					testCaseId,
 					name: header,
 					orderIndex: maxOrder++
@@ -124,9 +125,15 @@ export const POST = withProjectRole(
 			});
 		}
 
-		if (dataSets.length > 0) {
-			await db.insert(testCaseDataSet).values(dataSets);
-		}
+		await db.transaction(async (tx) => {
+			for (const parameter of newParameters) {
+				await tx.insert(testCaseParameter).values(parameter).onConflictDoNothing();
+			}
+
+			if (dataSets.length > 0) {
+				await tx.insert(testCaseDataSet).values(dataSets);
+			}
+		});
 
 		return json({ imported: dataSets.length });
 	}

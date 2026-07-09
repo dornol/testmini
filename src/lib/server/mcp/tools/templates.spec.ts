@@ -156,6 +156,32 @@ describe('MCP template tools', () => {
 			expect(parsed.name).toBe('Login Template');
 		});
 
+		it('should reject an empty template name', async () => {
+			const result = await client.callTool({
+				name: 'create-template',
+				arguments: { name: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Template name is required'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject steps without an expected result', async () => {
+			const result = await client.callTool({
+				name: 'create-template',
+				arguments: { name: 'Template', steps: [{ action: 'Do thing' }] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Step expected result must be a string'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return error when project not found', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(null);
 
@@ -243,6 +269,19 @@ describe('MCP template tools', () => {
 			);
 		});
 
+		it('should reject an empty test case title', async () => {
+			const result = await client.callTool({
+				name: 'create-test-case-from-template',
+				arguments: { templateId: 1, title: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Title is required'
+			);
+			expect(mockDb.query.testCaseTemplate.findFirst).not.toHaveBeenCalled();
+		});
+
 		it('should return error when project not found', async () => {
 			mockDb.query.testCaseTemplate.findFirst.mockResolvedValue(sampleTemplate);
 			mockDb.query.project.findFirst.mockResolvedValue(null);
@@ -297,6 +336,34 @@ describe('MCP template tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Template not found'
 			);
+		});
+
+		it('should reject an empty update', async () => {
+			const result = await client.callTool({
+				name: 'update-template',
+				arguments: { templateId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'No fields to update'
+			);
+			expect(mockDb.query.testCaseTemplate.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject an empty update name', async () => {
+			const result = await client.callTool({
+				name: 'update-template',
+				arguments: { templateId: 1, name: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Template name is required'
+			);
+			expect(mockDb.query.testCaseTemplate.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 

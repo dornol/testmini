@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import {
 	testUser,
@@ -69,12 +69,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 		};
 		mockDb.query.testCase = { findFirst: vi.fn().mockResolvedValue({ id: 10, key: 'TC-0001' }) };
 
-		const updateChain = {
-			set: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
-		};
-		mockDb.update.mockReturnValue(updateChain as never);
+		mockUpdateReturning(mockDb, [{ id: sampleExecution.id }]);
 
 		// Mock select for assignee lookup
 		const selectChain = {
@@ -101,6 +96,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 			expect(body.status).toBe('PASS');
 			const executionUpdateChain = mockDb.update.mock.results[0]?.value as {
 				where: ReturnType<typeof vi.fn>;
+				returning: ReturnType<typeof vi.fn>;
 			};
 			expect(executionUpdateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
@@ -115,6 +111,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 					['status', 'CREATED']
 				])
 			);
+			expect(executionUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });
 		});
 
 		it('should update execution status to FAIL', async () => {
@@ -252,6 +249,21 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 			await expect(PUT(event)).rejects.toThrow();
 		});
 
+		it('should return 404 without side effects when execution disappears before update', async () => {
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { status: 'FAIL' },
+				user: adminUser
+			});
+
+			await expect(PUT(event)).rejects.toThrow();
+			expect(mockDb.update).toHaveBeenCalledTimes(1);
+			expect(redis.publish).not.toHaveBeenCalled();
+		});
+
 		it('should accept all valid statuses', async () => {
 			const validStatuses = ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING'];
 			for (const status of validStatuses) {
@@ -265,12 +277,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 					findFirst: vi.fn().mockResolvedValue({ id: 10, key: 'TC-0001' })
 				};
 
-				const updateChain = {
-					set: vi.fn().mockReturnThis(),
-					where: vi.fn().mockReturnThis(),
-					then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
-				};
-				mockDb.update.mockReturnValue(updateChain as never);
+				mockUpdateReturning(mockDb, [{ id: sampleExecution.id }]);
 
 				const selectChain = {
 					from: vi.fn().mockReturnThis(),

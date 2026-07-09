@@ -45,14 +45,18 @@ export const PUT = withProjectRole(
 			error(404, 'Execution not found');
 		}
 
-		await db
+		const [updatedExecution] = await db
 			.update(testExecution)
 			.set({
 				status: executionStatus,
 				executedBy: user.id,
 				executedAt: new Date()
 			})
-			.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)));
+			.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)))
+			.returning({ id: testExecution.id });
+		if (!updatedExecution) {
+			error(404, 'Execution not found');
+		}
 
 		// Auto-update run status
 		await autoUpdateRunStatus(runId, projectId);

@@ -263,6 +263,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!detail) return err('Failed to record failure detail');
 			return ok(detail);
 		}
 	);
@@ -465,6 +466,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 				.set(updates)
 				.where(and(eq(testRun.id, runId), eq(testRun.projectId, projectId)))
 				.returning();
+			if (!updated) return err('Test run not found');
 			return ok(updated);
 		}
 	);

@@ -417,6 +417,23 @@ describe('MCP test-run tools', () => {
 				'Execution not found'
 			);
 		});
+
+		it('should return error when failure detail insert returns no row', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testExecution.findFirst.mockResolvedValue(sampleExecution);
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'record-failure-detail',
+				arguments: { runId: 50, executionId: 200, errorMessage: 'Err' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to record failure detail'
+			);
+		});
 	});
 
 	// ── update-execution-status ──────────────────────────
@@ -596,6 +613,21 @@ describe('MCP test-run tools', () => {
 			const result = await client.callTool({
 				name: 'update-test-run',
 				arguments: { runId: 999, name: 'Updated' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test run not found'
+			);
+		});
+
+		it('should return error when run disappears before update', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockUpdateReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'update-test-run',
+				arguments: { runId: 50, name: 'Updated' }
 			});
 
 			expect(result.isError).toBe(true);

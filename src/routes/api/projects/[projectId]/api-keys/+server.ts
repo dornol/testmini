@@ -7,34 +7,56 @@ import { withProjectRole } from '$lib/server/api-handler';
 import { generateApiKey, hashApiKey } from '$lib/server/api-key-auth';
 import { parseJsonBody } from '$lib/server/auth-utils';
 
-export const GET = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'], async ({ projectId }) => {
+const MAX_API_KEY_NAME_LENGTH = 100;
 
-	const keys = await db
-		.select({
-			id: projectApiKey.id,
-			name: projectApiKey.name,
-			prefix: projectApiKey.prefix,
-			lastUsedAt: projectApiKey.lastUsedAt,
-			createdBy: projectApiKey.createdBy,
-			createdAt: projectApiKey.createdAt
-		})
-		.from(projectApiKey)
-		.where(eq(projectApiKey.projectId, projectId))
-		.orderBy(desc(projectApiKey.createdAt));
+function validateRequestBody(body: unknown): Record<string, unknown> | Response {
+	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+		return badRequest('Invalid request body');
+	}
+	return body as Record<string, unknown>;
+}
 
-	return json(keys);
-});
-
-export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, projectId }) => {
-	const body = await parseJsonBody(request) as { name?: string };
-
-	const name = (body.name ?? '').trim();
+function validateKeyName(value: unknown): string | Response {
+	if (typeof value !== 'string') {
+		return badRequest('Name is required');
+	}
+	const name = value.trim();
 	if (!name) {
 		return badRequest('Name is required');
 	}
-	if (name.length > 100) {
-		return badRequest('Name must be 100 characters or less');
+	if (name.length > MAX_API_KEY_NAME_LENGTH) {
+		return badRequest(`Name must be ${MAX_API_KEY_NAME_LENGTH} characters or less`);
 	}
+	return name;
+}
+
+export const GET = withProjectRole(
+	['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'],
+	async ({ projectId }) => {
+		const keys = await db
+			.select({
+				id: projectApiKey.id,
+				name: projectApiKey.name,
+				prefix: projectApiKey.prefix,
+				lastUsedAt: projectApiKey.lastUsedAt,
+				createdBy: projectApiKey.createdBy,
+				createdAt: projectApiKey.createdAt
+			})
+			.from(projectApiKey)
+			.where(eq(projectApiKey.projectId, projectId))
+			.orderBy(desc(projectApiKey.createdAt));
+
+		return json(keys);
+	}
+);
+
+export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, projectId }) => {
+	const bodyOrError = validateRequestBody(await parseJsonBody(request));
+	if (bodyOrError instanceof Response) return bodyOrError;
+
+	const nameOrError = validateKeyName(bodyOrError.name);
+	if (nameOrError instanceof Response) return nameOrError;
+	const name = nameOrError;
 
 	const rawKey = generateApiKey();
 	const keyHash = hashApiKey(rawKey);

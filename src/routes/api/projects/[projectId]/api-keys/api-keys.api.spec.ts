@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -23,9 +27,8 @@ vi.mock('drizzle-orm', () => ({
 	desc: vi.fn((a: unknown) => ['desc', a])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' }),
@@ -163,6 +166,30 @@ describe('/api/projects/[projectId]/api-keys', () => {
 				method: 'POST',
 				params: PARAMS,
 				body: {},
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 when body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: null,
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 when name is not a string', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 123 },
 				user: testUser
 			});
 			const response = await POST(event);

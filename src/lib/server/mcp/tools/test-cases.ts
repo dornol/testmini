@@ -1,7 +1,14 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
-import { testCase, testCaseVersion, tag, testCaseTag, testCaseAssignee, testCaseGroup } from '$lib/server/db/schema';
+import {
+	testCase,
+	testCaseVersion,
+	tag,
+	testCaseTag,
+	testCaseAssignee,
+	testCaseGroup
+} from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and, sql, desc, inArray } from 'drizzle-orm';
 
@@ -40,7 +47,10 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 	server.tool(
 		'search-test-cases',
 		'Search test cases by keyword in title, key, or steps',
-		{ query: z.string().describe('Search keyword'), limit: z.number().optional().describe('Max results (default 20)') },
+		{
+			query: z.string().describe('Search keyword'),
+			limit: z.number().optional().describe('Max results (default 20)')
+		},
 		async ({ query, limit }) => {
 			const maxResults = Math.min(limit ?? 20, 100);
 			const results = await db
@@ -67,7 +77,10 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 	server.tool(
 		'get-test-case',
 		'Get full details of a test case by ID or key',
-		{ id: z.number().optional().describe('Test case ID'), key: z.string().optional().describe('Test case key (e.g., TC-0001)') },
+		{
+			id: z.number().optional().describe('Test case ID'),
+			key: z.string().optional().describe('Test case key (e.g., TC-0001)')
+		},
 		async ({ id, key }) => {
 			let tc;
 			if (id) {
@@ -109,9 +122,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				.from(testCase)
 				.where(eq(testCase.projectId, projectId));
 
-			const maxNum = maxRow?.maxKey
-				? parseInt(maxRow.maxKey.replace(/^TC-/, ''), 10)
-				: 0;
+			const maxNum = maxRow?.maxKey ? parseInt(maxRow.maxKey.replace(/^TC-/, ''), 10) : 0;
 			const nextKey = `TC-${String(maxNum + 1).padStart(4, '0')}`;
 
 			// Get project creator for attribution
@@ -152,7 +163,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				await tx
 					.update(testCase)
 					.set({ latestVersionId: version.id })
-					.where(eq(testCase.id, tc.id));
+					.where(and(eq(testCase.id, tc.id), eq(testCase.projectId, projectId)));
 
 				return { ...tc, latestVersion: version };
 			});
@@ -170,7 +181,10 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			title: z.string().optional().describe('New title'),
 			priority: z.string().optional().describe('New priority name'),
 			precondition: z.string().optional().describe('New precondition'),
-			steps: z.array(z.object({ action: z.string(), expected: z.string().optional() })).optional().describe('New steps'),
+			steps: z
+				.array(z.object({ action: z.string(), expected: z.string().optional() }))
+				.optional()
+				.describe('New steps'),
 			expectedResult: z.string().optional().describe('New expected result')
 		},
 		async ({ id, key, title, priority, precondition, steps, expectedResult }) => {
@@ -213,7 +227,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				await tx
 					.update(testCase)
 					.set({ latestVersionId: version.id })
-					.where(eq(testCase.id, tc.id));
+					.where(and(eq(testCase.id, tc.id), eq(testCase.projectId, projectId)));
 
 				return { ...tc, latestVersion: version };
 			});
@@ -241,7 +255,9 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			}
 			if (!tcId) return err('Test case not found');
 
-			await db.delete(testCase).where(and(eq(testCase.id, tcId), eq(testCase.projectId, projectId)));
+			await db
+				.delete(testCase)
+				.where(and(eq(testCase.id, tcId), eq(testCase.projectId, projectId)));
 			return ok({ success: true, deletedId: tcId });
 		}
 	);
@@ -302,12 +318,18 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 					})
 					.returning();
 
-				await tx.update(testCase).set({ latestVersionId: newVer.id }).where(eq(testCase.id, newTc.id));
+				await tx
+					.update(testCase)
+					.set({ latestVersionId: newVer.id })
+					.where(and(eq(testCase.id, newTc.id), eq(testCase.projectId, projectId)));
 
 				// Copy tags
 				const tags = await tx.select().from(testCaseTag).where(eq(testCaseTag.testCaseId, tcId!));
 				if (tags.length > 0) {
-					await tx.insert(testCaseTag).values(tags.map((t) => ({ testCaseId: newTc.id, tagId: t.tagId }))).onConflictDoNothing();
+					await tx
+						.insert(testCaseTag)
+						.values(tags.map((t) => ({ testCaseId: newTc.id, tagId: t.tagId })))
+						.onConflictDoNothing();
 				}
 
 				return { ...newTc, key: newKey, title: newVer.title };
@@ -370,7 +392,10 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				if (!group) return err('Group not found');
 			}
 
-			await db.update(testCase).set({ groupId }).where(eq(testCase.id, testCaseId));
+			await db
+				.update(testCase)
+				.set({ groupId })
+				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
 			return ok({ success: true, testCaseId, groupId });
 		}
 	);
@@ -401,8 +426,16 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			userId: z.string().describe('User ID to unassign')
 		},
 		async ({ testCaseId, userId }) => {
-			await db.delete(testCaseAssignee)
-				.where(and(eq(testCaseAssignee.testCaseId, testCaseId), eq(testCaseAssignee.userId, userId)));
+			const tc = await db.query.testCase.findFirst({
+				where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
+			});
+			if (!tc) return err('Test case not found');
+
+			await db
+				.delete(testCaseAssignee)
+				.where(
+					and(eq(testCaseAssignee.testCaseId, testCaseId), eq(testCaseAssignee.userId, userId))
+				);
 			return ok({ success: true, testCaseId, userId });
 		}
 	);
@@ -431,9 +464,10 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				riskLevel = matrix[riskImpact][riskLikelihood];
 			}
 
-			await db.update(testCase)
+			await db
+				.update(testCase)
 				.set({ riskImpact, riskLikelihood, riskLevel })
-				.where(eq(testCase.id, testCaseId));
+				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
 			return ok({ success: true, testCaseId, riskImpact, riskLikelihood, riskLevel });
 		}
 	);
@@ -445,16 +479,25 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			groupId: z.number().optional().describe('Group ID to assign all created TCs to'),
 			tagIds: z.array(z.number()).optional().describe('Tag IDs to attach to all created TCs'),
 			requirementId: z.number().optional().describe('Requirement ID to link all created TCs to'),
-			testCases: z.array(z.object({
-				title: z.string().describe('Test case title'),
-				priority: z.string().optional().describe('Priority (default: MEDIUM)'),
-				precondition: z.string().optional().describe('Precondition'),
-				steps: z.array(z.object({
-					action: z.string(),
-					expected: z.string().optional()
-				})).optional().describe('Test steps'),
-				expectedResult: z.string().optional().describe('Expected result')
-			})).describe('Array of test cases to create')
+			testCases: z
+				.array(
+					z.object({
+						title: z.string().describe('Test case title'),
+						priority: z.string().optional().describe('Priority (default: MEDIUM)'),
+						precondition: z.string().optional().describe('Precondition'),
+						steps: z
+							.array(
+								z.object({
+									action: z.string(),
+									expected: z.string().optional()
+								})
+							)
+							.optional()
+							.describe('Test steps'),
+						expectedResult: z.string().optional().describe('Expected result')
+					})
+				)
+				.describe('Array of test cases to create')
 		},
 		async ({ groupId, tagIds, requirementId, testCases: tcList }) => {
 			const creator = await requireProjectCreator(projectId);
@@ -492,7 +535,11 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 
 			for (const tc of tcList) {
 				const key = `TC-${String(nextNum++).padStart(4, '0')}`;
-				const steps = tc.steps?.map((s, i) => ({ order: i + 1, action: s.action, expected: s.expected ?? '' }));
+				const steps = tc.steps?.map((s, i) => ({
+					order: i + 1,
+					action: s.action,
+					expected: s.expected ?? ''
+				}));
 
 				const result = await db.transaction(async (tx) => {
 					const [newTc] = await tx
@@ -514,11 +561,15 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 						})
 						.returning();
 
-					await tx.update(testCase).set({ latestVersionId: newVer.id }).where(eq(testCase.id, newTc.id));
+					await tx
+						.update(testCase)
+						.set({ latestVersionId: newVer.id })
+						.where(and(eq(testCase.id, newTc.id), eq(testCase.projectId, projectId)));
 
 					// Tags
 					if (tagIds && tagIds.length > 0) {
-						await tx.insert(testCaseTag)
+						await tx
+							.insert(testCaseTag)
 							.values(tagIds.map((tagId) => ({ testCaseId: newTc.id, tagId })))
 							.onConflictDoNothing();
 					}
@@ -532,7 +583,8 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			// Link to requirement (outside transaction since it's optional)
 			if (requirementId && created.length > 0) {
 				const { requirementTestCase } = await import('$lib/server/db/schema');
-				await db.insert(requirementTestCase)
+				await db
+					.insert(requirementTestCase)
 					.values(created.map((tc) => ({ requirementId, testCaseId: tc.id })))
 					.onConflictDoNothing();
 			}

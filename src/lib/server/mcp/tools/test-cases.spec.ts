@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
-import { sampleProject, sampleTestCase, sampleTestCaseVersion } from '$lib/server/test-helpers/fixtures';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
+import {
+	sampleProject,
+	sampleTestCase,
+	sampleTestCaseVersion
+} from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 const mockFindTestCaseWithLatestVersion = vi.fn();
@@ -11,8 +19,29 @@ vi.mock('$lib/server/db', () => ({
 }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
-	testCase: { id: 'id', projectId: 'project_id', key: 'key', latestVersionId: 'latest_version_id', sortOrder: 'sort_order', groupId: 'group_id', createdBy: 'created_by' },
-	testCaseVersion: { id: 'id', testCaseId: 'test_case_id', title: 'title', priority: 'priority', versionNo: 'version_no', precondition: 'precondition', steps: 'steps', expectedResult: 'expected_result', updatedBy: 'updated_by' },
+	testCase: {
+		id: 'id',
+		projectId: 'project_id',
+		key: 'key',
+		latestVersionId: 'latest_version_id',
+		sortOrder: 'sort_order',
+		groupId: 'group_id',
+		createdBy: 'created_by',
+		riskImpact: 'risk_impact',
+		riskLikelihood: 'risk_likelihood',
+		riskLevel: 'risk_level'
+	},
+	testCaseVersion: {
+		id: 'id',
+		testCaseId: 'test_case_id',
+		title: 'title',
+		priority: 'priority',
+		versionNo: 'version_no',
+		precondition: 'precondition',
+		steps: 'steps',
+		expectedResult: 'expected_result',
+		updatedBy: 'updated_by'
+	},
 	tag: { id: 'id', projectId: 'project_id', name: 'name', color: 'color' },
 	testCaseTag: { testCaseId: 'test_case_id', tagId: 'tag_id' },
 	testCaseAssignee: { testCaseId: 'test_case_id', userId: 'user_id' },
@@ -23,7 +52,11 @@ vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args),
 	sql: Object.assign(
-		(strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values, as: () => 'sql_alias' }),
+		(strings: TemplateStringsArray, ...values: unknown[]) => ({
+			strings,
+			values,
+			as: () => 'sql_alias'
+		}),
 		{ raw: (s: string) => s }
 	),
 	inArray: vi.fn((a: unknown, b: unknown) => [a, b])
@@ -72,11 +105,12 @@ describe('MCP test-case tools', () => {
 
 	describe('search-test-cases', () => {
 		it('should return matching test cases', async () => {
-			mockSelectResult(mockDb, [
-				{ id: 10, key: 'TC-0001', title: 'Login test', priority: 'HIGH' }
-			]);
+			mockSelectResult(mockDb, [{ id: 10, key: 'TC-0001', title: 'Login test', priority: 'HIGH' }]);
 
-			const result = await client.callTool({ name: 'search-test-cases', arguments: { query: 'login' } });
+			const result = await client.callTool({
+				name: 'search-test-cases',
+				arguments: { query: 'login' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
@@ -87,7 +121,10 @@ describe('MCP test-case tools', () => {
 		it('should return empty array for no matches', async () => {
 			mockSelectResult(mockDb, []);
 
-			const result = await client.callTool({ name: 'search-test-cases', arguments: { query: 'xyz' } });
+			const result = await client.callTool({
+				name: 'search-test-cases',
+				arguments: { query: 'xyz' }
+			});
 
 			const parsed = parseResult(result);
 			expect(parsed).toEqual([]);
@@ -129,7 +166,10 @@ describe('MCP test-case tools', () => {
 			});
 			mockSelectResult(mockDb, []);
 
-			const result = await client.callTool({ name: 'get-test-case', arguments: { key: 'TC-0001' } });
+			const result = await client.callTool({
+				name: 'get-test-case',
+				arguments: { key: 'TC-0001' }
+			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
@@ -142,7 +182,9 @@ describe('MCP test-case tools', () => {
 			const result = await client.callTool({ name: 'get-test-case', arguments: { id: 999 } });
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
 		});
 	});
 
@@ -154,15 +196,21 @@ describe('MCP test-case tools', () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
 
 			const createdTc = { id: 14, projectId: 1, key: 'TC-0004', createdBy: 'user-1', sortOrder: 4 };
-			const createdVersion = { id: 140, testCaseId: 14, versionNo: 1, title: 'New test', priority: 'MEDIUM' };
+			const createdVersion = {
+				id: 140,
+				testCaseId: 14,
+				versionNo: 1,
+				title: 'New test',
+				priority: 'MEDIUM'
+			};
+			const txUpdateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+			};
 
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 				let insertCallCount = 0;
-				const txUpdateChain = {
-					set: vi.fn().mockReturnThis(),
-					where: vi.fn().mockReturnThis(),
-					then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
-				};
 				const tx = {
 					insert: vi.fn().mockImplementation(() => {
 						insertCallCount++;
@@ -170,7 +218,9 @@ describe('MCP test-case tools', () => {
 							values: vi.fn().mockReturnThis(),
 							returning: vi.fn().mockReturnThis(),
 							then: (resolve: (v: unknown) => void) =>
-								Promise.resolve(insertCallCount === 1 ? [createdTc] : [createdVersion]).then(resolve)
+								Promise.resolve(insertCallCount === 1 ? [createdTc] : [createdVersion]).then(
+									resolve
+								)
 						};
 					}),
 					update: vi.fn().mockReturnValue(txUpdateChain)
@@ -187,6 +237,12 @@ describe('MCP test-case tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.key).toBe('TC-0004');
 			expect(parsed.latestVersion.title).toBe('New test');
+			expect(txUpdateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', createdTc.id],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when project not found', async () => {
@@ -199,7 +255,9 @@ describe('MCP test-case tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Project not found'
+			);
 		});
 	});
 
@@ -214,12 +272,12 @@ describe('MCP test-case tools', () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
 
 			const updatedVersion = { ...sampleTestCaseVersion, id: 101, versionNo: 2, title: 'Updated' };
+			const txUpdateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+			};
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
-				const txUpdateChain = {
-					set: vi.fn().mockReturnThis(),
-					where: vi.fn().mockReturnThis(),
-					then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
-				};
 				const tx = {
 					insert: vi.fn().mockImplementation(() => ({
 						values: vi.fn().mockReturnThis(),
@@ -240,6 +298,12 @@ describe('MCP test-case tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.latestVersion.title).toBe('Updated');
 			expect(parsed.latestVersion.versionNo).toBe(2);
+			expect(txUpdateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', sampleTestCase.id],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when test case not found', async () => {
@@ -251,7 +315,9 @@ describe('MCP test-case tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
 		});
 	});
 
@@ -293,7 +359,9 @@ describe('MCP test-case tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
 		});
 	});
 
@@ -308,6 +376,7 @@ describe('MCP test-case tools', () => {
 			mockSelectResult(mockDb, [{ id: 1 }, { id: 2 }]);
 
 			let txCallCount = 0;
+			const txUpdateChains: Array<{ where: ReturnType<typeof vi.fn> }> = [];
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 				txCallCount++;
 				let insertCallCount = 0;
@@ -316,6 +385,7 @@ describe('MCP test-case tools', () => {
 					where: vi.fn().mockReturnThis(),
 					then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
 				};
+				txUpdateChains.push(txUpdateChain);
 				const txInsertChain = {
 					values: vi.fn().mockReturnThis(),
 					returning: vi.fn().mockReturnThis(),
@@ -333,9 +403,23 @@ describe('MCP test-case tools', () => {
 							onConflictDoNothing: vi.fn().mockReturnThis(),
 							then: (resolve: (v: unknown) => void) => {
 								if (callNum === 1) {
-									return Promise.resolve([{ id: 100 + currentNum, projectId: 1, key: `TC-000${currentNum}`, createdBy: 'user-1' }]).then(resolve);
+									return Promise.resolve([
+										{
+											id: 100 + currentNum,
+											projectId: 1,
+											key: `TC-000${currentNum}`,
+											createdBy: 'user-1'
+										}
+									]).then(resolve);
 								} else if (callNum === 2) {
-									return Promise.resolve([{ id: 200 + currentNum, testCaseId: 100 + currentNum, versionNo: 1, title: `Test ${currentNum}` }]).then(resolve);
+									return Promise.resolve([
+										{
+											id: 200 + currentNum,
+											testCaseId: 100 + currentNum,
+											versionNo: 1,
+											title: `Test ${currentNum}`
+										}
+									]).then(resolve);
 								}
 								return Promise.resolve(undefined).then(resolve);
 							}
@@ -360,14 +444,16 @@ describe('MCP test-case tools', () => {
 					return {
 						from: vi.fn().mockReturnThis(),
 						where: vi.fn().mockReturnThis(),
-						then: (resolve: (v: unknown) => void) => Promise.resolve([{ id: 1 }, { id: 2 }]).then(resolve)
+						then: (resolve: (v: unknown) => void) =>
+							Promise.resolve([{ id: 1 }, { id: 2 }]).then(resolve)
 					} as unknown as ReturnType<typeof mockDb.select>;
 				}
 				// maxKey query
 				return {
 					from: vi.fn().mockReturnThis(),
 					where: vi.fn().mockReturnThis(),
-					then: (resolve: (v: unknown) => void) => Promise.resolve([{ maxKey: 'TC-0000' }]).then(resolve)
+					then: (resolve: (v: unknown) => void) =>
+						Promise.resolve([{ maxKey: 'TC-0000' }]).then(resolve)
 				} as unknown as ReturnType<typeof mockDb.select>;
 			});
 
@@ -377,7 +463,9 @@ describe('MCP test-case tools', () => {
 				onConflictDoNothing: vi.fn().mockReturnThis(),
 				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
 			};
-			mockDb.insert.mockReturnValue(insertChainForReq as unknown as ReturnType<typeof mockDb.insert>);
+			mockDb.insert.mockReturnValue(
+				insertChainForReq as unknown as ReturnType<typeof mockDb.insert>
+			);
 
 			const result = await client.callTool({
 				name: 'batch-create-test-cases',
@@ -385,10 +473,7 @@ describe('MCP test-case tools', () => {
 					groupId: 5,
 					tagIds: [1, 2],
 					requirementId: 10,
-					testCases: [
-						{ title: 'Test 1', priority: 'HIGH' },
-						{ title: 'Test 2' }
-					]
+					testCases: [{ title: 'Test 1', priority: 'HIGH' }, { title: 'Test 2' }]
 				}
 			});
 
@@ -396,6 +481,18 @@ describe('MCP test-case tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.createdCount).toBe(2);
 			expect(parsed.testCases).toHaveLength(2);
+			expect(txUpdateChains[0].where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 101],
+					['project_id', PROJECT_ID]
+				])
+			);
+			expect(txUpdateChains[1].where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 102],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error for empty array', async () => {
@@ -407,7 +504,9 @@ describe('MCP test-case tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('testCases array is empty');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'testCases array is empty'
+			);
 		});
 
 		it('should return error when group not found', async () => {
@@ -423,7 +522,9 @@ describe('MCP test-case tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Group not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Group not found'
+			);
 		});
 	});
 
@@ -444,6 +545,12 @@ describe('MCP test-case tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.testCaseId).toBe(10);
 			expect(parsed.groupId).toBe(5);
+			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 10],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when test case not found', async () => {
@@ -455,7 +562,9 @@ describe('MCP test-case tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
 		});
 
 		it('should ungroup test case when groupId is null', async () => {
@@ -497,6 +606,8 @@ describe('MCP test-case tools', () => {
 
 	describe('unassign-test-case', () => {
 		it('should remove a user assignment from a test case', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+
 			const result = await client.callTool({
 				name: 'unassign-test-case',
 				arguments: { testCaseId: 10, userId: 'user-1' }
@@ -508,6 +619,21 @@ describe('MCP test-case tools', () => {
 			expect(parsed.testCaseId).toBe(10);
 			expect(parsed.userId).toBe('user-1');
 			expect(mockDb.delete).toHaveBeenCalled();
+		});
+
+		it('should return error when unassign target test case is outside the project', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+
+			const result = await client.callTool({
+				name: 'unassign-test-case',
+				arguments: { testCaseId: 999, userId: 'user-1' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 	});
 
@@ -529,6 +655,12 @@ describe('MCP test-case tools', () => {
 			expect(parsed.riskImpact).toBe('HIGH');
 			expect(parsed.riskLikelihood).toBe('HIGH');
 			expect(mockDb.update).toHaveBeenCalled();
+			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 10],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when test case not found', async () => {
@@ -540,7 +672,9 @@ describe('MCP test-case tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
 		});
 	});
 });

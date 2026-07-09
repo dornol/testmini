@@ -53,6 +53,7 @@ const { actions } = await import('./+page.server');
 const authUtils = await import('$lib/server/auth-utils');
 
 const PARAMS = { projectId: '1' };
+const MAX_PRIORITY_FORM_BODY_SIZE = 16 * 1024;
 
 function makeFormData(entries: Record<string, FormDataEntryValue>): FormData {
 	const fd = new FormData();
@@ -81,6 +82,23 @@ describe('priorities settings page server', () => {
 	});
 
 	describe('actions.create', () => {
+		it('rejects oversized form bodies before querying duplicates', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				headers: { 'content-length': String(MAX_PRIORITY_FORM_BODY_SIZE + 1) },
+				formData: makeFormData({ name: 'HIGH', color: '#ef4444', isDefault: 'false' }),
+				user: testUser
+			});
+
+			await expect(actions.create(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Priority form body is too large' }
+			});
+			expect(mockDb.query.priorityConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it.each([
 			[{ name: new File(['HIGH'], 'name.txt'), color: '#ef4444', isDefault: 'false' }],
 			[{ name: 'HIGH', color: new File(['#ef4444'], 'color.txt'), isDefault: 'false' }]
@@ -101,6 +119,28 @@ describe('priorities settings page server', () => {
 	});
 
 	describe('actions.update', () => {
+		it('rejects invalid content-length before querying existing priority', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				headers: { 'content-length': 'invalid' },
+				formData: makeFormData({
+					priorityId: '7',
+					name: 'HIGH',
+					color: '#ef4444',
+					isDefault: 'false'
+				}),
+				user: testUser
+			});
+
+			await expect(actions.update(event)).rejects.toMatchObject({
+				status: 400,
+				body: { message: 'Invalid content-length header' }
+			});
+			expect(mockDb.query.priorityConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it.each([
 			[{ priorityId: '7', name: new File(['HIGH'], 'name.txt'), color: '#ef4444' }],
 			[{ priorityId: '7', name: 'HIGH', color: new File(['#ef4444'], 'color.txt') }]
@@ -253,6 +293,22 @@ describe('priorities settings page server', () => {
 	});
 
 	describe('actions.reorder', () => {
+		it('rejects oversized form bodies before updating positions', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				headers: { 'content-length': String(MAX_PRIORITY_FORM_BODY_SIZE + 1) },
+				formData: makeFormData({ order: JSON.stringify([3, 1, 2]) }),
+				user: testUser
+			});
+
+			await expect(actions.reorder(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Priority form body is too large' }
+			});
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('reorders priorities successfully', async () => {
 			const event = createMockEvent({
 				method: 'POST',

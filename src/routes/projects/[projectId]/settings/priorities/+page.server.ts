@@ -12,8 +12,18 @@ import {
 	parseOptionalTrimmedFormString,
 	parsePositiveFormId
 } from '$lib/server/form-utils';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
 
+const MAX_PRIORITY_FORM_BODY_SIZE = 16 * 1024;
 const MAX_REORDER_ITEMS = 500;
+
+function assertPriorityFormBodySize(request: Request): void {
+	assertContentLengthUnderLimit(
+		request,
+		MAX_PRIORITY_FORM_BODY_SIZE,
+		'Priority form body is too large'
+	);
+}
 
 function parseReorderIds(value: FormDataEntryValue | null): number[] | null {
 	if (typeof value !== 'string') return null;
@@ -60,6 +70,7 @@ export const actions: Actions = {
 		const authUser = requireAuth(locals);
 		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertPriorityFormBodySize(request);
 
 		const formData = await request.formData();
 		const name = parseOptionalTrimmedFormString(formData.get('name'));
@@ -110,6 +121,7 @@ export const actions: Actions = {
 		const authUser = requireAuth(locals);
 		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertPriorityFormBodySize(request);
 
 		const formData = await request.formData();
 		const priorityId = parsePositiveFormId(formData.get('priorityId'));
@@ -193,6 +205,7 @@ export const actions: Actions = {
 		const authUser = requireAuth(locals);
 		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertPriorityFormBodySize(request);
 
 		const formData = await request.formData();
 		const priorityId = parsePositiveFormId(formData.get('priorityId'));
@@ -221,6 +234,7 @@ export const actions: Actions = {
 		const authUser = requireAuth(locals);
 		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertPriorityFormBodySize(request);
 
 		const formData = await request.formData();
 		const order = parseReorderIds(formData.get('order'));

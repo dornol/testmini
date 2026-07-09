@@ -44,6 +44,7 @@ const { load, actions } = await import('./+page.server');
 const authUtils = await import('$lib/server/auth-utils');
 
 const PARAMS = { projectId: '1' };
+const MAX_ENVIRONMENT_FORM_BODY_SIZE = 16 * 1024;
 
 const sampleEnvironments = [
 	{
@@ -137,6 +138,23 @@ describe('environments settings page server', () => {
 	});
 
 	describe('actions.create', () => {
+		it('rejects oversized form bodies before querying duplicates', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				headers: { 'content-length': String(MAX_ENVIRONMENT_FORM_BODY_SIZE + 1) },
+				formData: makeFormData({ name: 'QA', color: '#10b981', isDefault: 'false' }),
+				user: testUser
+			});
+
+			await expect(actions.create(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Environment form body is too large' }
+			});
+			expect(mockDb.query.environmentConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it.each([
 			[{ name: new File(['QA'], 'name.txt'), color: '#10b981', isDefault: 'false' }],
 			[{ name: 'QA', color: new File(['#10b981'], 'color.txt'), isDefault: 'false' }],
@@ -268,6 +286,28 @@ describe('environments settings page server', () => {
 	});
 
 	describe('actions.update', () => {
+		it('rejects invalid content-length before querying existing environment', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				headers: { 'content-length': 'invalid' },
+				formData: makeFormData({
+					environmentId: '1',
+					name: 'Development',
+					color: '#3b82f6',
+					isDefault: 'false'
+				}),
+				user: testUser
+			});
+
+			await expect(actions.update(event)).rejects.toMatchObject({
+				status: 400,
+				body: { message: 'Invalid content-length header' }
+			});
+			expect(mockDb.query.environmentConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it.each([
 			[{ environmentId: '1', name: new File(['QA'], 'name.txt'), color: '#10b981' }],
 			[{ environmentId: '1', name: 'QA', color: new File(['#10b981'], 'color.txt') }],

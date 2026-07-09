@@ -42,6 +42,7 @@ const authUtils = await import('$lib/server/auth-utils');
 const { cacheDelete } = await import('$lib/server/cache');
 
 const PARAMS = { projectId: '1' };
+const MAX_TAG_FORM_BODY_SIZE = 16 * 1024;
 
 function makeFormData(entries: Record<string, FormDataEntryValue>): FormData {
 	const fd = new FormData();
@@ -58,6 +59,23 @@ describe('tags settings page server', () => {
 	});
 
 	describe('actions.create', () => {
+		it('rejects oversized form bodies before querying duplicates', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				headers: { 'content-length': String(MAX_TAG_FORM_BODY_SIZE + 1) },
+				formData: makeFormData({ name: 'Bug', color: '#ef4444' }),
+				user: testUser
+			});
+
+			await expect(actions.create(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Tag form body is too large' }
+			});
+			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it.each([
 			[{ name: new File(['Bug'], 'name.txt'), color: '#ef4444' }],
 			[{ name: 'Bug', color: new File(['#ef4444'], 'color.txt') }]
@@ -95,6 +113,23 @@ describe('tags settings page server', () => {
 	});
 
 	describe('actions.update', () => {
+		it('rejects invalid content-length before querying existing tag', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				headers: { 'content-length': 'invalid' },
+				formData: makeFormData({ tagId: '7', name: 'Bug', color: '#ef4444' }),
+				user: testUser
+			});
+
+			await expect(actions.update(event)).rejects.toMatchObject({
+				status: 400,
+				body: { message: 'Invalid content-length header' }
+			});
+			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it.each([
 			[{ tagId: '7', name: new File(['Bug'], 'name.txt'), color: '#ef4444' }],
 			[{ tagId: '7', name: 'Bug', color: new File(['#ef4444'], 'color.txt') }]
@@ -200,6 +235,23 @@ describe('tags settings page server', () => {
 	});
 
 	describe('actions.delete', () => {
+		it('rejects oversized form bodies before querying existing tag', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				headers: { 'content-length': String(MAX_TAG_FORM_BODY_SIZE + 1) },
+				formData: makeFormData({ tagId: '7' }),
+				user: testUser
+			});
+
+			await expect(actions.delete(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Tag form body is too large' }
+			});
+			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('deletes tag assignments and the scoped tag in a transaction', async () => {
 			mockDb.query.tag.findFirst.mockResolvedValueOnce({
 				id: 7,

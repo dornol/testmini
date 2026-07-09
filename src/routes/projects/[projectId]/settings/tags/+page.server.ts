@@ -11,6 +11,13 @@ import {
 	parseOptionalTrimmedFormString,
 	parsePositiveFormId
 } from '$lib/server/form-utils';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+
+const MAX_TAG_FORM_BODY_SIZE = 16 * 1024;
+
+function assertTagFormBodySize(request: Request): void {
+	assertContentLengthUnderLimit(request, MAX_TAG_FORM_BODY_SIZE, 'Tag form body is too large');
+}
 
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = parseId(params.projectId, 'project ID');
@@ -34,6 +41,7 @@ export const actions: Actions = {
 		const authUser = requireAuth(locals);
 		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertTagFormBodySize(request);
 
 		const formData = await request.formData();
 		const name = parseOptionalTrimmedFormString(formData.get('name'));
@@ -75,6 +83,7 @@ export const actions: Actions = {
 		const authUser = requireAuth(locals);
 		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertTagFormBodySize(request);
 
 		const formData = await request.formData();
 		const tagId = parsePositiveFormId(formData.get('tagId'));
@@ -120,6 +129,7 @@ export const actions: Actions = {
 		const authUser = requireAuth(locals);
 		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertTagFormBodySize(request);
 
 		const formData = await request.formData();
 		const tagId = parsePositiveFormId(formData.get('tagId'));

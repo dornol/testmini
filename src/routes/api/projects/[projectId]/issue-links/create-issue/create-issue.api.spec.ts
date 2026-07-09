@@ -291,6 +291,30 @@ describe('/api/projects/[projectId]/issue-links/create-issue', () => {
 		expect((await response.json()).error).toContain('Jira returned 401');
 	});
 
+	it('should redact API tokens from external issue creation failures', async () => {
+		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+		const encodedToken = Buffer.from('user@test.com:token', 'utf8').toString('base64');
+		mockCreateExternalIssue.mockRejectedValue(
+			new Error(`Jira returned 401: Authorization: Basic ${encodedToken}`)
+		);
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser,
+			body: { testCaseId: 10, title: 'Bug', description: 'desc' }
+		});
+
+		const response = await POST(event);
+		const body = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(body.error).toContain('Jira returned 401');
+		expect(body.error).not.toContain(encodedToken);
+		expect(body.error).not.toContain('token');
+		expect(body.error).toContain('[redacted]');
+	});
+
 	it('should reject malformed external issue URLs returned by provider', async () => {
 		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
 		mockCreateExternalIssue.mockResolvedValue({

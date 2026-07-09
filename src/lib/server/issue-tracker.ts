@@ -1,9 +1,33 @@
-import type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult, IssueDetail } from './integrations/types';
+import type {
+	IssueTrackerConfig,
+	CreateIssueResult,
+	IssueStatusResult,
+	IssueDetail
+} from './integrations/types';
 import { createJiraIssue, fetchJiraIssueStatus, testJiraConnection } from './integrations/jira';
-import { createGithubIssue, fetchGithubIssueStatus, testGithubConnection, addGithubIssueComment, fetchGithubIssueDetail, updateGithubIssueState } from './integrations/github';
-import { createGitlabIssue, fetchGitlabIssueStatus, testGitlabConnection } from './integrations/gitlab';
-import { createGiteaIssue, fetchGiteaIssueStatus, testGiteaConnection, addGiteaIssueComment, fetchGiteaIssueDetail, updateGiteaIssueState } from './integrations/gitea';
+import {
+	createGithubIssue,
+	fetchGithubIssueStatus,
+	testGithubConnection,
+	addGithubIssueComment,
+	fetchGithubIssueDetail,
+	updateGithubIssueState
+} from './integrations/github';
+import {
+	createGitlabIssue,
+	fetchGitlabIssueStatus,
+	testGitlabConnection
+} from './integrations/gitlab';
+import {
+	createGiteaIssue,
+	fetchGiteaIssueStatus,
+	testGiteaConnection,
+	addGiteaIssueComment,
+	fetchGiteaIssueDetail,
+	updateGiteaIssueState
+} from './integrations/gitea';
 import { createCustomIssue } from './integrations/custom';
+import { redactSecrets } from './secret-redaction';
 
 // Re-export types for backwards compat
 export type { IssueTrackerConfig, CreateIssueResult, IssueStatusResult, IssueDetail };
@@ -99,22 +123,29 @@ export async function testConnection(
 	config: IssueTrackerConfig
 ): Promise<{ ok: boolean; message: string }> {
 	try {
+		let result: { ok: boolean; message: string };
 		switch (config.provider) {
 			case 'JIRA':
-				return await testJiraConnection(config);
+				result = await testJiraConnection(config);
+				break;
 			case 'GITHUB':
-				return await testGithubConnection(config);
+				result = await testGithubConnection(config);
+				break;
 			case 'GITLAB':
-				return await testGitlabConnection(config);
+				result = await testGitlabConnection(config);
+				break;
 			case 'GITEA':
-				return await testGiteaConnection(config);
+				result = await testGiteaConnection(config);
+				break;
 			case 'CUSTOM':
-				return { ok: true, message: 'Custom provider configured (no connection test available)' };
+				result = { ok: true, message: 'Custom provider configured (no connection test available)' };
+				break;
 			default:
-				return { ok: false, message: `Unsupported provider: ${config.provider}` };
+				result = { ok: false, message: `Unsupported provider: ${config.provider}` };
 		}
+		return { ...result, message: redactSecrets(result.message, [config.apiToken]) };
 	} catch (err) {
 		const message = err instanceof Error ? err.message : 'Unknown error';
-		return { ok: false, message };
+		return { ok: false, message: redactSecrets(message, [config.apiToken]) };
 	}
 }

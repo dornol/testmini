@@ -335,6 +335,21 @@ describe('issue-tracker', () => {
 				expect(result.ok).toBe(false);
 				expect(result.message).toContain('403');
 			});
+
+			it('should redact tokens from failed connection messages', async () => {
+				const encodedToken = Buffer.from('user@test.com:token', 'utf8').toString('base64');
+				mockFetch.mockResolvedValue(
+					new Response(`Unauthorized Authorization: Basic ${encodedToken}`, { status: 401 })
+				);
+
+				const result = await testConnection(jiraConfig);
+
+				expect(result.ok).toBe(false);
+				expect(result.message).toContain('401');
+				expect(result.message).not.toContain(encodedToken);
+				expect(result.message).not.toContain('token');
+				expect(result.message).toContain('[redacted]');
+			});
 		});
 
 		// ── GitHub test ───────────────────────────────────
@@ -379,9 +394,7 @@ describe('issue-tracker', () => {
 			};
 
 			it('should return ok on successful connection', async () => {
-				mockFetch.mockResolvedValue(
-					jsonResponse({ name_with_namespace: 'Group / Project' })
-				);
+				mockFetch.mockResolvedValue(jsonResponse({ name_with_namespace: 'Group / Project' }));
 
 				const result = await testConnection(gitlabConfig);
 				expect(result.ok).toBe(true);
@@ -405,6 +418,17 @@ describe('issue-tracker', () => {
 				const result = await testConnection(gitlabConfig);
 				expect(result.ok).toBe(false);
 				expect(result.message).toContain('Network error');
+			});
+
+			it('should redact tokens from thrown connection errors', async () => {
+				mockFetch.mockRejectedValue(new Error('Network error for PRIVATE-TOKEN=glpat-token'));
+
+				const result = await testConnection(gitlabConfig);
+
+				expect(result.ok).toBe(false);
+				expect(result.message).toContain('Network error');
+				expect(result.message).not.toContain('glpat-token');
+				expect(result.message).toContain('[redacted]');
 			});
 		});
 	});

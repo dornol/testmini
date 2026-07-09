@@ -7,6 +7,7 @@ import { withProjectRole } from '$lib/server/api-handler';
 import { createExternalIssue } from '$lib/server/issue-tracker';
 import { env } from '$env/dynamic/private';
 import { parseJsonBody } from '$lib/server/auth-utils';
+import { redactSecrets } from '$lib/server/secret-redaction';
 
 const MAX_TITLE_LENGTH = 500;
 const MAX_DESCRIPTION_LENGTH = 10000;
@@ -157,7 +158,7 @@ export const POST = withProjectRole(
 			);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to create external issue';
-			return badRequest(message);
+			return badRequest(redactSecrets(message, [config.apiToken]));
 		}
 
 		const externalUrl = validateExternalUrl(result.url);

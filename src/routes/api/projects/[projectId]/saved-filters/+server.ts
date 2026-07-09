@@ -6,8 +6,50 @@ import { withProjectAccess } from '$lib/server/api-handler';
 import { badRequest, conflict } from '$lib/server/errors';
 import { parseJsonBody } from '$lib/server/auth-utils';
 
+const MAX_FILTER_NAME_LENGTH = 100;
+const MAX_FILTER_JSON_LENGTH = 20_000;
+const ALLOWED_FILTER_TYPES = new Set(['test_cases', 'test_runs']);
+
+function validateFilterType(value: unknown): string | Response {
+	const filterType = value ?? 'test_cases';
+	if (typeof filterType !== 'string' || !ALLOWED_FILTER_TYPES.has(filterType)) {
+		return badRequest('Invalid filter type');
+	}
+	return filterType;
+}
+
+function validateFilterName(value: unknown): string | Response {
+	if (typeof value !== 'string') return badRequest('Name is required');
+	const name = value.trim();
+	if (!name) return badRequest('Name is required');
+	if (name.length > MAX_FILTER_NAME_LENGTH) {
+		return badRequest(`Name must be ${MAX_FILTER_NAME_LENGTH} characters or less`);
+	}
+	return name;
+}
+
+function validateFilters(
+	value: unknown,
+	requiredMessage: string
+): Record<string, unknown> | Response {
+	if (
+		!value ||
+		typeof value !== 'object' ||
+		Array.isArray(value) ||
+		Object.getPrototypeOf(value) !== Object.prototype
+	) {
+		return badRequest(requiredMessage);
+	}
+	if (JSON.stringify(value).length > MAX_FILTER_JSON_LENGTH) {
+		return badRequest(`Filters must be ${MAX_FILTER_JSON_LENGTH} characters or less`);
+	}
+	return value as Record<string, unknown>;
+}
+
 export const GET = withProjectAccess(async ({ user, projectId, url }) => {
-	const filterType = url.searchParams.get('type') ?? 'test_cases';
+	const filterTypeOrError = validateFilterType(url.searchParams.get('type') ?? undefined);
+	if (filterTypeOrError instanceof Response) return filterTypeOrError;
+	const filterType = filterTypeOrError;
 
 	const filters = await db
 		.select()
@@ -25,21 +67,19 @@ export const GET = withProjectAccess(async ({ user, projectId, url }) => {
 });
 
 export const POST = withProjectAccess(async ({ request, user, projectId }) => {
-	const body = await parseJsonBody(request) as { name?: string; filterType?: string; filters?: Record<string, unknown> };
+	const body = (await parseJsonBody(request)) as Record<string, unknown>;
 
-	const name = (body.name ?? '').trim();
-	if (!name) return badRequest('Name is required');
-	if (name.length > 100) return badRequest('Name must be 100 characters or less');
+	const nameOrError = validateFilterName(body.name);
+	if (nameOrError instanceof Response) return nameOrError;
+	const name = nameOrError;
 
-	const filterType = body.filterType ?? 'test_cases';
-	if (!['test_cases', 'test_runs'].includes(filterType)) {
-		return badRequest('Invalid filter type');
-	}
+	const filterTypeOrError = validateFilterType(body.filterType);
+	if (filterTypeOrError instanceof Response) return filterTypeOrError;
+	const filterType = filterTypeOrError;
 
-	const filters = body.filters;
-	if (!filters || typeof filters !== 'object') {
-		return badRequest('Filters object is required');
-	}
+	const filtersOrError = validateFilters(body.filters, 'Filters object is required');
+	if (filtersOrError instanceof Response) return filtersOrError;
+	const filters = filtersOrError;
 
 	// Check uniqueness
 	const existing = await db.query.savedFilter.findFirst({

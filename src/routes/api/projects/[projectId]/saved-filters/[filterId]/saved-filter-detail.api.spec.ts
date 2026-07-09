@@ -20,9 +20,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -100,6 +99,20 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 			expect((await response.json()).error).toContain('100 characters');
 		});
 
+		it('should reject non-string name', async () => {
+			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleFilter);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { name: 123 }
+			});
+
+			const response = await PATCH(event);
+			expect(response.status).toBe(400);
+		});
+
 		it('should reject when no fields to update', async () => {
 			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleFilter);
 
@@ -128,6 +141,34 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 			const response = await PATCH(event);
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('object');
+		});
+
+		it('should reject array filters value', async () => {
+			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleFilter);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { filters: [] }
+			});
+
+			const response = await PATCH(event);
+			expect(response.status).toBe(400);
+		});
+
+		it('should reject oversized filters value', async () => {
+			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleFilter);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { filters: { query: 'x'.repeat(20_001) } }
+			});
+
+			const response = await PATCH(event);
+			expect(response.status).toBe(400);
 		});
 
 		it('should update filter name successfully', async () => {

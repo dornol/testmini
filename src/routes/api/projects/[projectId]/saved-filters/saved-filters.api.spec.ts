@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -23,9 +27,8 @@ vi.mock('drizzle-orm', () => ({
 	asc: vi.fn((a: unknown) => ['asc', a])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -116,6 +119,18 @@ describe('/api/projects/[projectId]/saved-filters', () => {
 			const response = await GET(event);
 
 			expect(response.status).toBe(200);
+		});
+
+		it('should return 400 for invalid filter type query param', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				params: PARAMS,
+				user: testUser,
+				searchParams: { type: 'all' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
 		});
 
 		it('should default filter type to test_cases when not specified', async () => {
@@ -209,6 +224,18 @@ describe('/api/projects/[projectId]/saved-filters', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 when name is not a string', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 123, filters: { status: ['ACTIVE'] } },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+		});
+
 		it('should return 400 when name is empty', async () => {
 			const event = createMockEvent({
 				method: 'POST',
@@ -250,6 +277,30 @@ describe('/api/projects/[projectId]/saved-filters', () => {
 				method: 'POST',
 				params: PARAMS,
 				body: { name: 'Filter', filters: 'invalid' },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 when filters is an array', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Filter', filters: [] },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 when filters payload is too large', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Filter', filters: { query: 'x'.repeat(20_001) } },
 				user: testUser
 			});
 			const response = await POST(event);

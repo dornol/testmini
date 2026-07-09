@@ -24,7 +24,8 @@ vi.mock('$lib/server/db/schema', () => ({
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
-	and: vi.fn((...args: unknown[]) => args)
+	and: vi.fn((...args: unknown[]) => args),
+	sql: vi.fn()
 }));
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -108,7 +109,9 @@ describe('MCP group tools', () => {
 	describe('create-group', () => {
 		it('should create a group with color', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockInsertReturning(mockDb, [sampleGroup]);
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(null);
+			mockSelectResult(mockDb, [{ maxOrder: 0 }]);
+			const insertChain = mockInsertReturning(mockDb, [sampleGroup]);
 
 			const result = await client.callTool({
 				name: 'create-group',
@@ -119,10 +122,19 @@ describe('MCP group tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('Authentication');
 			expect(parsed.color).toBe('#3b82f6');
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: 'Authentication',
+					sortOrder: 1000,
+					color: '#3b82f6'
+				})
+			);
 		});
 
 		it('should create a group without color', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(null);
+			mockSelectResult(mockDb, [{ maxOrder: 1000 }]);
 			mockInsertReturning(mockDb, [{ ...sampleGroup, color: null }]);
 
 			const result = await client.callTool({
@@ -133,6 +145,54 @@ describe('MCP group tools', () => {
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.color).toBeNull();
+		});
+
+		it('should reject empty names before creating a group', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-group',
+				arguments: { name: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Name is required'
+			);
+			expect(mockDb.query.testCaseGroup.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject invalid colors before creating a group', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-group',
+				arguments: { name: 'Group', color: 'blue' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Invalid HEX color format'
+			);
+			expect(mockDb.query.testCaseGroup.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject duplicate names before creating a group', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(sampleGroup);
+
+			const result = await client.callTool({
+				name: 'create-group',
+				arguments: { name: 'Authentication' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'A group with this name already exists'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return error when project not found', async () => {
@@ -198,7 +258,9 @@ describe('MCP group tools', () => {
 
 	describe('update-group', () => {
 		it('should update name and color', async () => {
-			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(sampleGroup);
+			mockDb.query.testCaseGroup.findFirst
+				.mockResolvedValueOnce(sampleGroup)
+				.mockResolvedValueOnce(null);
 			const updateChain = mockUpdateReturning(mockDb, [
 				{ ...sampleGroup, name: 'Updated', color: '#ff0000' }
 			]);
@@ -218,6 +280,65 @@ describe('MCP group tools', () => {
 					['project_id', 1]
 				])
 			);
+		});
+
+		it('should clear color when color is null', async () => {
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(sampleGroup);
+			const updateChain = mockUpdateReturning(mockDb, [{ ...sampleGroup, color: null }]);
+
+			const result = await client.callTool({
+				name: 'update-group',
+				arguments: { groupId: 1, color: null }
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(updateChain.set).toHaveBeenCalledWith({ color: null });
+		});
+
+		it('should reject invalid colors before updating a group', async () => {
+			const result = await client.callTool({
+				name: 'update-group',
+				arguments: { groupId: 1, color: 'red' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Invalid HEX color format'
+			);
+			expect(mockDb.query.testCaseGroup.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject empty updates', async () => {
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(sampleGroup);
+
+			const result = await client.callTool({
+				name: 'update-group',
+				arguments: { groupId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'No fields to update'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject duplicate names before updating a group', async () => {
+			mockDb.query.testCaseGroup.findFirst
+				.mockResolvedValueOnce(sampleGroup)
+				.mockResolvedValueOnce({ ...sampleGroup, id: 2 });
+
+			const result = await client.callTool({
+				name: 'update-group',
+				arguments: { groupId: 1, name: 'Reports' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'A group with this name already exists'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return error when group not found', async () => {

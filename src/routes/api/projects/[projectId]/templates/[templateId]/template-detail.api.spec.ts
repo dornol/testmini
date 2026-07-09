@@ -104,6 +104,7 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 
 			expect(response.status).toBe(200);
 			expect(body.success).toBe(true);
+			expect(updateChain.where).toHaveBeenCalledWith(expect.arrayContaining([['project_id', 1]]));
 		});
 
 		it('should return 200 with success when no fields provided', async () => {
@@ -230,6 +231,7 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 					{ order: 2, action: 'Verify', expected: 'OK' }
 				]
 			});
+			expect(updateChain.where).toHaveBeenCalledWith(expect.arrayContaining([['project_id', 1]]));
 		});
 
 		it('should return 403 when lacking required role', async () => {
@@ -277,6 +279,7 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 
 			expect(response.status).toBe(200);
 			expect(body.success).toBe(true);
+			expect(deleteChain.where).toHaveBeenCalledWith(expect.arrayContaining([['project_id', 1]]));
 		});
 
 		it('should require PROJECT_ADMIN role', async () => {

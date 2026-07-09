@@ -30,8 +30,10 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ params, request
 	const [updated] = await db
 		.update(customField)
 		.set(updates)
-		.where(eq(customField.id, fieldId))
+		.where(and(eq(customField.id, fieldId), eq(customField.projectId, projectId)))
 		.returning();
+
+	if (!updated) error(404, 'Custom field not found');
 
 	return json(updated);
 });
@@ -44,7 +46,9 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projec
 	});
 	if (!existing) error(404, 'Custom field not found');
 
-	await db.delete(customField).where(eq(customField.id, fieldId));
+	await db
+		.delete(customField)
+		.where(and(eq(customField.id, fieldId), eq(customField.projectId, projectId)));
 
 	return json({ success: true });
 });

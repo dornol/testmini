@@ -16,7 +16,9 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projec
 		error(404, 'API key not found');
 	}
 
-	await db.delete(projectApiKey).where(eq(projectApiKey.id, keyId));
+	await db
+		.delete(projectApiKey)
+		.where(and(eq(projectApiKey.id, keyId), eq(projectApiKey.projectId, projectId)));
 
 	return json({ success: true });
 });

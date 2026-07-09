@@ -57,7 +57,10 @@ export const PATCH = withProjectRole(
 			return json({ success: true });
 		}
 
-		await db.update(testCaseTemplate).set(updates).where(eq(testCaseTemplate.id, templateId));
+		await db
+			.update(testCaseTemplate)
+			.set(updates)
+			.where(and(eq(testCaseTemplate.id, templateId), eq(testCaseTemplate.projectId, projectId)));
 
 		return json({ success: true });
 	}
@@ -74,7 +77,9 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projec
 		error(404, 'Template not found');
 	}
 
-	await db.delete(testCaseTemplate).where(eq(testCaseTemplate.id, templateId));
+	await db
+		.delete(testCaseTemplate)
+		.where(and(eq(testCaseTemplate.id, templateId), eq(testCaseTemplate.projectId, projectId)));
 
 	return json({ success: true });
 });

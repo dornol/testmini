@@ -198,7 +198,7 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 		it('should update field name successfully', async () => {
 			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
 			const updatedField = { ...sampleField, name: 'Platform' };
-			mockUpdateReturning(mockDb, [updatedField]);
+			const updateChain = mockUpdateReturning(mockDb, [updatedField]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -211,6 +211,7 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 			expect(response.status).toBe(200);
 			const body = await response.json();
 			expect(body.name).toBe('Platform');
+			expect(updateChain.where).toHaveBeenCalledWith(expect.arrayContaining([['project_id', 1]]));
 		});
 
 		it('should update options and required fields', async () => {
@@ -220,7 +221,7 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 				options: ['Chrome', 'Firefox'],
 				required: true
 			};
-			mockUpdateReturning(mockDb, [updatedField]);
+			const updateChain = mockUpdateReturning(mockDb, [updatedField]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -234,6 +235,7 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 			const body = await response.json();
 			expect(body.options).toEqual(['Chrome', 'Firefox']);
 			expect(body.required).toBe(true);
+			expect(updateChain.where).toHaveBeenCalledWith(expect.arrayContaining([['project_id', 1]]));
 		});
 
 		it('should trim options and sort order on update', async () => {
@@ -258,6 +260,21 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 				options: ['Chrome', 'Firefox'],
 				sortOrder: 2
 			});
+			expect(updateChain.where).toHaveBeenCalledWith(expect.arrayContaining([['project_id', 1]]));
+		});
+
+		it('should return 404 if scoped update no longer matches', async () => {
+			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { name: 'Platform' }
+			});
+
+			await expect(PATCH(event)).rejects.toThrow();
 		});
 
 		it('should reject invalid field ID', async () => {
@@ -292,6 +309,10 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 
 		it('should delete field successfully', async () => {
 			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
+			const deleteChain = {
+				where: vi.fn().mockResolvedValue(undefined)
+			};
+			mockDb.delete.mockReturnValue(deleteChain as never);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -304,6 +325,7 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 			const body = await response.json();
 			expect(body.success).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
+			expect(deleteChain.where).toHaveBeenCalledWith(expect.arrayContaining([['project_id', 1]]));
 		});
 	});
 });

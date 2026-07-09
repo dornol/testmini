@@ -21,9 +21,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
@@ -72,6 +71,11 @@ describe('/api/projects/[projectId]/api-keys/[keyId]', () => {
 
 		it('should delete API key successfully', async () => {
 			mockDb.query.projectApiKey.findFirst.mockResolvedValue(sampleApiKey);
+			const deleteChain = {
+				where: vi.fn().mockReturnThis(),
+				then: (resolve: (value: unknown) => void) => Promise.resolve(undefined).then(resolve)
+			};
+			mockDb.delete.mockReturnValue(deleteChain as never);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -84,6 +88,7 @@ describe('/api/projects/[projectId]/api-keys/[keyId]', () => {
 			const body = await response.json();
 			expect(body.success).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
+			expect(deleteChain.where).toHaveBeenCalledWith(expect.arrayContaining([['project_id', 1]]));
 		});
 
 		it('should reject non-PROJECT_ADMIN role', async () => {

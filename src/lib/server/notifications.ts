@@ -6,6 +6,7 @@ import { childLogger } from './logger';
 import { sendProjectWebhooks } from './webhooks';
 import { sendEmail, isEmailConfigured } from './email';
 import { cacheDelete } from './cache';
+import { redactSecrets } from './secret-redaction';
 
 const log = childLogger('notifications');
 
@@ -47,7 +48,7 @@ export async function createNotification(params: CreateNotificationParams): Prom
 			}
 		}
 	} catch (err) {
-		log.error({ err }, 'Failed to load notification preferences');
+		log.error({ err: sanitizeNotificationError(err) }, 'Failed to load notification preferences');
 	}
 
 	if (shouldInsert) {
@@ -62,7 +63,10 @@ export async function createNotification(params: CreateNotificationParams): Prom
 			});
 			cacheDelete(`user:${params.userId}:unread_notifications`);
 		} catch (err) {
-			log.error({ err, params }, 'Failed to create notification');
+			log.error(
+				{ err: sanitizeNotificationError(err), params: sanitizeNotificationParams(params) },
+				'Failed to create notification'
+			);
 		}
 	}
 
@@ -78,11 +82,14 @@ export async function createNotification(params: CreateNotificationParams): Prom
 					subject: `[testmini] ${params.title}`,
 					text: `${params.message}${params.link ? `\n\nView: ${params.link}` : ''}`
 				}).catch((err) => {
-					log.error({ err, userId: params.userId }, 'Failed to send email notification');
+					log.error(
+						{ err: sanitizeNotificationError(err), userId: params.userId },
+						'Failed to send email notification'
+					);
 				});
 			}
 		} catch (err) {
-			log.error({ err }, 'Failed to send email notification');
+			log.error({ err: sanitizeNotificationError(err) }, 'Failed to send email notification');
 		}
 	}
 
@@ -94,7 +101,30 @@ export async function createNotification(params: CreateNotificationParams): Prom
 			message: params.message,
 			link: params.link ?? null
 		}).catch((err) => {
-			log.error({ err, projectId: params.projectId, type: params.type }, 'Failed to send webhooks');
+			log.error(
+				{ err: sanitizeNotificationError(err), projectId: params.projectId, type: params.type },
+				'Failed to send webhooks'
+			);
 		});
 	}
+}
+
+function sanitizeNotificationParams(params: CreateNotificationParams): CreateNotificationParams {
+	return {
+		...params,
+		title: redactSecrets(params.title),
+		message: redactSecrets(params.message),
+		link: params.link === undefined ? undefined : redactSecrets(params.link)
+	};
+}
+
+function sanitizeNotificationError(err: unknown): { message: string; name?: string } | string {
+	if (err instanceof Error) {
+		return {
+			name: err.name,
+			message: redactSecrets(err.message)
+		};
+	}
+
+	return redactSecrets(String(err));
 }

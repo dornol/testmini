@@ -5,6 +5,11 @@ const mockDb = createMockDb();
 const mockSendProjectWebhooks = vi.fn();
 const mockSendEmail = vi.fn();
 const mockIsEmailConfigured = vi.fn(() => false);
+const mockLog = vi.hoisted(() => ({
+	info: vi.fn(),
+	warn: vi.fn(),
+	error: vi.fn()
+}));
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
@@ -16,7 +21,7 @@ vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/logger', () => ({
-	childLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })
+	childLogger: () => mockLog
 }));
 vi.mock('$lib/server/webhooks', () => ({
 	sendProjectWebhooks: mockSendProjectWebhooks
@@ -123,6 +128,34 @@ describe('createNotification', () => {
 		).resolves.toBeUndefined();
 	});
 
+	it('should redact notification params and error messages when insert fails', async () => {
+		const token = 'notification-token-12345';
+		const insertChain = {
+			values: vi.fn().mockReturnThis(),
+			then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+				Promise.reject(new Error(`DB rejected Authorization: Bearer ${token}`)).then(
+					resolve,
+					reject
+				)
+		};
+		mockDb.insert.mockReturnValue(insertChain as never);
+
+		await createNotification({
+			userId: 'user-1',
+			type: 'SYSTEM',
+			title: `apiToken=${token}`,
+			message: `secret=${token}`,
+			link: `/projects/1?token=${token}`
+		});
+
+		const [logMeta] = mockLog.error.mock.calls[0];
+
+		expect(logMeta.err.message).not.toContain(token);
+		expect(logMeta.params.title).not.toContain(token);
+		expect(logMeta.params.message).not.toContain(token);
+		expect(logMeta.params.link).not.toContain(token);
+	});
+
 	it('should still call insert even without optional link and projectId', async () => {
 		const insertChain = {
 			values: vi.fn().mockReturnThis(),
@@ -222,6 +255,32 @@ describe('createNotification', () => {
 		});
 	});
 
+	it('should redact webhook delivery rejection errors', async () => {
+		const token = 'webhook-token-12345';
+		const insertChain = {
+			values: vi.fn().mockReturnThis(),
+			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+		};
+		mockDb.insert.mockReturnValue(insertChain as never);
+		mockSendProjectWebhooks.mockRejectedValueOnce(
+			new Error(`webhook failed Authorization: Bearer ${token}`)
+		);
+
+		await createNotification({
+			userId: 'user-1',
+			type: 'TEST_FAILED',
+			title: 'Test failed',
+			message: 'TC-0001 failed',
+			projectId: 1
+		});
+		await Promise.resolve();
+
+		const [logMeta] = mockLog.error.mock.calls[0];
+
+		expect(logMeta.err.message).not.toContain(token);
+		expect(logMeta.projectId).toBe(1);
+	});
+
 	it('should not leak email delivery rejections', async () => {
 		mockIsEmailConfigured.mockReturnValue(true);
 		mockDb.query.user.findFirst.mockResolvedValue({ email: 'user@example.com' });
@@ -244,6 +303,32 @@ describe('createNotification', () => {
 			subject: '[testmini] Test failed',
 			text: 'TC-0001 failed\n\nView: /projects/1/test-runs/2'
 		});
+	});
+
+	it('should redact email delivery rejection errors', async () => {
+		const token = 'smtp-token-12345';
+		const insertChain = {
+			values: vi.fn().mockReturnThis(),
+			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+		};
+		mockDb.insert.mockReturnValue(insertChain as never);
+		mockIsEmailConfigured.mockReturnValue(true);
+		mockDb.query.user.findFirst.mockResolvedValue({ email: 'user@example.com' });
+		mockSendEmail.mockRejectedValueOnce(new Error(`smtp failed secret=${token}`));
+
+		await createNotification({
+			userId: 'user-1',
+			type: 'TEST_FAILED',
+			title: 'Test failed',
+			message: 'TC-0001 failed',
+			link: '/projects/1/test-runs/2'
+		});
+		await Promise.resolve();
+
+		const [logMeta] = mockLog.error.mock.calls[0];
+
+		expect(logMeta.err.message).not.toContain(token);
+		expect(logMeta.userId).toBe('user-1');
 	});
 
 	// ── Notification Preferences ─────────────────────────

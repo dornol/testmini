@@ -15,8 +15,8 @@ import { withProjectRole } from '$lib/server/api-handler';
 import { z } from 'zod';
 
 const createRunFromPlanSchema = z.object({
-	name: z.string().min(1).max(200),
-	environment: z.string().min(1).max(100)
+	name: z.string().trim().min(1).max(200),
+	environment: z.string().trim().min(1).max(30)
 });
 
 export const POST = withProjectRole(

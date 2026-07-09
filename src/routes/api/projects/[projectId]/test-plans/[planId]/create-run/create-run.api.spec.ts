@@ -216,6 +216,32 @@ describe('/api/projects/[projectId]/test-plans/[planId]/create-run', () => {
 		expect(data.error).toBe('Invalid input');
 	});
 
+	it('should reject blank name and environment values', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { name: '   ', environment: '   ' },
+			user: testUser
+		});
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect(mockDb.select).not.toHaveBeenCalled();
+	});
+
+	it('should reject environment values longer than 30 characters', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { name: 'Run', environment: 'x'.repeat(31) },
+			user: testUser
+		});
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect(mockDb.select).not.toHaveBeenCalled();
+	});
+
 	it('should return 400 when plan has no test cases', async () => {
 		// Return empty plan items
 		mockSelectResult(mockDb, []);

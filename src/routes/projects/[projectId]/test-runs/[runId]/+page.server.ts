@@ -235,7 +235,7 @@ export const actions: Actions = {
 				executedAt: now,
 				...durationUpdates
 			})
-			.where(eq(testExecution.id, executionId));
+			.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)));
 
 		await autoUpdateRunStatus(runId);
 
@@ -293,7 +293,7 @@ export const actions: Actions = {
 					executedAt: now,
 					...durationUpdates
 				})
-				.where(eq(testExecution.id, executionId));
+				.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)));
 
 			// Create failure detail
 			await tx.insert(testFailureDetail).values({
@@ -410,7 +410,12 @@ export const actions: Actions = {
 				stackTrace: parsed.data.stackTrace || null,
 				comment: parsed.data.comment || null
 			})
-			.where(eq(testFailureDetail.id, failureId));
+			.where(
+				and(
+					eq(testFailureDetail.id, failureId),
+					eq(testFailureDetail.testExecutionId, existing.testExecutionId)
+				)
+			);
 
 		return { success: true };
 	},
@@ -444,7 +449,14 @@ export const actions: Actions = {
 			return fail(404, { error: 'Failure detail not found' });
 		}
 
-		await db.delete(testFailureDetail).where(eq(testFailureDetail.id, failureId));
+		await db
+			.delete(testFailureDetail)
+			.where(
+				and(
+					eq(testFailureDetail.id, failureId),
+					eq(testFailureDetail.testExecutionId, existing.testExecutionId)
+				)
+			);
 
 		return { success: true };
 	},

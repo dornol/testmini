@@ -540,6 +540,12 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			expect(updateData.completedAt).toBeInstanceOf(Date);
 			expect(updateData.executedBy).toBe(testUser.id);
 			expect(updateData.executedAt).toBeInstanceOf(Date);
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 200],
+					['test_run_id', 50]
+				])
+			);
 		});
 
 		it('should NOT set startedAt when execution was already started (not PENDING)', async () => {
@@ -690,6 +696,12 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			expect(updateData.status).toBe('FAIL');
 			expect(updateData.startedAt).toBeInstanceOf(Date);
 			expect(updateData.completedAt).toBeInstanceOf(Date);
+			expect(txUpdateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 200],
+					['test_run_id', 50]
+				])
+			);
 		});
 
 		it('should NOT set startedAt when already started', async () => {
@@ -1030,6 +1042,41 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			expect(result).toEqual(expect.objectContaining({ status: 404 }));
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
+
+		it('should scope failure updates to the verified execution', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testFailureDetail.findFirst.mockResolvedValue({
+				id: 5,
+				testExecutionId: sampleExecution.id
+			});
+			mockDb.query.testExecution.findFirst.mockResolvedValue(sampleExecution);
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockResolvedValue(undefined)
+			};
+			mockDb.update.mockReturnValue(updateChain as never);
+
+			const event = createActionEvent(
+				createFormData({
+					failureId: '5',
+					failureEnvironment: 'Chrome',
+					testMethod: 'testLogin',
+					errorMessage: 'updated',
+					stackTrace: '',
+					comment: ''
+				})
+			);
+
+			const result = await actions.updateFailure(event as never);
+
+			expect(result).toEqual({ success: true });
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 5],
+					['test_execution_id', sampleExecution.id]
+				])
+			);
+		});
 	});
 
 	// ─── deleteFailure ────────────────────────────────────────────
@@ -1084,6 +1131,12 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			const result = await actions.deleteFailure(event as never);
 			expect(result).toEqual({ success: true });
 			expect(mockDb.delete).toHaveBeenCalled();
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 5],
+					['test_execution_id', sampleExecution.id]
+				])
+			);
 		});
 	});
 });

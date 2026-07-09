@@ -410,7 +410,9 @@ export const actions: Actions = {
 			error(404, 'Test case not found');
 		}
 
-		await db.delete(testCase).where(eq(testCase.id, testCaseId));
+		await db
+			.delete(testCase)
+			.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
 
 		return { deleted: true };
 	}

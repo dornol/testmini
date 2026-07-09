@@ -110,4 +110,29 @@ describe('test case detail page actions', () => {
 			}
 		});
 	});
+
+	describe('delete', () => {
+		it('scopes test case deletes to the current project', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValueOnce({
+				id: 10,
+				projectId: 1
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser
+			});
+
+			const result = await actions.delete(event);
+
+			expect(result).toEqual({ deleted: true });
+			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 10],
+					['project_id', 1]
+				])
+			);
+		});
+	});
 });

@@ -83,7 +83,12 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/versions', () => {
 				{ v1: 'abc', v2: '2' },
 				{ v1: '0', v2: '2' },
 				{ v1: '-1', v2: '2' },
+				{ v1: '+1', v2: '2' },
+				{ v1: '01', v2: '2' },
 				{ v1: '1.5', v2: '2' },
+				{ v1: '1e3', v2: '2' },
+				{ v1: ' 1', v2: '2' },
+				{ v1: '1 ', v2: '2' },
 				{ v1: '1', v2: String(Number.MAX_SAFE_INTEGER + 1) }
 			];
 

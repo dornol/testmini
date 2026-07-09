@@ -5,14 +5,15 @@ import { eq, and } from 'drizzle-orm';
 import { parseId } from '$lib/server/auth-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { requireTestCase } from '$lib/server/queries';
+import { parseCanonicalPositiveInteger } from '$lib/server/search-param-validation';
 
 function parseVersionNo(value: string | null, label: string): number {
 	if (value === null || value === '') {
 		error(400, 'Provide two different version numbers v1 and v2');
 	}
 
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+	const parsed = parseCanonicalPositiveInteger(value);
+	if (parsed === null) {
 		error(400, `Invalid ${label}`);
 	}
 

@@ -29,6 +29,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		id: 'id',
 		testPlanId: 'test_plan_id'
 	},
+	testCase: { id: 'id', projectId: 'project_id' },
 	release: { id: 'id', projectId: 'project_id' },
 	user: { id: 'id', name: 'name' }
 }));
@@ -40,7 +41,8 @@ vi.mock('drizzle-orm', () => ({
 		}),
 		{ raw: (s: string) => s }
 	),
-	and: vi.fn((...args: unknown[]) => args)
+	and: vi.fn((...args: unknown[]) => args),
+	inArray: vi.fn((field: unknown, values: unknown[]) => [field, values])
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
@@ -182,6 +184,7 @@ describe('/api/projects/[projectId]/test-plans', () => {
 		});
 
 		it('should create plan with testCaseIds', async () => {
+			mockSelectResult(mockDb, [{ id: 1 }, { id: 2 }, { id: 3 }]);
 			const created = {
 				id: 11,
 				projectId: 1,
@@ -224,6 +227,23 @@ describe('/api/projects/[projectId]/test-plans', () => {
 
 			expect(response.status).toBe(201);
 			expect(data.id).toBe(11);
+		});
+
+		it('should reject testCaseIds outside the project before creating a plan', async () => {
+			mockSelectResult(mockDb, [{ id: 1 }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Plan with Cases', testCaseIds: [1, 999] },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Some test cases do not belong');
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
 		it('should create test plan for PROJECT_ADMIN', async () => {

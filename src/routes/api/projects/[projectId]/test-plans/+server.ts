@@ -6,7 +6,10 @@ import { eq, sql } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { createTestPlanSchema } from '$lib/schemas/test-plan.schema';
-import { validateOptionalReleaseId } from '$lib/server/project-reference-validation';
+import {
+	validateOptionalReleaseId,
+	validateTestCaseIdsInProject
+} from '$lib/server/project-reference-validation';
 
 export const GET = withProjectAccess(async ({ projectId, url }) => {
 	const statusFilter = url.searchParams.get('status');
@@ -96,6 +99,8 @@ export const POST = withProjectRole(
 
 		const releaseError = await validateOptionalReleaseId(releaseId, projectId);
 		if (releaseError) return releaseError;
+		const testCasesError = await validateTestCaseIdsInProject(testCaseIds, projectId);
+		if (testCasesError) return testCasesError;
 
 		const plan = await db.transaction(async (tx) => {
 			const [created] = await tx

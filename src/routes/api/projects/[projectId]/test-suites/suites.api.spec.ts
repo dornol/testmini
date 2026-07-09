@@ -16,6 +16,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		createdAt: 'created_at'
 	},
 	testSuiteItem: { suiteId: 'suite_id', testCaseId: 'test_case_id' },
+	testCase: { id: 'id', projectId: 'project_id' },
 	user: { id: 'id', name: 'name' }
 }));
 vi.mock('drizzle-orm', () => ({
@@ -26,7 +27,8 @@ vi.mock('drizzle-orm', () => ({
 		}),
 		{ raw: (s: string) => s }
 	),
-	and: vi.fn((...args: unknown[]) => args)
+	and: vi.fn((...args: unknown[]) => args),
+	inArray: vi.fn((field: unknown, values: unknown[]) => [field, values])
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
@@ -179,6 +181,23 @@ describe('/api/projects/[projectId]/test-suites', () => {
 
 			expect(response.status).toBe(201);
 			expect(data.id).toBe(11);
+		});
+
+		it('should reject testCaseIds outside the project before creating a suite', async () => {
+			mockSelectResult(mockDb, [{ id: 10 }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'New Suite', testCaseIds: [10, 999] },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Some test cases do not belong');
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
 		it('should trim name and blank description before creating', async () => {

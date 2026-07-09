@@ -1,7 +1,7 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { badRequest } from './errors';
 import { db } from './db';
-import { release, testCycle, testPlan } from './db/schema';
+import { release, testCase, testCycle, testPlan } from './db/schema';
 
 export async function validateOptionalReleaseId(
 	releaseId: number | null | undefined,
@@ -37,4 +37,20 @@ export async function validateOptionalTestCycleId(
 		where: and(eq(testCycle.id, testCycleId), eq(testCycle.projectId, projectId))
 	});
 	return existing ? null : badRequest('Test cycle not found in this project');
+}
+
+export async function validateTestCaseIdsInProject(
+	testCaseIds: number[],
+	projectId: number
+): Promise<Response | null> {
+	if (testCaseIds.length === 0) return null;
+
+	const validTestCases = await db
+		.select({ id: testCase.id })
+		.from(testCase)
+		.where(and(inArray(testCase.id, testCaseIds), eq(testCase.projectId, projectId)));
+
+	return validTestCases.length === testCaseIds.length
+		? null
+		: badRequest('Some test cases do not belong to this project');
 }

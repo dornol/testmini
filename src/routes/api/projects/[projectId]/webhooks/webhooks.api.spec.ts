@@ -328,10 +328,7 @@ describe('/api/projects/[projectId]/webhooks', () => {
 				user: adminUser
 			});
 
-			const response = await POST(event);
-
-			expect(response.status).toBe(400);
-			expect((await response.json()).error).toContain('Invalid request body');
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 

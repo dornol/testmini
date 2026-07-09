@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
-import { requireAuth, isGlobalAdmin, parseJsonBody } from '$lib/server/auth-utils';
+import { requireAuth, isGlobalAdmin, parseJsonObjectBody } from '$lib/server/auth-utils';
 import { validatePublicHttpsUrl } from '$lib/server/url-safety';
 import { isPlainRecord } from '$lib/server/object-validation';
 
@@ -61,7 +61,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		error(403, 'Admin access required');
 	}
 
-	const issuerUrl = parseIssuerUrl(await parseJsonBody(request));
+	const issuerUrl = parseIssuerUrl(await parseJsonObjectBody(request));
 
 	// SSRF defence: validate URL scheme and resolved IP before fetching.
 	await assertSafeIssuerUrl(issuerUrl);

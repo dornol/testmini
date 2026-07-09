@@ -4,7 +4,7 @@ import { db } from '$lib/server/db';
 import { sharedReport } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import crypto from 'crypto';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonObjectBody } from '$lib/server/auth-utils';
 import { isPlainRecord } from '$lib/server/object-validation';
 
 const MAX_NAME_LENGTH = 120;
@@ -64,8 +64,7 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA'],
 	async ({ request, projectId, user }) => {
-		const body = await parseJsonBody(request);
-		if (!isPlainRecord(body)) error(400, 'Invalid request body');
+		const body = await parseJsonObjectBody(request);
 
 		const { name, config } = body;
 

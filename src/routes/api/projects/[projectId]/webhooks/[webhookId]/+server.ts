@@ -4,7 +4,7 @@ import { db } from '$lib/server/db';
 import { projectWebhook } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
-import { parseJsonBody, parseId } from '$lib/server/auth-utils';
+import { parseJsonObjectBody, parseId } from '$lib/server/auth-utils';
 import { validateWebhookFields } from '$lib/server/webhook-validation';
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params, projectId }) => {
@@ -15,7 +15,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params
 	});
 	if (!existing) error(404, 'Webhook not found');
 
-	const body = await parseJsonBody(request);
+	const body = await parseJsonObjectBody(request);
 	const fields = await validateWebhookFields(body, { allowEnabled: true });
 	if (fields instanceof Response) return fields;
 

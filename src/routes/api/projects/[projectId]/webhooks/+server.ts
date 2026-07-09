@@ -4,7 +4,7 @@ import { db } from '$lib/server/db';
 import { projectWebhook } from '$lib/server/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonObjectBody } from '$lib/server/auth-utils';
 import { validateWebhookFields } from '$lib/server/webhook-validation';
 
 export const GET = withProjectRole(
@@ -28,7 +28,7 @@ export const GET = withProjectRole(
 );
 
 export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, projectId }) => {
-	const body = await parseJsonBody(request);
+	const body = await parseJsonObjectBody(request);
 	const fields = await validateWebhookFields(body, { requireName: true, requireUrl: true });
 	if (fields instanceof Response) return fields;
 

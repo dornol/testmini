@@ -300,10 +300,7 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 				user: adminUser
 			});
 
-			const response = await PATCH(event);
-
-			expect(response.status).toBe(400);
-			expect((await response.json()).error).toContain('Invalid request body');
+			await expect(PATCH(event)).rejects.toMatchObject({ status: 400 });
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 

@@ -69,6 +69,18 @@ describe('/api/admin/oidc-providers/discover', () => {
 		expect(mockFetch).not.toHaveBeenCalled();
 	});
 
+	it('should return 400 for non-object request bodies before discovery', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			body: ['https://issuer.example'],
+			user: adminUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		expect(mockLookup).not.toHaveBeenCalled();
+		expect(mockFetch).not.toHaveBeenCalled();
+	});
+
 	it('should reject issuerUrl resolving to a private address', async () => {
 		mockLookup.mockResolvedValue([{ address: '10.0.0.5', family: 4 }]);
 

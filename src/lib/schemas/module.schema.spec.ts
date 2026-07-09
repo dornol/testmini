@@ -10,11 +10,23 @@ describe('module.schema', () => {
 
 		it('accepts optional fields', () => {
 			const result = createModuleSchema.safeParse({
-				name: 'Auth Module',
+				name: ' Auth Module ',
 				parentModuleId: 1,
-				description: 'Authentication and authorization'
+				description: ' Authentication and authorization '
 			});
 			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.name).toBe('Auth Module');
+				expect(result.data.description).toBe('Authentication and authorization');
+			}
+		});
+
+		it('normalizes empty description to null', () => {
+			const result = createModuleSchema.safeParse({ name: 'Root Module', description: '   ' });
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.description).toBeNull();
+			}
 		});
 
 		it('accepts null parentModuleId', () => {
@@ -47,6 +59,18 @@ describe('module.schema', () => {
 		it('accepts nullable description', () => {
 			const result = updateModuleSchema.safeParse({ description: null });
 			expect(result.success).toBe(true);
+		});
+
+		it('rejects unsafe sortOrder', () => {
+			const result = updateModuleSchema.safeParse({ sortOrder: Number.MAX_SAFE_INTEGER + 1 });
+			expect(result.success).toBe(false);
+		});
+
+		it('rejects unsafe parentModuleId', () => {
+			const result = updateModuleSchema.safeParse({
+				parentModuleId: Number.MAX_SAFE_INTEGER + 1
+			});
+			expect(result.success).toBe(false);
 		});
 	});
 });

@@ -134,6 +134,36 @@ describe('MCP module tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('Auth Module');
 		});
+
+		it('should reject empty names before creating a module', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-module',
+				arguments: { name: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should normalize empty descriptions when creating a module', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			const insertChain = mockInsertReturning(mockDb, [sampleModule]);
+
+			const result = await client.callTool({
+				name: 'create-module',
+				arguments: { name: ' Auth Module ', description: '   ' }
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: 'Auth Module',
+					description: null
+				})
+			);
+		});
 	});
 
 	// ── delete-module ────────────────────────────────────
@@ -237,6 +267,85 @@ describe('MCP module tools', () => {
 			expect(result.isError).toBe(true);
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Module not found'
+			);
+		});
+
+		it('should reject empty names before updating a module', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
+
+			const result = await client.callTool({
+				name: 'update-module',
+				arguments: { moduleId: 1, name: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject empty updates', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
+
+			const result = await client.callTool({
+				name: 'update-module',
+				arguments: { moduleId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'No fields to update'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject setting a module as its own parent', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
+
+			const result = await client.callTool({
+				name: 'update-module',
+				arguments: { moduleId: 1, parentModuleId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Module cannot be its own parent'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject parent modules outside the current project', async () => {
+			mockDb.query.module.findFirst.mockResolvedValueOnce(sampleModule).mockResolvedValueOnce(null);
+
+			const result = await client.callTool({
+				name: 'update-module',
+				arguments: { moduleId: 1, parentModuleId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Parent module not found'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should update parent and sort order', async () => {
+			mockDb.query.module.findFirst
+				.mockResolvedValueOnce(sampleModule)
+				.mockResolvedValueOnce({ id: 2 });
+			const updateChain = mockUpdateReturning(mockDb, [
+				{ ...sampleModule, parentModuleId: 2, sortOrder: 7 }
+			]);
+
+			const result = await client.callTool({
+				name: 'update-module',
+				arguments: { moduleId: 1, parentModuleId: 2, sortOrder: 7 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(updateChain.set).toHaveBeenCalledWith(
+				expect.objectContaining({
+					parentModuleId: 2,
+					sortOrder: 7
+				})
 			);
 		});
 	});

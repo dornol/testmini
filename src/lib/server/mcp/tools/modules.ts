@@ -2,15 +2,28 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { module, moduleTestCase, testCase } from '$lib/server/db/schema';
-import {
-	ok,
-	err,
-	requireProjectCreator,
-	buildUpdates,
-	mcpPositiveIdSchema,
-	mcpIdListSchema
-} from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema, mcpIdListSchema } from '../helpers';
 import { eq, and, sql, inArray } from 'drizzle-orm';
+import { createModuleSchema, updateModuleSchema } from '$lib/schemas/module.schema';
+
+function firstValidationError(error: { issues: Array<{ message: string }> }): string {
+	return error.issues[0]?.message ?? 'Invalid module';
+}
+
+async function validateParentModule(
+	parentModuleId: number | null | undefined,
+	projectId: number,
+	moduleId?: number
+) {
+	if (parentModuleId === null || parentModuleId === undefined) return undefined;
+	if (parentModuleId === moduleId) return err('Module cannot be its own parent');
+
+	const parent = await db.query.module.findFirst({
+		where: and(eq(module.id, parentModuleId), eq(module.projectId, projectId)),
+		columns: { id: true }
+	});
+	if (!parent) return err('Parent module not found');
+}
 
 export function registerModuleTools(server: McpServer, projectId: number) {
 	server.tool('list-modules', 'List all modules for the project', {}, async () => {
@@ -34,20 +47,19 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
 
-			if (parentModuleId) {
-				const parent = await db.query.module.findFirst({
-					where: and(eq(module.id, parentModuleId), eq(module.projectId, projectId))
-				});
-				if (!parent) return err('Parent module not found');
-			}
+			const parsed = createModuleSchema.safeParse({ name, description, parentModuleId });
+			if (!parsed.success) return err(firstValidationError(parsed.error));
+
+			const parentError = await validateParentModule(parsed.data.parentModuleId, projectId);
+			if (parentError) return parentError;
 
 			const [created] = await db
 				.insert(module)
 				.values({
 					projectId,
-					name,
-					description,
-					parentModuleId: parentModuleId ?? null,
+					name: parsed.data.name,
+					description: parsed.data.description ?? null,
+					parentModuleId: parsed.data.parentModuleId ?? null,
 					createdBy: creator
 				})
 				.returning();
@@ -101,17 +113,39 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 		{
 			moduleId: mcpPositiveIdSchema.describe('Module ID'),
 			name: z.string().optional().describe('New name'),
-			description: z.string().optional().describe('New description')
+			description: z.string().nullable().optional().describe('New description'),
+			parentModuleId: mcpPositiveIdSchema.nullable().optional().describe('Parent module ID'),
+			sortOrder: z.number().optional().describe('Sort order')
 		},
-		async ({ moduleId, name, description }) => {
+		async ({ moduleId, name, description, parentModuleId, sortOrder }) => {
 			const m = await db.query.module.findFirst({
 				where: and(eq(module.id, moduleId), eq(module.projectId, projectId))
 			});
 			if (!m) return err('Module not found');
 
+			const parsed = updateModuleSchema.safeParse({
+				name,
+				description,
+				parentModuleId,
+				sortOrder
+			});
+			if (!parsed.success) return err(firstValidationError(parsed.error));
+
+			const parentError = await validateParentModule(
+				parsed.data.parentModuleId,
+				projectId,
+				moduleId
+			);
+			if (parentError) return parentError;
+
 			const updates: Record<string, unknown> = {};
-			if (name !== undefined) updates.name = name;
-			if (description !== undefined) updates.description = description;
+			if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+			if (parsed.data.description !== undefined) updates.description = parsed.data.description;
+			if (parsed.data.parentModuleId !== undefined)
+				updates.parentModuleId = parsed.data.parentModuleId;
+			if (parsed.data.sortOrder !== undefined) updates.sortOrder = parsed.data.sortOrder;
+
+			if (Object.keys(updates).length === 0) return err('No fields to update');
 
 			const [updated] = await db
 				.update(module)

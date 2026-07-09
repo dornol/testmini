@@ -11,8 +11,20 @@ mockDb.query.teamMember = { findFirst: vi.fn() };
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
-	team: { id: 'id', name: 'name', description: 'description', createdBy: 'created_by', createdAt: 'created_at' },
-	teamMember: { id: 'id', teamId: 'team_id', userId: 'user_id', role: 'role', joinedAt: 'joined_at' },
+	team: {
+		id: 'id',
+		name: 'name',
+		description: 'description',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
+	teamMember: {
+		id: 'id',
+		teamId: 'team_id',
+		userId: 'user_id',
+		role: 'role',
+		joinedAt: 'joined_at'
+	},
 	user: { id: 'user.id', name: 'user.name', email: 'user.email', image: 'user.image' }
 }));
 vi.mock('drizzle-orm', () => ({
@@ -46,15 +58,36 @@ function createFormData(data: Record<string, string>): FormData {
 }
 
 const sampleMembers = [
-	{ id: 1, userId: 'user-1', role: 'OWNER', joinedAt: new Date(), userName: 'Test User', userEmail: 'test@example.com', userImage: null },
-	{ id: 2, userId: 'user-2', role: 'MEMBER', joinedAt: new Date(), userName: 'Another User', userEmail: 'another@example.com', userImage: null }
+	{
+		id: 1,
+		userId: 'user-1',
+		role: 'OWNER',
+		joinedAt: new Date(),
+		userName: 'Test User',
+		userEmail: 'test@example.com',
+		userImage: null
+	},
+	{
+		id: 2,
+		userId: 'user-2',
+		role: 'MEMBER',
+		joinedAt: new Date(),
+		userName: 'Another User',
+		userEmail: 'another@example.com',
+		userImage: null
+	}
 ];
 
 describe('/teams/[teamId]/settings/members', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		// Default: user is OWNER (passes requireTeamAdmin)
-		mockDb.query.teamMember.findFirst.mockResolvedValue({ id: 1, teamId: 5, userId: testUser.id, role: 'OWNER' });
+		mockDb.query.teamMember.findFirst.mockResolvedValue({
+			id: 1,
+			teamId: 5,
+			userId: testUser.id,
+			role: 'OWNER'
+		});
 	});
 
 	describe('load', () => {
@@ -65,7 +98,7 @@ describe('/teams/[teamId]/settings/members', () => {
 				params: { teamId: '5' },
 				user: testUser
 			});
-			const result = await load(event) as Record<string, any>;
+			const result = (await load(event)) as Record<string, any>;
 
 			expect(result.members).toEqual(sampleMembers);
 			expect(mockLoadTeamMembers).toHaveBeenCalledWith(5);
@@ -78,7 +111,7 @@ describe('/teams/[teamId]/settings/members', () => {
 				params: { teamId: '5' },
 				user: testUser
 			});
-			const result = await load(event) as Record<string, any>;
+			const result = (await load(event)) as Record<string, any>;
 
 			expect(result).toHaveProperty('addForm');
 			expect(result.addForm).toHaveProperty('valid');
@@ -179,6 +212,53 @@ describe('/teams/[teamId]/settings/members', () => {
 			expect(result?.status).toBe(400);
 		});
 
+		it('should return 400 for invalid memberId before looking up target member', async () => {
+			for (const memberId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
+				vi.clearAllMocks();
+				mockDb.query.teamMember.findFirst.mockResolvedValueOnce({
+					id: 1,
+					teamId: 5,
+					userId: testUser.id,
+					role: 'OWNER'
+				});
+
+				const event = createMockEvent({
+					method: 'POST',
+					formData: createFormData({ memberId, role: 'ADMIN' }),
+					params: { teamId: '5' },
+					user: testUser
+				});
+
+				const result = await actions.updateRole(event);
+
+				expect(result).toMatchObject({ status: 400, data: { error: 'Invalid memberId or role' } });
+				expect(mockDb.query.teamMember.findFirst).toHaveBeenCalledTimes(1);
+				expect(mockDb.update).not.toHaveBeenCalled();
+			}
+		});
+
+		it('should return 400 for invalid role before looking up target member', async () => {
+			mockDb.query.teamMember.findFirst.mockResolvedValueOnce({
+				id: 1,
+				teamId: 5,
+				userId: testUser.id,
+				role: 'OWNER'
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createFormData({ memberId: '2', role: 'SUPERADMIN' }),
+				params: { teamId: '5' },
+				user: testUser
+			});
+
+			const result = await actions.updateRole(event);
+
+			expect(result).toMatchObject({ status: 400, data: { error: 'Invalid memberId or role' } });
+			expect(mockDb.query.teamMember.findFirst).toHaveBeenCalledTimes(1);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 404 when member not found', async () => {
 			mockDb.query.teamMember.findFirst
 				.mockResolvedValueOnce({ id: 1, teamId: 5, userId: testUser.id, role: 'OWNER' }) // requireTeamAdmin
@@ -245,6 +325,31 @@ describe('/teams/[teamId]/settings/members', () => {
 
 			const result = await actions.removeMember(event);
 			expect(result?.status).toBe(400);
+		});
+
+		it('should return 400 for invalid memberId before looking up target member', async () => {
+			for (const memberId of ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)]) {
+				vi.clearAllMocks();
+				mockDb.query.teamMember.findFirst.mockResolvedValueOnce({
+					id: 1,
+					teamId: 5,
+					userId: testUser.id,
+					role: 'OWNER'
+				});
+
+				const event = createMockEvent({
+					method: 'POST',
+					formData: createFormData({ memberId }),
+					params: { teamId: '5' },
+					user: testUser
+				});
+
+				const result = await actions.removeMember(event);
+
+				expect(result).toMatchObject({ status: 400, data: { error: 'Invalid memberId' } });
+				expect(mockDb.query.teamMember.findFirst).toHaveBeenCalledTimes(1);
+				expect(mockDb.delete).not.toHaveBeenCalled();
+			}
 		});
 
 		it('should return 404 when member not found', async () => {

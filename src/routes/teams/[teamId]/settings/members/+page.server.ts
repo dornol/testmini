@@ -9,6 +9,21 @@ import { eq, and, count } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin, parseId } from '$lib/server/auth-utils';
 import { loadTeamMembers } from '$lib/server/queries';
 
+const TEAM_ROLES = ['OWNER', 'ADMIN', 'MEMBER'] as const;
+type TeamRole = (typeof TEAM_ROLES)[number];
+
+function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
+	if (typeof value !== 'string') return null;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+	return parsed;
+}
+
+function parseTeamRole(value: FormDataEntryValue | null): TeamRole | null {
+	if (typeof value !== 'string') return null;
+	return TEAM_ROLES.includes(value as TeamRole) ? (value as TeamRole) : null;
+}
+
 async function requireTeamAdmin(authUser: NonNullable<App.Locals['user']>, teamId: number) {
 	if (isGlobalAdmin(authUser)) return;
 	const membership = await db.query.teamMember.findFirst({
@@ -45,10 +60,7 @@ export const actions: Actions = {
 
 		// Check if user is already a member
 		const existing = await db.query.teamMember.findFirst({
-			where: and(
-				eq(teamMember.teamId, teamId),
-				eq(teamMember.userId, userId)
-			)
+			where: and(eq(teamMember.teamId, teamId), eq(teamMember.userId, userId))
 		});
 
 		if (existing) {
@@ -70,11 +82,11 @@ export const actions: Actions = {
 		await requireTeamAdmin(authUser, teamId);
 
 		const formData = await request.formData();
-		const memberId = Number(formData.get('memberId'));
-		const role = formData.get('role') as string;
+		const memberId = parsePositiveFormId(formData.get('memberId'));
+		const role = parseTeamRole(formData.get('role'));
 
 		if (!memberId || !role) {
-			return fail(400, { error: 'Missing memberId or role' });
+			return fail(400, { error: 'Invalid memberId or role' });
 		}
 
 		const member = await db.query.teamMember.findFirst({
@@ -90,19 +102,14 @@ export const actions: Actions = {
 			const [ownerCount] = await db
 				.select({ count: count() })
 				.from(teamMember)
-				.where(
-					and(eq(teamMember.teamId, teamId), eq(teamMember.role, 'OWNER'))
-				);
+				.where(and(eq(teamMember.teamId, teamId), eq(teamMember.role, 'OWNER')));
 
 			if (ownerCount.count <= 1) {
 				return fail(400, { error: 'Cannot demote the last team owner' });
 			}
 		}
 
-		await db
-			.update(teamMember)
-			.set({ role: role as 'OWNER' | 'ADMIN' | 'MEMBER' })
-			.where(eq(teamMember.id, memberId));
+		await db.update(teamMember).set({ role }).where(eq(teamMember.id, memberId));
 
 		return { success: true };
 	},
@@ -113,10 +120,10 @@ export const actions: Actions = {
 		await requireTeamAdmin(authUser, teamId);
 
 		const formData = await request.formData();
-		const memberId = Number(formData.get('memberId'));
+		const memberId = parsePositiveFormId(formData.get('memberId'));
 
 		if (!memberId) {
-			return fail(400, { error: 'Missing memberId' });
+			return fail(400, { error: 'Invalid memberId' });
 		}
 
 		const member = await db.query.teamMember.findFirst({
@@ -132,9 +139,7 @@ export const actions: Actions = {
 			const [ownerCount] = await db
 				.select({ count: count() })
 				.from(teamMember)
-				.where(
-					and(eq(teamMember.teamId, teamId), eq(teamMember.role, 'OWNER'))
-				);
+				.where(and(eq(teamMember.teamId, teamId), eq(teamMember.role, 'OWNER')));
 
 			if (ownerCount.count <= 1) {
 				return fail(400, { error: 'Cannot remove the last team owner' });

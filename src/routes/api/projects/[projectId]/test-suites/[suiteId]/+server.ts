@@ -40,14 +40,6 @@ export const PATCH = withProjectRole(
 	async ({ request, params, projectId }) => {
 		const suiteId = parseId(params.suiteId, 'suite ID');
 
-		const suite = await db.query.testSuite.findFirst({
-			where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
-		});
-
-		if (!suite) {
-			error(404, 'Suite not found');
-		}
-
 		const body = await parseJsonObjectBody(request);
 		const parsed = updateTestSuiteSchema.safeParse(body);
 		if (!parsed.success) {
@@ -60,6 +52,14 @@ export const PATCH = withProjectRole(
 
 		if (Object.keys(updates).length === 0) {
 			return badRequest('No fields to update');
+		}
+
+		const suite = await db.query.testSuite.findFirst({
+			where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
+		});
+
+		if (!suite) {
+			error(404, 'Suite not found');
 		}
 
 		const [updated] = await db

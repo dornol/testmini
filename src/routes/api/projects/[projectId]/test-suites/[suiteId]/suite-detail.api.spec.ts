@@ -223,6 +223,11 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 			expect(response.status).toBe(400);
 			const data = await response.json();
 			expect(data.error).toBe('No fields to update');
+			expect(
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite
+					.findFirst
+			).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should reject non-object JSON before updating', async () => {
@@ -234,6 +239,10 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 			});
 
 			await expect(PATCH(event)).rejects.toMatchObject({ status: 400 });
+			expect(
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite
+					.findFirst
+			).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -247,6 +256,10 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+			expect(
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite
+					.findFirst
+			).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -260,6 +273,10 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+			expect(
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite
+					.findFirst
+			).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 

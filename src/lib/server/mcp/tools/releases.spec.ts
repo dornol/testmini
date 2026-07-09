@@ -62,6 +62,7 @@ describe('MCP release tools', () => {
 	let close: () => Promise<void>;
 
 	beforeEach(async () => {
+		vi.clearAllMocks();
 		const c = await createClient();
 		client = c.client;
 		close = c.close;
@@ -94,17 +95,61 @@ describe('MCP release tools', () => {
 	describe('create-release', () => {
 		it('should create a release', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockInsertReturning(mockDb, [sampleRelease]);
+			const insertChain = mockInsertReturning(mockDb, [sampleRelease]);
 
 			const result = await client.callTool({
 				name: 'create-release',
-				arguments: { name: 'v1.0.0', version: '1.0.0', description: 'First release' }
+				arguments: {
+					name: ' v1.0.0 ',
+					version: ' 1.0.0 ',
+					description: ' First release ',
+					releaseDate: '2025-02-01'
+				}
 			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('v1.0.0');
 			expect(parsed.version).toBe('1.0.0');
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: 'v1.0.0',
+					version: '1.0.0',
+					description: 'First release',
+					status: 'PLANNING',
+					releaseDate: new Date('2025-02-01')
+				})
+			);
+		});
+
+		it('should reject blank release names after trimming', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-release',
+				arguments: { name: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject invalid release dates before insert', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-release',
+				arguments: { name: 'v1.0.0', releaseDate: 'not-a-date' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Invalid release date'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 	});
 
@@ -118,7 +163,7 @@ describe('MCP release tools', () => {
 
 			const result = await client.callTool({
 				name: 'update-release',
-				arguments: { releaseId: 300, status: 'RELEASED' }
+				arguments: { releaseId: 300, status: 'RELEASED', releaseDate: '2025-03-01' }
 			});
 
 			expect(result.isError).toBeFalsy();
@@ -130,6 +175,54 @@ describe('MCP release tools', () => {
 					['project_id', 1]
 				])
 			);
+			expect(updateChain.set).toHaveBeenCalledWith({
+				status: 'RELEASED',
+				releaseDate: new Date('2025-03-01')
+			});
+		});
+
+		it('should reject invalid update dates before update', async () => {
+			mockDb.query.release.findFirst.mockResolvedValue(sampleRelease);
+
+			const result = await client.callTool({
+				name: 'update-release',
+				arguments: { releaseId: 300, releaseDate: 'not-a-date' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Invalid release date'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should clear release date when update receives an empty string', async () => {
+			mockDb.query.release.findFirst.mockResolvedValue(sampleRelease);
+			const updatedRelease = { ...sampleRelease, releaseDate: null };
+			const updateChain = mockUpdateReturning(mockDb, [updatedRelease]);
+
+			const result = await client.callTool({
+				name: 'update-release',
+				arguments: { releaseId: 300, releaseDate: '' }
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(updateChain.set).toHaveBeenCalledWith({ releaseDate: null });
+		});
+
+		it('should reject empty updates', async () => {
+			mockDb.query.release.findFirst.mockResolvedValue(sampleRelease);
+
+			const result = await client.callTool({
+				name: 'update-release',
+				arguments: { releaseId: 300 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'No fields to update'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 

@@ -855,5 +855,28 @@ describe('environments settings page server', () => {
 			const status = (result as { status: number }).status;
 			expect(status).toBe(400);
 		});
+
+		it.each([
+			[JSON.stringify({ order: [1, 2] })],
+			[JSON.stringify(['1', 2])],
+			[JSON.stringify([0, 1])],
+			[JSON.stringify([-1, 1])],
+			[JSON.stringify([1.5, 2])],
+			[JSON.stringify([1, 1])],
+			[JSON.stringify([Number.MAX_SAFE_INTEGER + 1])],
+			[JSON.stringify(Array.from({ length: 501 }, (_, index) => index + 1))]
+		])('should reject invalid environment order %s before updating', async (order) => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ order }),
+				user: testUser
+			});
+
+			const result = await actions.reorder(event);
+
+			expect(result).toMatchObject({ status: 400, data: { error: 'Invalid order data' } });
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
 	});
 });

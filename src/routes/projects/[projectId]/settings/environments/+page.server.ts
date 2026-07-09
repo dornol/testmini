@@ -9,6 +9,29 @@ import { cacheDelete } from '$lib/server/cache';
 import { getNextPosition } from '$lib/server/queries';
 import { parsePositiveFormId } from '$lib/server/form-utils';
 
+const MAX_REORDER_ITEMS = 500;
+
+function parseReorderIds(value: FormDataEntryValue | null): number[] | null {
+	if (typeof value !== 'string') return null;
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(value);
+	} catch {
+		return null;
+	}
+
+	if (!Array.isArray(parsed) || parsed.length > MAX_REORDER_ITEMS) return null;
+
+	const seen = new Set<number>();
+	for (const item of parsed) {
+		if (!Number.isSafeInteger(item) || item <= 0 || seen.has(item)) return null;
+		seen.add(item);
+	}
+
+	return parsed;
+}
+
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = parseId(params.projectId, 'project ID');
 
@@ -216,11 +239,8 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const orderJson = formData.get('order') as string;
-		let order: number[];
-		try {
-			order = JSON.parse(orderJson);
-		} catch {
+		const order = parseReorderIds(formData.get('order'));
+		if (!order) {
 			return fail(400, { error: 'Invalid order data' });
 		}
 

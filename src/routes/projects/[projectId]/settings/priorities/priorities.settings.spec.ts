@@ -210,4 +210,44 @@ describe('priorities settings page server', () => {
 			}
 		});
 	});
+
+	describe('actions.reorder', () => {
+		it('reorders priorities successfully', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ order: JSON.stringify([3, 1, 2]) }),
+				user: testUser
+			});
+
+			const result = await actions.reorder(event);
+
+			expect(result).toEqual({ reordered: true });
+			expect(mockDb.transaction).toHaveBeenCalled();
+		});
+
+		it.each([
+			['not-json'],
+			[JSON.stringify({ order: [1, 2] })],
+			[JSON.stringify(['1', 2])],
+			[JSON.stringify([0, 1])],
+			[JSON.stringify([-1, 1])],
+			[JSON.stringify([1.5, 2])],
+			[JSON.stringify([1, 1])],
+			[JSON.stringify([Number.MAX_SAFE_INTEGER + 1])],
+			[JSON.stringify(Array.from({ length: 501 }, (_, index) => index + 1))]
+		])('rejects invalid priority order %s before updating', async (order) => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ order }),
+				user: testUser
+			});
+
+			const result = await actions.reorder(event);
+
+			expect(result).toMatchObject({ status: 400, data: { error: 'Invalid order data' } });
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+	});
 });

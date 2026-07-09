@@ -305,9 +305,21 @@ describe('/api/projects', () => {
 			const created = { ...sampleProject, id: 99 };
 			let capturedTx: { insert: ReturnType<typeof vi.fn> } | null = null;
 			mockDb.transaction.mockImplementation(async (fn) => {
+				let insertedValues: unknown;
 				const txInsertChain = {
-					values: vi.fn().mockReturnThis(),
-					returning: vi.fn().mockResolvedValue([created]),
+					values: vi.fn().mockImplementation((values: unknown) => {
+						insertedValues = values;
+						return txInsertChain;
+					}),
+					returning: vi.fn().mockImplementation(() => {
+						if (Array.isArray(insertedValues)) {
+							return Promise.resolve(insertedValues.map((_, id) => ({ id: id + 1 })));
+						}
+						if ((insertedValues as { role?: unknown })?.role === 'PROJECT_ADMIN') {
+							return Promise.resolve([{ projectId: created.id }]);
+						}
+						return Promise.resolve([created]);
+					}),
 					then: undefined as unknown
 				};
 				txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([created]).then(r);
@@ -341,13 +353,23 @@ describe('/api/projects', () => {
 			let projectInsertValues: unknown;
 			mockDb.transaction.mockImplementation(async (fn) => {
 				let insertCount = 0;
+				let insertedValues: unknown;
 				const txInsertChain = {
 					values: vi.fn((values: unknown) => {
 						insertCount++;
+						insertedValues = values;
 						if (insertCount === 1) projectInsertValues = values;
 						return txInsertChain;
 					}),
-					returning: vi.fn().mockResolvedValue([created])
+					returning: vi.fn().mockImplementation(() => {
+						if (Array.isArray(insertedValues)) {
+							return Promise.resolve(insertedValues.map((_, id) => ({ id: id + 1 })));
+						}
+						if ((insertedValues as { role?: unknown })?.role === 'PROJECT_ADMIN') {
+							return Promise.resolve([{ projectId: created.id }]);
+						}
+						return Promise.resolve([created]);
+					})
 				};
 				const tx = {
 					insert: vi.fn().mockReturnValue(txInsertChain)
@@ -366,6 +388,56 @@ describe('/api/projects', () => {
 			expect(projectInsertValues).toEqual(
 				expect.objectContaining({ name: 'Trimmed Project', description: 'desc' })
 			);
+		});
+
+		it('should return 500 when project insert creates no row', async () => {
+			mockDb.transaction.mockImplementation(async (fn) => {
+				const txInsertChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockResolvedValue([])
+				};
+				const tx = {
+					insert: vi.fn().mockReturnValue(txInsertChain)
+				};
+				return fn(tx);
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				body: { name: 'New Project' },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
+		it('should return 500 when default priority seed creates fewer rows than requested', async () => {
+			const created = { ...sampleProject, id: 99 };
+			mockDb.transaction.mockImplementation(async (fn) => {
+				let insertCount = 0;
+				const txInsertChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockImplementation(() => {
+						insertCount++;
+						if (insertCount === 1) return Promise.resolve([created]);
+						if (insertCount === 2) return Promise.resolve([{ projectId: created.id }]);
+						if (insertCount === 3) return Promise.resolve([{ id: 1 }]);
+						return Promise.resolve([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]);
+					})
+				};
+				const tx = {
+					insert: vi.fn().mockReturnValue(txInsertChain)
+				};
+				return fn(tx);
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				body: { name: 'New Project' },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
 		});
 	});
 });

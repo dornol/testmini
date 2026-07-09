@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db, col } from '$lib/server/db';
 import { project, projectMember, priorityConfig, environmentConfig } from '$lib/server/db/schema';
 import { isGlobalAdmin, parseJsonObjectBody } from '$lib/server/auth-utils';
@@ -111,16 +111,27 @@ export const POST = withAuth(async ({ user, request }) => {
 				description: description || null,
 				createdBy: user.id
 			})
-			.returning();
+			.returning({ id: project.id, name: project.name, description: project.description });
 
-		await tx.insert(projectMember).values({
-			projectId: created.id,
-			userId: user.id,
-			role: 'PROJECT_ADMIN'
-		});
+		if (!created) {
+			error(500, 'Failed to create project');
+		}
+
+		const [member] = await tx
+			.insert(projectMember)
+			.values({
+				projectId: created.id,
+				userId: user.id,
+				role: 'PROJECT_ADMIN'
+			})
+			.returning({ projectId: projectMember.projectId });
+
+		if (!member) {
+			error(500, 'Failed to create project owner membership');
+		}
 
 		// Seed default priorities
-		await tx.insert(priorityConfig).values([
+		const priorityValues = [
 			{
 				projectId: created.id,
 				name: 'LOW',
@@ -153,10 +164,17 @@ export const POST = withAuth(async ({ user, request }) => {
 				isDefault: false,
 				createdBy: user.id
 			}
-		]);
+		];
+		const insertedPriorities = await tx
+			.insert(priorityConfig)
+			.values(priorityValues)
+			.returning({ id: priorityConfig.id });
+		if (insertedPriorities.length !== priorityValues.length) {
+			error(500, 'Failed to create default project priorities');
+		}
 
 		// Seed default environments
-		await tx.insert(environmentConfig).values([
+		const environmentValues = [
 			{
 				projectId: created.id,
 				name: 'DEV',
@@ -189,7 +207,14 @@ export const POST = withAuth(async ({ user, request }) => {
 				isDefault: false,
 				createdBy: user.id
 			}
-		]);
+		];
+		const insertedEnvironments = await tx
+			.insert(environmentConfig)
+			.values(environmentValues)
+			.returning({ id: environmentConfig.id });
+		if (insertedEnvironments.length !== environmentValues.length) {
+			error(500, 'Failed to create default project environments');
+		}
 
 		return created;
 	});

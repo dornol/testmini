@@ -7,10 +7,35 @@ const mockDb = createMockDb();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
-	project: { id: 'id', name: 'name', description: 'description', active: 'active', createdBy: 'created_by', createdAt: 'created_at' },
+	project: {
+		id: 'id',
+		name: 'name',
+		description: 'description',
+		active: 'active',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
 	projectMember: { projectId: 'project_id', userId: 'user_id', role: 'role' },
-	priorityConfig: { id: 'id', projectId: 'project_id', name: 'name', color: 'color', position: 'position', isDefault: 'is_default', createdBy: 'created_by', createdAt: 'created_at' },
-	environmentConfig: { id: 'id', projectId: 'project_id', name: 'name', color: 'color', position: 'position', isDefault: 'is_default', createdBy: 'created_by', createdAt: 'created_at' }
+	priorityConfig: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		color: 'color',
+		position: 'position',
+		isDefault: 'is_default',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
+	environmentConfig: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		color: 'color',
+		position: 'position',
+		isDefault: 'is_default',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
@@ -47,30 +72,45 @@ describe('/projects/new', () => {
 
 		it('should return form for authenticated user', async () => {
 			const event = createMockEvent({ user: testUser });
-			const result = await load(event) as Record<string, any>;
+			const result = (await load(event)) as Record<string, any>;
 			expect(result).toHaveProperty('form');
 			expect(result.form).toHaveProperty('valid');
 		});
 	});
 
 	describe('actions.default', () => {
+		function projectCreationReturningRows(values: unknown, createdProject: typeof sampleProject) {
+			if (Array.isArray(values)) {
+				return values.map((_, id) => ({ id: id + 1 }));
+			}
+			if ((values as { role?: unknown })?.role === 'PROJECT_ADMIN') {
+				return [{ projectId: createdProject.id }];
+			}
+			return [createdProject];
+		}
+
 		// Helper to set up the transaction mock and capture insert calls
 		function setupTransaction(createdProject = { ...sampleProject, id: 99 }) {
 			const txInsertCalls: { table: unknown; values: unknown }[] = [];
+			let lastValues: unknown;
 
 			mockDb.transaction.mockImplementation(async (fn) => {
 				const txInsertChain = {
 					values: vi.fn().mockImplementation(function (this: typeof txInsertChain, vals: unknown) {
 						// Capture each insert call's values
+						lastValues = vals;
 						txInsertCalls.push({ table: txInsertChain._lastTable, values: vals });
 						return txInsertChain;
 					}),
-					returning: vi.fn().mockResolvedValue([createdProject]),
+					returning: vi
+						.fn()
+						.mockImplementation(() =>
+							Promise.resolve(projectCreationReturningRows(lastValues, createdProject))
+						),
 					_lastTable: undefined as unknown,
 					then: undefined as unknown
 				};
-				txInsertChain.then = (r: (v: unknown) => void) =>
-					Promise.resolve([createdProject]).then(r);
+				txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([createdProject]).then(r);
 
 				const tx = {
 					insert: vi.fn().mockImplementation((table: unknown) => {
@@ -176,13 +216,20 @@ describe('/projects/new', () => {
 			let txRef: Record<string, ReturnType<typeof vi.fn>> | undefined;
 
 			mockDb.transaction.mockImplementation(async (fn) => {
+				let lastValues: unknown;
 				const txInsertChain = {
-					values: vi.fn().mockReturnThis(),
-					returning: vi.fn().mockResolvedValue([createdProject]),
+					values: vi.fn().mockImplementation((values: unknown) => {
+						lastValues = values;
+						return txInsertChain;
+					}),
+					returning: vi
+						.fn()
+						.mockImplementation(() =>
+							Promise.resolve(projectCreationReturningRows(lastValues, createdProject))
+						),
 					then: undefined as unknown
 				};
-				txInsertChain.then = (r: (v: unknown) => void) =>
-					Promise.resolve([createdProject]).then(r);
+				txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([createdProject]).then(r);
 
 				const tx = {
 					insert: vi.fn().mockReturnValue(txInsertChain)
@@ -197,7 +244,11 @@ describe('/projects/new', () => {
 				user: testUser
 			});
 
-			try { await actions.default(event); } catch { /* redirect */ }
+			try {
+				await actions.default(event);
+			} catch {
+				/* redirect */
+			}
 
 			// tx.insert should be called 4 times: project, projectMember, priorityConfig, environmentConfig
 			expect(txRef!.insert).toHaveBeenCalledTimes(4);
@@ -208,16 +259,21 @@ describe('/projects/new', () => {
 			const insertedValues: unknown[] = [];
 
 			mockDb.transaction.mockImplementation(async (fn) => {
+				let lastValues: unknown;
 				const txInsertChain = {
 					values: vi.fn().mockImplementation((vals: unknown) => {
+						lastValues = vals;
 						insertedValues.push(vals);
 						return txInsertChain;
 					}),
-					returning: vi.fn().mockResolvedValue([createdProject]),
+					returning: vi
+						.fn()
+						.mockImplementation(() =>
+							Promise.resolve(projectCreationReturningRows(lastValues, createdProject))
+						),
 					then: undefined as unknown
 				};
-				txInsertChain.then = (r: (v: unknown) => void) =>
-					Promise.resolve([createdProject]).then(r);
+				txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([createdProject]).then(r);
 
 				const tx = {
 					insert: vi.fn().mockReturnValue(txInsertChain)
@@ -231,7 +287,11 @@ describe('/projects/new', () => {
 				user: testUser
 			});
 
-			try { await actions.default(event); } catch { /* redirect */ }
+			try {
+				await actions.default(event);
+			} catch {
+				/* redirect */
+			}
 
 			// Second insert call is projectMember
 			const memberValues = insertedValues[1] as { projectId: number; userId: string; role: string };
@@ -247,16 +307,21 @@ describe('/projects/new', () => {
 			const insertedValues: unknown[] = [];
 
 			mockDb.transaction.mockImplementation(async (fn) => {
+				let lastValues: unknown;
 				const txInsertChain = {
 					values: vi.fn().mockImplementation((vals: unknown) => {
+						lastValues = vals;
 						insertedValues.push(vals);
 						return txInsertChain;
 					}),
-					returning: vi.fn().mockResolvedValue([createdProject]),
+					returning: vi
+						.fn()
+						.mockImplementation(() =>
+							Promise.resolve(projectCreationReturningRows(lastValues, createdProject))
+						),
 					then: undefined as unknown
 				};
-				txInsertChain.then = (r: (v: unknown) => void) =>
-					Promise.resolve([createdProject]).then(r);
+				txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([createdProject]).then(r);
 
 				const tx = {
 					insert: vi.fn().mockReturnValue(txInsertChain)
@@ -270,19 +335,48 @@ describe('/projects/new', () => {
 				user: testUser
 			});
 
-			try { await actions.default(event); } catch { /* redirect */ }
+			try {
+				await actions.default(event);
+			} catch {
+				/* redirect */
+			}
 
 			// Third insert call is priorityConfig (index 2)
 			const priorities = insertedValues[2] as Array<{
-				projectId: number; name: string; color: string; position: number; isDefault: boolean; createdBy: string;
+				projectId: number;
+				name: string;
+				color: string;
+				position: number;
+				isDefault: boolean;
+				createdBy: string;
 			}>;
 
 			expect(priorities).toHaveLength(4);
 
-			expect(priorities[0]).toMatchObject({ name: 'LOW', color: '#6b7280', position: 0, isDefault: false });
-			expect(priorities[1]).toMatchObject({ name: 'MEDIUM', color: '#3b82f6', position: 1, isDefault: true });
-			expect(priorities[2]).toMatchObject({ name: 'HIGH', color: '#f97316', position: 2, isDefault: false });
-			expect(priorities[3]).toMatchObject({ name: 'CRITICAL', color: '#ef4444', position: 3, isDefault: false });
+			expect(priorities[0]).toMatchObject({
+				name: 'LOW',
+				color: '#6b7280',
+				position: 0,
+				isDefault: false
+			});
+			expect(priorities[1]).toMatchObject({
+				name: 'MEDIUM',
+				color: '#3b82f6',
+				position: 1,
+				isDefault: true
+			});
+			expect(priorities[2]).toMatchObject({
+				name: 'HIGH',
+				color: '#f97316',
+				position: 2,
+				isDefault: false
+			});
+			expect(priorities[3]).toMatchObject({
+				name: 'CRITICAL',
+				color: '#ef4444',
+				position: 3,
+				isDefault: false
+			});
 
 			// All priorities belong to the created project
 			for (const p of priorities) {
@@ -296,16 +390,21 @@ describe('/projects/new', () => {
 			const insertedValues: unknown[] = [];
 
 			mockDb.transaction.mockImplementation(async (fn) => {
+				let lastValues: unknown;
 				const txInsertChain = {
 					values: vi.fn().mockImplementation((vals: unknown) => {
+						lastValues = vals;
 						insertedValues.push(vals);
 						return txInsertChain;
 					}),
-					returning: vi.fn().mockResolvedValue([createdProject]),
+					returning: vi
+						.fn()
+						.mockImplementation(() =>
+							Promise.resolve(projectCreationReturningRows(lastValues, createdProject))
+						),
 					then: undefined as unknown
 				};
-				txInsertChain.then = (r: (v: unknown) => void) =>
-					Promise.resolve([createdProject]).then(r);
+				txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([createdProject]).then(r);
 
 				const tx = {
 					insert: vi.fn().mockReturnValue(txInsertChain)
@@ -319,19 +418,48 @@ describe('/projects/new', () => {
 				user: testUser
 			});
 
-			try { await actions.default(event); } catch { /* redirect */ }
+			try {
+				await actions.default(event);
+			} catch {
+				/* redirect */
+			}
 
 			// Fourth insert call is environmentConfig (index 3)
 			const environments = insertedValues[3] as Array<{
-				projectId: number; name: string; color: string; position: number; isDefault: boolean; createdBy: string;
+				projectId: number;
+				name: string;
+				color: string;
+				position: number;
+				isDefault: boolean;
+				createdBy: string;
 			}>;
 
 			expect(environments).toHaveLength(4);
 
-			expect(environments[0]).toMatchObject({ name: 'DEV', color: '#3b82f6', position: 0, isDefault: true });
-			expect(environments[1]).toMatchObject({ name: 'QA', color: '#8b5cf6', position: 1, isDefault: false });
-			expect(environments[2]).toMatchObject({ name: 'STAGE', color: '#f97316', position: 2, isDefault: false });
-			expect(environments[3]).toMatchObject({ name: 'PROD', color: '#ef4444', position: 3, isDefault: false });
+			expect(environments[0]).toMatchObject({
+				name: 'DEV',
+				color: '#3b82f6',
+				position: 0,
+				isDefault: true
+			});
+			expect(environments[1]).toMatchObject({
+				name: 'QA',
+				color: '#8b5cf6',
+				position: 1,
+				isDefault: false
+			});
+			expect(environments[2]).toMatchObject({
+				name: 'STAGE',
+				color: '#f97316',
+				position: 2,
+				isDefault: false
+			});
+			expect(environments[3]).toMatchObject({
+				name: 'PROD',
+				color: '#ef4444',
+				position: 3,
+				isDefault: false
+			});
 
 			// All environments belong to the created project
 			for (const env of environments) {
@@ -345,16 +473,21 @@ describe('/projects/new', () => {
 			const insertedValues: unknown[] = [];
 
 			mockDb.transaction.mockImplementation(async (fn) => {
+				let lastValues: unknown;
 				const txInsertChain = {
 					values: vi.fn().mockImplementation((vals: unknown) => {
+						lastValues = vals;
 						insertedValues.push(vals);
 						return txInsertChain;
 					}),
-					returning: vi.fn().mockResolvedValue([createdProject]),
+					returning: vi
+						.fn()
+						.mockImplementation(() =>
+							Promise.resolve(projectCreationReturningRows(lastValues, createdProject))
+						),
 					then: undefined as unknown
 				};
-				txInsertChain.then = (r: (v: unknown) => void) =>
-					Promise.resolve([createdProject]).then(r);
+				txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([createdProject]).then(r);
 
 				const tx = {
 					insert: vi.fn().mockReturnValue(txInsertChain)
@@ -368,13 +501,18 @@ describe('/projects/new', () => {
 				user: testUser
 			});
 
-			try { await actions.default(event); } catch { /* redirect */ }
+			try {
+				await actions.default(event);
+			} catch {
+				/* redirect */
+			}
 
 			const environments = insertedValues[3] as Array<{
-				name: string; isDefault: boolean;
+				name: string;
+				isDefault: boolean;
 			}>;
 
-			const defaults = environments.filter(e => e.isDefault);
+			const defaults = environments.filter((e) => e.isDefault);
 			expect(defaults).toHaveLength(1);
 			expect(defaults[0].name).toBe('DEV');
 		});
@@ -384,16 +522,21 @@ describe('/projects/new', () => {
 			const insertedValues: unknown[] = [];
 
 			mockDb.transaction.mockImplementation(async (fn) => {
+				let lastValues: unknown;
 				const txInsertChain = {
 					values: vi.fn().mockImplementation((vals: unknown) => {
+						lastValues = vals;
 						insertedValues.push(vals);
 						return txInsertChain;
 					}),
-					returning: vi.fn().mockResolvedValue([createdProject]),
+					returning: vi
+						.fn()
+						.mockImplementation(() =>
+							Promise.resolve(projectCreationReturningRows(lastValues, createdProject))
+						),
 					then: undefined as unknown
 				};
-				txInsertChain.then = (r: (v: unknown) => void) =>
-					Promise.resolve([createdProject]).then(r);
+				txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([createdProject]).then(r);
 
 				const tx = {
 					insert: vi.fn().mockReturnValue(txInsertChain)
@@ -407,13 +550,18 @@ describe('/projects/new', () => {
 				user: testUser
 			});
 
-			try { await actions.default(event); } catch { /* redirect */ }
+			try {
+				await actions.default(event);
+			} catch {
+				/* redirect */
+			}
 
 			const priorities = insertedValues[2] as Array<{
-				name: string; isDefault: boolean;
+				name: string;
+				isDefault: boolean;
 			}>;
 
-			const defaults = priorities.filter(p => p.isDefault);
+			const defaults = priorities.filter((p) => p.isDefault);
 			expect(defaults).toHaveLength(1);
 			expect(defaults[0].name).toBe('MEDIUM');
 		});
@@ -423,16 +571,21 @@ describe('/projects/new', () => {
 			const insertedValues: unknown[] = [];
 
 			mockDb.transaction.mockImplementation(async (fn) => {
+				let lastValues: unknown;
 				const txInsertChain = {
 					values: vi.fn().mockImplementation((vals: unknown) => {
+						lastValues = vals;
 						insertedValues.push(vals);
 						return txInsertChain;
 					}),
-					returning: vi.fn().mockResolvedValue([createdProject]),
+					returning: vi
+						.fn()
+						.mockImplementation(() =>
+							Promise.resolve(projectCreationReturningRows(lastValues, createdProject))
+						),
 					then: undefined as unknown
 				};
-				txInsertChain.then = (r: (v: unknown) => void) =>
-					Promise.resolve([createdProject]).then(r);
+				txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([createdProject]).then(r);
 
 				const tx = {
 					insert: vi.fn().mockReturnValue(txInsertChain)
@@ -446,13 +599,72 @@ describe('/projects/new', () => {
 				user: testUser
 			});
 
-			try { await actions.default(event); } catch { /* redirect */ }
+			try {
+				await actions.default(event);
+			} catch {
+				/* redirect */
+			}
 
 			// First insert is project
-			const projectValues = insertedValues[0] as { name: string; description: string | null; createdBy: string };
+			const projectValues = insertedValues[0] as {
+				name: string;
+				description: string | null;
+				createdBy: string;
+			};
 			expect(projectValues.name).toBe('No Description Project');
 			expect(projectValues.description).toBeNull();
 			expect(projectValues.createdBy).toBe(testUser.id);
+		});
+
+		it('should return 500 when project insert creates no row', async () => {
+			mockDb.transaction.mockImplementation(async (fn) => {
+				const txInsertChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockResolvedValue([])
+				};
+				const tx = {
+					insert: vi.fn().mockReturnValue(txInsertChain)
+				};
+				return fn(tx);
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createFormData({ name: 'Test' }),
+				user: testUser
+			});
+
+			await expect(actions.default(event)).rejects.toMatchObject({ status: 500 });
+		});
+
+		it('should return 500 when default environment seed creates fewer rows than requested', async () => {
+			const createdProject = { ...sampleProject, id: 99 };
+			let insertCount = 0;
+			mockDb.transaction.mockImplementation(async (fn) => {
+				const txInsertChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockImplementation(() => {
+						insertCount++;
+						if (insertCount === 1) return Promise.resolve([createdProject]);
+						if (insertCount === 2) return Promise.resolve([{ projectId: createdProject.id }]);
+						if (insertCount === 3)
+							return Promise.resolve([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]);
+						return Promise.resolve([{ id: 1 }]);
+					})
+				};
+				const tx = {
+					insert: vi.fn().mockReturnValue(txInsertChain)
+				};
+				return fn(tx);
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createFormData({ name: 'Test' }),
+				user: testUser
+			});
+
+			await expect(actions.default(event)).rejects.toMatchObject({ status: 500 });
 		});
 
 		it('should accept a name exactly 100 characters long', async () => {

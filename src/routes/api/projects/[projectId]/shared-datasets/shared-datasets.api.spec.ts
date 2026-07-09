@@ -243,5 +243,18 @@ describe('/api/projects/[projectId]/shared-datasets', () => {
 			const body = await response.json();
 			expect(body.name).toBe('Login Data');
 		});
+
+		it('should return 500 when insert creates no row', async () => {
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Login Data', parameters: ['user'], rows: [] },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
 	});
 });

@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { withProjectRole } from '$lib/server/api-handler';
 import { db } from '$lib/server/db';
 import { reportSchedule } from '$lib/server/db/schema';
@@ -49,6 +49,10 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, project
 			createdBy: user.id
 		})
 		.returning();
+
+	if (!schedule) {
+		error(500, 'Failed to create report schedule');
+	}
 
 	if (schedule.enabled) {
 		registerJob(schedule);

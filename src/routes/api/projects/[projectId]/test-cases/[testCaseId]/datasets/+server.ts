@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCaseDataSet } from '$lib/server/db/schema';
 import { eq, asc } from 'drizzle-orm';
@@ -47,6 +47,10 @@ export const POST = withProjectRole(
 				orderIndex: maxOrder
 			})
 			.returning();
+
+		if (!ds) {
+			error(500, 'Failed to create data set');
+		}
 
 		return json(ds, { status: 201 });
 	}

@@ -359,5 +359,23 @@ describe('/api/projects/[projectId]/reports/schedules', () => {
 
 			expect(mockRegisterJob).not.toHaveBeenCalled();
 		});
+
+		it('should return 500 and not register job when insert creates no row', async () => {
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					name: 'Daily Report',
+					cronExpression: '0 9 * * *',
+					recipientEmails: ['test@example.com']
+				}
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+			expect(mockRegisterJob).not.toHaveBeenCalled();
+		});
 	});
 });

@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { sharedDataSet } from '$lib/server/db/schema';
 import { eq, asc } from 'drizzle-orm';
@@ -50,6 +50,10 @@ export const POST = withProjectRole(
 				createdBy: user.id
 			})
 			.returning();
+
+		if (!ds) {
+			error(500, 'Failed to create shared data set');
+		}
 
 		return json(ds, { status: 201 });
 	}

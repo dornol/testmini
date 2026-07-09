@@ -258,5 +258,20 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets', () => {
 			const response = await POST(event);
 			expect(response.status).toBe(201);
 		});
+
+		it('should return 500 when insert creates no row', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+			mockSelectResult(mockDb, []);
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { values: { a: 'b' } },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
 	});
 });

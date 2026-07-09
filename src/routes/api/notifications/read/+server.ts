@@ -5,8 +5,27 @@ import { withAuth } from '$lib/server/api-handler';
 import { and, eq, inArray } from 'drizzle-orm';
 import { cacheDelete } from '$lib/server/cache';
 import { parseJsonBody } from '$lib/server/auth-utils';
+import { z } from 'zod';
 
 const MAX_NOTIFICATION_IDS = 100;
+
+const notificationIdSchema = z
+	.number()
+	.int()
+	.positive()
+	.refine(Number.isSafeInteger, 'ids must be positive safe integers');
+
+const markNotificationsReadSchema = z.union([
+	z.object({ all: z.literal(true) }).strict(),
+	z
+		.object({
+			ids: z
+				.array(notificationIdSchema)
+				.min(1)
+				.max(MAX_NOTIFICATION_IDS, `ids must contain ${MAX_NOTIFICATION_IDS} items or fewer`)
+		})
+		.strict()
+]);
 
 export const POST = withAuth(async ({ user, request }) => {
 	let body: unknown;
@@ -16,13 +35,12 @@ export const POST = withAuth(async ({ user, request }) => {
 		error(400, 'Invalid JSON body');
 	}
 
-	if (typeof body !== 'object' || body === null) {
-		error(400, 'Invalid request body');
+	const parsed = markNotificationsReadSchema.safeParse(body);
+	if (!parsed.success) {
+		error(400, 'Provide either { all: true } or { ids: number[] }');
 	}
 
-	const payload = body as Record<string, unknown>;
-
-	if (payload.all === true) {
+	if ('all' in parsed.data) {
 		// Mark all unread notifications as read for this user
 		await db
 			.update(notification)
@@ -33,25 +51,12 @@ export const POST = withAuth(async ({ user, request }) => {
 		return json({ ok: true });
 	}
 
-	if (Array.isArray(payload.ids) && payload.ids.length > 0) {
-		const ids = payload.ids as number[];
+	// Only allow marking notifications that belong to the current user
+	await db
+		.update(notification)
+		.set({ isRead: true })
+		.where(and(eq(notification.userId, user.id), inArray(notification.id, parsed.data.ids)));
 
-		if (ids.length > MAX_NOTIFICATION_IDS) {
-			error(400, `ids must contain ${MAX_NOTIFICATION_IDS} items or fewer`);
-		}
-		if (!ids.every((id) => typeof id === 'number' && Number.isSafeInteger(id) && id > 0)) {
-			error(400, 'ids must be an array of positive safe integers');
-		}
-
-		// Only allow marking notifications that belong to the current user
-		await db
-			.update(notification)
-			.set({ isRead: true })
-			.where(and(eq(notification.userId, user.id), inArray(notification.id, ids)));
-
-		cacheDelete(`user:${user.id}:unread_notifications`);
-		return json({ ok: true });
-	}
-
-	error(400, 'Provide either { all: true } or { ids: number[] }');
+	cacheDelete(`user:${user.id}:unread_notifications`);
+	return json({ ok: true });
 });

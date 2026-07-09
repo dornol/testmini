@@ -115,6 +115,28 @@ describe('/api/notifications/read', () => {
 			}
 		});
 
+		it('should return 400 when all and ids are combined', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				body: { all: true, ids: [1] },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for unexpected fields before updating', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				body: { ids: [1], scope: 'all' },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for too many notification IDs', async () => {
 			const event = createMockEvent({
 				method: 'POST',

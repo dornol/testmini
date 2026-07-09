@@ -6,6 +6,9 @@ import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, customField } from '$lib/server/db/schema';
 import { eq, and, sql, asc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+
+const MAX_TEST_CASE_CREATE_FORM_BODY_SIZE = 256 * 1024;
 
 export const load: PageServerLoad = async ({ parent, params }) => {
 	const { userRole } = await parent();
@@ -36,6 +39,11 @@ export const actions: Actions = {
 		const user = requireAuth(locals);
 		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertContentLengthUnderLimit(
+			request,
+			MAX_TEST_CASE_CREATE_FORM_BODY_SIZE,
+			'Test case create form body is too large'
+		);
 
 		const form = await validateForm(createTestCaseSchema, request);
 

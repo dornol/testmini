@@ -17,6 +17,16 @@ describe('stepSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
+	it('should reject whitespace-only action', () => {
+		const result = stepSchema.safeParse({ action: '   ', expected: '' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim action while preserving expected text', () => {
+		const result = stepSchema.parse({ action: '  Click button  ', expected: '  Dialog opens  ' });
+		expect(result).toEqual({ action: 'Click button', expected: '  Dialog opens  ' });
+	});
+
 	it('should default expected to empty string', () => {
 		const result = stepSchema.safeParse({ action: 'Do something' });
 		expect(result.success).toBe(true);
@@ -32,6 +42,28 @@ describe('stepSchema', () => {
 });
 
 describe('gherkinStepSchema', () => {
+	it('should reject whitespace-only text', () => {
+		const result = gherkinStepSchema.safeParse({
+			keyword: 'Given',
+			text: '   ',
+			expected: ''
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim text while preserving expected text', () => {
+		const result = gherkinStepSchema.parse({
+			keyword: 'Given',
+			text: '  the user is logged in  ',
+			expected: '  Dashboard is visible  '
+		});
+		expect(result).toEqual({
+			keyword: 'Given',
+			text: 'the user is logged in',
+			expected: '  Dashboard is visible  '
+		});
+	});
+
 	it('should reject unknown fields', () => {
 		const result = gherkinStepSchema.safeParse({
 			keyword: 'Given',
@@ -76,6 +108,29 @@ describe('createTestCaseSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
+	it('should reject whitespace-only title', () => {
+		const result = createTestCaseSchema.safeParse({ title: '   ' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim identifier fields while preserving descriptive text', () => {
+		const result = createTestCaseSchema.parse({
+			title: '  Login test  ',
+			precondition: '  User exists  ',
+			expectedResult: '  Login succeeds  ',
+			priority: '  HIGH  ',
+			automationKey: '  AUTH-LOGIN  '
+		});
+
+		expect(result).toMatchObject({
+			title: 'Login test',
+			precondition: '  User exists  ',
+			expectedResult: '  Login succeeds  ',
+			priority: 'HIGH',
+			automationKey: 'AUTH-LOGIN'
+		});
+	});
+
 	it('should reject title exceeding 200 characters', () => {
 		const result = createTestCaseSchema.safeParse({ title: 'a'.repeat(201) });
 		expect(result.success).toBe(false);
@@ -97,6 +152,11 @@ describe('createTestCaseSchema', () => {
 
 	it('should reject empty priority', () => {
 		const result = createTestCaseSchema.safeParse({ title: 'T', priority: '' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject whitespace-only priority', () => {
+		const result = createTestCaseSchema.safeParse({ title: 'T', priority: '   ' });
 		expect(result.success).toBe(false);
 	});
 
@@ -144,6 +204,26 @@ describe('updateTestCaseSchema', () => {
 	it('should accept valid update with revision', () => {
 		const result = updateTestCaseSchema.safeParse({ title: 'Updated', revision: 1 });
 		expect(result.success).toBe(true);
+	});
+
+	it('should reject whitespace-only title', () => {
+		const result = updateTestCaseSchema.safeParse({ title: '   ', revision: 1 });
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim update identifier fields', () => {
+		const result = updateTestCaseSchema.parse({
+			title: '  Updated  ',
+			priority: '  LOW  ',
+			automationKey: '  CASE-1  ',
+			revision: 1
+		});
+
+		expect(result).toMatchObject({
+			title: 'Updated',
+			priority: 'LOW',
+			automationKey: 'CASE-1'
+		});
 	});
 
 	it('should reject non-positive revision', () => {

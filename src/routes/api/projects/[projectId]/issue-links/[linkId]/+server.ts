@@ -1,10 +1,10 @@
 import { json, error } from '@sveltejs/kit';
-import { badRequest } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { issueLink } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
+import { validateIssueLinkUpdateInput } from '$lib/server/issue-link-update-validation';
 
 export const PATCH = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
@@ -16,20 +16,8 @@ export const PATCH = withProjectRole(
 		});
 		if (!existing) error(404, 'Issue link not found');
 
-		const body = await parseJsonBody(request) as { title?: string; status?: string };
-
-		const updates: Record<string, unknown> = {};
-
-		if (body.title !== undefined) {
-			updates.title = body.title.trim() || null;
-		}
-		if (body.status !== undefined) {
-			updates.status = body.status.trim() || null;
-		}
-
-		if (Object.keys(updates).length === 0) {
-			return badRequest('No fields to update');
-		}
+		const updates = validateIssueLinkUpdateInput(await parseJsonBody(request));
+		if (updates instanceof Response) return updates;
 
 		await db.update(issueLink).set(updates).where(eq(issueLink.id, linkId));
 

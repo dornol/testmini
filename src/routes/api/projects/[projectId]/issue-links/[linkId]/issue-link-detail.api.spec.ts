@@ -25,9 +25,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -97,6 +96,74 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 			expect((await response.json()).error).toContain('No fields to update');
 		});
 
+		it('should return 400 when request body is not an object', async () => {
+			mockDb.query.issueLink.findFirst.mockResolvedValue(sampleLink);
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: ['new']
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/request body/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when title is not a string or null', async () => {
+			mockDb.query.issueLink.findFirst.mockResolvedValue(sampleLink);
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { title: 123 }
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('title must be a string or null');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when status is not a string or null', async () => {
+			mockDb.query.issueLink.findFirst.mockResolvedValue(sampleLink);
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { status: 123 }
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('status must be a string or null');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when title is too long', async () => {
+			mockDb.query.issueLink.findFirst.mockResolvedValue(sampleLink);
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { title: 'x'.repeat(501) }
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/500 characters/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should update title', async () => {
 			mockDb.query.issueLink.findFirst
 				.mockResolvedValueOnce(sampleLink)
@@ -115,6 +182,24 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 			const body = await response.json();
 			expect(body.title).toBe('Updated title');
 			expect(mockDb.update).toHaveBeenCalled();
+		});
+
+		it('should trim title before update', async () => {
+			mockDb.query.issueLink.findFirst
+				.mockResolvedValueOnce(sampleLink)
+				.mockResolvedValueOnce({ ...sampleLink, title: 'Updated title' });
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { title: '  Updated title  ' }
+			});
+
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(200);
+			expect(mockDb.update().set).toHaveBeenCalledWith({ title: 'Updated title' });
 		});
 
 		it('should update status', async () => {
@@ -167,6 +252,24 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 
 			const response = await PATCH(event);
 			expect(response.status).toBe(200);
+		});
+
+		it('should set status to null when null is provided', async () => {
+			mockDb.query.issueLink.findFirst
+				.mockResolvedValueOnce(sampleLink)
+				.mockResolvedValueOnce({ ...sampleLink, status: null });
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { status: null }
+			});
+
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(200);
+			expect(mockDb.update().set).toHaveBeenCalledWith({ status: null });
 		});
 	});
 

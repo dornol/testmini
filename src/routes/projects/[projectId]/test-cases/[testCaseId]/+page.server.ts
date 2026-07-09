@@ -288,18 +288,19 @@ export const actions: Actions = {
 			return { tagCreatedAndAssigned: true };
 		}
 
-		// Create new tag and assign
-		const [newTag] = await db
-			.insert(tag)
-			.values({
-				projectId,
-				name: parsed.data.name,
-				color: parsed.data.color,
-				createdBy: authUser.id
-			})
-			.returning();
+		await db.transaction(async (tx) => {
+			const [newTag] = await tx
+				.insert(tag)
+				.values({
+					projectId,
+					name: parsed.data.name,
+					color: parsed.data.color,
+					createdBy: authUser.id
+				})
+				.returning();
 
-		await db.insert(testCaseTag).values({ testCaseId, tagId: newTag.id });
+			await tx.insert(testCaseTag).values({ testCaseId, tagId: newTag.id });
+		});
 
 		cacheDelete(`project:${projectId}:tags`);
 		return { tagCreatedAndAssigned: true };

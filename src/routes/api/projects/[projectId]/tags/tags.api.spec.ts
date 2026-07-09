@@ -74,7 +74,14 @@ describe('/api/projects/[projectId]/tags', () => {
 
 		it('should create tag and assign to test case when testCaseId provided', async () => {
 			const created = { id: 2, name: 'Feature', color: '#00ff00' };
-			mockInsertReturning(mockDb, [created]);
+			const returning = vi.fn().mockResolvedValue([created]);
+			const tagValues = vi.fn(() => ({ returning }));
+			const assignmentValues = vi.fn().mockResolvedValue(undefined);
+			const txInsert = vi
+				.fn()
+				.mockReturnValueOnce({ values: tagValues })
+				.mockReturnValueOnce({ values: assignmentValues });
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn({ insert: txInsert }));
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -89,6 +96,20 @@ describe('/api/projects/[projectId]/tags', () => {
 			expect(data.tag.name).toBe('Feature');
 			expect(data.assigned).toBe(true);
 			expect(mockRequireTestCase).toHaveBeenCalledWith(10, 1);
+			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+			expect(txInsert).toHaveBeenNthCalledWith(1, expect.objectContaining({ id: 'id' }));
+			expect(tagValues).toHaveBeenCalledWith({
+				projectId: 1,
+				name: 'Feature',
+				color: '#00ff00',
+				createdBy: testUser.id
+			});
+			expect(txInsert).toHaveBeenNthCalledWith(2, {
+				testCaseId: 'test_case_id',
+				tagId: 'tag_id'
+			});
+			expect(assignmentValues).toHaveBeenCalledWith({ testCaseId: 10, tagId: 2 });
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for missing name', async () => {

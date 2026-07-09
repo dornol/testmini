@@ -58,20 +58,32 @@ export const POST = withProjectRole(
 			return conflict('A tag with this name already exists');
 		}
 
-		const [newTag] = await db
-			.insert(tag)
-			.values({
-				projectId,
-				name: parsed.data.name,
-				color: parsed.data.color,
-				createdBy: user.id
-			})
-			.returning();
-
-		// Optionally assign to a test case
-		if (testCaseId != null) {
-			await db.insert(testCaseTag).values({ testCaseId, tagId: newTag.id });
-		}
+		const newTag =
+			testCaseId == null
+				? (
+						await db
+							.insert(tag)
+							.values({
+								projectId,
+								name: parsed.data.name,
+								color: parsed.data.color,
+								createdBy: user.id
+							})
+							.returning()
+					)[0]
+				: await db.transaction(async (tx) => {
+						const [created] = await tx
+							.insert(tag)
+							.values({
+								projectId,
+								name: parsed.data.name,
+								color: parsed.data.color,
+								createdBy: user.id
+							})
+							.returning();
+						await tx.insert(testCaseTag).values({ testCaseId, tagId: created.id });
+						return created;
+					});
 
 		cacheDelete(`project:${projectId}:tags`);
 		return json({

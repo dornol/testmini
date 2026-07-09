@@ -70,6 +70,45 @@ describe('test case detail page actions', () => {
 	});
 
 	describe('createTag', () => {
+		it('creates a new tag and assignment in one transaction', async () => {
+			const created = { id: 7, name: 'Regression', color: '#3b82f6' };
+			mockDb.query.testCase.findFirst.mockResolvedValueOnce({ id: 10, projectId: 1 });
+			mockDb.query.tag.findFirst.mockResolvedValueOnce(null);
+			const returning = vi.fn().mockResolvedValue([created]);
+			const tagValues = vi.fn(() => ({ returning }));
+			const assignmentValues = vi.fn().mockResolvedValue(undefined);
+			const txInsert = vi
+				.fn()
+				.mockReturnValueOnce({ values: tagValues })
+				.mockReturnValueOnce({ values: assignmentValues });
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn({ insert: txInsert }));
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ name: 'Regression', color: '#3b82f6' }),
+				user: testUser
+			});
+
+			const result = await actions.createTag(event);
+
+			expect(result).toEqual({ tagCreatedAndAssigned: true });
+			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+			expect(txInsert).toHaveBeenNthCalledWith(1, expect.objectContaining({ id: 'id' }));
+			expect(tagValues).toHaveBeenCalledWith({
+				projectId: 1,
+				name: 'Regression',
+				color: '#3b82f6',
+				createdBy: testUser.id
+			});
+			expect(txInsert).toHaveBeenNthCalledWith(2, {
+				testCaseId: 'test_case_id',
+				tagId: 'tag_id'
+			});
+			expect(assignmentValues).toHaveBeenCalledWith({ testCaseId: 10, tagId: 7 });
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it.each([
 			[{ name: new File(['Bug'], 'name.txt'), color: '#ef4444' }],
 			[{ name: 'Bug', color: new File(['#ef4444'], 'color.txt') }]

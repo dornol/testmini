@@ -4,6 +4,7 @@ import { db, col } from '$lib/server/db';
 import { project, projectMember } from '$lib/server/db/schema';
 import { eq, ilike, count, desc, sql } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
+import { parsePositiveIntegerSearchParam } from '$lib/server/search-param-validation';
 
 function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
 	if (typeof value !== 'string') return null;
@@ -13,7 +14,7 @@ function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
 }
 
 export const load: PageServerLoad = async ({ url }) => {
-	const pg = Math.max(1, Number(url.searchParams.get('page')) || 1);
+	const pg = parsePositiveIntegerSearchParam(url.searchParams.get('page'), 1);
 	const limit = 20;
 	const search = url.searchParams.get('search') || '';
 	const showInactive = url.searchParams.get('inactive') === 'true';

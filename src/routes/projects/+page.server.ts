@@ -4,6 +4,7 @@ import { db, col } from '$lib/server/db';
 import { project, projectMember } from '$lib/server/db/schema';
 import { and, eq, ilike, count, inArray, sql } from 'drizzle-orm';
 import { isGlobalAdmin } from '$lib/server/auth-utils';
+import { parsePositiveIntegerSearchParam } from '$lib/server/search-param-validation';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -11,8 +12,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	const user = locals.user as App.Locals['user'] & { role?: string };
-	const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'));
-	const limit = Math.min(50, Math.max(1, Number(url.searchParams.get('limit') ?? '12')));
+	const page = parsePositiveIntegerSearchParam(url.searchParams.get('page'), 1);
+	const limit = parsePositiveIntegerSearchParam(url.searchParams.get('limit'), 12, { max: 50 });
 	const search = url.searchParams.get('search') ?? '';
 	const active = url.searchParams.get('active') !== 'false';
 	const offset = (page - 1) * limit;
@@ -41,9 +42,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				description: project.description,
 				active: project.active,
 				createdAt: project.createdAt,
-				memberCount: sql<number>`(select count(*)::int from project_member where project_id = ${col(project.id)})`.as(
-					'member_count'
-				)
+				memberCount:
+					sql<number>`(select count(*)::int from project_member where project_id = ${col(project.id)})`.as(
+						'member_count'
+					)
 			})
 			.from(project)
 			.where(where)

@@ -7,9 +7,16 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testRun: {
-		id: 'id', name: 'name', environment: 'environment', status: 'status',
-		createdBy: 'created_by', createdAt: 'created_at', startedAt: 'started_at',
-		finishedAt: 'finished_at', retestOfRunId: 'retest_of_run_id', projectId: 'project_id'
+		id: 'id',
+		name: 'name',
+		environment: 'environment',
+		status: 'status',
+		createdBy: 'created_by',
+		createdAt: 'created_at',
+		startedAt: 'started_at',
+		finishedAt: 'finished_at',
+		retestOfRunId: 'retest_of_run_id',
+		projectId: 'project_id'
 	},
 	testExecution: { id: 'id', testRunId: 'test_run_id', status: 'status' },
 	user: { id: 'id', name: 'name' }
@@ -64,7 +71,7 @@ describe('test-runs list page server', () => {
 			[{ id: 50, name: 'Run 1', status: 'COMPLETED', totalCount: 10, passedCount: 8 }],
 			1
 		);
-		const result = await load(createLoadEvent() as never) as Record<string, any>;
+		const result = (await load(createLoadEvent() as never)) as Record<string, any>;
 
 		expect(result.runs).toHaveLength(1);
 		expect(result.meta.page).toBe(1);
@@ -75,7 +82,7 @@ describe('test-runs list page server', () => {
 
 	it('should return empty runs', async () => {
 		setupSelectMock([], 0);
-		const result = await load(createLoadEvent() as never) as Record<string, any>;
+		const result = (await load(createLoadEvent() as never)) as Record<string, any>;
 
 		expect(result.runs).toEqual([]);
 		expect(result.meta.total).toBe(0);
@@ -84,14 +91,20 @@ describe('test-runs list page server', () => {
 
 	it('should apply status filter', async () => {
 		setupSelectMock([], 0);
-		const result = await load(createLoadEvent({ status: 'COMPLETED' }) as never) as Record<string, any>;
+		const result = (await load(createLoadEvent({ status: 'COMPLETED' }) as never)) as Record<
+			string,
+			any
+		>;
 
 		expect(result.statusFilter).toBe('COMPLETED');
 	});
 
 	it('should ignore invalid status filter', async () => {
 		setupSelectMock([], 0);
-		const result = await load(createLoadEvent({ status: 'INVALID' }) as never) as Record<string, any>;
+		const result = (await load(createLoadEvent({ status: 'INVALID' }) as never)) as Record<
+			string,
+			any
+		>;
 
 		expect(result.statusFilter).toBe('INVALID');
 		// Invalid status is stored but not applied as filter condition
@@ -99,7 +112,10 @@ describe('test-runs list page server', () => {
 
 	it('should handle custom page and limit', async () => {
 		setupSelectMock([], 100);
-		const result = await load(createLoadEvent({ page: '3', limit: '10' }) as never) as Record<string, any>;
+		const result = (await load(createLoadEvent({ page: '3', limit: '10' }) as never)) as Record<
+			string,
+			any
+		>;
 
 		expect(result.meta.page).toBe(3);
 		expect(result.meta.limit).toBe(10);
@@ -108,21 +124,41 @@ describe('test-runs list page server', () => {
 
 	it('should clamp limit to valid range (1-50)', async () => {
 		setupSelectMock([], 0);
-		const result = await load(createLoadEvent({ limit: '200' }) as never) as Record<string, any>;
+		const result = (await load(createLoadEvent({ limit: '200' }) as never)) as Record<string, any>;
 
 		expect(result.meta.limit).toBe(50);
 	});
 
 	it('should clamp page to minimum 1', async () => {
 		setupSelectMock([], 0);
-		const result = await load(createLoadEvent({ page: '-5' }) as never) as Record<string, any>;
+		const result = (await load(createLoadEvent({ page: '-5' }) as never)) as Record<string, any>;
 
 		expect(result.meta.page).toBe(1);
 	});
 
+	it.each(['Infinity', '1.5', '9007199254740992'])(
+		'should fall back to page 1 for unsafe page value %s',
+		async (page) => {
+			setupSelectMock([], 0);
+			const result = (await load(createLoadEvent({ page }) as never)) as Record<string, any>;
+
+			expect(result.meta.page).toBe(1);
+		}
+	);
+
+	it.each(['Infinity', '1.5', '9007199254740992'])(
+		'should fall back to default limit for unsafe limit value %s',
+		async (limit) => {
+			setupSelectMock([], 0);
+			const result = (await load(createLoadEvent({ limit }) as never)) as Record<string, any>;
+
+			expect(result.meta.limit).toBe(20);
+		}
+	);
+
 	it('should compute totalPages correctly', async () => {
 		setupSelectMock([], 45);
-		const result = await load(createLoadEvent({ limit: '20' }) as never) as Record<string, any>;
+		const result = (await load(createLoadEvent({ limit: '20' }) as never)) as Record<string, any>;
 
 		expect(result.meta.totalPages).toBe(3); // ceil(45/20)
 	});

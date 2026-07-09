@@ -116,6 +116,17 @@ describe('admin/users +page.server', () => {
 			const result = (await load({ url } as never)) as Record<string, unknown>;
 			expect((result.pagination as Record<string, unknown>).page).toBe(1);
 		});
+
+		it.each(['Infinity', '1.5', '9007199254740992'])(
+			'should fall back to page 1 for unsafe page value %s',
+			async (page) => {
+				const url = new URL(`http://localhost:5173/admin/users?page=${page}`);
+				mockSelectResult(mockDb, [{ count: 0 }]);
+
+				const result = (await load({ url } as never)) as Record<string, unknown>;
+				expect((result.pagination as Record<string, unknown>).page).toBe(1);
+			}
+		);
 	});
 
 	describe('updateRole', () => {

@@ -3,21 +3,20 @@ import { db, col } from '$lib/server/db';
 import { testRun, testExecution, user } from '$lib/server/db/schema';
 import { eq, count, and, sql, desc } from 'drizzle-orm';
 import { parseId } from '$lib/server/auth-utils';
+import { parsePositiveIntegerSearchParam } from '$lib/server/search-param-validation';
 
 export const load: PageServerLoad = async ({ params, url, parent }) => {
 	await parent();
 	const projectId = parseId(params.projectId, 'project ID');
 
-	const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'));
-	const limit = Math.min(50, Math.max(1, Number(url.searchParams.get('limit') ?? '20')));
+	const page = parsePositiveIntegerSearchParam(url.searchParams.get('page'), 1);
+	const limit = parsePositiveIntegerSearchParam(url.searchParams.get('limit'), 20, { max: 50 });
 	const offset = (page - 1) * limit;
 	const statusFilter = url.searchParams.get('status') ?? '';
 
 	const conditions = [eq(testRun.projectId, projectId)];
 	if (statusFilter && ['CREATED', 'IN_PROGRESS', 'COMPLETED'].includes(statusFilter)) {
-		conditions.push(
-			eq(testRun.status, statusFilter as 'CREATED' | 'IN_PROGRESS' | 'COMPLETED')
-		);
+		conditions.push(eq(testRun.status, statusFilter as 'CREATED' | 'IN_PROGRESS' | 'COMPLETED'));
 	}
 
 	const where = and(...conditions);
@@ -34,8 +33,14 @@ export const load: PageServerLoad = async ({ params, url, parent }) => {
 				startedAt: testRun.startedAt,
 				finishedAt: testRun.finishedAt,
 				retestOfRunId: testRun.retestOfRunId,
-				totalCount: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)})`.as('total_count'),
-				passedCount: sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'PASS')`.as('passed_count')
+				totalCount:
+					sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)})`.as(
+						'total_count'
+					),
+				passedCount:
+					sql<number>`(select count(*)::int from test_execution where test_run_id = ${col(testRun.id)} and status = 'PASS')`.as(
+						'passed_count'
+					)
 			})
 			.from(testRun)
 			.innerJoin(user, eq(testRun.createdBy, user.id))

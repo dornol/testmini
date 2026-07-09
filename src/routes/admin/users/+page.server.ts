@@ -5,9 +5,10 @@ import { user } from '$lib/server/db/schema';
 import { eq, ilike, or, and, count, desc } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
 import { logAudit } from '$lib/server/audit';
+import { parsePositiveIntegerSearchParam } from '$lib/server/search-param-validation';
 
 export const load: PageServerLoad = async ({ url }) => {
-	const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+	const page = parsePositiveIntegerSearchParam(url.searchParams.get('page'), 1);
 	const limit = 20;
 	const search = url.searchParams.get('search') || '';
 	const pendingOnly = url.searchParams.get('pending') === 'true';

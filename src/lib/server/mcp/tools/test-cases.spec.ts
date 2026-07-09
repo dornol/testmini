@@ -104,6 +104,36 @@ describe('MCP test-case tools', () => {
 
 	// ── search-test-cases ────────────────────────────────
 
+	describe('list-test-cases', () => {
+		it('should reject invalid limits before querying', async () => {
+			const result = await client.callTool({
+				name: 'list-test-cases',
+				arguments: { limit: 0 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should reject invalid group IDs before querying', async () => {
+			const result = await client.callTool({
+				name: 'list-test-cases',
+				arguments: { groupId: -1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+	});
+
+	// ── search-test-cases ────────────────────────────────
+
 	describe('search-test-cases', () => {
 		it('should return matching test cases', async () => {
 			mockSelectResult(mockDb, [{ id: 10, key: 'TC-0001', title: 'Login test', priority: 'HIGH' }]);
@@ -137,6 +167,19 @@ describe('MCP test-case tools', () => {
 			await client.callTool({ name: 'search-test-cases', arguments: { query: 'test', limit: 5 } });
 
 			expect(mockDb.select).toHaveBeenCalled();
+		});
+
+		it('should reject invalid limits before querying', async () => {
+			const result = await client.callTool({
+				name: 'search-test-cases',
+				arguments: { query: 'test', limit: 0 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 	});
 
@@ -186,6 +229,17 @@ describe('MCP test-case tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Test case not found'
 			);
+		});
+
+		it('should reject invalid IDs before lookup', async () => {
+			const result = await client.callTool({ name: 'get-test-case', arguments: { id: -1 } });
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockFindTestCaseWithLatestVersion).not.toHaveBeenCalled();
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
 		});
 	});
 

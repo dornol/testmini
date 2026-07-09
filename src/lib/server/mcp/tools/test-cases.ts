@@ -17,6 +17,17 @@ import {
 	validateTestCaseVersionFields
 } from '$lib/server/test-case-update-validation';
 
+const DEFAULT_LIST_LIMIT = 50;
+const DEFAULT_SEARCH_LIMIT = 20;
+const MAX_TEST_CASE_LIMIT = 100;
+
+const mcpTestCaseLimitSchema = z
+	.number()
+	.int()
+	.positive()
+	.max(MAX_TEST_CASE_LIMIT)
+	.refine(Number.isSafeInteger, 'limit must be a safe integer');
+
 async function mcpValidationError(
 	response: Response,
 	fallback: string
@@ -30,8 +41,8 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 		'list-test-cases',
 		'List all test cases for the project',
 		{
-			limit: z.number().optional().describe('Max results (default 50)'),
-			groupId: z.number().optional().describe('Filter by group ID')
+			limit: mcpTestCaseLimitSchema.optional().describe('Max results (default 50, max 100)'),
+			groupId: mcpPositiveIdSchema.optional().describe('Filter by group ID')
 		},
 		async ({ limit, groupId }) => {
 			const conditions = [eq(testCase.projectId, projectId)];
@@ -51,7 +62,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
 				.where(and(...conditions))
 				.orderBy(desc(testCase.createdAt))
-				.limit(limit ?? 50);
+				.limit(limit ?? DEFAULT_LIST_LIMIT);
 
 			return ok(cases);
 		}
@@ -62,10 +73,9 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 		'Search test cases by keyword in title, key, or steps',
 		{
 			query: z.string().describe('Search keyword'),
-			limit: z.number().optional().describe('Max results (default 20)')
+			limit: mcpTestCaseLimitSchema.optional().describe('Max results (default 20, max 100)')
 		},
 		async ({ query, limit }) => {
-			const maxResults = Math.min(limit ?? 20, 100);
 			const results = await db
 				.select({
 					id: testCase.id,
@@ -81,7 +91,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 						sql`search_vector @@ plainto_tsquery('english', ${query})`
 					)
 				)
-				.limit(maxResults);
+				.limit(limit ?? DEFAULT_SEARCH_LIMIT);
 
 			return ok(results);
 		}
@@ -91,7 +101,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 		'get-test-case',
 		'Get full details of a test case by ID or key',
 		{
-			id: z.number().optional().describe('Test case ID'),
+			id: mcpPositiveIdSchema.optional().describe('Test case ID'),
 			key: z.string().optional().describe('Test case key (e.g., TC-0001)')
 		},
 		async ({ id, key }) => {

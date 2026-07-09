@@ -55,7 +55,7 @@ export const PUT = withProjectRole(
 			.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)));
 
 		// Auto-update run status
-		await autoUpdateRunStatus(runId);
+		await autoUpdateRunStatus(runId, projectId);
 
 		// Notify assignees on FAIL
 		if (executionStatus === 'FAIL') {
@@ -100,7 +100,7 @@ export const PUT = withProjectRole(
 	}
 );
 
-async function autoUpdateRunStatus(runId: number) {
+async function autoUpdateRunStatus(runId: number, projectId: number) {
 	// Only transition CREATED → IN_PROGRESS on first execution
 	await db
 		.update(testRun)
@@ -108,6 +108,7 @@ async function autoUpdateRunStatus(runId: number) {
 		.where(
 			and(
 				eq(testRun.id, runId),
+				eq(testRun.projectId, projectId),
 				eq(testRun.status, 'CREATED'),
 				sql`exists (select 1 from test_execution where test_run_id = ${runId} and status != 'PENDING' limit 1)`
 			)

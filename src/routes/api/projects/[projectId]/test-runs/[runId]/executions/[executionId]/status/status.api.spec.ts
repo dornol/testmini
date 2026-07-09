@@ -107,6 +107,13 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 					['test_run_id', 50]
 				])
 			);
+			expect(executionUpdateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 50],
+					['project_id', 1],
+					['status', 'CREATED']
+				])
+			);
 		});
 
 		it('should update execution status to FAIL', async () => {

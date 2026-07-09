@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { user, projectMember } from '$lib/server/db/schema';
 import { withAuth } from '$lib/server/api-handler';
+import { requireProjectRole } from '$lib/server/auth-utils';
 import { ilike, or, notInArray, and, eq } from 'drizzle-orm';
 import { badRequest } from '$lib/server/errors';
 
@@ -30,7 +31,7 @@ function parsePositiveIntegerParam(value: string | null, label: string): number 
 	return parsed;
 }
 
-export const GET = withAuth(async ({ url }) => {
+export const GET = withAuth(async ({ url, user: currentUser }) => {
 	const q = (url.searchParams.get('q') ?? '').trim();
 	const excludeProjectIdValue = url.searchParams.get('excludeProjectId');
 	let offset: number;
@@ -56,6 +57,8 @@ export const GET = withAuth(async ({ url }) => {
 	const conditions = [searchCondition];
 
 	if (excludeProjectId !== null) {
+		await requireProjectRole(currentUser, excludeProjectId, ['PROJECT_ADMIN']);
+
 		const existingMembers = db
 			.select({ userId: projectMember.userId })
 			.from(projectMember)

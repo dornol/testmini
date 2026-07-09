@@ -33,14 +33,24 @@ vi.mock('drizzle-orm', () => ({
 		{ raw: (s: string) => s }
 	)
 }));
+vi.mock('$lib/server/auth-utils', async () => {
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	return {
+		...actual,
+		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
+	};
+});
 
 // Import after mocks
 const { GET } = await import('./+server');
 const drizzle = await import('drizzle-orm');
+const authUtils = await import('$lib/server/auth-utils');
 
 describe('/api/users/search', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 	});
 
 	describe('GET', () => {
@@ -178,7 +188,22 @@ describe('/api/users/search', () => {
 			const response = await GET(event);
 
 			expect(response.status).toBe(200);
+			expect(authUtils.requireProjectRole).toHaveBeenCalledWith(testUser, 42, ['PROJECT_ADMIN']);
 			expect(drizzle.eq).toHaveBeenCalledWith('project_id', 42);
+		});
+
+		it('should require project admin role when excluding existing project members', async () => {
+			vi.mocked(authUtils.requireProjectRole).mockRejectedValue(new Error('Forbidden'));
+
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { q: 'Test', excludeProjectId: '42' }
+			});
+
+			await expect(GET(event)).rejects.toThrow('Forbidden');
+			expect(authUtils.requireProjectRole).toHaveBeenCalledWith(testUser, 42, ['PROJECT_ADMIN']);
+			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 
 		it('should return 401 when not authenticated', async () => {

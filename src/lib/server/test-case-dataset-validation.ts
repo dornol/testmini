@@ -7,6 +7,7 @@ const MAX_DATASET_VALUE_COUNT = 200;
 const MAX_DATASET_KEY_LENGTH = 120;
 const MAX_DATASET_VALUE_LENGTH = 5000;
 const UNSAFE_DATASET_VALUE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 const CREATE_DATASET_FIELDS = new Set(['name', 'values']);
 const UPDATE_DATASET_FIELDS = new Set(['name', 'values', 'orderIndex']);
 
@@ -88,6 +89,9 @@ function validateDataSetName(value: unknown): string | null | Response {
 	}
 	const name = value.trim();
 	if (!name) return null;
+	if (CONTROL_CHAR_PATTERN.test(name)) {
+		return badRequest('name must not contain control characters');
+	}
 	if (name.length > MAX_DATASET_NAME_LENGTH) {
 		return badRequest(`name must be ${MAX_DATASET_NAME_LENGTH} characters or less`);
 	}
@@ -108,6 +112,9 @@ function validateDataSetValues(value: unknown): Record<string, string> | Respons
 	for (const [key, entryValue] of entries) {
 		if (!key || key.length > MAX_DATASET_KEY_LENGTH) {
 			return badRequest(`values keys must be ${MAX_DATASET_KEY_LENGTH} characters or less`);
+		}
+		if (CONTROL_CHAR_PATTERN.test(key)) {
+			return badRequest('values keys must not contain control characters');
 		}
 		if (UNSAFE_DATASET_VALUE_KEYS.has(key)) {
 			return badRequest('values contains an unsafe key');

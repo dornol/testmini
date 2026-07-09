@@ -198,6 +198,40 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets', () => {
 			}
 		});
 
+		it('should return 400 when name contains control characters before inserting', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Set\u0000A', values: { user: 'test' } },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('name must not contain control characters');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when values keys contain control characters before inserting', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Set A', values: { 'user\u0000name': 'test' } },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('values keys must not contain control characters');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when name is too long', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
 			const event = createMockEvent({

@@ -2,6 +2,7 @@ import { badRequest } from '$lib/server/errors';
 import { validateRequestBody } from '$lib/server/id-list-validation';
 
 const MAX_PARAMETER_NAME_LENGTH = 200;
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 const CREATE_PARAMETER_FIELDS = new Set(['name']);
 const UPDATE_PARAMETER_FIELDS = new Set(['name', 'orderIndex']);
 
@@ -64,6 +65,9 @@ function validateParameterName(value: unknown, emptyMessage: string): string | R
 		return badRequest(emptyMessage);
 	}
 	const name = value.trim();
+	if (CONTROL_CHAR_PATTERN.test(name)) {
+		return badRequest('Parameter name must not contain control characters');
+	}
 	if (name.length > MAX_PARAMETER_NAME_LENGTH) {
 		return badRequest(`Parameter name must be ${MAX_PARAMETER_NAME_LENGTH} characters or less`);
 	}

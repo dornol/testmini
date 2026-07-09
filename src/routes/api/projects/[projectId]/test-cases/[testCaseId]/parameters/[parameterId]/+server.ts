@@ -15,6 +15,9 @@ export const PATCH = withProjectRole(
 		const parameterId = parseId(params.parameterId, 'parameter ID');
 		await requireTestCase(testCaseId, projectId);
 
+		const parameterOrError = validateUpdateParameterInput(await parseJsonBody(request));
+		if (parameterOrError instanceof Response) return parameterOrError;
+
 		const param = await db.query.testCaseParameter.findFirst({
 			where: and(
 				eq(testCaseParameter.id, parameterId),
@@ -22,9 +25,6 @@ export const PATCH = withProjectRole(
 			)
 		});
 		if (!param) return notFound('Parameter not found');
-
-		const parameterOrError = validateUpdateParameterInput(await parseJsonBody(request));
-		if (parameterOrError instanceof Response) return parameterOrError;
 
 		const updates: Partial<{ name: string; orderIndex: number }> = {};
 

@@ -172,6 +172,25 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 when name contains control characters before duplicate lookup', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'user\u0000name' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('Parameter name must not contain control characters');
+			expect(
+				(mockDb.query.testCaseParameter as { findFirst: ReturnType<typeof vi.fn> }).findFirst
+			).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when parameter name already exists', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
 			(

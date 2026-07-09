@@ -101,6 +101,23 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 			expect(mockDb.query.testCaseDataSet.findFirst).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 when name contains control characters before lookup', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Set\u0000B' },
+				user: testUser
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('name must not contain control characters');
+			expect(mockDb.query.testCaseDataSet.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when request body has unknown fields', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -156,6 +173,23 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/[datasetId]
 				expect(mockDb.query.testCaseDataSet.findFirst).not.toHaveBeenCalled();
 				expect(mockDb.update).not.toHaveBeenCalled();
 			}
+		});
+
+		it('should return 400 when values keys contain control characters before lookup', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { values: { 'browser\u0000name': 'Chrome' } },
+				user: testUser
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('values keys must not contain control characters');
+			expect(mockDb.query.testCaseDataSet.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when orderIndex is negative', async () => {

@@ -128,6 +128,22 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters/[paramete
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 when name contains control characters before lookup', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'user\u0000name' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Parameter name must not contain control characters');
+			expect(mockDb.query.testCaseParameter.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when orderIndex is invalid', async () => {
 			const cases = ['1', 'abc', null, true, {}, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
 

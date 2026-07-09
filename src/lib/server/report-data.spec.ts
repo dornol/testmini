@@ -6,10 +6,22 @@ const { mockDb } = vi.hoisted(() => {
 		const resolver = terminal ?? (() => []);
 		const chain: Record<string, unknown> = {};
 		const methods = [
-			'from', 'where', 'orderBy', 'limit', 'offset',
-			'innerJoin', 'leftJoin', 'groupBy', 'as', 'set',
-			'values', 'returning', 'onConflictDoNothing',
-			'onConflictDoUpdate', '$dynamic', 'having'
+			'from',
+			'where',
+			'orderBy',
+			'limit',
+			'offset',
+			'innerJoin',
+			'leftJoin',
+			'groupBy',
+			'as',
+			'set',
+			'values',
+			'returning',
+			'onConflictDoNothing',
+			'onConflictDoUpdate',
+			'$dynamic',
+			'having'
 		];
 		for (const m of methods) {
 			chain[m] = vi.fn().mockImplementation(() => chain);
@@ -111,6 +123,29 @@ describe('parseDateRange', () => {
 	it('returns allTime when preset is "all"', () => {
 		const result = parseDateRange({ preset: 'all' });
 		expect(result).toEqual({ from: null, to: null, allTime: true });
+	});
+
+	it('returns allTime when preset is "all_time"', () => {
+		const result = parseDateRange({ preset: 'all_time' });
+		expect(result).toEqual({ from: null, to: null, allTime: true });
+	});
+
+	it.each([
+		['last_7_days', 7],
+		['last_30_days', 30],
+		['last_90_days', 90]
+	])('uses preset %s as a relative date range', (preset, days) => {
+		const result = parseDateRange({ preset });
+		const expectedFrom = new Date();
+		expectedFrom.setDate(expectedFrom.getDate() - days);
+		expectedFrom.setHours(0, 0, 0, 0);
+
+		expect(result.allTime).toBe(false);
+		expect(result.from!.getFullYear()).toBe(expectedFrom.getFullYear());
+		expect(result.from!.getMonth()).toBe(expectedFrom.getMonth());
+		expect(result.from!.getDate()).toBe(expectedFrom.getDate());
+		expect(result.to!.getHours()).toBe(23);
+		expect(result.to!.getMinutes()).toBe(59);
 	});
 
 	it('defaults to last 30 days when no params provided', () => {
@@ -232,6 +267,21 @@ describe('parseDateRange', () => {
 		expect(result).toEqual({ from: null, to: null, allTime: true });
 	});
 
+	it('preset="last_90_days" ignores stale persisted from/to params', () => {
+		const result = parseDateRange({
+			preset: 'last_90_days',
+			from: '2020-01-01',
+			to: '2020-01-31'
+		});
+		const expectedFrom = new Date();
+		expectedFrom.setDate(expectedFrom.getDate() - 90);
+
+		expect(result.allTime).toBe(false);
+		expect(result.from!.getFullYear()).toBe(expectedFrom.getFullYear());
+		expect(result.from!.getMonth()).toBe(expectedFrom.getMonth());
+		expect(result.from!.getDate()).toBe(expectedFrom.getDate());
+	});
+
 	it('normalizes custom from to start of day', () => {
 		const result = parseDateRange({ from: '2025-03-10T14:30:00Z' });
 		expect(result.from!.getHours()).toBe(0);
@@ -263,13 +313,21 @@ describe('loadReportData', () => {
 	function setupSelectMock(results?: unknown[][]) {
 		let callIndex = 0;
 		mockDb.select.mockImplementation(() => {
-			const data = results ? results[callIndex] ?? [] : [];
+			const data = results ? (results[callIndex] ?? []) : [];
 			callIndex++;
 			const chain: Record<string, unknown> = {};
 			const methods = [
-				'from', 'where', 'orderBy', 'limit', 'offset',
-				'innerJoin', 'leftJoin', 'groupBy', 'as',
-				'having', '$dynamic'
+				'from',
+				'where',
+				'orderBy',
+				'limit',
+				'offset',
+				'innerJoin',
+				'leftJoin',
+				'groupBy',
+				'as',
+				'having',
+				'$dynamic'
 			];
 			for (const m of methods) {
 				chain[m] = vi.fn().mockReturnValue(chain);

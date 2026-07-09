@@ -23,15 +23,28 @@ export function parseDateRange(params: {
 	to?: string | null;
 	preset?: string | null;
 }): ReportDateRange {
-	const allTime = params.preset === 'all';
-
 	const today = new Date();
 	today.setHours(23, 59, 59, 999);
 	const defaultFrom = new Date();
 	defaultFrom.setDate(defaultFrom.getDate() - 30);
 	defaultFrom.setHours(0, 0, 0, 0);
 
-	if (allTime) return { from: null, to: null, allTime: true };
+	if (params.preset === 'all' || params.preset === 'all_time') {
+		return { from: null, to: null, allTime: true };
+	}
+
+	const presetDays = {
+		last_7_days: 7,
+		last_30_days: 30,
+		last_90_days: 90
+	}[params.preset ?? ''];
+
+	if (presetDays !== undefined) {
+		const from = new Date();
+		from.setDate(from.getDate() - presetDays);
+		from.setHours(0, 0, 0, 0);
+		return { from, to: today, allTime: false };
+	}
 
 	const parseDate = (v: string | null | undefined) => {
 		if (!v) return null;
@@ -66,7 +79,6 @@ async function loadReportDataInternal(projectId: number, range: ReportDateRange)
 		if (range.to) conditions.push(lte(testRun.createdAt, range.to));
 		return and(...conditions);
 	}
-
 
 	const [
 		envStats,
@@ -116,12 +128,14 @@ async function loadReportDataInternal(projectId: number, range: ReportDateRange)
 				failCount: sql<number>`count(case when ${testExecution.status} = 'FAIL' then 1 end)`.as(
 					'fail_count'
 				),
-				blockedCount: sql<number>`count(case when ${testExecution.status} = 'BLOCKED' then 1 end)`.as(
-					'blocked_count'
-				),
-				skippedCount: sql<number>`count(case when ${testExecution.status} = 'SKIPPED' then 1 end)`.as(
-					'skipped_count'
-				)
+				blockedCount:
+					sql<number>`count(case when ${testExecution.status} = 'BLOCKED' then 1 end)`.as(
+						'blocked_count'
+					),
+				skippedCount:
+					sql<number>`count(case when ${testExecution.status} = 'SKIPPED' then 1 end)`.as(
+						'skipped_count'
+					)
 			})
 			.from(testRun)
 			.leftJoin(testExecution, eq(testRun.id, testExecution.testRunId))
@@ -195,12 +209,14 @@ async function loadReportDataInternal(projectId: number, range: ReportDateRange)
 				failCount: sql<number>`count(case when ${testExecution.status} = 'FAIL' then 1 end)`.as(
 					'fail_count'
 				),
-				blockedCount: sql<number>`count(case when ${testExecution.status} = 'BLOCKED' then 1 end)`.as(
-					'blocked_count'
-				),
-				skippedCount: sql<number>`count(case when ${testExecution.status} = 'SKIPPED' then 1 end)`.as(
-					'skipped_count'
-				)
+				blockedCount:
+					sql<number>`count(case when ${testExecution.status} = 'BLOCKED' then 1 end)`.as(
+						'blocked_count'
+					),
+				skippedCount:
+					sql<number>`count(case when ${testExecution.status} = 'SKIPPED' then 1 end)`.as(
+						'skipped_count'
+					)
 			})
 			.from(testExecution)
 			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
@@ -303,16 +319,32 @@ async function loadReportDataInternal(projectId: number, range: ReportDateRange)
 				title: testCaseVersion.title,
 				priority: testCaseVersion.priority,
 				execCount: count(testExecution.id),
-				avgDuration: sql<number>`round(avg(extract(epoch from (${testExecution.completedAt} - ${testExecution.startedAt})) * 1000))`.as('avg_duration'),
-				maxDuration: sql<number>`round(max(extract(epoch from (${testExecution.completedAt} - ${testExecution.startedAt})) * 1000))`.as('max_duration')
+				avgDuration:
+					sql<number>`round(avg(extract(epoch from (${testExecution.completedAt} - ${testExecution.startedAt})) * 1000))`.as(
+						'avg_duration'
+					),
+				maxDuration:
+					sql<number>`round(max(extract(epoch from (${testExecution.completedAt} - ${testExecution.startedAt})) * 1000))`.as(
+						'max_duration'
+					)
 			})
 			.from(testExecution)
 			.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 			.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
 			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
-			.where(and(runDateCondition(), isNotNull(testExecution.startedAt), isNotNull(testExecution.completedAt)))
+			.where(
+				and(
+					runDateCondition(),
+					isNotNull(testExecution.startedAt),
+					isNotNull(testExecution.completedAt)
+				)
+			)
 			.groupBy(testCase.id, testCase.key, testCaseVersion.title, testCaseVersion.priority)
-			.orderBy(desc(sql`avg(extract(epoch from (${testExecution.completedAt} - ${testExecution.startedAt})))`))
+			.orderBy(
+				desc(
+					sql`avg(extract(epoch from (${testExecution.completedAt} - ${testExecution.startedAt})))`
+				)
+			)
 			.limit(20),
 
 		// Defect density by group

@@ -168,6 +168,36 @@ describe('Gitea integration', () => {
 			expect(result).toEqual({ status: 'closed', statusCategory: 'done' });
 		});
 
+		it('returns unknown for a missing state field', async () => {
+			mockFetch.mockResolvedValue(jsonResponse({ labels: [] }));
+
+			const result = await fetchGiteaIssueStatus(
+				baseConfig,
+				'https://gitea.example.com/org/repo/issues/5'
+			);
+			expect(result).toEqual({ status: 'unknown', statusCategory: 'unknown' });
+		});
+
+		it('returns unknown for a non-string state field', async () => {
+			mockFetch.mockResolvedValue(jsonResponse({ state: { value: 'closed' } }));
+
+			const result = await fetchGiteaIssueStatus(
+				baseConfig,
+				'https://gitea.example.com/org/repo/issues/5'
+			);
+			expect(result).toEqual({ status: 'unknown', statusCategory: 'unknown' });
+		});
+
+		it('returns unknown for a blank state field', async () => {
+			mockFetch.mockResolvedValue(jsonResponse({ state: '   ' }));
+
+			const result = await fetchGiteaIssueStatus(
+				baseConfig,
+				'https://gitea.example.com/org/repo/issues/5'
+			);
+			expect(result).toEqual({ status: 'unknown', statusCategory: 'unknown' });
+		});
+
 		it('extracts issue number from URL', async () => {
 			mockFetch.mockResolvedValue(jsonResponse({ state: 'open' }));
 			await fetchGiteaIssueStatus(baseConfig, 'https://gitea.example.com/org/repo/issues/123');

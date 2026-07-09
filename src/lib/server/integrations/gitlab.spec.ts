@@ -175,6 +175,36 @@ describe('GitLab integration', () => {
 			expect(result).toEqual({ status: 'closed', statusCategory: 'done' });
 		});
 
+		it('returns unknown for a missing state field', async () => {
+			mockFetch.mockResolvedValue(jsonResponse({ labels: [] }));
+
+			const result = await fetchGitlabIssueStatus(
+				baseConfig,
+				'https://gitlab.com/group/proj/-/issues/5'
+			);
+			expect(result).toEqual({ status: 'unknown', statusCategory: 'unknown' });
+		});
+
+		it('returns unknown for a non-string state field', async () => {
+			mockFetch.mockResolvedValue(jsonResponse({ state: { value: 'closed' } }));
+
+			const result = await fetchGitlabIssueStatus(
+				baseConfig,
+				'https://gitlab.com/group/proj/-/issues/5'
+			);
+			expect(result).toEqual({ status: 'unknown', statusCategory: 'unknown' });
+		});
+
+		it('returns unknown for a blank state field', async () => {
+			mockFetch.mockResolvedValue(jsonResponse({ state: '   ' }));
+
+			const result = await fetchGitlabIssueStatus(
+				baseConfig,
+				'https://gitlab.com/group/proj/-/issues/5'
+			);
+			expect(result).toEqual({ status: 'unknown', statusCategory: 'unknown' });
+		});
+
 		it('extracts issue iid from URL', async () => {
 			mockFetch.mockResolvedValue(jsonResponse({ state: 'opened' }));
 			await fetchGitlabIssueStatus(baseConfig, 'https://gitlab.com/group/proj/-/issues/42');

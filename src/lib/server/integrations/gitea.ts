@@ -5,6 +5,7 @@ import type {
 	IssueDetail
 } from './types';
 import { safeIntegrationFetch } from './safe-fetch';
+import { issueStatusCategoryFromState, parseExternalIssueState } from './issue-status';
 
 export async function testGiteaConnection(
 	config: IssueTrackerConfig
@@ -202,8 +203,8 @@ export async function fetchGiteaIssueStatus(
 	}
 
 	const data = await res.json();
-	const state = data.state as string;
-	const statusCategory: IssueStatusResult['statusCategory'] = state === 'closed' ? 'done' : 'open';
+	const state = parseExternalIssueState(data);
+	const statusCategory = issueStatusCategoryFromState(state);
 
 	return { status: state, statusCategory };
 }

@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db';
-import { projectApiKey } from '$lib/server/db/schema';
+import { project, projectApiKey } from '$lib/server/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { createHash } from 'crypto';
 
@@ -48,6 +48,13 @@ export async function authenticateApiKey(
 	});
 
 	if (!record) {
+		return null;
+	}
+
+	const activeProject = await db.query.project.findFirst({
+		where: and(eq(project.id, record.projectId), eq(project.active, true))
+	});
+	if (!activeProject) {
 		return null;
 	}
 

@@ -7,6 +7,10 @@ vi.mock('$lib/server/db', () => ({
 	db: mockDb
 }));
 vi.mock('$lib/server/db/schema', () => ({
+	project: {
+		id: 'project_id',
+		active: 'active'
+	},
 	projectApiKey: {
 		id: 'id',
 		keyHash: 'key_hash',
@@ -118,6 +122,7 @@ describe('api-key-auth', () => {
 
 		it('should return null when key not found in database', async () => {
 			mockDb.query.projectApiKey = { findFirst: vi.fn().mockResolvedValue(null) };
+			mockDb.query.project = { findFirst: vi.fn() };
 
 			const request = new Request('http://localhost', {
 				method: 'GET',
@@ -126,11 +131,13 @@ describe('api-key-auth', () => {
 
 			const result = await authenticateApiKey(request);
 			expect(result).toBeNull();
+			expect(mockDb.query.project.findFirst).not.toHaveBeenCalled();
 		});
 
 		it('should return projectId and keyId on valid key', async () => {
 			const mockRecord = { id: 42, projectId: 7 };
 			mockDb.query.projectApiKey = { findFirst: vi.fn().mockResolvedValue(mockRecord) };
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue({ id: 7, active: true }) };
 
 			// Mock update for lastUsedAt (fire-and-forget)
 			const updateChain = {
@@ -148,6 +155,12 @@ describe('api-key-auth', () => {
 
 			const result = await authenticateApiKey(request);
 			expect(result).toEqual({ projectId: 7, keyId: 42 });
+			expect(mockDb.query.project.findFirst).toHaveBeenCalledWith({
+				where: expect.arrayContaining([
+					['project_id', 7],
+					['active', true]
+				])
+			});
 			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 42],
@@ -157,9 +170,26 @@ describe('api-key-auth', () => {
 			);
 		});
 
+		it('should return null and skip lastUsedAt update when project is inactive', async () => {
+			const mockRecord = { id: 42, projectId: 7 };
+			mockDb.query.projectApiKey = { findFirst: vi.fn().mockResolvedValue(mockRecord) };
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue(null) };
+
+			const request = new Request('http://localhost', {
+				method: 'GET',
+				headers: { Authorization: 'Bearer tmk_0123456789abcdef0123456789abcdef' }
+			});
+
+			const result = await authenticateApiKey(request);
+
+			expect(result).toBeNull();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should trim whitespace from key', async () => {
 			const mockRecord = { id: 1, projectId: 1 };
 			mockDb.query.projectApiKey = { findFirst: vi.fn().mockResolvedValue(mockRecord) };
+			mockDb.query.project = { findFirst: vi.fn().mockResolvedValue({ id: 1, active: true }) };
 
 			const updateChain = {
 				set: vi.fn().mockReturnThis(),

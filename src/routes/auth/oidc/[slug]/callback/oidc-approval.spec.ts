@@ -207,6 +207,45 @@ describe('OIDC callback - approval queue', () => {
 		expect(mockCreateNotification).not.toHaveBeenCalled();
 	});
 
+	it('should create new users and OIDC account links in one transaction', async () => {
+		const userValues = vi.fn().mockResolvedValue(undefined);
+		const accountValues = vi.fn().mockResolvedValue(undefined);
+		const txInsert = vi
+			.fn()
+			.mockReturnValueOnce({ values: userValues })
+			.mockReturnValueOnce({ values: accountValues });
+		mockDb.transaction.mockImplementationOnce(async (fn) => fn({ insert: txInsert }));
+
+		const result = await runCallback([
+			[{ ...baseProvider, autoRegister: true }],
+			[],
+			[],
+			[{ banned: false, approved: true }]
+		]);
+
+		expect(result.redirected).toBe(true);
+		expect(result.location).toBe('/projects');
+		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+		expect(txInsert).toHaveBeenNthCalledWith(1, expect.objectContaining({ id: 'id' }));
+		expect(userValues).toHaveBeenCalledWith(
+			expect.objectContaining({
+				name: 'New User',
+				email: 'new@example.com',
+				emailVerified: true,
+				approved: true
+			})
+		);
+		expect(txInsert).toHaveBeenNthCalledWith(2, expect.objectContaining({ userId: 'user_id' }));
+		expect(accountValues).toHaveBeenCalledWith(
+			expect.objectContaining({
+				providerId: baseProvider.id,
+				externalId: 'oidc-sub-123',
+				email: 'new@example.com',
+				name: 'New User'
+			})
+		);
+	});
+
 	it('should redirect new user to /auth/pending when autoRegister=false and notify admins', async () => {
 		const result = await runCallback([
 			[{ ...baseProvider, autoRegister: false }], // 0: provider

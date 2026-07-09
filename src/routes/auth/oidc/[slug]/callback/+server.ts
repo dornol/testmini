@@ -185,21 +185,24 @@ async function matchOrCreateUser(
 	// 3. Auto-register if no match
 	if (!userId) {
 		const approved = !!provider.autoRegister;
-		userId = randomUUID();
-		await db.insert(user).values({
-			id: userId,
-			name: name || email || sub,
-			email: email || `${sub}@oidc.local`,
-			emailVerified: !!email,
-			approved
-		});
+		const newUserId = randomUUID();
+		userId = newUserId;
+		await db.transaction(async (tx) => {
+			await tx.insert(user).values({
+				id: newUserId,
+				name: name || email || sub,
+				email: email || `${sub}@oidc.local`,
+				emailVerified: !!email,
+				approved
+			});
 
-		await db.insert(oidcAccount).values({
-			userId,
-			providerId: provider.id,
-			externalId: sub,
-			email: email || null,
-			name: name || null
+			await tx.insert(oidcAccount).values({
+				userId: newUserId,
+				providerId: provider.id,
+				externalId: sub,
+				email: email || null,
+				name: name || null
+			});
 		});
 
 		isNewUser = true;

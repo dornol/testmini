@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { validationError } from '$lib/server/errors';
 import { db, col } from '$lib/server/db';
 import { testPlan, testPlanTestCase, testRun, user } from '$lib/server/db/schema';
@@ -117,14 +117,21 @@ export const POST = withProjectRole(
 				})
 				.returning();
 
+			if (!created) error(500, 'Failed to create test plan');
+
 			if (testCaseIds.length > 0) {
-				await tx.insert(testPlanTestCase).values(
-					testCaseIds.map((tcId, idx) => ({
-						testPlanId: created.id,
-						testCaseId: tcId,
-						position: idx
-					}))
-				);
+				const itemValues = testCaseIds.map((tcId, idx) => ({
+					testPlanId: created.id,
+					testCaseId: tcId,
+					position: idx
+				}));
+				const insertedItems = await tx
+					.insert(testPlanTestCase)
+					.values(itemValues)
+					.returning({ id: testPlanTestCase.id });
+				if (insertedItems.length !== itemValues.length) {
+					error(500, 'Failed to create all test plan items');
+				}
 			}
 
 			return created;

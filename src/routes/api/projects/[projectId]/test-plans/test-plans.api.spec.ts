@@ -199,16 +199,24 @@ describe('/api/projects/[projectId]/test-plans', () => {
 			};
 			let insertedItems = false;
 			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
-				const txInsertChain = {
+				const planInsertChain = {
 					values: vi.fn().mockImplementation(function (this: unknown) {
-						insertedItems = true;
-						return txInsertChain;
+						return planInsertChain;
 					}),
 					returning: vi.fn().mockReturnThis(),
 					then: (r: (v: unknown) => void) => Promise.resolve([created]).then(r)
 				};
+				const itemInsertChain = {
+					values: vi.fn().mockImplementation(function (this: unknown) {
+						insertedItems = true;
+						return itemInsertChain;
+					}),
+					returning: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) =>
+						Promise.resolve([{ id: 1 }, { id: 2 }, { id: 3 }]).then(r)
+				};
 				const tx = {
-					insert: vi.fn().mockReturnValue(txInsertChain),
+					insert: vi.fn().mockReturnValueOnce(planInsertChain).mockReturnValueOnce(itemInsertChain),
 					update: vi.fn(),
 					delete: vi.fn(),
 					select: vi.fn()
@@ -227,6 +235,77 @@ describe('/api/projects/[projectId]/test-plans', () => {
 
 			expect(response.status).toBe(201);
 			expect(data.id).toBe(11);
+			expect(insertedItems).toBe(true);
+		});
+
+		it('should return 500 when plan insert returns no row', async () => {
+			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
+				const txInsertChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+				};
+				const tx = {
+					insert: vi.fn().mockReturnValue(txInsertChain),
+					update: vi.fn(),
+					delete: vi.fn(),
+					select: vi.fn()
+				};
+				return fn(tx);
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'New Plan' },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
+		it('should return 500 when not all plan items are created', async () => {
+			mockSelectResult(mockDb, [{ id: 1 }, { id: 2 }, { id: 3 }]);
+			const created = {
+				id: 13,
+				projectId: 1,
+				name: 'Partial Plan',
+				description: null,
+				status: 'DRAFT',
+				milestone: null,
+				startDate: null,
+				endDate: null,
+				createdBy: 'user-1',
+				createdAt: new Date()
+			};
+			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
+				const planInsertChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([created]).then(r)
+				};
+				const itemInsertChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([{ id: 1 }, { id: 2 }]).then(r)
+				};
+				const tx = {
+					insert: vi.fn().mockReturnValueOnce(planInsertChain).mockReturnValueOnce(itemInsertChain),
+					update: vi.fn(),
+					delete: vi.fn(),
+					select: vi.fn()
+				};
+				return fn(tx);
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Partial Plan', testCaseIds: [1, 2, 3] },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
 		});
 
 		it('should reject testCaseIds outside the project before creating a plan', async () => {

@@ -54,13 +54,20 @@ export const POST = withProjectRole(
 				})
 				.returning();
 
+			if (!created) error(500, 'Failed to create test suite');
+
 			if (testCaseIds.length > 0) {
-				await tx.insert(testSuiteItem).values(
-					testCaseIds.map((tcId) => ({
-						suiteId: created.id,
-						testCaseId: tcId
-					}))
-				);
+				const itemValues = testCaseIds.map((tcId) => ({
+					suiteId: created.id,
+					testCaseId: tcId
+				}));
+				const insertedItems = await tx
+					.insert(testSuiteItem)
+					.values(itemValues)
+					.returning({ id: testSuiteItem.id });
+				if (insertedItems.length !== itemValues.length) {
+					error(500, 'Failed to create all test suite items');
+				}
 			}
 
 			return created;

@@ -15,7 +15,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		createdBy: 'created_by',
 		createdAt: 'created_at'
 	},
-	testSuiteItem: { suiteId: 'suite_id', testCaseId: 'test_case_id' },
+	testSuiteItem: { id: 'id', suiteId: 'suite_id', testCaseId: 'test_case_id' },
 	testCase: { id: 'id', projectId: 'project_id' },
 	user: { id: 'id', name: 'name' }
 }));
@@ -181,6 +181,76 @@ describe('/api/projects/[projectId]/test-suites', () => {
 
 			expect(response.status).toBe(201);
 			expect(data.id).toBe(11);
+		});
+
+		it('should return 500 when suite insert returns no row', async () => {
+			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
+				const txInsertChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+				};
+				const tx = {
+					insert: vi.fn().mockReturnValue(txInsertChain),
+					update: vi.fn(),
+					delete: vi.fn(),
+					select: vi.fn()
+				};
+				return fn(tx);
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'New Suite', testCaseIds: [] },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
+		it('should return 500 when not all suite items are created', async () => {
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
+			const created = {
+				id: 12,
+				projectId: 1,
+				name: 'Partial Suite',
+				description: null,
+				createdBy: 'user-1',
+				createdAt: new Date()
+			};
+
+			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
+				const suiteInsertChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([created]).then(r)
+				};
+				const itemInsertChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([{ id: 1 }]).then(r)
+				};
+				const tx = {
+					insert: vi
+						.fn()
+						.mockReturnValueOnce(suiteInsertChain)
+						.mockReturnValueOnce(itemInsertChain),
+					update: vi.fn(),
+					delete: vi.fn(),
+					select: vi.fn()
+				};
+				return fn(tx);
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Partial Suite', testCaseIds: [10, 11] },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
 		});
 
 		it('should reject testCaseIds outside the project before creating a suite', async () => {

@@ -349,8 +349,6 @@ describe('MCP shared-dataset tools', () => {
 		});
 
 		it('should reject empty updates', async () => {
-			mockDb.query.sharedDataSet.findFirst.mockResolvedValue(sampleDataset);
-
 			const result = await client.callTool({
 				name: 'update-shared-dataset',
 				arguments: { datasetId: 1 }
@@ -360,6 +358,7 @@ describe('MCP shared-dataset tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'No fields to update'
 			);
+			expect(mockDb.query.sharedDataSet.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -394,8 +393,6 @@ describe('MCP shared-dataset tools', () => {
 		});
 
 		it('should reject parameters with control characters before updating', async () => {
-			mockDb.query.sharedDataSet.findFirst.mockResolvedValue(sampleDataset);
-
 			const result = await client.callTool({
 				name: 'update-shared-dataset',
 				arguments: { datasetId: 1, parameters: ['user', 'pass\u0000word'] }
@@ -405,6 +402,25 @@ describe('MCP shared-dataset tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Parameters must not contain control characters'
 			);
+			expect(mockDb.query.sharedDataSet.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject rows against updated parameters before lookup', async () => {
+			const result = await client.callTool({
+				name: 'update-shared-dataset',
+				arguments: {
+					datasetId: 1,
+					parameters: ['user'],
+					rows: [{ password: 'secret' }]
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'unknown parameter'
+			);
+			expect(mockDb.query.sharedDataSet.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 

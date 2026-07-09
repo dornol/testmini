@@ -114,11 +114,6 @@ export function registerSharedDataSetTools(server: McpServer, projectId: number)
 			rows: z.array(z.record(z.string(), z.string())).optional().describe('New data rows')
 		},
 		async ({ datasetId, name, parameters, rows }) => {
-			const ds = await db.query.sharedDataSet.findFirst({
-				where: and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId))
-			});
-			if (!ds) return err('Shared dataset not found');
-
 			const input: Record<string, unknown> = {};
 			if (name !== undefined) input.name = name;
 			if (parameters !== undefined) input.parameters = parameters;
@@ -128,6 +123,7 @@ export function registerSharedDataSetTools(server: McpServer, projectId: number)
 			if (bodyOrError instanceof Response) {
 				return mcpValidationError(bodyOrError, 'Invalid shared dataset');
 			}
+			if (Object.keys(bodyOrError).length === 0) return err('No fields to update');
 
 			const updates: Record<string, unknown> = {};
 			if (bodyOrError.name !== undefined) {
@@ -138,7 +134,7 @@ export function registerSharedDataSetTools(server: McpServer, projectId: number)
 				updates.name = nameOrError;
 			}
 
-			let nextParameters = (ds.parameters as string[]) ?? [];
+			let nextParameters: string[] | undefined;
 			if (bodyOrError.parameters !== undefined) {
 				const parametersOrError = validateDataSetParameters(bodyOrError.parameters);
 				if (parametersOrError instanceof Response) {
@@ -148,7 +144,7 @@ export function registerSharedDataSetTools(server: McpServer, projectId: number)
 				updates.parameters = parametersOrError;
 			}
 
-			if (bodyOrError.rows !== undefined) {
+			if (bodyOrError.rows !== undefined && nextParameters !== undefined) {
 				const rowsOrError = validateDataSetRows(bodyOrError.rows, nextParameters);
 				if (rowsOrError instanceof Response) {
 					return mcpValidationError(rowsOrError, 'Invalid shared dataset');
@@ -156,7 +152,21 @@ export function registerSharedDataSetTools(server: McpServer, projectId: number)
 				updates.rows = rowsOrError;
 			}
 
-			if (Object.keys(updates).length === 0) return err('No fields to update');
+			const ds = await db.query.sharedDataSet.findFirst({
+				where: and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId))
+			});
+			if (!ds) return err('Shared dataset not found');
+
+			if (bodyOrError.rows !== undefined && updates.rows === undefined) {
+				const rowsOrError = validateDataSetRows(
+					bodyOrError.rows,
+					(ds.parameters as string[]) ?? []
+				);
+				if (rowsOrError instanceof Response) {
+					return mcpValidationError(rowsOrError, 'Invalid shared dataset');
+				}
+				updates.rows = rowsOrError;
+			}
 
 			const [updated] = await db
 				.update(sharedDataSet)

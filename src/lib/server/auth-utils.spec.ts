@@ -1,7 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const mockDb = vi.hoisted(() => ({
+	query: {
+		project: { findFirst: vi.fn() },
+		projectMember: { findFirst: vi.fn() }
+	}
+}));
 
 vi.mock('$lib/server/db', () => ({
-	db: { query: { projectMember: { findFirst: vi.fn() } } }
+	db: mockDb
 }));
 
 vi.mock('$lib/server/db/schema', () => ({
@@ -13,7 +20,17 @@ vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 
-import { isGlobalAdmin, parseId, requireAuth } from './auth-utils';
+import {
+	isGlobalAdmin,
+	parseId,
+	requireAuth,
+	requireProjectAccess,
+	requireProjectRole
+} from './auth-utils';
+
+beforeEach(() => {
+	vi.clearAllMocks();
+});
 
 describe('isGlobalAdmin', () => {
 	it('should return true for admin role', () => {
@@ -69,4 +86,64 @@ describe('parseId', () => {
 			expect(() => parseId(raw, 'project ID')).toThrow();
 		}
 	);
+});
+
+describe('requireProjectAccess', () => {
+	it('should allow global admins only when the project exists', async () => {
+		const user = { id: '1', role: 'admin', name: 'Admin', email: 'a@b.com' } as App.Locals['user'] &
+			object;
+		mockDb.query.project.findFirst.mockResolvedValueOnce({ id: 42 });
+
+		await expect(requireProjectAccess(user, 42)).resolves.toEqual({ role: 'ADMIN' });
+		expect(mockDb.query.project.findFirst).toHaveBeenCalledWith({
+			where: expect.any(Function),
+			columns: { id: true }
+		});
+		const where = mockDb.query.project.findFirst.mock.calls[0][0].where;
+		expect(where({ id: 'id' }, { eq: (a: unknown, b: unknown) => [a, b] })).toEqual(['id', 42]);
+		expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
+	});
+
+	it('should throw 404 for global admins when the project is missing', async () => {
+		const user = { id: '1', role: 'admin', name: 'Admin', email: 'a@b.com' } as App.Locals['user'] &
+			object;
+		mockDb.query.project.findFirst.mockResolvedValueOnce(null);
+
+		await expect(requireProjectAccess(user, 42)).rejects.toMatchObject({
+			status: 404,
+			body: { message: 'Project not found' }
+		});
+		expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
+	});
+});
+
+describe('requireProjectRole', () => {
+	it('should allow global admins only when the project exists', async () => {
+		const user = { id: '1', role: 'admin', name: 'Admin', email: 'a@b.com' } as App.Locals['user'] &
+			object;
+		mockDb.query.project.findFirst.mockResolvedValueOnce({ id: 42 });
+
+		await expect(requireProjectRole(user, 42, ['PROJECT_ADMIN'])).resolves.toEqual({
+			role: 'ADMIN'
+		});
+		expect(mockDb.query.project.findFirst).toHaveBeenCalledWith({
+			where: expect.any(Function),
+			columns: { id: true }
+		});
+		const where = mockDb.query.project.findFirst.mock.calls[0][0].where;
+		expect(where({ id: 'id' }, { eq: (a: unknown, b: unknown) => [a, b] })).toEqual(['id', 42]);
+		expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
+	});
+
+	it('should throw 404 for global admins when the project is missing', async () => {
+		const user = { id: '1', role: 'admin', name: 'Admin', email: 'a@b.com' } as App.Locals['user'] &
+			object;
+		mockDb.query.project.findFirst.mockResolvedValueOnce(null);
+
+		await expect(requireProjectRole(user, 42, ['PROJECT_ADMIN'])).rejects.toMatchObject({
+			status: 404,
+			body: { message: 'Project not found' }
+		});
+		expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
+	});
 });

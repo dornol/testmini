@@ -56,6 +56,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments/[commentId]
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.mocked(authUtils.isGlobalAdmin).mockReturnValue(false);
+		mockDb.query.project = { findFirst: vi.fn().mockResolvedValue({ id: 1 }) };
 		mockDb.query.testCase = { findFirst: vi.fn().mockResolvedValue(sampleTestCase) };
 		mockDb.query.testCaseComment = { findFirst: vi.fn().mockResolvedValue(authorComment) };
 		mockDb.query.projectMember = { findFirst: vi.fn().mockResolvedValue({ role: 'QA' }) };

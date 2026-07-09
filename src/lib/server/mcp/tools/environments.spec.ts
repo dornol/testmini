@@ -26,7 +26,8 @@ vi.mock('$lib/server/db/schema', () => ({
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
-	and: vi.fn((...args: unknown[]) => args)
+	and: vi.fn((...args: unknown[]) => args),
+	asc: vi.fn((a: unknown) => ['asc', a])
 }));
 vi.mock('../helpers', async () => {
 	const actual = (await vi.importActual('../helpers')) as Record<string, unknown>;
@@ -75,6 +76,7 @@ describe('MCP environment tools', () => {
 	let close: () => Promise<void>;
 
 	beforeEach(async () => {
+		vi.clearAllMocks();
 		const c = await createClient();
 		client = c.client;
 		close = c.close;
@@ -145,6 +147,51 @@ describe('MCP environment tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('DEV');
 			expect(parsed.color).toBe('#22c55e');
+		});
+
+		it('should reject blank environment names after trimming', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-environment',
+				arguments: { name: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Environment name is required'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should assign next position and clear existing default when creating a default', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockSelectResult(mockDb, [{ position: 2 }]);
+			const insertChain = mockInsertReturning(mockDb, [{ ...sampleEnv, position: 3 }]);
+
+			const result = await client.callTool({
+				name: 'create-environment',
+				arguments: {
+					name: ' STAGING ',
+					color: '#f59e0b',
+					isDefault: true,
+					baseUrl: '',
+					memo: '  shared staging  '
+				}
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(mockDb.update).toHaveBeenCalledWith(expect.anything());
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: 'STAGING',
+					color: '#f59e0b',
+					position: 3,
+					isDefault: true,
+					baseUrl: null,
+					memo: 'shared staging'
+				})
+			);
 		});
 	});
 
@@ -228,6 +275,32 @@ describe('MCP environment tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Environment not found'
 			);
+		});
+
+		it('should clear existing default and normalize optional fields when updating default', async () => {
+			mockDb.query.environmentConfig.findFirst.mockResolvedValue(sampleEnv);
+			const updateChain = mockUpdateReturning(mockDb, [
+				{ ...sampleEnv, isDefault: true, baseUrl: null, memo: null }
+			]);
+
+			const result = await client.callTool({
+				name: 'update-environment',
+				arguments: {
+					environmentId: 1,
+					isDefault: true,
+					baseUrl: '',
+					memo: '  requires VPN  '
+				}
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(mockDb.update).toHaveBeenCalledTimes(2);
+			expect(updateChain.set).toHaveBeenCalledWith({ isDefault: false });
+			expect(updateChain.set).toHaveBeenCalledWith({
+				isDefault: true,
+				baseUrl: null,
+				memo: 'requires VPN'
+			});
 		});
 	});
 });

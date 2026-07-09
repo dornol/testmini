@@ -2,8 +2,25 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { environmentConfig } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
+import { createEnvironmentSchema } from '$lib/schemas/environment.schema';
+import { getNextPosition } from '$lib/server/queries';
+
+const updateEnvironmentToolSchema = createEnvironmentSchema
+	.pick({
+		name: true,
+		color: true,
+		isDefault: true,
+		baseUrl: true,
+		memo: true
+	})
+	.partial()
+	.refine((value) => Object.keys(value).length > 0, 'At least one field is required');
+
+function firstValidationError(error: { issues: Array<{ message: string }> }): string {
+	return error.issues[0]?.message ?? 'Invalid environment';
+}
 
 export function registerEnvironmentTools(server: McpServer, projectId: number) {
 	server.tool('list-environments', 'List all environments for the project', {}, async () => {
@@ -28,25 +45,48 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 		'create-environment',
 		'Create a new environment',
 		{
-			name: z.string().describe('Environment name (e.g., DEV, QA, STAGING, PROD)'),
-			color: z.string().optional().describe('Color hex (default: #6b7280)'),
+			name: z.string().min(1).max(30).describe('Environment name (e.g., DEV, QA, STAGING, PROD)'),
+			color: z
+				.string()
+				.regex(/^#[0-9a-fA-F]{6}$/)
+				.optional()
+				.describe('Color hex (default: #6b7280)'),
 			isDefault: z.boolean().optional().describe('Set as default environment'),
-			baseUrl: z.string().optional().describe('Base URL for this environment'),
-			memo: z.string().optional().describe('Notes about this environment')
+			baseUrl: z.string().max(500).optional().describe('Base URL for this environment'),
+			memo: z.string().max(2000).optional().describe('Notes about this environment')
 		},
 		async ({ name, color, isDefault, baseUrl, memo }) => {
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
 
+			const parsed = createEnvironmentSchema.safeParse({
+				name: name.trim(),
+				color: color?.trim() ?? '#6b7280',
+				isDefault: isDefault ?? false,
+				baseUrl: baseUrl?.trim() ?? '',
+				credentials: '',
+				memo: memo?.trim() ?? ''
+			});
+			if (!parsed.success) return err(firstValidationError(parsed.error));
+
+			const nextPosition = await getNextPosition(environmentConfig, projectId);
+			if (parsed.data.isDefault) {
+				await db
+					.update(environmentConfig)
+					.set({ isDefault: false })
+					.where(eq(environmentConfig.projectId, projectId));
+			}
+
 			const [created] = await db
 				.insert(environmentConfig)
 				.values({
 					projectId,
-					name,
-					color: color ?? '#6b7280',
-					isDefault: isDefault ?? false,
-					baseUrl: baseUrl ?? null,
-					memo: memo ?? null,
+					name: parsed.data.name,
+					color: parsed.data.color,
+					position: nextPosition,
+					isDefault: parsed.data.isDefault,
+					baseUrl: parsed.data.baseUrl || null,
+					memo: parsed.data.memo || null,
 					createdBy: creator
 				})
 				.returning();
@@ -82,11 +122,15 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 		'Update an environment',
 		{
 			environmentId: z.number().describe('Environment ID'),
-			name: z.string().optional().describe('New name'),
-			color: z.string().optional().describe('New color hex'),
+			name: z.string().min(1).max(30).optional().describe('New name'),
+			color: z
+				.string()
+				.regex(/^#[0-9a-fA-F]{6}$/)
+				.optional()
+				.describe('New color hex'),
 			isDefault: z.boolean().optional().describe('Set as default'),
-			baseUrl: z.string().optional().describe('Base URL'),
-			memo: z.string().optional().describe('Notes')
+			baseUrl: z.string().max(500).optional().describe('Base URL'),
+			memo: z.string().max(2000).optional().describe('Notes')
 		},
 		async ({ environmentId, name, color, isDefault, baseUrl, memo }) => {
 			const env = await db.query.environmentConfig.findFirst({
@@ -97,12 +141,28 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 			});
 			if (!env) return err('Environment not found');
 
+			const parsed = updateEnvironmentToolSchema.safeParse({
+				name: name?.trim(),
+				color: color?.trim(),
+				isDefault,
+				baseUrl: baseUrl?.trim(),
+				memo: memo?.trim()
+			});
+			if (!parsed.success) return err(firstValidationError(parsed.error));
+
 			const updates: Record<string, unknown> = {};
-			if (name !== undefined) updates.name = name;
-			if (color !== undefined) updates.color = color;
-			if (isDefault !== undefined) updates.isDefault = isDefault;
-			if (baseUrl !== undefined) updates.baseUrl = baseUrl;
-			if (memo !== undefined) updates.memo = memo;
+			if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+			if (parsed.data.color !== undefined) updates.color = parsed.data.color;
+			if (parsed.data.isDefault !== undefined) updates.isDefault = parsed.data.isDefault;
+			if (parsed.data.baseUrl !== undefined) updates.baseUrl = parsed.data.baseUrl || null;
+			if (parsed.data.memo !== undefined) updates.memo = parsed.data.memo || null;
+
+			if (parsed.data.isDefault) {
+				await db
+					.update(environmentConfig)
+					.set({ isDefault: false })
+					.where(eq(environmentConfig.projectId, projectId));
+			}
 
 			const [updated] = await db
 				.update(environmentConfig)

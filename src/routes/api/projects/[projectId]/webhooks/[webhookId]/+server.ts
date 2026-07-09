@@ -59,9 +59,12 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projec
 	});
 	if (!existing) error(404, 'Webhook not found');
 
-	await db
+	const [deleted] = await db
 		.delete(projectWebhook)
-		.where(and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId)));
+		.where(and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId)))
+		.returning();
+
+	if (!deleted) error(404, 'Webhook not found');
 
 	return json({ success: true });
 });

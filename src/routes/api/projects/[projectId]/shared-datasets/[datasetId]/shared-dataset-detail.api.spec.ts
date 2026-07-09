@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -75,12 +79,7 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 				name: 'Old Name',
 				projectId: 1
 			});
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			const updateChain = mockUpdateReturning(mockDb, [{ id: 10 }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -98,6 +97,27 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 					['project_id', 1]
 				])
 			);
+		});
+
+		it('should return 404 when dataset disappears before update', async () => {
+			(
+				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
+			).findFirst.mockResolvedValue({
+				id: 10,
+				name: 'Old Name',
+				projectId: 1
+			});
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Updated Name' },
+				user: testUser
+			});
+
+			const response = await PATCH(event);
+			expect(response.status).toBe(404);
 		});
 
 		it('should return 400 when no fields are provided', async () => {
@@ -262,11 +282,7 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 				name: 'DS',
 				projectId: 1
 			});
-			const deleteChain = {
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: 10 }]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -283,6 +299,26 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 					['project_id', 1]
 				])
 			);
+		});
+
+		it('should return 404 when dataset disappears before delete', async () => {
+			(
+				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
+			).findFirst.mockResolvedValue({
+				id: 10,
+				name: 'DS',
+				projectId: 1
+			});
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: testUser
+			});
+
+			const response = await DELETE(event);
+			expect(response.status).toBe(404);
 		});
 	});
 });

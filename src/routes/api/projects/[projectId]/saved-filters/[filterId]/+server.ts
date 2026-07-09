@@ -139,7 +139,7 @@ export const DELETE = withProjectAccess(async ({ user, projectId, params }) => {
 	const existing = await findOwnedFilter(user.id, projectId, filterId);
 	if (!existing) return notFound('Saved filter not found');
 
-	await db
+	const [deleted] = await db
 		.delete(savedFilter)
 		.where(
 			and(
@@ -147,7 +147,9 @@ export const DELETE = withProjectAccess(async ({ user, projectId, params }) => {
 				eq(savedFilter.projectId, projectId),
 				eq(savedFilter.userId, user.id)
 			)
-		);
+		)
+		.returning();
+	if (!deleted) return notFound('Saved filter not found');
 
 	return json({ success: true });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockDeleteReturning } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser } from '$lib/server/test-helpers/fixtures';
 
@@ -428,6 +428,7 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 	describe('DELETE', () => {
 		it('should delete an existing webhook', async () => {
 			mockDb.query.projectWebhook.findFirst.mockResolvedValue(existingWebhook);
+			const deleteChain = mockDeleteReturning(mockDb, [existingWebhook]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -440,15 +441,25 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
-			const deleteChain = mockDb.delete.mock.results[0]?.value as {
-				where: ReturnType<typeof vi.fn>;
-			};
 			expect(deleteChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 5],
 					['project_id', 1]
 				])
 			);
+		});
+
+		it('should return 404 when webhook disappears before delete', async () => {
+			mockDb.query.projectWebhook.findFirst.mockResolvedValue(existingWebhook);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: adminUser
+			});
+
+			await expect(DELETE(event)).rejects.toMatchObject({ status: 404 });
 		});
 
 		it('should return 404 when webhook does not exist', async () => {

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -298,6 +302,7 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 
 		it('should delete filter successfully', async () => {
 			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleFilter);
+			const deleteChain = mockDeleteReturning(mockDb, [sampleFilter]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -310,9 +315,6 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 			const body = await response.json();
 			expect(body.success).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
-			const deleteChain = mockDb.delete.mock.results[0]?.value as {
-				where: ReturnType<typeof vi.fn>;
-			};
 			expect(deleteChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 10],
@@ -320,6 +322,21 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 					['user_id', testUser.id]
 				])
 			);
+		});
+
+		it('should return 404 when filter disappears before delete', async () => {
+			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleFilter);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: testUser
+			});
+
+			const response = await DELETE(event);
+			expect(response.status).toBe(404);
+			expect((await response.json()).error).toContain('not found');
 		});
 	});
 });

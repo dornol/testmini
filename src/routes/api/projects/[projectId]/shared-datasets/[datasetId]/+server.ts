@@ -54,10 +54,12 @@ export const PATCH = withProjectRole(
 
 		if (Object.keys(updates).length === 0) return badRequest('No fields to update');
 
-		await db
+		const [updated] = await db
 			.update(sharedDataSet)
 			.set(updates)
-			.where(and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId)));
+			.where(and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId)))
+			.returning();
+		if (!updated) return notFound('Shared data set not found');
 
 		return json({ success: true });
 	}
@@ -73,9 +75,11 @@ export const DELETE = withProjectRole(
 		});
 		if (!ds) return notFound('Shared data set not found');
 
-		await db
+		const [deleted] = await db
 			.delete(sharedDataSet)
-			.where(and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId)));
+			.where(and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId)))
+			.returning();
+		if (!deleted) return notFound('Shared data set not found');
 
 		return json({ success: true });
 	}

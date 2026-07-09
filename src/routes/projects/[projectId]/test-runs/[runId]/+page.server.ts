@@ -20,6 +20,33 @@ import { parsePositiveFormId } from '$lib/server/form-utils';
 
 // ── Local helpers ──────────────────────────────────────────────────
 
+const EXECUTION_STATUSES = ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED'] as const;
+const RUN_STATUSES = ['IN_PROGRESS', 'COMPLETED'] as const;
+const MAX_EXECUTION_COMMENT_LENGTH = 2000;
+const FAILURE_FIELD_LIMITS = {
+	failureEnvironment: 200,
+	testMethod: 500,
+	errorMessage: 2000,
+	stackTrace: 10000,
+	comment: 2000
+} as const;
+
+function parseEnumValue<T extends readonly string[]>(
+	value: FormDataEntryValue | null,
+	allowed: T
+): T[number] | null {
+	return typeof value === 'string' && allowed.includes(value) ? value : null;
+}
+
+function parseOptionalText(value: FormDataEntryValue | null, maxLength: number): string | null {
+	if (value === null) return '';
+	if (typeof value !== 'string') return null;
+	if (value.length > maxLength || /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(value)) {
+		return null;
+	}
+	return value;
+}
+
 async function getActionContext(locals: App.Locals, params: Record<string, string>) {
 	const authUser = requireAuth(locals);
 	const projectId = parseId(params.projectId, 'project ID');
@@ -51,14 +78,30 @@ async function requireRunInProject(projectId: number, runId: number) {
 	return null;
 }
 
-function parseFailureFormData(formData: FormData): CreateFailureInput {
-	return {
-		failureEnvironment: (formData.get('failureEnvironment') as string) || '',
-		testMethod: (formData.get('testMethod') as string) || '',
-		errorMessage: (formData.get('errorMessage') as string) || '',
-		stackTrace: (formData.get('stackTrace') as string) || '',
-		comment: (formData.get('comment') as string) || ''
-	};
+function parseFailureFormData(formData: FormData): CreateFailureInput | null {
+	const failureEnvironment = parseOptionalText(
+		formData.get('failureEnvironment'),
+		FAILURE_FIELD_LIMITS.failureEnvironment
+	);
+	const testMethod = parseOptionalText(formData.get('testMethod'), FAILURE_FIELD_LIMITS.testMethod);
+	const errorMessage = parseOptionalText(
+		formData.get('errorMessage'),
+		FAILURE_FIELD_LIMITS.errorMessage
+	);
+	const stackTrace = parseOptionalText(formData.get('stackTrace'), FAILURE_FIELD_LIMITS.stackTrace);
+	const comment = parseOptionalText(formData.get('comment'), FAILURE_FIELD_LIMITS.comment);
+
+	if (
+		failureEnvironment === null ||
+		testMethod === null ||
+		errorMessage === null ||
+		stackTrace === null ||
+		comment === null
+	) {
+		return null;
+	}
+
+	return { failureEnvironment, testMethod, errorMessage, stackTrace, comment };
 }
 
 // ── Load ───────────────────────────────────────────────────────────
@@ -198,10 +241,10 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const executionId = parsePositiveFormId(formData.get('executionId'));
-		const status = formData.get('status') as string;
-		const comment = (formData.get('comment') as string) || null;
+		const status = parseEnumValue(formData.get('status'), EXECUTION_STATUSES);
+		const comment = parseOptionalText(formData.get('comment'), MAX_EXECUTION_COMMENT_LENGTH);
 
-		if (!executionId || !['PASS', 'FAIL', 'BLOCKED', 'SKIPPED'].includes(status)) {
+		if (!executionId || !status || comment === null) {
 			return fail(400, { error: 'Invalid execution ID or status' });
 		}
 
@@ -224,7 +267,7 @@ export const actions: Actions = {
 			.update(testExecution)
 			.set({
 				status: status as 'PASS' | 'FAIL' | 'BLOCKED' | 'SKIPPED',
-				comment,
+				comment: comment || null,
 				executedBy: authUser.id,
 				executedAt: now,
 				...durationUpdates
@@ -265,7 +308,12 @@ export const actions: Actions = {
 			return fail(404, { error: 'Execution not found' });
 		}
 
-		const parsed = createFailureSchema.safeParse(parseFailureFormData(formData));
+		const failureData = parseFailureFormData(formData);
+		if (!failureData) {
+			return fail(400, { error: 'Invalid failure detail data' });
+		}
+
+		const parsed = createFailureSchema.safeParse(failureData);
 		if (!parsed.success) {
 			return fail(400, { error: 'Invalid failure detail data' });
 		}
@@ -343,7 +391,12 @@ export const actions: Actions = {
 			return fail(404, { error: 'FAIL execution not found' });
 		}
 
-		const parsed = createFailureSchema.safeParse(parseFailureFormData(formData));
+		const failureData = parseFailureFormData(formData);
+		if (!failureData) {
+			return fail(400, { error: 'Invalid failure detail data' });
+		}
+
+		const parsed = createFailureSchema.safeParse(failureData);
 		if (!parsed.success) {
 			return fail(400, { error: 'Invalid failure detail data' });
 		}
@@ -390,7 +443,12 @@ export const actions: Actions = {
 			return fail(404, { error: 'Failure detail not found' });
 		}
 
-		const parsed = createFailureSchema.safeParse(parseFailureFormData(formData));
+		const failureData = parseFailureFormData(formData);
+		if (!failureData) {
+			return fail(400, { error: 'Invalid failure detail data' });
+		}
+
+		const parsed = createFailureSchema.safeParse(failureData);
 		if (!parsed.success) {
 			return fail(400, { error: 'Invalid failure detail data' });
 		}
@@ -505,9 +563,9 @@ export const actions: Actions = {
 		const { authUser, projectId, runId } = await getActionContext(locals, params);
 
 		const formData = await request.formData();
-		const status = formData.get('status') as string;
+		const status = parseEnumValue(formData.get('status'), RUN_STATUSES);
 
-		if (!['IN_PROGRESS', 'COMPLETED'].includes(status)) {
+		if (!status) {
 			return fail(400, { error: 'Invalid status' });
 		}
 

@@ -86,7 +86,7 @@ const authUtils = await import('$lib/server/auth-utils');
 
 const PARAMS = { projectId: '1', runId: '50' };
 
-function createFormData(data: Record<string, string | string[]>): FormData {
+function createFormData(data: Record<string, FormDataEntryValue | FormDataEntryValue[]>): FormData {
 	const fd = new FormData();
 	for (const [key, value] of Object.entries(data)) {
 		if (Array.isArray(value)) {
@@ -474,6 +474,30 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			expect(result).toEqual(expect.objectContaining({ status: 400 }));
 		});
 
+		it('should return 400 for non-text status before querying execution', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			const event = createActionEvent(
+				createFormData({ executionId: '200', status: new File(['PASS'], 'status.txt') })
+			);
+			const result = await actions.updateStatus(event as never);
+
+			expect(result).toEqual(expect.objectContaining({ status: 400 }));
+			expect(mockDb.query.testExecution.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for invalid comment before querying execution', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			const event = createActionEvent(
+				createFormData({ executionId: '200', status: 'PASS', comment: 'x'.repeat(2001) })
+			);
+			const result = await actions.updateStatus(event as never);
+
+			expect(result).toEqual(expect.objectContaining({ status: 400 }));
+			expect(mockDb.query.testExecution.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for missing executionId', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			const event = createActionEvent(createFormData({ executionId: '', status: 'PASS' }));
@@ -645,6 +669,50 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			);
 			const result = await actions.failWithDetail(event as never);
 			expect(result).toEqual(expect.objectContaining({ status: 404 }));
+		});
+
+		it('should return 400 for non-text failure detail fields before writing', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testExecution = {
+				findFirst: vi.fn().mockResolvedValue(sampleExecution)
+			};
+
+			const event = createActionEvent(
+				createFormData({
+					executionId: '200',
+					failureEnvironment: new File(['Chrome'], 'env.txt'),
+					testMethod: 'testLogin',
+					errorMessage: 'failed',
+					stackTrace: '',
+					comment: ''
+				})
+			);
+			const result = await actions.failWithDetail(event as never);
+
+			expect(result).toEqual(expect.objectContaining({ status: 400 }));
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for oversized failure detail fields before writing', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testExecution = {
+				findFirst: vi.fn().mockResolvedValue(sampleExecution)
+			};
+
+			const event = createActionEvent(
+				createFormData({
+					executionId: '200',
+					failureEnvironment: 'Chrome',
+					testMethod: 'testLogin',
+					errorMessage: 'x'.repeat(2001),
+					stackTrace: '',
+					comment: ''
+				})
+			);
+			const result = await actions.failWithDetail(event as never);
+
+			expect(result).toEqual(expect.objectContaining({ status: 400 }));
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
 		it('should set startedAt+completedAt when transitioning from PENDING', async () => {
@@ -903,6 +971,18 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			const event = createActionEvent(createFormData({ status: 'INVALID' }));
 			const result = await actions.updateRunStatus(event as never);
 			expect(result).toEqual(expect.objectContaining({ status: 400 }));
+		});
+
+		it('should return 400 for non-text run status before querying run', async () => {
+			const event = createActionEvent(
+				createFormData({ status: new File(['COMPLETED'], 'status.txt') })
+			);
+			const result = await actions.updateRunStatus(event as never);
+
+			expect(result).toEqual(expect.objectContaining({ status: 400 }));
+			expect(mockDb.query.testRun.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+			expect(mockPublish).not.toHaveBeenCalled();
 		});
 
 		it('should set startedAt when transitioning to IN_PROGRESS', async () => {

@@ -4,12 +4,32 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { updateTestCaseSchema, type UpdateTestCaseInput } from '$lib/schemas/test-case.schema';
 import { zodAdapter, validateForm } from '$lib/server/form-utils';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
-import { testCase, testCaseVersion, user, tag, testCaseTag, testCaseAssignee, projectMember, customField, issueLink, issueTrackerConfig, testCaseParameter, testCaseDataSet } from '$lib/server/db/schema';
+import {
+	testCase,
+	testCaseVersion,
+	user,
+	tag,
+	testCaseTag,
+	testCaseAssignee,
+	projectMember,
+	customField,
+	issueLink,
+	issueTrackerConfig,
+	testCaseParameter,
+	testCaseDataSet
+} from '$lib/server/db/schema';
 import { createTagSchema } from '$lib/schemas/tag.schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { loadTestCaseMetadata } from '$lib/server/queries';
 import { cacheDelete } from '$lib/server/cache';
+
+function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
+	if (typeof value !== 'string') return null;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+	return parsed;
+}
 
 export const load: PageServerLoad = async ({ params, parent, locals }) => {
 	await parent();
@@ -17,7 +37,10 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 	const testCaseId = parseId(params.testCaseId, 'test case ID');
 
 	// Get test case with latest version
-	const tc = await findTestCaseWithLatestVersion(testCaseId, parseId(params.projectId, 'project ID'));
+	const tc = await findTestCaseWithLatestVersion(
+		testCaseId,
+		parseId(params.projectId, 'project ID')
+	);
 
 	if (!tc) {
 		error(404, 'Test case not found');
@@ -44,7 +67,10 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 		{
 			title: latest?.title ?? '',
 			precondition: latest?.precondition ?? '',
-			steps: (latest?.steps ?? []).map((s: { action: string; expected: string }) => ({ action: s.action, expected: s.expected })),
+			steps: (latest?.steps ?? []).map((s: { action: string; expected: string }) => ({
+				action: s.action,
+				expected: s.expected
+			})),
 			stepFormat: (latest?.stepFormat as 'STEPS' | 'GHERKIN') ?? 'STEPS',
 			expectedResult: latest?.expectedResult ?? '',
 			priority: latest?.priority ?? 'MEDIUM',
@@ -131,8 +157,17 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		const { title, precondition, steps, stepFormat, expectedResult, priority, revision, automationKey, customFields: customFieldValues } =
-			form.data as UpdateTestCaseInput;
+		const {
+			title,
+			precondition,
+			steps,
+			stepFormat,
+			expectedResult,
+			priority,
+			revision,
+			automationKey,
+			customFields: customFieldValues
+		} = form.data as UpdateTestCaseInput;
 
 		// Optimistic lock check
 		const tc = await findTestCaseWithLatestVersion(testCaseId, projectId);
@@ -163,10 +198,7 @@ export const actions: Actions = {
 			const trimmedAk = automationKey?.trim() || null;
 			if (trimmedAk) {
 				const existingAk = await db.query.testCase.findFirst({
-					where: and(
-						eq(testCase.projectId, projectId),
-						eq(testCase.automationKey, trimmedAk)
-					)
+					where: and(eq(testCase.projectId, projectId), eq(testCase.automationKey, trimmedAk))
 				});
 				if (existingAk && existingAk.id !== testCaseId) {
 					return message(form, 'Automation key already exists in this project', { status: 409 });
@@ -190,7 +222,10 @@ export const actions: Actions = {
 					stepFormat: stepFormat ?? 'STEPS',
 					expectedResult: expectedResult || null,
 					priority,
-					customFields: customFieldValues && Object.keys(customFieldValues).length > 0 ? customFieldValues : null,
+					customFields:
+						customFieldValues && Object.keys(customFieldValues).length > 0
+							? customFieldValues
+							: null,
 					revision: nextRevision,
 					updatedBy: authUser.id
 				})
@@ -260,10 +295,10 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const tagId = Number(formData.get('tagId'));
+		const tagId = parsePositiveFormId(formData.get('tagId'));
 
 		if (!tagId) {
-			return fail(400, { error: 'Missing tagId' });
+			return fail(400, { error: 'Invalid tagId' });
 		}
 
 		// Verify tag belongs to project
@@ -294,10 +329,10 @@ export const actions: Actions = {
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
 
 		const formData = await request.formData();
-		const tagId = Number(formData.get('tagId'));
+		const tagId = parsePositiveFormId(formData.get('tagId'));
 
 		if (!tagId) {
-			return fail(400, { error: 'Missing tagId' });
+			return fail(400, { error: 'Invalid tagId' });
 		}
 
 		await db

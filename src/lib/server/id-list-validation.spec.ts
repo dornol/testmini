@@ -1,7 +1,30 @@
 import { describe, expect, it } from 'vitest';
-import { validatePositiveInteger, validatePositiveIntegerList } from './id-list-validation';
+import {
+	validatePositiveInteger,
+	validatePositiveIntegerList,
+	validateRequestBody
+} from './id-list-validation';
 
 describe('id-list-validation', () => {
+	describe('validateRequestBody', () => {
+		it('accepts plain objects', () => {
+			expect(validateRequestBody({ ids: [1] })).toEqual({ ids: [1] });
+		});
+
+		it.each([null, [], new Date(), new (class CustomBody {})(), Object.create(null)])(
+			'rejects non-plain object body %s',
+			async (body) => {
+				const result = validateRequestBody(body);
+
+				expect(result).toBeInstanceOf(Response);
+				expect((result as Response).status).toBe(400);
+				expect(await (result as Response).json()).toEqual({
+					error: 'Invalid request body'
+				});
+			}
+		);
+	});
+
 	describe('validatePositiveInteger', () => {
 		it('accepts positive safe integers', () => {
 			expect(validatePositiveInteger(1, 'id')).toBe(1);

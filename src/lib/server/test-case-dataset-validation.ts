@@ -1,5 +1,6 @@
 import { badRequest } from './errors';
 import { validateRequestBody } from './id-list-validation';
+import { isPlainRecord } from './object-validation';
 
 const MAX_DATASET_NAME_LENGTH = 120;
 const MAX_DATASET_VALUE_COUNT = 200;
@@ -94,11 +95,11 @@ function validateDataSetName(value: unknown): string | null | Response {
 }
 
 function validateDataSetValues(value: unknown): Record<string, string> | Response {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+	if (!isPlainRecord(value)) {
 		return badRequest('values must be an object');
 	}
 
-	const entries = Object.entries(value as Record<string, unknown>);
+	const entries = Object.entries(value);
 	if (entries.length > MAX_DATASET_VALUE_COUNT) {
 		return badRequest(`values must contain ${MAX_DATASET_VALUE_COUNT} items or less`);
 	}

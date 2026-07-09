@@ -1,13 +1,14 @@
 import { badRequest } from '$lib/server/errors';
+import { isPlainRecord } from '$lib/server/object-validation';
 import { parseCanonicalPositiveInteger } from '$lib/server/search-param-validation';
 
 const DEFAULT_MAX_IDS = 500;
 
 export function validateRequestBody(body: unknown): Record<string, unknown> | Response {
-	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+	if (!isPlainRecord(body)) {
 		return badRequest('Invalid request body');
 	}
-	return body as Record<string, unknown>;
+	return body;
 }
 
 export function validatePositiveInteger(value: unknown, label: string): number | Response {

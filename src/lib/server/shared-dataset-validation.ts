@@ -1,4 +1,5 @@
 import { badRequest } from '$lib/server/errors';
+import { isPlainRecord } from '$lib/server/object-validation';
 
 const MAX_NAME_LENGTH = 100;
 const MAX_PARAMETER_COUNT = 100;
@@ -11,10 +12,10 @@ export const SHARED_DATASET_FIELDS = new Set(['name', 'parameters', 'rows']);
 export const SHARED_DATASET_LINK_FIELDS = new Set(['testCaseId']);
 
 export function validateRequestBody(body: unknown): Record<string, unknown> | Response {
-	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+	if (!isPlainRecord(body)) {
 		return badRequest('Invalid request body');
 	}
-	return body as Record<string, unknown>;
+	return body;
 }
 
 export function validateRequestFields(
@@ -88,7 +89,7 @@ export function validateDataSetRows(
 	const rows: Record<string, string>[] = [];
 	for (let index = 0; index < value.length; index += 1) {
 		const row = value[index];
-		if (!row || typeof row !== 'object' || Array.isArray(row)) {
+		if (!isPlainRecord(row)) {
 			return badRequest(`Row ${index + 1} must be an object`);
 		}
 		const sanitized: Record<string, string> = {};

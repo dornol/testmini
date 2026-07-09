@@ -1,4 +1,5 @@
 import { badRequest } from './errors';
+import { isPlainRecord } from './object-validation';
 import { parseCanonicalPositiveInteger } from './search-param-validation';
 
 const MAX_EXTERNAL_URL_LENGTH = 2000;
@@ -22,10 +23,10 @@ export type IssueLinkCreateInput = {
 };
 
 export function validateIssueLinkRequestBody(body: unknown): Record<string, unknown> | Response {
-	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+	if (!isPlainRecord(body)) {
 		return badRequest('Invalid request body');
 	}
-	return body as Record<string, unknown>;
+	return body;
 }
 
 export function parseIssueLinkPositiveInteger(

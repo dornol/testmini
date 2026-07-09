@@ -1,4 +1,5 @@
 import { badRequest } from '$lib/server/errors';
+import { isPlainRecord } from '$lib/server/object-validation';
 import { parseCanonicalPositiveInteger } from '$lib/server/search-param-validation';
 
 const MAX_REORDER_ITEMS = 1000;
@@ -15,10 +16,10 @@ export type GroupReorderItem = {
 };
 
 export function validateRequestBody(body: unknown): Record<string, unknown> | Response {
-	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+	if (!isPlainRecord(body)) {
 		return badRequest('Invalid request body');
 	}
-	return body as Record<string, unknown>;
+	return body;
 }
 
 function parsePositiveInteger(value: unknown, label: string): number | Response {
@@ -58,10 +59,10 @@ function validateItemObject(
 	label: string,
 	index: number
 ): Record<string, unknown> | Response {
-	if (!item || typeof item !== 'object' || Array.isArray(item)) {
+	if (!isPlainRecord(item)) {
 		return badRequest(`${label} ${index + 1} must be an object`);
 	}
-	return item as Record<string, unknown>;
+	return item;
 }
 
 function ensureUniqueId(id: number, seen: Set<number>, label: string): Response | null {

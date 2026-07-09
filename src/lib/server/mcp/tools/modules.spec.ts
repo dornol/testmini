@@ -437,6 +437,7 @@ describe('MCP module tools', () => {
 		it('should remove test cases from module', async () => {
 			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
 			mockSelectResult(mockDb, [{ id: 10 }, { id: 20 }]);
+			mockDeleteReturning(mockDb, [{ id: 1 }, { id: 2 }]);
 
 			const result = await client.callTool({
 				name: 'remove-module-test-cases',
@@ -448,6 +449,40 @@ describe('MCP module tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.moduleId).toBe(1);
 			expect(parsed.removedCount).toBe(2);
+		});
+
+		it('should report actual removed module links', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 20 }]);
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
+
+			const result = await client.callTool({
+				name: 'remove-module-test-cases',
+				arguments: { moduleId: 1, testCaseIds: [10, 20] }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.moduleId).toBe(1);
+			expect(parsed.removedCount).toBe(1);
+		});
+
+		it('should report zero removed when module links do not exist', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
+			mockSelectResult(mockDb, [{ id: 10 }]);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'remove-module-test-cases',
+				arguments: { moduleId: 1, testCaseIds: [10] }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.moduleId).toBe(1);
+			expect(parsed.removedCount).toBe(0);
 		});
 
 		it('should reject empty test case IDs before querying the database', async () => {

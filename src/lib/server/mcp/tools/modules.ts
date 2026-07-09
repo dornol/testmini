@@ -211,15 +211,16 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 				.where(and(eq(testCase.projectId, projectId), inArray(testCase.id, uniqueTestCaseIds)));
 			if (validCases.length !== uniqueTestCaseIds.length) return err('Test case not found');
 
-			await db
+			const deleted = await db
 				.delete(moduleTestCase)
 				.where(
 					and(
 						eq(moduleTestCase.moduleId, moduleId),
 						inArray(moduleTestCase.testCaseId, testCaseIds)
 					)
-				);
-			return ok({ success: true, moduleId, removedCount: testCaseIds.length });
+				)
+				.returning({ id: moduleTestCase.id });
+			return ok({ success: true, moduleId, removedCount: deleted.length });
 		}
 	);
 }

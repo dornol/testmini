@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockSelectResult,
 	mockInsertReturning,
 	mockTransactionDeleteReturning,
@@ -264,6 +265,7 @@ describe('MCP test-suite tools', () => {
 	describe('remove-suite-items', () => {
 		it('should remove test cases from suite', async () => {
 			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'remove-suite-items',
@@ -274,6 +276,36 @@ describe('MCP test-suite tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.success).toBe(true);
 			expect(parsed.removedCount).toBe(1);
+		});
+
+		it('should report actual removed suite items', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
+
+			const result = await client.callTool({
+				name: 'remove-suite-items',
+				arguments: { suiteId: 1, testCaseIds: [10, 11] }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.removedCount).toBe(1);
+		});
+
+		it('should report zero removed when suite items do not exist', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'remove-suite-items',
+				arguments: { suiteId: 1, testCaseIds: [10] }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.removedCount).toBe(0);
 		});
 
 		it('should reject empty test case IDs before querying the database', async () => {

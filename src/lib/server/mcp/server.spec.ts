@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockSelectResult,
 	mockInsertReturning,
 	mockTransactionDeleteReturning
@@ -2105,6 +2106,7 @@ describe('MCP Server', () => {
 	describe('tool: remove-suite-items', () => {
 		it('should remove items from suite', async () => {
 			mockDb.query.testSuite.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Suite' });
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'remove-suite-items',
@@ -2114,6 +2116,7 @@ describe('MCP Server', () => {
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
 			expect(parsed.success).toBe(true);
+			expect(parsed.removedCount).toBe(1);
 		});
 	});
 
@@ -2234,6 +2237,7 @@ describe('MCP Server', () => {
 	describe('tool: remove-plan-items', () => {
 		it('should remove items from plan', async () => {
 			mockDb.query.testPlan.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Plan' });
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'remove-plan-items',
@@ -2243,6 +2247,7 @@ describe('MCP Server', () => {
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
 			expect(parsed.success).toBe(true);
+			expect(parsed.removedCount).toBe(1);
 		});
 	});
 

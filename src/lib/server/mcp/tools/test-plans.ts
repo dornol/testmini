@@ -212,16 +212,17 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			});
 			if (!plan) return err('Test plan not found');
 
-			await db
+			const deleted = await db
 				.delete(testPlanTestCase)
 				.where(
 					and(
 						eq(testPlanTestCase.testPlanId, planId),
 						inArray(testPlanTestCase.testCaseId, testCaseIds)
 					)
-				);
+				)
+				.returning({ id: testPlanTestCase.id });
 
-			return ok({ success: true, removedCount: testCaseIds.length });
+			return ok({ success: true, removedCount: deleted.length });
 		}
 	);
 

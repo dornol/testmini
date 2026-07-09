@@ -2,15 +2,13 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, testSuite, testSuiteItem } from '$lib/server/db/schema';
-import {
-	ok,
-	err,
-	requireProjectCreator,
-	buildUpdates,
-	mcpPositiveIdSchema,
-	mcpIdListSchema
-} from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema, mcpIdListSchema } from '../helpers';
 import { eq, and, inArray } from 'drizzle-orm';
+import { createTestSuiteSchema, updateTestSuiteSchema } from '$lib/schemas/test-suite.schema';
+
+function firstValidationError(error: { issues: Array<{ message: string }> }): string {
+	return error.issues[0]?.message ?? 'Invalid test suite';
+}
 
 export function registerTestSuiteTools(server: McpServer, projectId: number) {
 	server.tool(
@@ -53,9 +51,20 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
 
+			const parsed = createTestSuiteSchema.safeParse({
+				name,
+				description
+			});
+			if (!parsed.success) return err(firstValidationError(parsed.error));
+
 			const [created] = await db
 				.insert(testSuite)
-				.values({ projectId, name, description: description ?? null, createdBy: creator })
+				.values({
+					projectId,
+					name: parsed.data.name,
+					description: parsed.data.description ?? null,
+					createdBy: creator
+				})
 				.returning();
 
 			return ok(created);
@@ -126,9 +135,17 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 			});
 			if (!s) return err('Test suite not found');
 
+			const parsed = updateTestSuiteSchema.safeParse({
+				name,
+				description
+			});
+			if (!parsed.success) return err(firstValidationError(parsed.error));
+
 			const updates: Record<string, unknown> = {};
-			if (name !== undefined) updates.name = name;
-			if (description !== undefined) updates.description = description;
+			if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+			if (parsed.data.description !== undefined) updates.description = parsed.data.description;
+
+			if (Object.keys(updates).length === 0) return err('No fields to update');
 
 			const [updated] = await db
 				.update(testSuite)

@@ -151,6 +151,33 @@ describe('MCP test-suite tools', () => {
 				'Project not found'
 			);
 		});
+
+		it('should reject empty names before creating a suite', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-test-suite',
+				arguments: { name: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Name is required'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject long descriptions before creating a suite', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-test-suite',
+				arguments: { name: 'Suite', description: 'A'.repeat(1001) }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
 	});
 
 	// ── add-suite-items ──────────────────────────────────
@@ -295,6 +322,36 @@ describe('MCP test-suite tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Test suite not found'
 			);
+		});
+
+		it('should reject empty names before updating a suite', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
+
+			const result = await client.callTool({
+				name: 'update-test-suite',
+				arguments: { suiteId: 1, name: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Name is required'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject empty updates', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
+
+			const result = await client.callTool({
+				name: 'update-test-suite',
+				arguments: { suiteId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'No fields to update'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 

@@ -56,6 +56,7 @@ describe('MCP approval tools', () => {
 	let close: () => Promise<void>;
 
 	beforeEach(async () => {
+		vi.clearAllMocks();
 		const c = await createClient();
 		client = c.client;
 		close = c.close;
@@ -77,6 +78,9 @@ describe('MCP approval tools', () => {
 			const txUpdateWhere = vi.fn().mockReturnValue({
 				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
 			});
+			const txInsertValues = vi.fn().mockReturnValue({
+				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+			});
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 				const tx = {
 					update: vi.fn().mockReturnValue({
@@ -85,9 +89,7 @@ describe('MCP approval tools', () => {
 						})
 					}),
 					insert: vi.fn().mockReturnValue({
-						values: vi.fn().mockReturnValue({
-							then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
-						})
+						values: txInsertValues
 					})
 				};
 				return fn(tx);
@@ -95,7 +97,7 @@ describe('MCP approval tools', () => {
 
 			const result = await client.callTool({
 				name: 'update-approval-status',
-				arguments: { testCaseId: 10, toStatus: 'IN_REVIEW', comment: 'Ready for review' }
+				arguments: { testCaseId: 10, toStatus: 'IN_REVIEW', comment: '  Ready for review  ' }
 			});
 
 			expect(result.isError).toBeFalsy();
@@ -109,6 +111,14 @@ describe('MCP approval tools', () => {
 					['id', 10],
 					['project_id', PROJECT_ID]
 				])
+			);
+			expect(txInsertValues).toHaveBeenCalledWith(
+				expect.objectContaining({
+					testCaseId: 10,
+					fromStatus: 'DRAFT',
+					toStatus: 'IN_REVIEW',
+					comment: 'Ready for review'
+				})
 			);
 		});
 
@@ -124,6 +134,77 @@ describe('MCP approval tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Test case not found'
 			);
+		});
+
+		it('should reject invalid test case IDs before lookup', async () => {
+			const result = await client.callTool({
+				name: 'update-approval-status',
+				arguments: { testCaseId: -1, toStatus: 'IN_REVIEW' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should reject invalid status transitions before writing', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({
+				...sampleTestCase,
+				approvalStatus: 'DRAFT'
+			});
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'update-approval-status',
+				arguments: { testCaseId: 10, toStatus: 'APPROVED' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Cannot change approval status from DRAFT to APPROVED'
+			);
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should require a comment when rejecting', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({
+				...sampleTestCase,
+				approvalStatus: 'IN_REVIEW'
+			});
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'update-approval-status',
+				arguments: { testCaseId: 10, toStatus: 'REJECTED', comment: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'A comment is required when rejecting a test case'
+			);
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should reject overlong comments before writing', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({
+				...sampleTestCase,
+				approvalStatus: 'IN_REVIEW'
+			});
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'update-approval-status',
+				arguments: { testCaseId: 10, toStatus: 'APPROVED', comment: 'x'.repeat(2001) }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Comment must be 2000 characters or less'
+			);
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 	});
 });

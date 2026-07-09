@@ -70,6 +70,7 @@ describe('MCP shared-dataset tools', () => {
 	let close: () => Promise<void>;
 
 	beforeEach(async () => {
+		vi.clearAllMocks();
 		const c = await createClient();
 		client = c.client;
 		close = c.close;
@@ -137,13 +138,13 @@ describe('MCP shared-dataset tools', () => {
 
 		it('should create a shared dataset', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockInsertReturning(mockDb, [sampleDataset]);
+			const insertChain = mockInsertReturning(mockDb, [sampleDataset]);
 
 			const result = await client.callTool({
 				name: 'create-shared-dataset',
 				arguments: {
-					name: 'Login Credentials',
-					parameters: ['username', 'password'],
+					name: ' Login Credentials ',
+					parameters: [' username ', 'password'],
 					rows: [{ username: 'admin', password: 'pass123' }]
 				}
 			});
@@ -152,6 +153,62 @@ describe('MCP shared-dataset tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('Login Credentials');
 			expect(parsed.parameters).toEqual(['username', 'password']);
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: 'Login Credentials',
+					parameters: ['username', 'password'],
+					rows: [{ username: 'admin', password: 'pass123' }]
+				})
+			);
+		});
+
+		it('should reject empty names before creating a shared dataset', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-shared-dataset',
+				arguments: { name: '   ', parameters: ['col1'] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Name is required'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject duplicate parameters before creating a shared dataset', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-shared-dataset',
+				arguments: { name: 'Dataset', parameters: ['user', ' user '] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Parameters must be unique'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject rows with unknown parameters before creating a shared dataset', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-shared-dataset',
+				arguments: {
+					name: 'Dataset',
+					parameters: ['user'],
+					rows: [{ user: 'admin', password: 'secret' }]
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'unknown parameter'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 	});
 
@@ -208,7 +265,7 @@ describe('MCP shared-dataset tools', () => {
 
 			const result = await client.callTool({
 				name: 'update-shared-dataset',
-				arguments: { datasetId: 1, name: 'Updated Dataset', parameters: ['email', 'password'] }
+				arguments: { datasetId: 1, name: ' Updated Dataset ', parameters: [' email ', 'password'] }
 			});
 
 			expect(result.isError).toBeFalsy();
@@ -220,6 +277,66 @@ describe('MCP shared-dataset tools', () => {
 					['id', 1],
 					['project_id', 1]
 				])
+			);
+			expect(updateChain.set).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: 'Updated Dataset',
+					parameters: ['email', 'password']
+				})
+			);
+		});
+
+		it('should reject empty updates', async () => {
+			mockDb.query.sharedDataSet.findFirst.mockResolvedValue(sampleDataset);
+
+			const result = await client.callTool({
+				name: 'update-shared-dataset',
+				arguments: { datasetId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'No fields to update'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject rows that do not match existing parameters before updating', async () => {
+			mockDb.query.sharedDataSet.findFirst.mockResolvedValue(sampleDataset);
+
+			const result = await client.callTool({
+				name: 'update-shared-dataset',
+				arguments: { datasetId: 1, rows: [{ email: 'a@example.com' }] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'unknown parameter'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should validate rows against updated parameters', async () => {
+			mockDb.query.sharedDataSet.findFirst.mockResolvedValue(sampleDataset);
+			const updateChain = mockUpdateReturning(mockDb, [
+				{ ...sampleDataset, parameters: ['email'], rows: [{ email: 'a@example.com' }] }
+			]);
+
+			const result = await client.callTool({
+				name: 'update-shared-dataset',
+				arguments: {
+					datasetId: 1,
+					parameters: [' email '],
+					rows: [{ email: 'a@example.com' }]
+				}
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(updateChain.set).toHaveBeenCalledWith(
+				expect.objectContaining({
+					parameters: ['email'],
+					rows: [{ email: 'a@example.com' }]
+				})
 			);
 		});
 

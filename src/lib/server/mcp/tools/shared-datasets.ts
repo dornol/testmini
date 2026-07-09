@@ -3,7 +3,21 @@ import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { sharedDataSet } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
+import {
+	validateDataSetName,
+	validateDataSetParameters,
+	validateDataSetRows,
+	validateRequestBody
+} from '$lib/server/shared-dataset-validation';
+
+async function mcpValidationError(
+	response: Response,
+	fallback: string
+): Promise<ReturnType<typeof err>> {
+	const body = (await response.json().catch(() => null)) as { error?: string } | null;
+	return err(body?.error ?? fallback);
+}
 
 export function registerSharedDataSetTools(server: McpServer, projectId: number) {
 	server.tool('list-shared-datasets', 'List all shared datasets in the project', {}, async () => {
@@ -35,13 +49,33 @@ export function registerSharedDataSetTools(server: McpServer, projectId: number)
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
 
+			const bodyOrError = validateRequestBody({ name, parameters, rows });
+			if (bodyOrError instanceof Response) {
+				return mcpValidationError(bodyOrError, 'Invalid shared dataset');
+			}
+
+			const nameOrError = validateDataSetName(bodyOrError.name);
+			if (nameOrError instanceof Response) {
+				return mcpValidationError(nameOrError, 'Invalid shared dataset');
+			}
+
+			const parametersOrError = validateDataSetParameters(bodyOrError.parameters);
+			if (parametersOrError instanceof Response) {
+				return mcpValidationError(parametersOrError, 'Invalid shared dataset');
+			}
+
+			const rowsOrError = validateDataSetRows(bodyOrError.rows, parametersOrError);
+			if (rowsOrError instanceof Response) {
+				return mcpValidationError(rowsOrError, 'Invalid shared dataset');
+			}
+
 			const [created] = await db
 				.insert(sharedDataSet)
 				.values({
 					projectId,
-					name,
-					parameters,
-					rows: rows ?? [],
+					name: nameOrError,
+					parameters: parametersOrError,
+					rows: rowsOrError,
 					createdBy: creator
 				})
 				.returning();
@@ -53,7 +87,7 @@ export function registerSharedDataSetTools(server: McpServer, projectId: number)
 	server.tool(
 		'delete-shared-dataset',
 		'Delete a shared dataset by ID',
-		{ datasetId: z.number().describe('Shared dataset ID') },
+		{ datasetId: mcpPositiveIdSchema.describe('Shared dataset ID') },
 		async ({ datasetId }) => {
 			const ds = await db.query.sharedDataSet.findFirst({
 				where: and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId))
@@ -71,7 +105,7 @@ export function registerSharedDataSetTools(server: McpServer, projectId: number)
 		'update-shared-dataset',
 		'Update a shared dataset',
 		{
-			datasetId: z.number().describe('Dataset ID'),
+			datasetId: mcpPositiveIdSchema.describe('Dataset ID'),
 			name: z.string().optional().describe('New name'),
 			parameters: z.array(z.string()).optional().describe('New parameter names'),
 			rows: z.array(z.record(z.string(), z.string())).optional().describe('New data rows')
@@ -82,10 +116,44 @@ export function registerSharedDataSetTools(server: McpServer, projectId: number)
 			});
 			if (!ds) return err('Shared dataset not found');
 
+			const input: Record<string, unknown> = {};
+			if (name !== undefined) input.name = name;
+			if (parameters !== undefined) input.parameters = parameters;
+			if (rows !== undefined) input.rows = rows;
+
+			const bodyOrError = validateRequestBody(input);
+			if (bodyOrError instanceof Response) {
+				return mcpValidationError(bodyOrError, 'Invalid shared dataset');
+			}
+
 			const updates: Record<string, unknown> = {};
-			if (name !== undefined) updates.name = name;
-			if (parameters !== undefined) updates.parameters = parameters;
-			if (rows !== undefined) updates.rows = rows;
+			if (bodyOrError.name !== undefined) {
+				const nameOrError = validateDataSetName(bodyOrError.name);
+				if (nameOrError instanceof Response) {
+					return mcpValidationError(nameOrError, 'Invalid shared dataset');
+				}
+				updates.name = nameOrError;
+			}
+
+			let nextParameters = (ds.parameters as string[]) ?? [];
+			if (bodyOrError.parameters !== undefined) {
+				const parametersOrError = validateDataSetParameters(bodyOrError.parameters);
+				if (parametersOrError instanceof Response) {
+					return mcpValidationError(parametersOrError, 'Invalid shared dataset');
+				}
+				nextParameters = parametersOrError;
+				updates.parameters = parametersOrError;
+			}
+
+			if (bodyOrError.rows !== undefined) {
+				const rowsOrError = validateDataSetRows(bodyOrError.rows, nextParameters);
+				if (rowsOrError instanceof Response) {
+					return mcpValidationError(rowsOrError, 'Invalid shared dataset');
+				}
+				updates.rows = rowsOrError;
+			}
+
+			if (Object.keys(updates).length === 0) return err('No fields to update');
 
 			const [updated] = await db
 				.update(sharedDataSet)

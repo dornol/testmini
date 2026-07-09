@@ -517,6 +517,13 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid status' });
 		}
 
+		const run = await db.query.testRun.findFirst({
+			where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
+		});
+		if (!run) {
+			return fail(404, { error: 'Test run not found' });
+		}
+
 		const updates: Record<string, unknown> = {
 			status: status as 'IN_PROGRESS' | 'COMPLETED'
 		};
@@ -541,7 +548,6 @@ export const actions: Actions = {
 
 		// Notify project members when run is completed
 		if (status === 'COMPLETED') {
-			const run = await db.query.testRun.findFirst({ where: eq(testRun.id, runId) });
 			const members = await db
 				.select({ userId: projectMember.userId })
 				.from(projectMember)

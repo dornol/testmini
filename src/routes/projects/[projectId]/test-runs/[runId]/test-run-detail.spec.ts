@@ -906,6 +906,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 		});
 
 		it('should set startedAt when transitioning to IN_PROGRESS', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			const setCalls: unknown[] = [];
 			const updateChain = {
 				set: vi.fn().mockImplementation((data: unknown) => {
@@ -926,6 +927,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 		});
 
 		it('should set finishedAt when transitioning to COMPLETED', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			const setCalls: unknown[] = [];
 			const updateChain = {
 				set: vi.fn().mockImplementation((data: unknown) => {
@@ -937,7 +939,6 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			mockDb.update.mockReturnValue(updateChain as never);
 
 			// Mock for notification queries
-			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			mockSelectResult(mockDb, [{ userId: 'user-2' }]);
 
 			const event = createActionEvent(createFormData({ status: 'COMPLETED' }));
@@ -950,12 +951,12 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 		});
 
 		it('should notify project members on completion', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			const updateChain = {
 				set: vi.fn().mockReturnThis(),
 				where: vi.fn().mockResolvedValue(undefined)
 			};
 			mockDb.update.mockReturnValue(updateChain as never);
-			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			mockSelectResult(mockDb, [{ userId: 'user-2' }, { userId: 'user-3' }]);
 
 			const event = createActionEvent(createFormData({ status: 'COMPLETED' }));
@@ -978,12 +979,12 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 		});
 
 		it('should NOT notify current user on completion', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			const updateChain = {
 				set: vi.fn().mockReturnThis(),
 				where: vi.fn().mockResolvedValue(undefined)
 			};
 			mockDb.update.mockReturnValue(updateChain as never);
-			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			// Only current user is a member
 			mockSelectResult(mockDb, [{ userId: testUser.id }]);
 
@@ -994,6 +995,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 		});
 
 		it('should publish run:status_changed SSE event', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			const updateChain = {
 				set: vi.fn().mockReturnThis(),
 				where: vi.fn().mockResolvedValue(undefined)
@@ -1011,6 +1013,18 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 					status: 'IN_PROGRESS'
 				})
 			);
+		});
+
+		it('should reject status updates when run is outside the current project', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(null);
+
+			const event = createActionEvent(createFormData({ status: 'COMPLETED' }));
+			const result = await actions.updateRunStatus(event as never);
+
+			expect(result).toEqual(expect.objectContaining({ status: 404 }));
+			expect(mockDb.update).not.toHaveBeenCalled();
+			expect(mockPublish).not.toHaveBeenCalled();
+			expect(mockCreateNotification).not.toHaveBeenCalled();
 		});
 	});
 

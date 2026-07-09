@@ -5,6 +5,9 @@ import { oidcProvider, oidcAccount } from '$lib/server/db/schema';
 import { eq, count, asc } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
 import { parsePositiveFormId } from '$lib/server/form-utils';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+
+const MAX_OIDC_PROVIDER_FORM_BODY_SIZE = 16 * 1024;
 
 export const load: PageServerLoad = async () => {
 	const providers = await db
@@ -33,6 +36,12 @@ export const actions: Actions = {
 			return fail(403, { error: 'Admin access required' });
 		}
 
+		assertContentLengthUnderLimit(
+			request,
+			MAX_OIDC_PROVIDER_FORM_BODY_SIZE,
+			'OIDC provider form body is too large'
+		);
+
 		const formData = await request.formData();
 		const providerId = parsePositiveFormId(formData.get('providerId'));
 		if (!providerId) return fail(400, { error: 'Invalid provider ID' });
@@ -60,6 +69,12 @@ export const actions: Actions = {
 		if (!isGlobalAdmin(authUser)) {
 			return fail(403, { error: 'Admin access required' });
 		}
+
+		assertContentLengthUnderLimit(
+			request,
+			MAX_OIDC_PROVIDER_FORM_BODY_SIZE,
+			'OIDC provider form body is too large'
+		);
 
 		const formData = await request.formData();
 		const providerId = parsePositiveFormId(formData.get('providerId'));

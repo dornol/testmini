@@ -9,6 +9,9 @@ import {
 	validateOidcProviderFields,
 	validateOidcProviderUrls
 } from '$lib/server/oidc-provider-validation';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+
+const MAX_OIDC_PROVIDER_FORM_BODY_SIZE = 16 * 1024;
 
 function parseDisplayOrder(value: FormDataEntryValue | null): number {
 	if (value === null || value === '') return 0;
@@ -30,6 +33,12 @@ export const actions: Actions = {
 		if (!isGlobalAdmin(authUser)) {
 			return fail(403, { error: 'Admin access required' });
 		}
+
+		assertContentLengthUnderLimit(
+			request,
+			MAX_OIDC_PROVIDER_FORM_BODY_SIZE,
+			'OIDC provider form body is too large'
+		);
 
 		const formData = await request.formData();
 		const name = parseTrimmedText(formData.get('name'));

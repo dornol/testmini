@@ -32,6 +32,7 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 const { actions, load } = await import('./+page.server');
+const MAX_OIDC_PROVIDER_FORM_BODY_SIZE = 16 * 1024;
 
 function createFormData(entries: Record<string, string>): FormData {
 	const fd = new FormData();
@@ -43,11 +44,14 @@ function createFormData(entries: Record<string, string>): FormData {
 
 function createActionEvent(
 	user: NonNullable<App.Locals['user']> | null,
-	formEntries: Record<string, string>
+	formEntries: Record<string, string>,
+	headers?: HeadersInit
 ) {
 	const formData = createFormData(formEntries);
+	const requestHeaders = new Headers(headers);
 	return {
 		request: {
+			headers: requestHeaders,
 			formData: () => Promise.resolve(formData)
 		},
 		locals: {
@@ -107,6 +111,21 @@ describe('admin/oidc-providers +page.server', () => {
 	});
 
 	describe('toggle', () => {
+		it('should reject oversized form bodies before querying provider', async () => {
+			const event = createActionEvent(
+				adminUser,
+				{ providerId: '1' },
+				{ 'content-length': String(MAX_OIDC_PROVIDER_FORM_BODY_SIZE + 1) }
+			);
+
+			await expect(actions.toggle(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'OIDC provider form body is too large' }
+			});
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 403 for non-admin users', async () => {
 			const event = createActionEvent(testUser, { providerId: '1' });
 			const result = await actions.toggle(event);
@@ -164,6 +183,21 @@ describe('admin/oidc-providers +page.server', () => {
 	});
 
 	describe('deleteProvider', () => {
+		it('should reject invalid content-length before querying provider', async () => {
+			const event = createActionEvent(
+				adminUser,
+				{ providerId: '1' },
+				{ 'content-length': 'invalid' }
+			);
+
+			await expect(actions.deleteProvider(event)).rejects.toMatchObject({
+				status: 400,
+				body: { message: 'Invalid content-length header' }
+			});
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
 		it('should return 403 for non-admin users', async () => {
 			const event = createActionEvent(testUser, { providerId: '1' });
 			const result = await actions.deleteProvider(event);

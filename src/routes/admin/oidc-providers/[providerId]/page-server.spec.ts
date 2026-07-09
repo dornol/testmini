@@ -50,6 +50,7 @@ vi.mock('$lib/server/oidc-provider-validation', () => ({
 }));
 
 const { actions, load } = await import('./+page.server');
+const MAX_OIDC_PROVIDER_FORM_BODY_SIZE = 16 * 1024;
 
 function createFormData(entries: Record<string, FormDataEntryValue>): FormData {
 	const fd = new FormData();
@@ -72,11 +73,14 @@ const validUpdateData = {
 function createActionEvent(
 	user: NonNullable<App.Locals['user']> | null,
 	formEntries: Record<string, FormDataEntryValue>,
-	params: Record<string, string> = { providerId: '1' }
+	params: Record<string, string> = { providerId: '1' },
+	headers?: HeadersInit
 ) {
 	const formData = createFormData(formEntries);
+	const requestHeaders = new Headers(headers);
 	return {
 		request: {
+			headers: requestHeaders,
 			formData: () => Promise.resolve(formData)
 		},
 		locals: {
@@ -195,6 +199,23 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 	});
 
 	describe('update action', () => {
+		it('should reject oversized form bodies before validating provider fields', async () => {
+			const event = createActionEvent(
+				adminUser,
+				validUpdateData,
+				{ providerId: '1' },
+				{ 'content-length': String(MAX_OIDC_PROVIDER_FORM_BODY_SIZE + 1) }
+			);
+
+			await expect(actions.update(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'OIDC provider form body is too large' }
+			});
+			expect(mockValidateOidcProviderFields).not.toHaveBeenCalled();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 403 for non-admin users', async () => {
 			const event = createActionEvent(testUser, validUpdateData);
 			const result = await actions.update(event);

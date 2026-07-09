@@ -17,6 +17,12 @@ describe('loginSchema', () => {
 
 		expect(result.success).toBe(false);
 	});
+
+	it('should trim email before returning parsed credentials', () => {
+		const result = loginSchema.parse({ email: '  user@example.com  ', password: ' secret ' });
+
+		expect(result).toEqual({ email: 'user@example.com', password: ' secret ' });
+	});
 });
 
 describe('registerSchema', () => {
@@ -40,6 +46,33 @@ describe('registerSchema', () => {
 		});
 
 		expect(result.success).toBe(false);
+	});
+
+	it('should reject whitespace-only names', () => {
+		const result = registerSchema.safeParse({
+			name: '   ',
+			email: 'user@example.com',
+			password: 'password123',
+			passwordConfirm: 'password123'
+		});
+
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim name and email before returning parsed registration', () => {
+		const result = registerSchema.parse({
+			name: '  User  ',
+			email: '  user@example.com  ',
+			password: 'password123',
+			passwordConfirm: 'password123'
+		});
+
+		expect(result).toEqual({
+			name: 'User',
+			email: 'user@example.com',
+			password: 'password123',
+			passwordConfirm: 'password123'
+		});
 	});
 
 	it('should reject unknown fields', () => {

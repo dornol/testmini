@@ -69,7 +69,8 @@ export const PUT = withAuth(async ({ request, user }) => {
 	let body: unknown;
 	try {
 		body = await parseJsonBody(request);
-	} catch {
+	} catch (e) {
+		if (e && typeof e === 'object' && 'status' in e) throw e;
 		error(400, 'Invalid JSON');
 	}
 

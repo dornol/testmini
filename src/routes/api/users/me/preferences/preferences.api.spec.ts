@@ -132,6 +132,16 @@ describe('/api/users/me/preferences', () => {
 			await expect(PUT(event)).rejects.toMatchObject({ status: 400 });
 		});
 
+		it('should preserve oversized request status', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				body: {},
+				headers: { 'content-length': String(1024 * 1024 + 1) },
+				user: testUser
+			});
+			await expect(PUT(event)).rejects.toMatchObject({ status: 413 });
+		});
+
 		it('should reject non-string locale', async () => {
 			const event = createMockEvent({
 				method: 'PUT',

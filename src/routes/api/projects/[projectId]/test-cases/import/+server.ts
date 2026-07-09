@@ -312,6 +312,9 @@ export const POST = withProjectRole(
 							createdBy: user.id
 						})
 						.returning();
+					if (!created) {
+						throw new Error('Failed to create test case');
+					}
 
 					const [version] = await tx
 						.insert(testCaseVersion)
@@ -326,11 +329,18 @@ export const POST = withProjectRole(
 							updatedBy: user.id
 						})
 						.returning();
+					if (!version) {
+						throw new Error('Failed to create test case version');
+					}
 
-					await tx
+					const [updatedTestCase] = await tx
 						.update(testCase)
 						.set({ latestVersionId: version.id })
-						.where(and(eq(testCase.id, created.id), eq(testCase.projectId, projectId)));
+						.where(and(eq(testCase.id, created.id), eq(testCase.projectId, projectId)))
+						.returning({ id: testCase.id });
+					if (!updatedTestCase) {
+						throw new Error('Failed to update test case latest version');
+					}
 
 					// Link tags
 					for (const tagName of row.tags) {

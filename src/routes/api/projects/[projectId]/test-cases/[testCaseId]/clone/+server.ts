@@ -59,6 +59,9 @@ export const POST = withProjectRole(
 					createdBy: user.id
 				})
 				.returning();
+			if (!created) {
+				error(500, 'Failed to create test case');
+			}
 
 			newTestCaseId = created.id;
 
@@ -77,12 +80,19 @@ export const POST = withProjectRole(
 					updatedBy: user.id
 				})
 				.returning();
+			if (!version) {
+				error(500, 'Failed to create test case version');
+			}
 
 			// Update latestVersionId
-			await tx
+			const [updatedTestCase] = await tx
 				.update(testCase)
 				.set({ latestVersionId: version.id })
-				.where(and(eq(testCase.id, created.id), eq(testCase.projectId, projectId)));
+				.where(and(eq(testCase.id, created.id), eq(testCase.projectId, projectId)))
+				.returning({ id: testCase.id });
+			if (!updatedTestCase) {
+				error(404, 'Test case not found');
+			}
 
 			// Copy tags
 			const tcTags = await tx

@@ -4,8 +4,14 @@ import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
+const mockFindTestCasesWithLatestVersions = vi.fn();
 
-vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
+vi.mock('$lib/server/db', () => ({
+	db: mockDb,
+	col: mockDb.col,
+	sql: mockDb.sql,
+	findTestCasesWithLatestVersions: mockFindTestCasesWithLatestVersions
+}));
 vi.mock('$lib/server/db/schema', () => ({
 	testCase: {
 		id: 'id',
@@ -89,6 +95,7 @@ function createTxWriteChains() {
 describe('/api/projects/[projectId]/test-cases/bulk', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockFindTestCasesWithLatestVersions.mockReset();
 	});
 
 	describe('POST', () => {
@@ -387,6 +394,136 @@ describe('/api/projects/[projectId]/test-cases/bulk', () => {
 					['project_id', 1]
 				])
 			});
+		});
+
+		it('should return 404 when setPriority latest-version update finds no row', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValue({ role: 'QA' });
+			mockSelectResult(mockDb, [{ id: 10 }]);
+			mockFindTestCasesWithLatestVersions.mockResolvedValue([
+				{
+					id: 10,
+					latestVersion: {
+						id: 100,
+						versionNo: 1,
+						title: 'Login',
+						precondition: null,
+						steps: [],
+						expectedResult: null,
+						priority: 'LOW',
+						revision: 1
+					}
+				}
+			]);
+
+			const txInsertVersionChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: 200 }])
+			};
+			const txUpdateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([])
+			};
+			const tx = {
+				insert: vi.fn().mockReturnValue(txInsertVersionChain),
+				update: vi.fn().mockReturnValue(txUpdateChain),
+				delete: vi.fn(),
+				query: {
+					tag: { findFirst: vi.fn() },
+					priorityConfig: { findFirst: vi.fn().mockResolvedValue({ name: 'HIGH' }) },
+					projectMember: { findFirst: vi.fn() }
+				}
+			};
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'setPriority', testCaseIds: [10], priority: 'HIGH' },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 404 });
+			expect(txUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should return 404 when clone latest-version update finds no row', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValue({ role: 'QA' });
+			mockSelectResult(mockDb, [{ id: 10 }]);
+			mockFindTestCasesWithLatestVersions.mockResolvedValue([
+				{
+					id: 10,
+					groupId: null,
+					latestVersion: {
+						id: 100,
+						title: 'Login',
+						precondition: null,
+						steps: [],
+						expectedResult: null,
+						priority: 'LOW'
+					}
+				}
+			]);
+
+			const txMaxKeyChain = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([{ maxKey: 'TC-0001' }]).then(r)
+			};
+			const txMaxSortChain = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([{ maxOrder: 0 }]).then(r)
+			};
+			const txInsertCaseChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: 20, key: 'TC-0002' }])
+			};
+			const txInsertVersionChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: 200, testCaseId: 20 }])
+			};
+			const txUpdateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([])
+			};
+			let selectCallCount = 0;
+			let insertCallCount = 0;
+			const tx = {
+				select: vi.fn().mockImplementation(() => {
+					selectCallCount++;
+					if (selectCallCount === 1) return txMaxKeyChain;
+					if (selectCallCount === 2) return txMaxSortChain;
+					return {
+						from: vi.fn().mockReturnThis(),
+						where: vi.fn().mockReturnThis(),
+						then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+					};
+				}),
+				insert: vi.fn().mockImplementation(() => {
+					insertCallCount++;
+					return insertCallCount === 1 ? txInsertCaseChain : txInsertVersionChain;
+				}),
+				update: vi.fn().mockReturnValue(txUpdateChain),
+				delete: vi.fn(),
+				query: {
+					tag: { findFirst: vi.fn() },
+					priorityConfig: { findFirst: vi.fn() },
+					projectMember: { findFirst: vi.fn() }
+				}
+			};
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'clone', testCaseIds: [10] },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 404 });
+			expect(txUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });
 		});
 	});
 });

@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import { db, findTestCasesWithLatestVersions } from '$lib/server/db';
 import {
 	testCase,
@@ -114,11 +114,18 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 							updatedBy: user.id
 						})
 						.returning();
+					if (!version) {
+						error(500, 'Failed to create test case version');
+					}
 
-					await tx
+					const [updatedTestCase] = await tx
 						.update(testCase)
 						.set({ latestVersionId: version.id })
-						.where(and(eq(testCase.id, tc.id), eq(testCase.projectId, projectId)));
+						.where(and(eq(testCase.id, tc.id), eq(testCase.projectId, projectId)))
+						.returning({ id: testCase.id });
+					if (!updatedTestCase) {
+						error(404, 'Test case not found');
+					}
 					affected++;
 				}
 				break;
@@ -222,6 +229,9 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 							createdBy: user.id
 						})
 						.returning();
+					if (!created) {
+						error(500, 'Failed to create test case');
+					}
 
 					const latest = tc.latestVersion;
 					const [version] = await tx
@@ -237,11 +247,18 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 							updatedBy: user.id
 						})
 						.returning();
+					if (!version) {
+						error(500, 'Failed to create test case version');
+					}
 
-					await tx
+					const [updatedTestCase] = await tx
 						.update(testCase)
 						.set({ latestVersionId: version.id })
-						.where(and(eq(testCase.id, created.id), eq(testCase.projectId, projectId)));
+						.where(and(eq(testCase.id, created.id), eq(testCase.projectId, projectId)))
+						.returning({ id: testCase.id });
+					if (!updatedTestCase) {
+						error(404, 'Test case not found');
+					}
 
 					// Copy tags
 					const tcTags = await tx

@@ -82,7 +82,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/clone', () => {
 			const txUpdateChain = {
 				set: vi.fn().mockReturnThis(),
 				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+				returning: vi.fn().mockResolvedValue([{ id: newTestCaseId }])
 			};
 
 			mockDb.transaction.mockImplementation(async (fn) => {
@@ -148,6 +148,152 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/clone', () => {
 					['project_id', 1]
 				])
 			);
+			expect(txUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should return 500 when test case insert returns no row', async () => {
+			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
+			mockFindTC.mockResolvedValue(tc);
+
+			mockDb.transaction.mockImplementationOnce(async (fn) => {
+				const txMaxKeyChain = {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([{ maxKey: 'TC-0001' }]).then(r)
+				};
+				const txMaxSortChain = {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([{ maxOrder: 0 }]).then(r)
+				};
+				const txInsertCaseChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockResolvedValue([])
+				};
+				let selectCallCount = 0;
+				const tx = {
+					select: vi.fn().mockImplementation(() => {
+						selectCallCount++;
+						return selectCallCount === 1 ? txMaxKeyChain : txMaxSortChain;
+					}),
+					insert: vi.fn().mockReturnValue(txInsertCaseChain),
+					update: vi.fn()
+				};
+				return fn(tx);
+			});
+
+			const event = createMockEvent({ method: 'POST', params: PARAMS, user: testUser });
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
+		it('should return 500 when version insert returns no row', async () => {
+			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
+			mockFindTC.mockResolvedValue(tc);
+			const newTestCaseId = 11;
+
+			mockDb.transaction.mockImplementationOnce(async (fn) => {
+				const txMaxKeyChain = {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([{ maxKey: 'TC-0001' }]).then(r)
+				};
+				const txMaxSortChain = {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([{ maxOrder: 0 }]).then(r)
+				};
+				const txInsertCaseChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi
+						.fn()
+						.mockResolvedValue([{ ...sampleTestCase, id: newTestCaseId, key: 'TC-0002' }])
+				};
+				const txInsertVersionChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockResolvedValue([])
+				};
+				let selectCallCount = 0;
+				let insertCallCount = 0;
+				const tx = {
+					select: vi.fn().mockImplementation(() => {
+						selectCallCount++;
+						return selectCallCount === 1 ? txMaxKeyChain : txMaxSortChain;
+					}),
+					insert: vi.fn().mockImplementation(() => {
+						insertCallCount++;
+						return insertCallCount === 1 ? txInsertCaseChain : txInsertVersionChain;
+					}),
+					update: vi.fn()
+				};
+				return fn(tx);
+			});
+
+			const event = createMockEvent({ method: 'POST', params: PARAMS, user: testUser });
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
+		it('should return 404 when latest version pointer update finds no row', async () => {
+			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
+			mockFindTC.mockResolvedValue(tc);
+
+			const newTestCaseId = 11;
+			const newVersion = { ...sampleTestCaseVersion, id: 101, testCaseId: newTestCaseId };
+			const txUpdateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([])
+			};
+
+			mockDb.transaction.mockImplementationOnce(async (fn) => {
+				const txMaxKeyChain = {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([{ maxKey: 'TC-0001' }]).then(r)
+				};
+				const txMaxSortChain = {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([{ maxOrder: 0 }]).then(r)
+				};
+				const txInsertCaseChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi
+						.fn()
+						.mockResolvedValue([{ ...sampleTestCase, id: newTestCaseId, key: 'TC-0002' }])
+				};
+				const txInsertVersionChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockResolvedValue([newVersion])
+				};
+				let selectCallCount = 0;
+				let insertCallCount = 0;
+				const tx = {
+					select: vi.fn().mockImplementation(() => {
+						selectCallCount++;
+						if (selectCallCount === 1) return txMaxKeyChain;
+						if (selectCallCount === 2) return txMaxSortChain;
+						return {
+							from: vi.fn().mockReturnThis(),
+							where: vi.fn().mockReturnThis(),
+							then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+						};
+					}),
+					insert: vi.fn().mockImplementation(() => {
+						insertCallCount++;
+						if (insertCallCount === 1) return txInsertCaseChain;
+						return txInsertVersionChain;
+					}),
+					update: vi.fn().mockReturnValue(txUpdateChain)
+				};
+				return fn(tx);
+			});
+
+			const event = createMockEvent({ method: 'POST', params: PARAMS, user: testUser });
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 404 });
+			expect(txUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });
 		});
 	});
 });

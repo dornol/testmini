@@ -376,7 +376,8 @@ describe('/api/projects/[projectId]/test-cases/import', () => {
 
 		const txUpdateChain = {
 			set: vi.fn().mockReturnThis(),
-			where: vi.fn().mockResolvedValue(undefined)
+			where: vi.fn().mockReturnThis(),
+			returning: vi.fn().mockResolvedValue([{ id: 123 }])
 		};
 
 		mockDb.transaction.mockImplementation(async (fn) => {
@@ -422,6 +423,65 @@ describe('/api/projects/[projectId]/test-cases/import', () => {
 				['project_id', 1]
 			])
 		);
+		expect(txUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });
+	});
+
+	it('should mark row as error when latest-version update finds no row', async () => {
+		const fd = createJsonFormData([{ title: 'Pointer failure', priority: 'MEDIUM' }]);
+
+		mockDb.select.mockImplementation(() => {
+			return mockSelectResult(mockDb, []) as never;
+		});
+
+		const txUpdateChain = {
+			set: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			returning: vi.fn().mockResolvedValue([])
+		};
+
+		mockDb.transaction.mockImplementationOnce(async (fn) => {
+			let insertCallCount = 0;
+			const txSelectChain = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([{ maxKey: null, maxOrder: 0 }]).then(r)
+			};
+			const txInsertCaseChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: 123, key: 'TC-0001' }])
+			};
+			const txInsertVersionChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: 456, testCaseId: 123 }])
+			};
+			const tx = {
+				select: vi.fn().mockReturnValue(txSelectChain),
+				insert: vi.fn().mockImplementation(() => {
+					insertCallCount++;
+					return insertCallCount === 1 ? txInsertCaseChain : txInsertVersionChain;
+				}),
+				update: vi.fn().mockReturnValue(txUpdateChain)
+			};
+			return fn(tx);
+		});
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: fd,
+			user: adminUser
+		});
+		const response = await POST(event);
+		const body = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(body.imported).toBe(0);
+		expect(body.errors[0]).toContain('Failed to update test case latest version');
+		expect(body.rows[0]).toMatchObject({
+			status: 'error',
+			title: 'Pointer failure'
+		});
+		expect(txUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });
 	});
 
 	it('should skip rows with missing title and return 400 when all invalid', async () => {

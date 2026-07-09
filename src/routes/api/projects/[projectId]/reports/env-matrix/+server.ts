@@ -4,29 +4,16 @@ import { testRun, testExecution, testCaseVersion } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
+import { parseRequiredCanonicalPositiveIntegerList } from '$lib/server/search-param-validation';
 
 const MAX_RUN_IDS = 20;
 
 function parseRunIds(value: string): number[] | Response {
-	const tokens = value
-		.split(',')
-		.map((token) => token.trim())
-		.filter(Boolean);
-	if (tokens.length === 0) return badRequest('No valid run IDs provided');
-
-	const runIds: number[] = [];
-	for (const token of tokens) {
-		if (!/^\d+$/.test(token)) {
-			return badRequest('runIds must contain only positive integers');
-		}
-		const id = Number(token);
-		if (!Number.isSafeInteger(id) || id <= 0) {
-			return badRequest('runIds must contain only positive integers');
-		}
-		runIds.push(id);
+	try {
+		return parseRequiredCanonicalPositiveIntegerList(value, 'runIds');
+	} catch {
+		return badRequest('runIds must contain only positive integers');
 	}
-
-	return [...new Set(runIds)];
 }
 
 export const GET = withProjectAccess(async ({ projectId, url }) => {

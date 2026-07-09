@@ -77,7 +77,17 @@ describe('/api/projects/[projectId]/reports/env-matrix', () => {
 	});
 
 	it('should reject invalid run ID tokens before querying', async () => {
-		for (const runIds of ['1,abc,2', '1,1.5,2', '1,0,2', `1,${Number.MAX_SAFE_INTEGER + 1}`]) {
+		for (const runIds of [
+			'1,abc,2',
+			'1,1.5,2',
+			'1,0,2',
+			'1,01,2',
+			'1,1e3,2',
+			'1, 2',
+			'1,2 ',
+			'1,,2',
+			`1,${Number.MAX_SAFE_INTEGER + 1}`
+		]) {
 			vi.clearAllMocks();
 			const event = createMockEvent({
 				params: PARAMS,

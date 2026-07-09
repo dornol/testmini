@@ -5,7 +5,8 @@ import {
 	parseNonNegativeIntegerSearchParam,
 	parseOptionalPositiveIntegerSearchParam,
 	parsePositiveIntegerSearchParam,
-	parsePositiveIntegerSearchParamStrict
+	parsePositiveIntegerSearchParamStrict,
+	parseRequiredCanonicalPositiveIntegerList
 } from './search-param-validation';
 
 describe('search-param-validation', () => {
@@ -33,6 +34,21 @@ describe('search-param-validation', () => {
 				parseCanonicalPositiveIntegerList('abc,0,-1,+1,01,1e3, 7,7 ,9007199254740992,5')
 			).toEqual([5]);
 		});
+	});
+
+	describe('parseRequiredCanonicalPositiveIntegerList', () => {
+		it('should parse and deduplicate valid comma-separated positive integers', () => {
+			expect(parseRequiredCanonicalPositiveIntegerList('1,1,2,42', 'ids')).toEqual([1, 2, 42]);
+		});
+
+		it.each(['', '1,,2', '1,0,2', '1,01,2', '1,1e3,2', '1, 2', '1,2 '])(
+			'should reject malformed required integer list %s',
+			(value) => {
+				expect(() => parseRequiredCanonicalPositiveIntegerList(value, 'ids')).toThrow(
+					'ids must contain only positive integers'
+				);
+			}
+		);
 	});
 
 	describe('parsePositiveIntegerSearchParam', () => {

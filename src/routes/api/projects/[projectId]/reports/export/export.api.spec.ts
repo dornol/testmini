@@ -84,7 +84,17 @@ describe('/api/projects/[projectId]/reports/export', () => {
 		});
 
 		it('should reject invalid run ID tokens before querying', async () => {
-			for (const runs of ['1,abc,2', '1,1.5,2', '1,0,2', `1,${Number.MAX_SAFE_INTEGER + 1}`]) {
+			for (const runs of [
+				'1,abc,2',
+				'1,1.5,2',
+				'1,0,2',
+				'1,01,2',
+				'1,1e3,2',
+				'1, 2',
+				'1,2 ',
+				'1,,2',
+				`1,${Number.MAX_SAFE_INTEGER + 1}`
+			]) {
 				vi.clearAllMocks();
 				const event = createMockEvent({
 					method: 'GET',

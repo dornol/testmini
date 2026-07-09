@@ -11,32 +11,17 @@ import {
 import { eq, and, gt, inArray } from 'drizzle-orm';
 import { formatCsvRow } from '$lib/server/csv-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
+import { parseRequiredCanonicalPositiveIntegerList } from '$lib/server/search-param-validation';
 
 const BATCH_SIZE = 100;
 const MAX_RUN_IDS = 20;
 
 function parseRunIds(value: string): number[] {
-	const tokens = value
-		.split(',')
-		.map((token) => token.trim())
-		.filter(Boolean);
-	if (tokens.length === 0) {
-		error(400, 'No valid run IDs provided');
+	try {
+		return parseRequiredCanonicalPositiveIntegerList(value, 'runs');
+	} catch {
+		error(400, 'runs must contain only positive integers');
 	}
-
-	const runIds: number[] = [];
-	for (const token of tokens) {
-		if (!/^\d+$/.test(token)) {
-			error(400, 'runs must contain only positive integers');
-		}
-		const id = Number(token);
-		if (!Number.isSafeInteger(id) || id <= 0) {
-			error(400, 'runs must contain only positive integers');
-		}
-		runIds.push(id);
-	}
-
-	return [...new Set(runIds)];
 }
 
 export const GET = withProjectAccess(async ({ url, projectId }) => {

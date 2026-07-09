@@ -15,6 +15,23 @@ export function parseCanonicalPositiveIntegerList(value: string): number[] {
 		.filter((id): id is number => id !== null);
 }
 
+export function parseRequiredCanonicalPositiveIntegerList(value: string, label: string): number[] {
+	const tokens = value.split(',');
+	if (tokens.length === 0 || tokens.some((token) => token === '')) {
+		throw new Error(`${label} must contain only positive integers`);
+	}
+
+	const ids = tokens.map((token) => {
+		const id = parseCanonicalPositiveInteger(token);
+		if (id === null) {
+			throw new Error(`${label} must contain only positive integers`);
+		}
+		return id;
+	});
+
+	return [...new Set(ids)];
+}
+
 export function parsePositiveIntegerSearchParam(
 	value: string | null,
 	defaultValue: number,

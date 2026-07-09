@@ -2,7 +2,14 @@ import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 import { unauthorized, badRequest, notFound } from '$lib/server/errors';
 import { db } from '$lib/server/db';
-import { project, projectMember, testCase, testRun, testExecution, testFailureDetail } from '$lib/server/db/schema';
+import {
+	project,
+	projectMember,
+	testCase,
+	testRun,
+	testExecution,
+	testFailureDetail
+} from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { authenticateApiKey } from '$lib/server/api-key-auth';
 import { createNotification } from '$lib/server/notifications';
@@ -21,6 +28,27 @@ interface AutomationResultsRequest {
 	results: AutomationResult[];
 }
 
+const MAX_RESULTS = 10_000;
+const MAX_AUTOMATION_KEY_LENGTH = 255;
+const MAX_RUN_NAME_LENGTH = 200;
+const MAX_ENVIRONMENT_LENGTH = 64;
+const MAX_ERROR_MESSAGE_LENGTH = 10_000;
+const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
+
+function validateOptionalString(
+	value: unknown,
+	label: string,
+	maxLength: number
+): string | Response | undefined {
+	if (value == null) return undefined;
+	if (typeof value !== 'string') return badRequest(`${label} must be a string`);
+	const trimmed = value.trim();
+	if (!trimmed) return badRequest(`${label} must not be empty`);
+	if (trimmed.length > maxLength)
+		return badRequest(`${label} must not exceed ${maxLength} characters`);
+	return trimmed;
+}
+
 export const POST: RequestHandler = async ({ request }) => {
 	// Authenticate via API key (no user session)
 	const auth = await authenticateApiKey(request);
@@ -31,9 +59,22 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	let body: AutomationResultsRequest;
 	try {
-		body = await parseJsonBody(request) as typeof body;
+		body = (await parseJsonBody(request)) as typeof body;
 	} catch {
 		return badRequest('Invalid request body');
+	}
+
+	const runNameInput = validateOptionalString(body.runName, 'runName', MAX_RUN_NAME_LENGTH);
+	if (runNameInput instanceof Response) return runNameInput;
+
+	const environmentInput = validateOptionalString(
+		body.environment,
+		'environment',
+		MAX_ENVIRONMENT_LENGTH
+	);
+	if (environmentInput instanceof Response) return environmentInput;
+	if (environmentInput && !/^[A-Za-z0-9 _.-]+$/.test(environmentInput)) {
+		return badRequest('environment contains unsupported characters');
 	}
 
 	const { results } = body;
@@ -42,29 +83,61 @@ export const POST: RequestHandler = async ({ request }) => {
 		return badRequest('results array is required and must not be empty');
 	}
 
-	if (results.length > 10_000) {
-		return badRequest('results array must not exceed 10,000 entries');
+	if (results.length > MAX_RESULTS) {
+		return badRequest(`results array must not exceed ${MAX_RESULTS.toLocaleString()} entries`);
 	}
 
 	// Validate each result entry
 	const validStatuses = ['PASS', 'FAIL', 'SKIP'];
+	const normalizedResults: AutomationResult[] = [];
 	for (const r of results) {
 		if (!r.automationKey || typeof r.automationKey !== 'string') {
 			return badRequest('Each result must have an automationKey');
 		}
+		const automationKey = r.automationKey.trim();
+		if (!automationKey) {
+			return badRequest('Each result must have a non-empty automationKey');
+		}
+		if (automationKey.length > MAX_AUTOMATION_KEY_LENGTH) {
+			return badRequest(`automationKey must not exceed ${MAX_AUTOMATION_KEY_LENGTH} characters`);
+		}
 		if (!validStatuses.includes(r.status)) {
 			return badRequest(`Invalid status "${r.status}". Must be PASS, FAIL, or SKIP`);
 		}
+		const errorMessageInput = validateOptionalString(
+			r.errorMessage,
+			'errorMessage',
+			MAX_ERROR_MESSAGE_LENGTH
+		);
+		if (errorMessageInput instanceof Response) return errorMessageInput;
+		if (
+			r.duration != null &&
+			(typeof r.duration !== 'number' ||
+				!Number.isFinite(r.duration) ||
+				!Number.isInteger(r.duration) ||
+				r.duration < 0 ||
+				r.duration > MAX_DURATION_MS)
+		) {
+			return badRequest(
+				`duration must be an integer between 0 and ${MAX_DURATION_MS} milliseconds`
+			);
+		}
+		normalizedResults.push({
+			automationKey,
+			status: r.status,
+			errorMessage: errorMessageInput,
+			duration: r.duration
+		});
 	}
 
 	// Build run name and environment
 	const now = new Date();
 	const pad = (n: number) => String(n).padStart(2, '0');
 	const runName =
-		body.runName ??
+		runNameInput ??
 		`CI Run ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-	const environment = (body.environment ?? 'QA').toUpperCase();
+	const environment = (environmentInput ?? 'QA').toUpperCase();
 
 	// Verify project exists and get creator for run attribution
 	const projectRecord = await db.query.project.findFirst({
@@ -78,7 +151,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const createdBy = projectRecord.createdBy;
 
 	// Look up test cases by automationKey within the project
-	const automationKeys = [...new Set(results.map((r) => r.automationKey))];
+	const automationKeys = [...new Set(normalizedResults.map((r) => r.automationKey))];
 
 	const matchedCases = await db
 		.select({
@@ -109,7 +182,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			.returning();
 
 		// 2. Create executions for each result
-		for (const result of results) {
+		for (const result of normalizedResults) {
 			const tc = caseByKey.get(result.automationKey);
 
 			if (!tc || !tc.latestVersionId) {

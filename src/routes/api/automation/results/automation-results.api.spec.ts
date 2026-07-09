@@ -80,7 +80,21 @@ function setupSuccessfulFlow(opts?: {
 	// Helper to create a chainable select result without side-effects on mockDb.select
 	const makeChainable = (result: unknown[]) => {
 		const chain: Record<string, unknown> = {};
-		const methods = ['from', 'where', 'orderBy', 'limit', 'offset', 'innerJoin', 'leftJoin', 'groupBy', 'as', 'set', 'values', 'returning', 'onConflictDoNothing'];
+		const methods = [
+			'from',
+			'where',
+			'orderBy',
+			'limit',
+			'offset',
+			'innerJoin',
+			'leftJoin',
+			'groupBy',
+			'as',
+			'set',
+			'values',
+			'returning',
+			'onConflictDoNothing'
+		];
 		for (const m of methods) {
 			chain[m] = vi.fn().mockImplementation(() => chain);
 		}
@@ -192,6 +206,18 @@ describe('/api/automation/results POST', () => {
 			expect(data.error).toContain('automationKey');
 		});
 
+		it('should return 400 when automationKey exceeds 255 characters', async () => {
+			const request = makeRequest({
+				results: [{ automationKey: 'a'.repeat(256), status: 'PASS' }]
+			});
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('automationKey');
+			expect(data.error).toContain('255');
+		});
+
 		it('should return 400 when a result has invalid status', async () => {
 			const request = makeRequest({
 				results: [{ automationKey: 'test-1', status: 'INVALID' }]
@@ -202,6 +228,53 @@ describe('/api/automation/results POST', () => {
 			expect(response.status).toBe(400);
 			expect(data.error).toContain('Invalid status');
 			expect(data.error).toContain('INVALID');
+		});
+
+		it('should return 400 when runName is too long', async () => {
+			const request = makeRequest({
+				runName: 'r'.repeat(201),
+				results: [{ automationKey: 'test-1', status: 'PASS' }]
+			});
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('runName');
+			expect(data.error).toContain('200');
+		});
+
+		it('should return 400 when environment contains unsupported characters', async () => {
+			const request = makeRequest({
+				environment: 'prod/../../tmp',
+				results: [{ automationKey: 'test-1', status: 'PASS' }]
+			});
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('environment');
+		});
+
+		it('should return 400 when errorMessage is not a string', async () => {
+			const request = makeRequest({
+				results: [{ automationKey: 'test-1', status: 'FAIL', errorMessage: { nested: true } }]
+			});
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('errorMessage');
+		});
+
+		it('should return 400 when duration is negative', async () => {
+			const request = makeRequest({
+				results: [{ automationKey: 'test-1', status: 'FAIL', duration: -1 }]
+			});
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('duration');
 		});
 
 		it('should accept valid statuses: PASS, FAIL, SKIP', async () => {
@@ -235,9 +308,7 @@ describe('/api/automation/results POST', () => {
 			mockAuthenticateApiKey.mockResolvedValue({ projectId: 999, keyId: 1 });
 			mockDb.query.project.findFirst.mockResolvedValue(null);
 			// select for matchedCases
-			mockDb.select.mockImplementation(
-				() => mockSelectResult(mockDb, []) as never
-			);
+			mockDb.select.mockImplementation(() => mockSelectResult(mockDb, []) as never);
 
 			const request = makeRequest({
 				results: [{ automationKey: 'test-1', status: 'PASS' }]
@@ -308,8 +379,7 @@ describe('/api/automation/results POST', () => {
 			for (const m of chainMethods) {
 				chain[m] = vi.fn().mockImplementation(() => chain);
 			}
-			chain.then = (resolve: (v: unknown) => void) =>
-				Promise.resolve([{ id: 99 }]).then(resolve);
+			chain.then = (resolve: (v: unknown) => void) => Promise.resolve([{ id: 99 }]).then(resolve);
 			txInsert.mockReturnValue(chain);
 
 			const txUpdate = vi.fn().mockReturnValue(chain);
@@ -317,8 +387,9 @@ describe('/api/automation/results POST', () => {
 			await txFn({ insert: txInsert, update: txUpdate });
 
 			// First insert call is the test run
-			const firstInsertValues = (txInsert.mock.results[0]?.value as Record<string, ReturnType<typeof vi.fn>>)
-				.values.mock.calls[0][0];
+			const firstInsertValues = (
+				txInsert.mock.results[0]?.value as Record<string, ReturnType<typeof vi.fn>>
+			).values.mock.calls[0][0];
 			expect(firstInsertValues.name).toMatch(/^CI Run \d{4}-\d{2}-\d{2}/);
 		});
 
@@ -326,7 +397,7 @@ describe('/api/automation/results POST', () => {
 			setupSuccessfulFlow();
 
 			const request = makeRequest({
-				runName: 'My Custom Run',
+				runName: '  My Custom Run  ',
 				results: [{ automationKey: 'login-test', status: 'PASS' }]
 			});
 			await POST({ request } as never);
@@ -338,15 +409,15 @@ describe('/api/automation/results POST', () => {
 			for (const m of chainMethods) {
 				chain[m] = vi.fn().mockImplementation(() => chain);
 			}
-			chain.then = (resolve: (v: unknown) => void) =>
-				Promise.resolve([{ id: 99 }]).then(resolve);
+			chain.then = (resolve: (v: unknown) => void) => Promise.resolve([{ id: 99 }]).then(resolve);
 			const txInsert = vi.fn().mockReturnValue(chain);
 			const txUpdate = vi.fn().mockReturnValue(chain);
 
 			await txFn({ insert: txInsert, update: txUpdate });
 
-			const firstInsertValues = (txInsert.mock.results[0]?.value as Record<string, ReturnType<typeof vi.fn>>)
-				.values.mock.calls[0][0];
+			const firstInsertValues = (
+				txInsert.mock.results[0]?.value as Record<string, ReturnType<typeof vi.fn>>
+			).values.mock.calls[0][0];
 			expect(firstInsertValues.name).toBe('My Custom Run');
 		});
 
@@ -364,15 +435,15 @@ describe('/api/automation/results POST', () => {
 			for (const m of chainMethods) {
 				chain[m] = vi.fn().mockImplementation(() => chain);
 			}
-			chain.then = (resolve: (v: unknown) => void) =>
-				Promise.resolve([{ id: 99 }]).then(resolve);
+			chain.then = (resolve: (v: unknown) => void) => Promise.resolve([{ id: 99 }]).then(resolve);
 			const txInsert = vi.fn().mockReturnValue(chain);
 			const txUpdate = vi.fn().mockReturnValue(chain);
 
 			await txFn({ insert: txInsert, update: txUpdate });
 
-			const firstInsertValues = (txInsert.mock.results[0]?.value as Record<string, ReturnType<typeof vi.fn>>)
-				.values.mock.calls[0][0];
+			const firstInsertValues = (
+				txInsert.mock.results[0]?.value as Record<string, ReturnType<typeof vi.fn>>
+			).values.mock.calls[0][0];
 			expect(firstInsertValues.environment).toBe('QA');
 		});
 
@@ -380,7 +451,7 @@ describe('/api/automation/results POST', () => {
 			setupSuccessfulFlow();
 
 			const request = makeRequest({
-				environment: 'staging',
+				environment: '  staging  ',
 				results: [{ automationKey: 'login-test', status: 'PASS' }]
 			});
 			await POST({ request } as never);
@@ -391,16 +462,32 @@ describe('/api/automation/results POST', () => {
 			for (const m of chainMethods) {
 				chain[m] = vi.fn().mockImplementation(() => chain);
 			}
-			chain.then = (resolve: (v: unknown) => void) =>
-				Promise.resolve([{ id: 99 }]).then(resolve);
+			chain.then = (resolve: (v: unknown) => void) => Promise.resolve([{ id: 99 }]).then(resolve);
 			const txInsert = vi.fn().mockReturnValue(chain);
 			const txUpdate = vi.fn().mockReturnValue(chain);
 
 			await txFn({ insert: txInsert, update: txUpdate });
 
-			const firstInsertValues = (txInsert.mock.results[0]?.value as Record<string, ReturnType<typeof vi.fn>>)
-				.values.mock.calls[0][0];
+			const firstInsertValues = (
+				txInsert.mock.results[0]?.value as Record<string, ReturnType<typeof vi.fn>>
+			).values.mock.calls[0][0];
 			expect(firstInsertValues.environment).toBe('STAGING');
+		});
+
+		it('should trim automation keys before matching and returning unmatched keys', async () => {
+			setupSuccessfulFlow({
+				matchedCases: [{ id: 10, automationKey: 'login-test', latestVersionId: 100 }]
+			});
+
+			const request = makeRequest({
+				results: [{ automationKey: '  login-test  ', status: 'PASS' }]
+			});
+			const response = await POST({ request } as never);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.matched).toBe(1);
+			expect(data.results[0].automationKey).toBe('login-test');
 		});
 
 		it('should create failure details for FAIL results with errorMessage', async () => {
@@ -426,8 +513,7 @@ describe('/api/automation/results POST', () => {
 			for (const m of chainMethods) {
 				chain[m] = vi.fn().mockImplementation(() => chain);
 			}
-			chain.then = (resolve: (v: unknown) => void) =>
-				Promise.resolve([{ id: 99 }]).then(resolve);
+			chain.then = (resolve: (v: unknown) => void) => Promise.resolve([{ id: 99 }]).then(resolve);
 			const txInsert = vi.fn().mockImplementation((table: unknown) => {
 				insertCalls.push(table);
 				return chain;
@@ -460,8 +546,7 @@ describe('/api/automation/results POST', () => {
 			for (const m of chainMethods) {
 				chain[m] = vi.fn().mockImplementation(() => chain);
 			}
-			chain.then = (resolve: (v: unknown) => void) =>
-				Promise.resolve([{ id: 99 }]).then(resolve);
+			chain.then = (resolve: (v: unknown) => void) => Promise.resolve([{ id: 99 }]).then(resolve);
 			const txInsert = vi.fn().mockReturnValue(chain);
 			const txUpdate = vi.fn().mockReturnValue(chain);
 

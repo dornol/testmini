@@ -13,21 +13,28 @@ vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 
-import { isGlobalAdmin, requireAuth } from './auth-utils';
+import { isGlobalAdmin, parseId, requireAuth } from './auth-utils';
 
 describe('isGlobalAdmin', () => {
 	it('should return true for admin role', () => {
-		const user = { id: '1', role: 'admin', name: 'Admin', email: 'a@b.com' } as App.Locals['user'] & object;
+		const user = { id: '1', role: 'admin', name: 'Admin', email: 'a@b.com' } as App.Locals['user'] &
+			object;
 		expect(isGlobalAdmin(user)).toBe(true);
 	});
 
 	it('should return false for user role', () => {
-		const user = { id: '2', role: 'user', name: 'User', email: 'u@b.com' } as App.Locals['user'] & object;
+		const user = { id: '2', role: 'user', name: 'User', email: 'u@b.com' } as App.Locals['user'] &
+			object;
 		expect(isGlobalAdmin(user)).toBe(false);
 	});
 
 	it('should return false for any non-admin role', () => {
-		const user = { id: '3', role: 'moderator', name: 'Mod', email: 'm@b.com' } as App.Locals['user'] & object;
+		const user = {
+			id: '3',
+			role: 'moderator',
+			name: 'Mod',
+			email: 'm@b.com'
+		} as App.Locals['user'] & object;
 		expect(isGlobalAdmin(user)).toBe(false);
 	});
 });
@@ -49,4 +56,17 @@ describe('requireAuth', () => {
 		const locals = { session: null } as unknown as App.Locals;
 		expect(() => requireAuth(locals)).toThrow();
 	});
+});
+
+describe('parseId', () => {
+	it('should parse a positive integer ID', () => {
+		expect(parseId('42', 'project ID')).toBe(42);
+	});
+
+	it.each(['', '0', '-1', '1.5', 'abc', undefined])(
+		'should throw 400 for invalid ID value %s',
+		(raw) => {
+			expect(() => parseId(raw, 'project ID')).toThrow();
+		}
+	);
 });

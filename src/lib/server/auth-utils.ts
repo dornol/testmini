@@ -64,7 +64,7 @@ export async function requireProjectRole(
  */
 export function parseId(raw: string | undefined, label: string): number {
 	const id = Number(raw);
-	if (!Number.isFinite(id)) {
+	if (!Number.isSafeInteger(id) || id <= 0) {
 		error(400, `Invalid ${label}`);
 	}
 	return id;

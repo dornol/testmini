@@ -5,6 +5,13 @@ const mockRequireProjectRole = vi.fn();
 const mockRequireProjectAccess = vi.fn();
 
 vi.mock('./auth-utils', () => ({
+	parseId: (raw: string | undefined, label: string) => {
+		const id = Number(raw);
+		if (!Number.isSafeInteger(id) || id <= 0) {
+			throw { status: 400, body: { message: `Invalid ${label}` } };
+		}
+		return id;
+	},
 	requireAuth: (...args: unknown[]) => mockRequireAuth(...args),
 	requireProjectRole: (...args: unknown[]) => mockRequireProjectRole(...args),
 	requireProjectAccess: (...args: unknown[]) => mockRequireProjectAccess(...args)
@@ -44,7 +51,9 @@ describe('withProjectRole', () => {
 
 		expect(mockRequireAuth).toHaveBeenCalledWith(event.locals);
 		expect(mockRequireProjectRole).toHaveBeenCalledWith(fakeUser, 42, ['ADMIN']);
-		expect(handler).toHaveBeenCalledWith(expect.objectContaining({ user: fakeUser, projectId: 42 }));
+		expect(handler).toHaveBeenCalledWith(
+			expect.objectContaining({ user: fakeUser, projectId: 42 })
+		);
 	});
 
 	it('throws 401 when not authenticated', async () => {
@@ -61,7 +70,9 @@ describe('withProjectRole', () => {
 	it.each([
 		['NaN string', 'abc'],
 		['Infinity', 'Infinity'],
-		['special chars', 'foo-bar']
+		['special chars', 'foo-bar'],
+		['zero', '0'],
+		['decimal', '1.5']
 	])('throws 400 for non-numeric projectId (%s)', async (_label, id) => {
 		const handler = vi.fn();
 		const wrapped = withProjectRole(['ADMIN'], handler);
@@ -100,7 +111,9 @@ describe('withProjectAccess', () => {
 
 		expect(mockRequireAuth).toHaveBeenCalledWith(event.locals);
 		expect(mockRequireProjectAccess).toHaveBeenCalledWith(fakeUser, 42);
-		expect(handler).toHaveBeenCalledWith(expect.objectContaining({ user: fakeUser, projectId: 42 }));
+		expect(handler).toHaveBeenCalledWith(
+			expect.objectContaining({ user: fakeUser, projectId: 42 })
+		);
 	});
 
 	it('throws 401 when not authenticated', async () => {
@@ -174,11 +187,9 @@ describe('getActionContext', () => {
 	});
 
 	it('returns user and projectId with role check', async () => {
-		const result = await getActionContext(
-			{ user: fakeUser } as App.Locals,
-			{ projectId: '42' },
-			['ADMIN']
-		);
+		const result = await getActionContext({ user: fakeUser } as App.Locals, { projectId: '42' }, [
+			'ADMIN'
+		]);
 
 		expect(result).toEqual({ user: fakeUser, projectId: 42 });
 		expect(mockRequireProjectRole).toHaveBeenCalledWith(fakeUser, 42, ['ADMIN']);
@@ -186,10 +197,7 @@ describe('getActionContext', () => {
 	});
 
 	it('falls back to access check when no roles specified', async () => {
-		const result = await getActionContext(
-			{ user: fakeUser } as App.Locals,
-			{ projectId: '42' }
-		);
+		const result = await getActionContext({ user: fakeUser } as App.Locals, { projectId: '42' });
 
 		expect(result).toEqual({ user: fakeUser, projectId: 42 });
 		expect(mockRequireProjectAccess).toHaveBeenCalledWith(fakeUser, 42);
@@ -209,7 +217,9 @@ describe('getActionContext', () => {
 	it.each([
 		['NaN', 'abc'],
 		['Infinity', 'Infinity'],
-		['special chars', 'foo-bar']
+		['special chars', 'foo-bar'],
+		['zero', '0'],
+		['decimal', '1.5']
 	])('throws 400 for invalid projectId (%s)', async (_label, id) => {
 		await expect(
 			getActionContext({ user: fakeUser } as App.Locals, { projectId: id })

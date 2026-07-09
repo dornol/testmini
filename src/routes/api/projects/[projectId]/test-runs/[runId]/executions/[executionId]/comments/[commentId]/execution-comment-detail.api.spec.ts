@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser } from '$lib/server/test-helpers/fixtures';
 
@@ -15,6 +19,14 @@ vi.mock('$lib/server/db/schema', () => ({
 		parentId: 'parent_id',
 		createdAt: 'created_at',
 		updatedAt: 'updated_at'
+	},
+	testExecution: {
+		id: 'id',
+		testRunId: 'test_run_id'
+	},
+	testRun: {
+		id: 'id',
+		projectId: 'project_id'
 	}
 }));
 vi.mock('drizzle-orm', () => ({
@@ -22,11 +34,11 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
+		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
 		parseJsonBody: vi.fn().mockImplementation(async (req: Request) => req.json())
 	};
 });
@@ -58,7 +70,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 		});
 
 		it('should return 404 when comment not found', async () => {
-			mockDb.query.executionComment.findFirst.mockResolvedValue(undefined);
+			mockSelectResult(mockDb, []);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -70,11 +82,28 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 			await expect(PATCH(event)).rejects.toThrow();
 		});
 
-		it('should return 403 when user is not the author', async () => {
-			mockDb.query.executionComment.findFirst.mockResolvedValue({
-				...sampleComment,
-				userId: 'other-user'
+		it('should return 404 when comment is outside the requested project/run/execution scope', async () => {
+			mockSelectResult(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: { projectId: '999', runId: '50', executionId: '200', commentId: '1' },
+				user: testUser,
+				body: { content: 'Updated' }
 			});
+
+			await expect(PATCH(event)).rejects.toThrow();
+			expect(mockDb.select).toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 403 when user is not the author', async () => {
+			mockSelectResult(mockDb, [
+				{
+					...sampleComment,
+					userId: 'other-user'
+				}
+			]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -87,10 +116,12 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 		});
 
 		it('should allow admin to edit any comment', async () => {
-			mockDb.query.executionComment.findFirst.mockResolvedValue({
-				...sampleComment,
-				userId: 'other-user'
-			});
+			mockSelectResult(mockDb, [
+				{
+					...sampleComment,
+					userId: 'other-user'
+				}
+			]);
 			const updatedComment = { ...sampleComment, content: 'Admin edit' };
 			mockUpdateReturning(mockDb, [updatedComment]);
 
@@ -106,7 +137,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 		});
 
 		it('should reject empty content', async () => {
-			mockDb.query.executionComment.findFirst.mockResolvedValue(sampleComment);
+			mockSelectResult(mockDb, [sampleComment]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -121,7 +152,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 		});
 
 		it('should reject content exceeding 10000 characters', async () => {
-			mockDb.query.executionComment.findFirst.mockResolvedValue(sampleComment);
+			mockSelectResult(mockDb, [sampleComment]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -136,7 +167,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 		});
 
 		it('should update comment successfully', async () => {
-			mockDb.query.executionComment.findFirst.mockResolvedValue(sampleComment);
+			mockSelectResult(mockDb, [sampleComment]);
 			const updatedComment = { ...sampleComment, content: 'Updated comment' };
 			mockUpdateReturning(mockDb, [updatedComment]);
 
@@ -172,7 +203,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 		});
 
 		it('should return 404 when comment not found', async () => {
-			mockDb.query.executionComment.findFirst.mockResolvedValue(undefined);
+			mockSelectResult(mockDb, []);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -184,10 +215,12 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 		});
 
 		it('should return 403 when user is not the author', async () => {
-			mockDb.query.executionComment.findFirst.mockResolvedValue({
-				...sampleComment,
-				userId: 'other-user'
-			});
+			mockSelectResult(mockDb, [
+				{
+					...sampleComment,
+					userId: 'other-user'
+				}
+			]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -199,10 +232,12 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 		});
 
 		it('should allow admin to delete any comment', async () => {
-			mockDb.query.executionComment.findFirst.mockResolvedValue({
-				...sampleComment,
-				userId: 'other-user'
-			});
+			mockSelectResult(mockDb, [
+				{
+					...sampleComment,
+					userId: 'other-user'
+				}
+			]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -217,7 +252,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 		});
 
 		it('should delete comment and its replies', async () => {
-			mockDb.query.executionComment.findFirst.mockResolvedValue(sampleComment);
+			mockSelectResult(mockDb, [sampleComment]);
 
 			const event = createMockEvent({
 				method: 'DELETE',

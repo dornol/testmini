@@ -21,9 +21,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' }),
@@ -81,7 +80,98 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 				body: { name: '   ' }
 			});
 
-			await expect(PATCH(event)).rejects.toThrow();
+			const response = await PATCH(event);
+			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 when request body is not an object', async () => {
+			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: ['Platform']
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/request body/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject invalid options', async () => {
+			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { options: ['Chrome', 'chrome'] }
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/duplicates/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject non-boolean required value', async () => {
+			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { required: 'true' }
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/required/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject invalid sortOrder', async () => {
+			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { sortOrder: -1 }
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/non-negative integer/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject null sortOrder', async () => {
+			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { sortOrder: null }
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/non-negative integer/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return existing field when no updates provided', async () => {
@@ -139,6 +229,30 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 			const body = await response.json();
 			expect(body.options).toEqual(['Chrome', 'Firefox']);
 			expect(body.required).toBe(true);
+		});
+
+		it('should trim options and sort order on update', async () => {
+			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
+			const updatedField = {
+				...sampleField,
+				options: ['Chrome', 'Firefox'],
+				sortOrder: 2
+			};
+			const updateChain = mockUpdateReturning(mockDb, [updatedField]);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { options: [' Chrome ', ' Firefox '], sortOrder: '2' }
+			});
+
+			const response = await PATCH(event);
+			expect(response.status).toBe(200);
+			expect(updateChain.set).toHaveBeenCalledWith({
+				options: ['Chrome', 'Firefox'],
+				sortOrder: 2
+			});
 		});
 
 		it('should reject invalid field ID', async () => {

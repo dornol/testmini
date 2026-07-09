@@ -4,6 +4,7 @@ import { customField } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
+import { validateUpdateCustomFieldInput } from '$lib/server/custom-field-validation';
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ params, request, projectId }) => {
 	const fieldId = parseId(params.fieldId, 'field ID');
@@ -13,18 +14,14 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ params, request
 	});
 	if (!existing) error(404, 'Custom field not found');
 
-	const body = await parseJsonBody(request) as Record<string, unknown>;
-	const updates: Record<string, unknown> = {};
+	const fieldOrError = validateUpdateCustomFieldInput(await parseJsonBody(request));
+	if (fieldOrError instanceof Response) return fieldOrError;
 
-	if (body.name !== undefined) {
-		if (typeof body.name !== 'string' || body.name.trim().length === 0) {
-			error(400, 'Name cannot be empty');
-		}
-		updates.name = body.name.trim();
-	}
-	if (body.options !== undefined) updates.options = body.options;
-	if (body.required !== undefined) updates.required = body.required;
-	if (body.sortOrder !== undefined) updates.sortOrder = body.sortOrder;
+	const updates: Record<string, unknown> = {};
+	if (fieldOrError.name !== undefined) updates.name = fieldOrError.name;
+	if (fieldOrError.options !== undefined) updates.options = fieldOrError.options;
+	if (fieldOrError.required !== undefined) updates.required = fieldOrError.required;
+	if (fieldOrError.sortOrder !== undefined) updates.sortOrder = fieldOrError.sortOrder;
 
 	if (Object.keys(updates).length === 0) {
 		return json(existing);

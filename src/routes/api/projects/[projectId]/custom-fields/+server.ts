@@ -1,9 +1,10 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { customField } from '$lib/server/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { parseJsonBody } from '$lib/server/auth-utils';
+import { validateCreateCustomFieldInput } from '$lib/server/custom-field-validation';
 
 export const GET = withProjectAccess(async ({ projectId }) => {
 	const fields = await db
@@ -15,26 +16,9 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 	return json(fields);
 });
 
-const VALID_TYPES = ['TEXT', 'NUMBER', 'SELECT', 'MULTISELECT', 'DATE', 'CHECKBOX', 'URL'];
-
 export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, projectId }) => {
-	const body = await parseJsonBody(request);
-	const { name, fieldType, options, required } = body as {
-		name?: string;
-		fieldType?: string;
-		options?: string[];
-		required?: boolean;
-	};
-
-	if (!name || typeof name !== 'string' || name.trim().length === 0) {
-		error(400, 'Name is required');
-	}
-	if (!fieldType || !VALID_TYPES.includes(fieldType)) {
-		error(400, `Invalid field type. Must be one of: ${VALID_TYPES.join(', ')}`);
-	}
-	if ((fieldType === 'SELECT' || fieldType === 'MULTISELECT') && (!Array.isArray(options) || options.length === 0)) {
-		error(400, 'Options are required for SELECT/MULTISELECT fields');
-	}
+	const fieldOrError = validateCreateCustomFieldInput(await parseJsonBody(request));
+	if (fieldOrError instanceof Response) return fieldOrError;
 
 	const maxOrder = await db
 		.select({ max: customField.sortOrder })
@@ -45,10 +29,10 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 		.insert(customField)
 		.values({
 			projectId,
-			name: name.trim(),
-			fieldType,
-			options: options ?? null,
-			required: required ?? false,
+			name: fieldOrError.name,
+			fieldType: fieldOrError.fieldType,
+			options: fieldOrError.options ?? null,
+			required: fieldOrError.required ?? false,
 			sortOrder: (maxOrder[0]?.max ?? 0) + 1,
 			createdBy: user.id
 		})

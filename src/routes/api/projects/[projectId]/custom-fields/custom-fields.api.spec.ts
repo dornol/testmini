@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -23,9 +27,8 @@ vi.mock('drizzle-orm', () => ({
 	asc: vi.fn((a: unknown) => ['asc', a])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -166,7 +169,12 @@ describe('/api/projects/[projectId]/custom-fields', () => {
 			const event = createMockEvent({
 				method: 'POST',
 				params: PARAMS,
-				body: { name: 'Priority', fieldType: 'SELECT', options: ['Low', 'Medium', 'High'], required: true },
+				body: {
+					name: 'Priority',
+					fieldType: 'SELECT',
+					options: ['Low', 'Medium', 'High'],
+					required: true
+				},
 				user: testUser
 			});
 			const response = await POST(event);
@@ -185,7 +193,8 @@ describe('/api/projects/[projectId]/custom-fields', () => {
 				user: testUser
 			});
 
-			await expect(POST(event)).rejects.toThrow();
+			const response = await POST(event);
+			expect(response.status).toBe(400);
 		});
 
 		it('should return 400 when name is empty', async () => {
@@ -196,7 +205,8 @@ describe('/api/projects/[projectId]/custom-fields', () => {
 				user: testUser
 			});
 
-			await expect(POST(event)).rejects.toThrow();
+			const response = await POST(event);
+			expect(response.status).toBe(400);
 		});
 
 		it('should return 400 when fieldType is invalid', async () => {
@@ -207,7 +217,8 @@ describe('/api/projects/[projectId]/custom-fields', () => {
 				user: testUser
 			});
 
-			await expect(POST(event)).rejects.toThrow();
+			const response = await POST(event);
+			expect(response.status).toBe(400);
 		});
 
 		it('should return 400 when fieldType is missing', async () => {
@@ -218,7 +229,8 @@ describe('/api/projects/[projectId]/custom-fields', () => {
 				user: testUser
 			});
 
-			await expect(POST(event)).rejects.toThrow();
+			const response = await POST(event);
+			expect(response.status).toBe(400);
 		});
 
 		it('should return 400 when SELECT field has no options', async () => {
@@ -229,7 +241,8 @@ describe('/api/projects/[projectId]/custom-fields', () => {
 				user: testUser
 			});
 
-			await expect(POST(event)).rejects.toThrow();
+			const response = await POST(event);
+			expect(response.status).toBe(400);
 		});
 
 		it('should return 400 when MULTISELECT field has empty options array', async () => {
@@ -240,7 +253,56 @@ describe('/api/projects/[projectId]/custom-fields', () => {
 				user: testUser
 			});
 
-			await expect(POST(event)).rejects.toThrow();
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 when request body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: ['Field'],
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/request body/i);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when required is not boolean', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Field', fieldType: 'TEXT', required: 'true' },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/required/i);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when options contain duplicates', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Field', fieldType: 'SELECT', options: ['Chrome', 'chrome'] },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/duplicates/i);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should accept all valid field types', async () => {

@@ -27,9 +27,8 @@ vi.mock('drizzle-orm', () => ({
 	desc: vi.fn((a: unknown) => ['desc', a])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -206,6 +205,88 @@ describe('/api/projects/[projectId]/issue-tracker', () => {
 			(event as Record<string, unknown>).request = request;
 
 			await expect(POST(event)).rejects.toThrow();
+		});
+
+		it('should reject non-object request body', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: null
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid request body');
+		});
+
+		it('should reject base URL with credentials', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { provider: 'JIRA', baseUrl: 'https://user:password@example.com' }
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('must not include credentials');
+		});
+
+		it('should reject non-string API token', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					provider: 'JIRA',
+					baseUrl: 'https://company.atlassian.net',
+					apiToken: 123
+				}
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('API token must be a string');
+		});
+
+		it('should reject non-boolean enabled flag', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					provider: 'JIRA',
+					baseUrl: 'https://company.atlassian.net',
+					enabled: 'true'
+				}
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Enabled must be a boolean');
+		});
+
+		it('should reject custom template arrays', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					provider: 'CUSTOM',
+					baseUrl: 'https://issues.example.com',
+					customTemplate: []
+				}
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Custom template must be an object');
 		});
 
 		it('should create new config when none exists', async () => {

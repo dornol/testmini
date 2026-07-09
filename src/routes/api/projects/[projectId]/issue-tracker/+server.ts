@@ -10,6 +10,132 @@ import { childLogger } from '$lib/server/logger';
 const log = childLogger('issue-tracker-config');
 
 const VALID_PROVIDERS = ['JIRA', 'GITHUB', 'GITLAB', 'GITEA', 'CUSTOM'];
+const MAX_BASE_URL_LENGTH = 2000;
+const MAX_PROJECT_KEY_LENGTH = 128;
+const MAX_SECRET_LENGTH = 4000;
+const MAX_CUSTOM_TEMPLATE_JSON_LENGTH = 20000;
+
+type IssueTrackerConfigPayload = {
+	provider: string;
+	baseUrl: string;
+	apiToken?: string | null;
+	projectKey?: string | null;
+	customTemplate?: Record<string, unknown> | null;
+	enabled?: boolean;
+	webhookSecret?: string | null;
+};
+
+function validateRequestBody(body: unknown): Record<string, unknown> | Response {
+	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+		return badRequest('Invalid request body');
+	}
+	return body as Record<string, unknown>;
+}
+
+function requireTrimmedString(value: unknown, label: string, maxLength: number): string | Response {
+	if (typeof value !== 'string') {
+		return badRequest(`${label} is required`);
+	}
+	const trimmed = value.trim();
+	if (!trimmed) {
+		return badRequest(`${label} is required`);
+	}
+	if (trimmed.length > maxLength) {
+		return badRequest(`${label} must be ${maxLength} characters or less`);
+	}
+	return trimmed;
+}
+
+function optionalTrimmedString(
+	value: unknown,
+	label: string,
+	maxLength: number
+): string | null | undefined | Response {
+	if (value === undefined) return undefined;
+	if (value === null) return null;
+	if (typeof value !== 'string') {
+		return badRequest(`${label} must be a string`);
+	}
+	const trimmed = value.trim();
+	if (!trimmed) return null;
+	if (trimmed.length > maxLength) {
+		return badRequest(`${label} must be ${maxLength} characters or less`);
+	}
+	return trimmed;
+}
+
+function optionalCustomTemplate(
+	value: unknown
+): Record<string, unknown> | null | undefined | Response {
+	if (value === undefined) return undefined;
+	if (value === null) return null;
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		return badRequest('Custom template must be an object');
+	}
+	if (JSON.stringify(value).length > MAX_CUSTOM_TEMPLATE_JSON_LENGTH) {
+		return badRequest('Custom template is too large');
+	}
+	return value as Record<string, unknown>;
+}
+
+function optionalBoolean(value: unknown, label: string): boolean | undefined | Response {
+	if (value === undefined) return undefined;
+	if (typeof value !== 'boolean') {
+		return badRequest(`${label} must be a boolean`);
+	}
+	return value;
+}
+
+function validateBaseUrl(value: unknown): string | Response {
+	const baseUrl = requireTrimmedString(value, 'Base URL', MAX_BASE_URL_LENGTH);
+	if (baseUrl instanceof Response) return baseUrl;
+
+	try {
+		const parsed = new URL(baseUrl);
+		if (!['http:', 'https:'].includes(parsed.protocol)) {
+			return badRequest('Base URL must use http or https');
+		}
+		if (parsed.username || parsed.password) {
+			return badRequest('Base URL must not include credentials');
+		}
+	} catch {
+		return badRequest('Invalid base URL');
+	}
+
+	return baseUrl;
+}
+
+function validatePayload(body: Record<string, unknown>): IssueTrackerConfigPayload | Response {
+	const provider = requireTrimmedString(body.provider, 'Provider', 32);
+	if (provider instanceof Response) return provider;
+	if (!VALID_PROVIDERS.includes(provider)) {
+		return badRequest(`Provider must be one of: ${VALID_PROVIDERS.join(', ')}`);
+	}
+
+	const baseUrl = validateBaseUrl(body.baseUrl);
+	if (baseUrl instanceof Response) return baseUrl;
+
+	const apiToken = optionalTrimmedString(body.apiToken, 'API token', MAX_SECRET_LENGTH);
+	if (apiToken instanceof Response) return apiToken;
+
+	const projectKey = optionalTrimmedString(body.projectKey, 'Project key', MAX_PROJECT_KEY_LENGTH);
+	if (projectKey instanceof Response) return projectKey;
+
+	const webhookSecret = optionalTrimmedString(
+		body.webhookSecret,
+		'Webhook secret',
+		MAX_SECRET_LENGTH
+	);
+	if (webhookSecret instanceof Response) return webhookSecret;
+
+	const customTemplate = optionalCustomTemplate(body.customTemplate);
+	if (customTemplate instanceof Response) return customTemplate;
+
+	const enabled = optionalBoolean(body.enabled, 'Enabled');
+	if (enabled instanceof Response) return enabled;
+
+	return { provider, baseUrl, apiToken, projectKey, webhookSecret, customTemplate, enabled };
+}
 
 export const GET = withProjectAccess(async ({ projectId }) => {
 	const config = await db.query.issueTrackerConfig.findFirst({
@@ -34,45 +160,24 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ projectId }) => {
-	await db
-		.delete(issueTrackerConfig)
-		.where(eq(issueTrackerConfig.projectId, projectId));
+	await db.delete(issueTrackerConfig).where(eq(issueTrackerConfig.projectId, projectId));
 	return json({ success: true });
 });
 
 export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, projectId }) => {
-	let body: {
-		provider?: string;
-		baseUrl?: string;
-		apiToken?: string;
-		projectKey?: string;
-		customTemplate?: Record<string, unknown>;
-		enabled?: boolean;
-		webhookSecret?: string;
-	};
+	let rawBody: unknown;
 	try {
-		body = await parseJsonBody(request) as typeof body;
+		rawBody = await parseJsonBody(request);
 	} catch {
 		error(400, 'Invalid request body');
 	}
 
-	const provider = (body.provider ?? '').trim();
-	if (!provider || !VALID_PROVIDERS.includes(provider)) {
-		return badRequest(`Provider must be one of: ${VALID_PROVIDERS.join(', ')}`);
-	}
+	const bodyOrError = validateRequestBody(rawBody);
+	if (bodyOrError instanceof Response) return bodyOrError;
 
-	const baseUrl = (body.baseUrl ?? '').trim();
-	if (!baseUrl) {
-		return badRequest('Base URL is required');
-	}
-	try {
-		const parsed = new URL(baseUrl);
-		if (!['http:', 'https:'].includes(parsed.protocol)) {
-			return badRequest('Base URL must use http or https');
-		}
-	} catch {
-		return badRequest('Invalid base URL');
-	}
+	const payloadOrError = validatePayload(bodyOrError);
+	if (payloadOrError instanceof Response) return payloadOrError;
+	const body = payloadOrError;
 
 	const existing = await db.query.issueTrackerConfig.findFirst({
 		where: eq(issueTrackerConfig.projectId, projectId)
@@ -81,18 +186,18 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 	if (existing) {
 		// Update existing config
 		const updates: Record<string, unknown> = {
-			provider,
-			baseUrl
+			provider: body.provider,
+			baseUrl: body.baseUrl
 		};
 
 		if (body.apiToken !== undefined) {
-			updates.apiToken = body.apiToken?.trim() || null;
-			log.info({ projectId, tokenLength: (body.apiToken?.trim() || '').length }, 'Updating API token');
+			updates.apiToken = body.apiToken;
+			log.info({ projectId, tokenLength: body.apiToken?.length ?? 0 }, 'Updating API token');
 		} else {
 			log.info({ projectId }, 'API token not included in payload, keeping existing');
 		}
 		if (body.projectKey !== undefined) {
-			updates.projectKey = body.projectKey?.trim() || null;
+			updates.projectKey = body.projectKey;
 		}
 		if (body.customTemplate !== undefined) {
 			updates.customTemplate = body.customTemplate;
@@ -101,13 +206,10 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 			updates.enabled = body.enabled;
 		}
 		if (body.webhookSecret !== undefined) {
-			updates.webhookSecret = body.webhookSecret?.trim() || null;
+			updates.webhookSecret = body.webhookSecret;
 		}
 
-		await db
-			.update(issueTrackerConfig)
-			.set(updates)
-			.where(eq(issueTrackerConfig.id, existing.id));
+		await db.update(issueTrackerConfig).set(updates).where(eq(issueTrackerConfig.id, existing.id));
 
 		const updated = await db.query.issueTrackerConfig.findFirst({
 			where: eq(issueTrackerConfig.id, existing.id)
@@ -131,13 +233,13 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 		.insert(issueTrackerConfig)
 		.values({
 			projectId,
-			provider,
-			baseUrl,
-			apiToken: body.apiToken?.trim() || null,
-			projectKey: body.projectKey?.trim() || null,
+			provider: body.provider,
+			baseUrl: body.baseUrl,
+			apiToken: body.apiToken ?? null,
+			projectKey: body.projectKey ?? null,
 			customTemplate: body.customTemplate ?? null,
 			enabled: body.enabled ?? true,
-			webhookSecret: body.webhookSecret?.trim() || null,
+			webhookSecret: body.webhookSecret ?? null,
 			createdBy: user.id
 		})
 		.returning();

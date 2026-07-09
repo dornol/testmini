@@ -3,7 +3,7 @@ import { db } from '$lib/server/db';
 import { module } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
-import { parseId, parseJsonBody } from '$lib/server/auth-utils';
+import { parseId, parseJsonObjectBody } from '$lib/server/auth-utils';
 import { updateModuleSchema } from '$lib/schemas/module.schema';
 import { notFound, badRequest } from '$lib/server/errors';
 
@@ -30,7 +30,7 @@ export const PUT = withProjectRole(
 	async ({ request, params, projectId }) => {
 		const moduleId = parseId(params.moduleId, 'module ID');
 
-		const body = await parseJsonBody(request);
+		const body = await parseJsonObjectBody(request);
 		const parsed = updateModuleSchema.safeParse(body);
 		if (!parsed.success) return badRequest('Invalid input');
 

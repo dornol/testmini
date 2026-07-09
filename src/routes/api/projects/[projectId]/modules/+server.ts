@@ -3,7 +3,7 @@ import { db, col } from '$lib/server/db';
 import { module, moduleTestCase } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonObjectBody } from '$lib/server/auth-utils';
 import { createModuleSchema } from '$lib/schemas/module.schema';
 import { badRequest, validationError } from '$lib/server/errors';
 
@@ -44,7 +44,7 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ request, projectId, user: currentUser }) => {
-		const body = await parseJsonBody(request);
+		const body = await parseJsonObjectBody(request);
 		const parsed = createModuleSchema.safeParse(body);
 		if (!parsed.success) {
 			return validationError('Invalid input', parsed.error.flatten().fieldErrors);

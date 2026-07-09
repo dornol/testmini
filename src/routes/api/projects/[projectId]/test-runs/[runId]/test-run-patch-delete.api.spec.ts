@@ -142,6 +142,20 @@ describe('/api/projects/[projectId]/test-runs/[runId] — PATCH & DELETE', () =>
 			expect(response.status).toBe(400);
 		});
 
+		it('should reject non-object JSON before updating', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: ['not', 'an', 'object'],
+				user: adminUser
+			});
+
+			await expect(PATCH(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when no fields provided', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 

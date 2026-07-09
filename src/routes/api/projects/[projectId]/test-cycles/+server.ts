@@ -3,7 +3,7 @@ import { db, col } from '$lib/server/db';
 import { testCycle, testRun, user } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonObjectBody } from '$lib/server/auth-utils';
 import { createTestCycleSchema } from '$lib/schemas/test-cycle.schema';
 import { validationError, conflict } from '$lib/server/errors';
 import { validateOptionalReleaseId } from '$lib/server/project-reference-validation';
@@ -43,7 +43,7 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA'],
 	async ({ request, projectId, user: currentUser }) => {
-		const body = await parseJsonBody(request);
+		const body = await parseJsonObjectBody(request);
 		const parsed = createTestCycleSchema.safeParse(body);
 		if (!parsed.success) {
 			return validationError('Invalid input', parsed.error.flatten().fieldErrors);

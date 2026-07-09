@@ -3,7 +3,7 @@ import { validationError } from '$lib/server/errors';
 import { db, col } from '$lib/server/db';
 import { testSuite, testSuiteItem, user } from '$lib/server/db/schema';
 import { eq, sql } from 'drizzle-orm';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonObjectBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { createTestSuiteSchema } from '$lib/schemas/test-suite.schema';
 import { validateTestCaseIdsInProject } from '$lib/server/project-reference-validation';
@@ -32,7 +32,7 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA'],
 	async ({ request, user, projectId }) => {
-		const body = await parseJsonBody(request);
+		const body = await parseJsonObjectBody(request);
 		const parsed = createTestSuiteSchema.safeParse(body);
 		if (!parsed.success) {
 			return validationError('Invalid input', parsed.error.flatten().fieldErrors);

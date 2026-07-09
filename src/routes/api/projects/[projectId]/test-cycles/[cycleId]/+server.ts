@@ -3,7 +3,7 @@ import { db } from '$lib/server/db';
 import { testCycle, testRun, testExecution, user } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
-import { parseJsonBody, parseId } from '$lib/server/auth-utils';
+import { parseJsonObjectBody, parseId } from '$lib/server/auth-utils';
 import { updateTestCycleSchema } from '$lib/schemas/test-cycle.schema';
 import { notFound, badRequest } from '$lib/server/errors';
 import { validateOptionalReleaseId } from '$lib/server/project-reference-validation';
@@ -67,7 +67,7 @@ export const PUT = withProjectRole(
 	async ({ request, params, projectId }) => {
 		const cycleId = parseId(params.cycleId, 'cycle ID');
 
-		const body = await parseJsonBody(request);
+		const body = await parseJsonObjectBody(request);
 		const parsed = updateTestCycleSchema.safeParse(body);
 		if (!parsed.success) return badRequest('Invalid input');
 

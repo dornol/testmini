@@ -86,6 +86,19 @@ describe('/api/projects/[projectId]/modules/[moduleId]', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should reject non-object JSON before updating', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: ['not', 'an', 'object'],
+				user: testUser
+			});
+
+			await expect(PUT(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.query.module.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for whitespace-only name', async () => {
 			const event = createMockEvent({
 				method: 'PUT',

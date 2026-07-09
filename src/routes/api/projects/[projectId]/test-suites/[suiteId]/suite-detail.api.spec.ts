@@ -244,6 +244,18 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 			expect(data.error).toBe('No fields to update');
 		});
 
+		it('should reject non-object JSON before updating', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: ['not', 'an', 'object'],
+				user: testUser
+			});
+
+			await expect(PATCH(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when name is whitespace only', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',

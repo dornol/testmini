@@ -186,6 +186,18 @@ describe('/api/projects/[projectId]/test-cycles/[cycleId]', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should reject non-object JSON before updating', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1', cycleId: '1' },
+				body: ['not', 'an', 'object'],
+				user: testUser
+			});
+
+			await expect(PUT(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for whitespace-only name', async () => {
 			const event = createMockEvent({
 				method: 'PUT',

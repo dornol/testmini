@@ -3,7 +3,7 @@ import { db } from '$lib/server/db';
 import { testRun, testExecution, testCase } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
-import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseJsonObjectBody } from '$lib/server/auth-utils';
 import { createCrossEnvRunSchema } from '$lib/schemas/cross-env-run.schema';
 import { validationError, badRequest } from '$lib/server/errors';
 import {
@@ -16,7 +16,7 @@ import {
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA'],
 	async ({ request, projectId, user: currentUser }) => {
-		const body = await parseJsonBody(request);
+		const body = await parseJsonObjectBody(request);
 		const parsed = createCrossEnvRunSchema.safeParse(body);
 		if (!parsed.success) {
 			return validationError('Invalid input', parsed.error.flatten().fieldErrors);

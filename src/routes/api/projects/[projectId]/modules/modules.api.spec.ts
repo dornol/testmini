@@ -152,6 +152,19 @@ describe('/api/projects/[projectId]/modules', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should reject non-object JSON before creating', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: ['not', 'an', 'object'],
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.query.module.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for empty name', async () => {
 			const event = createMockEvent({
 				method: 'POST',

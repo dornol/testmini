@@ -278,6 +278,18 @@ describe('/api/projects/[projectId]/test-suites', () => {
 			expect(data.error).toBe('Invalid input');
 		});
 
+		it('should reject non-object JSON before creating a suite', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: ['not', 'an', 'object'],
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when name is empty string', async () => {
 			const event = createMockEvent({
 				method: 'POST',

@@ -1,10 +1,41 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { forbidden } from '$lib/server/errors';
+import { badRequest, forbidden } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { auditLog, user } from '$lib/server/db/schema';
 import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
 import { and, eq, gte, lte, count, desc } from 'drizzle-orm';
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 200;
+
+function parsePositiveIntegerParam(
+	value: string | null,
+	label: string,
+	defaultValue?: number,
+	max?: number
+): number | null {
+	if (value === null || value === '') return defaultValue ?? null;
+
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+		throw new Error(`Invalid ${label}`);
+	}
+
+	return max ? Math.min(parsed, max) : parsed;
+}
+
+function parseDateParam(value: string | null, label: string): Date | null {
+	if (value === null || value === '') return null;
+
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) {
+		throw new Error(`Invalid ${label}`);
+	}
+
+	return date;
+}
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	const authUser = requireAuth(locals);
@@ -13,15 +44,31 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		return forbidden('Admin access required');
 	}
 
-	const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'));
-	const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') ?? '50')));
+	let page: number;
+	let limit: number;
+	let filterProjectId: number | null;
+	let fromDate: Date | null;
+	let toDate: Date | null;
+
+	try {
+		page =
+			parsePositiveIntegerParam(url.searchParams.get('page'), 'page', DEFAULT_PAGE) ?? DEFAULT_PAGE;
+		limit =
+			parsePositiveIntegerParam(url.searchParams.get('limit'), 'limit', DEFAULT_LIMIT, MAX_LIMIT) ??
+			DEFAULT_LIMIT;
+		filterProjectId = parsePositiveIntegerParam(url.searchParams.get('projectId'), 'projectId');
+		fromDate = parseDateParam(url.searchParams.get('from'), 'from');
+		toDate = parseDateParam(url.searchParams.get('to'), 'to');
+
+		if (fromDate && toDate && fromDate > toDate) {
+			return badRequest('from must be before or equal to to');
+		}
+	} catch (err) {
+		return badRequest(err instanceof Error ? err.message : 'Invalid audit log query');
+	}
+
 	const filterUserId = url.searchParams.get('userId') || null;
 	const filterAction = url.searchParams.get('action') || null;
-	const filterProjectId = url.searchParams.get('projectId')
-		? Number(url.searchParams.get('projectId'))
-		: null;
-	const from = url.searchParams.get('from') || null;
-	const to = url.searchParams.get('to') || null;
 
 	const conditions = [];
 
@@ -31,15 +78,14 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	if (filterAction) {
 		conditions.push(eq(auditLog.action, filterAction));
 	}
-	if (filterProjectId && !isNaN(filterProjectId)) {
+	if (filterProjectId !== null) {
 		conditions.push(eq(auditLog.projectId, filterProjectId));
 	}
-	if (from) {
-		conditions.push(gte(auditLog.createdAt, new Date(from)));
+	if (fromDate) {
+		conditions.push(gte(auditLog.createdAt, fromDate));
 	}
-	if (to) {
+	if (toDate) {
 		// Include the full "to" day
-		const toDate = new Date(to);
 		toDate.setHours(23, 59, 59, 999);
 		conditions.push(lte(auditLog.createdAt, toDate));
 	}

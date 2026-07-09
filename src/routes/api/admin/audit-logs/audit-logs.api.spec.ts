@@ -35,6 +35,7 @@ vi.mock('drizzle-orm', () => ({
 
 // Import after mocks
 const { GET } = await import('./+server');
+const drizzle = await import('drizzle-orm');
 
 describe('/api/admin/audit-logs', () => {
 	beforeEach(() => {
@@ -91,6 +92,28 @@ describe('/api/admin/audit-logs', () => {
 			expect(data.meta).toMatchObject({ page: 1, limit: 50 });
 			expect(data.meta.total).toBe(1);
 			expect(data.meta.totalPages).toBe(1);
+			expect(logsChain.limit).toHaveBeenCalledWith(50);
+			expect(logsChain.offset).toHaveBeenCalledWith(0);
+		});
+
+		it('should cap large limit values', async () => {
+			const logsChain = mockSelectResult(mockDb, []);
+			mockDb.select.mockReturnValueOnce(logsChain as never);
+			const countChain = mockSelectResult(mockDb, [{ total: 0 }]);
+			mockDb.select.mockReturnValueOnce(countChain as never);
+
+			const event = createMockEvent({
+				method: 'GET',
+				user: adminUser,
+				searchParams: { page: '2', limit: '999' }
+			});
+			const response = await GET(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.meta).toMatchObject({ page: 2, limit: 200 });
+			expect(logsChain.limit).toHaveBeenCalledWith(200);
+			expect(logsChain.offset).toHaveBeenCalledWith(200);
 		});
 
 		it('should filter by action parameter', async () => {
@@ -133,6 +156,27 @@ describe('/api/admin/audit-logs', () => {
 			expect(mockDb.select).toHaveBeenCalled();
 		});
 
+		it('should filter by validated projectId', async () => {
+			let callCount = 0;
+			mockDb.select.mockImplementation(() => {
+				callCount++;
+				if (callCount % 2 === 0) {
+					return mockSelectResult(mockDb, [{ total: 0 }]) as never;
+				}
+				return mockSelectResult(mockDb, []) as never;
+			});
+
+			const event = createMockEvent({
+				method: 'GET',
+				user: adminUser,
+				searchParams: { projectId: '42' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(drizzle.eq).toHaveBeenCalledWith('project_id', 42);
+		});
+
 		it('should filter by date range (from/to)', async () => {
 			let callCount = 0;
 			mockDb.select.mockImplementation(() => {
@@ -155,6 +199,78 @@ describe('/api/admin/audit-logs', () => {
 			expect(data.data).toEqual([]);
 			expect(data.meta).toMatchObject({ page: 1, total: 0 });
 			expect(mockDb.select).toHaveBeenCalled();
+		});
+
+		it('should return 400 for invalid page before querying logs', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: adminUser,
+				searchParams: { page: 'abc' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for zero limit before querying logs', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: adminUser,
+				searchParams: { limit: '0' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for invalid projectId before querying logs', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: adminUser,
+				searchParams: { projectId: 'abc' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for unsafe projectId before querying logs', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: adminUser,
+				searchParams: { projectId: String(Number.MAX_SAFE_INTEGER + 1) }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for invalid date filters before querying logs', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: adminUser,
+				searchParams: { from: 'not-a-date' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when from is after to before querying logs', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: adminUser,
+				searchParams: { from: '2025-02-01', to: '2025-01-01' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 	});
 });

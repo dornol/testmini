@@ -1,6 +1,14 @@
 import { json } from '@sveltejs/kit';
 import { db, findTestCasesWithLatestVersions } from '$lib/server/db';
-import { testCase, testCaseVersion, testCaseTag, testCaseAssignee, tag, projectMember, priorityConfig } from '$lib/server/db/schema';
+import {
+	testCase,
+	testCaseVersion,
+	testCaseTag,
+	testCaseAssignee,
+	tag,
+	projectMember,
+	priorityConfig
+} from '$lib/server/db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { requireProjectRole, parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
@@ -8,10 +16,17 @@ import { badRequest, notFound } from '$lib/server/errors';
 import { createNotification } from '$lib/server/notifications';
 
 export const POST = withProjectAccess(async ({ request, user, projectId }) => {
-
 	const body = await parseJsonBody(request);
 	const { action, testCaseIds, tagId, priority, groupId, userId } = body as {
-		action: 'addTag' | 'removeTag' | 'setPriority' | 'moveToGroup' | 'delete' | 'clone' | 'addAssignee' | 'removeAssignee';
+		action:
+			| 'addTag'
+			| 'removeTag'
+			| 'setPriority'
+			| 'moveToGroup'
+			| 'delete'
+			| 'clone'
+			| 'addAssignee'
+			| 'removeAssignee';
 		testCaseIds: number[];
 		tagId?: number;
 		priority?: string;
@@ -107,7 +122,7 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 					await tx
 						.update(testCase)
 						.set({ latestVersionId: version.id })
-						.where(eq(testCase.id, tc.id));
+						.where(and(eq(testCase.id, tc.id), eq(testCase.projectId, projectId)));
 					affected++;
 				}
 				break;
@@ -118,13 +133,15 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 				await tx
 					.update(testCase)
 					.set({ groupId: newGroupId })
-					.where(inArray(testCase.id, validIds));
+					.where(and(inArray(testCase.id, validIds), eq(testCase.projectId, projectId)));
 				affected = validIds.length;
 				break;
 			}
 
 			case 'delete': {
-				await tx.delete(testCase).where(inArray(testCase.id, validIds));
+				await tx
+					.delete(testCase)
+					.where(and(inArray(testCase.id, validIds), eq(testCase.projectId, projectId)));
 				affected = validIds.length;
 				break;
 			}
@@ -159,7 +176,9 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 				if (!userId) return badRequest('userId required');
 				await tx
 					.delete(testCaseAssignee)
-					.where(and(inArray(testCaseAssignee.testCaseId, validIds), eq(testCaseAssignee.userId, userId)));
+					.where(
+						and(inArray(testCaseAssignee.testCaseId, validIds), eq(testCaseAssignee.userId, userId))
+					);
 				affected = validIds.length;
 				break;
 			}
@@ -187,9 +206,10 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 					nextNum++;
 
 					// Compute sortOrder
-					const groupCondition = tc.groupId !== null
-						? eq(testCase.groupId, tc.groupId)
-						: sql`${testCase.groupId} is null`;
+					const groupCondition =
+						tc.groupId !== null
+							? eq(testCase.groupId, tc.groupId)
+							: sql`${testCase.groupId} is null`;
 					const [maxSortResult] = await tx
 						.select({ maxOrder: sql<number>`coalesce(max(${testCase.sortOrder}), 0)` })
 						.from(testCase)
@@ -225,7 +245,7 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 					await tx
 						.update(testCase)
 						.set({ latestVersionId: version.id })
-						.where(eq(testCase.id, created.id));
+						.where(and(eq(testCase.id, created.id), eq(testCase.projectId, projectId)));
 
 					// Copy tags
 					const tcTags = await tx
@@ -233,7 +253,9 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 						.from(testCaseTag)
 						.where(eq(testCaseTag.testCaseId, tc.id));
 					if (tcTags.length > 0) {
-						await tx.insert(testCaseTag).values(tcTags.map((t) => ({ testCaseId: created.id, tagId: t.tagId })));
+						await tx
+							.insert(testCaseTag)
+							.values(tcTags.map((t) => ({ testCaseId: created.id, tagId: t.tagId })));
 					}
 
 					// Copy assignees
@@ -242,7 +264,9 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 						.from(testCaseAssignee)
 						.where(eq(testCaseAssignee.testCaseId, tc.id));
 					if (tcAssignees.length > 0) {
-						await tx.insert(testCaseAssignee).values(tcAssignees.map((a) => ({ testCaseId: created.id, userId: a.userId })));
+						await tx
+							.insert(testCaseAssignee)
+							.values(tcAssignees.map((a) => ({ testCaseId: created.id, userId: a.userId })));
 					}
 
 					affected++;

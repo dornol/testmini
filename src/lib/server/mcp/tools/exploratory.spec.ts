@@ -168,6 +168,21 @@ describe('MCP exploratory tools', () => {
 			);
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
+
+		it('should return error when session insert returns no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'create-exploratory-session',
+				arguments: { title: 'Explore login flow' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create exploratory session'
+			);
+		});
 	});
 
 	// ── get-exploratory-session ──────────────────────────
@@ -319,6 +334,21 @@ describe('MCP exploratory tools', () => {
 				'Too small'
 			);
 			expect(mockDb.query.exploratorySession.findFirst).not.toHaveBeenCalled();
+		});
+
+		it('should return error when note insert returns no row', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'add-session-note',
+				arguments: { sessionId: 1, content: 'Found a weird behavior' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create session note'
+			);
 		});
 	});
 

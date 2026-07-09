@@ -74,6 +74,7 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create exploratory session');
 			return ok(created);
 		}
 	);
@@ -186,6 +187,7 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create session note');
 			return ok(created);
 		}
 	);

@@ -16,6 +16,7 @@ import { db } from '$lib/server/db';
 import { redis } from '$lib/server/redis';
 import { user as userTable } from '$lib/server/db/auth.schema';
 import { eq } from 'drizzle-orm';
+import { redactSecrets } from '$lib/server/secret-redaction';
 
 async function startupWithRetry(maxRetries = 5, baseDelayMs = 2000): Promise<void> {
 	for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -348,6 +349,42 @@ export const handle: Handle = sequence(
 	handleSecurityHeaders
 );
 
+function redactErrorValue(value: unknown, seen = new WeakSet<object>()): unknown {
+	if (typeof value === 'string') return redactSecrets(value);
+	if (Array.isArray(value)) return value.map((item) => redactErrorValue(item, seen));
+	if (!value || typeof value !== 'object') return value;
+	if (seen.has(value)) return '[Circular]';
+	seen.add(value);
+
+	const redacted: Record<string, unknown> = {};
+	for (const [key, child] of Object.entries(value)) {
+		redacted[key] = redactErrorValue(child, seen);
+	}
+	return redacted;
+}
+
+function serializeErrorForLog(error: unknown): unknown {
+	if (error instanceof Error) {
+		const info: Record<string, unknown> = {
+			message: redactSecrets(error.message),
+			stack: redactSecrets(error.stack ?? ''),
+			name: error.name
+		};
+		if (error.cause)
+			info.cause =
+				error.cause instanceof Error
+					? {
+							message: redactSecrets(error.cause.message),
+							name: error.cause.name
+						}
+					: redactErrorValue(error.cause);
+		return info;
+	}
+
+	// Drizzle and other libs may throw non-Error objects.
+	return redactErrorValue(error);
+}
+
 export const handleError: HandleServerError = ({ error, event, status, message }) => {
 	const requestId = event.locals?.requestId;
 
@@ -357,27 +394,7 @@ export const handleError: HandleServerError = ({ error, event, status, message }
 			method: event.request.method.toUpperCase(),
 			path: new URL(event.request.url).pathname,
 			status,
-			err: (() => {
-				if (error instanceof Error) {
-					const info: Record<string, unknown> = {
-						message: error.message,
-						stack: error.stack,
-						name: error.name
-					};
-					if (error.cause)
-						info.cause =
-							error.cause instanceof Error
-								? { message: error.cause.message, name: error.cause.name }
-								: String(error.cause);
-					return info;
-				}
-				// Drizzle and other libs may throw non-Error objects
-				try {
-					return JSON.parse(JSON.stringify(error));
-				} catch {
-					return { raw: String(error) };
-				}
-			})()
+			err: serializeErrorForLog(error)
 		},
 		message ?? 'Unexpected server error'
 	);

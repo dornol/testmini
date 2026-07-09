@@ -109,7 +109,7 @@ vi.mock('drizzle-orm', () => ({
 
 // --- Import the handle function after mocks are set up ---
 
-const { handle } = await import('./hooks.server');
+const { handle, handleError } = await import('./hooks.server');
 
 // --- Helpers ---
 
@@ -366,6 +366,60 @@ describe('hooks.server.ts — request logging', () => {
 			expect.objectContaining({ status: 301 }),
 			'Request completed'
 		);
+	});
+});
+
+describe('hooks.server.ts — error logging', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('redacts common secret patterns from Error logs', () => {
+		const event = createMockEvent({ pathname: '/api/failure', method: 'POST' });
+		event.locals.requestId = 'request-1';
+		const err = new Error('upstream failed Authorization: Bearer ghp_secret123456');
+		err.stack = 'Error: upstream failed Authorization: Bearer ghp_secret123456';
+		err.cause = new Error('retry failed apiToken=ghp_secret123456');
+
+		const result = handleError({
+			error: err,
+			event: event as never,
+			status: 500,
+			message: 'Internal error'
+		} as never);
+
+		expect(result).toEqual({ message: 'An unexpected error occurred.' });
+		const [meta] = mockLogger.error.mock.calls[0];
+		const serialized = JSON.stringify(meta);
+		expect(serialized).not.toContain('ghp_secret123456');
+		expect(serialized).toContain('[redacted]');
+		expect(meta).toMatchObject({
+			requestId: 'request-1',
+			method: 'POST',
+			path: '/api/failure',
+			status: 500
+		});
+	});
+
+	it('redacts common secret patterns from non-Error thrown values', () => {
+		const event = createMockEvent({ pathname: '/api/object-error' });
+		const thrown = {
+			message: 'private_token=glpat-secret123',
+			nested: { header: 'Authorization: Basic dXNlcjpzZWNyZXQ=' }
+		};
+
+		handleError({
+			error: thrown,
+			event: event as never,
+			status: 500,
+			message: 'Unexpected server error'
+		} as never);
+
+		const [meta] = mockLogger.error.mock.calls[0];
+		const serialized = JSON.stringify(meta);
+		expect(serialized).not.toContain('glpat-secret123');
+		expect(serialized).not.toContain('dXNlcjpzZWNyZXQ=');
+		expect(serialized).toContain('[redacted]');
 	});
 });
 

@@ -5,7 +5,7 @@ import { eq, and, asc } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
-import { validateRequestBody } from '$lib/server/shared-dataset-validation';
+import { validateDataSetRows, validateRequestBody } from '$lib/server/shared-dataset-validation';
 
 function parsePositiveInteger(value: unknown, label: string): number | Response {
 	const parsed = typeof value === 'number' ? value : Number(value);
@@ -20,22 +20,6 @@ function getStringArray(value: unknown, label: string): string[] | Response {
 		return badRequest(`${label} is invalid`);
 	}
 	return value;
-}
-
-function getRows(value: unknown): Record<string, string>[] | Response {
-	if (
-		!Array.isArray(value) ||
-		value.some(
-			(row) =>
-				!row ||
-				typeof row !== 'object' ||
-				Array.isArray(row) ||
-				Object.values(row).some((rowValue) => typeof rowValue !== 'string')
-		)
-	) {
-		return badRequest('Shared data set rows are invalid');
-	}
-	return value as Record<string, string>[];
 }
 
 export const POST = withProjectRole(
@@ -60,7 +44,7 @@ export const POST = withProjectRole(
 		const dsParams = getStringArray(ds.parameters, 'Shared data set parameters');
 		if (dsParams instanceof Response) return dsParams;
 
-		const dsRows = getRows(ds.rows);
+		const dsRows = validateDataSetRows(ds.rows, dsParams);
 		if (dsRows instanceof Response) return dsRows;
 
 		const tc = await db.query.testCase.findFirst({

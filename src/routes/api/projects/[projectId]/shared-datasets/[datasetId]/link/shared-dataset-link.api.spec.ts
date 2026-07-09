@@ -187,7 +187,26 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 		const response = await POST(event);
 
 		expect(response.status).toBe(400);
-		expect((await response.json()).error).toContain('rows are invalid');
+		expect((await response.json()).error).toContain('values must be strings');
+	});
+
+	it('should return 400 when stored dataset rows contain unknown parameters', async () => {
+		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+			...sampleSharedDataSet,
+			rows: [{ username: 'admin', password: 'admin123', role: 'owner' }]
+		});
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { testCaseId: 10 },
+			user: testUser
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('unknown parameter');
+		expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
 	});
 
 	it('should link shared dataset to test case and return linked count', async () => {

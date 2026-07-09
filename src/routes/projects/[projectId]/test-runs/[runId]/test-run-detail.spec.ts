@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockInsertReturning,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, sampleTestRun, sampleExecution } from '$lib/server/test-helpers/fixtures';
 
@@ -757,7 +763,8 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 				where: vi.fn().mockResolvedValue(undefined)
 			};
 			const txInsertChain = {
-				values: vi.fn().mockResolvedValue(undefined)
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: 1 }])
 			};
 
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
@@ -818,7 +825,8 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 				where: vi.fn().mockResolvedValue(undefined)
 			};
 			const txInsertChain = {
-				values: vi.fn().mockResolvedValue(undefined)
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: 1 }])
 			};
 
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
@@ -861,8 +869,9 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 				const chain = {
 					set: vi.fn().mockReturnThis(),
-					where: vi.fn().mockResolvedValue(undefined),
-					values: vi.fn().mockResolvedValue(undefined)
+					where: vi.fn().mockReturnThis(),
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockResolvedValue([{ id: 1 }])
 				};
 				return fn({
 					update: vi.fn().mockReturnValue(chain),
@@ -902,6 +911,94 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 					executionId: 200
 				})
 			);
+		});
+
+		it('should return 500 when failure detail insert affects no row', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testExecution = {
+				findFirst: vi.fn().mockResolvedValue(sampleExecution)
+			};
+
+			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+				const updateChain = {
+					set: vi.fn().mockReturnThis(),
+					where: vi.fn().mockResolvedValue(undefined)
+				};
+				const insertChain = {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockResolvedValue([])
+				};
+				return fn({
+					update: vi.fn().mockReturnValue(updateChain),
+					insert: vi.fn().mockReturnValue(insertChain)
+				});
+			});
+
+			const event = createActionEvent(
+				createFormData({
+					executionId: '200',
+					failureEnvironment: 'Chrome',
+					testMethod: 'testLogin',
+					errorMessage: 'error',
+					stackTrace: '',
+					comment: ''
+				})
+			);
+			const result = await actions.failWithDetail(event as never);
+
+			expect(result).toEqual(expect.objectContaining({ status: 500 }));
+			expect(mockPublish).not.toHaveBeenCalled();
+		});
+	});
+
+	// ─── addFailure ───────────────────────────────────────────────
+
+	describe('actions.addFailure', () => {
+		it('should add a failure detail and return success', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testExecution.findFirst.mockResolvedValue({
+				...sampleExecution,
+				status: 'FAIL'
+			});
+			const insertChain = mockInsertReturning(mockDb, [{ id: 1 }]);
+
+			const event = createActionEvent(
+				createFormData({
+					executionId: '200',
+					failureEnvironment: 'Chrome',
+					testMethod: 'testLogin',
+					errorMessage: 'assertion failed',
+					stackTrace: '',
+					comment: ''
+				})
+			);
+			const result = await actions.addFailure(event as never);
+
+			expect(result).toEqual({ success: true });
+			expect(insertChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should return 500 when add failure insert affects no row', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testExecution.findFirst.mockResolvedValue({
+				...sampleExecution,
+				status: 'FAIL'
+			});
+			mockInsertReturning(mockDb, []);
+
+			const event = createActionEvent(
+				createFormData({
+					executionId: '200',
+					failureEnvironment: 'Chrome',
+					testMethod: 'testLogin',
+					errorMessage: 'assertion failed',
+					stackTrace: '',
+					comment: ''
+				})
+			);
+			const result = await actions.addFailure(event as never);
+
+			expect(result).toEqual(expect.objectContaining({ status: 500 }));
 		});
 	});
 
@@ -1171,11 +1268,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 				testExecutionId: sampleExecution.id
 			});
 			mockDb.query.testExecution.findFirst.mockResolvedValue(sampleExecution);
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockResolvedValue(undefined)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			const updateChain = mockUpdateReturning(mockDb, [{ id: 5 }]);
 
 			const event = createActionEvent(
 				createFormData({
@@ -1197,6 +1290,31 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 					['test_execution_id', sampleExecution.id]
 				])
 			);
+		});
+
+		it('should return 404 when update affects no failure detail', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testFailureDetail.findFirst.mockResolvedValue({
+				id: 5,
+				testExecutionId: sampleExecution.id
+			});
+			mockDb.query.testExecution.findFirst.mockResolvedValue(sampleExecution);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createActionEvent(
+				createFormData({
+					failureId: '5',
+					failureEnvironment: 'Chrome',
+					testMethod: 'testLogin',
+					errorMessage: 'updated',
+					stackTrace: '',
+					comment: ''
+				})
+			);
+
+			const result = await actions.updateFailure(event as never);
+
+			expect(result).toEqual(expect.objectContaining({ status: 404 }));
 		});
 	});
 
@@ -1243,10 +1361,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 				testExecutionId: sampleExecution.id
 			});
 			mockDb.query.testExecution.findFirst.mockResolvedValue(sampleExecution);
-			const deleteChain = {
-				where: vi.fn().mockResolvedValue(undefined)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: 5 }]);
 
 			const event = createActionEvent(createFormData({ failureId: '5' }));
 			const result = await actions.deleteFailure(event as never);
@@ -1258,6 +1373,21 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 					['test_execution_id', sampleExecution.id]
 				])
 			);
+		});
+
+		it('should return 404 when delete affects no failure detail', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testFailureDetail.findFirst.mockResolvedValue({
+				id: 5,
+				testExecutionId: sampleExecution.id
+			});
+			mockDb.query.testExecution.findFirst.mockResolvedValue(sampleExecution);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createActionEvent(createFormData({ failureId: '5' }));
+			const result = await actions.deleteFailure(event as never);
+
+			expect(result).toEqual(expect.objectContaining({ status: 404 }));
 		});
 	});
 });

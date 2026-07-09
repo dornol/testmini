@@ -87,7 +87,7 @@ export const POST = withProjectRole(
 			return badRequest('Invalid failure detail data');
 		}
 
-		await db.transaction(async (tx) => {
+		const createdFailure = await db.transaction(async (tx) => {
 			const updatedExecutions = await tx
 				.update(testExecution)
 				.set({
@@ -102,16 +102,23 @@ export const POST = withProjectRole(
 				error(404, 'Execution not found');
 			}
 
-			await tx.insert(testFailureDetail).values({
-				testExecutionId: executionId,
-				failureEnvironment: parsed.data.failureEnvironment || null,
-				testMethod: parsed.data.testMethod || null,
-				errorMessage: parsed.data.errorMessage || null,
-				stackTrace: parsed.data.stackTrace || null,
-				comment: parsed.data.comment || null,
-				createdBy: user.id
-			});
+			const [created] = await tx
+				.insert(testFailureDetail)
+				.values({
+					testExecutionId: executionId,
+					failureEnvironment: parsed.data.failureEnvironment || null,
+					testMethod: parsed.data.testMethod || null,
+					errorMessage: parsed.data.errorMessage || null,
+					stackTrace: parsed.data.stackTrace || null,
+					comment: parsed.data.comment || null,
+					createdBy: user.id
+				})
+				.returning({ id: testFailureDetail.id });
+			return created;
 		});
+		if (!createdFailure) {
+			error(500, 'Failed to create failure detail');
+		}
 
 		// Resolve testCaseId from testCaseVersion, then sync failure to linked issues (fire-and-forget)
 		const version = await db.query.testCaseVersion.findFirst({

@@ -318,7 +318,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid failure detail data' });
 		}
 
-		await db.transaction(async (tx) => {
+		const createdFailure = await db.transaction(async (tx) => {
 			// Set execution to FAIL
 			const now = new Date();
 			const durationUpdates: Record<string, Date> = {};
@@ -338,16 +338,23 @@ export const actions: Actions = {
 				.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)));
 
 			// Create failure detail
-			await tx.insert(testFailureDetail).values({
-				testExecutionId: executionId,
-				failureEnvironment: parsed.data.failureEnvironment || null,
-				testMethod: parsed.data.testMethod || null,
-				errorMessage: parsed.data.errorMessage || null,
-				stackTrace: parsed.data.stackTrace || null,
-				comment: parsed.data.comment || null,
-				createdBy: authUser.id
-			});
+			const [created] = await tx
+				.insert(testFailureDetail)
+				.values({
+					testExecutionId: executionId,
+					failureEnvironment: parsed.data.failureEnvironment || null,
+					testMethod: parsed.data.testMethod || null,
+					errorMessage: parsed.data.errorMessage || null,
+					stackTrace: parsed.data.stackTrace || null,
+					comment: parsed.data.comment || null,
+					createdBy: authUser.id
+				})
+				.returning({ id: testFailureDetail.id });
+			return created;
 		});
+		if (!createdFailure) {
+			return fail(500, { error: 'Failed to create failure detail' });
+		}
 
 		await autoUpdateRunStatus(runId);
 
@@ -401,15 +408,21 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid failure detail data' });
 		}
 
-		await db.insert(testFailureDetail).values({
-			testExecutionId: executionId,
-			failureEnvironment: parsed.data.failureEnvironment || null,
-			testMethod: parsed.data.testMethod || null,
-			errorMessage: parsed.data.errorMessage || null,
-			stackTrace: parsed.data.stackTrace || null,
-			comment: parsed.data.comment || null,
-			createdBy: authUser.id
-		});
+		const [createdFailure] = await db
+			.insert(testFailureDetail)
+			.values({
+				testExecutionId: executionId,
+				failureEnvironment: parsed.data.failureEnvironment || null,
+				testMethod: parsed.data.testMethod || null,
+				errorMessage: parsed.data.errorMessage || null,
+				stackTrace: parsed.data.stackTrace || null,
+				comment: parsed.data.comment || null,
+				createdBy: authUser.id
+			})
+			.returning({ id: testFailureDetail.id });
+		if (!createdFailure) {
+			return fail(500, { error: 'Failed to create failure detail' });
+		}
 
 		return { success: true };
 	},
@@ -453,7 +466,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid failure detail data' });
 		}
 
-		await db
+		const [updatedFailure] = await db
 			.update(testFailureDetail)
 			.set({
 				failureEnvironment: parsed.data.failureEnvironment || null,
@@ -467,7 +480,11 @@ export const actions: Actions = {
 					eq(testFailureDetail.id, failureId),
 					eq(testFailureDetail.testExecutionId, existing.testExecutionId)
 				)
-			);
+			)
+			.returning({ id: testFailureDetail.id });
+		if (!updatedFailure) {
+			return fail(404, { error: 'Failure detail not found' });
+		}
 
 		return { success: true };
 	},
@@ -501,14 +518,18 @@ export const actions: Actions = {
 			return fail(404, { error: 'Failure detail not found' });
 		}
 
-		await db
+		const [deletedFailure] = await db
 			.delete(testFailureDetail)
 			.where(
 				and(
 					eq(testFailureDetail.id, failureId),
 					eq(testFailureDetail.testExecutionId, existing.testExecutionId)
 				)
-			);
+			)
+			.returning({ id: testFailureDetail.id });
+		if (!deletedFailure) {
+			return fail(404, { error: 'Failure detail not found' });
+		}
 
 		return { success: true };
 	},

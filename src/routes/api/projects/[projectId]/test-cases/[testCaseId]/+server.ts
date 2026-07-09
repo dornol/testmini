@@ -156,6 +156,9 @@ export const PATCH = withProjectRole(
 					updatedBy: user.id
 				})
 				.returning();
+			if (!version) {
+				error(500, 'Failed to create test case version');
+			}
 
 			const [updatedTestCase] = await db
 				.update(testCase)
@@ -212,6 +215,9 @@ export const PUT = withProjectRole(
 					updatedBy: user.id
 				})
 				.returning();
+			if (!version) {
+				error(500, 'Failed to create test case version');
+			}
 
 			const [updatedTestCase] = await tx
 				.update(testCase)

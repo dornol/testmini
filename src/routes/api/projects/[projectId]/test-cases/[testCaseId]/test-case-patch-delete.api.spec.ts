@@ -481,6 +481,25 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 			expect(body.success).toBe(true);
 		});
 
+		it('should return 500 when version insert returns no row', async () => {
+			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
+			mockFindTC.mockResolvedValue(tc);
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { title: 'Quick Title Update' },
+				user: adminUser
+			});
+
+			await expect(PATCH(event)).rejects.toMatchObject({
+				status: 500,
+				body: { message: 'Failed to create test case version' }
+			});
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 404 when direct test case update finds no row', async () => {
 			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
 			mockFindTC.mockResolvedValue(tc);
@@ -505,6 +524,45 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 	});
 
 	describe('PUT mutation verification', () => {
+		it('should return 500 when version insert returns no row', async () => {
+			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
+			mockFindTC.mockResolvedValue(tc);
+			const insertChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([])
+			};
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: 10 }])
+			};
+			const tx = {
+				insert: vi.fn().mockReturnValue(insertChain),
+				update: vi.fn().mockReturnValue(updateChain)
+			};
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: {
+					title: 'Updated Title',
+					precondition: '',
+					steps: [{ action: 'Step 1', expected: 'Result 1' }],
+					expectedResult: 'Pass',
+					priority: 'HIGH',
+					revision: 1
+				},
+				user: adminUser
+			});
+
+			await expect(PUT(event)).rejects.toMatchObject({
+				status: 500,
+				body: { message: 'Failed to create test case version' }
+			});
+			expect(tx.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 404 when latest version pointer update finds no row', async () => {
 			const tc = { ...sampleTestCase, latestVersion: sampleTestCaseVersion };
 			mockFindTC.mockResolvedValue(tc);

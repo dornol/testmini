@@ -113,6 +113,23 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for unknown fields before updating', async () => {
+			mockDb.query.issueLink.findFirst.mockResolvedValue(sampleLink);
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { title: 'new', externalUrl: 'https://example.com/issue/2' }
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Invalid issue link field');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when title is not a string or null', async () => {
 			mockDb.query.issueLink.findFirst.mockResolvedValue(sampleLink);
 			const event = createMockEvent({

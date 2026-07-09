@@ -5,6 +5,13 @@ const MAX_EXTERNAL_URL_LENGTH = 2000;
 const MAX_EXTERNAL_KEY_LENGTH = 128;
 const MAX_TITLE_LENGTH = 500;
 const MAX_PROVIDER_LENGTH = 120;
+const ISSUE_LINK_CREATE_FIELDS = new Set([
+	'testCaseId',
+	'testExecutionId',
+	'externalUrl',
+	'externalKey',
+	'title'
+]);
 
 export type IssueLinkCreateInput = {
 	testCaseId?: number;
@@ -44,6 +51,10 @@ export function parseIssueLinkPositiveInteger(
 export function validateIssueLinkCreateInput(
 	body: Record<string, unknown>
 ): IssueLinkCreateInput | Response {
+	if (Object.keys(body).some((key) => !ISSUE_LINK_CREATE_FIELDS.has(key))) {
+		return badRequest('Invalid issue link field');
+	}
+
 	const testCaseId = parseIssueLinkPositiveInteger(body.testCaseId, 'testCaseId');
 	if (testCaseId instanceof Response) return testCaseId;
 

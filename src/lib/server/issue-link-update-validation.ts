@@ -3,6 +3,7 @@ import { validateRequestBody } from './id-list-validation';
 
 const MAX_ISSUE_LINK_TITLE_LENGTH = 500;
 const MAX_ISSUE_LINK_STATUS_LENGTH = 120;
+const ISSUE_LINK_UPDATE_FIELDS = new Set(['title', 'status']);
 
 export type IssueLinkUpdates = {
 	title?: string | null;
@@ -12,6 +13,10 @@ export type IssueLinkUpdates = {
 export function validateIssueLinkUpdateInput(body: unknown): IssueLinkUpdates | Response {
 	const bodyOrError = validateRequestBody(body);
 	if (bodyOrError instanceof Response) return bodyOrError;
+
+	if (Object.keys(bodyOrError).some((key) => !ISSUE_LINK_UPDATE_FIELDS.has(key))) {
+		return badRequest('Invalid issue link field');
+	}
 
 	const updates: IssueLinkUpdates = {};
 

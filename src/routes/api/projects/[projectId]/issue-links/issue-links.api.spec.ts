@@ -246,6 +246,26 @@ describe('/api/projects/[projectId]/issue-links', () => {
 			expect((await response.json()).error).toContain('Invalid request body');
 		});
 
+		it('should reject unknown fields before creating link', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					testCaseId: 10,
+					externalUrl: 'https://github.com/org/repo/issues/1',
+					provider: 'GITHUB'
+				}
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid issue link field');
+			expect(mockDb.query.issueTrackerConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should reject invalid testCaseId', async () => {
 			const cases = [
 				'abc',

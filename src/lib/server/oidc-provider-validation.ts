@@ -45,6 +45,7 @@ const MAX_CLIENT_ID_LENGTH = 500;
 const MAX_CLIENT_SECRET_LENGTH = 4000;
 const MAX_SCOPES_LENGTH = 500;
 const MAX_ICON_URL_LENGTH = 2000;
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 
 function normalizeRequiredString(
 	value: string | null | undefined,
@@ -56,6 +57,9 @@ function normalizeRequiredString(
 	if (normalized.length > maxLength) {
 		return { ok: false, error: `${field} must be ${maxLength} characters or less` };
 	}
+	if (CONTROL_CHAR_PATTERN.test(normalized)) {
+		return { ok: false, error: `${field} contains invalid characters` };
+	}
 	return { ok: true, value: normalized };
 }
 
@@ -65,6 +69,7 @@ export async function validateOidcProviderUrls(
 	for (const field of REQUIRED_URL_FIELDS) {
 		const value = input[field]?.trim();
 		if (!value) return `${field} is required`;
+		if (CONTROL_CHAR_PATTERN.test(value)) return `${field}: URL contains invalid characters`;
 
 		const validation = await validatePublicHttpsUrl(value);
 		if (!validation.ok) return `${field}: ${validation.error ?? 'Invalid URL'}`;
@@ -73,6 +78,7 @@ export async function validateOidcProviderUrls(
 	for (const field of OPTIONAL_URL_FIELDS) {
 		const value = input[field]?.trim();
 		if (!value) continue;
+		if (CONTROL_CHAR_PATTERN.test(value)) return `${field}: URL contains invalid characters`;
 
 		const validation = await validatePublicHttpsUrl(value);
 		if (!validation.ok) return `${field}: ${validation.error ?? 'Invalid URL'}`;
@@ -117,6 +123,9 @@ export async function validateOidcProviderFields(
 			error: `Client secret must be ${MAX_CLIENT_SECRET_LENGTH} characters or less`
 		};
 	}
+	if (CONTROL_CHAR_PATTERN.test(clientSecretValue)) {
+		return { ok: false, error: 'Client secret contains invalid characters' };
+	}
 
 	const iconUrl = input.iconUrl?.trim() || null;
 	if (iconUrl) {
@@ -125,6 +134,9 @@ export async function validateOidcProviderFields(
 				ok: false,
 				error: `iconUrl must be ${MAX_ICON_URL_LENGTH} characters or less`
 			};
+		}
+		if (CONTROL_CHAR_PATTERN.test(iconUrl)) {
+			return { ok: false, error: 'iconUrl: URL contains invalid characters' };
 		}
 		const validation = await validatePublicHttpsUrl(iconUrl);
 		if (!validation.ok) {

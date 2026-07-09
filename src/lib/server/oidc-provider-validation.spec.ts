@@ -45,6 +45,17 @@ describe('validateOidcProviderUrls', () => {
 		).resolves.toBe('tokenUrl: URL resolves to a private or reserved IP address');
 	});
 
+	it('rejects control characters in provider URLs before URL safety lookup', async () => {
+		await expect(
+			validateOidcProviderUrls({
+				authorizationUrl: 'https://issuer.example/authorize\nX-Test: yes',
+				tokenUrl: 'https://issuer.example/token'
+			})
+		).resolves.toBe('authorizationUrl: URL contains invalid characters');
+
+		expect(mockValidatePublicHttpsUrl).not.toHaveBeenCalled();
+	});
+
 	it('rejects unsupported provider types', async () => {
 		await expect(
 			validateOidcProviderFields({
@@ -74,6 +85,41 @@ describe('validateOidcProviderUrls', () => {
 		).resolves.toEqual({
 			ok: false,
 			error: 'Client secret must be 4000 characters or less'
+		});
+	});
+
+	it('rejects control characters in provider fields', async () => {
+		await expect(
+			validateOidcProviderFields({
+				name: 'Example',
+				slug: 'example',
+				providerType: 'OIDC',
+				clientId: 'client\nid',
+				clientSecret: 'secret',
+				scopes: 'openid profile email'
+			})
+		).resolves.toEqual({
+			ok: false,
+			error: 'Client ID contains invalid characters'
+		});
+	});
+
+	it('rejects control characters in client secrets', async () => {
+		await expect(
+			validateOidcProviderFields(
+				{
+					name: 'Example',
+					slug: 'example',
+					providerType: 'OIDC',
+					clientId: 'client-id',
+					clientSecret: 'secret\nvalue',
+					scopes: 'openid profile email'
+				},
+				{ requireClientSecret: true }
+			)
+		).resolves.toEqual({
+			ok: false,
+			error: 'Client secret contains invalid characters'
 		});
 	});
 

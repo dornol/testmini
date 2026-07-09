@@ -89,6 +89,16 @@ function verifySignature(
 	}
 }
 
+function timingSafeStringEqual(expected: string, provided: string | null): boolean {
+	if (provided === null) return false;
+
+	const expectedBuffer = Buffer.from(expected);
+	const providedBuffer = Buffer.from(provided);
+	if (expectedBuffer.length !== providedBuffer.length) return false;
+
+	return crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
 function parseEvent(request: Request, body: unknown): ParsedEvent | null {
 	const githubEvent = request.headers.get('x-github-event');
 	const gitlabEvent = request.headers.get('x-gitlab-event');
@@ -229,7 +239,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				}
 			} else if (event.provider === 'GITLAB') {
 				// GitLab uses X-Gitlab-Token (plain token comparison)
-				valid = request.headers.get('x-gitlab-token') === config.webhookSecret;
+				valid = timingSafeStringEqual(config.webhookSecret, request.headers.get('x-gitlab-token'));
 			}
 
 			if (!valid) {

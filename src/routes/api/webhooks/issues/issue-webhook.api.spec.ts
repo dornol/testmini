@@ -498,6 +498,45 @@ describe('/api/webhooks/issues POST', () => {
 			expect(data.updated).toBe(0);
 		});
 
+		it('skips config when GitLab token is missing', async () => {
+			const config = makeConfig({
+				provider: 'GITLAB',
+				projectKey: '999',
+				webhookSecret: 'correct-token'
+			});
+			setupDbChain([config], []);
+
+			const event = createWebhookRequest(makeGitLabIssuePayload(), {
+				'x-gitlab-event': 'Issue Hook'
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.updated).toBe(0);
+		});
+
+		it('skips config when GitLab token has a different length', async () => {
+			const config = makeConfig({
+				provider: 'GITLAB',
+				projectKey: '999',
+				webhookSecret: 'correct-token'
+			});
+			setupDbChain([config], []);
+
+			const event = createWebhookRequest(makeGitLabIssuePayload(), {
+				'x-gitlab-event': 'Issue Hook',
+				'x-gitlab-token': 'short'
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.updated).toBe(0);
+		});
+
 		it('accepts valid GitLab token', async () => {
 			const secret = 'gitlab-secret-token';
 			const config = makeConfig({

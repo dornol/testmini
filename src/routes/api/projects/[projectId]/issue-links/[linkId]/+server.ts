@@ -19,22 +19,26 @@ export const PATCH = withProjectRole(
 		const updates = validateIssueLinkUpdateInput(await parseJsonBody(request));
 		if (updates instanceof Response) return updates;
 
-		await db.update(issueLink).set(updates).where(eq(issueLink.id, linkId));
+		await db
+			.update(issueLink)
+			.set(updates)
+			.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)));
 
 		const updated = await db.query.issueLink.findFirst({
-			where: eq(issueLink.id, linkId)
+			where: and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId))
 		});
+		if (!updated) error(404, 'Issue link not found');
 
 		return json({
-			id: updated!.id,
-			testCaseId: updated!.testCaseId,
-			testExecutionId: updated!.testExecutionId,
-			externalUrl: updated!.externalUrl,
-			externalKey: updated!.externalKey,
-			title: updated!.title,
-			status: updated!.status,
-			provider: updated!.provider,
-			createdAt: updated!.createdAt
+			id: updated.id,
+			testCaseId: updated.testCaseId,
+			testExecutionId: updated.testExecutionId,
+			externalUrl: updated.externalUrl,
+			externalKey: updated.externalKey,
+			title: updated.title,
+			status: updated.status,
+			provider: updated.provider,
+			createdAt: updated.createdAt
 		});
 	}
 );
@@ -49,7 +53,9 @@ export const DELETE = withProjectRole(
 		});
 		if (!existing) error(404, 'Issue link not found');
 
-		await db.delete(issueLink).where(eq(issueLink.id, linkId));
+		await db
+			.delete(issueLink)
+			.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)));
 
 		return json({ success: true });
 	}

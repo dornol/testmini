@@ -174,7 +174,7 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 		it('should update filter name successfully', async () => {
 			mockDb.query.savedFilter.findFirst.mockResolvedValue(sampleFilter);
 			const updatedFilter = { ...sampleFilter, name: 'Renamed Filter' };
-			mockUpdateReturning(mockDb, [updatedFilter]);
+			const updateChain = mockUpdateReturning(mockDb, [updatedFilter]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -187,6 +187,13 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 			expect(response.status).toBe(200);
 			const body = await response.json();
 			expect(body.name).toBe('Renamed Filter');
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 10],
+					['project_id', 1],
+					['user_id', testUser.id]
+				])
+			);
 		});
 
 		it('should update filters object successfully', async () => {
@@ -243,6 +250,16 @@ describe('/api/projects/[projectId]/saved-filters/[filterId]', () => {
 			const body = await response.json();
 			expect(body.success).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
+			const deleteChain = mockDb.delete.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 10],
+					['project_id', 1],
+					['user_id', testUser.id]
+				])
+			);
 		});
 	});
 });

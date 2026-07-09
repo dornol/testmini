@@ -48,7 +48,10 @@ export const PATCH = withProjectRole(
 		}
 
 		if (Object.keys(updates).length > 0) {
-			await db.update(sharedDataSet).set(updates).where(eq(sharedDataSet.id, datasetId));
+			await db
+				.update(sharedDataSet)
+				.set(updates)
+				.where(and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId)));
 		}
 
 		return json({ success: true });
@@ -65,7 +68,9 @@ export const DELETE = withProjectRole(
 		});
 		if (!ds) return notFound('Shared data set not found');
 
-		await db.delete(sharedDataSet).where(eq(sharedDataSet.id, datasetId));
+		await db
+			.delete(sharedDataSet)
+			.where(and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId)));
 
 		return json({ success: true });
 	}

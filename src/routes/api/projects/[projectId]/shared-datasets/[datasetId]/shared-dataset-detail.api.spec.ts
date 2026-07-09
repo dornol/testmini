@@ -92,6 +92,12 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 			expect(response.status).toBe(200);
 			const body = await response.json();
 			expect(body.success).toBe(true);
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 10],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should succeed with no updates when body is empty', async () => {
@@ -234,6 +240,12 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 			expect(response.status).toBe(200);
 			const body = await response.json();
 			expect(body.success).toBe(true);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 10],
+					['project_id', 1]
+				])
+			);
 		});
 	});
 });

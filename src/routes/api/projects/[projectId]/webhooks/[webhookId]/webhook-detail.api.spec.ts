@@ -80,6 +80,15 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 
 			expect(response.status).toBe(200);
 			expect(data.name).toBe('Updated Name');
+			const updateChain = mockDb.update.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 5],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should update webhook URL', async () => {
@@ -310,6 +319,15 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
+			const deleteChain = mockDb.delete.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 5],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return 404 when webhook does not exist', async () => {

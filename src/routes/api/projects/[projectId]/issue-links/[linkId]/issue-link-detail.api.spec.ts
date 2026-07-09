@@ -182,6 +182,15 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 			const body = await response.json();
 			expect(body.title).toBe('Updated title');
 			expect(mockDb.update).toHaveBeenCalled();
+			const updateChain = mockDb.update.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should trim title before update', async () => {
@@ -295,6 +304,15 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 			expect(response.status).toBe(200);
 			expect(await response.json()).toEqual({ success: true });
 			expect(mockDb.delete).toHaveBeenCalled();
+			const deleteChain = mockDb.delete.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 	});
 });

@@ -74,8 +74,15 @@ export const PATCH = withProjectAccess(async ({ request, user, projectId, params
 	const [updated] = await db
 		.update(savedFilter)
 		.set(updates)
-		.where(eq(savedFilter.id, filterId))
+		.where(
+			and(
+				eq(savedFilter.id, filterId),
+				eq(savedFilter.projectId, projectId),
+				eq(savedFilter.userId, user.id)
+			)
+		)
 		.returning();
+	if (!updated) return notFound('Saved filter not found');
 
 	return json(updated);
 });
@@ -86,7 +93,15 @@ export const DELETE = withProjectAccess(async ({ user, projectId, params }) => {
 	const existing = await findOwnedFilter(user.id, projectId, filterId);
 	if (!existing) return notFound('Saved filter not found');
 
-	await db.delete(savedFilter).where(eq(savedFilter.id, filterId));
+	await db
+		.delete(savedFilter)
+		.where(
+			and(
+				eq(savedFilter.id, filterId),
+				eq(savedFilter.projectId, projectId),
+				eq(savedFilter.userId, user.id)
+			)
+		);
 
 	return json({ success: true });
 });

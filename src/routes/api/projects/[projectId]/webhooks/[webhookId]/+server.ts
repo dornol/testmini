@@ -66,19 +66,23 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params
 		return badRequest('No fields to update');
 	}
 
-	await db.update(projectWebhook).set(updates).where(eq(projectWebhook.id, webhookId));
+	await db
+		.update(projectWebhook)
+		.set(updates)
+		.where(and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId)));
 
 	const updated = await db.query.projectWebhook.findFirst({
-		where: eq(projectWebhook.id, webhookId)
+		where: and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId))
 	});
+	if (!updated) error(404, 'Webhook not found');
 
 	return json({
-		id: updated!.id,
-		name: updated!.name,
-		url: updated!.url,
-		events: updated!.events,
-		enabled: updated!.enabled,
-		createdAt: updated!.createdAt
+		id: updated.id,
+		name: updated.name,
+		url: updated.url,
+		events: updated.events,
+		enabled: updated.enabled,
+		createdAt: updated.createdAt
 	});
 });
 
@@ -90,7 +94,9 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projec
 	});
 	if (!existing) error(404, 'Webhook not found');
 
-	await db.delete(projectWebhook).where(eq(projectWebhook.id, webhookId));
+	await db
+		.delete(projectWebhook)
+		.where(and(eq(projectWebhook.id, webhookId), eq(projectWebhook.projectId, projectId)));
 
 	return json({ success: true });
 });

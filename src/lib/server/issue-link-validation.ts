@@ -6,6 +6,7 @@ const MAX_EXTERNAL_URL_LENGTH = 2000;
 const MAX_EXTERNAL_KEY_LENGTH = 128;
 const MAX_TITLE_LENGTH = 500;
 const MAX_PROVIDER_LENGTH = 120;
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 const ISSUE_LINK_CREATE_FIELDS = new Set([
 	'testCaseId',
 	'testExecutionId',
@@ -89,6 +90,9 @@ export function validateIssueLinkProvider(value: unknown): string | Response {
 	if (provider.length > MAX_PROVIDER_LENGTH) {
 		return badRequest(`Provider must be ${MAX_PROVIDER_LENGTH} characters or less`);
 	}
+	if (CONTROL_CHAR_PATTERN.test(provider)) {
+		return badRequest('Provider contains invalid characters');
+	}
 	return provider;
 }
 
@@ -106,6 +110,9 @@ function validateIssueLinkOptionalText(
 	if (trimmed.length > maxLength) {
 		return badRequest(`${label} must be ${maxLength} characters or less`);
 	}
+	if (CONTROL_CHAR_PATTERN.test(trimmed)) {
+		return badRequest(`${label} contains invalid characters`);
+	}
 	return trimmed;
 }
 
@@ -119,6 +126,9 @@ function validateExternalUrl(value: unknown): string | Response {
 	}
 	if (externalUrl.length > MAX_EXTERNAL_URL_LENGTH) {
 		return badRequest(`External URL must be ${MAX_EXTERNAL_URL_LENGTH} characters or less`);
+	}
+	if (CONTROL_CHAR_PATTERN.test(externalUrl)) {
+		return badRequest('External URL contains invalid characters');
 	}
 	try {
 		const parsed = new URL(externalUrl);

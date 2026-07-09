@@ -219,6 +219,27 @@ describe('/api/projects/[projectId]/issue-links/create-issue', () => {
 		expect((await response.json()).error).toContain('Description must be a string');
 	});
 
+	it('should reject control characters before creating an external issue', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser,
+			body: {
+				testCaseId: 10,
+				title: 'Bug title\nInjected: yes',
+				description: 'desc'
+			}
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('Title contains invalid characters');
+		expect(mockDb.query.issueTrackerConfig.findFirst).not.toHaveBeenCalled();
+		expect(mockCreateExternalIssue).not.toHaveBeenCalled();
+		expect(mockDb.insert).not.toHaveBeenCalled();
+	});
+
 	it('should return 404 when issue tracker not configured', async () => {
 		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(null);
 

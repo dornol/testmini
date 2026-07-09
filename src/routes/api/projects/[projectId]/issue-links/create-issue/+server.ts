@@ -19,6 +19,7 @@ const MAX_TITLE_LENGTH = 500;
 const MAX_DESCRIPTION_LENGTH = 10000;
 const MAX_EXTERNAL_URL_LENGTH = 2000;
 const MAX_EXTERNAL_KEY_LENGTH = 128;
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 
 type CreateIssuePayload = {
 	testCaseId?: number;
@@ -61,6 +62,9 @@ function requireTrimmedString(value: unknown, label: string, maxLength: number):
 	if (trimmed.length > maxLength) {
 		return badRequest(`${label} must be ${maxLength} characters or less`);
 	}
+	if (CONTROL_CHAR_PATTERN.test(trimmed)) {
+		return badRequest(`${label} contains invalid characters`);
+	}
 	return trimmed;
 }
 
@@ -76,6 +80,9 @@ function optionalTrimmedString(
 	const trimmed = value.trim();
 	if (trimmed.length > maxLength) {
 		return badRequest(`${label} must be ${maxLength} characters or less`);
+	}
+	if (CONTROL_CHAR_PATTERN.test(trimmed)) {
+		return badRequest(`${label} contains invalid characters`);
 	}
 	return trimmed;
 }

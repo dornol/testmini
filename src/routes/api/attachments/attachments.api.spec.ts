@@ -219,6 +219,19 @@ describe('/api/attachments', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it.each(['../secret.png', 'folder\\secret.png', 'bad\nname.png', '..'])(
+			'should reject unsafe file name %s before saving file',
+			async (name) => {
+				const formData = createFileFormData({ name, type: 'image/png' });
+				const event = createMockEvent({ method: 'POST', formData, user: testUser });
+
+				await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+				expect(authUtils.requireProjectAccess).not.toHaveBeenCalled();
+				expect(storage.saveFile).not.toHaveBeenCalled();
+				expect(mockDb.insert).not.toHaveBeenCalled();
+			}
+		);
+
 		it('should reject oversized multipart bodies before parsing form data', async () => {
 			const formData = vi.fn();
 			const baseEvent = createMockEvent({ method: 'POST', user: testUser }) as Record<

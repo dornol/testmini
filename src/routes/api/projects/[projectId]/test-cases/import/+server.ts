@@ -25,8 +25,22 @@ interface ImportRow {
 	group: string;
 }
 
-function normalizeRow(obj: Record<string, string>): ImportRow {
-	const priority = (obj['Priority'] ?? obj['priority'] ?? 'MEDIUM').toUpperCase();
+class ImportValidationError extends Error {}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function stringField(obj: Record<string, unknown>, ...keys: string[]): string {
+	for (const key of keys) {
+		const value = obj[key];
+		if (value !== undefined && value !== null) return String(value);
+	}
+	return '';
+}
+
+function normalizeRow(obj: Record<string, unknown>): ImportRow {
+	const priority = (stringField(obj, 'Priority', 'priority') || 'MEDIUM').toUpperCase();
 	let steps: { order: number; action: string; expected: string }[] = [];
 	const rawSteps = obj['Steps'] ?? obj['steps'] ?? '';
 	if (rawSteps) {
@@ -39,11 +53,16 @@ function normalizeRow(obj: Record<string, string>): ImportRow {
 			}
 		}
 		if (Array.isArray(parsed)) {
-			steps = parsed.map((s: { action?: string; expected?: string }, i: number) => ({
-				order: i + 1,
-				action: s.action ?? '',
-				expected: s.expected ?? ''
-			}));
+			steps = parsed.map((step, i) => {
+				if (!isRecord(step)) {
+					throw new ImportValidationError(`steps[${i + 1}] must be an object`);
+				}
+				return {
+					order: i + 1,
+					action: stringField(step, 'action'),
+					expected: stringField(step, 'expected')
+				};
+			});
 		}
 	}
 
@@ -58,13 +77,13 @@ function normalizeRow(obj: Record<string, string>): ImportRow {
 			: [];
 
 	return {
-		title: obj['Title'] ?? obj['title'] ?? '',
+		title: stringField(obj, 'Title', 'title'),
 		priority: priority || 'MEDIUM',
-		precondition: obj['Precondition'] ?? obj['precondition'] ?? '',
+		precondition: stringField(obj, 'Precondition', 'precondition'),
 		steps,
-		expectedResult: obj['Expected Result'] ?? obj['expectedResult'] ?? obj['expected_result'] ?? '',
+		expectedResult: stringField(obj, 'Expected Result', 'expectedResult', 'expected_result'),
 		tags,
-		group: obj['Group'] ?? obj['group'] ?? ''
+		group: stringField(obj, 'Group', 'group')
 	};
 }
 
@@ -99,9 +118,24 @@ export const POST = withProjectRole(
 				if (!Array.isArray(arr)) {
 					error(400, 'JSON must contain a "testCases" array or be an array');
 				}
-				importRows = arr.map((obj: Record<string, string>) => normalizeRow(obj));
+				importRows = arr.map((obj, index) => {
+					if (!isRecord(obj)) {
+						throw new ImportValidationError(`Row ${index + 1}: Import rows must be objects`);
+					}
+					try {
+						return normalizeRow(obj);
+					} catch (e) {
+						if (e instanceof ImportValidationError) {
+							throw new ImportValidationError(`Row ${index + 1}: ${e.message}`);
+						}
+						throw e;
+					}
+				});
 			} catch (e) {
 				if (e && typeof e === 'object' && 'status' in e) throw e;
+				if (e instanceof ImportValidationError) {
+					error(400, e.message);
+				}
 				error(400, 'Invalid JSON file');
 			}
 		} else {
@@ -116,7 +150,14 @@ export const POST = withProjectRole(
 				for (let j = 0; j < headers.length; j++) {
 					obj[headers[j]] = csvRows[i][j]?.trim() ?? '';
 				}
-				importRows.push(normalizeRow(obj));
+				try {
+					importRows.push(normalizeRow(obj));
+				} catch (e) {
+					if (e instanceof ImportValidationError) {
+						error(400, `Row ${i}: ${e.message}`);
+					}
+					throw e;
+				}
 			}
 		}
 

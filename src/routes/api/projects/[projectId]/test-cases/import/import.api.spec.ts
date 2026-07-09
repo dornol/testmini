@@ -248,6 +248,78 @@ describe('/api/projects/[projectId]/test-cases/import', () => {
 		expect(response.status).toBe(200);
 	});
 
+	it('should reject JSON rows that are not objects before DB work', async () => {
+		const fd = createJsonFormData([{ title: 'Valid' }, null]);
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: fd,
+			user: adminUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		expect(mockDb.select).not.toHaveBeenCalled();
+		expect(mockDb.transaction).not.toHaveBeenCalled();
+	});
+
+	it('should reject malformed JSON step rows before DB work', async () => {
+		const fd = createJsonFormData([{ title: 'Bad steps', steps: [null] }]);
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: fd,
+			user: adminUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		expect(mockDb.select).not.toHaveBeenCalled();
+		expect(mockDb.transaction).not.toHaveBeenCalled();
+	});
+
+	it('should normalize scalar JSON field values without crashing', async () => {
+		const fd = createJsonFormData([{ title: 123, priority: 'medium', tags: [1, 'smoke'] }]);
+
+		mockDb.select.mockImplementation(() => {
+			return mockSelectResult(mockDb, []) as never;
+		});
+
+		mockDb.transaction.mockImplementation(async (fn) => {
+			const txChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: 1 }]),
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				onConflictDoNothing: vi.fn().mockReturnThis(),
+				then: undefined as unknown
+			};
+			txChain.then = (r: (v: unknown) => void) =>
+				Promise.resolve([{ maxKey: null, maxOrder: 0 }]).then(r);
+			const txSelectChain = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([{ maxKey: null, maxOrder: 0 }]).then(r)
+			};
+			const tx = {
+				select: vi.fn().mockReturnValue(txSelectChain),
+				insert: vi.fn().mockReturnValue(txChain),
+				update: vi.fn().mockReturnValue(txChain)
+			};
+			return fn(tx);
+		});
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: fd,
+			user: adminUser
+		});
+		const response = await POST(event);
+		const body = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(body.imported).toBe(1);
+	});
+
 	it('should scope imported test case latest-version updates to the current project', async () => {
 		const fd = createJsonFormData([{ title: 'Scoped import', priority: 'MEDIUM' }]);
 

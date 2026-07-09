@@ -46,6 +46,12 @@ function validateFileName(name: string): string {
 	if (!fileName) {
 		error(400, 'File name is required');
 	}
+	if (fileName === '.' || fileName === '..') {
+		error(400, 'File name is not allowed');
+	}
+	if (/[\x00-\x1F\x7F/\\]/.test(fileName)) {
+		error(400, 'File name contains invalid characters');
+	}
 	if (fileName.length > MAX_FILE_NAME_LENGTH) {
 		error(400, `File name must be ${MAX_FILE_NAME_LENGTH} characters or less`);
 	}

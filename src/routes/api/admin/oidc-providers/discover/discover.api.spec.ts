@@ -100,7 +100,7 @@ describe('/api/admin/oidc-providers/discover', () => {
 		);
 	});
 
-	it('should ignore non-object discovery documents', async () => {
+	it('should reject non-object discovery documents', async () => {
 		mockFetch.mockResolvedValue({
 			ok: true,
 			json: vi.fn().mockResolvedValue(null)
@@ -112,16 +112,25 @@ describe('/api/admin/oidc-providers/discover', () => {
 			user: adminUser
 		});
 
-		const response = await POST(event);
-		const body = await response.json();
+		await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+	});
 
-		expect(response.status).toBe(200);
-		expect(body).toEqual({
-			authorizationUrl: '',
-			tokenUrl: '',
-			userinfoUrl: '',
-			jwksUri: ''
+	it('should reject discovery documents missing required endpoints', async () => {
+		mockFetch.mockResolvedValue({
+			ok: true,
+			json: vi.fn().mockResolvedValue({
+				authorization_endpoint: 'https://issuer.example/authorize',
+				jwks_uri: 'https://issuer.example/jwks'
+			})
 		});
+
+		const event = createMockEvent({
+			method: 'POST',
+			body: { issuerUrl: 'https://incomplete-issuer.example' },
+			user: adminUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 400 });
 	});
 
 	it('should reject discovery redirects instead of following them', async () => {

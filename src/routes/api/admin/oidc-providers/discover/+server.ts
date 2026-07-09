@@ -2,13 +2,14 @@ import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { requireAuth, isGlobalAdmin, parseJsonBody } from '$lib/server/auth-utils';
 import { validatePublicHttpsUrl } from '$lib/server/url-safety';
+import { isPlainRecord } from '$lib/server/object-validation';
 
 const discoveryCache = new Map<string, { data: unknown; expiresAt: number }>();
 const CACHE_TTL = 300_000; // 5 minutes
 const FETCH_TIMEOUT = 10_000; // 10 seconds
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
+	return isPlainRecord(value);
 }
 
 function parseIssuerUrl(body: unknown): string {
@@ -33,6 +34,14 @@ function readStringField(source: unknown, field: string): string {
 	if (!isRecord(source)) return '';
 	const value = source[field];
 	return typeof value === 'string' ? value : '';
+}
+
+function readRequiredStringField(source: unknown, field: string): string {
+	const value = readStringField(source, field).trim();
+	if (!value) {
+		error(400, `OpenID configuration is missing ${field}`);
+	}
+	return value;
 }
 
 async function assertSafeIssuerUrl(issuerUrl: string): Promise<void> {
@@ -80,10 +89,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const config = await res.json();
 
 		const data = {
-			authorizationUrl: readStringField(config, 'authorization_endpoint'),
-			tokenUrl: readStringField(config, 'token_endpoint'),
+			authorizationUrl: readRequiredStringField(config, 'authorization_endpoint'),
+			tokenUrl: readRequiredStringField(config, 'token_endpoint'),
 			userinfoUrl: readStringField(config, 'userinfo_endpoint'),
-			jwksUri: readStringField(config, 'jwks_uri')
+			jwksUri: readRequiredStringField(config, 'jwks_uri')
 		};
 
 		// Cache the result

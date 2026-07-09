@@ -245,6 +245,9 @@ export const actions: Actions = {
 					updatedBy: authUser.id
 				})
 				.returning();
+			if (!version) {
+				error(500, 'Failed to create test case version');
+			}
 
 			await tx
 				.update(testCase)
@@ -298,6 +301,9 @@ export const actions: Actions = {
 					createdBy: authUser.id
 				})
 				.returning();
+			if (!newTag) {
+				error(500, 'Failed to create tag');
+			}
 
 			await tx.insert(testCaseTag).values({ testCaseId, tagId: newTag.id });
 		});

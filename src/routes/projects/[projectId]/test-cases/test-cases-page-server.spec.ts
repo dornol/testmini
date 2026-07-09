@@ -112,6 +112,18 @@ function makeFormData(entries: Record<string, FormDataEntryValue>): FormData {
 	return formData;
 }
 
+function resolvedChain(result: unknown[]) {
+	const chain = {
+		from: vi.fn(() => chain),
+		where: vi.fn(() => chain),
+		values: vi.fn(() => chain),
+		returning: vi.fn(() => chain),
+		set: vi.fn(() => chain),
+		then: (resolve: (value: unknown[]) => void) => Promise.resolve(result).then(resolve)
+	};
+	return chain;
+}
+
 describe('test cases page server actions', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -157,6 +169,53 @@ describe('test cases page server actions', () => {
 				expect(mockDb.transaction).not.toHaveBeenCalled();
 			}
 		);
+
+		it('throws when the test case insert returns no row', async () => {
+			const txSelectChain = resolvedChain([{ maxKey: null }]);
+			const txInsertChain = resolvedChain([]);
+			const tx = {
+				select: vi.fn(() => txSelectChain),
+				insert: vi.fn(() => txInsertChain),
+				update: vi.fn()
+			};
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				formData: makeFormData({ title: 'New case', priority: 'MEDIUM' })
+			});
+
+			await expect(actions.quickCreate(event)).rejects.toMatchObject({
+				status: 500,
+				body: { message: 'Failed to create test case' }
+			});
+			expect(tx.update).not.toHaveBeenCalled();
+		});
+
+		it('throws when the first version insert returns no row', async () => {
+			const txSelectChain = resolvedChain([{ maxKey: null }]);
+			const createdChain = resolvedChain([{ id: 12 }]);
+			const versionChain = resolvedChain([]);
+			const tx = {
+				select: vi.fn(() => txSelectChain),
+				insert: vi.fn().mockReturnValueOnce(createdChain).mockReturnValueOnce(versionChain),
+				update: vi.fn()
+			};
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				formData: makeFormData({ title: 'New case', priority: 'MEDIUM' })
+			});
+
+			await expect(actions.quickCreate(event)).rejects.toMatchObject({
+				status: 500,
+				body: { message: 'Failed to create test case version' }
+			});
+			expect(tx.update).not.toHaveBeenCalled();
+		});
 	});
 });
 

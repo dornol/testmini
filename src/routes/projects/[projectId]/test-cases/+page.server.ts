@@ -380,6 +380,9 @@ export const actions: Actions = {
 					createdBy: authUser.id
 				})
 				.returning();
+			if (!created) {
+				error(500, 'Failed to create test case');
+			}
 
 			// Create first version with minimal data
 			const [version] = await tx
@@ -395,6 +398,9 @@ export const actions: Actions = {
 					updatedBy: authUser.id
 				})
 				.returning();
+			if (!version) {
+				error(500, 'Failed to create test case version');
+			}
 
 			// Update latestVersionId
 			await tx

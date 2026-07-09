@@ -127,6 +127,27 @@ describe('test case detail page actions', () => {
 			expect(mockDb.query.tag.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
+
+		it('throws when the tag insert returns no row', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValueOnce({ id: 10, projectId: 1 });
+			mockDb.query.tag.findFirst.mockResolvedValueOnce(null);
+			const returning = vi.fn().mockResolvedValue([]);
+			const tagValues = vi.fn(() => ({ returning }));
+			const txInsert = vi.fn().mockReturnValueOnce({ values: tagValues });
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn({ insert: txInsert }));
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				formData: makeFormData({ name: 'Regression', color: '#3b82f6' }),
+				user: testUser
+			});
+
+			await expect(actions.createTag(event)).rejects.toMatchObject({
+				status: 500,
+				body: { message: 'Failed to create tag' }
+			});
+			expect(txInsert).toHaveBeenCalledTimes(1);
+		});
 	});
 
 	describe('assignTag', () => {

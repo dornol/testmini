@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { fail, redirect } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { createTestCaseSchema, type CreateTestCaseInput } from '$lib/schemas/test-case.schema';
 import { emptyForm, validateForm } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
@@ -16,13 +16,17 @@ export const load: PageServerLoad = async ({ parent, params }) => {
 	const projectId = parseId(params.projectId, 'project ID');
 	const [form, customFieldDefs] = await Promise.all([
 		emptyForm(createTestCaseSchema),
-		db.select({
-			id: customField.id,
-			name: customField.name,
-			fieldType: customField.fieldType,
-			options: customField.options,
-			required: customField.required
-		}).from(customField).where(eq(customField.projectId, projectId)).orderBy(asc(customField.sortOrder), asc(customField.id))
+		db
+			.select({
+				id: customField.id,
+				name: customField.name,
+				fieldType: customField.fieldType,
+				options: customField.options,
+				required: customField.required
+			})
+			.from(customField)
+			.where(eq(customField.projectId, projectId))
+			.orderBy(asc(customField.sortOrder), asc(customField.id))
 	]);
 	return { form, customFieldDefs };
 };
@@ -39,16 +43,21 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		const { title, precondition, steps, expectedResult, priority, automationKey, stepFormat, customFields: customFieldValues } =
-			form.data as CreateTestCaseInput;
+		const {
+			title,
+			precondition,
+			steps,
+			expectedResult,
+			priority,
+			automationKey,
+			stepFormat,
+			customFields: customFieldValues
+		} = form.data as CreateTestCaseInput;
 
 		// Validate automationKey uniqueness before transaction
 		if (automationKey) {
 			const existingAk = await db.query.testCase.findFirst({
-				where: and(
-					eq(testCase.projectId, projectId),
-					eq(testCase.automationKey, automationKey)
-				)
+				where: and(eq(testCase.projectId, projectId), eq(testCase.automationKey, automationKey))
 			});
 			if (existingAk) {
 				return fail(409, { form });
@@ -83,6 +92,9 @@ export const actions: Actions = {
 					createdBy: user.id
 				})
 				.returning();
+			if (!created) {
+				error(500, 'Failed to create test case');
+			}
 
 			// Create first version
 			const numberedSteps = steps.map((s, i) => ({
@@ -102,10 +114,16 @@ export const actions: Actions = {
 					stepFormat: stepFormat ?? 'STEPS',
 					expectedResult: expectedResult || null,
 					priority,
-					customFields: customFieldValues && Object.keys(customFieldValues).length > 0 ? customFieldValues : null,
+					customFields:
+						customFieldValues && Object.keys(customFieldValues).length > 0
+							? customFieldValues
+							: null,
 					updatedBy: user.id
 				})
 				.returning();
+			if (!version) {
+				error(500, 'Failed to create test case version');
+			}
 
 			// Update latestVersionId
 			await tx

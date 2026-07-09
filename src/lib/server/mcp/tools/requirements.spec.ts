@@ -167,6 +167,7 @@ describe('MCP requirement tools', () => {
 		it('should link requirement to test case', async () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockInsertReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'link-requirement-test-case',
@@ -178,6 +179,25 @@ describe('MCP requirement tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.requirementId).toBe(1);
 			expect(parsed.testCaseId).toBe(10);
+			expect(parsed.linked).toBe(true);
+		});
+
+		it('should report linked false when requirement link already exists', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'link-requirement-test-case',
+				arguments: { requirementId: 1, testCaseId: 10 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.requirementId).toBe(1);
+			expect(parsed.testCaseId).toBe(10);
+			expect(parsed.linked).toBe(false);
 		});
 
 		it('should return error when requirement not found', async () => {

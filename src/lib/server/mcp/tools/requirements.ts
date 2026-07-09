@@ -70,12 +70,13 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 			});
 			if (!tc) return err('Test case not found');
 
-			await db
+			const [inserted] = await db
 				.insert(requirementTestCase)
 				.values({ requirementId, testCaseId })
-				.onConflictDoNothing();
+				.onConflictDoNothing()
+				.returning({ id: requirementTestCase.id });
 
-			return ok({ success: true, requirementId, testCaseId });
+			return ok({ success: true, requirementId, testCaseId, linked: !!inserted });
 		}
 	);
 

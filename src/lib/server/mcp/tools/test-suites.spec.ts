@@ -187,6 +187,7 @@ describe('MCP test-suite tools', () => {
 		it('should add test cases to suite', async () => {
 			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
 			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
+			mockInsertReturning(mockDb, [{ id: 1 }, { id: 2 }]);
 
 			const result = await client.callTool({
 				name: 'add-suite-items',
@@ -197,6 +198,22 @@ describe('MCP test-suite tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.success).toBe(true);
 			expect(parsed.addedCount).toBe(2);
+		});
+
+		it('should report zero added when all suite items already exist', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'add-suite-items',
+				arguments: { suiteId: 1, testCaseIds: [10, 11] }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.addedCount).toBe(0);
 		});
 
 		it('should reject test cases outside the current project', async () => {

@@ -182,8 +182,12 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 			if (validCases.length !== uniqueTestCaseIds.length) return err('Test case not found');
 
 			const values = testCaseIds.map((tcId) => ({ moduleId, testCaseId: tcId }));
-			await db.insert(moduleTestCase).values(values).onConflictDoNothing();
-			return ok({ success: true, moduleId, addedCount: testCaseIds.length });
+			const inserted = await db
+				.insert(moduleTestCase)
+				.values(values)
+				.onConflictDoNothing()
+				.returning({ id: moduleTestCase.id });
+			return ok({ success: true, moduleId, addedCount: inserted.length });
 		}
 	);
 

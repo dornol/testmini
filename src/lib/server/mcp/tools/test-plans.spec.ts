@@ -313,7 +313,7 @@ describe('MCP test-plan tools', () => {
 					then: (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve)
 				} as never;
 			});
-			mockInsertReturning(mockDb, []);
+			mockInsertReturning(mockDb, [{ id: 1 }, { id: 2 }]);
 
 			const result = await client.callTool({
 				name: 'add-plan-items',
@@ -324,6 +324,31 @@ describe('MCP test-plan tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.success).toBe(true);
 			expect(parsed.addedCount).toBe(2);
+		});
+
+		it('should report zero added when all plan items already exist', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValue(samplePlan);
+			let selectCallCount = 0;
+			mockDb.select.mockImplementation(() => {
+				selectCallCount++;
+				const data = selectCallCount === 1 ? [{ id: 10 }, { id: 11 }] : [{ maxPos: 2 }];
+				return {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve)
+				} as never;
+			});
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'add-plan-items',
+				arguments: { planId: 1, testCaseIds: [10, 11] }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.addedCount).toBe(0);
 		});
 
 		it('should reject test cases outside the project', async () => {

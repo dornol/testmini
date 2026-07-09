@@ -189,9 +189,13 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 				position: maxPos + 1 + i
 			}));
 
-			await db.insert(testPlanTestCase).values(values).onConflictDoNothing();
+			const inserted = await db
+				.insert(testPlanTestCase)
+				.values(values)
+				.onConflictDoNothing()
+				.returning({ id: testPlanTestCase.id });
 
-			return ok({ success: true, addedCount: testCaseIds.length });
+			return ok({ success: true, addedCount: inserted.length });
 		}
 	);
 

@@ -371,7 +371,7 @@ describe('MCP module tools', () => {
 		it('should add test cases to module', async () => {
 			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
 			mockSelectResult(mockDb, [{ id: 10 }, { id: 20 }]);
-			mockInsertReturning(mockDb, []);
+			mockInsertReturning(mockDb, [{ id: 1 }, { id: 2 }]);
 
 			const result = await client.callTool({
 				name: 'add-module-test-cases',
@@ -383,6 +383,23 @@ describe('MCP module tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.moduleId).toBe(1);
 			expect(parsed.addedCount).toBe(2);
+		});
+
+		it('should report zero added when all module links already exist', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 20 }]);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'add-module-test-cases',
+				arguments: { moduleId: 1, testCaseIds: [10, 20] }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.moduleId).toBe(1);
+			expect(parsed.addedCount).toBe(0);
 		});
 
 		it('should reject adding test cases outside the current project', async () => {

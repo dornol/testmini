@@ -92,9 +92,13 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 			if (validCases.length !== uniqueTestCaseIds.length) return err('Test case not found');
 
 			const values = testCaseIds.map((testCaseId) => ({ suiteId, testCaseId }));
-			await db.insert(testSuiteItem).values(values).onConflictDoNothing();
+			const inserted = await db
+				.insert(testSuiteItem)
+				.values(values)
+				.onConflictDoNothing()
+				.returning({ id: testSuiteItem.id });
 
-			return ok({ success: true, suiteId, addedCount: values.length });
+			return ok({ success: true, suiteId, addedCount: inserted.length });
 		}
 	);
 

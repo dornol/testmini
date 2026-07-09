@@ -2078,6 +2078,7 @@ describe('MCP Server', () => {
 		it('should add items to suite', async () => {
 			mockDb.query.testSuite.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Suite' });
 			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
+			mockInsertReturning(mockDb, [{ id: 1 }, { id: 2 }]);
 
 			const result = await client.callTool({
 				name: 'add-suite-items',
@@ -2216,6 +2217,7 @@ describe('MCP Server', () => {
 					then: (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve)
 				} as never;
 			});
+			mockInsertReturning(mockDb, [{ id: 1 }, { id: 2 }]);
 
 			const result = await client.callTool({
 				name: 'add-plan-items',

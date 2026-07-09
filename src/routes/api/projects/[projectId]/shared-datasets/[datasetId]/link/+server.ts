@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { sharedDataSet, testCase, testCaseParameter, testCaseDataSet } from '$lib/server/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
@@ -104,7 +104,13 @@ export const POST = withProjectRole(
 			}
 
 			if (values.length > 0) {
-				await tx.insert(testCaseDataSet).values(values);
+				const insertedDataSets = await tx
+					.insert(testCaseDataSet)
+					.values(values)
+					.returning({ id: testCaseDataSet.id });
+				if (insertedDataSets.length !== values.length) {
+					error(500, 'Failed to link all shared data set rows');
+				}
 			}
 		});
 

@@ -191,7 +191,8 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/import', ()
 		const secondParamConflict = vi.fn().mockResolvedValue([]);
 		const firstParamValues = vi.fn(() => ({ onConflictDoNothing: firstParamConflict }));
 		const secondParamValues = vi.fn(() => ({ onConflictDoNothing: secondParamConflict }));
-		const dataSetValues = vi.fn().mockResolvedValue([]);
+		const dataSetReturning = vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }]);
+		const dataSetValues = vi.fn().mockReturnValue({ returning: dataSetReturning });
 		const txInsert = vi
 			.fn()
 			.mockReturnValueOnce({ values: firstParamValues })
@@ -237,7 +238,41 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/import', ()
 				orderIndex: 1
 			}
 		]);
+		expect(dataSetReturning).toHaveBeenCalledWith({ id: 'id' });
 		expect(mockDb.insert).not.toHaveBeenCalled();
+	});
+
+	it('should return 500 when data set insert creates fewer rows than requested', async () => {
+		mockDb.select.mockImplementation(() => {
+			const chain = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				orderBy: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+			};
+			return chain as never;
+		});
+
+		const paramConflict = vi.fn().mockResolvedValue([]);
+		const paramValues = vi.fn(() => ({ onConflictDoNothing: paramConflict }));
+		const dataSetValues = vi.fn().mockReturnValue({
+			returning: vi.fn().mockResolvedValue([{ id: 1 }])
+		});
+		const txInsert = vi
+			.fn()
+			.mockReturnValueOnce({ values: paramValues })
+			.mockReturnValueOnce({ values: paramValues })
+			.mockReturnValueOnce({ values: dataSetValues });
+		mockDb.transaction.mockImplementationOnce(async (fn) => fn({ insert: txInsert }));
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: createCsvFormData('browser,os\nChrome,Windows\nFirefox,Linux'),
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 500 });
 	});
 
 	it('should handle CSV with quoted fields', async () => {
@@ -251,11 +286,17 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/import', ()
 			return chain as never;
 		});
 
-		const insertChain = {
-			values: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
-		};
-		mockDb.insert.mockReturnValue(insertChain as never);
+		const paramConflict = vi.fn().mockResolvedValue([]);
+		const paramValues = vi.fn(() => ({ onConflictDoNothing: paramConflict }));
+		const dataSetValues = vi.fn().mockReturnValue({
+			returning: vi.fn().mockResolvedValue([{ id: 1 }])
+		});
+		const txInsert = vi
+			.fn()
+			.mockReturnValueOnce({ values: paramValues })
+			.mockReturnValueOnce({ values: paramValues })
+			.mockReturnValueOnce({ values: dataSetValues });
+		mockDb.transaction.mockImplementationOnce(async (fn) => fn({ insert: txInsert }));
 
 		const csv = 'name,value\n"Hello, World","with ""quotes"""';
 		const formData = createCsvFormData(csv);
@@ -289,11 +330,16 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/import', ()
 			return chain as never;
 		});
 
-		const insertChain = {
-			values: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
-		};
-		mockDb.insert.mockReturnValue(insertChain as never);
+		const paramConflict = vi.fn().mockResolvedValue([]);
+		const paramValues = vi.fn(() => ({ onConflictDoNothing: paramConflict }));
+		const dataSetValues = vi.fn().mockReturnValue({
+			returning: vi.fn().mockResolvedValue([{ id: 1 }])
+		});
+		const txInsert = vi
+			.fn()
+			.mockReturnValueOnce({ values: paramValues })
+			.mockReturnValueOnce({ values: dataSetValues });
+		mockDb.transaction.mockImplementationOnce(async (fn) => fn({ insert: txInsert }));
 
 		const csv = 'browser,os\nChrome,Windows';
 		const formData = createCsvFormData(csv);

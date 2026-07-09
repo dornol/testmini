@@ -258,6 +258,15 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 			};
 			return chain as never;
 		});
+		const paramValues = vi.fn().mockResolvedValue([]);
+		const dataSetReturning = vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }]);
+		const dataSetValues = vi.fn().mockReturnValue({ returning: dataSetReturning });
+		const txInsert = vi
+			.fn()
+			.mockReturnValueOnce({ values: paramValues })
+			.mockReturnValueOnce({ values: paramValues })
+			.mockReturnValueOnce({ values: dataSetValues });
+		mockDb.transaction.mockImplementationOnce(async (fn) => fn({ insert: txInsert }));
 
 		const event = createMockEvent({
 			method: 'POST',
@@ -271,7 +280,46 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 		expect(response.status).toBe(200);
 		expect(data.linked).toBe(2);
 		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+		expect(dataSetReturning).toHaveBeenCalledWith({ id: 'id' });
 		expect(mockDb.insert).not.toHaveBeenCalled();
+	});
+
+	it('should return 500 when linked data set insert creates fewer rows than requested', async () => {
+		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+			sampleSharedDataSet
+		);
+		(mockDb.query.testCase.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+			id: 10,
+			projectId: 1
+		});
+		mockDb.select.mockImplementation(() => {
+			const chain = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				orderBy: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+			};
+			return chain as never;
+		});
+		const paramValues = vi.fn().mockResolvedValue([]);
+		const dataSetValues = vi.fn().mockReturnValue({
+			returning: vi.fn().mockResolvedValue([{ id: 1 }])
+		});
+		const txInsert = vi
+			.fn()
+			.mockReturnValueOnce({ values: paramValues })
+			.mockReturnValueOnce({ values: paramValues })
+			.mockReturnValueOnce({ values: dataSetValues });
+		mockDb.transaction.mockImplementationOnce(async (fn) => fn({ insert: txInsert }));
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { testCaseId: 10 },
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 500 });
 	});
 
 	it('should handle shared dataset with no rows', async () => {

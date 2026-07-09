@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCaseParameter, testCaseDataSet } from '$lib/server/db/schema';
 import { eq, asc } from 'drizzle-orm';
@@ -131,7 +131,13 @@ export const POST = withProjectRole(
 			}
 
 			if (dataSets.length > 0) {
-				await tx.insert(testCaseDataSet).values(dataSets);
+				const insertedDataSets = await tx
+					.insert(testCaseDataSet)
+					.values(dataSets)
+					.returning({ id: testCaseDataSet.id });
+				if (insertedDataSets.length !== dataSets.length) {
+					error(500, 'Failed to import all data set rows');
+				}
 			}
 		});
 

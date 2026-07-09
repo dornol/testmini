@@ -164,6 +164,21 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 			expect(body.error).toMatch(/name/i);
 		});
 
+		it('should return 400 when name contains control characters before updating', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Updated\u0000Template' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('Template name must not contain control characters');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when request body is not an object', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -206,6 +221,21 @@ describe('/api/projects/[projectId]/templates/[templateId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toMatch(/priority/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when priority contains control characters before updating', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { priority: 'HIGH\u0000' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('Priority must not contain control characters');
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 

@@ -7,6 +7,30 @@ class TemplateStepPayload {
 }
 
 describe('template validation', () => {
+	it('rejects control characters in create template names', async () => {
+		const result = validateCreateTemplateInput({
+			name: 'Login\u0000template'
+		});
+
+		expect(result).toBeInstanceOf(Response);
+		expect((result as Response).status).toBe(400);
+		expect(await (result as Response).json()).toEqual({
+			error: 'Template name must not contain control characters'
+		});
+	});
+
+	it('rejects control characters in update template priority', async () => {
+		const result = validateUpdateTemplateInput({
+			priority: 'HIGH\u0000'
+		});
+
+		expect(result).toBeInstanceOf(Response);
+		expect((result as Response).status).toBe(400);
+		expect(await (result as Response).json()).toEqual({
+			error: 'Priority must not contain control characters'
+		});
+	});
+
 	it('rejects non-plain create template step objects', async () => {
 		const result = validateCreateTemplateInput({
 			name: 'Login template',

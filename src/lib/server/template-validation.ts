@@ -7,6 +7,7 @@ const MAX_NAME_LENGTH = 200;
 const MAX_TEXT_LENGTH = 10000;
 const MAX_PRIORITY_LENGTH = 30;
 const MAX_STEPS = 500;
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 const TEMPLATE_FIELDS = new Set(['name', 'description', 'precondition', 'steps', 'priority']);
 
 type TemplateInput = {
@@ -98,6 +99,9 @@ function validateTemplateName(value: unknown): string | Response {
 		return badRequest('Template name is required');
 	}
 	const name = value.trim();
+	if (CONTROL_CHAR_PATTERN.test(name)) {
+		return badRequest('Template name must not contain control characters');
+	}
 	if (name.length > MAX_NAME_LENGTH) {
 		return badRequest(`Template name must be ${MAX_NAME_LENGTH} characters or less`);
 	}
@@ -121,6 +125,9 @@ function validatePriority(value: unknown): string | Response {
 		return badRequest('Priority must be a non-empty string');
 	}
 	const priority = value.trim();
+	if (CONTROL_CHAR_PATTERN.test(priority)) {
+		return badRequest('Priority must not contain control characters');
+	}
 	if (priority.length > MAX_PRIORITY_LENGTH) {
 		return badRequest(`Priority must be ${MAX_PRIORITY_LENGTH} characters or less`);
 	}

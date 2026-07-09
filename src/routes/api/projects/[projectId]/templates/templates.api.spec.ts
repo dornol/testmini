@@ -193,6 +193,21 @@ describe('/api/projects/[projectId]/templates', () => {
 			expect(body.error).toMatch(/name/i);
 		});
 
+		it('should return 400 when name contains control characters before inserting', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'New\u0000Template' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('Template name must not contain control characters');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when request body is not an object', async () => {
 			const event = createMockEvent({
 				method: 'POST',
@@ -279,6 +294,21 @@ describe('/api/projects/[projectId]/templates', () => {
 
 			expect(response.status).toBe(201);
 			expect(body.id).toBe(created.id);
+		});
+
+		it('should return 400 when priority contains control characters before inserting', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'New Template', priority: 'HIGH\u0000' },
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('Priority must not contain control characters');
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should number steps with order on creation', async () => {

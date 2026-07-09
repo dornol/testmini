@@ -307,6 +307,23 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for unknown fields before updating', async () => {
+			mockDb.query.projectWebhook.findFirst.mockResolvedValue(existingWebhook);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Updated', retryPolicy: 'aggressive' },
+				user: adminUser
+			});
+
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid webhook field');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when patch field types are invalid', async () => {
 			const cases = [
 				{ name: 123 },

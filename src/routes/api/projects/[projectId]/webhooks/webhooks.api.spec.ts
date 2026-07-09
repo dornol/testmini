@@ -335,6 +335,25 @@ describe('/api/projects/[projectId]/webhooks', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for unknown fields before inserting', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: {
+					name: 'Hook',
+					url: 'https://example.com/hook',
+					retryPolicy: 'aggressive'
+				},
+				user: adminUser
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid webhook field');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when string fields have invalid types', async () => {
 			const cases = [
 				{ name: 123, url: 'https://example.com/hook' },

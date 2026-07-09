@@ -12,6 +12,7 @@ export const VALID_WEBHOOK_EVENTS = [
 export const MAX_WEBHOOK_NAME_LENGTH = 100;
 export const MAX_WEBHOOK_SECRET_LENGTH = 4000;
 export const MAX_WEBHOOK_EVENTS = VALID_WEBHOOK_EVENTS.length;
+const WEBHOOK_FIELDS = new Set(['name', 'url', 'secret', 'events', 'enabled']);
 
 export interface WebhookFieldValidationOptions {
 	requireName?: boolean;
@@ -63,6 +64,10 @@ export async function validateWebhookFields(
 	}
 
 	const input = body as Record<string, unknown>;
+	if (Object.keys(input).some((key) => !WEBHOOK_FIELDS.has(key))) {
+		return badRequest('Invalid webhook field');
+	}
+
 	const result: ValidatedWebhookFields = {};
 
 	if (input.name !== undefined) {

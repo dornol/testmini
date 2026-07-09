@@ -290,7 +290,7 @@ describe('/api/projects/[projectId]/custom-fields', () => {
 		});
 
 		it('should return 400 when sortOrder is invalid', async () => {
-			const cases = ['abc', -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
+			const cases = ['1', 'abc', true, {}, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
 
 			for (const sortOrder of cases) {
 				vi.clearAllMocks();

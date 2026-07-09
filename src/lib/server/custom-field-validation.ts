@@ -148,15 +148,8 @@ function validateOptions(value: unknown, fieldType?: CustomFieldType): string[] 
 }
 
 function validateNonNegativeInteger(value: unknown, label: string): number | Response {
-	if (value == null) {
+	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
 		return badRequest(`${label} must be a non-negative integer`);
 	}
-	if (typeof value === 'string' && value.trim().length === 0) {
-		return badRequest(`${label} must be a non-negative integer`);
-	}
-	const parsed = typeof value === 'number' ? value : Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed < 0) {
-		return badRequest(`${label} must be a non-negative integer`);
-	}
-	return parsed;
+	return value;
 }

@@ -139,7 +139,7 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 		});
 
 		it('should reject invalid sortOrder', async () => {
-			const cases = ['abc', -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
+			const cases = ['1', 'abc', true, {}, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
 
 			for (const sortOrder of cases) {
 				vi.clearAllMocks();
@@ -238,7 +238,7 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 			expect(updateChain.where).toHaveBeenCalledWith(expect.arrayContaining([['project_id', 1]]));
 		});
 
-		it('should trim options and sort order on update', async () => {
+		it('should trim options and update sort order', async () => {
 			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
 			const updatedField = {
 				...sampleField,
@@ -251,7 +251,7 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 				method: 'PATCH',
 				params: PARAMS,
 				user: testUser,
-				body: { options: [' Chrome ', ' Firefox '], sortOrder: '2' }
+				body: { options: [' Chrome ', ' Firefox '], sortOrder: 2 }
 			});
 
 			const response = await PATCH(event);

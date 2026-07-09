@@ -27,6 +27,16 @@ describe('createPrioritySchema', () => {
 		expect(result.name).toBe('High');
 	});
 
+	it('should reject control characters in name', () => {
+		const result = createPrioritySchema.safeParse({ name: 'High\nPriority', color: '#ff0000' });
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.map((issue) => issue.message)).toContain(
+				'Name must not contain control characters'
+			);
+		}
+	});
+
 	it('should reject name exceeding 30 characters', () => {
 		const result = createPrioritySchema.safeParse({ name: 'a'.repeat(31), color: '#ff0000' });
 		expect(result.success).toBe(false);
@@ -151,6 +161,20 @@ describe('updatePrioritySchema', () => {
 			color: '#ff0000'
 		});
 		expect(result.name).toBe('High');
+	});
+
+	it('should reject control characters in name', () => {
+		const result = updatePrioritySchema.safeParse({
+			priorityId: 1,
+			name: 'High\nPriority',
+			color: '#ff0000'
+		});
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.map((issue) => issue.message)).toContain(
+				'Name must not contain control characters'
+			);
+		}
 	});
 
 	it('should reject name exceeding 30 characters', () => {

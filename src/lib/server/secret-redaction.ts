@@ -35,7 +35,7 @@ export function redactSecrets(
 	redacted = redacted.replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/gi, `$1 ${REDACTED}`);
 	redacted = redacted.replace(/\btoken\s+[A-Za-z0-9._~+/=-]{8,}/gi, `token ${REDACTED}`);
 	redacted = redacted.replace(
-		/\b((?:api[_-]?token|access[_-]?token|private[_-]?token|authorization|password|secret)\b["']?\s*[:=]\s*["']?)([^"',\s}]+)/gi,
+		/\b((?:token|api[_-]?token|access[_-]?token|private[_-]?token|authorization|password|secret)\b["']?\s*[:=]\s*["']?)([^"',\s}]+)/gi,
 		`$1${REDACTED}`
 	);
 

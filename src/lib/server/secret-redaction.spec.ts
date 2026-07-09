@@ -23,4 +23,11 @@ describe('redactSecrets', () => {
 		expect(result).not.toContain('very-secret-token');
 		expect(result).toContain('[redacted]');
 	});
+
+	it('redacts bare token query parameters', () => {
+		const result = redactSecrets('POST https://hooks.example.com/path?token=query-secret-12345');
+
+		expect(result).not.toContain('query-secret-12345');
+		expect(result).toContain('token=[redacted]');
+	});
 });

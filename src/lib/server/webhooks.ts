@@ -4,6 +4,7 @@ import { eq, and } from 'drizzle-orm';
 import { childLogger } from './logger';
 import crypto from 'node:crypto';
 import { validatePublicHttpUrl } from './url-safety';
+import { redactSecrets } from './secret-redaction';
 
 const log = childLogger('webhooks');
 
@@ -75,13 +76,18 @@ async function deliverWithRetry(
 			await db.insert(webhookDeliveryLog).values({
 				webhookId,
 				event,
-				url,
-				requestBody:
-					body.length > MAX_RESPONSE_BODY_LENGTH ? body.slice(0, MAX_RESPONSE_BODY_LENGTH) : body,
+				url: sanitizeWebhookLogValue(url, secret),
+				requestBody: sanitizeWebhookLogValue(body, secret),
 				statusCode: result.statusCode,
-				responseBody: result.responseBody?.slice(0, MAX_RESPONSE_BODY_LENGTH) ?? null,
+				responseBody:
+					result.responseBody === null
+						? null
+						: sanitizeWebhookLogValue(result.responseBody, secret),
 				success: result.success,
-				errorMessage: result.errorMessage,
+				errorMessage:
+					result.errorMessage === null
+						? null
+						: sanitizeWebhookLogValue(result.errorMessage, secret),
 				attempt,
 				duration: result.duration
 			});
@@ -155,7 +161,10 @@ async function deliverWebhook(
 
 		const success = res.ok;
 		if (!success) {
-			log.warn({ url, status: res.status }, 'Webhook delivery failed');
+			log.warn(
+				{ url: sanitizeWebhookLogValue(url, secret), status: res.status },
+				'Webhook delivery failed'
+			);
 		}
 
 		return {
@@ -167,8 +176,14 @@ async function deliverWebhook(
 		};
 	} catch (err) {
 		const duration = Date.now() - start;
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		log.warn({ err, url }, 'Webhook delivery error');
+		const errorMessage = sanitizeWebhookLogValue(
+			err instanceof Error ? err.message : String(err),
+			secret
+		);
+		log.warn(
+			{ err: { message: errorMessage }, url: sanitizeWebhookLogValue(url, secret) },
+			'Webhook delivery error'
+		);
 
 		return {
 			success: false,
@@ -180,6 +195,13 @@ async function deliverWebhook(
 	} finally {
 		clearTimeout(timeout);
 	}
+}
+
+function sanitizeWebhookLogValue(value: string, secret: string | null): string {
+	const redacted = redactSecrets(value, [secret]);
+	return redacted.length > MAX_RESPONSE_BODY_LENGTH
+		? redacted.slice(0, MAX_RESPONSE_BODY_LENGTH)
+		: redacted;
 }
 
 function sleep(ms: number): Promise<void> {

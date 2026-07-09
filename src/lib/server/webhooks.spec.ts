@@ -4,6 +4,11 @@ import crypto from 'node:crypto';
 
 const mockDb = createMockDb();
 const mockLookup = vi.fn();
+const mockLog = vi.hoisted(() => ({
+	info: vi.fn(),
+	warn: vi.fn(),
+	error: vi.fn()
+}));
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('dns/promises', () => ({
@@ -41,7 +46,7 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/logger', () => ({
-	childLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })
+	childLogger: () => mockLog
 }));
 
 // Mock db.insert for delivery log writes
@@ -295,6 +300,56 @@ describe('sendProjectWebhooks', () => {
 		await sendProjectWebhooks(1, 'TEST_RUN_COMPLETED', { title: 'Done', message: 'Done' });
 
 		expect(mockDb.insert).toHaveBeenCalled();
+	});
+
+	it('should redact webhook secrets from persisted delivery logs', async () => {
+		const urlSecret = 'query-secret-12345';
+		const webhookSecret = 'webhook-secret-12345';
+		mockSelectResult(mockDb, [
+			{
+				...sampleWebhook,
+				url: `https://hooks.example.com/webhook?token=${urlSecret}`,
+				secret: webhookSecret
+			}
+		]);
+		fetchSpy.mockResolvedValue(
+			new Response(`Authorization: Bearer response-token-12345 secret=${webhookSecret}`, {
+				status: 500
+			})
+		);
+
+		await sendProjectWebhooks(1, 'TEST_FAILED', {
+			title: 'Fail',
+			message: `secret=${webhookSecret}`
+		});
+
+		const insertValues = vi.mocked(mockDb.insert).mock.results[0].value.values;
+		const loggedDelivery = vi.mocked(insertValues).mock.calls[0][0];
+
+		expect(loggedDelivery.url).not.toContain(urlSecret);
+		expect(loggedDelivery.requestBody).not.toContain(webhookSecret);
+		expect(loggedDelivery.responseBody).not.toContain('response-token-12345');
+		expect(loggedDelivery.responseBody).not.toContain(webhookSecret);
+	});
+
+	it('should redact webhook secrets from delivery warning logs and error messages', async () => {
+		const urlSecret = 'query-secret-12345';
+		const errorSecret = 'fetch-token-12345';
+		mockSelectResult(mockDb, [
+			{ ...sampleWebhook, url: `https://hooks.example.com/webhook?token=${urlSecret}` }
+		]);
+		fetchSpy.mockRejectedValue(new Error(`Authorization: Bearer ${errorSecret}`));
+
+		await sendProjectWebhooks(1, 'TEST_FAILED', { title: 'Fail', message: 'Failed' });
+
+		const insertValues = vi.mocked(mockDb.insert).mock.results[0].value.values;
+		const loggedDelivery = vi.mocked(insertValues).mock.calls[0][0];
+		const [warnMeta] = mockLog.warn.mock.calls[0];
+
+		expect(loggedDelivery.url).not.toContain(urlSecret);
+		expect(loggedDelivery.errorMessage).not.toContain(errorSecret);
+		expect(warnMeta.url).not.toContain(urlSecret);
+		expect(warnMeta.err.message).not.toContain(errorSecret);
 	});
 
 	it('should stop retrying after first success', async () => {

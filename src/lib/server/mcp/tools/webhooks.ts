@@ -5,15 +5,13 @@ import { projectWebhook } from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 import { validatePublicHttpUrl } from '$lib/server/url-safety';
-
-const VALID_EVENTS = [
-	'TEST_RUN_COMPLETED',
-	'TEST_FAILED',
-	'COMMENT_ADDED',
-	'MEMBER_ADDED',
-	'ASSIGNED'
-];
-const MAX_WEBHOOK_NAME_LENGTH = 100;
+import {
+	MAX_WEBHOOK_NAME_LENGTH,
+	MAX_WEBHOOK_EVENTS,
+	MAX_WEBHOOK_SECRET_LENGTH,
+	validateWebhookEventList,
+	validateWebhookSecret
+} from '$lib/server/webhook-validation';
 
 function publicWebhook(w: typeof projectWebhook.$inferSelect) {
 	return {
@@ -30,10 +28,12 @@ async function validateWebhookInput(input: {
 	name?: string;
 	url?: string;
 	events?: string[];
+	secret?: string;
 }): Promise<
-	{ ok: true; name?: string; url?: string; events?: string[] } | { ok: false; error: string }
+	| { ok: true; name?: string; url?: string; events?: string[]; secret?: string | null }
+	| { ok: false; error: string }
 > {
-	const result: { name?: string; url?: string; events?: string[] } = {};
+	const result: { name?: string; url?: string; events?: string[]; secret?: string | null } = {};
 
 	if (input.name !== undefined) {
 		const name = input.name.trim();
@@ -52,12 +52,15 @@ async function validateWebhookInput(input: {
 	}
 
 	if (input.events !== undefined) {
-		for (const event of input.events) {
-			if (!VALID_EVENTS.includes(event)) {
-				return { ok: false, error: `Invalid event type: ${event}` };
-			}
-		}
+		const eventsError = validateWebhookEventList(input.events);
+		if (eventsError) return { ok: false, error: eventsError };
 		result.events = input.events;
+	}
+
+	if (input.secret !== undefined) {
+		const secretError = validateWebhookSecret(input.secret);
+		if (secretError) return { ok: false, error: secretError };
+		result.secret = input.secret.trim() || null;
 	}
 
 	return { ok: true, ...result };
@@ -88,15 +91,20 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 			url: z.string().describe('Webhook URL'),
 			events: z
 				.array(z.string())
+				.max(MAX_WEBHOOK_EVENTS)
 				.optional()
 				.describe('Events to subscribe to (e.g., TEST_RUN_COMPLETED, TEST_FAILED)'),
-			secret: z.string().optional().describe('Webhook secret for signature verification')
+			secret: z
+				.string()
+				.max(MAX_WEBHOOK_SECRET_LENGTH)
+				.optional()
+				.describe('Webhook secret for signature verification')
 		},
 		async ({ name, url, events, secret }) => {
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
 
-			const validation = await validateWebhookInput({ name, url, events });
+			const validation = await validateWebhookInput({ name, url, events, secret });
 			if (!validation.ok) return err(validation.error);
 
 			const [created] = await db
@@ -106,7 +114,7 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 					name: validation.name!,
 					url: validation.url!,
 					events: validation.events ?? [],
-					secret: secret?.trim() || null,
+					secret: validation.secret ?? null,
 					createdBy: creator
 				})
 				.returning();
@@ -139,7 +147,7 @@ export function registerWebhookTools(server: McpServer, projectId: number) {
 			webhookId: z.number().describe('Webhook ID'),
 			name: z.string().optional().describe('New name'),
 			url: z.string().optional().describe('New URL'),
-			events: z.array(z.string()).optional().describe('New events'),
+			events: z.array(z.string()).max(MAX_WEBHOOK_EVENTS).optional().describe('New events'),
 			enabled: z.boolean().optional().describe('Enable/disable')
 		},
 		async ({ webhookId, name, url, events, enabled }) => {

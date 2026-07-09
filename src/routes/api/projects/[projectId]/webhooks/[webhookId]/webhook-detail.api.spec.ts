@@ -249,6 +249,47 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 			expect(data.error).toContain('Invalid event type');
 		});
 
+		it('should return 400 when events contain duplicates', async () => {
+			mockDb.query.projectWebhook.findFirst.mockResolvedValue(existingWebhook);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { events: ['TEST_FAILED', 'TEST_FAILED'] },
+				user: adminUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Duplicate event type');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when events exceeds maximum length', async () => {
+			mockDb.query.projectWebhook.findFirst.mockResolvedValue(existingWebhook);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: {
+					events: [
+						'TEST_RUN_COMPLETED',
+						'TEST_FAILED',
+						'COMMENT_ADDED',
+						'MEMBER_ADDED',
+						'ASSIGNED',
+						'TEST_FAILED'
+					]
+				},
+				user: adminUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Events must include 5 items or less');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when request body is not an object', async () => {
 			mockDb.query.projectWebhook.findFirst.mockResolvedValue(existingWebhook);
 

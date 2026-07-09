@@ -241,6 +241,43 @@ describe('MCP webhook tools', () => {
 			);
 			expect(mockDb.insert).toHaveBeenCalledTimes(insertCallCount);
 		});
+
+		it('should reject duplicate events', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			const insertCallCount = mockDb.insert.mock.calls.length;
+
+			const result = await client.callTool({
+				name: 'create-webhook',
+				arguments: {
+					name: 'Hook',
+					url: 'https://ci.example.com/hook',
+					events: ['TEST_FAILED', 'TEST_FAILED']
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Duplicate event type: TEST_FAILED'
+			);
+			expect(mockDb.insert).toHaveBeenCalledTimes(insertCallCount);
+		});
+
+		it('should reject overlong secrets', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			const insertCallCount = mockDb.insert.mock.calls.length;
+
+			const result = await client.callTool({
+				name: 'create-webhook',
+				arguments: {
+					name: 'Hook',
+					url: 'https://ci.example.com/hook',
+					secret: 's'.repeat(4001)
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(mockDb.insert).toHaveBeenCalledTimes(insertCallCount);
+		});
 	});
 
 	// ── delete-webhook ──────────────────────────────────
@@ -339,6 +376,25 @@ describe('MCP webhook tools', () => {
 			expect(result.isError).toBe(true);
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Invalid URL'
+			);
+			expect(mockDb.update).toHaveBeenCalledTimes(updateCallCount);
+		});
+
+		it('should reject duplicate events before updating a webhook', async () => {
+			mockDb.query.projectWebhook.findFirst.mockResolvedValue(sampleWebhook);
+			const updateCallCount = mockDb.update.mock.calls.length;
+
+			const result = await client.callTool({
+				name: 'update-webhook',
+				arguments: {
+					webhookId: 1,
+					events: ['COMMENT_ADDED', 'COMMENT_ADDED']
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Duplicate event type: COMMENT_ADDED'
 			);
 			expect(mockDb.update).toHaveBeenCalledTimes(updateCallCount);
 		});

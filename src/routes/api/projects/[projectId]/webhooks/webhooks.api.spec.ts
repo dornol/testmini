@@ -277,6 +277,49 @@ describe('/api/projects/[projectId]/webhooks', () => {
 			expect(data.error).toContain('Invalid event type');
 		});
 
+		it('should return 400 when events contain duplicates', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: {
+					name: 'Hook',
+					url: 'https://example.com/hook',
+					events: ['TEST_FAILED', 'TEST_FAILED']
+				},
+				user: adminUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Duplicate event type');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when events exceeds maximum length', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: {
+					name: 'Hook',
+					url: 'https://example.com/hook',
+					events: [
+						'TEST_RUN_COMPLETED',
+						'TEST_FAILED',
+						'COMMENT_ADDED',
+						'MEMBER_ADDED',
+						'ASSIGNED',
+						'TEST_FAILED'
+					]
+				},
+				user: adminUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Events must include 5 items or less');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when request body is not an object', async () => {
 			const event = createMockEvent({
 				method: 'POST',

@@ -112,6 +112,56 @@ describe('/api/projects/[projectId]/modules/[moduleId]', () => {
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
+		it('should reject parent module outside the project', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(null);
+
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { parentModuleId: 999 },
+				user: testUser
+			});
+			const response = await PUT(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Parent module not found');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject setting module as its own parent', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { parentModuleId: 3 },
+				user: testUser
+			});
+			const response = await PUT(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('own parent');
+			expect(mockDb.query.module.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should update parent module when it belongs to the project', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue({ id: 1 });
+			const updated = { id: 3, name: 'Auth', parentModuleId: 1 };
+			const updateChain = mockUpdateReturning(mockDb, [updated]);
+
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { parentModuleId: 1 },
+				user: testUser
+			});
+			const response = await PUT(event);
+
+			expect(response.status).toBe(200);
+			expect(updateChain.set).toHaveBeenCalledWith({ parentModuleId: 1 });
+		});
+
 		it('should return 400 when no fields to update', async () => {
 			const event = createMockEvent({
 				method: 'PUT',

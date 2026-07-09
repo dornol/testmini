@@ -7,6 +7,24 @@ import { parseId, parseJsonBody } from '$lib/server/auth-utils';
 import { updateModuleSchema } from '$lib/schemas/module.schema';
 import { notFound, badRequest } from '$lib/server/errors';
 
+async function validateParentModule(
+	parentModuleId: number | null | undefined,
+	projectId: number,
+	moduleId: number
+) {
+	if (parentModuleId === null || parentModuleId === undefined) return undefined;
+	if (parentModuleId === moduleId) return badRequest('Module cannot be its own parent');
+
+	const parent = await db.query.module.findFirst({
+		where: and(eq(module.id, parentModuleId), eq(module.projectId, projectId)),
+		columns: { id: true }
+	});
+
+	if (!parent) {
+		return badRequest('Parent module not found');
+	}
+}
+
 export const PUT = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ request, params, projectId }) => {
@@ -15,6 +33,9 @@ export const PUT = withProjectRole(
 		const body = await parseJsonBody(request);
 		const parsed = updateModuleSchema.safeParse(body);
 		if (!parsed.success) return badRequest('Invalid input');
+
+		const parentError = await validateParentModule(parsed.data.parentModuleId, projectId, moduleId);
+		if (parentError) return parentError;
 
 		const updates: Record<string, unknown> = {};
 		if (parsed.data.name !== undefined) updates.name = parsed.data.name;

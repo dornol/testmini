@@ -91,6 +91,7 @@ describe('/api/projects/[projectId]/modules', () => {
 		it('should create module with parent', async () => {
 			const created = { id: 2, name: 'Login', parentModuleId: 1 };
 			mockInsertReturning(mockDb, [created]);
+			mockDb.query.module.findFirst.mockResolvedValue({ id: 1 });
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -103,6 +104,23 @@ describe('/api/projects/[projectId]/modules', () => {
 
 			expect(response.status).toBe(201);
 			expect(data.parentModuleId).toBe(1);
+		});
+
+		it('should reject parent module outside the project', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(null);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Login', parentModuleId: 999 },
+				user: testUser
+			});
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toContain('Parent module not found');
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should trim name and blank description before creating', async () => {

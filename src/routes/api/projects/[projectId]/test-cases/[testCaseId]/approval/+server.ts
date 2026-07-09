@@ -98,10 +98,14 @@ export const POST = withProjectRole(
 		const fromStatus = tc.approvalStatus;
 
 		await db.transaction(async (tx) => {
-			await tx
+			const [updatedTestCase] = await tx
 				.update(testCase)
 				.set({ approvalStatus: transition.to })
-				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
+				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)))
+				.returning({ id: testCase.id });
+			if (!updatedTestCase) {
+				error(404, 'Test case not found');
+			}
 
 			await tx.insert(approvalHistory).values({
 				testCaseId,

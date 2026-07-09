@@ -79,6 +79,20 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/approval', () => {
 		vi.clearAllMocks();
 		mockDb.query.testCase = { findFirst: vi.fn() };
 		mockDb.query.projectMember = { findFirst: vi.fn() };
+		mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
+			fn({
+				update: vi.fn().mockReturnValue({
+					set: vi.fn().mockReturnValue({
+						where: vi.fn().mockReturnValue({
+							returning: vi.fn().mockResolvedValue([{ id: 10 }])
+						})
+					})
+				}),
+				insert: vi.fn().mockReturnValue({
+					values: vi.fn().mockResolvedValue(undefined)
+				})
+			})
+		);
 	});
 
 	// ──────── GET ────────
@@ -146,7 +160,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/approval', () => {
 				approvalStatus: 'DRAFT'
 			});
 			const txUpdateWhere = vi.fn().mockReturnValue({
-				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+				returning: vi.fn().mockResolvedValue([{ id: 10 }])
 			});
 			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
 				const tx = {
@@ -185,6 +199,41 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/approval', () => {
 					['project_id', 1]
 				])
 			);
+		});
+
+		it('should return 404 without history when test case disappears during transition', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({
+				...sampleTestCase,
+				approvalStatus: 'DRAFT'
+			});
+			const updateReturning = vi.fn().mockResolvedValue([]);
+			const historyValues = vi.fn().mockResolvedValue(undefined);
+			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) =>
+				fn({
+					update: vi.fn().mockReturnValue({
+						set: vi.fn().mockReturnValue({
+							where: vi.fn().mockReturnValue({
+								returning: updateReturning
+							})
+						})
+					}),
+					insert: vi.fn().mockReturnValue({
+						values: historyValues
+					})
+				})
+			);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { action: 'submit_review' }
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 404 });
+			expect(updateReturning).toHaveBeenCalledWith({ id: 'id' });
+			expect(historyValues).not.toHaveBeenCalled();
+			expect(mockCreateNotification).not.toHaveBeenCalled();
 		});
 
 		it('should reject if not in DRAFT status', async () => {

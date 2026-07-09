@@ -38,6 +38,20 @@ function extensionForImageType(type: string): string | null {
 	return IMAGE_TYPE_EXTENSIONS[type] ?? null;
 }
 
+function brandingKeyFromUrl(url: string | null): string | null {
+	return url?.replace('/api/branding/', '') ?? null;
+}
+
+async function cleanupBrandingFiles(keys: string[]) {
+	for (const key of keys) {
+		try {
+			await deleteFile(key);
+		} catch {
+			// Preserve the primary result; file cleanup can be retried from storage tooling.
+		}
+	}
+}
+
 export const load: PageServerLoad = async () => {
 	let config = null;
 	try {
@@ -75,13 +89,13 @@ export const actions: Actions = {
 
 		let logoUrl = existing?.logoUrl ?? null;
 		let faviconUrl = existing?.faviconUrl ?? null;
+		const savedKeys: string[] = [];
+		const staleKeys: string[] = [];
 
 		// Handle logo upload
 		if (removeLogo) {
-			if (logoUrl) {
-				const key = logoUrl.replace('/api/branding/', '');
-				await deleteFile(key);
-			}
+			const key = brandingKeyFromUrl(logoUrl);
+			if (key) staleKeys.push(key);
 			logoUrl = null;
 		} else if (logoFile && logoFile.size > 0) {
 			if (logoFile.size > MAX_IMAGE_SIZE) {
@@ -94,23 +108,19 @@ export const actions: Actions = {
 			if (!ext) {
 				return fail(400, { error: 'Invalid logo file type' });
 			}
-			// Delete old logo
-			if (logoUrl) {
-				const key = logoUrl.replace('/api/branding/', '');
-				await deleteFile(key);
-			}
+			const oldKey = brandingKeyFromUrl(logoUrl);
+			if (oldKey) staleKeys.push(oldKey);
 			const objectKey = `branding/${randomUUID()}.${ext}`;
 			const buffer = Buffer.from(await logoFile.arrayBuffer());
 			await saveFile(objectKey, buffer);
+			savedKeys.push(objectKey);
 			logoUrl = `/api/branding/${objectKey}`;
 		}
 
 		// Handle favicon upload
 		if (removeFavicon) {
-			if (faviconUrl) {
-				const key = faviconUrl.replace('/api/branding/', '');
-				await deleteFile(key);
-			}
+			const key = brandingKeyFromUrl(faviconUrl);
+			if (key) staleKeys.push(key);
 			faviconUrl = null;
 		} else if (faviconFile && faviconFile.size > 0) {
 			if (faviconFile.size > MAX_IMAGE_SIZE) {
@@ -123,26 +133,30 @@ export const actions: Actions = {
 			if (!ext) {
 				return fail(400, { error: 'Invalid favicon file type' });
 			}
-			// Delete old favicon
-			if (faviconUrl) {
-				const key = faviconUrl.replace('/api/branding/', '');
-				await deleteFile(key);
-			}
+			const oldKey = brandingKeyFromUrl(faviconUrl);
+			if (oldKey) staleKeys.push(oldKey);
 			const objectKey = `branding/${randomUUID()}.${ext}`;
 			const buffer = Buffer.from(await faviconFile.arrayBuffer());
 			await saveFile(objectKey, buffer);
+			savedKeys.push(objectKey);
 			faviconUrl = `/api/branding/${objectKey}`;
 		}
 
-		if (existing) {
-			await db
-				.update(appConfig)
-				.set({ appName, logoUrl, faviconUrl })
-				.where(eq(appConfig.id, existing.id));
-		} else {
-			await db.insert(appConfig).values({ appName, logoUrl, faviconUrl });
+		try {
+			if (existing) {
+				await db
+					.update(appConfig)
+					.set({ appName, logoUrl, faviconUrl })
+					.where(eq(appConfig.id, existing.id));
+			} else {
+				await db.insert(appConfig).values({ appName, logoUrl, faviconUrl });
+			}
+		} catch (dbError) {
+			await cleanupBrandingFiles(savedKeys);
+			throw dbError;
 		}
 
+		await cleanupBrandingFiles(staleKeys);
 		cacheDelete('global:branding');
 
 		return { success: true };

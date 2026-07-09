@@ -70,6 +70,8 @@ describe('admin/branding +page.server', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockDb.query.appConfig = { findFirst: vi.fn().mockResolvedValue(null) } as never;
+		vi.mocked(saveFile).mockResolvedValue(undefined);
+		vi.mocked(deleteFile).mockResolvedValue(undefined);
 	});
 
 	describe('load', () => {
@@ -229,6 +231,60 @@ describe('admin/branding +page.server', () => {
 			expect(saveFile).toHaveBeenCalledWith('branding/test-uuid-1234.png', expect.any(Buffer));
 		});
 
+		it('should delete old logo only after replacement is saved to DB', async () => {
+			(mockDb.query as Record<string, unknown>).appConfig = {
+				findFirst: vi.fn().mockResolvedValue({
+					id: 1,
+					appName: 'App',
+					logoUrl: '/api/branding/branding/old-logo.png',
+					faviconUrl: null
+				})
+			};
+
+			const logoFile = createTestFile('logo.png', 1000, 'image/png');
+			const event = createActionEvent(adminUser, {
+				appName: 'App',
+				logo: logoFile as unknown as string
+			});
+			const result = await actions.save(event);
+
+			expect(result).toMatchObject({ success: true });
+			expect(saveFile).toHaveBeenCalledWith('branding/test-uuid-1234.png', expect.any(Buffer));
+			expect(deleteFile).toHaveBeenCalledWith('branding/old-logo.png');
+			expect(mockDb.update.mock.invocationCallOrder[0]).toBeLessThan(
+				vi.mocked(deleteFile).mock.invocationCallOrder[0]
+			);
+		});
+
+		it('should remove newly uploaded logo and keep old logo when DB save fails', async () => {
+			(mockDb.query as Record<string, unknown>).appConfig = {
+				findFirst: vi.fn().mockResolvedValue({
+					id: 1,
+					appName: 'App',
+					logoUrl: '/api/branding/branding/old-logo.png',
+					faviconUrl: null
+				})
+			};
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockRejectedValue(new Error('database unavailable'))
+			};
+			mockDb.update.mockReturnValueOnce(updateChain as never);
+
+			const logoFile = createTestFile('logo.png', 1000, 'image/png');
+			const event = createActionEvent(adminUser, {
+				appName: 'App',
+				logo: logoFile as unknown as string
+			});
+
+			await expect(actions.save(event)).rejects.toThrow('database unavailable');
+			expect(saveFile).toHaveBeenCalledWith('branding/test-uuid-1234.png', expect.any(Buffer));
+			expect(deleteFile).toHaveBeenCalledTimes(1);
+			expect(deleteFile).toHaveBeenCalledWith('branding/test-uuid-1234.png');
+			expect(deleteFile).not.toHaveBeenCalledWith('branding/old-logo.png');
+			expect(cacheDelete).not.toHaveBeenCalled();
+		});
+
 		it('should derive logo extension from MIME type instead of original filename', async () => {
 			(mockDb.query as Record<string, unknown>).appConfig = {
 				findFirst: vi.fn().mockResolvedValue(null)
@@ -263,6 +319,34 @@ describe('admin/branding +page.server', () => {
 
 			expect(result).toMatchObject({ success: true });
 			expect(deleteFile).toHaveBeenCalledWith('branding/old-logo.png');
+			expect(mockDb.update.mock.invocationCallOrder[0]).toBeLessThan(
+				vi.mocked(deleteFile).mock.invocationCallOrder[0]
+			);
+		});
+
+		it('should keep old logo when removeLogo DB save fails', async () => {
+			(mockDb.query as Record<string, unknown>).appConfig = {
+				findFirst: vi.fn().mockResolvedValue({
+					id: 1,
+					appName: 'App',
+					logoUrl: '/api/branding/branding/old-logo.png',
+					faviconUrl: null
+				})
+			};
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockRejectedValue(new Error('database unavailable'))
+			};
+			mockDb.update.mockReturnValueOnce(updateChain as never);
+
+			const event = createActionEvent(adminUser, {
+				appName: 'App',
+				removeLogo: 'true'
+			});
+
+			await expect(actions.save(event)).rejects.toThrow('database unavailable');
+			expect(deleteFile).not.toHaveBeenCalled();
+			expect(cacheDelete).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for favicon file too large', async () => {

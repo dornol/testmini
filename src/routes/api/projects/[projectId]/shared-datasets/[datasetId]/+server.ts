@@ -25,11 +25,6 @@ export const PATCH = withProjectRole(
 		if (fieldError) return fieldError;
 		if (Object.keys(bodyOrError).length === 0) return badRequest('No fields to update');
 
-		const ds = await db.query.sharedDataSet.findFirst({
-			where: and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId))
-		});
-		if (!ds) return notFound('Shared data set not found');
-
 		const updates: Record<string, unknown> = {};
 
 		if (bodyOrError.name !== undefined) {
@@ -38,16 +33,27 @@ export const PATCH = withProjectRole(
 			updates.name = nameOrError;
 		}
 
-		let parameters = (ds.parameters as string[]) ?? [];
+		let nextParameters: string[] | undefined;
 		if (bodyOrError.parameters !== undefined) {
 			const parametersOrError = validateDataSetParameters(bodyOrError.parameters);
 			if (parametersOrError instanceof Response) return parametersOrError;
-			parameters = parametersOrError;
+			nextParameters = parametersOrError;
 			updates.parameters = parametersOrError;
 		}
 
-		if (bodyOrError.rows !== undefined) {
-			const rowsOrError = validateDataSetRows(bodyOrError.rows, parameters);
+		if (bodyOrError.rows !== undefined && nextParameters !== undefined) {
+			const rowsOrError = validateDataSetRows(bodyOrError.rows, nextParameters);
+			if (rowsOrError instanceof Response) return rowsOrError;
+			updates.rows = rowsOrError;
+		}
+
+		const ds = await db.query.sharedDataSet.findFirst({
+			where: and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId))
+		});
+		if (!ds) return notFound('Shared data set not found');
+
+		if (bodyOrError.rows !== undefined && updates.rows === undefined) {
+			const rowsOrError = validateDataSetRows(bodyOrError.rows, (ds.parameters as string[]) ?? []);
 			if (rowsOrError instanceof Response) return rowsOrError;
 			updates.rows = rowsOrError;
 		}

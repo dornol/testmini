@@ -197,16 +197,6 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 		});
 
 		it('should return 400 when updated name contains control characters before updating', async () => {
-			(
-				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
-			).findFirst.mockResolvedValue({
-				id: 10,
-				name: 'Name',
-				projectId: 1,
-				parameters: ['user'],
-				rows: []
-			});
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -219,6 +209,9 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toBe('Name must not contain control characters');
+			expect(
+				(mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }).findFirst
+			).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -251,15 +244,6 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 
 			for (const parameter of unsafeNames) {
 				vi.clearAllMocks();
-				(
-					mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
-				).findFirst.mockResolvedValue({
-					id: 10,
-					name: 'Name',
-					projectId: 1,
-					parameters: ['user'],
-					rows: []
-				});
 
 				const event = createMockEvent({
 					method: 'PATCH',
@@ -272,21 +256,14 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 
 				expect(response.status).toBe(400);
 				expect((await response.json()).error).toContain('unsafe name');
+				expect(
+					(mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }).findFirst
+				).not.toHaveBeenCalled();
 				expect(mockDb.update).not.toHaveBeenCalled();
 			}
 		});
 
 		it('should return 400 when updated parameters contain control characters before updating', async () => {
-			(
-				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
-			).findFirst.mockResolvedValue({
-				id: 10,
-				name: 'Name',
-				projectId: 1,
-				parameters: ['user'],
-				rows: []
-			});
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -299,6 +276,27 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toBe('Parameters must not contain control characters');
+			expect(
+				(mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }).findFirst
+			).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 before lookup when updated rows do not match updated parameters', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { parameters: ['user'], rows: [{ password: 'secret' }] },
+				user: testUser
+			});
+
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('unknown parameter');
+			expect(
+				(mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }).findFirst
+			).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});

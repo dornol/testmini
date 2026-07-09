@@ -5,6 +5,7 @@ import { oidcProvider, oidcAccount } from '$lib/server/db/schema';
 import { eq, and, ne, count } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin, parseId } from '$lib/server/auth-utils';
 import { encrypt } from '$lib/server/crypto';
+import { validateOidcProviderUrls } from '$lib/server/oidc-provider-validation';
 
 function parseDisplayOrder(value: FormDataEntryValue | null): number {
 	if (value === null || value === '') return 0;
@@ -77,6 +78,17 @@ export const actions: Actions = {
 
 		if (!/^[a-z0-9-]+$/.test(slug)) {
 			return fail(400, { error: 'Slug must contain only lowercase letters, numbers, and hyphens' });
+		}
+
+		const urlValidationError = await validateOidcProviderUrls({
+			issuerUrl,
+			jwksUri,
+			authorizationUrl,
+			tokenUrl,
+			userinfoUrl
+		});
+		if (urlValidationError) {
+			return fail(400, { error: urlValidationError });
 		}
 
 		const existing = await db

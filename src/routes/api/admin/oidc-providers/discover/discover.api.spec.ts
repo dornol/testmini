@@ -6,7 +6,7 @@ const mockLookup = vi.fn();
 const mockFetch = vi.fn();
 
 vi.mock('$lib/server/db', () => ({ db: {} }));
-vi.mock('dns/promises', () => ({
+vi.mock('node:dns/promises', () => ({
 	lookup: mockLookup
 }));
 

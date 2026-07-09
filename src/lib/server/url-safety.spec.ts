@@ -6,7 +6,8 @@ vi.mock('node:dns/promises', () => ({
 	lookup: mockLookup
 }));
 
-const { isPrivateOrReservedIp, validatePublicHttpUrl } = await import('./url-safety');
+const { isPrivateOrReservedIp, validatePublicHttpUrl, validatePublicHttpsUrl } =
+	await import('./url-safety');
 
 describe('isPrivateOrReservedIp', () => {
 	it.each([
@@ -68,5 +69,13 @@ describe('validatePublicHttpUrl', () => {
 			ok: false,
 			error: 'URL resolves to a private or reserved IP address'
 		});
+	});
+
+	it('rejects non-HTTPS urls when HTTPS is required', async () => {
+		await expect(validatePublicHttpsUrl('http://example.com/hook')).resolves.toEqual({
+			ok: false,
+			error: 'URL must use https'
+		});
+		expect(mockLookup).not.toHaveBeenCalled();
 	});
 });

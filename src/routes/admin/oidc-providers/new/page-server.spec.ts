@@ -17,6 +17,10 @@ vi.mock('drizzle-orm', () => ({
 vi.mock('$lib/server/crypto', () => ({
 	encrypt: vi.fn((s: string) => `encrypted:${s}`)
 }));
+const mockValidateOidcProviderUrls = vi.hoisted(() => vi.fn());
+vi.mock('$lib/server/oidc-provider-validation', () => ({
+	validateOidcProviderUrls: mockValidateOidcProviderUrls
+}));
 
 const { actions } = await import('./+page.server');
 
@@ -60,6 +64,7 @@ function createActionEvent(
 describe('admin/oidc-providers/new +page.server', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockValidateOidcProviderUrls.mockResolvedValue(null);
 	});
 
 	describe('create action', () => {
@@ -89,6 +94,19 @@ describe('admin/oidc-providers/new +page.server', () => {
 			expect(result).toMatchObject({
 				status: 400,
 				data: { error: 'Slug must contain only lowercase letters, numbers, and hyphens' }
+			});
+		});
+
+		it('should return 400 when provider URLs are unsafe', async () => {
+			mockValidateOidcProviderUrls.mockResolvedValue(
+				'tokenUrl: URL resolves to a private or reserved IP address'
+			);
+
+			const event = createActionEvent(adminUser, validProviderData);
+			const result = await actions.create(event);
+			expect(result).toMatchObject({
+				status: 400,
+				data: { error: 'tokenUrl: URL resolves to a private or reserved IP address' }
 			});
 		});
 

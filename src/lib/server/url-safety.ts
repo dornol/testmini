@@ -40,6 +40,21 @@ export async function validatePublicHttpUrl(rawUrl: string): Promise<UrlValidati
 	return { ok: true };
 }
 
+export async function validatePublicHttpsUrl(rawUrl: string): Promise<UrlValidationResult> {
+	let parsed: URL;
+	try {
+		parsed = new URL(rawUrl);
+	} catch {
+		return { ok: false, error: 'Invalid URL' };
+	}
+
+	if (parsed.protocol !== 'https:') {
+		return { ok: false, error: 'URL must use https' };
+	}
+
+	return validatePublicHttpUrl(rawUrl);
+}
+
 export function isPrivateOrReservedIp(address: string): boolean {
 	if (address.includes(':')) {
 		const normalized = normalizeIpv6(address);

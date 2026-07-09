@@ -16,6 +16,11 @@ vi.mock('$lib/server/db/schema', () => ({
 		projectId: 'project_id',
 		userId: 'user_id',
 		role: 'role'
+	},
+	teamMember: {
+		teamId: 'team_id',
+		userId: 'user_id',
+		role: 'role'
 	}
 }));
 vi.mock('drizzle-orm', () => ({
@@ -51,6 +56,9 @@ describe('/api/users/search', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
+		mockDb.query.teamMember = {
+			findFirst: vi.fn().mockResolvedValue({ role: 'ADMIN' })
+		};
 	});
 
 	describe('GET', () => {
@@ -77,7 +85,7 @@ describe('/api/users/search', () => {
 			const event = createMockEvent({
 				method: 'GET',
 				user: testUser,
-				searchParams: { q: 'Test', offset: '10' }
+				searchParams: { q: 'Test', offset: '10', excludeProjectId: '42' }
 			});
 			const response = await GET(event);
 			const data = await response.json();
@@ -94,7 +102,7 @@ describe('/api/users/search', () => {
 			const event = createMockEvent({
 				method: 'GET',
 				user: testUser,
-				searchParams: { q: 'Test', offset: '999999' }
+				searchParams: { q: 'Test', offset: '999999', excludeProjectId: '42' }
 			});
 			const response = await GET(event);
 
@@ -108,7 +116,7 @@ describe('/api/users/search', () => {
 			const event = createMockEvent({
 				method: 'GET',
 				user: testUser,
-				searchParams: { q: '  Alice  ' }
+				searchParams: { q: '  Alice  ', excludeProjectId: '42' }
 			});
 			const response = await GET(event);
 
@@ -177,6 +185,30 @@ describe('/api/users/search', () => {
 			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 
+		it('should require a project or team context before searching users', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { q: 'Test' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should reject requests with multiple search contexts', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { q: 'Test', excludeProjectId: '42', teamId: '7' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
 		it('should exclude existing project members using a validated project ID', async () => {
 			mockSelectResult(mockDb, []);
 
@@ -190,6 +222,35 @@ describe('/api/users/search', () => {
 			expect(response.status).toBe(200);
 			expect(authUtils.requireProjectRole).toHaveBeenCalledWith(testUser, 42, ['PROJECT_ADMIN']);
 			expect(drizzle.eq).toHaveBeenCalledWith('project_id', 42);
+		});
+
+		it('should exclude existing team members for team-admin searches', async () => {
+			mockSelectResult(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { q: 'Test', teamId: '7' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(mockDb.query.teamMember.findFirst).toHaveBeenCalled();
+			expect(drizzle.eq).toHaveBeenCalledWith('team_id', 7);
+			expect(drizzle.eq).toHaveBeenCalledWith('user_id', testUser.id);
+		});
+
+		it('should require team admin role when excluding existing team members', async () => {
+			mockDb.query.teamMember.findFirst.mockResolvedValue({ role: 'MEMBER' });
+
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { q: 'Test', teamId: '7' }
+			});
+
+			await expect(GET(event)).rejects.toThrow();
+			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 
 		it('should require project admin role when excluding existing project members', async () => {

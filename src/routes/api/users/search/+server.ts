@@ -1,8 +1,8 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { user, projectMember } from '$lib/server/db/schema';
+import { user, projectMember, teamMember } from '$lib/server/db/schema';
 import { withAuth } from '$lib/server/api-handler';
-import { requireProjectRole } from '$lib/server/auth-utils';
+import { isGlobalAdmin, requireProjectRole } from '$lib/server/auth-utils';
 import { ilike, or, notInArray, and, eq } from 'drizzle-orm';
 import { badRequest } from '$lib/server/errors';
 
@@ -31,15 +31,30 @@ function parsePositiveIntegerParam(value: string | null, label: string): number 
 	return parsed;
 }
 
+async function requireTeamAdmin(currentUser: NonNullable<App.Locals['user']>, teamId: number) {
+	if (isGlobalAdmin(currentUser)) return;
+
+	const membership = await db.query.teamMember.findFirst({
+		where: and(eq(teamMember.teamId, teamId), eq(teamMember.userId, currentUser.id))
+	});
+
+	if (!membership || (membership.role !== 'OWNER' && membership.role !== 'ADMIN')) {
+		error(403, 'You do not have the required role for this action');
+	}
+}
+
 export const GET = withAuth(async ({ url, user: currentUser }) => {
 	const q = (url.searchParams.get('q') ?? '').trim();
 	const excludeProjectIdValue = url.searchParams.get('excludeProjectId');
+	const teamIdValue = url.searchParams.get('teamId');
 	let offset: number;
 	let excludeProjectId: number | null;
+	let teamId: number | null;
 
 	try {
 		offset = parseNonNegativeIntegerParam(url.searchParams.get('offset'), 'offset');
 		excludeProjectId = parsePositiveIntegerParam(excludeProjectIdValue, 'excludeProjectId');
+		teamId = parsePositiveIntegerParam(teamIdValue, 'teamId');
 	} catch (err) {
 		return badRequest(err instanceof Error ? err.message : 'Invalid search parameters');
 	}
@@ -50,6 +65,14 @@ export const GET = withAuth(async ({ url, user: currentUser }) => {
 
 	if (q.length > MAX_QUERY_LENGTH) {
 		return badRequest(`q must be ${MAX_QUERY_LENGTH} characters or less`);
+	}
+
+	if (excludeProjectId === null && teamId === null) {
+		return badRequest('A project or team context is required');
+	}
+
+	if (excludeProjectId !== null && teamId !== null) {
+		return badRequest('Specify only one search context');
 	}
 
 	const searchCondition = or(ilike(user.name, `%${q}%`), ilike(user.email, `%${q}%`));
@@ -63,6 +86,17 @@ export const GET = withAuth(async ({ url, user: currentUser }) => {
 			.select({ userId: projectMember.userId })
 			.from(projectMember)
 			.where(eq(projectMember.projectId, excludeProjectId));
+
+		conditions.push(notInArray(user.id, existingMembers));
+	}
+
+	if (teamId !== null) {
+		await requireTeamAdmin(currentUser, teamId);
+
+		const existingMembers = db
+			.select({ userId: teamMember.userId })
+			.from(teamMember)
+			.where(eq(teamMember.teamId, teamId));
 
 		conditions.push(notInArray(user.id, existingMembers));
 	}

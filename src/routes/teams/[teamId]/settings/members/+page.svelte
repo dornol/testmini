@@ -47,7 +47,9 @@
 
 	function executeRoleChange() {
 		if (!roleChangeMemberId) return;
-		const form = document.querySelector<HTMLFormElement>(`[data-role-form="${roleChangeMemberId}"]`);
+		const form = document.querySelector<HTMLFormElement>(
+			`[data-role-form="${roleChangeMemberId}"]`
+		);
 		if (form) {
 			const hidden = form.querySelector<HTMLInputElement>('input[name="role"]');
 			if (hidden) hidden.value = roleChangeNewRole;
@@ -66,7 +68,7 @@
 			searching = true;
 			try {
 				const result = await apiFetch<{ data: { id: string; name: string; email: string }[] }>(
-					`/api/users/search?q=${encodeURIComponent(searchQuery)}`,
+					`/api/users/search?q=${encodeURIComponent(searchQuery)}&teamId=${data.team.id}`,
 					{ silent: true }
 				);
 				searchResults = result.data;
@@ -116,7 +118,12 @@
 			<h2 class="text-lg font-semibold">{m.team_members()}</h2>
 		</div>
 
-		<Dialog.Root bind:open={addDialogOpen} onOpenChange={(open) => { if (!open) resetAddDialog(); }}>
+		<Dialog.Root
+			bind:open={addDialogOpen}
+			onOpenChange={(open) => {
+				if (!open) resetAddDialog();
+			}}
+		>
 			<Dialog.Trigger>
 				{#snippet child({ props })}
 					<Button {...props}>{m.team_add_member()}</Button>
@@ -173,7 +180,9 @@
 							<Select.Root
 								type="single"
 								value={selectedRole}
-								onValueChange={(v: string) => { selectedRole = v; }}
+								onValueChange={(v: string) => {
+									selectedRole = v;
+								}}
 							>
 								<Select.Trigger class="w-full" aria-labelledby="role-label">
 									{roleLabel(selectedRole)}
@@ -243,7 +252,7 @@
 											toast.success(m.members_role_updated());
 											await invalidateAll();
 										} else if (result.type === 'failure') {
-											toast.error(result.data?.error as string ?? m.error_update_failed());
+											toast.error((result.data?.error as string) ?? m.error_update_failed());
 											await update();
 										}
 									};
@@ -294,7 +303,10 @@
 				<AlertDialog.Header>
 					<AlertDialog.Title>{m.team_change_role()}</AlertDialog.Title>
 					<AlertDialog.Description>
-						{m.members_role_change_confirm({ name: roleChangeMemberName, role: roleLabel(roleChangeNewRole) })}
+						{m.members_role_change_confirm({
+							name: roleChangeMemberName,
+							role: roleLabel(roleChangeNewRole)
+						})}
 					</AlertDialog.Description>
 				</AlertDialog.Header>
 				<AlertDialog.Footer>
@@ -328,7 +340,7 @@
 									removeDialogOpen = false;
 									await invalidateAll();
 								} else if (result.type === 'failure') {
-									toast.error(result.data?.error as string ?? m.error_remove_failed());
+									toast.error((result.data?.error as string) ?? m.error_remove_failed());
 									await update();
 								}
 							};

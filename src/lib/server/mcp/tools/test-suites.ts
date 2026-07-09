@@ -157,6 +157,7 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 				.set(updates)
 				.where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)))
 				.returning();
+			if (!updated) return err('Test suite not found');
 			return ok(updated);
 		}
 	);

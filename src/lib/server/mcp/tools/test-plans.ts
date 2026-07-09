@@ -143,14 +143,12 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 
 			if (Object.keys(updates).length === 1) return err('No fields to update');
 
-			await db
+			const [updated] = await db
 				.update(testPlan)
 				.set(updates)
-				.where(and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId)));
-
-			const updated = await db.query.testPlan.findFirst({
-				where: and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId))
-			});
+				.where(and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId)))
+				.returning();
+			if (!updated) return err('Test plan not found');
 			return ok(updated);
 		}
 	);

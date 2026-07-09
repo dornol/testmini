@@ -4,7 +4,8 @@ import {
 	mockDeleteReturning,
 	mockSelectResult,
 	mockInsertReturning,
-	mockTransactionDeleteReturning
+	mockTransactionDeleteReturning,
+	mockUpdateReturning
 } from '$lib/server/test-helpers/mock-db';
 import {
 	sampleProject,
@@ -2175,16 +2176,13 @@ describe('MCP Server', () => {
 
 	describe('tool: update-test-plan', () => {
 		it('should update plan status', async () => {
-			mockDb.query.testPlan.findFirst
-				.mockResolvedValueOnce({ id: 1, projectId: 1, name: 'Sprint 1', status: 'DRAFT' })
-				.mockResolvedValueOnce({ id: 1, projectId: 1, name: 'Sprint 1', status: 'ACTIVE' });
-
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			mockDb.query.testPlan.findFirst.mockResolvedValueOnce({
+				id: 1,
+				projectId: 1,
+				name: 'Sprint 1',
+				status: 'DRAFT'
+			});
+			mockUpdateReturning(mockDb, [{ id: 1, projectId: 1, name: 'Sprint 1', status: 'ACTIVE' }]);
 
 			const result = await client.callTool({
 				name: 'update-test-plan',

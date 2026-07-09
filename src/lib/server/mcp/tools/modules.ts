@@ -157,6 +157,7 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 				.set(updates)
 				.where(and(eq(module.id, moduleId), eq(module.projectId, projectId)))
 				.returning();
+			if (!updated) return err('Module not found');
 			return ok(updated);
 		}
 	);

@@ -374,6 +374,21 @@ describe('MCP test-suite tools', () => {
 			);
 		});
 
+		it('should return error when suite disappears before update', async () => {
+			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
+			mockUpdateReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'update-test-suite',
+				arguments: { suiteId: 1, name: 'Updated' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test suite not found'
+			);
+		});
+
 		it('should reject empty names before updating a suite', async () => {
 			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
 

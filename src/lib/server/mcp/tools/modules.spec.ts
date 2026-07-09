@@ -285,6 +285,21 @@ describe('MCP module tools', () => {
 			);
 		});
 
+		it('should return error when module disappears before update', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
+			mockUpdateReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'update-module',
+				arguments: { moduleId: 1, name: 'Updated Module' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Module not found'
+			);
+		});
+
 		it('should reject empty names before updating a module', async () => {
 			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
 

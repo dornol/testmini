@@ -4,7 +4,8 @@ import {
 	mockDeleteReturning,
 	mockSelectResult,
 	mockInsertReturning,
-	mockTransactionDeleteReturning
+	mockTransactionDeleteReturning,
+	mockUpdateReturning
 } from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
@@ -218,9 +219,10 @@ describe('MCP test-plan tools', () => {
 
 	describe('update-test-plan', () => {
 		it('should update plan fields', async () => {
-			mockDb.query.testPlan.findFirst
-				.mockResolvedValueOnce(samplePlan)
-				.mockResolvedValueOnce({ ...samplePlan, name: 'Updated', status: 'ACTIVE' });
+			mockDb.query.testPlan.findFirst.mockResolvedValueOnce(samplePlan);
+			const updateChain = mockUpdateReturning(mockDb, [
+				{ ...samplePlan, name: 'Updated', status: 'ACTIVE' }
+			]);
 
 			const result = await client.callTool({
 				name: 'update-test-plan',
@@ -231,11 +233,26 @@ describe('MCP test-plan tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('Updated');
 			expect(parsed.status).toBe('ACTIVE');
-			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 1],
 					['project_id', PROJECT_ID]
 				])
+			);
+		});
+
+		it('should return error when plan disappears before update', async () => {
+			mockDb.query.testPlan.findFirst.mockResolvedValueOnce(samplePlan);
+			mockUpdateReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'update-test-plan',
+				arguments: { planId: 1, name: 'Updated' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test plan not found'
 			);
 		});
 

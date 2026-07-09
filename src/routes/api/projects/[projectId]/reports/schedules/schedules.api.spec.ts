@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -30,9 +34,8 @@ vi.mock('drizzle-orm', () => ({
 	count: vi.fn()
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -165,6 +168,98 @@ describe('/api/projects/[projectId]/reports/schedules', () => {
 				params: PARAMS,
 				user: testUser,
 				body: { name: 'Report', cronExpression: '0 9 * * *', recipientEmails: [] }
+			});
+
+			await expect(POST(event)).rejects.toThrow();
+		});
+
+		it('should reject a name that is too long', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					name: 'a'.repeat(121),
+					cronExpression: '0 9 * * *',
+					recipientEmails: ['a@b.com']
+				}
+			});
+
+			await expect(POST(event)).rejects.toThrow();
+		});
+
+		it('should reject invalid recipient emails', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					name: 'Report',
+					cronExpression: '0 9 * * *',
+					recipientEmails: ['not-an-email']
+				}
+			});
+
+			await expect(POST(event)).rejects.toThrow();
+		});
+
+		it('should reject duplicate recipient emails', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					name: 'Report',
+					cronExpression: '0 9 * * *',
+					recipientEmails: ['A@B.com', 'a@b.com']
+				}
+			});
+
+			await expect(POST(event)).rejects.toThrow();
+		});
+
+		it('should reject too many recipients', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					name: 'Report',
+					cronExpression: '0 9 * * *',
+					recipientEmails: Array.from({ length: 21 }, (_, index) => `user${index}@example.com`)
+				}
+			});
+
+			await expect(POST(event)).rejects.toThrow();
+		});
+
+		it('should reject invalid report range', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					name: 'Report',
+					cronExpression: '0 9 * * *',
+					recipientEmails: ['a@b.com'],
+					reportRange: 'last_90_days'
+				}
+			});
+
+			await expect(POST(event)).rejects.toThrow();
+		});
+
+		it('should reject non-boolean enabled', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					name: 'Report',
+					cronExpression: '0 9 * * *',
+					recipientEmails: ['a@b.com'],
+					enabled: 'true'
+				}
 			});
 
 			await expect(POST(event)).rejects.toThrow();

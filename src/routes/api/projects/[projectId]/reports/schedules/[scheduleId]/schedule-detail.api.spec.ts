@@ -31,9 +31,8 @@ vi.mock('drizzle-orm', () => ({
 	count: vi.fn()
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -108,6 +107,50 @@ describe('/api/projects/[projectId]/reports/schedules/[scheduleId]', () => {
 			await expect(PATCH(event)).rejects.toThrow();
 		});
 
+		it('should reject empty name update', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { name: '   ' }
+			});
+
+			await expect(PATCH(event)).rejects.toThrow();
+		});
+
+		it('should reject invalid recipient email update', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { recipientEmails: ['bad-email'] }
+			});
+
+			await expect(PATCH(event)).rejects.toThrow();
+		});
+
+		it('should reject invalid report range update', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { reportRange: 'last_90_days' }
+			});
+
+			await expect(PATCH(event)).rejects.toThrow();
+		});
+
+		it('should reject non-boolean enabled update', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { enabled: 'false' }
+			});
+
+			await expect(PATCH(event)).rejects.toThrow();
+		});
+
 		it('should reject empty updates', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -144,8 +187,7 @@ describe('/api/projects/[projectId]/reports/schedules/[scheduleId]', () => {
 				set: vi.fn().mockReturnThis(),
 				where: vi.fn().mockReturnThis(),
 				returning: vi.fn().mockReturnThis(),
-				then: (resolve: (v: unknown) => void) =>
-					Promise.resolve([updatedSchedule]).then(resolve)
+				then: (resolve: (v: unknown) => void) => Promise.resolve([updatedSchedule]).then(resolve)
 			};
 			mockDb.update.mockReturnValue(chain as never);
 
@@ -169,8 +211,7 @@ describe('/api/projects/[projectId]/reports/schedules/[scheduleId]', () => {
 				set: vi.fn().mockReturnThis(),
 				where: vi.fn().mockReturnThis(),
 				returning: vi.fn().mockReturnThis(),
-				then: (resolve: (v: unknown) => void) =>
-					Promise.resolve([updatedSchedule]).then(resolve)
+				then: (resolve: (v: unknown) => void) => Promise.resolve([updatedSchedule]).then(resolve)
 			};
 			mockDb.update.mockReturnValue(chain as never);
 
@@ -193,8 +234,7 @@ describe('/api/projects/[projectId]/reports/schedules/[scheduleId]', () => {
 				set: vi.fn().mockReturnThis(),
 				where: vi.fn().mockReturnThis(),
 				returning: vi.fn().mockReturnThis(),
-				then: (resolve: (v: unknown) => void) =>
-					Promise.resolve([updatedSchedule]).then(resolve)
+				then: (resolve: (v: unknown) => void) => Promise.resolve([updatedSchedule]).then(resolve)
 			};
 			mockDb.update.mockReturnValue(chain as never);
 
@@ -249,8 +289,7 @@ describe('/api/projects/[projectId]/reports/schedules/[scheduleId]', () => {
 			const chain = {
 				where: vi.fn().mockReturnThis(),
 				returning: vi.fn().mockReturnThis(),
-				then: (resolve: (v: unknown) => void) =>
-					Promise.resolve([sampleSchedule]).then(resolve)
+				then: (resolve: (v: unknown) => void) => Promise.resolve([sampleSchedule]).then(resolve)
 			};
 			mockDb.delete.mockReturnValue(chain as never);
 

@@ -6,15 +6,16 @@ import { parseDateRange, loadReportData } from './report-data';
 import { generateReportPdf } from './pdf-report';
 import { sendEmail } from './email';
 import { childLogger } from './logger';
+import {
+	isAllowedReportScheduleRange,
+	validateScheduleRecipientEmails
+} from './report-schedule-validation';
 
 const log = childLogger('report-scheduler');
 const jobs = new Map<number, ReturnType<typeof cron.schedule>>();
 
 export async function initReportScheduler() {
-	const schedules = await db
-		.select()
-		.from(reportSchedule)
-		.where(eq(reportSchedule.enabled, true));
+	const schedules = await db.select().from(reportSchedule).where(eq(reportSchedule.enabled, true));
 
 	for (const schedule of schedules) {
 		registerJob(schedule);
@@ -26,10 +27,23 @@ export async function initReportScheduler() {
 export function registerJob(schedule: typeof reportSchedule.$inferSelect) {
 	// Remove existing job if any
 	const existing = jobs.get(schedule.id);
-	if (existing) existing.stop();
+	if (existing) {
+		existing.stop();
+		jobs.delete(schedule.id);
+	}
 
 	if (!cron.validate(schedule.cronExpression)) {
 		log.warn({ id: schedule.id, cron: schedule.cronExpression }, 'Invalid cron expression');
+		return;
+	}
+	if (!isAllowedReportScheduleRange(schedule.reportRange)) {
+		log.warn({ id: schedule.id, reportRange: schedule.reportRange }, 'Invalid report range');
+		return;
+	}
+	try {
+		validateScheduleRecipientEmails(schedule.recipientEmails);
+	} catch {
+		log.warn({ id: schedule.id }, 'Invalid report recipients');
 		return;
 	}
 
@@ -55,6 +69,20 @@ async function executeSchedule(scheduleId: number) {
 		where: eq(reportSchedule.id, scheduleId)
 	});
 	if (!schedule || !schedule.enabled) return;
+	if (!isAllowedReportScheduleRange(schedule.reportRange)) {
+		log.warn(
+			{ scheduleId, reportRange: schedule.reportRange },
+			'Skipping schedule with invalid report range'
+		);
+		return;
+	}
+	let recipientEmails: string[];
+	try {
+		recipientEmails = validateScheduleRecipientEmails(schedule.recipientEmails);
+	} catch {
+		log.warn({ scheduleId }, 'Skipping schedule with invalid recipients');
+		return;
+	}
 
 	const proj = await db.query.project.findFirst({
 		where: eq(project.id, schedule.projectId)
@@ -99,7 +127,7 @@ async function executeSchedule(scheduleId: number) {
 	});
 
 	// Send to each recipient
-	for (const email of schedule.recipientEmails) {
+	for (const email of recipientEmails) {
 		await sendEmail({
 			to: email,
 			subject: `[${proj?.name ?? 'testmini'}] ${schedule.name}`,
@@ -114,5 +142,5 @@ async function executeSchedule(scheduleId: number) {
 		.set({ lastSentAt: new Date() })
 		.where(eq(reportSchedule.id, scheduleId));
 
-	log.info({ scheduleId, recipients: schedule.recipientEmails.length }, 'Scheduled report sent');
+	log.info({ scheduleId, recipients: recipientEmails.length }, 'Scheduled report sent');
 }

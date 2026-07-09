@@ -3,32 +3,33 @@ import { withProjectRole } from '$lib/server/api-handler';
 import { db } from '$lib/server/db';
 import { reportSchedule } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import cron from 'node-cron';
 import { registerJob, removeJob } from '$lib/server/report-scheduler';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
+import {
+	validateOptionalScheduleEnabled,
+	validateScheduleCronExpression,
+	validateScheduleName,
+	validateScheduleRecipientEmails,
+	validateScheduleReportRange
+} from '$lib/server/report-schedule-validation';
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params, projectId }) => {
 	const scheduleId = parseId(params.scheduleId, 'schedule ID');
 
 	const body = await parseJsonBody(request);
-	const { name, cronExpression, recipientEmails, reportRange, enabled } = body as {
-		name?: string;
-		cronExpression?: string;
-		recipientEmails?: string[];
-		reportRange?: string;
-		enabled?: boolean;
-	};
-
-	if (cronExpression && !cron.validate(cronExpression)) {
-		error(400, 'Invalid cron expression');
-	}
+	const raw = body as Record<string, unknown>;
 
 	const updates: Record<string, unknown> = {};
-	if (name !== undefined) updates.name = name.trim();
-	if (cronExpression !== undefined) updates.cronExpression = cronExpression.trim();
-	if (recipientEmails !== undefined) updates.recipientEmails = recipientEmails;
-	if (reportRange !== undefined) updates.reportRange = reportRange;
-	if (enabled !== undefined) updates.enabled = enabled;
+	if (raw.name !== undefined) updates.name = validateScheduleName(raw.name);
+	if (raw.cronExpression !== undefined) {
+		updates.cronExpression = validateScheduleCronExpression(raw.cronExpression);
+	}
+	if (raw.recipientEmails !== undefined) {
+		updates.recipientEmails = validateScheduleRecipientEmails(raw.recipientEmails);
+	}
+	if (raw.reportRange !== undefined)
+		updates.reportRange = validateScheduleReportRange(raw.reportRange);
+	if (raw.enabled !== undefined) updates.enabled = validateOptionalScheduleEnabled(raw.enabled);
 
 	if (Object.keys(updates).length === 0) error(400, 'No updates provided');
 

@@ -111,6 +111,19 @@ describe('/api/projects/[projectId]/test-cycles', () => {
 			);
 		});
 
+		it('should return 500 when cycle insert returns no row', async () => {
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Cycle 1', cycleNumber: 1 },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
 		it('should return 409 for duplicate cycle number', async () => {
 			mockDb.query.testCycle.findFirst.mockResolvedValue({ id: 1 });
 

@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { requirement, requirementTestCase } from '$lib/server/db/schema';
 import { eq, sql, desc, inArray } from 'drizzle-orm';
@@ -100,6 +100,8 @@ export const POST = withProjectRole(
 				createdBy: user.id
 			})
 			.returning();
+
+		if (!created) error(500, 'Failed to create requirement');
 
 		return json(created, { status: 201 });
 	}

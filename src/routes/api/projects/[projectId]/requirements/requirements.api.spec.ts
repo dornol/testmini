@@ -378,6 +378,17 @@ describe('/api/projects/[projectId]/requirements', () => {
 			expect(body.externalId).toBe('REQ-100');
 		});
 
+		it('should return 500 when requirement insert returns no row', async () => {
+			vi.mocked(authUtils.parseJsonBody).mockResolvedValue({
+				title: 'New Requirement'
+			});
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({ method: 'POST', params: PARAMS, user: testUser });
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
 		it('should trim title and optional fields', async () => {
 			vi.mocked(authUtils.parseJsonBody).mockResolvedValue({
 				title: '  Trimmed Title  ',

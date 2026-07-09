@@ -66,6 +66,8 @@ export const POST = withProjectRole(
 			})
 			.returning();
 
+		if (!created) error(500, 'Failed to create release');
+
 		return json(created, { status: 201 });
 	}
 );

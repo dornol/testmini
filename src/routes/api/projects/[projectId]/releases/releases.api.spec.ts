@@ -181,6 +181,19 @@ describe('/api/projects/[projectId]/releases', () => {
 			expect(response.status).toBe(201);
 		});
 
+		it('should return 500 when release insert returns no row', async () => {
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'v2.0.0' },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
 		it('should return 400 when name is missing', async () => {
 			const event = createMockEvent({
 				method: 'POST',

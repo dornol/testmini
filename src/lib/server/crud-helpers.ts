@@ -112,7 +112,13 @@ export async function deleteResource(
 	label: string
 ): Promise<Response> {
 	await findOrFail(table, idCol, projectIdCol, resourceId, projectId, label);
-	await db.delete(table).where(and(eq(idCol, resourceId), eq(projectIdCol, projectId)));
+	const [deleted] = await db
+		.delete(table)
+		.where(and(eq(idCol, resourceId), eq(projectIdCol, projectId)))
+		.returning();
+	if (!deleted) {
+		error(404, `${label} not found`);
+	}
 	return json({ success: true });
 }
 

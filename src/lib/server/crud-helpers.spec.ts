@@ -50,7 +50,7 @@ import {
 	validateCommentRequestBody,
 	COMMENT_CREATE_FIELDS
 } from './crud-helpers';
-import { mockSelectResult } from './test-helpers/mock-db';
+import { mockDeleteReturning, mockSelectResult } from './test-helpers/mock-db';
 import type { Column } from 'drizzle-orm';
 import type { AnyPgTable } from 'drizzle-orm/pg-core';
 
@@ -208,6 +208,7 @@ describe('deleteResource', () => {
 
 	it('returns success response after deleting', async () => {
 		mockSelectResult(mockDb, [{ id: 5, projectId: 10 }]);
+		mockDeleteReturning(mockDb, [{ id: 5 }]);
 
 		const response = await deleteResource(fakeTable, fakeIdCol, fakeProjectIdCol, 5, 10, 'Tag');
 		expect(response.status).toBe(200);
@@ -226,9 +227,21 @@ describe('deleteResource', () => {
 
 	it('calls db.delete after successful findOrFail', async () => {
 		mockSelectResult(mockDb, [{ id: 5 }]);
+		mockDeleteReturning(mockDb, [{ id: 5 }]);
 
 		await deleteResource(fakeTable, fakeIdCol, fakeProjectIdCol, 5, 10, 'Tag');
 
 		expect(mockDb.delete).toHaveBeenCalled();
+	});
+
+	it('throws 404 when delete affects no rows after existence check', async () => {
+		mockSelectResult(mockDb, [{ id: 5 }]);
+		mockDeleteReturning(mockDb, []);
+
+		await expect(
+			deleteResource(fakeTable, fakeIdCol, fakeProjectIdCol, 5, 10, 'Tag')
+		).rejects.toMatchObject({
+			status: 404
+		});
 	});
 });

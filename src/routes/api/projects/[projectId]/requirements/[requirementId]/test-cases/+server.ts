@@ -1,8 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 import { badRequest } from '$lib/server/errors';
 import { db } from '$lib/server/db';
-import { requirement, requirementTestCase } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { requirement, requirementTestCase, testCase } from '$lib/server/db/schema';
+import { eq, and, inArray } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import {
@@ -29,6 +29,14 @@ export const POST = withProjectRole(
 
 		const testCaseIds = validatePositiveIntegerList(bodyOrError.testCaseIds, 'testCaseIds');
 		if (testCaseIds instanceof Response) return testCaseIds;
+
+		const validCases = await db
+			.select({ id: testCase.id })
+			.from(testCase)
+			.where(and(eq(testCase.projectId, projectId), inArray(testCase.id, testCaseIds)));
+		if (validCases.length !== testCaseIds.length) {
+			return badRequest('Some test cases do not belong to this project');
+		}
 
 		await db
 			.insert(requirementTestCase)
@@ -63,6 +71,13 @@ export const DELETE = withProjectRole(
 		}
 		const testCaseId = validatePositiveInteger(rawTestCaseId, 'testCaseId');
 		if (testCaseId instanceof Response) return testCaseId;
+
+		const existingTestCase = await db.query.testCase.findFirst({
+			where: and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId))
+		});
+		if (!existingTestCase) {
+			error(404, 'Test case not found');
+		}
 
 		await db
 			.delete(requirementTestCase)

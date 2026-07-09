@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockInsertReturning,
+	mockSelectResult
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -8,6 +12,7 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	module: { id: 'id', projectId: 'project_id', name: 'name' },
+	testCase: { id: 'id', projectId: 'project_id' },
 	moduleTestCase: { id: 'id', moduleId: 'module_id', testCaseId: 'test_case_id' }
 }));
 vi.mock('drizzle-orm', () => ({
@@ -122,6 +127,7 @@ describe('/api/projects/[projectId]/modules/[moduleId]/test-cases', () => {
 
 		it('should add test cases to module on success', async () => {
 			mockDb.query.module.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
+			mockSelectResult(mockDb, [{ id: 1 }, { id: 2 }, { id: 3 }]);
 			const insertChain = {
 				values: vi.fn().mockReturnThis(),
 				onConflictDoNothing: vi.fn().mockReturnThis(),
@@ -139,6 +145,24 @@ describe('/api/projects/[projectId]/modules/[moduleId]/test-cases', () => {
 			expect(response.status).toBe(200);
 			const body = await response.json();
 			expect(body.added).toBe(3);
+		});
+
+		it('should reject test cases outside the current project', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
+			mockSelectResult(mockDb, [{ id: 1 }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { testCaseIds: [1, 2] },
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Some test cases do not belong to this project');
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for invalid module ID', async () => {
@@ -227,6 +251,7 @@ describe('/api/projects/[projectId]/modules/[moduleId]/test-cases', () => {
 
 		it('should remove test cases from module on success', async () => {
 			mockDb.query.module.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
+			mockSelectResult(mockDb, [{ id: 1 }, { id: 2 }]);
 			const deleteChain = {
 				where: vi.fn().mockReturnThis(),
 				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
@@ -243,6 +268,24 @@ describe('/api/projects/[projectId]/modules/[moduleId]/test-cases', () => {
 			expect(response.status).toBe(200);
 			const body = await response.json();
 			expect(body.removed).toBe(2);
+		});
+
+		it('should reject removing test cases outside the current project', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
+			mockSelectResult(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				body: { testCaseIds: [99] },
+				user: testUser
+			});
+			const response = await DELETE(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Some test cases do not belong to this project');
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 	});
 });

@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { moduleTestCase, module } from '$lib/server/db/schema';
+import { moduleTestCase, module, testCase } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { parseJsonBody } from '$lib/server/auth-utils';
@@ -29,6 +29,14 @@ export const POST = withProjectRole(
 		const testCaseIds = validatePositiveIntegerList(bodyOrError.testCaseIds, 'testCaseIds');
 		if (testCaseIds instanceof Response) return testCaseIds;
 
+		const validCases = await db
+			.select({ id: testCase.id })
+			.from(testCase)
+			.where(and(eq(testCase.projectId, projectId), inArray(testCase.id, testCaseIds)));
+		if (validCases.length !== testCaseIds.length) {
+			return badRequest('Some test cases do not belong to this project');
+		}
+
 		const values = testCaseIds.map((tcId) => ({ moduleId, testCaseId: tcId }));
 		await db.insert(moduleTestCase).values(values).onConflictDoNothing();
 
@@ -52,6 +60,14 @@ export const DELETE = withProjectRole(
 
 		const testCaseIds = validatePositiveIntegerList(bodyOrError.testCaseIds, 'testCaseIds');
 		if (testCaseIds instanceof Response) return testCaseIds;
+
+		const validCases = await db
+			.select({ id: testCase.id })
+			.from(testCase)
+			.where(and(eq(testCase.projectId, projectId), inArray(testCase.id, testCaseIds)));
+		if (validCases.length !== testCaseIds.length) {
+			return badRequest('Some test cases do not belong to this project');
+		}
 
 		await db
 			.delete(moduleTestCase)

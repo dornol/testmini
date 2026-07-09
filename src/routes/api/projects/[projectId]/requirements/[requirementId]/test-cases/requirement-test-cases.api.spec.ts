@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockInsertReturning,
+	mockSelectResult
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -14,11 +18,13 @@ vi.mock('$lib/server/db/schema', () => ({
 	requirementTestCase: {
 		requirementId: 'requirement_id',
 		testCaseId: 'test_case_id'
-	}
+	},
+	testCase: { id: 'id', projectId: 'project_id' }
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
-	and: vi.fn((...args: unknown[]) => args)
+	and: vi.fn((...args: unknown[]) => args),
+	inArray: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
 	const actual =
@@ -48,6 +54,7 @@ describe('/api/projects/[projectId]/requirements/[requirementId]/test-cases', ()
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockDb.query.requirement = { findFirst: vi.fn() };
+		mockDb.query.testCase = { findFirst: vi.fn() };
 	});
 
 	describe('POST (link test cases)', () => {
@@ -181,6 +188,7 @@ describe('/api/projects/[projectId]/requirements/[requirementId]/test-cases', ()
 
 		it('should link test cases and return 201', async () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockSelectResult(mockDb, [{ id: 1 }, { id: 2 }, { id: 3 }]);
 			mockInsertReturning(mockDb, []);
 
 			const event = createMockEvent({
@@ -196,8 +204,27 @@ describe('/api/projects/[projectId]/requirements/[requirementId]/test-cases', ()
 			expect(body.linked).toBe(3);
 		});
 
+		it('should reject test cases outside the current project', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockSelectResult(mockDb, [{ id: 1 }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { testCaseIds: [1, 2] }
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+			expect(response.status).toBe(400);
+			expect(body.error).toContain('Some test cases do not belong to this project');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should link a single test case', async () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockSelectResult(mockDb, [{ id: 42 }]);
 			mockInsertReturning(mockDb, []);
 
 			const event = createMockEvent({
@@ -285,6 +312,7 @@ describe('/api/projects/[projectId]/requirements/[requirementId]/test-cases', ()
 
 		it('should unlink test case and return success', async () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -298,6 +326,21 @@ describe('/api/projects/[projectId]/requirements/[requirementId]/test-cases', ()
 			const body = await response.json();
 			expect(body.success).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
+		});
+
+		it('should reject unlink when test case is outside the current project', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockDb.query.testCase.findFirst.mockResolvedValue(null);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: testUser,
+				searchParams: { testCaseId: '5' }
+			});
+
+			await expect(DELETE(event)).rejects.toThrow();
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 	});
 });

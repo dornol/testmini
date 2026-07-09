@@ -11,6 +11,16 @@ import { assertMultipartContentLength } from '$lib/server/multipart-limits';
 
 const MAX_NOTE_CONTENT_LENGTH = 10_000;
 const MAX_SCREENSHOT_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_SCREENSHOT_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+const ALLOWED_SCREENSHOT_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp']);
+
+function validateScreenshotFile(file: File): Response | null {
+	const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
+	if (!ALLOWED_SCREENSHOT_TYPES.has(file.type) || !ALLOWED_SCREENSHOT_EXTENSIONS.has(extension)) {
+		return badRequest('Screenshot must be a PNG, JPEG, GIF, or WebP image');
+	}
+	return null;
+}
 
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
@@ -47,6 +57,9 @@ export const POST = withProjectRole(
 			if (file.size > MAX_SCREENSHOT_SIZE) {
 				return badRequest('Screenshot must be under 10MB');
 			}
+			const screenshotError = validateScreenshotFile(file);
+			if (screenshotError) return screenshotError;
+
 			const uuid = randomUUID();
 			const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
 			screenshotPath = `exploratory/${sessionId}/${uuid}_${safeName}`;

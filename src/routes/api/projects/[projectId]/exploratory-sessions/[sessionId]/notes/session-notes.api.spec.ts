@@ -271,6 +271,35 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 			);
 		});
 
+		it('should reject active content as screenshots before saving', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+			for (const file of [
+				new File(['<svg><script>alert(1)</script></svg>'], 'screenshot.svg', {
+					type: 'image/svg+xml'
+				}),
+				new File(['<html></html>'], 'screenshot.html', { type: 'text/html' }),
+				new File(['fake image data'], 'screenshot.svg', { type: 'image/png' })
+			]) {
+				vi.clearAllMocks();
+				mockDb.query.exploratorySession = { findFirst: vi.fn().mockResolvedValue(sampleSession) };
+
+				const event = createFormDataEvent({
+					content: 'Bug with screenshot',
+					noteType: 'BUG',
+					timestamp: '200',
+					screenshot: file
+				});
+
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+				expect((await response.json()).error).toContain('Screenshot must be');
+				expect(mockSaveFile).not.toHaveBeenCalled();
+				expect(mockDb.insert).not.toHaveBeenCalled();
+			}
+		});
+
 		it('should accept all valid note types', async () => {
 			for (const noteType of ['NOTE', 'BUG', 'QUESTION', 'IDEA']) {
 				vi.clearAllMocks();

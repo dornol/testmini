@@ -119,7 +119,25 @@ describe('/api/uploads/[...path]', () => {
 
 		expect(response.status).toBe(200);
 		expect(response.headers.get('Content-Type')).toBe('image/png');
+		expect(response.headers.get('Cache-Control')).toBe('private, max-age=86400');
+		expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
 		expect(authUtils.requireProjectAccess).toHaveBeenCalledWith(testUser, 5);
 		expect(storage.getFile).toHaveBeenCalledWith(screenshotPath);
+	});
+
+	it('should not serve svg screenshots as active image content', async () => {
+		const svgPath = 'exploratory/10/test-uuid_screenshot.svg';
+		mockSelectResult(mockDb, [{ projectId: 5 }]);
+		const event = createMockEvent({
+			method: 'GET',
+			params: { path: svgPath },
+			user: testUser
+		});
+
+		const response = await GET(event);
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get('Content-Type')).toBe('application/octet-stream');
+		expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
 	});
 });

@@ -269,6 +269,7 @@ describe('MCP environment tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('STAGING');
 			expect(parsed.color).toBe('#f59e0b');
+			expect(updateChain.set).toHaveBeenCalledWith({ name: 'STAGING', color: '#f59e0b' });
 			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 1],

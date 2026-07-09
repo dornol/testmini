@@ -7,15 +7,17 @@ import { eq, and } from 'drizzle-orm';
 import { createEnvironmentSchema } from '$lib/schemas/environment.schema';
 import { getNextPosition } from '$lib/server/queries';
 
-const updateEnvironmentToolSchema = createEnvironmentSchema
-	.pick({
-		name: true,
-		color: true,
-		isDefault: true,
-		baseUrl: true,
-		memo: true
+const updateEnvironmentToolSchema = z
+	.object({
+		name: z.string().min(1).max(30).optional(),
+		color: z
+			.string()
+			.regex(/^#[0-9a-fA-F]{6}$/)
+			.optional(),
+		isDefault: z.boolean().optional(),
+		baseUrl: z.string().max(500).optional(),
+		memo: z.string().max(2000).optional()
 	})
-	.partial()
 	.refine((value) => Object.keys(value).length > 0, 'At least one field is required');
 
 function firstValidationError(error: { issues: Array<{ message: string }> }): string {

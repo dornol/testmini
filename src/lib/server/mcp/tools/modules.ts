@@ -6,19 +6,14 @@ import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
 import { eq, and, sql, inArray } from 'drizzle-orm';
 
 export function registerModuleTools(server: McpServer, projectId: number) {
-	server.tool(
-		'list-modules',
-		'List all modules for the project',
-		{},
-		async () => {
-			const modules = await db.query.module.findMany({
-				where: eq(module.projectId, projectId),
-				columns: { id: true, name: true, description: true, parentModuleId: true, sortOrder: true }
-			});
+	server.tool('list-modules', 'List all modules for the project', {}, async () => {
+		const modules = await db.query.module.findMany({
+			where: eq(module.projectId, projectId),
+			columns: { id: true, name: true, description: true, parentModuleId: true, sortOrder: true }
+		});
 
-			return ok(modules);
-		}
-	);
+		return ok(modules);
+	});
 
 	server.tool(
 		'create-module',
@@ -64,7 +59,7 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 			});
 			if (!m) return err('Module not found');
 
-			await db.delete(module).where(eq(module.id, moduleId));
+			await db.delete(module).where(and(eq(module.id, moduleId), eq(module.projectId, projectId)));
 			return {
 				content: [
 					{ type: 'text' as const, text: JSON.stringify({ success: true, deletedId: moduleId }) }
@@ -111,7 +106,11 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 			if (name !== undefined) updates.name = name;
 			if (description !== undefined) updates.description = description;
 
-			const [updated] = await db.update(module).set(updates).where(eq(module.id, moduleId)).returning();
+			const [updated] = await db
+				.update(module)
+				.set(updates)
+				.where(and(eq(module.id, moduleId), eq(module.projectId, projectId)))
+				.returning();
 			return ok(updated);
 		}
 	);
@@ -143,8 +142,14 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 			testCaseIds: z.array(z.number()).describe('Test case IDs to remove')
 		},
 		async ({ moduleId, testCaseIds }) => {
-			await db.delete(moduleTestCase)
-				.where(and(eq(moduleTestCase.moduleId, moduleId), inArray(moduleTestCase.testCaseId, testCaseIds)));
+			await db
+				.delete(moduleTestCase)
+				.where(
+					and(
+						eq(moduleTestCase.moduleId, moduleId),
+						inArray(moduleTestCase.testCaseId, testCaseIds)
+					)
+				);
 			return ok({ success: true, moduleId, removedCount: testCaseIds.length });
 		}
 	);

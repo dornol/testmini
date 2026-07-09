@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockInsertReturning, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockInsertReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { sampleProject, sampleRelease } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -7,14 +11,25 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
-	release: { id: 'id', projectId: 'project_id', name: 'name', version: 'version', status: 'status', description: 'description', releaseDate: 'release_date', createdBy: 'created_by', createdAt: 'created_at', updatedAt: 'updated_at' }
+	release: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		version: 'version',
+		status: 'status',
+		description: 'description',
+		releaseDate: 'release_date',
+		createdBy: 'created_by',
+		createdAt: 'created_at',
+		updatedAt: 'updated_at'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('../helpers', async () => {
-	const actual = await vi.importActual('../helpers') as Record<string, unknown>;
+	const actual = (await vi.importActual('../helpers')) as Record<string, unknown>;
 	return { ...actual };
 });
 
@@ -99,7 +114,7 @@ describe('MCP release tools', () => {
 		it('should update a release', async () => {
 			mockDb.query.release.findFirst.mockResolvedValue(sampleRelease);
 			const updatedRelease = { ...sampleRelease, status: 'RELEASED' };
-			mockUpdateReturning(mockDb, [updatedRelease]);
+			const updateChain = mockUpdateReturning(mockDb, [updatedRelease]);
 
 			const result = await client.callTool({
 				name: 'update-release',
@@ -109,6 +124,12 @@ describe('MCP release tools', () => {
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.status).toBe('RELEASED');
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 300],
+					['project_id', 1]
+				])
+			);
 		});
 	});
 
@@ -128,6 +149,15 @@ describe('MCP release tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(300);
 			expect(mockDb.delete).toHaveBeenCalledTimes(1);
+			const deleteChain = mockDb.delete.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 300],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when not found', async () => {
@@ -139,7 +169,9 @@ describe('MCP release tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Release not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Release not found'
+			);
 		});
 	});
 });

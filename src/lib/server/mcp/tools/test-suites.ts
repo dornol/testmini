@@ -90,7 +90,9 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 
 			await db
 				.delete(testSuiteItem)
-				.where(and(eq(testSuiteItem.suiteId, suiteId), inArray(testSuiteItem.testCaseId, testCaseIds)));
+				.where(
+					and(eq(testSuiteItem.suiteId, suiteId), inArray(testSuiteItem.testCaseId, testCaseIds))
+				);
 
 			return ok({ success: true, suiteId, removedCount: testCaseIds.length });
 		}
@@ -114,7 +116,11 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 			if (name !== undefined) updates.name = name;
 			if (description !== undefined) updates.description = description;
 
-			const [updated] = await db.update(testSuite).set(updates).where(eq(testSuite.id, suiteId)).returning();
+			const [updated] = await db
+				.update(testSuite)
+				.set(updates)
+				.where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)))
+				.returning();
 			return ok(updated);
 		}
 	);
@@ -130,7 +136,9 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 			if (!s) return err('Test suite not found');
 
 			await db.delete(testSuiteItem).where(eq(testSuiteItem.suiteId, suiteId));
-			await db.delete(testSuite).where(eq(testSuite.id, suiteId));
+			await db
+				.delete(testSuite)
+				.where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)));
 			return ok({ success: true, deletedId: suiteId });
 		}
 	);

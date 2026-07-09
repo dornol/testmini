@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -9,7 +14,14 @@ vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
 	testCase: { id: 'id', projectId: 'project_id', key: 'key', latestVersionId: 'latest_version_id' },
 	testCaseVersion: { id: 'id', title: 'title', priority: 'priority' },
-	testSuite: { id: 'id', projectId: 'project_id', name: 'name', description: 'description', createdBy: 'created_by', createdAt: 'created_at' },
+	testSuite: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		description: 'description',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
 	testSuiteItem: { id: 'id', suiteId: 'suite_id', testCaseId: 'test_case_id', addedAt: 'added_at' }
 }));
 vi.mock('drizzle-orm', () => ({
@@ -72,7 +84,14 @@ describe('MCP test-suite tools', () => {
 		it('should return suite with items', async () => {
 			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
 			mockSelectResult(mockDb, [
-				{ id: 1, testCaseId: 10, addedAt: '2025-01-01', key: 'TC-0001', title: 'Login', priority: 'HIGH' }
+				{
+					id: 1,
+					testCaseId: 10,
+					addedAt: '2025-01-01',
+					key: 'TC-0001',
+					title: 'Login',
+					priority: 'HIGH'
+				}
 			]);
 
 			const result = await client.callTool({ name: 'get-test-suite', arguments: { suiteId: 1 } });
@@ -90,7 +109,9 @@ describe('MCP test-suite tools', () => {
 			const result = await client.callTool({ name: 'get-test-suite', arguments: { suiteId: 999 } });
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test suite not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test suite not found'
+			);
 		});
 	});
 
@@ -120,7 +141,9 @@ describe('MCP test-suite tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Project not found'
+			);
 		});
 	});
 
@@ -150,7 +173,9 @@ describe('MCP test-suite tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test suite not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test suite not found'
+			);
 		});
 	});
 
@@ -180,7 +205,9 @@ describe('MCP test-suite tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test suite not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test suite not found'
+			);
 		});
 	});
 
@@ -189,7 +216,9 @@ describe('MCP test-suite tools', () => {
 	describe('update-test-suite', () => {
 		it('should update a suite', async () => {
 			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
-			mockUpdateReturning(mockDb, [{ ...sampleSuite, name: 'Updated Suite', description: 'New desc' }]);
+			const updateChain = mockUpdateReturning(mockDb, [
+				{ ...sampleSuite, name: 'Updated Suite', description: 'New desc' }
+			]);
 
 			const result = await client.callTool({
 				name: 'update-test-suite',
@@ -200,6 +229,12 @@ describe('MCP test-suite tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('Updated Suite');
 			expect(parsed.description).toBe('New desc');
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when suite not found', async () => {
@@ -211,7 +246,9 @@ describe('MCP test-suite tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test suite not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test suite not found'
+			);
 		});
 	});
 
@@ -231,6 +268,15 @@ describe('MCP test-suite tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.delete).toHaveBeenCalledTimes(2);
+			const suiteDeleteChain = mockDb.delete.mock.results[1]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(suiteDeleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when suite not found', async () => {
@@ -242,7 +288,9 @@ describe('MCP test-suite tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test suite not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test suite not found'
+			);
 		});
 	});
 });

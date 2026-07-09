@@ -117,9 +117,8 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 			const totalRequirements = allRequirements.length;
 			const coveredRequirements = matrix.filter((r) => r.covered).length;
 			const uncoveredRequirements = totalRequirements - coveredRequirements;
-			const coveragePercent = totalRequirements > 0
-				? Math.round((coveredRequirements / totalRequirements) * 100)
-				: 0;
+			const coveragePercent =
+				totalRequirements > 0 ? Math.round((coveredRequirements / totalRequirements) * 100) : 0;
 
 			const result = {
 				summary: {
@@ -157,7 +156,11 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 			if (externalId !== undefined) updates.externalId = externalId;
 			if (source !== undefined) updates.source = source;
 
-			const [updated] = await db.update(requirement).set(updates).where(eq(requirement.id, requirementId)).returning();
+			const [updated] = await db
+				.update(requirement)
+				.set(updates)
+				.where(and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId)))
+				.returning();
 			return ok(updated);
 		}
 	);
@@ -172,8 +175,12 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 			});
 			if (!r) return err('Requirement not found');
 
-			await db.delete(requirementTestCase).where(eq(requirementTestCase.requirementId, requirementId));
-			await db.delete(requirement).where(eq(requirement.id, requirementId));
+			await db
+				.delete(requirementTestCase)
+				.where(eq(requirementTestCase.requirementId, requirementId));
+			await db
+				.delete(requirement)
+				.where(and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId)));
 			return ok({ success: true, deletedId: requirementId });
 		}
 	);
@@ -186,8 +193,14 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 			testCaseId: z.number().describe('Test case ID')
 		},
 		async ({ requirementId, testCaseId }) => {
-			await db.delete(requirementTestCase)
-				.where(and(eq(requirementTestCase.requirementId, requirementId), eq(requirementTestCase.testCaseId, testCaseId)));
+			await db
+				.delete(requirementTestCase)
+				.where(
+					and(
+						eq(requirementTestCase.requirementId, requirementId),
+						eq(requirementTestCase.testCaseId, testCaseId)
+					)
+				);
 			return ok({ success: true, requirementId, testCaseId });
 		}
 	);

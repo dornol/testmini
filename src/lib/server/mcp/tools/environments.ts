@@ -6,28 +6,23 @@ import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerEnvironmentTools(server: McpServer, projectId: number) {
-	server.tool(
-		'list-environments',
-		'List all environments for the project',
-		{},
-		async () => {
-			const envs = await db
-				.select({
-					id: environmentConfig.id,
-					name: environmentConfig.name,
-					color: environmentConfig.color,
-					position: environmentConfig.position,
-					isDefault: environmentConfig.isDefault,
-					baseUrl: environmentConfig.baseUrl,
-					memo: environmentConfig.memo
-				})
-				.from(environmentConfig)
-				.where(eq(environmentConfig.projectId, projectId))
-				.orderBy(environmentConfig.position);
+	server.tool('list-environments', 'List all environments for the project', {}, async () => {
+		const envs = await db
+			.select({
+				id: environmentConfig.id,
+				name: environmentConfig.name,
+				color: environmentConfig.color,
+				position: environmentConfig.position,
+				isDefault: environmentConfig.isDefault,
+				baseUrl: environmentConfig.baseUrl,
+				memo: environmentConfig.memo
+			})
+			.from(environmentConfig)
+			.where(eq(environmentConfig.projectId, projectId))
+			.orderBy(environmentConfig.position);
 
-			return ok(envs);
-		}
-	);
+		return ok(envs);
+	});
 
 	server.tool(
 		'create-environment',
@@ -66,11 +61,18 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 		{ environmentId: z.number().describe('Environment ID') },
 		async ({ environmentId }) => {
 			const env = await db.query.environmentConfig.findFirst({
-				where: and(eq(environmentConfig.id, environmentId), eq(environmentConfig.projectId, projectId))
+				where: and(
+					eq(environmentConfig.id, environmentId),
+					eq(environmentConfig.projectId, projectId)
+				)
 			});
 			if (!env) return err('Environment not found');
 
-			await db.delete(environmentConfig).where(eq(environmentConfig.id, environmentId));
+			await db
+				.delete(environmentConfig)
+				.where(
+					and(eq(environmentConfig.id, environmentId), eq(environmentConfig.projectId, projectId))
+				);
 			return ok({ success: true, deletedId: environmentId });
 		}
 	);
@@ -88,7 +90,10 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 		},
 		async ({ environmentId, name, color, isDefault, baseUrl, memo }) => {
 			const env = await db.query.environmentConfig.findFirst({
-				where: and(eq(environmentConfig.id, environmentId), eq(environmentConfig.projectId, projectId))
+				where: and(
+					eq(environmentConfig.id, environmentId),
+					eq(environmentConfig.projectId, projectId)
+				)
 			});
 			if (!env) return err('Environment not found');
 
@@ -99,7 +104,13 @@ export function registerEnvironmentTools(server: McpServer, projectId: number) {
 			if (baseUrl !== undefined) updates.baseUrl = baseUrl;
 			if (memo !== undefined) updates.memo = memo;
 
-			const [updated] = await db.update(environmentConfig).set(updates).where(eq(environmentConfig.id, environmentId)).returning();
+			const [updated] = await db
+				.update(environmentConfig)
+				.set(updates)
+				.where(
+					and(eq(environmentConfig.id, environmentId), eq(environmentConfig.projectId, projectId))
+				)
+				.returning();
 			return ok(updated);
 		}
 	);

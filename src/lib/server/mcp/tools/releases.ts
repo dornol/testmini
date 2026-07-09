@@ -6,18 +6,13 @@ import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
 import { eq, and } from 'drizzle-orm';
 
 export function registerReleaseTools(server: McpServer, projectId: number) {
-	server.tool(
-		'list-releases',
-		'List all releases for the project',
-		{},
-		async () => {
-			const releases = await db.query.release.findMany({
-				where: eq(release.projectId, projectId)
-			});
+	server.tool('list-releases', 'List all releases for the project', {}, async () => {
+		const releases = await db.query.release.findMany({
+			where: eq(release.projectId, projectId)
+		});
 
-			return ok(releases);
-		}
-	);
+		return ok(releases);
+	});
 
 	server.tool(
 		'create-release',
@@ -78,7 +73,7 @@ export function registerReleaseTools(server: McpServer, projectId: number) {
 			const [updated] = await db
 				.update(release)
 				.set(updates)
-				.where(eq(release.id, releaseId))
+				.where(and(eq(release.id, releaseId), eq(release.projectId, projectId)))
 				.returning();
 
 			return ok(updated);
@@ -95,7 +90,9 @@ export function registerReleaseTools(server: McpServer, projectId: number) {
 			});
 			if (!r) return err('Release not found');
 
-			await db.delete(release).where(eq(release.id, releaseId));
+			await db
+				.delete(release)
+				.where(and(eq(release.id, releaseId), eq(release.projectId, projectId)));
 			return {
 				content: [
 					{

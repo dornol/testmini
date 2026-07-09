@@ -6,18 +6,13 @@ import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
 import { eq, and, sql } from 'drizzle-orm';
 
 export function registerTestCycleTools(server: McpServer, projectId: number) {
-	server.tool(
-		'list-test-cycles',
-		'List all test cycles for the project',
-		{},
-		async () => {
-			const cycles = await db.query.testCycle.findMany({
-				where: eq(testCycle.projectId, projectId)
-			});
+	server.tool('list-test-cycles', 'List all test cycles for the project', {}, async () => {
+		const cycles = await db.query.testCycle.findMany({
+			where: eq(testCycle.projectId, projectId)
+		});
 
-			return ok(cycles);
-		}
-	);
+		return ok(cycles);
+	});
 
 	server.tool(
 		'create-test-cycle',
@@ -62,7 +57,9 @@ export function registerTestCycleTools(server: McpServer, projectId: number) {
 			});
 			if (!c) return err('Test cycle not found');
 
-			await db.delete(testCycle).where(eq(testCycle.id, testCycleId));
+			await db
+				.delete(testCycle)
+				.where(and(eq(testCycle.id, testCycleId), eq(testCycle.projectId, projectId)));
 			return ok({ success: true, deletedId: testCycleId });
 		}
 	);
@@ -89,7 +86,11 @@ export function registerTestCycleTools(server: McpServer, projectId: number) {
 			if (startDate !== undefined) updates.startDate = new Date(startDate);
 			if (endDate !== undefined) updates.endDate = new Date(endDate);
 
-			const [updated] = await db.update(testCycle).set(updates).where(eq(testCycle.id, testCycleId)).returning();
+			const [updated] = await db
+				.update(testCycle)
+				.set(updates)
+				.where(and(eq(testCycle.id, testCycleId), eq(testCycle.projectId, projectId)))
+				.returning();
 			return ok(updated);
 		}
 	);

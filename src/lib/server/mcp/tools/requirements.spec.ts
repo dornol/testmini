@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { sampleProject, sampleTestCase } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -9,8 +14,22 @@ vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
 	testCase: { id: 'id', projectId: 'project_id', key: 'key', latestVersionId: 'latest_version_id' },
 	testCaseVersion: { id: 'id', title: 'title' },
-	requirement: { id: 'id', projectId: 'project_id', externalId: 'external_id', title: 'title', description: 'description', source: 'source', createdBy: 'created_by', createdAt: 'created_at' },
-	requirementTestCase: { id: 'id', requirementId: 'requirement_id', testCaseId: 'test_case_id', createdAt: 'created_at' }
+	requirement: {
+		id: 'id',
+		projectId: 'project_id',
+		externalId: 'external_id',
+		title: 'title',
+		description: 'description',
+		source: 'source',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
+	requirementTestCase: {
+		id: 'id',
+		requirementId: 'requirement_id',
+		testCaseId: 'test_case_id',
+		createdAt: 'created_at'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
@@ -99,7 +118,9 @@ describe('MCP requirement tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Project not found'
+			);
 		});
 	});
 
@@ -131,7 +152,9 @@ describe('MCP requirement tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Requirement not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Requirement not found'
+			);
 		});
 
 		it('should return error when test case not found', async () => {
@@ -144,7 +167,9 @@ describe('MCP requirement tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
 		});
 	});
 
@@ -155,14 +180,15 @@ describe('MCP requirement tools', () => {
 			let selectCallCount = 0;
 			mockDb.select.mockImplementation(() => {
 				selectCallCount++;
-				const data = selectCallCount === 1
-					? [
-						{ id: 1, externalId: 'REQ-001', title: 'Auth', description: null, source: 'JIRA' },
-						{ id: 2, externalId: 'REQ-002', title: 'Reports', description: null, source: null }
-					]
-					: [
-						{ requirementId: 1, testCaseId: 10, testCaseKey: 'TC-0001', testCaseTitle: 'Login' }
-					];
+				const data =
+					selectCallCount === 1
+						? [
+								{ id: 1, externalId: 'REQ-001', title: 'Auth', description: null, source: 'JIRA' },
+								{ id: 2, externalId: 'REQ-002', title: 'Reports', description: null, source: null }
+							]
+						: [
+								{ requirementId: 1, testCaseId: 10, testCaseKey: 'TC-0001', testCaseTitle: 'Login' }
+							];
 				const chain = {
 					from: vi.fn().mockReturnThis(),
 					innerJoin: vi.fn().mockReturnThis(),
@@ -219,7 +245,9 @@ describe('MCP requirement tools', () => {
 	describe('update-requirement', () => {
 		it('should update title', async () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
-			mockUpdateReturning(mockDb, [{ ...sampleRequirement, title: 'Updated Title' }]);
+			const updateChain = mockUpdateReturning(mockDb, [
+				{ ...sampleRequirement, title: 'Updated Title' }
+			]);
 
 			const result = await client.callTool({
 				name: 'update-requirement',
@@ -229,6 +257,12 @@ describe('MCP requirement tools', () => {
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.title).toBe('Updated Title');
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when not found', async () => {
@@ -240,7 +274,9 @@ describe('MCP requirement tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Requirement not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Requirement not found'
+			);
 		});
 	});
 
@@ -260,6 +296,15 @@ describe('MCP requirement tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.delete).toHaveBeenCalledTimes(2);
+			const requirementDeleteChain = mockDb.delete.mock.results[1]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(requirementDeleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when not found', async () => {
@@ -271,7 +316,9 @@ describe('MCP requirement tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Requirement not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Requirement not found'
+			);
 		});
 	});
 

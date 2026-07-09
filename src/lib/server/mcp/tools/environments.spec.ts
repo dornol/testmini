@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockInsertReturning, mockSelectResult, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockInsertReturning,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { sampleProject } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -7,14 +12,24 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
-	environmentConfig: { id: 'id', projectId: 'project_id', name: 'name', color: 'color', position: 'position', isDefault: 'is_default', baseUrl: 'base_url', memo: 'memo', createdBy: 'created_by' }
+	environmentConfig: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		color: 'color',
+		position: 'position',
+		isDefault: 'is_default',
+		baseUrl: 'base_url',
+		memo: 'memo',
+		createdBy: 'created_by'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('../helpers', async () => {
-	const actual = await vi.importActual('../helpers') as Record<string, unknown>;
+	const actual = (await vi.importActual('../helpers')) as Record<string, unknown>;
 	return { ...actual };
 });
 
@@ -112,7 +127,9 @@ describe('MCP environment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Project not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Project not found'
+			);
 		});
 
 		it('should create with name and color', async () => {
@@ -147,6 +164,15 @@ describe('MCP environment tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.delete).toHaveBeenCalledTimes(1);
+			const deleteChain = mockDb.delete.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when not found', async () => {
@@ -158,7 +184,9 @@ describe('MCP environment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Environment not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Environment not found'
+			);
 		});
 	});
 
@@ -167,7 +195,9 @@ describe('MCP environment tools', () => {
 	describe('update-environment', () => {
 		it('should update name and color', async () => {
 			mockDb.query.environmentConfig.findFirst.mockResolvedValue(sampleEnv);
-			mockUpdateReturning(mockDb, [{ ...sampleEnv, name: 'STAGING', color: '#f59e0b' }]);
+			const updateChain = mockUpdateReturning(mockDb, [
+				{ ...sampleEnv, name: 'STAGING', color: '#f59e0b' }
+			]);
 
 			const result = await client.callTool({
 				name: 'update-environment',
@@ -178,6 +208,12 @@ describe('MCP environment tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('STAGING');
 			expect(parsed.color).toBe('#f59e0b');
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return error when not found', async () => {
@@ -189,7 +225,9 @@ describe('MCP environment tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Environment not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Environment not found'
+			);
 		});
 	});
 });

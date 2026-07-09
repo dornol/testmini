@@ -112,6 +112,8 @@ export const POST = withProjectRole(
 			})
 			.returning();
 
+		if (!inserted) error(500, 'Failed to create execution comment');
+
 		const userData = await db.query.user.findFirst({
 			where: eq(userTable.id, user.id)
 		});

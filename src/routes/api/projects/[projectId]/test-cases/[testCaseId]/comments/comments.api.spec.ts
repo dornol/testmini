@@ -44,6 +44,7 @@ vi.mock('$lib/server/auth-utils', async () => {
 
 const { GET, POST } = await import('./+server');
 const authUtils = await import('$lib/server/auth-utils');
+const notifications = await import('$lib/server/notifications');
 
 const PARAMS = { projectId: '1', testCaseId: '10' };
 
@@ -138,6 +139,20 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments', () => {
 
 			expect(response.status).toBe(201);
 			expect(body.content).toBe(inserted.content);
+		});
+
+		it('should return 500 when comment insert returns no row', async () => {
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { content: 'New comment' },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+			expect(notifications.createNotification).not.toHaveBeenCalled();
 		});
 
 		it('should return 403 for VIEWER role', async () => {

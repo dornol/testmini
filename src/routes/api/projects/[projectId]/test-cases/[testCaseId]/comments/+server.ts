@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import {
 	testCaseComment,
@@ -97,6 +97,8 @@ export const POST = withProjectRole(
 				parentId
 			})
 			.returning();
+
+		if (!inserted) error(500, 'Failed to create test case comment');
 
 		// Notify assignees (exclude comment author)
 		const assignees = await db

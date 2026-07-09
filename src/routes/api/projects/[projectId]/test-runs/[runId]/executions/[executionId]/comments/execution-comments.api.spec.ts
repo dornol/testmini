@@ -267,6 +267,21 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 			expect(body.userName).toBe('Test User');
 		});
 
+		it('should return 500 when comment insert returns no row', async () => {
+			mockSelectResult(mockDb, [{ id: 200 }]);
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { content: 'New comment' }
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+			expect(mockDb.query.user.findFirst).not.toHaveBeenCalled();
+		});
+
 		it('should create reply comment with parentId', async () => {
 			mockSelectResult(mockDb, [{ id: 200 }]);
 			mockDb.query.executionComment.findFirst.mockResolvedValue({

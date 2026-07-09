@@ -5,15 +5,7 @@ import { projectWebhook } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
-import { validatePublicHttpUrl } from '$lib/server/url-safety';
-
-const VALID_EVENTS = [
-	'TEST_RUN_COMPLETED',
-	'TEST_FAILED',
-	'COMMENT_ADDED',
-	'MEMBER_ADDED',
-	'ASSIGNED'
-];
+import { validateWebhookFields } from '$lib/server/webhook-validation';
 
 export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params, projectId }) => {
 	const webhookId = parseId(params.webhookId, 'webhook ID');
@@ -23,44 +15,17 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params
 	});
 	if (!existing) error(404, 'Webhook not found');
 
-	const body = (await parseJsonBody(request)) as {
-		name?: string;
-		url?: string;
-		secret?: string;
-		events?: string[];
-		enabled?: boolean;
-	};
+	const body = await parseJsonBody(request);
+	const fields = await validateWebhookFields(body, { allowEnabled: true });
+	if (fields instanceof Response) return fields;
 
 	const updates: Record<string, unknown> = {};
 
-	if (body.name !== undefined) {
-		const name = body.name.trim();
-		if (!name || name.length > 100) return badRequest('Name is required (max 100 chars)');
-		updates.name = name;
-	}
-
-	if (body.url !== undefined) {
-		const url = body.url.trim();
-		if (!url) return badRequest('URL is required');
-		const urlValidation = await validatePublicHttpUrl(url);
-		if (!urlValidation.ok) return badRequest(urlValidation.error ?? 'Invalid URL');
-		updates.url = url;
-	}
-
-	if (body.secret !== undefined) {
-		updates.secret = body.secret.trim() || null;
-	}
-
-	if (body.events !== undefined) {
-		for (const e of body.events) {
-			if (!VALID_EVENTS.includes(e)) return badRequest(`Invalid event type: ${e}`);
-		}
-		updates.events = body.events;
-	}
-
-	if (body.enabled !== undefined) {
-		updates.enabled = body.enabled;
-	}
+	if (fields.name !== undefined) updates.name = fields.name;
+	if (fields.url !== undefined) updates.url = fields.url;
+	if (fields.secret !== undefined) updates.secret = fields.secret;
+	if (fields.events !== undefined) updates.events = fields.events;
+	if (fields.enabled !== undefined) updates.enabled = fields.enabled;
 
 	if (Object.keys(updates).length === 0) {
 		return badRequest('No fields to update');

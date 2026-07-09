@@ -277,6 +277,89 @@ describe('/api/projects/[projectId]/webhooks', () => {
 			expect(data.error).toContain('Invalid event type');
 		});
 
+		it('should return 400 when request body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: null,
+				user: adminUser
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid request body');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when string fields have invalid types', async () => {
+			const cases = [
+				{ name: 123, url: 'https://example.com/hook' },
+				{ name: 'Hook', url: 123 },
+				{ name: 'Hook', url: 'https://example.com/hook', secret: 123 }
+			];
+
+			for (const body of cases) {
+				vi.clearAllMocks();
+				mockLookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
+				vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
+
+				const event = createMockEvent({
+					method: 'POST',
+					params: PARAMS,
+					body,
+					user: adminUser
+				});
+
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+				expect(mockDb.insert).not.toHaveBeenCalled();
+			}
+		});
+
+		it('should return 400 when events is not an array of strings', async () => {
+			const cases = ['TEST_FAILED', [123]];
+
+			for (const events of cases) {
+				vi.clearAllMocks();
+				mockLookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
+				vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
+
+				const event = createMockEvent({
+					method: 'POST',
+					params: PARAMS,
+					body: { name: 'Hook', url: 'https://example.com/hook', events },
+					user: adminUser
+				});
+
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+				expect((await response.json()).error).toContain('Events must be an array of strings');
+				expect(mockDb.insert).not.toHaveBeenCalled();
+			}
+		});
+
+		it('should return 400 when secret exceeds maximum length', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: {
+					name: 'Hook',
+					url: 'https://example.com/hook',
+					secret: 's'.repeat(4001)
+				},
+				user: adminUser
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Secret must be 4000 characters or less');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 403 for non-admin', async () => {
 			vi.mocked(authUtils.requireProjectRole).mockRejectedValue(
 				Object.assign(new Error(), { status: 403, body: { message: 'Forbidden' } })

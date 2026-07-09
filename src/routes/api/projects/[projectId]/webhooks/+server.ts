@@ -5,15 +5,7 @@ import { projectWebhook } from '$lib/server/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { parseJsonBody } from '$lib/server/auth-utils';
-import { validatePublicHttpUrl } from '$lib/server/url-safety';
-
-const VALID_EVENTS = [
-	'TEST_RUN_COMPLETED',
-	'TEST_FAILED',
-	'COMMENT_ADDED',
-	'MEMBER_ADDED',
-	'ASSIGNED'
-];
+import { validateWebhookFields } from '$lib/server/webhook-validation';
 
 export const GET = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'],
@@ -36,40 +28,18 @@ export const GET = withProjectRole(
 );
 
 export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, projectId }) => {
-	const body = (await parseJsonBody(request)) as {
-		name?: string;
-		url?: string;
-		secret?: string;
-		events?: string[];
-	};
-
-	const name = (body.name ?? '').trim();
-	if (!name || name.length > 100) {
-		return badRequest('Name is required (max 100 chars)');
-	}
-
-	const url = (body.url ?? '').trim();
-	if (!url) {
-		return badRequest('URL is required');
-	}
-	const urlValidation = await validatePublicHttpUrl(url);
-	if (!urlValidation.ok) return badRequest(urlValidation.error ?? 'Invalid URL');
-
-	const events = body.events ?? [];
-	for (const e of events) {
-		if (!VALID_EVENTS.includes(e)) {
-			return badRequest(`Invalid event type: ${e}`);
-		}
-	}
+	const body = await parseJsonBody(request);
+	const fields = await validateWebhookFields(body, { requireName: true, requireUrl: true });
+	if (fields instanceof Response) return fields;
 
 	const [created] = await db
 		.insert(projectWebhook)
 		.values({
 			projectId,
-			name,
-			url,
-			secret: body.secret?.trim() || null,
-			events,
+			name: fields.name!,
+			url: fields.url!,
+			secret: fields.secret ?? null,
+			events: fields.events ?? [],
 			createdBy: user.id
 		})
 		.returning();

@@ -21,9 +21,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -120,6 +119,66 @@ describe('/api/projects/[projectId]/requirements/[requirementId]/test-cases', ()
 			expect((await response.json()).error).toContain('testCaseIds');
 		});
 
+		it('should return 400 when body is not an object', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: null
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid request body');
+		});
+
+		it('should return 400 when testCaseIds contains invalid ids', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { testCaseIds: [1, -1] }
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('positive integer');
+		});
+
+		it('should return 400 when testCaseIds contains duplicates', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { testCaseIds: [1, 1] }
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('duplicates');
+		});
+
+		it('should return 400 when testCaseIds is too large', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { testCaseIds: Array.from({ length: 501 }, (_, i) => i + 1) }
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('500 items or less');
+		});
+
 		it('should link test cases and return 201', async () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
 			mockInsertReturning(mockDb, []);
@@ -207,6 +266,21 @@ describe('/api/projects/[projectId]/requirements/[requirementId]/test-cases', ()
 			const response = await DELETE(event);
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('testCaseId');
+		});
+
+		it('should return 400 when testCaseId is zero', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: testUser,
+				searchParams: { testCaseId: '0' }
+			});
+
+			const response = await DELETE(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('positive integer');
 		});
 
 		it('should unlink test case and return success', async () => {

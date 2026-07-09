@@ -16,7 +16,8 @@ vi.mock('drizzle-orm', () => ({
 	inArray: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -80,6 +81,45 @@ describe('/api/projects/[projectId]/modules/[moduleId]/test-cases', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 when body is not an object', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: null,
+				user: testUser
+			});
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid request body');
+		});
+
+		it('should return 400 when testCaseIds contains invalid ids', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { testCaseIds: [1, 0] },
+				user: testUser
+			});
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('positive integer');
+		});
+
+		it('should return 400 when testCaseIds contains duplicates', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { testCaseIds: [1, 1] },
+				user: testUser
+			});
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('duplicates');
+		});
+
 		it('should add test cases to module on success', async () => {
 			mockDb.query.module.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
 			const insertChain = {
@@ -105,6 +145,17 @@ describe('/api/projects/[projectId]/modules/[moduleId]/test-cases', () => {
 			const event = createMockEvent({
 				method: 'POST',
 				params: { projectId: '1', moduleId: 'abc' },
+				body: { testCaseIds: [1] },
+				user: testUser
+			});
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 for zero module ID', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1', moduleId: '0' },
 				body: { testCaseIds: [1] },
 				user: testUser
 			});
@@ -146,6 +197,32 @@ describe('/api/projects/[projectId]/modules/[moduleId]/test-cases', () => {
 			});
 			const response = await DELETE(event);
 			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 when delete body is not an object', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				body: null,
+				user: testUser
+			});
+			const response = await DELETE(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid request body');
+		});
+
+		it('should return 400 when delete ids contain duplicates', async () => {
+			mockDb.query.module.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				body: { testCaseIds: [1, 1] },
+				user: testUser
+			});
+			const response = await DELETE(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('duplicates');
 		});
 
 		it('should remove test cases from module on success', async () => {

@@ -91,9 +91,7 @@ describe('admin/audit-logs +page.server', () => {
 		});
 
 		it('should apply date range filters', async () => {
-			const url = new URL(
-				'http://localhost:5173/admin/audit-logs?from=2025-01-01&to=2025-01-31'
-			);
+			const url = new URL('http://localhost:5173/admin/audit-logs?from=2025-01-01&to=2025-01-31');
 			mockSelectResult(mockDb, []);
 
 			const result = (await load({ url } as never)) as Record<string, unknown>;
@@ -103,26 +101,43 @@ describe('admin/audit-logs +page.server', () => {
 
 		it('should handle page parameter', async () => {
 			const url = new URL('http://localhost:5173/admin/audit-logs?page=3');
-			mockSelectResult(mockDb, []);
+			const selectChain = mockSelectResult(mockDb, []);
 
 			const result = (await load({ url } as never)) as Record<string, unknown>;
 			expect((result.pagination as Record<string, unknown>).page).toBe(3);
+			expect(selectChain.offset).toHaveBeenCalledWith(100);
 		});
 
-		it('should clamp page to minimum of 1', async () => {
-			const url = new URL('http://localhost:5173/admin/audit-logs?page=-5');
+		it.each(['-5', '0', '1.5', 'Infinity', '9007199254740992'])(
+			'should normalize invalid page %s to 1',
+			async (page) => {
+				const url = new URL(`http://localhost:5173/admin/audit-logs?page=${page}`);
+				const selectChain = mockSelectResult(mockDb, []);
+
+				const result = (await load({ url } as never)) as Record<string, unknown>;
+				expect((result.pagination as Record<string, unknown>).page).toBe(1);
+				expect(selectChain.offset).toHaveBeenCalledWith(0);
+			}
+		);
+
+		it.each(['abc', '0', '-1', '1.5', 'Infinity', '9007199254740992'])(
+			'should ignore invalid projectId %s',
+			async (projectId) => {
+				const url = new URL(`http://localhost:5173/admin/audit-logs?projectId=${projectId}`);
+				mockSelectResult(mockDb, []);
+
+				const result = (await load({ url } as never)) as Record<string, unknown>;
+				expect((result.filters as Record<string, unknown>).projectId).toBe('');
+			}
+		);
+
+		it('should ignore invalid date filters', async () => {
+			const url = new URL('http://localhost:5173/admin/audit-logs?from=not-a-date&to=also-bad');
 			mockSelectResult(mockDb, []);
 
 			const result = (await load({ url } as never)) as Record<string, unknown>;
-			expect((result.pagination as Record<string, unknown>).page).toBe(1);
-		});
-
-		it('should ignore non-numeric projectId', async () => {
-			const url = new URL('http://localhost:5173/admin/audit-logs?projectId=abc');
-			mockSelectResult(mockDb, []);
-
-			const result = (await load({ url } as never)) as Record<string, unknown>;
-			expect((result.filters as Record<string, unknown>).projectId).toBe('');
+			expect((result.filters as Record<string, unknown>).from).toBe('');
+			expect((result.filters as Record<string, unknown>).to).toBe('');
 		});
 	});
 });

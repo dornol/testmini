@@ -14,24 +14,21 @@ export const POST = withProjectRole(
 		const sessionId = parseId(params.sessionId, 'session ID');
 
 		const session = await db.query.exploratorySession.findFirst({
-			where: and(
-				eq(exploratorySession.id, sessionId),
-				eq(exploratorySession.projectId, projectId)
-			)
+			where: and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId))
 		});
 		if (!session) return notFound('Session not found');
 
 		const formData = await request.formData();
-		const content = (formData.get('content') as string ?? '').trim();
+		const content = ((formData.get('content') as string) ?? '').trim();
 		if (!content) return badRequest('Content is required');
 
-		const noteType = formData.get('noteType') as string ?? 'NOTE';
+		const noteType = (formData.get('noteType') as string) ?? 'NOTE';
 		if (!['NOTE', 'BUG', 'QUESTION', 'IDEA'].includes(noteType)) {
 			return badRequest('Invalid note type');
 		}
 
 		const timestamp = Number(formData.get('timestamp') ?? '0');
-		if (!Number.isFinite(timestamp) || timestamp < 0) {
+		if (!Number.isSafeInteger(timestamp) || timestamp < 0) {
 			return badRequest('Invalid timestamp');
 		}
 

@@ -26,9 +26,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -74,7 +73,10 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 
 	describe('POST', () => {
 		it('should return 401 when not authenticated', async () => {
-			const event = createFormDataEvent({ content: 'test', noteType: 'NOTE', timestamp: '100' }, null as never);
+			const event = createFormDataEvent(
+				{ content: 'test', noteType: 'NOTE', timestamp: '100' },
+				null as never
+			);
 			await expect(POST(event)).rejects.toThrow();
 		});
 
@@ -180,6 +182,24 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Invalid timestamp');
 		});
+
+		it.each(['1.5', 'Infinity', '9007199254740992'])(
+			'should reject invalid timestamp %s before inserting',
+			async (timestamp) => {
+				mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+				const event = createFormDataEvent({
+					content: 'Some note',
+					noteType: 'NOTE',
+					timestamp
+				});
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+				expect((await response.json()).error).toContain('Invalid timestamp');
+				expect(mockDb.insert).not.toHaveBeenCalled();
+			}
+		);
 
 		it('should handle screenshot upload (mock file, verify saveFile called)', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);

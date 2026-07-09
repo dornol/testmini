@@ -5,15 +5,31 @@ import { and, eq, gte, lte, count, desc } from 'drizzle-orm';
 
 const LIMIT = 50;
 
+function parsePositiveSearchInt(value: string | null): number | null {
+	if (value === null || value === '') return null;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+	return parsed;
+}
+
+function parsePage(value: string | null): number {
+	return parsePositiveSearchInt(value) ?? 1;
+}
+
+function parseDateFilter(value: string | null): string {
+	if (!value) return '';
+	const parsed = new Date(value);
+	if (Number.isNaN(parsed.getTime())) return '';
+	return value;
+}
+
 export const load: PageServerLoad = async ({ url }) => {
-	const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'));
+	const page = parsePage(url.searchParams.get('page'));
 	const filterUserId = url.searchParams.get('userId') || '';
 	const filterAction = url.searchParams.get('action') || '';
-	const filterProjectId = url.searchParams.get('projectId')
-		? Number(url.searchParams.get('projectId'))
-		: null;
-	const from = url.searchParams.get('from') || '';
-	const to = url.searchParams.get('to') || '';
+	const filterProjectId = parsePositiveSearchInt(url.searchParams.get('projectId'));
+	const from = parseDateFilter(url.searchParams.get('from'));
+	const to = parseDateFilter(url.searchParams.get('to'));
 
 	const conditions = [];
 
@@ -23,7 +39,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	if (filterAction) {
 		conditions.push(eq(auditLog.action, filterAction));
 	}
-	if (filterProjectId && !isNaN(filterProjectId)) {
+	if (filterProjectId) {
 		conditions.push(eq(auditLog.projectId, filterProjectId));
 	}
 	if (from) {

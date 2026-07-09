@@ -14,10 +14,12 @@ import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { z } from 'zod';
 
-const createRunFromPlanSchema = z.object({
-	name: z.string().trim().min(1).max(200),
-	environment: z.string().trim().min(1).max(30)
-});
+const createRunFromPlanSchema = z
+	.object({
+		name: z.string().trim().min(1).max(200),
+		environment: z.string().trim().min(1).max(30)
+	})
+	.strict();
 
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],

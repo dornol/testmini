@@ -67,6 +67,7 @@ describe('StepsEditor', () => {
 		expect(onchange).toHaveBeenCalledOnce();
 		const newSteps = onchange.mock.calls[0][0];
 		expect(newSteps.length).toBe(1);
+		expect(newSteps[0]).not.toHaveProperty('id');
 		expect(newSteps[0].action).toBe('');
 		expect(newSteps[0].expected).toBe('');
 	});

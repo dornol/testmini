@@ -4,7 +4,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 
-	type Step = { id?: string; action: string; expected: string };
+	type Step = { action: string; expected: string };
 
 	let {
 		value = [],
@@ -16,13 +16,8 @@
 		disabled?: boolean;
 	} = $props();
 
-	let counter = 0;
-	function genId() {
-		return `step-${Date.now()}-${counter++}`;
-	}
-
 	function addStep() {
-		onchange([...value, { id: genId(), action: '', expected: '' }]);
+		onchange([...value, { action: '', expected: '' }]);
 	}
 
 	function removeStep(index: number) {
@@ -47,7 +42,9 @@
 	<div class="flex items-center justify-between">
 		<Label>{m.steps_editor_title()}</Label>
 		{#if !disabled}
-			<Button type="button" variant="outline" size="sm" onclick={addStep}>{m.steps_editor_add()}</Button>
+			<Button type="button" variant="outline" size="sm" onclick={addStep}
+				>{m.steps_editor_add()}</Button
+			>
 		{/if}
 	</div>
 
@@ -58,7 +55,9 @@
 			{#each value as step, i (i)}
 				<div class="rounded-md border p-3">
 					<div class="mb-2 flex items-center justify-between">
-						<span class="text-muted-foreground text-sm font-medium">{m.steps_editor_step_n({ n: i + 1 })}</span>
+						<span class="text-muted-foreground text-sm font-medium"
+							>{m.steps_editor_step_n({ n: i + 1 })}</span
+						>
 						{#if !disabled}
 							<div class="flex items-center gap-1">
 								<Button
@@ -132,7 +131,9 @@
 					</div>
 					<div class="grid gap-3 sm:grid-cols-2">
 						<div class="space-y-1">
-							<label for="step-action-{i}" class="text-muted-foreground text-xs">{m.steps_editor_action()}</label>
+							<label for="step-action-{i}" class="text-muted-foreground text-xs"
+								>{m.steps_editor_action()}</label
+							>
 							<Input
 								id="step-action-{i}"
 								placeholder={m.steps_editor_action_placeholder()}

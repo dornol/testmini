@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { createTestCaseSchema, updateTestCaseSchema, stepSchema } from './test-case.schema';
+import {
+	createTestCaseSchema,
+	gherkinStepSchema,
+	stepSchema,
+	updateTestCaseSchema
+} from './test-case.schema';
 
 describe('stepSchema', () => {
 	it('should accept valid step', () => {
@@ -18,6 +23,23 @@ describe('stepSchema', () => {
 		if (result.success) {
 			expect(result.data.expected).toBe('');
 		}
+	});
+
+	it('should reject unknown fields', () => {
+		const result = stepSchema.safeParse({ action: 'Click button', expected: 'OK', note: 'extra' });
+		expect(result.success).toBe(false);
+	});
+});
+
+describe('gherkinStepSchema', () => {
+	it('should reject unknown fields', () => {
+		const result = gherkinStepSchema.safeParse({
+			keyword: 'Given',
+			text: 'the user is logged in',
+			expected: '',
+			note: 'extra'
+		});
+		expect(result.success).toBe(false);
 	});
 });
 
@@ -98,6 +120,19 @@ describe('createTestCaseSchema', () => {
 		});
 		expect(result.success).toBe(false);
 	});
+
+	it('should reject unknown top-level fields', () => {
+		const result = createTestCaseSchema.safeParse({ title: 'T', status: 'DRAFT' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject unknown fields inside steps', () => {
+		const result = createTestCaseSchema.safeParse({
+			title: 'T',
+			steps: [{ action: 'Step 1', expected: 'Result 1', id: 'client-only' }]
+		});
+		expect(result.success).toBe(false);
+	});
 });
 
 describe('updateTestCaseSchema', () => {
@@ -113,6 +148,11 @@ describe('updateTestCaseSchema', () => {
 
 	it('should reject non-positive revision', () => {
 		const result = updateTestCaseSchema.safeParse({ title: 'T', revision: 0 });
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject unknown top-level fields', () => {
+		const result = updateTestCaseSchema.safeParse({ title: 'T', revision: 1, status: 'DRAFT' });
 		expect(result.success).toBe(false);
 	});
 });

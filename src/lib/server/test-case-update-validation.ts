@@ -9,6 +9,10 @@ const MAX_STEPS = 500;
 const MAX_CUSTOM_FIELD_ENTRIES = 100;
 const MAX_CUSTOM_FIELD_VALUE_LENGTH = 2000;
 const MAX_CUSTOM_FIELDS_JSON_LENGTH = 20_000;
+const PATCH_FIELDS = new Set(['key', 'title', 'priority', 'automationKey', 'customFields']);
+const VERSION_FIELDS = new Set(['title', 'priority', 'steps', 'precondition', 'expectedResult']);
+const PUT_FIELDS = new Set([...VERSION_FIELDS, 'revision', 'stepFormat']);
+const STEP_FIELDS = new Set(['action', 'expected']);
 
 type JsonRecord = Record<string, unknown>;
 
@@ -42,6 +46,18 @@ export type ValidatedTestCaseCreatePayload = Required<ValidatedTestCaseVersionFi
 
 function isRecord(value: unknown): value is JsonRecord {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getUnknownFields(body: JsonRecord, allowedFields: Set<string>): string[] {
+	return Object.keys(body).filter((key) => !allowedFields.has(key));
+}
+
+function validateAllowedFields(body: JsonRecord, allowedFields: Set<string>): Response | null {
+	const unknownFields = getUnknownFields(body, allowedFields);
+	if (unknownFields.length > 0) {
+		return badRequest(`Unknown field(s): ${unknownFields.join(', ')}`);
+	}
+	return null;
 }
 
 function validateStringField(
@@ -124,6 +140,8 @@ export function validateTestCasePatchPayload(body: unknown): ValidatedTestCasePa
 	if (!isRecord(body)) {
 		return badRequest('Request body must be an object');
 	}
+	const unknownFields = validateAllowedFields(body, PATCH_FIELDS);
+	if (unknownFields) return unknownFields;
 
 	const result: ValidatedTestCasePatch = {};
 
@@ -194,6 +212,8 @@ export function validateTestCaseVersionFields(
 	if (!isRecord(body)) {
 		return badRequest('Request body must be an object');
 	}
+	const unknownFields = validateAllowedFields(body, VERSION_FIELDS);
+	if (unknownFields) return unknownFields;
 
 	const fields: ValidatedTestCaseVersionFields = {};
 
@@ -244,6 +264,8 @@ export function validateTestCasePutPayload(body: unknown): ValidatedTestCasePut 
 	if (!isRecord(body)) {
 		return badRequest('Request body must be an object');
 	}
+	const unknownFields = validateAllowedFields(body, PUT_FIELDS);
+	if (unknownFields) return unknownFields;
 
 	const title = validateStringField(body.title, 'Title', {
 		required: true,
@@ -312,6 +334,12 @@ function validateTestCaseSteps(value: unknown): ValidatedTestCasePut['steps'] | 
 	for (const [index, step] of rawSteps.entries()) {
 		if (!isRecord(step)) {
 			return badRequest(`steps[${index}] must be an object`);
+		}
+		const unknownStepFields = validateAllowedFields(step, STEP_FIELDS);
+		if (unknownStepFields) {
+			return badRequest(
+				`steps[${index}] has unknown field(s): ${getUnknownFields(step, STEP_FIELDS).join(', ')}`
+			);
 		}
 
 		const action = validateStringField(step.action, `steps[${index}].action`, {

@@ -229,6 +229,22 @@ describe('/api/projects/[projectId]/test-plans/[planId]/create-run', () => {
 		expect(mockDb.select).not.toHaveBeenCalled();
 	});
 
+	it('should reject unknown fields before loading plan items', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { name: 'Run', environment: 'QA', testCaseIds: [10] },
+			user: testUser
+		});
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		const data = await response.json();
+		expect(data.error).toBe('Invalid input');
+		expect(mockDb.select).not.toHaveBeenCalled();
+		expect(mockDb.transaction).not.toHaveBeenCalled();
+	});
+
 	it('should reject environment values longer than 30 characters', async () => {
 		const event = createMockEvent({
 			method: 'POST',

@@ -147,6 +147,21 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 			expect(mockFindTC).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 for unknown fields before loading test case', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { title: 'Updated', priority: 'HIGH', revision: 1, status: 'DRAFT' },
+				user: adminUser
+			});
+			const response = await PUT(event);
+
+			expect(response.status).toBe(400);
+			const body = await response.json();
+			expect(body.error).toContain('Unknown field(s): status');
+			expect(mockFindTC).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when revision is not an integer', async () => {
 			const event = createMockEvent({
 				method: 'PUT',
@@ -183,6 +198,26 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 			const response = await PUT(event);
 
 			expect(response.status).toBe(400);
+			expect(mockFindTC).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when a step has unknown fields', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: {
+					title: 'Updated',
+					priority: 'HIGH',
+					revision: 1,
+					steps: [{ action: 'Click login', expected: 'Redirected', id: 'client-only' }]
+				},
+				user: adminUser
+			});
+			const response = await PUT(event);
+
+			expect(response.status).toBe(400);
+			const body = await response.json();
+			expect(body.error).toContain('steps[0] has unknown field(s): id');
 			expect(mockFindTC).not.toHaveBeenCalled();
 		});
 
@@ -352,6 +387,21 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+			expect(mockFindTC).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for unknown patch fields before loading test case', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { title: 'Update', revision: 1 },
+				user: adminUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			const body = await response.json();
+			expect(body.error).toContain('Unknown field(s): revision');
 			expect(mockFindTC).not.toHaveBeenCalled();
 		});
 

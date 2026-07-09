@@ -34,11 +34,34 @@ const { DELETE } = await import('./+server');
 
 const PARAMS = { projectId: '1', runId: '50', executionId: '200' };
 
+function mockTransactionDeleteResults(...results: unknown[][]) {
+	let deleteCall = 0;
+	const deleteChains: Array<{
+		where: ReturnType<typeof vi.fn>;
+		returning: ReturnType<typeof vi.fn>;
+	}> = [];
+	const tx = {
+		delete: vi.fn(() => {
+			const chain = {
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue(results[deleteCall++] ?? [])
+			};
+			deleteChains.push(chain);
+			return chain;
+		})
+	};
+	mockDb.transaction.mockImplementation(async (fn: (txArg: typeof tx) => Promise<unknown>) =>
+		fn(tx)
+	);
+	return { tx, deleteChains };
+}
+
 describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockRequireEditableRun.mockResolvedValue({ id: 50, projectId: 1, status: 'CREATED' });
 		mockDb.query.testExecution = { findFirst: vi.fn() };
+		mockTransactionDeleteResults([], [sampleExecution]);
 	});
 
 	describe('DELETE', () => {
@@ -78,6 +101,17 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]',
 			expect(data.success).toBe(true);
 			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
+		it('should return 404 when execution disappears before delete', async () => {
+			(mockDb.query.testExecution.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+				sampleExecution
+			);
+			mockTransactionDeleteResults([], []);
+
+			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
+			await expect(DELETE(event)).rejects.toMatchObject({ status: 404 });
+			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 		});
 	});
 });

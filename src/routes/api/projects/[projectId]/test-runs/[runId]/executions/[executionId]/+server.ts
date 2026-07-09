@@ -25,9 +25,14 @@ export const DELETE = withProjectRole(
 
 		await db.transaction(async (tx) => {
 			await tx.delete(testFailureDetail).where(eq(testFailureDetail.testExecutionId, executionId));
-			await tx
+			const [deleted] = await tx
 				.delete(testExecution)
-				.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)));
+				.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)))
+				.returning();
+
+			if (!deleted) {
+				error(404, 'Execution not found');
+			}
 		});
 
 		return json({ success: true });

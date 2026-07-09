@@ -6,6 +6,10 @@ import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { loadTestCaseMetadata, requireTestCase } from '$lib/server/queries';
 import { badRequest, conflict } from '$lib/server/errors';
+import {
+	validateTestCasePatchPayload,
+	validateTestCasePutPayload
+} from '$lib/server/test-case-update-validation';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const testCaseId = parseId(params.testCaseId, 'test case ID');
@@ -56,13 +60,9 @@ export const PATCH = withProjectRole(
 		const testCaseId = parseId(params.testCaseId, 'test case ID');
 
 		const body = await parseJsonBody(request);
-		const { key, title, priority, automationKey, customFields } = body as {
-			key?: string;
-			title?: string;
-			priority?: string;
-			automationKey?: string | null;
-			customFields?: Record<string, unknown>;
-		};
+		const payload = validateTestCasePatchPayload(body);
+		if (payload instanceof Response) return payload;
+		const { key, title, priority, automationKey, customFields } = payload;
 
 		const tc = await findTestCaseWithLatestVersion(testCaseId, projectId);
 
@@ -72,29 +72,24 @@ export const PATCH = withProjectRole(
 
 		// Key update: direct update on testCase table
 		if (key !== undefined) {
-			const trimmed = key.trim();
-			if (!trimmed) {
-				return badRequest('Key cannot be empty');
-			}
 			// Check uniqueness within project
 			const existing = await db.query.testCase.findFirst({
-				where: and(eq(testCase.projectId, projectId), eq(testCase.key, trimmed))
+				where: and(eq(testCase.projectId, projectId), eq(testCase.key, key))
 			});
 			if (existing && existing.id !== testCaseId) {
 				return conflict('Key already exists in this project');
 			}
 			await db
 				.update(testCase)
-				.set({ key: trimmed })
+				.set({ key })
 				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
 		}
 
 		// Automation key update
 		if (automationKey !== undefined) {
-			const trimmedAk = typeof automationKey === 'string' ? automationKey.trim() || null : null;
-			if (trimmedAk) {
+			if (automationKey) {
 				const existingAk = await db.query.testCase.findFirst({
-					where: and(eq(testCase.projectId, projectId), eq(testCase.automationKey, trimmedAk))
+					where: and(eq(testCase.projectId, projectId), eq(testCase.automationKey, automationKey))
 				});
 				if (existingAk && existingAk.id !== testCaseId) {
 					return conflict('Automation key already exists in this project');
@@ -102,7 +97,7 @@ export const PATCH = withProjectRole(
 			}
 			await db
 				.update(testCase)
-				.set({ automationKey: trimmedAk })
+				.set({ automationKey })
 				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
 		}
 
@@ -170,23 +165,9 @@ export const PUT = withProjectRole(
 		const testCaseId = parseId(params.testCaseId, 'test case ID');
 
 		const body = await parseJsonBody(request);
-		const { title, precondition, steps, expectedResult, priority, revision, stepFormat } = body as {
-			title: string;
-			precondition: string;
-			steps: { action: string; expected: string }[];
-			expectedResult: string;
-			priority: string;
-			revision: number;
-			stepFormat?: 'STEPS' | 'GHERKIN';
-		};
-
-		if (!title || title.length < 1 || title.length > 200) {
-			return badRequest('Title is required (1-200 characters)');
-		}
-
-		if (!priority) {
-			return badRequest('Priority is required');
-		}
+		const payload = validateTestCasePutPayload(body);
+		if (payload instanceof Response) return payload;
+		const { title, precondition, steps, expectedResult, priority, revision, stepFormat } = payload;
 
 		const tc = await findTestCaseWithLatestVersion(testCaseId, projectId);
 
@@ -203,12 +184,6 @@ export const PUT = withProjectRole(
 		const nextVersionNo = tc.latestVersion ? tc.latestVersion.versionNo + 1 : 1;
 		const nextRevision = (tc.latestVersion?.revision ?? 0) + 1;
 
-		const numberedSteps = (steps ?? []).map((s, i) => ({
-			order: i + 1,
-			action: s.action,
-			expected: s.expected
-		}));
-
 		await db.transaction(async (tx) => {
 			const [version] = await tx
 				.insert(testCaseVersion)
@@ -216,10 +191,10 @@ export const PUT = withProjectRole(
 					testCaseId,
 					versionNo: nextVersionNo,
 					title,
-					precondition: precondition || null,
-					steps: numberedSteps,
+					precondition,
+					steps,
 					stepFormat: stepFormat ?? tc.latestVersion?.stepFormat ?? 'STEPS',
-					expectedResult: expectedResult || null,
+					expectedResult,
 					priority,
 					revision: nextRevision,
 					updatedBy: user.id

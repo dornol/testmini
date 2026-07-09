@@ -13,7 +13,13 @@ const mockFindTC = vi.fn();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, findTestCaseWithLatestVersion: mockFindTC }));
 vi.mock('$lib/server/db/schema', () => ({
-	testCase: { id: 'id', projectId: 'project_id', key: 'key', latestVersionId: 'latest_version_id' },
+	testCase: {
+		id: 'id',
+		projectId: 'project_id',
+		key: 'key',
+		automationKey: 'automation_key',
+		latestVersionId: 'latest_version_id'
+	},
 	testCaseVersion: {
 		id: 'id',
 		testCaseId: 'test_case_id',
@@ -27,7 +33,8 @@ vi.mock('$lib/server/db/schema', () => ({
 	tag: { id: 'id', name: 'name', color: 'color', projectId: 'project_id' },
 	testCaseTag: { testCaseId: 'test_case_id', tagId: 'tag_id' },
 	testCaseAssignee: { testCaseId: 'test_case_id', userId: 'user_id' },
-	projectMember: { projectId: 'project_id', userId: 'user_id' }
+	projectMember: { projectId: 'project_id', userId: 'user_id' },
+	customField: { projectId: 'project_id', name: 'name' }
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
@@ -125,6 +132,71 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 			const response = await PUT(event);
 
 			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 when body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: ['not-valid'],
+				user: adminUser
+			});
+			const response = await PUT(event);
+
+			expect(response.status).toBe(400);
+			expect(mockFindTC).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when revision is not an integer', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { title: 'Updated', priority: 'HIGH', revision: '1' },
+				user: adminUser
+			});
+			const response = await PUT(event);
+
+			expect(response.status).toBe(400);
+			expect(mockFindTC).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when steps is not an array', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { title: 'Updated', priority: 'HIGH', revision: 1, steps: { action: 'x' } },
+				user: adminUser
+			});
+			const response = await PUT(event);
+
+			expect(response.status).toBe(400);
+			expect(mockFindTC).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when a step action is missing', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { title: 'Updated', priority: 'HIGH', revision: 1, steps: [{ expected: 'x' }] },
+				user: adminUser
+			});
+			const response = await PUT(event);
+
+			expect(response.status).toBe(400);
+			expect(mockFindTC).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when stepFormat is invalid', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { title: 'Updated', priority: 'HIGH', revision: 1, stepFormat: 'HTML' },
+				user: adminUser
+			});
+			const response = await PUT(event);
+
+			expect(response.status).toBe(400);
+			expect(mockFindTC).not.toHaveBeenCalled();
 		});
 
 		it('should accept custom priority values', async () => {
@@ -255,6 +327,58 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId] — PATCH, PUT & DEL
 			expect(response.status).toBe(400);
 			const body = await response.json();
 			expect(body.error).toContain('Key cannot be empty');
+		});
+
+		it('should return 400 when patch body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: 'invalid',
+				user: adminUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect(mockFindTC).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when title is not a string', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { title: 123 },
+				user: adminUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect(mockFindTC).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when automationKey is not a string or null', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { automationKey: { value: 'AK-1' } },
+				user: adminUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect(mockFindTC).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when customFields is not an object', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { customFields: ['bad'] },
+				user: adminUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect(mockFindTC).not.toHaveBeenCalled();
 		});
 
 		it('should return 409 when key already exists in project', async () => {

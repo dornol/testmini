@@ -1,0 +1,202 @@
+import { badRequest } from './errors';
+
+const MAX_TITLE_LENGTH = 200;
+const MAX_TEXT_LENGTH = 2000;
+const MAX_PRIORITY_LENGTH = 30;
+const MAX_AUTOMATION_KEY_LENGTH = 200;
+const MAX_KEY_LENGTH = 100;
+const MAX_STEPS = 500;
+
+type JsonRecord = Record<string, unknown>;
+
+export type ValidatedTestCasePatch = {
+	key?: string;
+	title?: string;
+	priority?: string;
+	automationKey?: string | null;
+	customFields?: Record<string, unknown>;
+};
+
+export type ValidatedTestCasePut = {
+	title: string;
+	precondition: string | null;
+	steps: { order: number; action: string; expected: string }[];
+	expectedResult: string | null;
+	priority: string;
+	revision: number;
+	stepFormat?: 'STEPS' | 'GHERKIN';
+};
+
+function isRecord(value: unknown): value is JsonRecord {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function validateStringField(
+	value: unknown,
+	field: string,
+	options: { required?: boolean; maxLength: number; allowEmpty?: boolean }
+): string | null | Response {
+	if (value === undefined) {
+		return options.required ? badRequest(`${field} is required`) : null;
+	}
+	if (typeof value !== 'string') {
+		return badRequest(`${field} must be a string`);
+	}
+
+	const trimmed = value.trim();
+	if (!options.allowEmpty && trimmed.length < 1) {
+		return badRequest(`${field} cannot be empty`);
+	}
+	if (trimmed.length > options.maxLength) {
+		return badRequest(`${field} must be ${options.maxLength} characters or less`);
+	}
+
+	return trimmed;
+}
+
+function validateNullableText(value: unknown, field: string): string | null | Response {
+	if (value === undefined || value === null) return null;
+	if (typeof value !== 'string') {
+		return badRequest(`${field} must be a string`);
+	}
+	if (value.length > MAX_TEXT_LENGTH) {
+		return badRequest(`${field} must be ${MAX_TEXT_LENGTH} characters or less`);
+	}
+	return value || null;
+}
+
+export function validateTestCasePatchPayload(body: unknown): ValidatedTestCasePatch | Response {
+	if (!isRecord(body)) {
+		return badRequest('Request body must be an object');
+	}
+
+	const result: ValidatedTestCasePatch = {};
+
+	if (body.key !== undefined) {
+		const key = validateStringField(body.key, 'Key', { maxLength: MAX_KEY_LENGTH });
+		if (key instanceof Response) return key;
+		if (key === null) return badRequest('Key is required');
+		result.key = key;
+	}
+
+	if (body.title !== undefined) {
+		const title = validateStringField(body.title, 'Title', { maxLength: MAX_TITLE_LENGTH });
+		if (title instanceof Response) return title;
+		if (title === null) return badRequest('Title is required');
+		result.title = title;
+	}
+
+	if (body.priority !== undefined) {
+		const priority = validateStringField(body.priority, 'Priority', {
+			maxLength: MAX_PRIORITY_LENGTH
+		});
+		if (priority instanceof Response) return priority;
+		if (priority === null) return badRequest('Priority is required');
+		result.priority = priority;
+	}
+
+	if (body.automationKey !== undefined) {
+		if (body.automationKey === null) {
+			result.automationKey = null;
+		} else {
+			const automationKey = validateStringField(body.automationKey, 'Automation key', {
+				maxLength: MAX_AUTOMATION_KEY_LENGTH,
+				allowEmpty: true
+			});
+			if (automationKey instanceof Response) return automationKey;
+			result.automationKey = automationKey || null;
+		}
+	}
+
+	if (body.customFields !== undefined) {
+		if (!isRecord(body.customFields)) {
+			return badRequest('customFields must be an object');
+		}
+		result.customFields = body.customFields;
+	}
+
+	return result;
+}
+
+export function validateTestCasePutPayload(body: unknown): ValidatedTestCasePut | Response {
+	if (!isRecord(body)) {
+		return badRequest('Request body must be an object');
+	}
+
+	const title = validateStringField(body.title, 'Title', {
+		required: true,
+		maxLength: MAX_TITLE_LENGTH
+	});
+	if (title instanceof Response || title === null) {
+		return title instanceof Response ? title : badRequest('Title is required');
+	}
+
+	const priority = validateStringField(body.priority, 'Priority', {
+		required: true,
+		maxLength: MAX_PRIORITY_LENGTH
+	});
+	if (priority instanceof Response || priority === null) {
+		return priority instanceof Response ? priority : badRequest('Priority is required');
+	}
+
+	const revision = body.revision;
+	if (!Number.isSafeInteger(revision) || typeof revision !== 'number' || revision < 0) {
+		return badRequest('Revision must be a non-negative integer');
+	}
+
+	if (
+		body.stepFormat !== undefined &&
+		body.stepFormat !== 'STEPS' &&
+		body.stepFormat !== 'GHERKIN'
+	) {
+		return badRequest('stepFormat must be STEPS or GHERKIN');
+	}
+
+	if (body.steps !== undefined && !Array.isArray(body.steps)) {
+		return badRequest('steps must be an array');
+	}
+
+	const rawSteps = body.steps === undefined ? [] : body.steps;
+	if (rawSteps.length > MAX_STEPS) {
+		return badRequest(`steps must contain ${MAX_STEPS} items or less`);
+	}
+
+	const steps: ValidatedTestCasePut['steps'] = [];
+	for (const [index, step] of rawSteps.entries()) {
+		if (!isRecord(step)) {
+			return badRequest(`steps[${index}] must be an object`);
+		}
+
+		const action = validateStringField(step.action, `steps[${index}].action`, {
+			required: true,
+			maxLength: MAX_TEXT_LENGTH
+		});
+		if (action instanceof Response || action === null) {
+			return action instanceof Response ? action : badRequest(`steps[${index}].action is required`);
+		}
+
+		const expected = validateStringField(step.expected ?? '', `steps[${index}].expected`, {
+			maxLength: MAX_TEXT_LENGTH,
+			allowEmpty: true
+		});
+		if (expected instanceof Response) return expected;
+
+		steps.push({ order: index + 1, action, expected: expected ?? '' });
+	}
+
+	const precondition = validateNullableText(body.precondition, 'precondition');
+	if (precondition instanceof Response) return precondition;
+
+	const expectedResult = validateNullableText(body.expectedResult, 'expectedResult');
+	if (expectedResult instanceof Response) return expectedResult;
+
+	return {
+		title,
+		precondition,
+		steps,
+		expectedResult,
+		priority,
+		revision,
+		stepFormat: body.stepFormat
+	};
+}

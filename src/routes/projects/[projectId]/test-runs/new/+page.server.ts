@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { fail, redirect } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { db, col } from '$lib/server/db';
 import {
 	testCase,
@@ -183,7 +183,11 @@ export const actions: Actions = {
 					environment: input.environment,
 					createdBy: user.id
 				})
-				.returning();
+				.returning({ id: testRun.id });
+
+			if (!run) {
+				error(500, 'Failed to create test run');
+			}
 
 			const executionValues: {
 				testRunId: number;
@@ -217,7 +221,13 @@ export const actions: Actions = {
 			}
 
 			if (executionValues.length > 0) {
-				await tx.insert(testExecution).values(executionValues);
+				const insertedExecutions = await tx
+					.insert(testExecution)
+					.values(executionValues)
+					.returning({ id: testExecution.id });
+				if (insertedExecutions.length !== executionValues.length) {
+					error(500, 'Failed to create all test run executions');
+				}
 			}
 
 			return run;

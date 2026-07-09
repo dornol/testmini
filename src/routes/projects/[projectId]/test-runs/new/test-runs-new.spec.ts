@@ -388,7 +388,7 @@ describe('/projects/[projectId]/test-runs/new', () => {
 				return createChain([]); // no data sets
 			});
 
-			setupTransactionCapture(createdRun, insertedValues);
+			setupTransactionCapture(createdRun, insertedValues, 2);
 
 			const event = createActionEvent(
 				createFormData({ name: 'Run', environment: 'DEV', testCaseIds: ['10', '11'] })
@@ -436,7 +436,7 @@ describe('/projects/[projectId]/test-runs/new', () => {
 				]);
 			});
 
-			setupTransactionCapture(createdRun, insertedValues);
+			setupTransactionCapture(createdRun, insertedValues, 2);
 
 			const event = createActionEvent(
 				createFormData({ name: 'Param Run', environment: 'QA', testCaseIds: ['10'] })
@@ -545,6 +545,40 @@ describe('/projects/[projectId]/test-runs/new', () => {
 			expect(txInsertCallCount).toBe(1);
 		});
 
+		it('should return 500 when test run insert creates no row', async () => {
+			mockDb.select.mockImplementation(() => createChain([{ id: 10, latestVersionId: 100 }]));
+			setupTransactionInsertResults([], [{ id: 1 }]);
+
+			const event = createActionEvent(
+				createFormData({ name: 'Run', environment: 'QA', testCaseIds: ['10'] })
+			);
+
+			await expect(actions.default(event)).rejects.toMatchObject({ status: 500 });
+		});
+
+		it('should return 500 when execution insert creates fewer rows than requested', async () => {
+			const createdRun = { ...sampleTestRun, id: 77 };
+
+			let dbSelectCount = 0;
+			mockDb.select.mockImplementation(() => {
+				dbSelectCount++;
+				if (dbSelectCount === 1) {
+					return createChain([
+						{ id: 10, latestVersionId: 100 },
+						{ id: 11, latestVersionId: 101 }
+					]);
+				}
+				return createChain([]);
+			});
+			setupTransactionInsertResults([createdRun], [{ id: 1 }]);
+
+			const event = createActionEvent(
+				createFormData({ name: 'Run', environment: 'QA', testCaseIds: ['10', '11'] })
+			);
+
+			await expect(actions.default(event)).rejects.toMatchObject({ status: 500 });
+		});
+
 		it('should return validation errors in the fail response', async () => {
 			const event = createActionEvent(
 				createFormData({ name: '', environment: '', testCaseIds: [] })
@@ -618,36 +652,51 @@ function createChain(result: unknown[]) {
 	return chain;
 }
 
-function setupTransaction(createdRun: typeof sampleTestRun) {
-	mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
-		const txInsertChain = {
-			values: vi.fn().mockReturnThis(),
-			returning: vi.fn().mockResolvedValue([createdRun]),
-			then: undefined as unknown
-		};
-		txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([createdRun]).then(r);
-
-		const tx = {
-			insert: vi.fn().mockReturnValue(txInsertChain)
-		};
-		return fn(tx);
-	});
+function setupTransaction(createdRun: typeof sampleTestRun, executionCount = 1) {
+	setupTransactionInsertResults(
+		[createdRun],
+		Array.from({ length: executionCount }, (_, id) => ({ id: id + 1 }))
+	);
 }
 
-function setupTransactionCapture(createdRun: typeof sampleTestRun, insertedValues: unknown[]) {
+function setupTransactionCapture(
+	createdRun: typeof sampleTestRun,
+	insertedValues: unknown[],
+	executionCount = 1
+) {
+	setupTransactionInsertResults(
+		[createdRun],
+		Array.from({ length: executionCount }, (_, id) => ({ id: id + 1 })),
+		insertedValues
+	);
+}
+
+function setupTransactionInsertResults(
+	runResult: unknown[],
+	executionResult: unknown[],
+	insertedValues?: unknown[]
+) {
 	mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
-		const txInsertChain = {
-			values: vi.fn().mockImplementation(function (this: typeof txInsertChain, vals: unknown) {
-				insertedValues.push(vals);
-				return txInsertChain;
-			}),
-			returning: vi.fn().mockResolvedValue([createdRun]),
-			then: undefined as unknown
+		let insertCount = 0;
+		const createInsertChain = (result: unknown[]) => {
+			const txInsertChain = {
+				values: vi.fn().mockImplementation(function (this: typeof txInsertChain, vals: unknown) {
+					insertedValues?.push(vals);
+					return txInsertChain;
+				}),
+				returning: vi.fn().mockResolvedValue(result),
+				then: undefined as unknown
+			};
+			txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve(result).then(r);
+			return txInsertChain;
 		};
-		txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([createdRun]).then(r);
 
 		const tx = {
-			insert: vi.fn().mockReturnValue(txInsertChain)
+			insert: vi.fn().mockImplementation(() => {
+				const result = insertCount === 0 ? runResult : executionResult;
+				insertCount++;
+				return createInsertChain(result);
+			})
 		};
 		return fn(tx);
 	});

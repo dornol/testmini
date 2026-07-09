@@ -7,6 +7,7 @@ import { eq, and, or, inArray } from 'drizzle-orm';
 import { childLogger } from '$lib/server/logger';
 import crypto from 'node:crypto';
 import { readRequestText } from '$lib/server/auth-utils';
+import { parseContentLengthHeader } from '$lib/server/request-size';
 
 const log = childLogger('issue-webhook');
 const MAX_ACTION_LENGTH = 100;
@@ -179,8 +180,13 @@ function stateToCategory(state: string): 'open' | 'done' {
 // ── Handler ─────────────────────────────────────────────
 
 export const POST: RequestHandler = async ({ request }) => {
-	const contentLength = Number(request.headers.get('content-length') ?? 0);
-	if (contentLength > MAX_WEBHOOK_BODY_SIZE) {
+	let contentLength: number | null;
+	try {
+		contentLength = parseContentLengthHeader(request);
+	} catch {
+		return badRequest('Invalid content-length header');
+	}
+	if (contentLength !== null && contentLength > MAX_WEBHOOK_BODY_SIZE) {
 		return payloadTooLarge();
 	}
 

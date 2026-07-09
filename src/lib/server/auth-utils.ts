@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { projectMember } from '$lib/server/db/schema';
 import { and, eq } from 'drizzle-orm';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
 
 type AuthUser = NonNullable<App.Locals['user']>;
 
@@ -89,10 +90,7 @@ export async function readRequestText(
 	request: Request,
 	maxBytes = MAX_JSON_BODY_SIZE
 ): Promise<string> {
-	const contentLength = Number(request.headers.get('content-length') ?? 0);
-	if (contentLength > maxBytes) {
-		error(413, 'Request body must not exceed 1MB');
-	}
+	assertContentLengthUnderLimit(request, maxBytes, 'Request body must not exceed 1MB');
 
 	if (!request.body) return '';
 

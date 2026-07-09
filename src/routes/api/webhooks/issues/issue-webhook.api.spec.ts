@@ -281,6 +281,33 @@ describe('/api/webhooks/issues POST', () => {
 			expect(data.error).toBe('Request body must not exceed 1MB');
 		});
 
+		it.each(['abc', '-1', '1.5', 'Infinity', '9007199254740992'])(
+			'returns 400 when content-length is invalid: %s',
+			async (contentLength) => {
+				const request = new Request('http://localhost/api/webhooks/issues', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'content-length': contentLength
+					},
+					body: '{}'
+				});
+				const event = {
+					request,
+					url: new URL('http://localhost/api/webhooks/issues'),
+					params: {},
+					locals: {}
+				} as never;
+
+				const response = await POST(event);
+				const data = await response.json();
+
+				expect(response.status).toBe(400);
+				expect(data.error).toBe('Invalid content-length header');
+				expect(mockDb.select).not.toHaveBeenCalled();
+			}
+		);
+
 		it('returns 413 when body exceeds 1MB without content-length', async () => {
 			const event = createWebhookRequest(
 				{ data: 'x'.repeat(1024 * 1024) },

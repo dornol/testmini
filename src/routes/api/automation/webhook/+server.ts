@@ -9,6 +9,7 @@ import {
 import { authenticateApiKey } from '$lib/server/api-key-auth';
 import { childLogger } from '$lib/server/logger';
 import { parseJsonBody } from '$lib/server/auth-utils';
+import { parseContentLengthHeader } from '$lib/server/request-size';
 
 const log = childLogger('webhook');
 const MAX_EVENT_NAME_LENGTH = 100;
@@ -101,8 +102,13 @@ export const POST: RequestHandler = async ({ request }) => {
 	let isCompleted = false;
 	let message = 'Webhook received';
 
-	const contentLength = Number(request.headers.get('content-length') ?? 0);
-	if (contentLength > MAX_WEBHOOK_BODY_SIZE) {
+	let contentLength: number | null;
+	try {
+		contentLength = parseContentLengthHeader(request);
+	} catch {
+		return badRequest('Invalid content-length header');
+	}
+	if (contentLength !== null && contentLength > MAX_WEBHOOK_BODY_SIZE) {
 		return payloadTooLarge();
 	}
 

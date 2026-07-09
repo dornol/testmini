@@ -50,6 +50,22 @@ describe('parseJsonBody', () => {
 		await expect(parseJsonBody(request)).rejects.toThrow();
 	});
 
+	it.each(['abc', '-1', '1.5', 'Infinity', '9007199254740992'])(
+		'should throw 400 when content-length is invalid: %s',
+		async (contentLength) => {
+			const request = new Request('http://localhost/api/test', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Content-Length': contentLength
+				},
+				body: JSON.stringify({ ok: true })
+			});
+
+			await expect(parseJsonBody(request)).rejects.toMatchObject({ status: 400 });
+		}
+	);
+
 	it('should throw 413 while streaming when body exceeds 1MB without content-length', async () => {
 		const request = new Request('http://localhost/api/test', {
 			method: 'POST',

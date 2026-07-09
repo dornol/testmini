@@ -241,6 +241,30 @@ describe('/api/attachments', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it.each(['abc', '-1', '1.5', 'Infinity', '9007199254740992'])(
+			'should reject invalid multipart content-length %s before parsing form data',
+			async (contentLength) => {
+				const formData = vi.fn();
+				const baseEvent = createMockEvent({ method: 'POST', user: testUser }) as Record<
+					string,
+					unknown
+				>;
+				const event = {
+					...baseEvent,
+					request: {
+						headers: new Headers({ 'content-length': contentLength }),
+						formData
+					}
+				};
+
+				await expect(POST(event as never)).rejects.toMatchObject({ status: 400 });
+				expect(formData).not.toHaveBeenCalled();
+				expect(authUtils.requireProjectAccess).not.toHaveBeenCalled();
+				expect(storage.saveFile).not.toHaveBeenCalled();
+				expect(mockDb.insert).not.toHaveBeenCalled();
+			}
+		);
+
 		it('should not save file when project access is denied', async () => {
 			vi.mocked(authUtils.requireProjectAccess).mockRejectedValue(
 				Object.assign(new Error(), { status: 403, body: { message: 'Forbidden' } })

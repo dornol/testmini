@@ -111,6 +111,25 @@ describe('/api/automation/webhook POST', () => {
 			expect(data.error).toContain('1MB');
 		});
 
+		it.each(['abc', '-1', '1.5', 'Infinity', '9007199254740992'])(
+			'should return 400 when content-length is invalid: %s',
+			async (contentLength) => {
+				const request = new Request('http://localhost:5173/api/automation/webhook', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'content-length': contentLength
+					},
+					body: JSON.stringify({})
+				});
+				const response = await POST({ request } as never);
+				const data = await response.json();
+
+				expect(response.status).toBe(400);
+				expect(data.error).toBe('Invalid content-length header');
+			}
+		);
+
 		it('should return 413 when body exceeds 1MB without content-length', async () => {
 			const request = new Request('http://localhost:5173/api/automation/webhook', {
 				method: 'POST',

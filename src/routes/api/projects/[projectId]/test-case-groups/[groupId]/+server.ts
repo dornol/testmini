@@ -42,17 +42,19 @@ export const PATCH = withProjectRole(
 		}
 
 		if (Object.keys(updates).length > 0) {
-			await db
+			const [updated] = await db
 				.update(testCaseGroup)
 				.set(updates)
-				.where(and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId)));
+				.where(and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId)))
+				.returning();
+			if (!updated) {
+				error(404, 'Group not found');
+			}
+
+			return json(updated);
 		}
 
-		const updated = await db.query.testCaseGroup.findFirst({
-			where: and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId))
-		});
-
-		return json(updated);
+		return json(group);
 	}
 );
 
@@ -68,9 +70,13 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projec
 	}
 
 	// FK SET NULL handles moving TCs to uncategorized
-	await db
+	const [deleted] = await db
 		.delete(testCaseGroup)
-		.where(and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId)));
+		.where(and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId)))
+		.returning({ id: testCaseGroup.id });
+	if (!deleted) {
+		error(404, 'Group not found');
+	}
 
 	return json({ success: true });
 });

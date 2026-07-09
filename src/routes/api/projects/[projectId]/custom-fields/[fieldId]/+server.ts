@@ -46,9 +46,11 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projec
 	});
 	if (!existing) error(404, 'Custom field not found');
 
-	await db
+	const [deleted] = await db
 		.delete(customField)
-		.where(and(eq(customField.id, fieldId), eq(customField.projectId, projectId)));
+		.where(and(eq(customField.id, fieldId), eq(customField.projectId, projectId)))
+		.returning({ id: customField.id });
+	if (!deleted) error(404, 'Custom field not found');
 
 	return json({ success: true });
 });

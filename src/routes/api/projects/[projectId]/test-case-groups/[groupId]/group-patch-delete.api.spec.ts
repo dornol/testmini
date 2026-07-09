@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser } from '$lib/server/test-helpers/fixtures';
 
@@ -151,18 +155,12 @@ describe('/api/projects/[projectId]/test-case-groups/[groupId] — PATCH & DELET
 
 		it('should update group name', async () => {
 			const updatedGroup = { ...sampleGroup, name: 'Regression Tests' };
-			// First call: fetch group; second call (uniqueness check): no conflict; third call: re-fetch after update
+			// First call: fetch group; second call (uniqueness check): no conflict.
 			mockDb.query.testCaseGroup.findFirst
 				.mockResolvedValueOnce(sampleGroup)
-				.mockResolvedValueOnce(null)
-				.mockResolvedValueOnce(updatedGroup);
+				.mockResolvedValueOnce(null);
 
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			const updateChain = mockUpdateReturning(mockDb, [updatedGroup]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -181,21 +179,30 @@ describe('/api/projects/[projectId]/test-case-groups/[groupId] — PATCH & DELET
 					['project_id', 1]
 				])
 			);
+			expect(updateChain.returning).toHaveBeenCalled();
+		});
+
+		it('should return 404 when group disappears before update', async () => {
+			mockDb.query.testCaseGroup.findFirst
+				.mockResolvedValueOnce(sampleGroup)
+				.mockResolvedValueOnce(null);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Regression Tests' },
+				user: adminUser
+			});
+
+			await expect(PATCH(event)).rejects.toThrow();
 		});
 
 		it('should update group color', async () => {
 			const updatedGroup = { ...sampleGroup, color: '#00ff00' };
-			// First call: fetch group; second call: re-fetch after update (no name change = no uniqueness check)
-			mockDb.query.testCaseGroup.findFirst
-				.mockResolvedValueOnce(sampleGroup)
-				.mockResolvedValueOnce(updatedGroup);
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValueOnce(sampleGroup);
 
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			mockUpdateReturning(mockDb, [updatedGroup]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -244,16 +251,9 @@ describe('/api/projects/[projectId]/test-case-groups/[groupId] — PATCH & DELET
 
 		it('should allow null color to clear it', async () => {
 			const updatedGroup = { ...sampleGroup, color: null };
-			mockDb.query.testCaseGroup.findFirst
-				.mockResolvedValueOnce(sampleGroup)
-				.mockResolvedValueOnce(updatedGroup);
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValueOnce(sampleGroup);
 
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			mockUpdateReturning(mockDb, [updatedGroup]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -333,11 +333,7 @@ describe('/api/projects/[projectId]/test-case-groups/[groupId] — PATCH & DELET
 	describe('DELETE', () => {
 		it('should require PROJECT_ADMIN and delete group', async () => {
 			mockDb.query.testCaseGroup.findFirst.mockResolvedValueOnce(sampleGroup);
-			const deleteChain = {
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: sampleGroup.id }]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -355,6 +351,20 @@ describe('/api/projects/[projectId]/test-case-groups/[groupId] — PATCH & DELET
 					['project_id', 1]
 				])
 			);
+			expect(deleteChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should return 404 when group disappears before delete', async () => {
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValueOnce(sampleGroup);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: adminUser
+			});
+
+			await expect(DELETE(event)).rejects.toThrow();
 		});
 
 		it('should return 403 for non-admin', async () => {

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -328,10 +332,7 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 
 		it('should delete field successfully', async () => {
 			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
-			const deleteChain = {
-				where: vi.fn().mockResolvedValue(undefined)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: sampleField.id }]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -345,6 +346,20 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 			expect(body.success).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
 			expect(deleteChain.where).toHaveBeenCalledWith(expect.arrayContaining([['project_id', 1]]));
+			expect(deleteChain.returning).toHaveBeenCalledWith({ id: 'id' });
+		});
+
+		it('should return 404 when field disappears before delete', async () => {
+			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: testUser
+			});
+
+			await expect(DELETE(event)).rejects.toThrow();
 		});
 	});
 });

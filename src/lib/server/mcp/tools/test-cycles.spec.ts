@@ -77,6 +77,7 @@ describe('MCP test cycle tools', () => {
 	let close: () => Promise<void>;
 
 	beforeEach(async () => {
+		vi.clearAllMocks();
 		const c = await createClient();
 		client = c.client;
 		close = c.close;
@@ -111,16 +112,73 @@ describe('MCP test cycle tools', () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
 			// First select: max cycle number
 			mockSelectResult(mockDb, [{ maxNum: 0 }]);
-			mockInsertReturning(mockDb, [sampleCycle]);
+			const insertChain = mockInsertReturning(mockDb, [sampleCycle]);
 
 			const result = await client.callTool({
 				name: 'create-test-cycle',
-				arguments: { name: 'Cycle 1' }
+				arguments: { name: ' Cycle 1 ', startDate: '2025-01-01', endDate: '2025-01-31' }
 			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('Cycle 1');
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: 'Cycle 1',
+					cycleNumber: 1,
+					status: 'PLANNED',
+					startDate: new Date('2025-01-01'),
+					endDate: new Date('2025-01-31')
+				})
+			);
+		});
+
+		it('should reject blank names after trimming', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockSelectResult(mockDb, [{ maxNum: 0 }]);
+
+			const result = await client.callTool({
+				name: 'create-test-cycle',
+				arguments: { name: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Too small'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject invalid create dates', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockSelectResult(mockDb, [{ maxNum: 0 }]);
+
+			const result = await client.callTool({
+				name: 'create-test-cycle',
+				arguments: { name: 'Cycle 1', startDate: 'not-a-date' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Invalid date'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject create date ranges where end is before start', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockSelectResult(mockDb, [{ maxNum: 0 }]);
+
+			const result = await client.callTool({
+				name: 'create-test-cycle',
+				arguments: { name: 'Cycle 1', startDate: '2025-02-01', endDate: '2025-01-31' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'endDate must be on or after startDate'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 	});
 
@@ -177,7 +235,7 @@ describe('MCP test cycle tools', () => {
 
 			const result = await client.callTool({
 				name: 'update-test-cycle',
-				arguments: { testCycleId: 1, name: 'Updated Cycle', status: 'COMPLETED' }
+				arguments: { testCycleId: 1, name: ' Updated Cycle ', status: 'COMPLETED' }
 			});
 
 			expect(result.isError).toBeFalsy();
@@ -190,6 +248,10 @@ describe('MCP test cycle tools', () => {
 					['project_id', 1]
 				])
 			);
+			expect(updateChain.set).toHaveBeenCalledWith({
+				name: 'Updated Cycle',
+				status: 'COMPLETED'
+			});
 		});
 
 		it('should return error when not found', async () => {
@@ -204,6 +266,51 @@ describe('MCP test cycle tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Test cycle not found'
 			);
+		});
+
+		it('should reject invalid update status', async () => {
+			mockDb.query.testCycle.findFirst.mockResolvedValue(sampleCycle);
+
+			const result = await client.callTool({
+				name: 'update-test-cycle',
+				arguments: { testCycleId: 1, status: 'ACTIVE' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Invalid option'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject invalid update dates', async () => {
+			mockDb.query.testCycle.findFirst.mockResolvedValue(sampleCycle);
+
+			const result = await client.callTool({
+				name: 'update-test-cycle',
+				arguments: { testCycleId: 1, startDate: 'not-a-date' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Invalid date'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject empty updates', async () => {
+			mockDb.query.testCycle.findFirst.mockResolvedValue(sampleCycle);
+
+			const result = await client.callTool({
+				name: 'update-test-cycle',
+				arguments: { testCycleId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'No fields to update'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 });

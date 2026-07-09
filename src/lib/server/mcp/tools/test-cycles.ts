@@ -2,8 +2,13 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { testCycle } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and, sql } from 'drizzle-orm';
+import { createTestCycleSchema, updateTestCycleSchema } from '$lib/schemas/test-cycle.schema';
+
+function firstValidationError(error: { issues: Array<{ message: string }> }): string {
+	return error.issues[0]?.message ?? 'Invalid test cycle';
+}
 
 export function registerTestCycleTools(server: McpServer, projectId: number) {
 	server.tool('list-test-cycles', 'List all test cycles for the project', {}, async () => {
@@ -30,15 +35,25 @@ export function registerTestCycleTools(server: McpServer, projectId: number) {
 				.select({ maxNum: sql<number>`coalesce(max(${testCycle.cycleNumber}), 0)` })
 				.from(testCycle)
 				.where(eq(testCycle.projectId, projectId));
+			const cycleNumber = (maxRow?.maxNum ?? 0) + 1;
+
+			const parsed = createTestCycleSchema.safeParse({
+				name,
+				cycleNumber,
+				startDate,
+				endDate
+			});
+			if (!parsed.success) return err(firstValidationError(parsed.error));
 
 			const [created] = await db
 				.insert(testCycle)
 				.values({
 					projectId,
-					name,
-					cycleNumber: (maxRow?.maxNum ?? 0) + 1,
-					startDate: startDate ? new Date(startDate) : null,
-					endDate: endDate ? new Date(endDate) : null,
+					name: parsed.data.name,
+					cycleNumber: parsed.data.cycleNumber,
+					status: parsed.data.status ?? 'PLANNED',
+					startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null,
+					endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
 					createdBy: creator
 				})
 				.returning();
@@ -80,11 +95,23 @@ export function registerTestCycleTools(server: McpServer, projectId: number) {
 			});
 			if (!c) return err('Test cycle not found');
 
+			const parsed = updateTestCycleSchema.safeParse({
+				name,
+				status,
+				startDate,
+				endDate
+			});
+			if (!parsed.success) return err(firstValidationError(parsed.error));
+
 			const updates: Record<string, unknown> = {};
-			if (name !== undefined) updates.name = name;
-			if (status !== undefined) updates.status = status;
-			if (startDate !== undefined) updates.startDate = new Date(startDate);
-			if (endDate !== undefined) updates.endDate = new Date(endDate);
+			if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+			if (parsed.data.status !== undefined) updates.status = parsed.data.status;
+			if (parsed.data.startDate !== undefined)
+				updates.startDate = parsed.data.startDate ? new Date(parsed.data.startDate) : null;
+			if (parsed.data.endDate !== undefined)
+				updates.endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : null;
+
+			if (Object.keys(updates).length === 0) return err('No fields to update');
 
 			const [updated] = await db
 				.update(testCycle)

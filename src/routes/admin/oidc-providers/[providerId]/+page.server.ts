@@ -185,7 +185,11 @@ export const actions: Actions = {
 			return fail(400, { error: 'Provider has linked accounts. It has been disabled instead.' });
 		}
 
-		await db.delete(oidcProvider).where(eq(oidcProvider.id, providerId));
+		const [deleted] = await db
+			.delete(oidcProvider)
+			.where(eq(oidcProvider.id, providerId))
+			.returning();
+		if (!deleted) return fail(404, { error: 'Provider not found' });
 		redirect(302, '/admin/oidc-providers');
 	}
 };

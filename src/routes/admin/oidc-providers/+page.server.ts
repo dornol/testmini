@@ -87,7 +87,11 @@ export const actions: Actions = {
 			return { success: true, disabled: true };
 		}
 
-		await db.delete(oidcProvider).where(eq(oidcProvider.id, providerId));
+		const [deleted] = await db
+			.delete(oidcProvider)
+			.where(eq(oidcProvider.id, providerId))
+			.returning();
+		if (!deleted) return fail(404, { error: 'Provider not found' });
 		return { success: true, deleted: true };
 	}
 };

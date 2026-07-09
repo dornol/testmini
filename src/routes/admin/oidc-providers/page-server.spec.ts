@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockSelectResult,
 	mockUpdateReturning
 } from '$lib/server/test-helpers/mock-db';
@@ -224,11 +225,22 @@ describe('admin/oidc-providers +page.server', () => {
 
 		it('should delete provider when no accounts linked', async () => {
 			mockSelectSequence([[{ id: 1 }], [{ count: 0 }]]);
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const event = createActionEvent(adminUser, { providerId: '1' });
 			const result = await actions.deleteProvider(event);
 			expect(result).toMatchObject({ success: true, deleted: true });
 			expect(mockDb.delete).toHaveBeenCalled();
+		});
+
+		it('should return 404 when provider disappears before delete', async () => {
+			mockSelectSequence([[{ id: 1 }], [{ count: 0 }]]);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createActionEvent(adminUser, { providerId: '1' });
+			const result = await actions.deleteProvider(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Provider not found' } });
 		});
 	});
 });

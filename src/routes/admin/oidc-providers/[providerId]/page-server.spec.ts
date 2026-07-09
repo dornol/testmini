@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockSelectResult,
 	mockUpdateReturning
 } from '$lib/server/test-helpers/mock-db';
@@ -402,6 +403,7 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 
 		it('should delete and redirect when no accounts linked', async () => {
 			mockSelectSequence([[{ id: 1 }], [{ count: 0 }]]);
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const event = createActionEvent(adminUser, {});
 			await expect(actions.deleteProvider(event)).rejects.toMatchObject({
@@ -409,6 +411,16 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 				location: '/admin/oidc-providers'
 			});
 			expect(mockDb.delete).toHaveBeenCalled();
+		});
+
+		it('should return 404 when provider disappears before delete', async () => {
+			mockSelectSequence([[{ id: 1 }], [{ count: 0 }]]);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createActionEvent(adminUser, {});
+			const result = await actions.deleteProvider(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Provider not found' } });
 		});
 	});
 });

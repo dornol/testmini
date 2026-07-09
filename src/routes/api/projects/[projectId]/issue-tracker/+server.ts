@@ -163,7 +163,11 @@ export const GET = withProjectAccess(async ({ projectId }) => {
 });
 
 export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ projectId }) => {
-	await db.delete(issueTrackerConfig).where(eq(issueTrackerConfig.projectId, projectId));
+	const [deleted] = await db
+		.delete(issueTrackerConfig)
+		.where(eq(issueTrackerConfig.projectId, projectId))
+		.returning();
+	if (!deleted) error(404, 'Issue tracker config not found');
 	return json({ success: true });
 });
 

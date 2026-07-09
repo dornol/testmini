@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockInsertReturning,
 	mockUpdateReturning
 } from '$lib/server/test-helpers/mock-db';
@@ -563,12 +564,20 @@ describe('/api/projects/[projectId]/issue-tracker', () => {
 		});
 
 		it('should delete config and return success', async () => {
+			mockDeleteReturning(mockDb, [sampleConfig]);
 			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
 
 			const response = await DELETE(event);
 			expect(response.status).toBe(200);
 			expect(await response.json()).toEqual({ success: true });
 			expect(mockDb.delete).toHaveBeenCalled();
+		});
+
+		it('should return 404 when config does not exist before delete', async () => {
+			mockDeleteReturning(mockDb, []);
+			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
+
+			await expect(DELETE(event)).rejects.toMatchObject({ status: 404 });
 		});
 	});
 });

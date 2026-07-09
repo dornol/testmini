@@ -93,6 +93,17 @@ function chainWithResult(result: unknown[]) {
 	return chain;
 }
 
+function mockUnlinkTransaction(selectResults: unknown[][]) {
+	let selectIndex = 0;
+	const txDeleteWhere = vi.fn().mockResolvedValue(undefined);
+	const txDelete = vi.fn(() => ({ where: txDeleteWhere }));
+	const txSelect = vi.fn(() => chainWithResult(selectResults[selectIndex++]));
+	mockDb.transaction.mockImplementationOnce(async (fn) =>
+		fn({ select: txSelect, delete: txDelete })
+	);
+	return { txDeleteWhere, txDelete, txSelect };
+}
+
 describe('/account/profile +page.server', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -193,13 +204,11 @@ describe('/account/profile +page.server', () => {
 		);
 
 		it('should scope the unlink delete to the authenticated user', async () => {
-			const ownershipChain = chainWithResult([{ id: 7 }]);
-			const oidcCountChain = chainWithResult([{ count: 2 }]);
-			const passwordChain = chainWithResult([]);
-			mockDb.select
-				.mockReturnValueOnce(ownershipChain as never)
-				.mockReturnValueOnce(oidcCountChain as never)
-				.mockReturnValueOnce(passwordChain as never);
+			const { txDeleteWhere, txDelete, txSelect } = mockUnlinkTransaction([
+				[{ id: 7 }],
+				[{ count: 2 }],
+				[]
+			]);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -210,12 +219,16 @@ describe('/account/profile +page.server', () => {
 			const result = await actions.unlink(event);
 
 			expect(result).toEqual({ unlinkSuccess: true });
-			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+			expect(txSelect).toHaveBeenCalledTimes(3);
+			expect(txDelete).toHaveBeenCalledWith(expect.objectContaining({ id: 'id' }));
+			expect(txDeleteWhere).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 7],
 					['user_id', testUser.id]
 				])
 			);
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 	});
 });

@@ -3,9 +3,10 @@ import { fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { oidcProvider, oidcAccount } from '$lib/server/db/schema';
 import { account } from '$lib/server/db/auth.schema';
-import { eq, and, asc, count } from 'drizzle-orm';
+import { eq, and, asc } from 'drizzle-orm';
 import { requireAuth } from '$lib/server/auth-utils';
 import { parsePositiveFormId } from '$lib/server/form-utils';
+import { unlinkOidcAccount } from '$lib/server/oidc-account-links';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const user = requireAuth(locals);
@@ -60,34 +61,8 @@ export const actions: Actions = {
 		const accountId = parsePositiveFormId(formData.get('accountId'));
 		if (!accountId) return fail(400, { error: 'Invalid account ID' });
 
-		// Verify ownership
-		const [oidcAcc] = await db
-			.select({ id: oidcAccount.id })
-			.from(oidcAccount)
-			.where(and(eq(oidcAccount.id, accountId), eq(oidcAccount.userId, user.id)));
-
-		if (!oidcAcc) return fail(404, { error: 'Account not found' });
-
-		// Ensure user has at least one other auth method
-		const [oidcCount] = await db
-			.select({ count: count() })
-			.from(oidcAccount)
-			.where(eq(oidcAccount.userId, user.id));
-
-		const [passwordAccount] = await db
-			.select({ id: account.id })
-			.from(account)
-			.where(and(eq(account.userId, user.id), eq(account.providerId, 'credential')));
-
-		if (oidcCount.count <= 1 && !passwordAccount) {
-			return fail(400, {
-				error: 'Cannot unlink the last authentication method'
-			});
-		}
-
-		await db
-			.delete(oidcAccount)
-			.where(and(eq(oidcAccount.id, accountId), eq(oidcAccount.userId, user.id)));
+		const result = await unlinkOidcAccount(user.id, accountId);
+		if (!result.ok) return fail(result.status, { error: result.error });
 
 		return { success: true };
 	}

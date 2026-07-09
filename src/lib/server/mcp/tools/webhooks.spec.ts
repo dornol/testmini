@@ -224,6 +224,26 @@ describe('MCP webhook tools', () => {
 			expect(mockDb.insert).toHaveBeenCalledTimes(insertCallCount);
 		});
 
+		it('should reject webhook URLs with embedded credentials before URL safety lookup', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			const insertCallCount = mockDb.insert.mock.calls.length;
+
+			const result = await client.callTool({
+				name: 'create-webhook',
+				arguments: {
+					name: 'Hook',
+					url: 'https://user:token@ci.example.com/hook'
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'URL must not include credentials'
+			);
+			expect(mockValidatePublicHttpUrl).not.toHaveBeenCalled();
+			expect(mockDb.insert).toHaveBeenCalledTimes(insertCallCount);
+		});
+
 		it('should reject unknown events', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
 			const insertCallCount = mockDb.insert.mock.calls.length;
@@ -456,6 +476,26 @@ describe('MCP webhook tools', () => {
 			);
 			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject webhook update URLs with embedded credentials before updating', async () => {
+			mockDb.query.projectWebhook.findFirst.mockResolvedValue(sampleWebhook);
+			const updateCallCount = mockDb.update.mock.calls.length;
+
+			const result = await client.callTool({
+				name: 'update-webhook',
+				arguments: {
+					webhookId: 1,
+					url: 'https://user:token@ci.example.com/hook'
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'URL must not include credentials'
+			);
+			expect(mockValidatePublicHttpUrl).not.toHaveBeenCalled();
+			expect(mockDb.update).toHaveBeenCalledTimes(updateCallCount);
 		});
 
 		it('should validate URLs before updating a webhook', async () => {

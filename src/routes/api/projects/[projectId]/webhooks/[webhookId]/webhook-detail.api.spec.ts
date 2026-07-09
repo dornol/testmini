@@ -226,6 +226,24 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
+		it('should return 400 when URL includes credentials before looking up webhook', async () => {
+			mockDb.query.projectWebhook.findFirst.mockResolvedValue(existingWebhook);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { url: 'https://user:token@example.com/hook' },
+				user: adminUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toContain('must not include credentials');
+			expect(mockDb.query.projectWebhook.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when URL uses non-http protocol', async () => {
 			mockDb.query.projectWebhook.findFirst.mockResolvedValue(existingWebhook);
 

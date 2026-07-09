@@ -4,14 +4,14 @@ import { db } from '$lib/server/db';
 import { projectWebhook } from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
 import { eq, and } from 'drizzle-orm';
-import { validatePublicHttpUrl } from '$lib/server/url-safety';
 import {
 	MAX_WEBHOOK_NAME_LENGTH,
 	MAX_WEBHOOK_EVENTS,
 	MAX_WEBHOOK_SECRET_LENGTH,
 	validateWebhookEventList,
 	validateWebhookFields,
-	validateWebhookSecret
+	validateWebhookSecret,
+	validateWebhookUrl
 } from '$lib/server/webhook-validation';
 
 function publicWebhook(w: typeof projectWebhook.$inferSelect) {
@@ -51,8 +51,8 @@ async function validateWebhookInput(input: {
 	if (input.url !== undefined) {
 		const url = input.url.trim();
 		if (!url) return { ok: false, error: 'URL is required' };
-		const validation = await validatePublicHttpUrl(url);
-		if (!validation.ok) return { ok: false, error: validation.error ?? 'Invalid URL' };
+		const urlError = await validateWebhookUrl(url);
+		if (urlError) return { ok: false, error: urlError };
 		result.url = url;
 	}
 

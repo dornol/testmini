@@ -64,6 +64,24 @@ export function validateWebhookSecret(secret: string): string | null {
 	return null;
 }
 
+export async function validateWebhookUrl(url: string): Promise<string | null> {
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return 'Invalid URL';
+	}
+
+	if (parsed.username || parsed.password) {
+		return 'URL must not include credentials';
+	}
+
+	const urlValidation = await validatePublicHttpUrl(url);
+	if (!urlValidation.ok) return urlValidation.error ?? 'Invalid URL';
+
+	return null;
+}
+
 export async function validateWebhookFields(
 	body: unknown,
 	options: WebhookFieldValidationOptions = {}
@@ -97,8 +115,8 @@ export async function validateWebhookFields(
 		if (typeof input.url !== 'string') return badRequest('URL must be a string');
 		const url = input.url.trim();
 		if (!url) return badRequest('URL is required');
-		const urlValidation = await validatePublicHttpUrl(url);
-		if (!urlValidation.ok) return badRequest(urlValidation.error ?? 'Invalid URL');
+		const urlError = await validateWebhookUrl(url);
+		if (urlError) return badRequest(urlError);
 		result.url = url;
 	} else if (options.requireUrl) {
 		return badRequest('URL is required');

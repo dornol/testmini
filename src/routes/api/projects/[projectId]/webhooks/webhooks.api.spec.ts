@@ -245,6 +245,21 @@ describe('/api/projects/[projectId]/webhooks', () => {
 			expect(data.error).toContain('Invalid URL');
 		});
 
+		it('should return 400 when URL includes credentials before creating webhook', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Hook', url: 'https://user:token@example.com/hook' },
+				user: adminUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toContain('must not include credentials');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when URL uses non-http protocol', async () => {
 			const event = createMockEvent({
 				method: 'POST',

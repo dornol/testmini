@@ -5,6 +5,7 @@ import { reportSchedule } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { registerJob, removeJob } from '$lib/server/report-scheduler';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
+import { validateRequestBody } from '$lib/server/id-list-validation';
 import {
 	validateOptionalScheduleEnabled,
 	validateScheduleCronExpression,
@@ -16,8 +17,8 @@ import {
 export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params, projectId }) => {
 	const scheduleId = parseId(params.scheduleId, 'schedule ID');
 
-	const body = await parseJsonBody(request);
-	const raw = body as Record<string, unknown>;
+	const raw = validateRequestBody(await parseJsonBody(request));
+	if (raw instanceof Response) return raw;
 
 	const updates: Record<string, unknown> = {};
 	if (raw.name !== undefined) updates.name = validateScheduleName(raw.name);

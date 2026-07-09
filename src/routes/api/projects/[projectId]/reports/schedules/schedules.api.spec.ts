@@ -137,6 +137,21 @@ describe('/api/projects/[projectId]/reports/schedules', () => {
 			await expect(POST(event)).rejects.toThrow();
 		});
 
+		it('should reject non-object body', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: null
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/request body/i);
+		});
+
 		it('should reject missing cronExpression', async () => {
 			const event = createMockEvent({
 				method: 'POST',

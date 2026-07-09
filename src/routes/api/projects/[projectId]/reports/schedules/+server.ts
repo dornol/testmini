@@ -5,6 +5,7 @@ import { reportSchedule } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { registerJob } from '$lib/server/report-scheduler';
 import { parseJsonBody } from '$lib/server/auth-utils';
+import { validateRequestBody } from '$lib/server/id-list-validation';
 import {
 	validateOptionalScheduleEnabled,
 	validateScheduleCronExpression,
@@ -24,8 +25,8 @@ export const GET = withProjectRole(['PROJECT_ADMIN'], async ({ projectId }) => {
 });
 
 export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, projectId, user }) => {
-	const body = await parseJsonBody(request);
-	const raw = body as Record<string, unknown>;
+	const raw = validateRequestBody(await parseJsonBody(request));
+	if (raw instanceof Response) return raw;
 	const safeName = validateScheduleName(raw.name);
 	const safeCronExpression = validateScheduleCronExpression(raw.cronExpression);
 	const safeRecipientEmails = validateScheduleRecipientEmails(raw.recipientEmails);

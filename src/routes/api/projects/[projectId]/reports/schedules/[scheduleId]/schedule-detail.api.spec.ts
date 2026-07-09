@@ -107,6 +107,21 @@ describe('/api/projects/[projectId]/reports/schedules/[scheduleId]', () => {
 			await expect(PATCH(event)).rejects.toThrow();
 		});
 
+		it('should reject non-object body', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: null
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/request body/i);
+		});
+
 		it('should reject empty name update', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',

@@ -43,7 +43,10 @@ export const POST = withProjectRole(
 					environment: originalRun.environment,
 					createdBy: user.id
 				})
-				.returning();
+				.returning({ id: testRun.id });
+			if (!created) {
+				error(500, 'Failed to create cloned test run');
+			}
 
 			if (executions.length > 0) {
 				const executionValues = executions
@@ -54,7 +57,13 @@ export const POST = withProjectRole(
 					}));
 
 				if (executionValues.length > 0) {
-					await tx.insert(testExecution).values(executionValues);
+					const insertedExecutions = await tx
+						.insert(testExecution)
+						.values(executionValues)
+						.returning({ id: testExecution.id });
+					if (insertedExecutions.length !== executionValues.length) {
+						error(500, 'Failed to create all cloned test run executions');
+					}
 				}
 			}
 

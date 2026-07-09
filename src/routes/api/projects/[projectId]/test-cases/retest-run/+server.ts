@@ -48,14 +48,22 @@ export const POST = withProjectRole(
 					environment,
 					createdBy: currentUser.id
 				})
-				.returning();
+				.returning({ id: testRun.id });
+			if (!run) {
+				error(500, 'Failed to create retest run');
+			}
 
-			await tx.insert(testExecution).values(
-				validCases.map((c) => ({
-					testRunId: run.id,
-					testCaseVersionId: c.latestVersionId!
-				}))
-			);
+			const executionValues = validCases.map((c) => ({
+				testRunId: run.id,
+				testCaseVersionId: c.latestVersionId!
+			}));
+			const insertedExecutions = await tx
+				.insert(testExecution)
+				.values(executionValues)
+				.returning({ id: testExecution.id });
+			if (insertedExecutions.length !== executionValues.length) {
+				error(500, 'Failed to create all retest executions');
+			}
 
 			// Clear retest flag on included cases
 			await tx

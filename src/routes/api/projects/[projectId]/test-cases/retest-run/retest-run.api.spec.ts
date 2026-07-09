@@ -51,6 +51,30 @@ const retestCases = [
 	{ id: 11, latestVersionId: 101 }
 ];
 
+function chainableResult(result: unknown[]) {
+	const chain: Record<string, unknown> = {};
+	for (const method of ['values', 'returning', 'set', 'where']) {
+		chain[method] = vi.fn().mockReturnValue(chain);
+	}
+	chain.then = (resolve: (value: unknown) => void) => Promise.resolve(result).then(resolve);
+	return chain;
+}
+
+function mockRetestRunTransaction(opts?: { run?: unknown[]; executions?: unknown[] }) {
+	let insertCall = 0;
+	mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+		const tx = {
+			insert: vi.fn().mockImplementation(() => {
+				insertCall++;
+				if (insertCall === 1) return chainableResult(opts?.run ?? [{ id: 99 }]);
+				return chainableResult(opts?.executions ?? [{ id: 1 }, { id: 2 }]);
+			}),
+			update: vi.fn().mockReturnValue(chainableResult([]))
+		};
+		return fn(tx);
+	});
+}
+
 describe('/api/projects/[projectId]/test-cases/retest-run', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -78,7 +102,8 @@ describe('/api/projects/[projectId]/test-cases/retest-run', () => {
 			};
 			const txInsertExecChain = {
 				values: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+				returning: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([{ id: 1 }, { id: 2 }]).then(r)
 			};
 			const txUpdateChain = {
 				set: vi.fn().mockReturnThis(),
@@ -134,7 +159,8 @@ describe('/api/projects/[projectId]/test-cases/retest-run', () => {
 			};
 			const txInsertExecChain = {
 				values: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+				returning: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([{ id: 1 }, { id: 2 }]).then(r)
 			};
 			const txUpdateChain = {
 				set: vi.fn().mockReturnThis(),
@@ -183,7 +209,8 @@ describe('/api/projects/[projectId]/test-cases/retest-run', () => {
 			};
 			const txInsertExecChain = {
 				values: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+				returning: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([{ id: 1 }]).then(r)
 			};
 			const txUpdateChain = {
 				set: vi.fn().mockReturnThis(),
@@ -349,7 +376,8 @@ describe('/api/projects/[projectId]/test-cases/retest-run', () => {
 			};
 			const txInsertExecChain = {
 				values: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+				returning: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([{ id: 1 }]).then(r)
 			};
 			const txUpdateChain = {
 				set: vi.fn().mockReturnThis(),
@@ -378,6 +406,34 @@ describe('/api/projects/[projectId]/test-cases/retest-run', () => {
 
 		expect(response.status).toBe(201);
 		expect(data.executionCount).toBe(1);
+	});
+
+	it('should return 500 when retest run insert affects no row', async () => {
+		mockSelectResult(mockDb, retestCases);
+		mockRetestRunTransaction({ run: [] });
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: {},
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+	});
+
+	it('should return 500 when execution insert creates fewer rows than requested', async () => {
+		mockSelectResult(mockDb, retestCases);
+		mockRetestRunTransaction({ executions: [{ id: 1 }] });
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: {},
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 500 });
 	});
 
 	it('should return 400 when all cases have null latestVersionId', async () => {

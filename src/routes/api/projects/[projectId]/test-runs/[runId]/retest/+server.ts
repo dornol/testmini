@@ -39,6 +39,9 @@ export const POST = withProjectRole(
 		if (executions.length === 0) {
 			error(400, 'No failed or blocked executions to retest');
 		}
+		if (executions.every((e) => e.latestVersionId === null)) {
+			error(400, 'No failed or blocked executions with current versions to retest');
+		}
 
 		const newRun = await db.transaction(async (tx) => {
 			const [created] = await tx
@@ -50,7 +53,10 @@ export const POST = withProjectRole(
 					createdBy: user.id,
 					retestOfRunId: runId
 				})
-				.returning();
+				.returning({ id: testRun.id });
+			if (!created) {
+				error(500, 'Failed to create retest run');
+			}
 
 			const executionValues = executions
 				.filter((e) => e.latestVersionId !== null)
@@ -60,7 +66,13 @@ export const POST = withProjectRole(
 				}));
 
 			if (executionValues.length > 0) {
-				await tx.insert(testExecution).values(executionValues);
+				const insertedExecutions = await tx
+					.insert(testExecution)
+					.values(executionValues)
+					.returning({ id: testExecution.id });
+				if (insertedExecutions.length !== executionValues.length) {
+					error(500, 'Failed to create all retest executions');
+				}
 			}
 
 			return created;

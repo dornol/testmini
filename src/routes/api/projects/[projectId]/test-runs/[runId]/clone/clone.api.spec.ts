@@ -36,6 +36,15 @@ const authUtils = await import('$lib/server/auth-utils');
 
 const PARAMS = { projectId: '1', runId: '50' };
 
+function chainableResult(result: unknown[]) {
+	const chain: Record<string, unknown> = {};
+	for (const method of ['values', 'returning']) {
+		chain[method] = vi.fn().mockReturnValue(chain);
+	}
+	chain.then = (resolve: (value: unknown) => void) => Promise.resolve(result).then(resolve);
+	return chain;
+}
+
 describe('/api/projects/[projectId]/test-runs/[runId]/clone', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -76,7 +85,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/clone', () => {
 				};
 				const txInsertExecChain = {
 					values: vi.fn().mockReturnThis(),
-					then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+					returning: vi.fn().mockResolvedValue([{ id: 1 }])
 				};
 
 				let insertCallCount = 0;
@@ -96,6 +105,51 @@ describe('/api/projects/[projectId]/test-runs/[runId]/clone', () => {
 
 			expect(response.status).toBe(200);
 			expect(body.id).toBe(newRun.id);
+		});
+
+		it('should return 500 when cloned run insert affects no row', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.select.mockReturnValue({
+				from: vi.fn().mockReturnThis(),
+				innerJoin: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+			} as never);
+			mockDb.transaction.mockImplementation(async (fn) =>
+				fn({ insert: vi.fn().mockReturnValue(chainableResult([])) })
+			);
+
+			const event = createMockEvent({ method: 'POST', params: PARAMS, user: testUser });
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
+		it('should return 500 when cloned execution insert creates fewer rows than requested', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.select.mockReturnValue({
+				from: vi.fn().mockReturnThis(),
+				innerJoin: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) =>
+					Promise.resolve([
+						{ testCaseId: 10, latestVersionId: 100 },
+						{ testCaseId: 11, latestVersionId: 101 }
+					]).then(r)
+			} as never);
+			let insertCallCount = 0;
+			mockDb.transaction.mockImplementation(async (fn) =>
+				fn({
+					insert: vi.fn().mockImplementation(() => {
+						insertCallCount++;
+						if (insertCallCount === 1) return chainableResult([{ id: 51 }]);
+						return chainableResult([{ id: 1 }]);
+					})
+				})
+			);
+
+			const event = createMockEvent({ method: 'POST', params: PARAMS, user: testUser });
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
 		});
 
 		it('should use custom name when provided in request body', async () => {

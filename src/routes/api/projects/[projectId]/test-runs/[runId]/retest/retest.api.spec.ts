@@ -51,28 +51,39 @@ function setupSelectChain(result: unknown[]) {
 	return chain;
 }
 
-function setupTransaction() {
-	const insertValues = vi.fn();
-	const insertReturning = vi.fn();
-	const txInsert = vi.fn();
-
-	mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
-		return fn({ insert: txInsert });
-	});
-
-	return { insertValues, insertReturning, txInsert };
+function chainableResult(result: unknown[], valuesSpy?: ReturnType<typeof vi.fn>) {
+	const chain: Record<string, unknown> = {};
+	if (valuesSpy) {
+		valuesSpy.mockReturnValue(chain);
+		chain.values = valuesSpy;
+	} else {
+		chain.values = vi.fn().mockReturnValue(chain);
+	}
+	chain.returning = vi.fn().mockReturnValue(chain);
+	chain.then = (resolve: (value: unknown) => void) => Promise.resolve(result).then(resolve);
+	return chain;
 }
 
-function setupTransactionSuccess(newRunId: number) {
-	const insertReturning = vi.fn().mockResolvedValue([{ id: newRunId }]);
-	const insertValues = vi.fn().mockReturnValue({ returning: insertReturning });
-	const txInsert = vi.fn().mockReturnValue({ values: insertValues });
+function setupTransactionSuccess(newRunId: number, executionCount = 1) {
+	const insertValues = vi.fn();
+	const txInsert = vi.fn();
+	let insertCallCount = 0;
 
 	mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+		txInsert.mockImplementation(() => {
+			insertCallCount++;
+			if (insertCallCount === 1) {
+				return chainableResult([{ id: newRunId }], insertValues);
+			}
+			return chainableResult(
+				Array.from({ length: executionCount }, (_, index) => ({ id: index + 1 })),
+				insertValues
+			);
+		});
 		return fn({ insert: txInsert });
 	});
 
-	return { insertValues, insertReturning, txInsert };
+	return { insertValues, txInsert };
 }
 
 describe('/api/projects/[projectId]/test-runs/[runId]/retest', () => {
@@ -179,7 +190,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/retest', () => {
 				{ testCaseId: 1, latestVersionId: 10 },
 				{ testCaseId: 2, latestVersionId: 20 }
 			]);
-			setupTransactionSuccess(99);
+			setupTransactionSuccess(99, 2);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -293,7 +304,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/retest', () => {
 				{ testCaseId: 2, latestVersionId: null },
 				{ testCaseId: 3, latestVersionId: 30 }
 			]);
-			const { insertValues } = setupTransactionSuccess(104);
+			const { insertValues } = setupTransactionSuccess(104, 2);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -318,12 +329,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/retest', () => {
 			]);
 
 			const newRunId = 105;
-			const insertReturning = vi.fn().mockResolvedValue([{ id: newRunId }]);
-			const insertValues = vi.fn().mockReturnValue({ returning: insertReturning });
-			const txInsert = vi.fn().mockReturnValue({ values: insertValues });
-			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
-				return fn({ insert: txInsert });
-			});
+			const { insertValues } = setupTransactionSuccess(newRunId, 2);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -405,12 +411,23 @@ describe('/api/projects/[projectId]/test-runs/[runId]/retest', () => {
 				{ testCaseId: 2, latestVersionId: null }
 			]);
 
-			const insertReturning = vi.fn().mockResolvedValue([{ id: 109 }]);
-			const insertValues = vi.fn().mockReturnValue({ returning: insertReturning });
-			const txInsert = vi.fn().mockReturnValue({ values: insertValues });
-			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
-				return fn({ insert: txInsert });
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: {},
+				user: adminUser
 			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should return 500 when retest run insert affects no row', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			setupSelectChain([{ testCaseId: 1, latestVersionId: 10 }]);
+			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
+				fn({ insert: vi.fn().mockReturnValue(chainableResult([])) })
+			);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -419,10 +436,34 @@ describe('/api/projects/[projectId]/test-runs/[runId]/retest', () => {
 				user: adminUser
 			});
 
-			await POST(event);
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
 
-			// Only run insert should happen, no execution insert (all filtered out)
-			expect(txInsert).toHaveBeenCalledTimes(1);
+		it('should return 500 when retest execution insert creates fewer rows than requested', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			setupSelectChain([
+				{ testCaseId: 1, latestVersionId: 10 },
+				{ testCaseId: 2, latestVersionId: 20 }
+			]);
+			let insertCallCount = 0;
+			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
+				fn({
+					insert: vi.fn().mockImplementation(() => {
+						insertCallCount++;
+						if (insertCallCount === 1) return chainableResult([{ id: 109 }]);
+						return chainableResult([{ id: 1 }]);
+					})
+				})
+			);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: {},
+				user: adminUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
 		});
 	});
 });

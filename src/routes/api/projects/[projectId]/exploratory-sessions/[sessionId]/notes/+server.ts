@@ -9,11 +9,27 @@ import { saveFile } from '$lib/server/storage';
 import { randomUUID } from 'node:crypto';
 import { assertMultipartContentLength } from '$lib/server/multipart-limits';
 import { parseCanonicalNonNegativeInteger } from '$lib/server/search-param-validation';
+import { parseOptionalTrimmedFormString } from '$lib/server/form-utils';
 
 const MAX_NOTE_CONTENT_LENGTH = 10_000;
 const MAX_SCREENSHOT_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_SCREENSHOT_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
 const ALLOWED_SCREENSHOT_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp']);
+const NOTE_TYPES = ['NOTE', 'BUG', 'QUESTION', 'IDEA'] as const;
+
+type NoteType = (typeof NOTE_TYPES)[number];
+
+function parseNoteType(value: FormDataEntryValue | null): NoteType | null {
+	if (value === null) return 'NOTE';
+	if (typeof value !== 'string') return null;
+	return NOTE_TYPES.includes(value as NoteType) ? (value as NoteType) : null;
+}
+
+function parseTimestamp(value: FormDataEntryValue | null): number | null {
+	if (value === null) return 0;
+	if (typeof value !== 'string') return null;
+	return parseCanonicalNonNegativeInteger(value);
+}
 
 function validateScreenshotFile(file: File): Response | null {
 	const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
@@ -36,20 +52,19 @@ export const POST = withProjectRole(
 		assertMultipartContentLength(request, MAX_SCREENSHOT_SIZE);
 
 		const formData = await request.formData();
-		const content = ((formData.get('content') as string) ?? '').trim();
+		const content = parseOptionalTrimmedFormString(formData.get('content'));
+		if (content === null) return badRequest('Content is required');
 		if (!content) return badRequest('Content is required');
 		if (content.length > MAX_NOTE_CONTENT_LENGTH) {
 			return badRequest(`Content must be ${MAX_NOTE_CONTENT_LENGTH} characters or fewer`);
 		}
 
-		const noteType = (formData.get('noteType') as string) ?? 'NOTE';
-		if (!['NOTE', 'BUG', 'QUESTION', 'IDEA'].includes(noteType)) {
+		const noteType = parseNoteType(formData.get('noteType'));
+		if (!noteType) {
 			return badRequest('Invalid note type');
 		}
 
-		const timestampValue = formData.get('timestamp');
-		const timestamp =
-			timestampValue === null ? 0 : parseCanonicalNonNegativeInteger(String(timestampValue));
+		const timestamp = parseTimestamp(formData.get('timestamp'));
 		if (timestamp === null) {
 			return badRequest('Invalid timestamp');
 		}

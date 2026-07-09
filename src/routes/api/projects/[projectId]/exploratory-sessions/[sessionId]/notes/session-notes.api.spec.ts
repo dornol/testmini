@@ -106,6 +106,21 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 			expect((await response.json()).error).toContain('Content is required');
 		});
 
+		it('should reject non-text content before inserting', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+			const event = createFormDataEvent({
+				content: new File(['Some note'], 'content.txt'),
+				noteType: 'NOTE',
+				timestamp: '100'
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Content is required');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should reject oversized multipart bodies before parsing form data', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
 
@@ -200,6 +215,21 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 			expect((await response.json()).error).toContain('Invalid note type');
 		});
 
+		it('should reject non-text note type before inserting', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+			const event = createFormDataEvent({
+				content: 'Some note',
+				noteType: new File(['NOTE'], 'note-type.txt'),
+				timestamp: '100'
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid note type');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should reject negative timestamp', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
 
@@ -230,6 +260,22 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]/notes', () 
 				expect(mockDb.insert).not.toHaveBeenCalled();
 			}
 		);
+
+		it('should reject non-text timestamp before inserting', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+			const event = createFormDataEvent({
+				content: 'Some note',
+				noteType: 'NOTE',
+				timestamp: new File(['100'], 'timestamp.txt')
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid timestamp');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+			expect(mockSaveFile).not.toHaveBeenCalled();
+		});
 
 		it('should handle screenshot upload (mock file, verify saveFile called)', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);

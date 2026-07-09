@@ -100,6 +100,8 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 			const response = await PATCH(event);
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('No fields to update');
+			expect(mockDb.query.issueLink.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when request body is not an object', async () => {
@@ -116,6 +118,7 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toMatch(/request body/i);
+			expect(mockDb.query.issueLink.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -133,6 +136,7 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toContain('Invalid issue link field');
+			expect(mockDb.query.issueLink.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -150,6 +154,7 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toContain('title must be a string or null');
+			expect(mockDb.query.issueLink.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -167,6 +172,7 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toContain('status must be a string or null');
+			expect(mockDb.query.issueLink.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -184,6 +190,7 @@ describe('/api/projects/[projectId]/issue-links/[linkId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toMatch(/500 characters/i);
+			expect(mockDb.query.issueLink.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 

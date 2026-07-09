@@ -11,13 +11,13 @@ export const PATCH = withProjectRole(
 	async ({ request, params, projectId }) => {
 		const linkId = parseId(params.linkId, 'link ID');
 
+		const updates = validateIssueLinkUpdateInput(await parseJsonBody(request));
+		if (updates instanceof Response) return updates;
+
 		const existing = await db.query.issueLink.findFirst({
 			where: and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId))
 		});
 		if (!existing) error(404, 'Issue link not found');
-
-		const updates = validateIssueLinkUpdateInput(await parseJsonBody(request));
-		if (updates instanceof Response) return updates;
 
 		const [updated] = await db
 			.update(issueLink)

@@ -54,6 +54,32 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 		mockRequireProjectRole.mockResolvedValue({ role: 'PROJECT_ADMIN' });
 	});
 
+	describe('addMember', () => {
+		it('returns 400 before insert when target user does not exist', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValueOnce(null);
+			const selectChain = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				limit: vi.fn().mockReturnThis(),
+				then: (resolve: (value: unknown[]) => void) => Promise.resolve([]).then(resolve)
+			};
+			mockDb.select.mockReturnValue(selectChain as never);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				user: testUser,
+				formData: makeForm({ userId: 'missing-user', role: 'QA' })
+			});
+
+			const result = await actions.addMember(event);
+
+			expect(result).toMatchObject({ status: 400 });
+			expect(selectChain.where).toHaveBeenCalledWith(['id', 'missing-user']);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+	});
+
 	describe('updateRole', () => {
 		it('scopes role updates to the current project', async () => {
 			mockDb.query.projectMember.findFirst.mockResolvedValueOnce({

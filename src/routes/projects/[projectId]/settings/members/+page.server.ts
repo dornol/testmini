@@ -65,6 +65,15 @@ export const actions: Actions = {
 			return message(form, 'User is already a member of this project', { status: 400 });
 		}
 
+		const targetUsers = await db
+			.select({ id: user.id })
+			.from(user)
+			.where(eq(user.id, userId))
+			.limit(1);
+		if (targetUsers.length === 0) {
+			return message(form, 'User not found', { status: 400 });
+		}
+
 		await db.insert(projectMember).values({
 			projectId,
 			userId,

@@ -59,6 +59,8 @@ export const POST = withProjectRole(
 			})
 			.returning();
 
+		if (!signoff) error(500, 'Failed to create test plan signoff');
+
 		// Notify plan creator
 		if (plan.createdBy !== currentUser.id) {
 			createNotification({

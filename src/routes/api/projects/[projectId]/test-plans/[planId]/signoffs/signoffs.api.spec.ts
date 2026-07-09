@@ -224,6 +224,20 @@ describe('/api/projects/[projectId]/test-plans/[planId]/signoffs', () => {
 			expect(response.status).toBe(201);
 		});
 
+		it('should return 500 when signoff insert returns no row', async () => {
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { decision: 'APPROVED' },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+			expect(mockCreateNotification).not.toHaveBeenCalled();
+		});
+
 		it('should notify plan creator when different user signs off', async () => {
 			const created = {
 				id: 5,

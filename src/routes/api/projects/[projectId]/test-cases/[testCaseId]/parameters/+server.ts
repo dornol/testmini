@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCaseParameter } from '$lib/server/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
@@ -52,6 +52,8 @@ export const POST = withProjectRole(
 			.insert(testCaseParameter)
 			.values({ testCaseId, name: parameterOrError.name, orderIndex: maxOrder })
 			.returning();
+
+		if (!param) error(500, 'Failed to create test case parameter');
 
 		return json(param, { status: 201 });
 	}

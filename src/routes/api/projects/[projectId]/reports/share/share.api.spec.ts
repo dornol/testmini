@@ -210,6 +210,20 @@ describe('/api/projects/[projectId]/reports/share', () => {
 			expect(mockRandomBytes).toHaveBeenCalledWith(32);
 		});
 
+		it('should return 500 when shared report insert returns no row', async () => {
+			mockRandomBytes.mockReturnValue({ toString: () => 'hex-token-value' });
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { name: 'Report', config: {} }
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
 		it('should handle expiresInDays parameter', async () => {
 			mockRandomBytes.mockReturnValue({ toString: () => 'hex-token' });
 			mockInsertReturning(mockDb, [{ ...sampleSharedReport, expiresAt: new Date('2025-01-08') }]);

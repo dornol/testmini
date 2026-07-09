@@ -109,6 +109,8 @@ export const POST = withProjectRole(
 			})
 			.returning();
 
+		if (!report) error(500, 'Failed to create shared report');
+
 		return json(report, { status: 201 });
 	}
 );

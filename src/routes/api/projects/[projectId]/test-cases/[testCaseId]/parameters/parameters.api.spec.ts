@@ -215,5 +215,23 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters', () => {
 			const body = await response.json();
 			expect(body.name).toBe('email');
 		});
+
+		it('should return 500 when parameter insert returns no row', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue({ id: 10, projectId: 1 });
+			(
+				mockDb.query.testCaseParameter as { findFirst: ReturnType<typeof vi.fn> }
+			).findFirst.mockResolvedValue(null);
+			mockSelectResult(mockDb, []);
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'email' },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
 	});
 });

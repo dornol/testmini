@@ -5,6 +5,7 @@ import { eq, and, desc, count, sql } from 'drizzle-orm';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
 import { parseJsonBody } from '$lib/server/auth-utils';
+import { validateCreateExploratorySessionPayload } from '$lib/server/exploratory-session-validation';
 
 const VALID_STATUSES = ['ACTIVE', 'PAUSED', 'COMPLETED'] as const;
 const DEFAULT_LIMIT = 20;
@@ -104,16 +105,15 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
 	async ({ request, user: authUser, projectId }) => {
-		let body: { title?: string; charter?: string; environment?: string; tags?: string[] };
+		let rawBody: unknown;
 		try {
-			body = (await parseJsonBody(request)) as typeof body;
+			rawBody = await parseJsonBody(request);
 		} catch {
 			error(400, 'Invalid JSON');
 		}
 
-		const title = (body.title ?? '').trim();
-		if (!title) return badRequest('Title is required');
-		if (title.length > 500) return badRequest('Title must be 500 characters or less');
+		const payload = validateCreateExploratorySessionPayload(rawBody);
+		if (payload instanceof Response) return payload;
 
 		let created;
 		try {
@@ -121,10 +121,10 @@ export const POST = withProjectRole(
 				.insert(exploratorySession)
 				.values({
 					projectId,
-					title,
-					charter: body.charter?.trim() || null,
-					environment: body.environment?.trim() || null,
-					tags: body.tags ?? [],
+					title: payload.title,
+					charter: payload.charter,
+					environment: payload.environment,
+					tags: payload.tags,
 					createdBy: authUser.id
 				})
 				.returning();

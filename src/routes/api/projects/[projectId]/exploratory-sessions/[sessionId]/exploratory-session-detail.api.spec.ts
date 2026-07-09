@@ -327,6 +327,36 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]', () => {
 			expect((await response.json()).error).toContain('Title cannot be empty');
 		});
 
+		it('should reject invalid action values', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { action: 'restart' }
+			});
+			const response = await PATCH(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid action');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject non-string summary', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { summary: { text: 'bad' } }
+			});
+			const response = await PATCH(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('summary');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should complete a paused session (PAUSED -> COMPLETED is valid)', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue({
 				...sampleSession,
@@ -375,13 +405,11 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]', () => {
 			expect(body.tags).toEqual(['performance', 'ui']);
 		});
 
-		it('should handle negative pausedDuration (ignore, do not include in updates)', async () => {
+		it('should reject negative pausedDuration', async () => {
 			mockDb.query.exploratorySession.findFirst.mockResolvedValue({
 				...sampleSession,
 				status: 'ACTIVE'
 			});
-			const updatedSession = { ...sampleSession, status: 'PAUSED' };
-			mockUpdateReturning(mockDb, [updatedSession]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -390,12 +418,24 @@ describe('/api/projects/[projectId]/exploratory-sessions/[sessionId]', () => {
 				body: { action: 'pause', pausedDuration: -100 }
 			});
 			const response = await PATCH(event);
-			expect(response.status).toBe(200);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('pausedDuration');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
 
-			// Verify the update was called -- negative pausedDuration is ignored
-			// (status update still proceeds, but pausedDuration is not set)
-			const body = await response.json();
-			expect(body.status).toBe('PAUSED');
+		it('should reject invalid tags', async () => {
+			mockDb.query.exploratorySession.findFirst.mockResolvedValue(sampleSession);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { tags: ['valid', 123] }
+			});
+			const response = await PATCH(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('tags[1]');
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should reject when no fields to update', async () => {

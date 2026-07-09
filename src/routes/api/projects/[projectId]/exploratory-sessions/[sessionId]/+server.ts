@@ -5,6 +5,7 @@ import { eq, and, asc } from 'drizzle-orm';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
+import { validateUpdateExploratorySessionPayload } from '$lib/server/exploratory-session-validation';
 
 async function findSession(projectId: number, sessionId: number) {
 	return db.query.exploratorySession.findFirst({
@@ -40,19 +41,14 @@ export const PATCH = withProjectRole(
 		const session = await findSession(projectId, sessionId);
 		if (!session) return notFound('Session not found');
 
-		let body: {
-			action?: 'pause' | 'resume' | 'complete';
-			summary?: string;
-			title?: string;
-			charter?: string;
-			environment?: string;
-			tags?: string[];
-		};
+		let rawBody: unknown;
 		try {
-			body = (await parseJsonBody(request)) as typeof body;
+			rawBody = await parseJsonBody(request);
 		} catch {
 			error(400, 'Invalid JSON');
 		}
+		const body = validateUpdateExploratorySessionPayload(rawBody);
+		if (body instanceof Response) return body;
 
 		const updates: Record<string, unknown> = {};
 
@@ -67,7 +63,7 @@ export const PATCH = withProjectRole(
 			updates.status = 'COMPLETED';
 			updates.completedAt = new Date();
 			if (body.summary !== undefined) {
-				updates.summary = body.summary.trim() || null;
+				updates.summary = body.summary;
 			}
 		}
 
@@ -78,27 +74,24 @@ export const PATCH = withProjectRole(
 		}
 
 		if (body.summary !== undefined && body.action !== 'complete') {
-			updates.summary = body.summary.trim() || null;
+			updates.summary = body.summary;
 		}
 		if (body.title !== undefined) {
-			const title = body.title.trim();
-			if (!title) return badRequest('Title cannot be empty');
-			updates.title = title;
+			updates.title = body.title;
 		}
 		if (body.charter !== undefined) {
-			updates.charter = body.charter.trim() || null;
+			updates.charter = body.charter;
 		}
 		if (body.environment !== undefined) {
-			updates.environment = body.environment.trim() || null;
+			updates.environment = body.environment;
 		}
 		if (body.tags !== undefined) {
 			updates.tags = body.tags;
 		}
 		if (body.action === 'pause' || body.action === 'resume' || body.action === 'complete') {
 			// Accept pausedDuration from client to keep server in sync
-			const pausedDuration = (body as Record<string, unknown>).pausedDuration;
-			if (typeof pausedDuration === 'number' && pausedDuration >= 0) {
-				updates.pausedDuration = Math.floor(pausedDuration);
+			if (body.pausedDuration !== undefined) {
+				updates.pausedDuration = body.pausedDuration;
 			}
 		}
 

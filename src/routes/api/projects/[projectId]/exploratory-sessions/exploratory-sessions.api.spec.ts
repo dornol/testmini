@@ -269,6 +269,47 @@ describe('/api/projects/[projectId]/exploratory-sessions', () => {
 			expect((await response.json()).error).toContain('500 characters');
 		});
 
+		it('should reject non-object request bodies', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: ['invalid']
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject non-string optional fields', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { title: 'Session', charter: { nested: true } }
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('charter');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject invalid tags', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { title: 'Session', tags: ['valid', '   '] }
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('tags[1]');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should create session successfully with 201', async () => {
 			const createdSession = {
 				id: 1,
@@ -369,6 +410,46 @@ describe('/api/projects/[projectId]/exploratory-sessions', () => {
 			expect(body.title).toBe('Trimmed title');
 			// Verify the db insert was called (title was accepted after trimming)
 			expect(mockDb.insert).toHaveBeenCalled();
+		});
+
+		it('should trim optional text fields and tags before saving', async () => {
+			const createdSession = {
+				id: 4,
+				projectId: 1,
+				title: 'Trimmed',
+				charter: 'Charter',
+				status: 'ACTIVE',
+				environment: 'Safari',
+				tags: ['auth', 'ui'],
+				createdBy: 'user-1',
+				startedAt: new Date(),
+				pausedDuration: 0,
+				completedAt: null
+			};
+			const insertChain = mockInsertReturning(mockDb, [createdSession]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					title: ' Trimmed ',
+					charter: ' Charter ',
+					environment: ' Safari ',
+					tags: [' auth ', ' ui ']
+				}
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(201);
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({
+					title: 'Trimmed',
+					charter: 'Charter',
+					environment: 'Safari',
+					tags: ['auth', 'ui']
+				})
+			);
 		});
 
 		it('should use default values when optional fields are omitted', async () => {

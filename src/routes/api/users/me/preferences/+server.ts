@@ -16,6 +16,7 @@ export const GET = withAuth(async ({ user }) => {
 const VALID_LOCALES = ['ko', 'en'];
 const VALID_THEMES = ['light', 'dark', 'system'];
 const PREFERENCE_KEYS = new Set(['locale', 'theme', 'notificationSettings']);
+const NOTIFICATION_SETTINGS_KEYS = new Set(['enableInApp', 'mutedTypes']);
 const MAX_MUTED_TYPES = 100;
 const MAX_MUTED_TYPE_LENGTH = 100;
 
@@ -43,6 +44,10 @@ function validateNotificationSettings(
 	}
 
 	const settings = value as Record<string, unknown>;
+	if (Object.keys(settings).some((key) => !NOTIFICATION_SETTINGS_KEYS.has(key))) {
+		error(400, 'Invalid notificationSettings field');
+	}
+
 	const parsed: { enableInApp?: boolean; mutedTypes?: string[] } = {};
 
 	if (settings.enableInApp !== undefined) {

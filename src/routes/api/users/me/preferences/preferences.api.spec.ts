@@ -123,6 +123,22 @@ describe('/api/users/me/preferences', () => {
 			await expect(PUT(event)).rejects.toThrow();
 		});
 
+		it('should reject unknown notificationSettings fields before writing', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				body: {
+					notificationSettings: {
+						enableInApp: true,
+						emailDigest: true
+					}
+				},
+				user: testUser
+			});
+
+			await expect(PUT(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should reject non-object body', async () => {
 			const event = createMockEvent({
 				method: 'PUT',

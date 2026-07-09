@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
 const MAX_TEST_CASE_IDS = 500;
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
+const noControlCharacters = (message: string) =>
+	z.string().refine((value) => !CONTROL_CHAR_PATTERN.test(value), message);
 
 function hasUniqueItems<T>(items: T[]): boolean {
 	return new Set(items).size === items.length;
@@ -8,8 +11,18 @@ function hasUniqueItems<T>(items: T[]): boolean {
 
 export const createTestRunSchema = z
 	.object({
-		name: z.string().trim().min(1, 'Name is required').max(200),
-		environment: z.string().trim().min(1, 'Environment is required').max(30),
+		name: z
+			.string()
+			.trim()
+			.min(1, 'Name is required')
+			.max(200)
+			.pipe(noControlCharacters('Name must not contain control characters')),
+		environment: z
+			.string()
+			.trim()
+			.min(1, 'Environment is required')
+			.max(30)
+			.pipe(noControlCharacters('Environment must not contain control characters')),
 		testCaseIds: z
 			.array(z.number().int().positive())
 			.min(1, 'Select at least one test case')
@@ -27,8 +40,20 @@ export const updateExecutionSchema = z
 
 export const updateTestRunSchema = z
 	.object({
-		name: z.string().trim().min(1, 'Name is required').max(200).optional(),
-		environment: z.string().trim().min(1, 'Environment is required').max(30).optional(),
+		name: z
+			.string()
+			.trim()
+			.min(1, 'Name is required')
+			.max(200)
+			.pipe(noControlCharacters('Name must not contain control characters'))
+			.optional(),
+		environment: z
+			.string()
+			.trim()
+			.min(1, 'Environment is required')
+			.max(30)
+			.pipe(noControlCharacters('Environment must not contain control characters'))
+			.optional(),
 		releaseId: z.number().int().positive().nullable().optional()
 	})
 	.strict();

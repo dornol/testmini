@@ -76,6 +76,22 @@ describe('createTestRunSchema', () => {
 		}
 	});
 
+	it.each([
+		['name', 'Run\nName', 'Name must not contain control characters'],
+		['environment', 'QA\nProd', 'Environment must not contain control characters']
+	])('should reject control characters in %s', (field, value, message) => {
+		const result = createTestRunSchema.safeParse({
+			name: 'Run',
+			environment: 'QA',
+			testCaseIds: [1],
+			[field]: value
+		});
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.map((issue) => issue.message)).toContain(message);
+		}
+	});
+
 	it('should accept any non-empty environment string', () => {
 		for (const env of ['DEV', 'QA', 'STAGE', 'PROD', 'PRODUCTION', 'UAT', 'SANDBOX']) {
 			const result = createTestRunSchema.safeParse({
@@ -188,6 +204,17 @@ describe('updateTestRunSchema', () => {
 		if (result.success) {
 			expect(result.data.name).toBe('New name');
 			expect(result.data.environment).toBe('QA');
+		}
+	});
+
+	it.each([
+		['name', 'New\nName', 'Name must not contain control characters'],
+		['environment', 'QA\nProd', 'Environment must not contain control characters']
+	])('should reject control characters in updated %s', (field, value, message) => {
+		const result = updateTestRunSchema.safeParse({ [field]: value });
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.map((issue) => issue.message)).toContain(message);
 		}
 	});
 

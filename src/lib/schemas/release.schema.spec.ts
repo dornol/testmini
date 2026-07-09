@@ -33,6 +33,21 @@ describe('release.schema', () => {
 			});
 		});
 
+		it.each([
+			['name', 'v1.0.0\nstable', 'Name must not contain control characters'],
+			['version', '1.0.0\nstable', 'Version must not contain control characters']
+		])('rejects control characters in %s', (field, value, message) => {
+			const result = createReleaseSchema.safeParse({
+				name: 'v1.0.0',
+				[field]: value
+			});
+
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.issues.map((issue) => issue.message)).toContain(message);
+			}
+		});
+
 		it('accepts empty release date strings for backwards-compatible null conversion', () => {
 			const result = createReleaseSchema.safeParse({
 				name: 'v1.0.0',
@@ -81,6 +96,18 @@ describe('release.schema', () => {
 				version: '1.1.0',
 				description: 'Patch release'
 			});
+		});
+
+		it.each([
+			['name', 'v1.1.0\npatch', 'Name must not contain control characters'],
+			['version', '1.1.0\npatch', 'Version must not contain control characters']
+		])('rejects control characters in update %s', (field, value, message) => {
+			const result = updateReleaseSchema.safeParse({ [field]: value });
+
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.issues.map((issue) => issue.message)).toContain(message);
+			}
 		});
 
 		it('rejects invalid update release dates', () => {

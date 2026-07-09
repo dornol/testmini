@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser } from '$lib/server/test-helpers/fixtures';
 
@@ -146,16 +151,8 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 			vi.mocked(
 				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite
 					.findFirst
-			)
-				.mockResolvedValueOnce(sampleSuite) // initial fetch
-				.mockResolvedValueOnce(updatedSuite); // re-fetch after update
-
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			).mockResolvedValueOnce(sampleSuite);
+			mockUpdateReturning(mockDb, [updatedSuite]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -175,16 +172,8 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 			vi.mocked(
 				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite
 					.findFirst
-			)
-				.mockResolvedValueOnce(sampleSuite)
-				.mockResolvedValueOnce(updatedSuite);
-
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			).mockResolvedValueOnce(sampleSuite);
+			const updateChain = mockUpdateReturning(mockDb, [updatedSuite]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -206,16 +195,8 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 			vi.mocked(
 				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite
 					.findFirst
-			)
-				.mockResolvedValueOnce(sampleSuite)
-				.mockResolvedValueOnce(updatedSuite);
-
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			).mockResolvedValueOnce(sampleSuite);
+			mockUpdateReturning(mockDb, [updatedSuite]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -297,6 +278,23 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 			await expect(PATCH(event)).rejects.toThrow();
 		});
 
+		it('should return 404 when suite disappears before update', async () => {
+			vi.mocked(
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testSuite
+					.findFirst
+			).mockResolvedValueOnce(sampleSuite);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'New Name' },
+				user: testUser
+			});
+
+			await expect(PATCH(event)).rejects.toMatchObject({ status: 404 });
+		});
+
 		it('should return 403 for non-admin roles', async () => {
 			vi.mocked(authUtils.requireProjectRole).mockRejectedValue(
 				Object.assign(new Error(), { status: 403, body: { message: 'Forbidden' } })
@@ -314,11 +312,7 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 
 	describe('DELETE', () => {
 		it('should require PROJECT_ADMIN and delete suite', async () => {
-			const deleteChain = {
-				where: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-			};
-			mockDb.delete.mockReturnValue(deleteChain as never);
+			mockDeleteReturning(mockDb, [sampleSuite]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -330,6 +324,18 @@ describe('/api/projects/[projectId]/test-suites/[suiteId]', () => {
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
+		});
+
+		it('should return 404 when suite disappears before delete', async () => {
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: adminUser
+			});
+
+			await expect(DELETE(event)).rejects.toMatchObject({ status: 404 });
 		});
 
 		it('should return 403 for non-admin', async () => {

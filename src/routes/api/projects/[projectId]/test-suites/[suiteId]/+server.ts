@@ -62,14 +62,13 @@ export const PATCH = withProjectRole(
 			return badRequest('No fields to update');
 		}
 
-		await db
+		const [updated] = await db
 			.update(testSuite)
 			.set(updates)
-			.where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)));
+			.where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)))
+			.returning();
 
-		const updated = await db.query.testSuite.findFirst({
-			where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
-		});
+		if (!updated) error(404, 'Suite not found');
 
 		return json(updated);
 	}
@@ -86,9 +85,12 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN', 'QA'], async ({ params, 
 		error(404, 'Suite not found');
 	}
 
-	await db
+	const [deleted] = await db
 		.delete(testSuite)
-		.where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)));
+		.where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)))
+		.returning();
+
+	if (!deleted) error(404, 'Suite not found');
 
 	return json({ success: true });
 });

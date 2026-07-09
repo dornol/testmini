@@ -17,9 +17,11 @@ import { publishRunEvent } from '$lib/server/run-events';
 import { createNotification } from '$lib/server/notifications';
 import type { RunEvent } from '$lib/types/events';
 import { parsePositiveFormId } from '$lib/server/form-utils';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
 
 // ── Local helpers ──────────────────────────────────────────────────
 
+const MAX_TEST_RUN_ACTION_FORM_BODY_SIZE = 64 * 1024;
 const EXECUTION_STATUSES = ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED'] as const;
 const RUN_STATUSES = ['IN_PROGRESS', 'COMPLETED'] as const;
 const MAX_EXECUTION_COMMENT_LENGTH = 2000;
@@ -30,6 +32,14 @@ const FAILURE_FIELD_LIMITS = {
 	stackTrace: 10000,
 	comment: 2000
 } as const;
+
+function assertTestRunActionFormBodySize(request: Request): void {
+	assertContentLengthUnderLimit(
+		request,
+		MAX_TEST_RUN_ACTION_FORM_BODY_SIZE,
+		'Test run action form body is too large'
+	);
+}
 
 function parseEnumValue<T extends readonly string[]>(
 	value: FormDataEntryValue | null,
@@ -238,6 +248,7 @@ export const actions: Actions = {
 
 		const guard = await requireEditableRun(projectId, runId);
 		if (guard) return guard;
+		assertTestRunActionFormBodySize(request);
 
 		const formData = await request.formData();
 		const executionId = parsePositiveFormId(formData.get('executionId'));
@@ -292,6 +303,7 @@ export const actions: Actions = {
 
 		const guard = await requireEditableRun(projectId, runId);
 		if (guard) return guard;
+		assertTestRunActionFormBodySize(request);
 
 		const formData = await request.formData();
 		const executionId = parsePositiveFormId(formData.get('executionId'));
@@ -378,6 +390,7 @@ export const actions: Actions = {
 
 		const guard = await requireRunInProject(projectId, runId);
 		if (guard) return guard;
+		assertTestRunActionFormBodySize(request);
 
 		const formData = await request.formData();
 		const executionId = parsePositiveFormId(formData.get('executionId'));
@@ -432,6 +445,7 @@ export const actions: Actions = {
 
 		const guard = await requireRunInProject(projectId, runId);
 		if (guard) return guard;
+		assertTestRunActionFormBodySize(request);
 
 		const formData = await request.formData();
 		const failureId = parsePositiveFormId(formData.get('failureId'));
@@ -494,6 +508,7 @@ export const actions: Actions = {
 
 		const guard = await requireRunInProject(projectId, runId);
 		if (guard) return guard;
+		assertTestRunActionFormBodySize(request);
 
 		const formData = await request.formData();
 		const failureId = parsePositiveFormId(formData.get('failureId'));
@@ -539,6 +554,7 @@ export const actions: Actions = {
 
 		const guard = await requireEditableRun(projectId, runId);
 		if (guard) return guard;
+		assertTestRunActionFormBodySize(request);
 
 		const formData = await request.formData();
 		const executionIds = formData
@@ -582,6 +598,7 @@ export const actions: Actions = {
 
 	updateRunStatus: async ({ request, locals, params }) => {
 		const { authUser, projectId, runId } = await getActionContext(locals, params);
+		assertTestRunActionFormBodySize(request);
 
 		const formData = await request.formData();
 		const status = parseEnumValue(formData.get('status'), RUN_STATUSES);

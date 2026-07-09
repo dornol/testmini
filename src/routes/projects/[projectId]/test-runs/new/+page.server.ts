@@ -17,6 +17,9 @@ import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils
 import { loadProjectTags } from '$lib/server/queries';
 import { createTestRunSchema, type CreateTestRunInput } from '$lib/schemas/test-run.schema';
 import { parsePositiveFormId } from '$lib/server/form-utils';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+
+const MAX_TEST_RUN_CREATE_FORM_BODY_SIZE = 256 * 1024;
 
 function parseTextField(value: FormDataEntryValue | null): string | null {
 	return typeof value === 'string' ? value : null;
@@ -118,6 +121,11 @@ export const actions: Actions = {
 		const user = requireAuth(locals);
 		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(user, projectId, ['PROJECT_ADMIN', 'QA', 'DEV']);
+		assertContentLengthUnderLimit(
+			request,
+			MAX_TEST_RUN_CREATE_FORM_BODY_SIZE,
+			'Test run create form body is too large'
+		);
 
 		const formData = await request.formData();
 		const name = parseTextField(formData.get('name'));

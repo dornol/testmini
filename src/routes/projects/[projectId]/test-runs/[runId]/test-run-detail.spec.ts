@@ -91,6 +91,7 @@ const { load, actions } = await import('./+page.server');
 const authUtils = await import('$lib/server/auth-utils');
 
 const PARAMS = { projectId: '1', runId: '50' };
+const MAX_TEST_RUN_ACTION_FORM_BODY_SIZE = 64 * 1024;
 
 function createFormData(data: Record<string, FormDataEntryValue | FormDataEntryValue[]>): FormData {
 	const fd = new FormData();
@@ -104,11 +105,12 @@ function createFormData(data: Record<string, FormDataEntryValue | FormDataEntryV
 	return fd;
 }
 
-function createActionEvent(formData: FormData) {
+function createActionEvent(formData: FormData, headers?: HeadersInit) {
 	return createMockEvent({
 		method: 'POST',
 		params: PARAMS,
 		formData,
+		headers,
 		user: testUser
 	});
 }
@@ -473,6 +475,20 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 	// ─── updateStatus ─────────────────────────────────────────────
 
 	describe('actions.updateStatus', () => {
+		it('should reject oversized form bodies before querying execution', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			const event = createActionEvent(createFormData({ executionId: '200', status: 'PASS' }), {
+				'content-length': String(MAX_TEST_RUN_ACTION_FORM_BODY_SIZE + 1)
+			});
+
+			await expect(actions.updateStatus(event as never)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Test run action form body is too large' }
+			});
+			expect(mockDb.query.testExecution.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for invalid status', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			const event = createActionEvent(createFormData({ executionId: '200', status: 'INVALID' }));
@@ -665,6 +681,20 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 	// ─── failWithDetail ───────────────────────────────────────────
 
 	describe('actions.failWithDetail', () => {
+		it('should reject invalid content-length before querying execution', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			const event = createActionEvent(createFormData({ executionId: '200' }), {
+				'content-length': 'invalid'
+			});
+
+			await expect(actions.failWithDetail(event as never)).rejects.toMatchObject({
+				status: 400,
+				body: { message: 'Invalid content-length header' }
+			});
+			expect(mockDb.query.testExecution.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for missing executionId', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			const event = createActionEvent(createFormData({ executionId: '' }));

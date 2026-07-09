@@ -68,6 +68,7 @@ function createFormData(data: Record<string, FormDataEntryValue | FormDataEntryV
 }
 
 const PROJECT_ID = '1';
+const MAX_TEST_RUN_CREATE_FORM_BODY_SIZE = 256 * 1024;
 
 describe('/projects/[projectId]/test-runs/new', () => {
 	beforeEach(() => {
@@ -183,11 +184,12 @@ describe('/projects/[projectId]/test-runs/new', () => {
 	});
 
 	describe('actions.default', () => {
-		function createActionEvent(formData: FormData) {
+		function createActionEvent(formData: FormData, headers?: HeadersInit) {
 			return createMockEvent({
 				method: 'POST',
 				params: { projectId: PROJECT_ID },
 				formData,
+				headers,
 				user: testUser
 			});
 		}
@@ -203,6 +205,34 @@ describe('/projects/[projectId]/test-runs/new', () => {
 				createFormData({ name: 'Run 1', environment: 'QA', testCaseIds: ['10'] })
 			);
 			await expect(actions.default(event)).rejects.toThrow('Authentication required');
+		});
+
+		it('should reject oversized form bodies before querying selected cases', async () => {
+			const event = createActionEvent(
+				createFormData({ name: 'Run 1', environment: 'QA', testCaseIds: ['10'] }),
+				{ 'content-length': String(MAX_TEST_RUN_CREATE_FORM_BODY_SIZE + 1) }
+			);
+
+			await expect(actions.default(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Test run create form body is too large' }
+			});
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should reject invalid content-length before querying selected cases', async () => {
+			const event = createActionEvent(
+				createFormData({ name: 'Run 1', environment: 'QA', testCaseIds: ['10'] }),
+				{ 'content-length': 'invalid' }
+			);
+
+			await expect(actions.default(event)).rejects.toMatchObject({
+				status: 400,
+				body: { message: 'Invalid content-length header' }
+			});
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for missing name', async () => {

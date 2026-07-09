@@ -197,20 +197,26 @@ describe('/api/projects/[projectId]/issue-links/sync', () => {
 	});
 
 	it('should reject invalid testCaseId scoping', async () => {
-		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+		const cases = ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)];
 
-		const event = createMockEvent({
-			method: 'POST',
-			params: PARAMS,
-			user: testUser,
-			searchParams: { testCaseId: 'abc' }
-		});
+		for (const testCaseId of cases) {
+			vi.clearAllMocks();
 
-		const response = await POST(event);
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				searchParams: { testCaseId }
+			});
 
-		expect(response.status).toBe(400);
-		expect((await response.json()).error).toContain('testCaseId must be a positive integer');
-		expect(mockFetchIssueStatus).not.toHaveBeenCalled();
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('testCaseId must be a positive integer');
+			expect(mockDb.query.issueTrackerConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockFetchIssueStatus).not.toHaveBeenCalled();
+		}
 	});
 
 	it('should support testExecutionId scoping via search params', async () => {
@@ -232,20 +238,26 @@ describe('/api/projects/[projectId]/issue-links/sync', () => {
 	});
 
 	it('should reject invalid testExecutionId scoping', async () => {
-		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+		const cases = ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)];
 
-		const event = createMockEvent({
-			method: 'POST',
-			params: PARAMS,
-			user: testUser,
-			searchParams: { testExecutionId: '0' }
-		});
+		for (const testExecutionId of cases) {
+			vi.clearAllMocks();
 
-		const response = await POST(event);
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				searchParams: { testExecutionId }
+			});
 
-		expect(response.status).toBe(400);
-		expect((await response.json()).error).toContain('testExecutionId must be a positive integer');
-		expect(mockFetchIssueStatus).not.toHaveBeenCalled();
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('testExecutionId must be a positive integer');
+			expect(mockDb.query.issueTrackerConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockFetchIssueStatus).not.toHaveBeenCalled();
+		}
 	});
 
 	it('should return retestMarked count when issues resolve to done', async () => {

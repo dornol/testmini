@@ -9,30 +9,32 @@ import { fetchIssueStatus } from '$lib/server/issue-tracker';
 function parsePositiveInteger(value: string | null, label: string): number | undefined | Response {
 	if (value === null || value === '') return undefined;
 	const parsed = Number(value);
-	if (!Number.isInteger(parsed) || parsed <= 0) {
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
 		return badRequest(`${label} must be a positive integer`);
 	}
 	return parsed;
 }
 
 export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ projectId, url }) => {
+	const testCaseId = url.searchParams.get('testCaseId');
+	const testExecutionId = url.searchParams.get('testExecutionId');
+
+	const parsedTestCaseId = parsePositiveInteger(testCaseId, 'testCaseId');
+	if (parsedTestCaseId instanceof Response) return parsedTestCaseId;
+
+	const parsedTestExecutionId = parsePositiveInteger(testExecutionId, 'testExecutionId');
+	if (parsedTestExecutionId instanceof Response) return parsedTestExecutionId;
+
 	const config = await db.query.issueTrackerConfig.findFirst({
 		where: eq(issueTrackerConfig.projectId, projectId)
 	});
 	if (!config) return notFound('Issue tracker not configured');
 
-	const testCaseId = url.searchParams.get('testCaseId');
-	const testExecutionId = url.searchParams.get('testExecutionId');
-
 	const conditions = [eq(issueLink.projectId, projectId), ne(issueLink.provider, 'CUSTOM')];
-	const parsedTestCaseId = parsePositiveInteger(testCaseId, 'testCaseId');
-	if (parsedTestCaseId instanceof Response) return parsedTestCaseId;
+
 	if (parsedTestCaseId !== undefined) {
 		conditions.push(eq(issueLink.testCaseId, parsedTestCaseId));
 	}
-
-	const parsedTestExecutionId = parsePositiveInteger(testExecutionId, 'testExecutionId');
-	if (parsedTestExecutionId instanceof Response) return parsedTestExecutionId;
 	if (parsedTestExecutionId !== undefined) {
 		conditions.push(eq(issueLink.testExecutionId, parsedTestExecutionId));
 	}

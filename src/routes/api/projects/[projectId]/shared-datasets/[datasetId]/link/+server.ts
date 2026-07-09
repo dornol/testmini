@@ -78,16 +78,6 @@ export const POST = withProjectRole(
 		let maxOrder =
 			existingParams.length > 0 ? existingParams[existingParams.length - 1].orderIndex + 1 : 0;
 
-		for (const pName of dsParams) {
-			if (!existingNames.has(pName)) {
-				await db.insert(testCaseParameter).values({
-					testCaseId,
-					name: pName,
-					orderIndex: maxOrder++
-				});
-			}
-		}
-
 		// Add data set rows
 		const existingDs = await db
 			.select({ orderIndex: testCaseDataSet.orderIndex })
@@ -95,16 +85,28 @@ export const POST = withProjectRole(
 			.where(eq(testCaseDataSet.testCaseId, testCaseId))
 			.orderBy(asc(testCaseDataSet.orderIndex));
 		let dsOrder = existingDs.length > 0 ? existingDs[existingDs.length - 1].orderIndex + 1 : 0;
+		const values = dsRows.map((row) => ({
+			testCaseId,
+			name: null as string | null,
+			values: row,
+			orderIndex: dsOrder++
+		}));
 
-		if (dsRows.length > 0) {
-			const values = dsRows.map((row) => ({
-				testCaseId,
-				name: null as string | null,
-				values: row,
-				orderIndex: dsOrder++
-			}));
-			await db.insert(testCaseDataSet).values(values);
-		}
+		await db.transaction(async (tx) => {
+			for (const pName of dsParams) {
+				if (!existingNames.has(pName)) {
+					await tx.insert(testCaseParameter).values({
+						testCaseId,
+						name: pName,
+						orderIndex: maxOrder++
+					});
+				}
+			}
+
+			if (values.length > 0) {
+				await tx.insert(testCaseDataSet).values(values);
+			}
+		});
 
 		return json({ linked: dsRows.length });
 	}

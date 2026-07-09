@@ -259,12 +259,6 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 			return chain as never;
 		});
 
-		const insertChain = {
-			values: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
-		};
-		mockDb.insert.mockReturnValue(insertChain as never);
-
 		const event = createMockEvent({
 			method: 'POST',
 			params: PARAMS,
@@ -276,6 +270,8 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 
 		expect(response.status).toBe(200);
 		expect(data.linked).toBe(2);
+		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+		expect(mockDb.insert).not.toHaveBeenCalled();
 	});
 
 	it('should handle shared dataset with no rows', async () => {
@@ -296,12 +292,6 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 			return chain as never;
 		});
 
-		const insertChain = {
-			values: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
-		};
-		mockDb.insert.mockReturnValue(insertChain as never);
-
 		const event = createMockEvent({
 			method: 'POST',
 			params: PARAMS,
@@ -313,5 +303,7 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 
 		expect(response.status).toBe(200);
 		expect(data.linked).toBe(0);
+		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+		expect(mockDb.insert).not.toHaveBeenCalled();
 	});
 });

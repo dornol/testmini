@@ -68,6 +68,7 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create test case comment');
 			return ok(created);
 		}
 	);
@@ -127,6 +128,7 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create execution comment');
 			return ok(created);
 		}
 	);

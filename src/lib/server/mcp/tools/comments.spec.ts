@@ -155,6 +155,22 @@ describe('MCP comment tools', () => {
 				'Project not found'
 			);
 		});
+
+		it('should return error when comment insert returns no row', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'add-test-case-comment',
+				arguments: { testCaseId: 10, content: 'Comment' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create test case comment'
+			);
+		});
 	});
 
 	// ── list-test-case-comments ──────────────────────────
@@ -421,6 +437,23 @@ describe('MCP comment tools', () => {
 			expect(result.isError).toBe(true);
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Execution not found'
+			);
+		});
+
+		it('should return error when execution comment insert returns no row', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testExecution.findFirst.mockResolvedValue(sampleExecution);
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'add-execution-comment',
+				arguments: { runId: 50, executionId: 200, content: 'Comment' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create execution comment'
 			);
 		});
 	});

@@ -31,10 +31,30 @@ async function requireEditableRun(projectId: number, runId: number) {
 	const run = await db.query.testRun.findFirst({
 		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
 	});
+	if (!run) {
+		return fail(404, { error: 'Test run not found' });
+	}
 	if (run?.status === 'COMPLETED') {
 		return fail(403, { error: 'Cannot modify executions in a completed run' });
 	}
 	return null;
+}
+
+async function requireRunInProject(projectId: number, runId: number) {
+	const run = await db.query.testRun.findFirst({
+		where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
+	});
+	if (!run) {
+		return fail(404, { error: 'Test run not found' });
+	}
+	return null;
+}
+
+function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
+	if (typeof value !== 'string') return null;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+	return parsed;
 }
 
 function parseFailureFormData(formData: FormData): CreateFailureInput {
@@ -73,7 +93,15 @@ export const load: PageServerLoad = async ({ params, parent, url, locals }) => {
 		.where(eq(testExecution.testRunId, runId))
 		.groupBy(testExecution.status);
 
-	const stats = { total: 0, pending: 0, pass: 0, fail: 0, blocked: 0, skipped: 0 } as { total: number; pending: number; pass: number; fail: number; blocked: number; skipped: number; [key: string]: number };
+	const stats = { total: 0, pending: 0, pass: 0, fail: 0, blocked: 0, skipped: 0 } as {
+		total: number;
+		pending: number;
+		pass: number;
+		fail: number;
+		blocked: number;
+		skipped: number;
+		[key: string]: number;
+	};
 	for (const row of allStatuses) {
 		stats[row.status.toLowerCase()] = Number(row.cnt);
 		stats.total += Number(row.cnt);
@@ -82,8 +110,8 @@ export const load: PageServerLoad = async ({ params, parent, url, locals }) => {
 	// Filter executions (no pagination — virtual scroll on client)
 	const execConditions = [eq(testExecution.testRunId, runId)];
 	const validStatuses = ['PENDING', 'PASS', 'FAIL', 'BLOCKED', 'SKIPPED'] as const;
-	if (statusFilter && validStatuses.includes(statusFilter as typeof validStatuses[number])) {
-		execConditions.push(eq(testExecution.status, statusFilter as typeof validStatuses[number]));
+	if (statusFilter && validStatuses.includes(statusFilter as (typeof validStatuses)[number])) {
+		execConditions.push(eq(testExecution.status, statusFilter as (typeof validStatuses)[number]));
 	}
 
 	const executions = await db
@@ -108,11 +136,16 @@ export const load: PageServerLoad = async ({ params, parent, url, locals }) => {
 		.orderBy(testCase.key);
 
 	// Duration summary
-	const completedExecs = executions.filter(e => e.startedAt && e.completedAt);
-	const durations = completedExecs.map(e => new Date(e.completedAt!).getTime() - new Date(e.startedAt!).getTime());
+	const completedExecs = executions.filter((e) => e.startedAt && e.completedAt);
+	const durations = completedExecs.map(
+		(e) => new Date(e.completedAt!).getTime() - new Date(e.startedAt!).getTime()
+	);
 	const durationSummary = {
 		totalDuration: durations.reduce((sum, d) => sum + d, 0),
-		avgDuration: durations.length > 0 ? Math.round(durations.reduce((sum, d) => sum + d, 0) / durations.length) : 0,
+		avgDuration:
+			durations.length > 0
+				? Math.round(durations.reduce((sum, d) => sum + d, 0) / durations.length)
+				: 0,
 		minDuration: durations.length > 0 ? Math.min(...durations) : 0,
 		maxDuration: durations.length > 0 ? Math.max(...durations) : 0,
 		completedCount: completedExecs.length
@@ -170,7 +203,7 @@ export const actions: Actions = {
 		if (guard) return guard;
 
 		const formData = await request.formData();
-		const executionId = Number(formData.get('executionId'));
+		const executionId = parsePositiveFormId(formData.get('executionId'));
 		const status = formData.get('status') as string;
 		const comment = (formData.get('comment') as string) || null;
 
@@ -224,7 +257,7 @@ export const actions: Actions = {
 		if (guard) return guard;
 
 		const formData = await request.formData();
-		const executionId = Number(formData.get('executionId'));
+		const executionId = parsePositiveFormId(formData.get('executionId'));
 
 		if (!executionId) {
 			return fail(400, { error: 'Missing execution ID' });
@@ -294,8 +327,11 @@ export const actions: Actions = {
 	addFailure: async ({ request, locals, params }) => {
 		const { authUser, projectId, runId } = await getActionContext(locals, params);
 
+		const guard = await requireRunInProject(projectId, runId);
+		if (guard) return guard;
+
 		const formData = await request.formData();
-		const executionId = Number(formData.get('executionId'));
+		const executionId = parsePositiveFormId(formData.get('executionId'));
 
 		if (!executionId) {
 			return fail(400, { error: 'Missing execution ID' });
@@ -332,10 +368,13 @@ export const actions: Actions = {
 	},
 
 	updateFailure: async ({ request, locals, params }) => {
-		const { authUser, projectId, runId } = await getActionContext(locals, params);
+		const { projectId, runId } = await getActionContext(locals, params);
+
+		const guard = await requireRunInProject(projectId, runId);
+		if (guard) return guard;
 
 		const formData = await request.formData();
-		const failureId = Number(formData.get('failureId'));
+		const failureId = parsePositiveFormId(formData.get('failureId'));
 
 		if (!failureId) {
 			return fail(400, { error: 'Missing failure ID' });
@@ -346,6 +385,14 @@ export const actions: Actions = {
 		});
 
 		if (!existing) {
+			return fail(404, { error: 'Failure detail not found' });
+		}
+
+		const execution = await db.query.testExecution.findFirst({
+			where: and(eq(testExecution.id, existing.testExecutionId), eq(testExecution.testRunId, runId))
+		});
+
+		if (!execution) {
 			return fail(404, { error: 'Failure detail not found' });
 		}
 
@@ -369,13 +416,32 @@ export const actions: Actions = {
 	},
 
 	deleteFailure: async ({ request, locals, params }) => {
-		const { authUser, projectId, runId } = await getActionContext(locals, params);
+		const { projectId, runId } = await getActionContext(locals, params);
+
+		const guard = await requireRunInProject(projectId, runId);
+		if (guard) return guard;
 
 		const formData = await request.formData();
-		const failureId = Number(formData.get('failureId'));
+		const failureId = parsePositiveFormId(formData.get('failureId'));
 
 		if (!failureId) {
 			return fail(400, { error: 'Missing failure ID' });
+		}
+
+		const existing = await db.query.testFailureDetail.findFirst({
+			where: eq(testFailureDetail.id, failureId)
+		});
+
+		if (!existing) {
+			return fail(404, { error: 'Failure detail not found' });
+		}
+
+		const execution = await db.query.testExecution.findFirst({
+			where: and(eq(testExecution.id, existing.testExecutionId), eq(testExecution.testRunId, runId))
+		});
+
+		if (!execution) {
+			return fail(404, { error: 'Failure detail not found' });
 		}
 
 		await db.delete(testFailureDetail).where(eq(testFailureDetail.id, failureId));
@@ -392,8 +458,8 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const executionIds = formData
 			.getAll('executionIds')
-			.map(Number)
-			.filter((id) => !isNaN(id));
+			.map(parsePositiveFormId)
+			.filter((id): id is number => id !== null);
 
 		if (executionIds.length === 0) {
 			return fail(400, { error: 'No executions selected' });

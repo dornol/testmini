@@ -21,9 +21,25 @@ vi.mock('$lib/server/db/schema', () => ({
 		completedAt: 'completed_at',
 		comment: 'comment'
 	},
-	testCaseVersion: { id: 'id', testCaseId: 'test_case_id', title: 'title', priority: 'priority', versionNo: 'version_no' },
+	testCaseVersion: {
+		id: 'id',
+		testCaseId: 'test_case_id',
+		title: 'title',
+		priority: 'priority',
+		versionNo: 'version_no'
+	},
 	testCase: { id: 'id', key: 'key' },
-	testFailureDetail: { id: 'id', testExecutionId: 'test_execution_id', createdAt: 'created_at', createdBy: 'created_by', failureEnvironment: 'failure_environment', testMethod: 'test_method', errorMessage: 'error_message', stackTrace: 'stack_trace', comment: 'comment' },
+	testFailureDetail: {
+		id: 'id',
+		testExecutionId: 'test_execution_id',
+		createdAt: 'created_at',
+		createdBy: 'created_by',
+		failureEnvironment: 'failure_environment',
+		testMethod: 'test_method',
+		errorMessage: 'error_message',
+		stackTrace: 'stack_trace',
+		comment: 'comment'
+	},
 	projectMember: { userId: 'user_id', projectId: 'project_id' },
 	user: { id: 'id', name: 'name' }
 }));
@@ -97,6 +113,9 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 		vi.mocked(authUtils.requireAuth).mockReturnValue(testUser);
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'QA' });
 		mockPublish.mockResolvedValue(undefined);
+		(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).testFailureDetail = {
+			findFirst: vi.fn()
+		};
 	});
 
 	// ─── Load ─────────────────────────────────────────────────────
@@ -168,7 +187,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			});
 
 			const event = createLoadEvent();
-			const result = await load(event as never) as Record<string, any>;
+			const result = (await load(event as never)) as Record<string, any>;
 
 			expect(result.run).toEqual(sampleTestRun);
 			expect(result.stats.total).toBe(10);
@@ -199,25 +218,43 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 				where: vi.fn().mockReturnThis(),
 				orderBy: vi.fn().mockResolvedValue([
 					{
-						id: 200, status: 'PASS', comment: null,
-						executedBy: 'User', executedAt: new Date(),
+						id: 200,
+						status: 'PASS',
+						comment: null,
+						executedBy: 'User',
+						executedAt: new Date(),
 						startedAt: new Date('2025-01-01T10:00:00'),
 						completedAt: new Date('2025-01-01T10:01:00'), // 60s
-						testCaseKey: 'TC-0001', testCaseTitle: 'A', testCasePriority: 'HIGH', versionNo: 1
+						testCaseKey: 'TC-0001',
+						testCaseTitle: 'A',
+						testCasePriority: 'HIGH',
+						versionNo: 1
 					},
 					{
-						id: 201, status: 'PASS', comment: null,
-						executedBy: 'User', executedAt: new Date(),
+						id: 201,
+						status: 'PASS',
+						comment: null,
+						executedBy: 'User',
+						executedAt: new Date(),
 						startedAt: new Date('2025-01-01T10:00:00'),
 						completedAt: new Date('2025-01-01T10:03:00'), // 180s
-						testCaseKey: 'TC-0002', testCaseTitle: 'B', testCasePriority: 'MEDIUM', versionNo: 1
+						testCaseKey: 'TC-0002',
+						testCaseTitle: 'B',
+						testCasePriority: 'MEDIUM',
+						versionNo: 1
 					},
 					{
-						id: 202, status: 'PASS', comment: null,
-						executedBy: 'User', executedAt: new Date(),
+						id: 202,
+						status: 'PASS',
+						comment: null,
+						executedBy: 'User',
+						executedAt: new Date(),
 						startedAt: new Date('2025-01-01T10:00:00'),
 						completedAt: new Date('2025-01-01T10:00:30'), // 30s
-						testCaseKey: 'TC-0003', testCaseTitle: 'C', testCasePriority: 'LOW', versionNo: 1
+						testCaseKey: 'TC-0003',
+						testCaseTitle: 'C',
+						testCasePriority: 'LOW',
+						versionNo: 1
 					}
 				])
 			};
@@ -230,7 +267,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			});
 
 			const event = createLoadEvent();
-			const result = await load(event as never) as Record<string, any>;
+			const result = (await load(event as never)) as Record<string, any>;
 
 			expect(result.durationSummary).toBeDefined();
 			expect(result.durationSummary.completedCount).toBe(3);
@@ -256,16 +293,30 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 				where: vi.fn().mockReturnThis(),
 				orderBy: vi.fn().mockResolvedValue([
 					{
-						id: 200, status: 'PENDING', comment: null,
-						executedBy: null, executedAt: null,
-						startedAt: null, completedAt: null,
-						testCaseKey: 'TC-0001', testCaseTitle: 'A', testCasePriority: 'HIGH', versionNo: 1
+						id: 200,
+						status: 'PENDING',
+						comment: null,
+						executedBy: null,
+						executedAt: null,
+						startedAt: null,
+						completedAt: null,
+						testCaseKey: 'TC-0001',
+						testCaseTitle: 'A',
+						testCasePriority: 'HIGH',
+						versionNo: 1
 					},
 					{
-						id: 201, status: 'PENDING', comment: null,
-						executedBy: null, executedAt: null,
-						startedAt: null, completedAt: null,
-						testCaseKey: 'TC-0002', testCaseTitle: 'B', testCasePriority: 'MEDIUM', versionNo: 1
+						id: 201,
+						status: 'PENDING',
+						comment: null,
+						executedBy: null,
+						executedAt: null,
+						startedAt: null,
+						completedAt: null,
+						testCaseKey: 'TC-0002',
+						testCaseTitle: 'B',
+						testCasePriority: 'MEDIUM',
+						versionNo: 1
 					}
 				])
 			};
@@ -278,7 +329,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			});
 
 			const event = createLoadEvent();
-			const result = await load(event as never) as Record<string, any>;
+			const result = (await load(event as never)) as Record<string, any>;
 
 			expect(result.durationSummary.completedCount).toBe(0);
 			expect(result.durationSummary.totalDuration).toBe(0);
@@ -293,7 +344,10 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			const statsChain = {
 				from: vi.fn().mockReturnThis(),
 				where: vi.fn().mockReturnThis(),
-				groupBy: vi.fn().mockResolvedValue([{ status: 'PASS', cnt: 2 }, { status: 'PENDING', cnt: 1 }])
+				groupBy: vi.fn().mockResolvedValue([
+					{ status: 'PASS', cnt: 2 },
+					{ status: 'PENDING', cnt: 1 }
+				])
 			};
 
 			const execChain = {
@@ -303,24 +357,43 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 				where: vi.fn().mockReturnThis(),
 				orderBy: vi.fn().mockResolvedValue([
 					{
-						id: 200, status: 'PASS', comment: null,
-						executedBy: 'User', executedAt: new Date(),
+						id: 200,
+						status: 'PASS',
+						comment: null,
+						executedBy: 'User',
+						executedAt: new Date(),
 						startedAt: new Date('2025-01-01T10:00:00'),
 						completedAt: new Date('2025-01-01T10:02:00'), // 120s — counted
-						testCaseKey: 'TC-0001', testCaseTitle: 'A', testCasePriority: 'HIGH', versionNo: 1
+						testCaseKey: 'TC-0001',
+						testCaseTitle: 'A',
+						testCasePriority: 'HIGH',
+						versionNo: 1
 					},
 					{
-						id: 201, status: 'PASS', comment: null,
-						executedBy: 'User', executedAt: new Date(),
+						id: 201,
+						status: 'PASS',
+						comment: null,
+						executedBy: 'User',
+						executedAt: new Date(),
 						startedAt: new Date('2025-01-01T10:00:00'),
 						completedAt: null, // started but not completed — skipped
-						testCaseKey: 'TC-0002', testCaseTitle: 'B', testCasePriority: 'MEDIUM', versionNo: 1
+						testCaseKey: 'TC-0002',
+						testCaseTitle: 'B',
+						testCasePriority: 'MEDIUM',
+						versionNo: 1
 					},
 					{
-						id: 202, status: 'PENDING', comment: null,
-						executedBy: null, executedAt: null,
-						startedAt: null, completedAt: null, // not started — skipped
-						testCaseKey: 'TC-0003', testCaseTitle: 'C', testCasePriority: 'LOW', versionNo: 1
+						id: 202,
+						status: 'PENDING',
+						comment: null,
+						executedBy: null,
+						executedAt: null,
+						startedAt: null,
+						completedAt: null, // not started — skipped
+						testCaseKey: 'TC-0003',
+						testCaseTitle: 'C',
+						testCasePriority: 'LOW',
+						versionNo: 1
 					}
 				])
 			};
@@ -333,7 +406,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			});
 
 			const event = createLoadEvent();
-			const result = await load(event as never) as Record<string, any>;
+			const result = (await load(event as never)) as Record<string, any>;
 
 			expect(result.durationSummary.completedCount).toBe(1);
 			expect(result.durationSummary.totalDuration).toBe(120000);
@@ -358,11 +431,17 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 				where: vi.fn().mockReturnThis(),
 				orderBy: vi.fn().mockResolvedValue([
 					{
-						id: 200, status: 'PASS', comment: null,
-						executedBy: 'User', executedAt: new Date(),
+						id: 200,
+						status: 'PASS',
+						comment: null,
+						executedBy: 'User',
+						executedAt: new Date(),
 						startedAt: new Date('2025-01-01T10:00:00'),
 						completedAt: new Date('2025-01-01T10:00:05'), // 5s
-						testCaseKey: 'TC-0001', testCaseTitle: 'Quick test', testCasePriority: 'HIGH', versionNo: 1
+						testCaseKey: 'TC-0001',
+						testCaseTitle: 'Quick test',
+						testCasePriority: 'HIGH',
+						versionNo: 1
 					}
 				])
 			};
@@ -375,7 +454,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			});
 
 			const event = createLoadEvent();
-			const result = await load(event as never) as Record<string, any>;
+			const result = (await load(event as never)) as Record<string, any>;
 
 			expect(result.durationSummary.completedCount).toBe(1);
 			expect(result.durationSummary.totalDuration).toBe(5000);
@@ -390,21 +469,28 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 	describe('actions.updateStatus', () => {
 		it('should return 400 for invalid status', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-			const event = createActionEvent(
-				createFormData({ executionId: '200', status: 'INVALID' })
-			);
+			const event = createActionEvent(createFormData({ executionId: '200', status: 'INVALID' }));
 			const result = await actions.updateStatus(event as never);
 			expect(result).toEqual(expect.objectContaining({ status: 400 }));
 		});
 
 		it('should return 400 for missing executionId', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-			const event = createActionEvent(
-				createFormData({ executionId: '', status: 'PASS' })
-			);
+			const event = createActionEvent(createFormData({ executionId: '', status: 'PASS' }));
 			const result = await actions.updateStatus(event as never);
 			expect(result).toEqual(expect.objectContaining({ status: 400 }));
 		});
+
+		it.each(['0', '-1', '1.5', '9007199254740992'])(
+			'should return 400 for invalid executionId %s',
+			async (executionId) => {
+				mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+				const event = createActionEvent(createFormData({ executionId, status: 'PASS' }));
+				const result = await actions.updateStatus(event as never);
+				expect(result).toEqual(expect.objectContaining({ status: 400 }));
+				expect(mockDb.query.testExecution.findFirst).not.toHaveBeenCalled();
+			}
+		);
 
 		it('should return 404 when execution not found', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
@@ -412,9 +498,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 				findFirst: vi.fn().mockResolvedValue(null)
 			};
 
-			const event = createActionEvent(
-				createFormData({ executionId: '200', status: 'PASS' })
-			);
+			const event = createActionEvent(createFormData({ executionId: '200', status: 'PASS' }));
 			const result = await actions.updateStatus(event as never);
 			expect(result).toEqual(expect.objectContaining({ status: 404 }));
 		});
@@ -425,9 +509,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 				status: 'COMPLETED'
 			});
 
-			const event = createActionEvent(
-				createFormData({ executionId: '200', status: 'PASS' })
-			);
+			const event = createActionEvent(createFormData({ executionId: '200', status: 'PASS' }));
 			const result = await actions.updateStatus(event as never);
 			expect(result).toEqual(expect.objectContaining({ status: 403 }));
 		});
@@ -448,9 +530,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			};
 			mockDb.update.mockReturnValue(updateChain as never);
 
-			const event = createActionEvent(
-				createFormData({ executionId: '200', status: 'PASS' })
-			);
+			const event = createActionEvent(createFormData({ executionId: '200', status: 'PASS' }));
 			await actions.updateStatus(event as never);
 
 			// First update call is the execution update
@@ -483,9 +563,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			};
 			mockDb.update.mockReturnValue(updateChain as never);
 
-			const event = createActionEvent(
-				createFormData({ executionId: '200', status: 'PASS' })
-			);
+			const event = createActionEvent(createFormData({ executionId: '200', status: 'PASS' }));
 			await actions.updateStatus(event as never);
 
 			const updateData = setCalls[0] as Record<string, unknown>;
@@ -507,16 +585,17 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			};
 			mockDb.update.mockReturnValue(updateChain as never);
 
-			const event = createActionEvent(
-				createFormData({ executionId: '200', status: 'PASS' })
-			);
+			const event = createActionEvent(createFormData({ executionId: '200', status: 'PASS' }));
 			const result = await actions.updateStatus(event as never);
 			expect(result).toEqual({ success: true });
-			expect(mockPublish).toHaveBeenCalledWith('run:50:events', expect.objectContaining({
-				type: 'execution:updated',
-				executionId: 200,
-				status: 'PASS'
-			}));
+			expect(mockPublish).toHaveBeenCalledWith(
+				'run:50:events',
+				expect.objectContaining({
+					type: 'execution:updated',
+					executionId: 200,
+					status: 'PASS'
+				})
+			);
 		});
 	});
 
@@ -525,12 +604,22 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 	describe('actions.failWithDetail', () => {
 		it('should return 400 for missing executionId', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-			const event = createActionEvent(
-				createFormData({ executionId: '' })
-			);
+			const event = createActionEvent(createFormData({ executionId: '' }));
 			const result = await actions.failWithDetail(event as never);
 			expect(result).toEqual(expect.objectContaining({ status: 400 }));
 		});
+
+		it.each(['0', '-1', '1.5', '9007199254740992'])(
+			'should return 400 for invalid executionId %s',
+			async (executionId) => {
+				mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+				const event = createActionEvent(createFormData({ executionId }));
+				const result = await actions.failWithDetail(event as never);
+				expect(result).toEqual(expect.objectContaining({ status: 400 }));
+				expect(mockDb.query.testExecution.findFirst).not.toHaveBeenCalled();
+				expect(mockDb.transaction).not.toHaveBeenCalled();
+			}
+		);
 
 		it('should return 404 when execution not found', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
@@ -692,14 +781,20 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			);
 			await actions.failWithDetail(event as never);
 
-			expect(mockPublish).toHaveBeenCalledWith('run:50:events', expect.objectContaining({
-				type: 'execution:updated',
-				status: 'FAIL'
-			}));
-			expect(mockPublish).toHaveBeenCalledWith('run:50:events', expect.objectContaining({
-				type: 'failure:added',
-				executionId: 200
-			}));
+			expect(mockPublish).toHaveBeenCalledWith(
+				'run:50:events',
+				expect.objectContaining({
+					type: 'execution:updated',
+					status: 'FAIL'
+				})
+			);
+			expect(mockPublish).toHaveBeenCalledWith(
+				'run:50:events',
+				expect.objectContaining({
+					type: 'failure:added',
+					executionId: 200
+				})
+			);
 		});
 	});
 
@@ -713,14 +808,31 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			expect(result).toEqual(expect.objectContaining({ status: 400 }));
 		});
 
+		it('should ignore invalid executionIds before bulk update', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockResolvedValue(undefined)
+			};
+			mockDb.update.mockReturnValue(updateChain as never);
+
+			const event = createActionEvent(
+				createFormData({ executionIds: ['200', '0', '-1', '1.5', '9007199254740992'] })
+			);
+			await actions.bulkPass(event as never);
+
+			expect(mockPublish).toHaveBeenCalledWith(
+				'run:50:events',
+				expect.objectContaining({ executionIds: [200] })
+			);
+		});
+
 		it('should return 403 when run is COMPLETED', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue({
 				...sampleTestRun,
 				status: 'COMPLETED'
 			});
-			const event = createActionEvent(
-				createFormData({ executionIds: ['200', '201'] })
-			);
+			const event = createActionEvent(createFormData({ executionIds: ['200', '201'] }));
 			const result = await actions.bulkPass(event as never);
 			expect(result).toEqual(expect.objectContaining({ status: 403 }));
 		});
@@ -738,9 +850,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			};
 			mockDb.update.mockReturnValue(updateChain as never);
 
-			const event = createActionEvent(
-				createFormData({ executionIds: ['200', '201', '202'] })
-			);
+			const event = createActionEvent(createFormData({ executionIds: ['200', '201', '202'] }));
 			const result = await actions.bulkPass(event as never);
 			expect(result).toEqual({ success: true });
 
@@ -760,16 +870,17 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			};
 			mockDb.update.mockReturnValue(updateChain as never);
 
-			const event = createActionEvent(
-				createFormData({ executionIds: ['200', '201'] })
-			);
+			const event = createActionEvent(createFormData({ executionIds: ['200', '201'] }));
 			await actions.bulkPass(event as never);
 
-			expect(mockPublish).toHaveBeenCalledWith('run:50:events', expect.objectContaining({
-				type: 'executions:bulk_updated',
-				status: 'PASS',
-				executionIds: [200, 201]
-			}));
+			expect(mockPublish).toHaveBeenCalledWith(
+				'run:50:events',
+				expect.objectContaining({
+					type: 'executions:bulk_updated',
+					status: 'PASS',
+					executionIds: [200, 201]
+				})
+			);
 		});
 	});
 
@@ -777,9 +888,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 
 	describe('actions.updateRunStatus', () => {
 		it('should return 400 for invalid run status', async () => {
-			const event = createActionEvent(
-				createFormData({ status: 'INVALID' })
-			);
+			const event = createActionEvent(createFormData({ status: 'INVALID' }));
 			const result = await actions.updateRunStatus(event as never);
 			expect(result).toEqual(expect.objectContaining({ status: 400 }));
 		});
@@ -795,9 +904,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			};
 			mockDb.update.mockReturnValue(updateChain as never);
 
-			const event = createActionEvent(
-				createFormData({ status: 'IN_PROGRESS' })
-			);
+			const event = createActionEvent(createFormData({ status: 'IN_PROGRESS' }));
 			const result = await actions.updateRunStatus(event as never);
 			expect(result).toEqual({ success: true });
 
@@ -821,9 +928,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			mockSelectResult(mockDb, [{ userId: 'user-2' }]);
 
-			const event = createActionEvent(
-				createFormData({ status: 'COMPLETED' })
-			);
+			const event = createActionEvent(createFormData({ status: 'COMPLETED' }));
 			const result = await actions.updateRunStatus(event as never);
 			expect(result).toEqual({ success: true });
 
@@ -841,21 +946,23 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			mockSelectResult(mockDb, [{ userId: 'user-2' }, { userId: 'user-3' }]);
 
-			const event = createActionEvent(
-				createFormData({ status: 'COMPLETED' })
-			);
+			const event = createActionEvent(createFormData({ status: 'COMPLETED' }));
 			await actions.updateRunStatus(event as never);
 
 			// Should notify user-2 and user-3 but not current user (user-1)
 			expect(mockCreateNotification).toHaveBeenCalledTimes(2);
-			expect(mockCreateNotification).toHaveBeenCalledWith(expect.objectContaining({
-				userId: 'user-2',
-				type: 'TEST_RUN_COMPLETED'
-			}));
-			expect(mockCreateNotification).toHaveBeenCalledWith(expect.objectContaining({
-				userId: 'user-3',
-				type: 'TEST_RUN_COMPLETED'
-			}));
+			expect(mockCreateNotification).toHaveBeenCalledWith(
+				expect.objectContaining({
+					userId: 'user-2',
+					type: 'TEST_RUN_COMPLETED'
+				})
+			);
+			expect(mockCreateNotification).toHaveBeenCalledWith(
+				expect.objectContaining({
+					userId: 'user-3',
+					type: 'TEST_RUN_COMPLETED'
+				})
+			);
 		});
 
 		it('should NOT notify current user on completion', async () => {
@@ -868,9 +975,7 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			// Only current user is a member
 			mockSelectResult(mockDb, [{ userId: testUser.id }]);
 
-			const event = createActionEvent(
-				createFormData({ status: 'COMPLETED' })
-			);
+			const event = createActionEvent(createFormData({ status: 'COMPLETED' }));
 			await actions.updateRunStatus(event as never);
 
 			expect(mockCreateNotification).not.toHaveBeenCalled();
@@ -883,16 +988,47 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			};
 			mockDb.update.mockReturnValue(updateChain as never);
 
-			const event = createActionEvent(
-				createFormData({ status: 'IN_PROGRESS' })
-			);
+			const event = createActionEvent(createFormData({ status: 'IN_PROGRESS' }));
 			await actions.updateRunStatus(event as never);
 
-			expect(mockPublish).toHaveBeenCalledWith('run:50:events', expect.objectContaining({
-				type: 'run:status_changed',
-				runId: 50,
-				status: 'IN_PROGRESS'
-			}));
+			expect(mockPublish).toHaveBeenCalledWith(
+				'run:50:events',
+				expect.objectContaining({
+					type: 'run:status_changed',
+					runId: 50,
+					status: 'IN_PROGRESS'
+				})
+			);
+		});
+	});
+
+	// ─── updateFailure ────────────────────────────────────────────
+
+	describe('actions.updateFailure', () => {
+		it.each(['', '0', '-1', '1.5', '9007199254740992'])(
+			'should return 400 for invalid failureId %s',
+			async (failureId) => {
+				mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+				const event = createActionEvent(createFormData({ failureId }));
+				const result = await actions.updateFailure(event as never);
+				expect(result).toEqual(expect.objectContaining({ status: 400 }));
+				expect(mockDb.query.testFailureDetail.findFirst).not.toHaveBeenCalled();
+				expect(mockDb.update).not.toHaveBeenCalled();
+			}
+		);
+
+		it('should return 404 when failure is not in this run', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testFailureDetail.findFirst.mockResolvedValue({
+				id: 5,
+				testExecutionId: 999
+			});
+			mockDb.query.testExecution.findFirst.mockResolvedValue(null);
+
+			const event = createActionEvent(createFormData({ failureId: '5' }));
+			const result = await actions.updateFailure(event as never);
+			expect(result).toEqual(expect.objectContaining({ status: 404 }));
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 
@@ -900,12 +1036,45 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 
 	describe('actions.deleteFailure', () => {
 		it('should return 400 for missing failureId', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			const event = createActionEvent(createFormData({ failureId: '' }));
 			const result = await actions.deleteFailure(event as never);
 			expect(result).toEqual(expect.objectContaining({ status: 400 }));
 		});
 
+		it.each(['0', '-1', '1.5', '9007199254740992'])(
+			'should return 400 for invalid failureId %s',
+			async (failureId) => {
+				mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+				const event = createActionEvent(createFormData({ failureId }));
+				const result = await actions.deleteFailure(event as never);
+				expect(result).toEqual(expect.objectContaining({ status: 400 }));
+				expect(mockDb.query.testFailureDetail.findFirst).not.toHaveBeenCalled();
+				expect(mockDb.delete).not.toHaveBeenCalled();
+			}
+		);
+
+		it('should return 404 when failure is not in this run', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testFailureDetail.findFirst.mockResolvedValue({
+				id: 5,
+				testExecutionId: 999
+			});
+			mockDb.query.testExecution.findFirst.mockResolvedValue(null);
+
+			const event = createActionEvent(createFormData({ failureId: '5' }));
+			const result = await actions.deleteFailure(event as never);
+			expect(result).toEqual(expect.objectContaining({ status: 404 }));
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
 		it('should delete failure and return success', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			mockDb.query.testFailureDetail.findFirst.mockResolvedValue({
+				id: 5,
+				testExecutionId: sampleExecution.id
+			});
+			mockDb.query.testExecution.findFirst.mockResolvedValue(sampleExecution);
 			const deleteChain = {
 				where: vi.fn().mockResolvedValue(undefined)
 			};

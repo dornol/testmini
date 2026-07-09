@@ -5,6 +5,13 @@ import { oidcProvider, oidcAccount } from '$lib/server/db/schema';
 import { eq, count, asc } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
 
+function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
+	if (typeof value !== 'string') return null;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+	return parsed;
+}
+
 export const load: PageServerLoad = async () => {
 	const providers = await db
 		.select({
@@ -33,7 +40,7 @@ export const actions: Actions = {
 		}
 
 		const formData = await request.formData();
-		const providerId = Number(formData.get('providerId'));
+		const providerId = parsePositiveFormId(formData.get('providerId'));
 		if (!providerId) return fail(400, { error: 'Invalid provider ID' });
 
 		const [provider] = await db
@@ -58,7 +65,7 @@ export const actions: Actions = {
 		}
 
 		const formData = await request.formData();
-		const providerId = Number(formData.get('providerId'));
+		const providerId = parsePositiveFormId(formData.get('providerId'));
 		if (!providerId) return fail(400, { error: 'Invalid provider ID' });
 
 		const [accountCount] = await db
@@ -67,10 +74,7 @@ export const actions: Actions = {
 			.where(eq(oidcAccount.providerId, providerId));
 
 		if (accountCount.count > 0) {
-			await db
-				.update(oidcProvider)
-				.set({ enabled: false })
-				.where(eq(oidcProvider.id, providerId));
+			await db.update(oidcProvider).set({ enabled: false }).where(eq(oidcProvider.id, providerId));
 			return { success: true, disabled: true };
 		}
 

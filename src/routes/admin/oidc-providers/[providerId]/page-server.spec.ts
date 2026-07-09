@@ -106,8 +106,7 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 						orderBy: vi.fn().mockReturnThis(),
 						limit: vi.fn().mockReturnThis(),
 						offset: vi.fn().mockReturnThis(),
-						then: (resolve: (v: unknown) => void) =>
-							Promise.resolve([mockProvider]).then(resolve)
+						then: (resolve: (v: unknown) => void) => Promise.resolve([mockProvider]).then(resolve)
 					};
 					return chain as never;
 				}
@@ -119,8 +118,7 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 					orderBy: vi.fn().mockReturnThis(),
 					limit: vi.fn().mockReturnThis(),
 					offset: vi.fn().mockReturnThis(),
-					then: (resolve: (v: unknown) => void) =>
-						Promise.resolve([{ count: 5 }]).then(resolve)
+					then: (resolve: (v: unknown) => void) => Promise.resolve([{ count: 5 }]).then(resolve)
 				};
 				return chain as never;
 			});
@@ -135,15 +133,11 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 		it('should throw 404 when provider not found', async () => {
 			mockSelectResult(mockDb, []);
 
-			await expect(
-				load({ params: { providerId: '999' } } as never)
-			).rejects.toThrow();
+			await expect(load({ params: { providerId: '999' } } as never)).rejects.toThrow();
 		});
 
 		it('should throw 400 for invalid provider ID', async () => {
-			await expect(
-				load({ params: { providerId: 'abc' } } as never)
-			).rejects.toThrow();
+			await expect(load({ params: { providerId: 'abc' } } as never)).rejects.toThrow();
 		});
 	});
 
@@ -209,6 +203,27 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 			expect(result).toMatchObject({ success: true });
 			expect(encrypt).toHaveBeenCalledWith('new-secret');
 		});
+
+		it.each(['-1', '1.5', 'Infinity', '9007199254740992'])(
+			'should normalize invalid displayOrder %s to zero',
+			async (displayOrder) => {
+				mockSelectResult(mockDb, []); // no slug conflict
+				const updateChain = {
+					set: vi.fn().mockReturnThis(),
+					where: vi.fn().mockResolvedValue(undefined)
+				};
+				mockDb.update.mockReturnValue(updateChain as never);
+
+				const event = createActionEvent(adminUser, {
+					...validUpdateData,
+					displayOrder
+				});
+				const result = await actions.update(event);
+
+				expect(result).toMatchObject({ success: true });
+				expect(updateChain.set).toHaveBeenCalledWith(expect.objectContaining({ displayOrder: 0 }));
+			}
+		);
 	});
 
 	describe('deleteProvider action', () => {

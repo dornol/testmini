@@ -95,11 +95,16 @@ describe('admin/oidc-providers +page.server', () => {
 			expect(result).toMatchObject({ status: 403, data: { error: 'Admin access required' } });
 		});
 
-		it('should return 400 for invalid providerId', async () => {
-			const event = createActionEvent(adminUser, { providerId: '0' });
-			const result = await actions.toggle(event);
-			expect(result).toMatchObject({ status: 400, data: { error: 'Invalid provider ID' } });
-		});
+		it.each(['abc', '', '0', '-1', '1.5', 'Infinity', '9007199254740992'])(
+			'should return 400 for invalid providerId %s',
+			async (providerId) => {
+				const event = createActionEvent(adminUser, { providerId });
+				const result = await actions.toggle(event);
+				expect(result).toMatchObject({ status: 400, data: { error: 'Invalid provider ID' } });
+				expect(mockDb.select).not.toHaveBeenCalled();
+				expect(mockDb.update).not.toHaveBeenCalled();
+			}
+		);
 
 		it('should return 404 when provider not found', async () => {
 			mockSelectResult(mockDb, []);
@@ -126,11 +131,17 @@ describe('admin/oidc-providers +page.server', () => {
 			expect(result).toMatchObject({ status: 403, data: { error: 'Admin access required' } });
 		});
 
-		it('should return 400 for invalid providerId', async () => {
-			const event = createActionEvent(adminUser, { providerId: '0' });
-			const result = await actions.deleteProvider(event);
-			expect(result).toMatchObject({ status: 400, data: { error: 'Invalid provider ID' } });
-		});
+		it.each(['abc', '', '0', '-1', '1.5', 'Infinity', '9007199254740992'])(
+			'should return 400 for invalid providerId %s',
+			async (providerId) => {
+				const event = createActionEvent(adminUser, { providerId });
+				const result = await actions.deleteProvider(event);
+				expect(result).toMatchObject({ status: 400, data: { error: 'Invalid provider ID' } });
+				expect(mockDb.select).not.toHaveBeenCalled();
+				expect(mockDb.update).not.toHaveBeenCalled();
+				expect(mockDb.delete).not.toHaveBeenCalled();
+			}
+		);
 
 		it('should disable provider instead of deleting when accounts exist', async () => {
 			mockSelectResult(mockDb, [{ count: 3 }]);

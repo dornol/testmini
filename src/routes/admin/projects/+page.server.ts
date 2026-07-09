@@ -5,6 +5,13 @@ import { project, projectMember } from '$lib/server/db/schema';
 import { eq, ilike, count, desc, sql } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
 
+function parsePositiveFormId(value: FormDataEntryValue | null): number | null {
+	if (typeof value !== 'string') return null;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+	return parsed;
+}
+
 export const load: PageServerLoad = async ({ url }) => {
 	const pg = Math.max(1, Number(url.searchParams.get('page')) || 1);
 	const limit = 20;
@@ -19,11 +26,12 @@ export const load: PageServerLoad = async ({ url }) => {
 		conditions.push(eq(project.active, true));
 	}
 
-	const where = conditions.length > 0
-		? conditions.length === 1
-			? conditions[0]
-			: sql`${conditions[0]} AND ${conditions[1]}`
-		: undefined;
+	const where =
+		conditions.length > 0
+			? conditions.length === 1
+				? conditions[0]
+				: sql`${conditions[0]} AND ${conditions[1]}`
+			: undefined;
 
 	const [total] = await db.select({ count: count() }).from(project).where(where);
 
@@ -33,9 +41,10 @@ export const load: PageServerLoad = async ({ url }) => {
 			name: project.name,
 			active: project.active,
 			createdAt: project.createdAt,
-			memberCount: sql<number>`(select count(*)::int from project_member where project_id = ${col(project.id)})`.as(
-				'member_count'
-			)
+			memberCount:
+				sql<number>`(select count(*)::int from project_member where project_id = ${col(project.id)})`.as(
+					'member_count'
+				)
 		})
 		.from(project)
 		.where(where)
@@ -64,17 +73,14 @@ export const actions: Actions = {
 		}
 
 		const formData = await request.formData();
-		const projectId = Number(formData.get('projectId'));
+		const projectId = parsePositiveFormId(formData.get('projectId'));
 		const active = formData.get('active') === 'true';
 
-		if (isNaN(projectId)) {
+		if (!projectId) {
 			return fail(400, { error: 'Invalid project ID' });
 		}
 
-		await db
-			.update(project)
-			.set({ active })
-			.where(eq(project.id, projectId));
+		await db.update(project).set({ active }).where(eq(project.id, projectId));
 
 		return { success: true };
 	}

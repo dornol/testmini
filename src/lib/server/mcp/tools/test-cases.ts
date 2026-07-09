@@ -475,10 +475,13 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				if (!group) return err('Group not found');
 			}
 
-			await db
+			const [updated] = await db
 				.update(testCase)
 				.set({ groupId })
-				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
+				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)))
+				.returning({ id: testCase.id });
+			if (!updated) return err('Test case not found');
+
 			return ok({ success: true, testCaseId, groupId });
 		}
 	);
@@ -519,12 +522,14 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			});
 			if (!tc) return err('Test case not found');
 
-			await db
+			const [deleted] = await db
 				.delete(testCaseAssignee)
 				.where(
 					and(eq(testCaseAssignee.testCaseId, testCaseId), eq(testCaseAssignee.userId, userId))
-				);
-			return ok({ success: true, testCaseId, userId });
+				)
+				.returning({ testCaseId: testCaseAssignee.testCaseId });
+
+			return ok({ success: true, testCaseId, userId, removed: Boolean(deleted) });
 		}
 	);
 
@@ -552,10 +557,13 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				riskLevel = matrix[riskImpact][riskLikelihood];
 			}
 
-			await db
+			const [updated] = await db
 				.update(testCase)
 				.set({ riskImpact, riskLikelihood, riskLevel })
-				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
+				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)))
+				.returning({ id: testCase.id });
+			if (!updated) return err('Test case not found');
+
 			return ok({ success: true, testCaseId, riskImpact, riskLikelihood, riskLevel });
 		}
 	);

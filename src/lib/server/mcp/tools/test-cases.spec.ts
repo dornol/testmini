@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import {
 	sampleProject,
 	sampleTestCase,
@@ -864,6 +869,7 @@ describe('MCP test-case tools', () => {
 		it('should move test case to a group', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
 			mockDb.query.testCaseGroup.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
+			const updateChain = mockUpdateReturning(mockDb, [{ id: 10 }]);
 
 			const result = await client.callTool({
 				name: 'move-test-case-to-group',
@@ -875,7 +881,7 @@ describe('MCP test-case tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.testCaseId).toBe(10);
 			expect(parsed.groupId).toBe(5);
-			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 10],
 					['project_id', PROJECT_ID]
@@ -899,6 +905,7 @@ describe('MCP test-case tools', () => {
 
 		it('should ungroup test case when groupId is null', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue({ ...sampleTestCase, groupId: 5 });
+			mockUpdateReturning(mockDb, [{ id: 10 }]);
 
 			const result = await client.callTool({
 				name: 'move-test-case-to-group',
@@ -909,6 +916,22 @@ describe('MCP test-case tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.success).toBe(true);
 			expect(parsed.groupId).toBeNull();
+		});
+
+		it('should return error when move update affects no row', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue({ id: 5, projectId: 1 });
+			mockUpdateReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'move-test-case-to-group',
+				arguments: { testCaseId: 10, groupId: 5 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
 		});
 	});
 
@@ -974,6 +997,7 @@ describe('MCP test-case tools', () => {
 	describe('unassign-test-case', () => {
 		it('should remove a user assignment from a test case', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDeleteReturning(mockDb, [{ testCaseId: 10 }]);
 
 			const result = await client.callTool({
 				name: 'unassign-test-case',
@@ -985,7 +1009,23 @@ describe('MCP test-case tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.testCaseId).toBe(10);
 			expect(parsed.userId).toBe('user-1');
+			expect(parsed.removed).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
+		});
+
+		it('should report when no assignment was removed', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'unassign-test-case',
+				arguments: { testCaseId: 10, userId: 'user-1' }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.success).toBe(true);
+			expect(parsed.removed).toBe(false);
 		});
 
 		it('should return error when unassign target test case is outside the project', async () => {
@@ -1009,6 +1049,7 @@ describe('MCP test-case tools', () => {
 	describe('update-test-case-risk', () => {
 		it('should set HIGH/HIGH to CRITICAL risk level', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			const updateChain = mockUpdateReturning(mockDb, [{ id: 10 }]);
 
 			const result = await client.callTool({
 				name: 'update-test-case-risk',
@@ -1022,7 +1063,7 @@ describe('MCP test-case tools', () => {
 			expect(parsed.riskImpact).toBe('HIGH');
 			expect(parsed.riskLikelihood).toBe('HIGH');
 			expect(mockDb.update).toHaveBeenCalled();
-			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 10],
 					['project_id', PROJECT_ID]
@@ -1036,6 +1077,21 @@ describe('MCP test-case tools', () => {
 			const result = await client.callTool({
 				name: 'update-test-case-risk',
 				arguments: { testCaseId: 999, riskImpact: 'HIGH', riskLikelihood: 'HIGH' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
+		});
+
+		it('should return error when risk update affects no row', async () => {
+			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
+			mockUpdateReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'update-test-case-risk',
+				arguments: { testCaseId: 10, riskImpact: 'HIGH', riskLikelihood: 'HIGH' }
 			});
 
 			expect(result.isError).toBe(true);

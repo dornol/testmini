@@ -34,6 +34,15 @@ describe('resolvePoolConfig', () => {
 			const config = resolvePoolConfig({ DB_POOL_MAX: '1' }, false);
 			expect(config.max).toBe(1);
 		});
+
+		it.each(['abc', '-1', '1.5', 'Infinity', '9007199254740992'])(
+			'should reject invalid DB_POOL_MAX=%s',
+			(value) => {
+				expect(() => resolvePoolConfig({ DB_POOL_MAX: value }, false)).toThrow(
+					'DB_POOL_MAX must be a non-negative safe integer'
+				);
+			}
+		);
 	});
 
 	describe('idle timeout', () => {
@@ -51,6 +60,15 @@ describe('resolvePoolConfig', () => {
 			const config = resolvePoolConfig({ DB_IDLE_TIMEOUT: '0' }, false);
 			expect(config.idle_timeout).toBe(0);
 		});
+
+		it.each(['abc', '-1', '1.5', 'Infinity', '9007199254740992'])(
+			'should reject invalid DB_IDLE_TIMEOUT=%s',
+			(value) => {
+				expect(() => resolvePoolConfig({ DB_IDLE_TIMEOUT: value }, false)).toThrow(
+					'DB_IDLE_TIMEOUT must be a non-negative safe integer'
+				);
+			}
+		);
 
 		it('should be same in prod and dev', () => {
 			const prod = resolvePoolConfig({}, true);
@@ -74,6 +92,15 @@ describe('resolvePoolConfig', () => {
 			const config = resolvePoolConfig({ DB_CONNECT_TIMEOUT: '2' }, true);
 			expect(config.connect_timeout).toBe(2);
 		});
+
+		it.each(['abc', '-1', '1.5', 'Infinity', '9007199254740992'])(
+			'should reject invalid DB_CONNECT_TIMEOUT=%s',
+			(value) => {
+				expect(() => resolvePoolConfig({ DB_CONNECT_TIMEOUT: value }, false)).toThrow(
+					'DB_CONNECT_TIMEOUT must be a non-negative safe integer'
+				);
+			}
+		);
 	});
 
 	describe('max lifetime', () => {
@@ -108,7 +135,7 @@ describe('resolvePoolConfig', () => {
 				idle_timeout: 30,
 				connect_timeout: 10,
 				max_lifetime: 1800,
-				prepare: true,
+				prepare: true
 			});
 		});
 
@@ -116,7 +143,7 @@ describe('resolvePoolConfig', () => {
 			const env: PoolEnv = {
 				DB_POOL_MAX: '30',
 				DB_IDLE_TIMEOUT: '45',
-				DB_CONNECT_TIMEOUT: '15',
+				DB_CONNECT_TIMEOUT: '15'
 			};
 			const config = resolvePoolConfig(env, true);
 			expect(config).toEqual({
@@ -124,20 +151,23 @@ describe('resolvePoolConfig', () => {
 				idle_timeout: 45,
 				connect_timeout: 15,
 				max_lifetime: 1800,
-				prepare: true,
+				prepare: true
 			});
 		});
 
 		it('should handle partial env overrides', () => {
 			const config = resolvePoolConfig({ DB_POOL_MAX: '25' }, true);
 			expect(config.max).toBe(25);
-			expect(config.idle_timeout).toBe(30);   // default
+			expect(config.idle_timeout).toBe(30); // default
 			expect(config.connect_timeout).toBe(10); // default
 		});
 
 		it('should handle undefined env values same as empty object', () => {
 			const config1 = resolvePoolConfig({}, false);
-			const config2 = resolvePoolConfig({ DB_POOL_MAX: undefined, DB_IDLE_TIMEOUT: undefined, DB_CONNECT_TIMEOUT: undefined }, false);
+			const config2 = resolvePoolConfig(
+				{ DB_POOL_MAX: undefined, DB_IDLE_TIMEOUT: undefined, DB_CONNECT_TIMEOUT: undefined },
+				false
+			);
 			expect(config1).toEqual(config2);
 		});
 	});

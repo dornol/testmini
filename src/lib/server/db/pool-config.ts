@@ -18,13 +18,27 @@ export interface PoolEnv {
 	[key: string]: string | undefined;
 }
 
+function parseNonNegativeEnvInteger(
+	value: string | undefined,
+	defaultValue: number,
+	name: string
+): number {
+	if (value === undefined || value.trim() === '') return defaultValue;
+
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed < 0) {
+		throw new Error(`${name} must be a non-negative safe integer`);
+	}
+	return parsed;
+}
+
 /** Resolve pool configuration from environment variables with sensible defaults. */
 export function resolvePoolConfig(env: PoolEnv, isProd: boolean): PoolConfig {
 	return {
-		max: Number(env.DB_POOL_MAX ?? (isProd ? 20 : 10)),
-		idle_timeout: Number(env.DB_IDLE_TIMEOUT ?? 30),
-		connect_timeout: Number(env.DB_CONNECT_TIMEOUT ?? 10),
+		max: parseNonNegativeEnvInteger(env.DB_POOL_MAX, isProd ? 20 : 10, 'DB_POOL_MAX'),
+		idle_timeout: parseNonNegativeEnvInteger(env.DB_IDLE_TIMEOUT, 30, 'DB_IDLE_TIMEOUT'),
+		connect_timeout: parseNonNegativeEnvInteger(env.DB_CONNECT_TIMEOUT, 10, 'DB_CONNECT_TIMEOUT'),
 		max_lifetime: 60 * 30, // 30 minutes — recycle connections to avoid stale state
-		prepare: true,         // prepared statements for query plan caching
+		prepare: true // prepared statements for query plan caching
 	};
 }

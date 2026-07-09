@@ -41,21 +41,32 @@ describe('resolvePoolConfig', () => {
 	});
 
 	it('should handle all env vars together', () => {
-		const config = resolvePoolConfig({
-			DB_POOL_MAX: '30',
-			DB_IDLE_TIMEOUT: '45',
-			DB_CONNECT_TIMEOUT: '15'
-		}, true);
+		const config = resolvePoolConfig(
+			{
+				DB_POOL_MAX: '30',
+				DB_IDLE_TIMEOUT: '45',
+				DB_CONNECT_TIMEOUT: '15'
+			},
+			true
+		);
 
 		expect(config.max).toBe(30);
 		expect(config.idle_timeout).toBe(45);
 		expect(config.connect_timeout).toBe(15);
 	});
 
-	it('should return NaN for non-numeric env values', () => {
-		const config = resolvePoolConfig({ DB_POOL_MAX: 'abc' }, false);
-
-		expect(config.max).toBeNaN();
+	it.each([
+		['DB_POOL_MAX', { DB_POOL_MAX: 'abc' }],
+		['DB_POOL_MAX', { DB_POOL_MAX: '-1' }],
+		['DB_POOL_MAX', { DB_POOL_MAX: '1.5' }],
+		['DB_POOL_MAX', { DB_POOL_MAX: 'Infinity' }],
+		['DB_POOL_MAX', { DB_POOL_MAX: '9007199254740992' }],
+		['DB_IDLE_TIMEOUT', { DB_IDLE_TIMEOUT: 'abc' }],
+		['DB_CONNECT_TIMEOUT', { DB_CONNECT_TIMEOUT: 'abc' }]
+	])('should reject invalid %s env values', (name, env) => {
+		expect(() => resolvePoolConfig(env, false)).toThrow(
+			`${name} must be a non-negative safe integer`
+		);
 	});
 
 	it('should always set max_lifetime to 1800', () => {

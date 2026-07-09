@@ -48,6 +48,56 @@ describe('email', () => {
 			text: 'Body',
 			html: undefined
 		});
+		expect(mockCreateTransport).toHaveBeenCalledWith(
+			expect.objectContaining({ port: 587, secure: false })
+		);
+	});
+
+	it('should use secure transport for SMTP port 465', async () => {
+		Object.assign(mockEnv, {
+			SMTP_HOST: 'smtp.example.com',
+			SMTP_PORT: '465',
+			SMTP_USER: 'user@example.com',
+			SMTP_PASS: 'password'
+		});
+
+		await sendEmail({ to: 'a@b.com', subject: 'Test', text: 'Body' });
+
+		expect(mockCreateTransport).toHaveBeenCalledWith(
+			expect.objectContaining({ port: 465, secure: true })
+		);
+	});
+
+	it.each(['abc', '-1', '0', '1.5', 'Infinity', '65536', '9007199254740992'])(
+		'should disable email for invalid SMTP_PORT=%s',
+		async (port) => {
+			Object.assign(mockEnv, {
+				SMTP_HOST: 'smtp.example.com',
+				SMTP_PORT: port,
+				SMTP_USER: 'user@example.com',
+				SMTP_PASS: 'password'
+			});
+
+			await sendEmail({ to: 'a@b.com', subject: 'Test', text: 'Body' });
+
+			expect(mockCreateTransport).not.toHaveBeenCalled();
+			expect(mockSendMail).not.toHaveBeenCalled();
+		}
+	);
+
+	it('should use default SMTP port when SMTP_PORT is blank', async () => {
+		Object.assign(mockEnv, {
+			SMTP_HOST: 'smtp.example.com',
+			SMTP_PORT: ' ',
+			SMTP_USER: 'user@example.com',
+			SMTP_PASS: 'password'
+		});
+
+		await sendEmail({ to: 'a@b.com', subject: 'Test', text: 'Body' });
+
+		expect(mockCreateTransport).toHaveBeenCalledWith(
+			expect.objectContaining({ port: 587, secure: false })
+		);
 	});
 
 	it('should not throw on sendMail error', async () => {
@@ -59,6 +109,8 @@ describe('email', () => {
 		});
 		mockSendMail.mockRejectedValueOnce(new Error('SMTP connection failed'));
 
-		await expect(sendEmail({ to: 'a@b.com', subject: 'Test', text: 'Body' })).resolves.toBeUndefined();
+		await expect(
+			sendEmail({ to: 'a@b.com', subject: 'Test', text: 'Body' })
+		).resolves.toBeUndefined();
 	});
 });

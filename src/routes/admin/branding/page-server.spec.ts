@@ -50,6 +50,7 @@ function createActionEvent(
 	const formData = createFormData(formEntries);
 	return {
 		request: {
+			headers: new Headers(),
 			formData: () => Promise.resolve(formData)
 		},
 		locals: {
@@ -129,6 +130,30 @@ describe('admin/branding +page.server', () => {
 			expect(mockDb.query.appConfig.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.insert).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject oversized multipart requests before parsing form data', async () => {
+			const formData = vi.fn();
+			const event = {
+				request: {
+					headers: new Headers({ 'content-length': String(5 * 1024 * 1024 + 1) }),
+					formData
+				},
+				locals: {
+					user: adminUser,
+					session: { id: 'session-1' },
+					requestId: 'test-req'
+				},
+				url: new URL('http://localhost:5173/admin/branding')
+			} as never;
+
+			await expect(actions.save(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Branding upload must not exceed 5MB' }
+			});
+			expect(formData).not.toHaveBeenCalled();
+			expect(mockDb.query.appConfig.findFirst).not.toHaveBeenCalled();
+			expect(saveFile).not.toHaveBeenCalled();
 		});
 
 		it('should insert new config when none exists', async () => {

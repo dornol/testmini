@@ -7,8 +7,10 @@ import { requireAuth, isGlobalAdmin } from '$lib/server/auth-utils';
 import { saveFile, deleteFile } from '$lib/server/storage';
 import { cacheDelete } from '$lib/server/cache';
 import { randomUUID } from 'node:crypto';
+import { assertMultipartContentLength } from '$lib/server/multipart-limits';
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_BRANDING_UPLOAD_SIZE = MAX_IMAGE_SIZE * 2;
 const ALLOWED_IMAGE_TYPES = [
 	'image/png',
 	'image/jpeg',
@@ -68,6 +70,10 @@ export const actions: Actions = {
 		if (!isGlobalAdmin(authUser)) {
 			return fail(403, { error: 'Admin access required' });
 		}
+
+		assertMultipartContentLength(request, MAX_BRANDING_UPLOAD_SIZE, {
+			message: 'Branding upload must not exceed 5MB'
+		});
 
 		const formData = await request.formData();
 		const appName = parseAppName(formData.get('appName'));

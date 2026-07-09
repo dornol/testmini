@@ -8,9 +8,19 @@ import { teamMember, user } from '$lib/server/db/schema';
 import { eq, and, count } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin, parseId } from '$lib/server/auth-utils';
 import { loadTeamMembers } from '$lib/server/queries';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
 
 const TEAM_ROLES = ['OWNER', 'ADMIN', 'MEMBER'] as const;
 type TeamRole = (typeof TEAM_ROLES)[number];
+const MAX_TEAM_MEMBER_FORM_BODY_SIZE = 16 * 1024;
+
+function assertTeamMemberFormBodySize(request: Request): void {
+	assertContentLengthUnderLimit(
+		request,
+		MAX_TEAM_MEMBER_FORM_BODY_SIZE,
+		'Team member form body is too large'
+	);
+}
 
 function parseTeamRole(value: FormDataEntryValue | null): TeamRole | null {
 	if (typeof value !== 'string') return null;
@@ -43,6 +53,7 @@ export const actions: Actions = {
 		const teamId = parseId(params.teamId, 'team ID');
 		await requireTeamAdmin(authUser, teamId);
 
+		assertTeamMemberFormBodySize(request);
 		const form = await validateForm(addTeamMemberSchema, request);
 
 		if (!form.valid) {
@@ -89,6 +100,7 @@ export const actions: Actions = {
 		const teamId = parseId(params.teamId, 'team ID');
 		await requireTeamAdmin(authUser, teamId);
 
+		assertTeamMemberFormBodySize(request);
 		const formData = await request.formData();
 		const memberId = parsePositiveFormId(formData.get('memberId'));
 		const role = parseTeamRole(formData.get('role'));
@@ -134,6 +146,7 @@ export const actions: Actions = {
 		const teamId = parseId(params.teamId, 'team ID');
 		await requireTeamAdmin(authUser, teamId);
 
+		assertTeamMemberFormBodySize(request);
 		const formData = await request.formData();
 		const memberId = parsePositiveFormId(formData.get('memberId'));
 

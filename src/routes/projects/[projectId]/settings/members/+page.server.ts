@@ -19,6 +19,17 @@ import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils
 import { logAudit } from '$lib/server/audit';
 import { createNotification } from '$lib/server/notifications';
 import { cacheDelete } from '$lib/server/cache';
+import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+
+const MAX_PROJECT_MEMBER_FORM_BODY_SIZE = 16 * 1024;
+
+function assertProjectMemberFormBodySize(request: Request): void {
+	assertContentLengthUnderLimit(
+		request,
+		MAX_PROJECT_MEMBER_FORM_BODY_SIZE,
+		'Project member form body is too large'
+	);
+}
 
 export const load: PageServerLoad = async ({ params }) => {
 	const projectId = parseId(params.projectId, 'project ID');
@@ -48,6 +59,7 @@ export const actions: Actions = {
 		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
 
+		assertProjectMemberFormBodySize(request);
 		const form = await validateForm(addMemberSchema, request);
 
 		if (!form.valid) {
@@ -116,6 +128,7 @@ export const actions: Actions = {
 		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
 
+		assertProjectMemberFormBodySize(request);
 		const formData = await request.formData();
 		const memberId = parsePositiveFormId(formData.get('memberId'));
 		const role = parseOptionalFormString(formData.get('role'));
@@ -177,6 +190,7 @@ export const actions: Actions = {
 		const projectId = parseId(params.projectId, 'project ID');
 		await requireProjectRole(authUser, projectId, ['PROJECT_ADMIN']);
 
+		assertProjectMemberFormBodySize(request);
 		const formData = await request.formData();
 		const memberId = parsePositiveFormId(formData.get('memberId'));
 

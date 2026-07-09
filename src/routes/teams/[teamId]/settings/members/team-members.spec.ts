@@ -54,6 +54,7 @@ vi.mock('$lib/server/queries', () => ({
 }));
 
 const { load, actions } = await import('./+page.server');
+const MAX_TEAM_MEMBER_FORM_BODY_SIZE = 16 * 1024;
 
 function createFormData(data: Record<string, string>): FormData {
 	const fd = new FormData();
@@ -125,6 +126,30 @@ describe('/teams/[teamId]/settings/members', () => {
 	});
 
 	describe('actions.addMember', () => {
+		it('should reject oversized form bodies before validating member data', async () => {
+			mockDb.query.teamMember.findFirst.mockResolvedValueOnce({
+				id: 1,
+				teamId: 5,
+				userId: testUser.id,
+				role: 'OWNER'
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createFormData({ userId: 'user-3', role: 'MEMBER' }),
+				headers: { 'content-length': String(MAX_TEAM_MEMBER_FORM_BODY_SIZE + 1) },
+				params: { teamId: '5' },
+				user: testUser
+			});
+
+			await expect(actions.addMember(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Team member form body is too large' }
+			});
+			expect(mockDb.query.teamMember.findFirst).toHaveBeenCalledTimes(1);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should add member with specified role', async () => {
 			// Mock: user not already a member
 			mockDb.query.teamMember.findFirst
@@ -228,6 +253,30 @@ describe('/teams/[teamId]/settings/members', () => {
 	});
 
 	describe('actions.updateRole', () => {
+		it('should reject invalid content-length before looking up target member', async () => {
+			mockDb.query.teamMember.findFirst.mockResolvedValueOnce({
+				id: 1,
+				teamId: 5,
+				userId: testUser.id,
+				role: 'OWNER'
+			});
+
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createFormData({ memberId: '2', role: 'ADMIN' }),
+				headers: { 'content-length': 'invalid' },
+				params: { teamId: '5' },
+				user: testUser
+			});
+
+			await expect(actions.updateRole(event)).rejects.toMatchObject({
+				status: 400,
+				body: { message: 'Invalid content-length header' }
+			});
+			expect(mockDb.query.teamMember.findFirst).toHaveBeenCalledTimes(1);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should update member role', async () => {
 			mockDb.query.teamMember.findFirst
 				.mockResolvedValueOnce({ id: 1, teamId: 5, userId: testUser.id, role: 'OWNER' }) // requireTeamAdmin

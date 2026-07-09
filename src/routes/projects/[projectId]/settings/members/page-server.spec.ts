@@ -47,6 +47,7 @@ const { actions } = await import('./+page.server');
 const { logAudit } = await import('$lib/server/audit');
 const { createNotification } = await import('$lib/server/notifications');
 const { cacheDelete } = await import('$lib/server/cache');
+const MAX_PROJECT_MEMBER_FORM_BODY_SIZE = 16 * 1024;
 
 function makeForm(values: Record<string, FormDataEntryValue>): FormData {
 	const formData = new FormData();
@@ -63,6 +64,23 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 	});
 
 	describe('addMember', () => {
+		it('rejects oversized form bodies before validating member data', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				user: testUser,
+				headers: { 'content-length': String(MAX_PROJECT_MEMBER_FORM_BODY_SIZE + 1) },
+				formData: makeForm({ userId: 'user-2', role: 'QA' })
+			});
+
+			await expect(actions.addMember(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Project member form body is too large' }
+			});
+			expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('returns 400 before insert when target user does not exist', async () => {
 			mockDb.query.projectMember.findFirst.mockResolvedValueOnce(null);
 			const selectChain = {
@@ -116,6 +134,23 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 	});
 
 	describe('updateRole', () => {
+		it('rejects invalid content-length before querying member records', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				user: testUser,
+				headers: { 'content-length': 'invalid' },
+				formData: makeForm({ memberId: '7', role: 'DEV' })
+			});
+
+			await expect(actions.updateRole(event)).rejects.toMatchObject({
+				status: 400,
+				body: { message: 'Invalid content-length header' }
+			});
+			expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('scopes role updates to the current project', async () => {
 			mockDb.query.projectMember.findFirst.mockResolvedValueOnce({
 				id: 7,
@@ -228,6 +263,23 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 	});
 
 	describe('removeMember', () => {
+		it('rejects oversized form bodies before querying member records', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				user: testUser,
+				headers: { 'content-length': String(MAX_PROJECT_MEMBER_FORM_BODY_SIZE + 1) },
+				formData: makeForm({ memberId: '7' })
+			});
+
+			await expect(actions.removeMember(event)).rejects.toMatchObject({
+				status: 413,
+				body: { message: 'Project member form body is too large' }
+			});
+			expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
 		it('scopes member deletes to the current project', async () => {
 			mockDb.query.projectMember.findFirst.mockResolvedValueOnce({
 				id: 7,

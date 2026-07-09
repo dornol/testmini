@@ -88,6 +88,21 @@ describe('/api/projects/[projectId]/test-cases/import', () => {
 		await expect(POST(event)).rejects.toThrow();
 	});
 
+	it('should reject non-file upload fields before DB work', async () => {
+		const fd = new FormData();
+		fd.set('file', 'not-a-file');
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: fd,
+			user: adminUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		expect(mockDb.select).not.toHaveBeenCalled();
+		expect(mockDb.transaction).not.toHaveBeenCalled();
+	});
+
 	it('should reject oversized multipart bodies before parsing form data', async () => {
 		const event = createMockEvent({
 			method: 'POST',

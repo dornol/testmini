@@ -132,7 +132,7 @@ export const POST = withProjectRole(
 		const formData = await request.formData();
 		const file = formData.get('file') as File | null;
 
-		if (!file || file.size === 0) {
+		if (!file || !(file instanceof File) || file.size === 0) {
 			error(400, 'No file uploaded');
 		}
 

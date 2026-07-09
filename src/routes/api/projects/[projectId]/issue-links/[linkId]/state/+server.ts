@@ -71,21 +71,33 @@ export const POST = withProjectRole(
 		if (state === 'closed' && link.testCaseId) {
 			const linkedTestCaseId = link.testCaseId;
 			await db.transaction(async (tx) => {
-				await tx
+				const [updatedLink] = await tx
 					.update(issueLink)
 					.set({ status: state, statusSyncedAt: new Date() })
-					.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)));
+					.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)))
+					.returning({ id: issueLink.id });
+				if (!updatedLink) {
+					error(404, 'Issue link not found');
+				}
 
-				await tx
+				const [updatedTestCase] = await tx
 					.update(testCase)
 					.set({ retestNeeded: true })
-					.where(and(eq(testCase.id, linkedTestCaseId), eq(testCase.projectId, projectId)));
+					.where(and(eq(testCase.id, linkedTestCaseId), eq(testCase.projectId, projectId)))
+					.returning({ id: testCase.id });
+				if (!updatedTestCase) {
+					error(404, 'Test case not found');
+				}
 			});
 		} else {
-			await db
+			const [updatedLink] = await db
 				.update(issueLink)
 				.set({ status: state, statusSyncedAt: new Date() })
-				.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)));
+				.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)))
+				.returning({ id: issueLink.id });
+			if (!updatedLink) {
+				error(404, 'Issue link not found');
+			}
 		}
 
 		return json({ success: true, state });

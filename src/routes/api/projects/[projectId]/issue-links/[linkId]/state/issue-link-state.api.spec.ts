@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -59,6 +59,7 @@ const PARAMS = { projectId: '1', linkId: '20' };
 describe('/api/projects/[projectId]/issue-links/[linkId]/state', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockUpdateReturning(mockDb, [{ id: 20 }]);
 	});
 
 	it('should return 401 when not authenticated', async () => {
@@ -179,12 +180,7 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/state', () => {
 		});
 		mockUpdateIssueState.mockResolvedValue(undefined);
 
-		const updateChain = {
-			set: vi.fn().mockReturnThis(),
-			where: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
-		};
-		mockDb.update.mockReturnValue(updateChain as never);
+		const updateChain = mockUpdateReturning(mockDb, [{ id: 20 }]);
 
 		const event = createMockEvent({
 			method: 'POST',
@@ -204,6 +200,40 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/state', () => {
 				['project_id', 1]
 			])
 		);
+		expect(updateChain.returning).toHaveBeenCalledWith({ id: 'id' });
+	});
+
+	it('should return 404 when local issue link disappears after external state update', async () => {
+		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(
+			{
+				id: 20,
+				projectId: 1,
+				externalUrl: 'https://jira.example.com/PROJ-1',
+				testCaseId: null
+			}
+		);
+		(
+			mockDb.query.issueTrackerConfig as { findFirst: ReturnType<typeof vi.fn> }
+		).findFirst.mockResolvedValue({
+			projectId: 1,
+			provider: 'JIRA',
+			baseUrl: 'https://jira.example.com',
+			apiToken: 'token',
+			projectKey: 'PROJ',
+			customTemplate: null
+		});
+		mockUpdateIssueState.mockResolvedValue(undefined);
+		mockUpdateReturning(mockDb, []);
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { state: 'open' },
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toThrow();
+		expect(mockUpdateIssueState).toHaveBeenCalledOnce();
 	});
 
 	it('should mark test case for retest when closing issue with linked test case', async () => {
@@ -230,11 +260,13 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/state', () => {
 		const issueLinkUpdateChain = {
 			set: vi.fn().mockReturnThis(),
 			where: vi.fn().mockReturnThis(),
+			returning: vi.fn().mockResolvedValue([{ id: 20 }]),
 			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
 		};
 		const testCaseUpdateChain = {
 			set: vi.fn().mockReturnThis(),
 			where: vi.fn().mockReturnThis(),
+			returning: vi.fn().mockResolvedValue([{ id: 10 }]),
 			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
 		};
 		const txUpdate = vi
@@ -267,12 +299,55 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/state', () => {
 				['project_id', 1]
 			])
 		);
+		expect(issueLinkUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });
 		expect(testCaseUpdateChain.where).toHaveBeenCalledWith(
 			expect.arrayContaining([
 				['id', 10],
 				['project_id', 1]
 			])
 		);
+		expect(testCaseUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });
 		expect(mockDb.update).not.toHaveBeenCalled();
+	});
+
+	it('should return 404 without retest update when local issue link disappears in transaction', async () => {
+		(mockDb.query.issueLink as { findFirst: ReturnType<typeof vi.fn> }).findFirst.mockResolvedValue(
+			{
+				id: 20,
+				projectId: 1,
+				externalUrl: 'https://jira.example.com/PROJ-1',
+				testCaseId: 10
+			}
+		);
+		(
+			mockDb.query.issueTrackerConfig as { findFirst: ReturnType<typeof vi.fn> }
+		).findFirst.mockResolvedValue({
+			projectId: 1,
+			provider: 'JIRA',
+			baseUrl: 'https://jira.example.com',
+			apiToken: 'token',
+			projectKey: 'PROJ',
+			customTemplate: null
+		});
+		mockUpdateIssueState.mockResolvedValue(undefined);
+
+		const issueLinkUpdateChain = {
+			set: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			returning: vi.fn().mockResolvedValue([])
+		};
+		const txUpdate = vi.fn().mockReturnValueOnce(issueLinkUpdateChain);
+		mockDb.transaction.mockImplementationOnce(async (fn) => fn({ update: txUpdate }));
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { state: 'closed' },
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toThrow();
+		expect(mockUpdateIssueState).toHaveBeenCalledOnce();
+		expect(txUpdate).toHaveBeenCalledTimes(1);
 	});
 });

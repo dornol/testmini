@@ -1,6 +1,7 @@
 import { db } from '$lib/server/db';
 import { auditLog } from '$lib/server/db/schema';
 import { childLogger } from './logger';
+import { redactSecrets } from './secret-redaction';
 
 const log = childLogger('audit');
 
@@ -31,6 +32,17 @@ export async function logAudit(params: LogAuditParams): Promise<void> {
 		});
 	} catch (err) {
 		// Silently ignore audit logging failures — they must not break the main flow
-		log.error({ err }, 'Failed to write audit log');
+		log.error({ err: sanitizeAuditError(err) }, 'Failed to write audit log');
 	}
+}
+
+function sanitizeAuditError(err: unknown): { message: string; name?: string } | string {
+	if (err instanceof Error) {
+		return {
+			name: err.name,
+			message: redactSecrets(err.message)
+		};
+	}
+
+	return redactSecrets(String(err));
 }

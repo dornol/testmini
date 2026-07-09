@@ -165,6 +165,27 @@ describe('registerJob', () => {
 		expect(mockCronSchedule).not.toHaveBeenCalled();
 		expect(mockLog.warn).toHaveBeenCalledWith({ id: 1 }, 'Invalid report recipients');
 	});
+
+	it('logs sanitized scheduled report execution errors', async () => {
+		const token = 'schedule-token-12345';
+		mockValidate.mockReturnValue(true);
+		mockCronSchedule.mockReturnValue({ stop: vi.fn() });
+		mockDb.query.reportSchedule = {
+			findFirst: vi.fn().mockRejectedValue(new Error(`load failed apiToken=${token}`))
+		};
+
+		registerJob(baseSchedule as never);
+		const [, callback] = mockCronSchedule.mock.calls[0];
+
+		callback();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		const [logMeta] = mockLog.error.mock.calls[0];
+
+		expect(logMeta.err.message).not.toContain(token);
+		expect(logMeta.err).not.toHaveProperty('stack');
+		expect(logMeta.scheduleId).toBe(1);
+	});
 });
 
 describe('removeJob', () => {

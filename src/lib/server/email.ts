@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { childLogger } from './logger';
 import { env } from '$env/dynamic/private';
+import { redactSecrets } from './secret-redaction';
 
 const log = childLogger('email');
 const DEFAULT_SMTP_PORT = 587;
@@ -86,6 +87,24 @@ export async function sendEmail(params: {
 			attachments: params.attachments
 		});
 	} catch (err) {
-		log.error({ err, to: params.to, subject: params.subject }, 'Failed to send email');
+		log.error(
+			{
+				err: sanitizeEmailError(err),
+				to: redactSecrets(params.to),
+				subject: redactSecrets(params.subject)
+			},
+			'Failed to send email'
+		);
 	}
+}
+
+function sanitizeEmailError(err: unknown): { message: string; name?: string } | string {
+	if (err instanceof Error) {
+		return {
+			name: err.name,
+			message: redactSecrets(err.message)
+		};
+	}
+
+	return redactSecrets(String(err));
 }

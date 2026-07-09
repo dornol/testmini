@@ -9,6 +9,12 @@ import {
 } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
+const mockAddIssueComment = vi.fn();
+const mockLog = vi.hoisted(() => ({
+	info: vi.fn(),
+	warn: vi.fn(),
+	error: vi.fn()
+}));
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
@@ -33,7 +39,22 @@ vi.mock('$lib/server/db/schema', () => ({
 	},
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id' },
 	testRun: { id: 'id', projectId: 'project_id' },
-	user: { id: 'id', name: 'name' }
+	user: { id: 'id', name: 'name' },
+	issueLink: {
+		id: 'id',
+		projectId: 'project_id',
+		testCaseId: 'test_case_id',
+		externalUrl: 'external_url'
+	},
+	issueTrackerConfig: {
+		projectId: 'project_id',
+		enabled: 'enabled',
+		provider: 'provider',
+		baseUrl: 'base_url',
+		apiToken: 'api_token',
+		projectKey: 'project_key',
+		customTemplate: 'custom_template'
+	}
 }));
 vi.mock('$lib/server/db/auth.schema', () => ({
 	user: { id: 'id', name: 'name' }
@@ -56,6 +77,12 @@ vi.mock('$lib/schemas/failure.schema', async () => {
 	);
 	return actual;
 });
+vi.mock('$lib/server/issue-tracker', () => ({
+	addIssueComment: mockAddIssueComment
+}));
+vi.mock('$lib/server/logger', () => ({
+	childLogger: () => mockLog
+}));
 
 const { GET, POST } = await import('./+server');
 const authUtils = await import('$lib/server/auth-utils');
@@ -81,6 +108,9 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/f
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 		mockDb.query.testRun.findFirst = vi.fn().mockResolvedValue(sampleTestRun);
 		mockDb.query.testExecution = { findFirst: vi.fn().mockResolvedValue(sampleExecution) };
+		mockDb.query.testCaseVersion = { findFirst: vi.fn().mockResolvedValue(null) };
+		mockDb.query.issueTrackerConfig = { findFirst: vi.fn().mockResolvedValue(null) };
+		mockAddIssueComment.mockResolvedValue(undefined);
 	});
 
 	describe('GET', () => {
@@ -284,6 +314,55 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/f
 				user: adminUser
 			});
 			await expect(POST(event)).rejects.toThrow();
+		});
+
+		it('should log sanitized external issue comment failures', async () => {
+			const token = 'issue-comment-token-12345';
+			const txUpdateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: sampleExecution.id }])
+			};
+			const txInsertChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: sampleFailure.id }])
+			};
+			mockDb.transaction.mockImplementationOnce(async (fn) =>
+				fn({
+					update: vi.fn().mockReturnValue(txUpdateChain),
+					insert: vi.fn().mockReturnValue(txInsertChain)
+				})
+			);
+			mockDb.query.testCaseVersion.findFirst.mockResolvedValue({ testCaseId: 10 });
+			mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue({
+				provider: 'github',
+				baseUrl: 'https://api.github.com',
+				apiToken: token,
+				projectKey: 'ORG/REPO',
+				customTemplate: null,
+				enabled: true
+			});
+			mockSelectResult(mockDb, [{ id: 7, projectId: 1, testCaseId: 10, externalUrl: '#1' }]);
+			mockAddIssueComment.mockRejectedValueOnce(
+				new Error(`GitHub rejected Authorization: Bearer ${token}`)
+			);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { errorMessage: 'Error' },
+				user: adminUser
+			});
+
+			const response = await POST(event);
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			const [logMeta] = mockLog.warn.mock.calls[0];
+
+			expect(response.status).toBe(200);
+			expect(logMeta.err.message).not.toContain(token);
+			expect(logMeta.err).not.toHaveProperty('stack');
+			expect(logMeta.linkId).toBe(7);
 		});
 	});
 

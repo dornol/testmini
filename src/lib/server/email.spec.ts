@@ -4,13 +4,18 @@ const mockSendMail = vi.fn().mockResolvedValue({});
 const mockCreateTransport = vi.fn().mockReturnValue({ sendMail: mockSendMail });
 
 const mockEnv: Record<string, string | undefined> = {};
+const mockLog = vi.hoisted(() => ({
+	info: vi.fn(),
+	warn: vi.fn(),
+	error: vi.fn()
+}));
 
 vi.mock('nodemailer', () => ({
 	default: { createTransport: mockCreateTransport }
 }));
 vi.mock('$env/dynamic/private', () => ({ env: mockEnv }));
 vi.mock('$lib/server/logger', () => ({
-	childLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })
+	childLogger: () => mockLog
 }));
 
 const { sendEmail, isEmailConfigured } = await import('./email');
@@ -112,5 +117,29 @@ describe('email', () => {
 		await expect(
 			sendEmail({ to: 'a@b.com', subject: 'Test', text: 'Body' })
 		).resolves.toBeUndefined();
+	});
+
+	it('should redact secrets from sendMail error logs', async () => {
+		const token = 'smtp-token-12345';
+		Object.assign(mockEnv, {
+			SMTP_HOST: 'smtp.example.com',
+			SMTP_PORT: '587',
+			SMTP_USER: 'user@example.com',
+			SMTP_PASS: 'password'
+		});
+		mockSendMail.mockRejectedValueOnce(new Error(`SMTP rejected Authorization: Bearer ${token}`));
+
+		await sendEmail({
+			to: `alerts+token=${token}@example.com`,
+			subject: `Build failed secret=${token}`,
+			text: 'Body'
+		});
+
+		const [logMeta] = mockLog.error.mock.calls[0];
+
+		expect(logMeta.err.message).not.toContain(token);
+		expect(logMeta.to).not.toContain(token);
+		expect(logMeta.subject).not.toContain(token);
+		expect(logMeta.err).not.toHaveProperty('stack');
 	});
 });

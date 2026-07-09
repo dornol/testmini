@@ -10,6 +10,7 @@ import {
 	isAllowedReportScheduleRange,
 	validateScheduleRecipientEmails
 } from './report-schedule-validation';
+import { redactSecrets } from './secret-redaction';
 
 const log = childLogger('report-scheduler');
 const jobs = new Map<number, ReturnType<typeof cron.schedule>>();
@@ -49,7 +50,10 @@ export function registerJob(schedule: typeof reportSchedule.$inferSelect) {
 
 	const task = cron.schedule(schedule.cronExpression, () => {
 		executeSchedule(schedule.id).catch((err) => {
-			log.error({ err, scheduleId: schedule.id }, 'Failed to execute scheduled report');
+			log.error(
+				{ err: sanitizeScheduleError(err), scheduleId: schedule.id },
+				'Failed to execute scheduled report'
+			);
 		});
 	});
 
@@ -143,4 +147,15 @@ async function executeSchedule(scheduleId: number) {
 		.where(eq(reportSchedule.id, scheduleId));
 
 	log.info({ scheduleId, recipients: recipientEmails.length }, 'Scheduled report sent');
+}
+
+function sanitizeScheduleError(err: unknown): { message: string; name?: string } | string {
+	if (err instanceof Error) {
+		return {
+			name: err.name,
+			message: redactSecrets(err.message)
+		};
+	}
+
+	return redactSecrets(String(err));
 }

@@ -2,10 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockDb } from '$lib/server/test-helpers/mock-db';
 
 const mockDb = createMockDb();
+const mockLog = vi.hoisted(() => ({
+	info: vi.fn(),
+	warn: vi.fn(),
+	error: vi.fn()
+}));
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	auditLog: { id: 'id' }
+}));
+vi.mock('$lib/server/logger', () => ({
+	childLogger: () => mockLog
 }));
 
 const { logAudit } = await import('./audit');
@@ -82,6 +90,26 @@ describe('logAudit', () => {
 		mockDb.insert.mockReturnValue(insertChain as never);
 
 		await expect(logAudit({ action: 'ANOTHER_ACTION' })).resolves.toBeUndefined();
+	});
+
+	it('should redact secrets from audit write failure logs', async () => {
+		const token = 'audit-token-12345';
+		const insertChain = {
+			values: vi.fn().mockReturnThis(),
+			then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+				Promise.reject(new Error(`failed metadata secret=${token}`)).then(resolve, reject)
+		};
+		mockDb.insert.mockReturnValue(insertChain as never);
+
+		await logAudit({
+			action: 'TOKEN_TEST',
+			metadata: { token }
+		});
+
+		const [logMeta] = mockLog.error.mock.calls[0];
+
+		expect(logMeta.err.message).not.toContain(token);
+		expect(logMeta.err).not.toHaveProperty('stack');
 	});
 
 	it('should still call insert even when only required action field is provided', async () => {

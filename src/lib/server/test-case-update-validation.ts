@@ -1,4 +1,5 @@
 import { badRequest } from './errors';
+import { isPlainRecord } from './object-validation';
 
 const MAX_TITLE_LENGTH = 200;
 const MAX_TEXT_LENGTH = 2000;
@@ -45,7 +46,7 @@ export type ValidatedTestCaseVersionFields = {
 export type ValidatedTestCaseCreatePayload = Required<ValidatedTestCaseVersionFields>;
 
 function isRecord(value: unknown): value is JsonRecord {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
+	return isPlainRecord(value);
 }
 
 function getUnknownFields(body: JsonRecord, allowedFields: Set<string>): string[] {

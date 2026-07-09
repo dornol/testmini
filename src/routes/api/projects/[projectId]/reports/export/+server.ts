@@ -13,25 +13,42 @@ import { formatCsvRow } from '$lib/server/csv-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
 
 const BATCH_SIZE = 100;
+const MAX_RUN_IDS = 20;
+
+function parseRunIds(value: string): number[] {
+	const tokens = value
+		.split(',')
+		.map((token) => token.trim())
+		.filter(Boolean);
+	if (tokens.length === 0) {
+		error(400, 'No valid run IDs provided');
+	}
+
+	const runIds: number[] = [];
+	for (const token of tokens) {
+		if (!/^\d+$/.test(token)) {
+			error(400, 'runs must contain only positive integers');
+		}
+		const id = Number(token);
+		if (!Number.isSafeInteger(id) || id <= 0) {
+			error(400, 'runs must contain only positive integers');
+		}
+		runIds.push(id);
+	}
+
+	return [...new Set(runIds)];
+}
 
 export const GET = withProjectAccess(async ({ url, projectId }) => {
-
 	const runsParam = url.searchParams.get('runs');
 	if (!runsParam) {
 		error(400, 'Missing runs parameter');
 	}
 
-	const runIds = runsParam
-		.split(',')
-		.map(Number)
-		.filter((n) => !isNaN(n) && n > 0);
+	const runIds = parseRunIds(runsParam);
 
-	if (runIds.length === 0) {
-		error(400, 'No valid run IDs provided');
-	}
-
-	if (runIds.length > 20) {
-		error(400, 'Cannot export more than 20 runs at once');
+	if (runIds.length > MAX_RUN_IDS) {
+		error(400, `Cannot export more than ${MAX_RUN_IDS} runs at once`);
 	}
 
 	// Verify all runs belong to this project

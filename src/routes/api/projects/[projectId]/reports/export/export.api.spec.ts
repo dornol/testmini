@@ -8,7 +8,15 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testRun: { id: 'id', name: 'name', environment: 'environment', projectId: 'project_id' },
-	testExecution: { id: 'id', testRunId: 'test_run_id', testCaseVersionId: 'test_case_version_id', status: 'status', comment: 'comment', executedBy: 'executed_by', executedAt: 'executed_at' },
+	testExecution: {
+		id: 'id',
+		testRunId: 'test_run_id',
+		testCaseVersionId: 'test_case_version_id',
+		status: 'status',
+		comment: 'comment',
+		executedBy: 'executed_by',
+		executedAt: 'executed_at'
+	},
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id', title: 'title', priority: 'priority' },
 	testCase: { id: 'id', key: 'key' },
 	testFailureDetail: { testExecutionId: 'test_execution_id', errorMessage: 'error_message' },
@@ -26,6 +34,14 @@ vi.mock('drizzle-orm', () => ({
 		{ raw: (s: string) => s }
 	)
 }));
+vi.mock('$lib/server/auth-utils', async () => {
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	return {
+		...actual,
+		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
+	};
+});
 
 // Import after mocks
 const { GET } = await import('./+server');
@@ -65,6 +81,52 @@ describe('/api/projects/[projectId]/reports/export', () => {
 				user: adminUser
 			});
 			await expect(GET(event)).rejects.toThrow();
+		});
+
+		it('should reject invalid run ID tokens before querying', async () => {
+			for (const runs of ['1,abc,2', '1,1.5,2', '1,0,2', `1,${Number.MAX_SAFE_INTEGER + 1}`]) {
+				vi.clearAllMocks();
+				const event = createMockEvent({
+					method: 'GET',
+					params: { projectId: '1' },
+					searchParams: { runs },
+					user: adminUser
+				});
+
+				await expect(GET(event)).rejects.toThrow();
+				expect(mockDb.select).not.toHaveBeenCalled();
+			}
+		});
+
+		it('should deduplicate run IDs before verifying project scope', async () => {
+			const where = vi.fn().mockReturnThis();
+			mockDb.select.mockImplementationOnce(
+				() =>
+					({
+						from: vi.fn().mockReturnThis(),
+						where,
+						then: (r: (v: unknown) => void) =>
+							Promise.resolve([
+								{ id: 1, name: 'Run 1', environment: 'QA' },
+								{ id: 2, name: 'Run 2', environment: 'STAGING' }
+							]).then(r)
+					}) as never
+			);
+
+			const event = createMockEvent({
+				method: 'GET',
+				params: { projectId: '1' },
+				searchParams: { runs: '1,1,2,2' },
+				user: adminUser
+			});
+
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(where).toHaveBeenCalledWith([
+				['inArray', 'id', [1, 2]],
+				['project_id', 1]
+			]);
 		});
 	});
 });

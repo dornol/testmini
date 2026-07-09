@@ -7,18 +7,35 @@ import { badRequest } from '$lib/server/errors';
 
 const MAX_RUN_IDS = 20;
 
+function parseRunIds(value: string): number[] | Response {
+	const tokens = value
+		.split(',')
+		.map((token) => token.trim())
+		.filter(Boolean);
+	if (tokens.length === 0) return badRequest('No valid run IDs provided');
+
+	const runIds: number[] = [];
+	for (const token of tokens) {
+		if (!/^\d+$/.test(token)) {
+			return badRequest('runIds must contain only positive integers');
+		}
+		const id = Number(token);
+		if (!Number.isSafeInteger(id) || id <= 0) {
+			return badRequest('runIds must contain only positive integers');
+		}
+		runIds.push(id);
+	}
+
+	return [...new Set(runIds)];
+}
+
 export const GET = withProjectAccess(async ({ projectId, url }) => {
 	const runIdsParam = url.searchParams.get('runIds');
 	if (!runIdsParam) return badRequest('runIds parameter required');
 
-	const runIds = [
-		...new Set(
-			runIdsParam
-				.split(',')
-				.map(Number)
-				.filter((id) => Number.isSafeInteger(id) && id > 0)
-		)
-	];
+	const runIdsOrError = parseRunIds(runIdsParam);
+	if (runIdsOrError instanceof Response) return runIdsOrError;
+	const runIds = runIdsOrError;
 
 	if (runIds.length < 2) return badRequest('At least 2 run IDs required');
 	if (runIds.length > MAX_RUN_IDS) {

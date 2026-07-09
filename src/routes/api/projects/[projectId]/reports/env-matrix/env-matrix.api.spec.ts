@@ -76,6 +76,23 @@ describe('/api/projects/[projectId]/reports/env-matrix', () => {
 		expect(response.status).toBe(400);
 	});
 
+	it('should reject invalid run ID tokens before querying', async () => {
+		for (const runIds of ['1,abc,2', '1,1.5,2', '1,0,2', `1,${Number.MAX_SAFE_INTEGER + 1}`]) {
+			vi.clearAllMocks();
+			const event = createMockEvent({
+				params: PARAMS,
+				user: testUser,
+				searchParams: { runIds }
+			});
+
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('positive integers');
+			expect(mockDb.select).not.toHaveBeenCalled();
+		}
+	});
+
 	it('should return 400 when too many run IDs are provided', async () => {
 		const event = createMockEvent({
 			params: PARAMS,

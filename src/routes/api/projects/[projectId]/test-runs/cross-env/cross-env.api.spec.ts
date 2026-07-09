@@ -116,6 +116,54 @@ describe('/api/projects/[projectId]/test-runs/cross-env', () => {
 		expect(response.status).toBe(400);
 	});
 
+	it('should return 400 for duplicate testCaseIds', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: { projectId: '1' },
+			body: {
+				name: 'Regression',
+				testCaseIds: [1, 1],
+				environments: ['QA', 'STAGE']
+			},
+			user: testUser
+		});
+		const response = await POST(event);
+		expect(response.status).toBe(400);
+		expect(mockDb.select).not.toHaveBeenCalled();
+	});
+
+	it('should return 400 for duplicate environments', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: { projectId: '1' },
+			body: {
+				name: 'Regression',
+				testCaseIds: [1],
+				environments: ['QA', ' QA ']
+			},
+			user: testUser
+		});
+		const response = await POST(event);
+		expect(response.status).toBe(400);
+		expect(mockDb.select).not.toHaveBeenCalled();
+	});
+
+	it('should return 400 for too many environments', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: { projectId: '1' },
+			body: {
+				name: 'Regression',
+				testCaseIds: [1],
+				environments: Array.from({ length: 21 }, (_, index) => `ENV_${index}`)
+			},
+			user: testUser
+		});
+		const response = await POST(event);
+		expect(response.status).toBe(400);
+		expect(mockDb.select).not.toHaveBeenCalled();
+	});
+
 	it('should return 400 when no valid test cases found', async () => {
 		mockSelectResult(mockDb, []);
 

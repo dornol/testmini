@@ -2,8 +2,13 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { testCase, tag, testCaseTag } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
+import { ok, err, requireProjectCreator } from '../helpers';
 import { eq, and } from 'drizzle-orm';
+import { createTagSchema, updateTagSchema } from '$lib/schemas/tag.schema';
+
+function firstValidationError(error: { issues: Array<{ message: string }> }): string {
+	return error.issues[0]?.message ?? 'Invalid tag';
+}
 
 export function registerTagTools(server: McpServer, projectId: number) {
 	server.tool('list-tags', 'List all tags for the project', {}, async () => {
@@ -19,16 +24,32 @@ export function registerTagTools(server: McpServer, projectId: number) {
 		'create-tag',
 		'Create a new tag',
 		{
-			name: z.string().describe('Tag name'),
+			name: z.string().min(1).max(50).describe('Tag name'),
 			color: z.string().optional().describe('Tag color hex (default: #6b7280)')
 		},
 		async ({ name, color }) => {
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
 
+			const parsed = createTagSchema.safeParse({
+				name: name.trim(),
+				color: color?.trim() ?? '#6b7280'
+			});
+			if (!parsed.success) return err(firstValidationError(parsed.error));
+
+			const existing = await db.query.tag.findFirst({
+				where: and(eq(tag.projectId, projectId), eq(tag.name, parsed.data.name))
+			});
+			if (existing) return err('Tag name already exists');
+
 			const [created] = await db
 				.insert(tag)
-				.values({ projectId, name, color: color ?? '#6b7280', createdBy: creator })
+				.values({
+					projectId,
+					name: parsed.data.name,
+					color: parsed.data.color,
+					createdBy: creator
+				})
 				.returning();
 
 			return ok(created);
@@ -106,7 +127,7 @@ export function registerTagTools(server: McpServer, projectId: number) {
 		'Update a tag name or color',
 		{
 			tagId: z.number().describe('Tag ID'),
-			name: z.string().optional().describe('New name'),
+			name: z.string().min(1).max(50).optional().describe('New name'),
 			color: z.string().optional().describe('New color hex')
 		},
 		async ({ tagId, name, color }) => {
@@ -115,9 +136,23 @@ export function registerTagTools(server: McpServer, projectId: number) {
 			});
 			if (!t) return err('Tag not found');
 
+			const parsed = updateTagSchema.safeParse({
+				tagId,
+				name: name?.trim() ?? t.name,
+				color: color?.trim() ?? t.color
+			});
+			if (!parsed.success) return err(firstValidationError(parsed.error));
+
+			if (parsed.data.name !== t.name) {
+				const duplicate = await db.query.tag.findFirst({
+					where: and(eq(tag.projectId, projectId), eq(tag.name, parsed.data.name))
+				});
+				if (duplicate && duplicate.id !== tagId) return err('Tag name already exists');
+			}
+
 			const updates: Record<string, unknown> = {};
-			if (name !== undefined) updates.name = name;
-			if (color !== undefined) updates.color = color;
+			if (name !== undefined) updates.name = parsed.data.name;
+			if (color !== undefined) updates.color = parsed.data.color;
 
 			const [updated] = await db
 				.update(tag)

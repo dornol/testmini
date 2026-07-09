@@ -80,21 +80,26 @@ describe('MCP tag tools', () => {
 	describe('create-tag', () => {
 		it('should create a tag with custom color', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockInsertReturning(mockDb, [sampleTag]);
+			mockDb.query.tag.findFirst.mockResolvedValue(null);
+			const insertChain = mockInsertReturning(mockDb, [sampleTag]);
 
 			const result = await client.callTool({
 				name: 'create-tag',
-				arguments: { name: 'smoke', color: '#ff0000' }
+				arguments: { name: ' smoke ', color: ' #ff0000 ' }
 			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('smoke');
 			expect(parsed.color).toBe('#ff0000');
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({ name: 'smoke', color: '#ff0000' })
+			);
 		});
 
 		it('should create a tag with default color', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockDb.query.tag.findFirst.mockResolvedValue(null);
 			mockInsertReturning(mockDb, [{ ...sampleTag, color: '#6b7280' }]);
 
 			const result = await client.callTool({
@@ -119,6 +124,52 @@ describe('MCP tag tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Project not found'
 			);
+		});
+
+		it('should reject blank names after trimming', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-tag',
+				arguments: { name: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Tag name is required'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject invalid colors', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-tag',
+				arguments: { name: 'smoke', color: 'red' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Invalid hex color'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject duplicate tag names before insert', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockDb.query.tag.findFirst.mockResolvedValue(sampleTag);
+
+			const result = await client.callTool({
+				name: 'create-tag',
+				arguments: { name: 'smoke' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'already exists'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 	});
 
@@ -269,12 +320,12 @@ describe('MCP tag tools', () => {
 
 	describe('update-tag', () => {
 		it('should update name', async () => {
-			mockDb.query.tag.findFirst.mockResolvedValue(sampleTag);
+			mockDb.query.tag.findFirst.mockResolvedValueOnce(sampleTag).mockResolvedValueOnce(null);
 			const updateChain = mockUpdateReturning(mockDb, [{ ...sampleTag, name: 'critical' }]);
 
 			const result = await client.callTool({
 				name: 'update-tag',
-				arguments: { tagId: 1, name: 'critical' }
+				arguments: { tagId: 1, name: ' critical ' }
 			});
 
 			expect(result.isError).toBeFalsy();
@@ -286,6 +337,7 @@ describe('MCP tag tools', () => {
 					['project_id', 1]
 				])
 			);
+			expect(updateChain.set).toHaveBeenCalledWith({ name: 'critical' });
 		});
 
 		it('should return error when tag not found', async () => {
@@ -300,6 +352,38 @@ describe('MCP tag tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Tag not found'
 			);
+		});
+
+		it('should reject invalid update colors', async () => {
+			mockDb.query.tag.findFirst.mockResolvedValue(sampleTag);
+
+			const result = await client.callTool({
+				name: 'update-tag',
+				arguments: { tagId: 1, color: 'blue' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'Invalid hex color'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject duplicate update names before update', async () => {
+			mockDb.query.tag.findFirst
+				.mockResolvedValueOnce(sampleTag)
+				.mockResolvedValueOnce({ ...sampleTag, id: 2, name: 'critical' });
+
+			const result = await client.callTool({
+				name: 'update-tag',
+				arguments: { tagId: 1, name: 'critical' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
+				'already exists'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 });

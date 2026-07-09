@@ -385,6 +385,22 @@ describe('/api/projects/[projectId]/exploratory-sessions', () => {
 			expect(body.charter).toBe('Test all login scenarios');
 		});
 
+		it('should return 500 when session insert returns no row', async () => {
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					title: 'Explore login flow',
+					charter: 'Test all login scenarios'
+				}
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
 		it('should reject invalid JSON body (returns 400)', async () => {
 			const url = new URL('http://localhost:5173/api/test');
 			const request = new Request(url, {

@@ -223,6 +223,20 @@ describe('/api/projects/[projectId]/saved-filters', () => {
 			expect(data.filters).toEqual({ status: ['ACTIVE'] });
 		});
 
+		it('should return 500 when saved filter insert returns no row', async () => {
+			mockDb.query.savedFilter.findFirst.mockResolvedValue(null);
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'New Filter', filters: { status: ['ACTIVE'] } },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
 		it('should create a filter with custom filterType', async () => {
 			mockDb.query.savedFilter.findFirst.mockResolvedValue(null);
 

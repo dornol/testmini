@@ -113,6 +113,8 @@ export const POST = withProjectRole(
 			);
 		}
 
+		if (!created) error(500, 'Failed to create exploratory session');
+
 		return json(created, { status: 201 });
 	}
 );

@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { savedFilter } from '$lib/server/db/schema';
 import { and, eq, asc } from 'drizzle-orm';
@@ -148,6 +148,8 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 			filters
 		})
 		.returning();
+
+	if (!created) error(500, 'Failed to create saved filter');
 
 	return json(created, { status: 201 });
 });

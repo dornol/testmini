@@ -124,6 +124,19 @@ describe('/api/projects/[projectId]/templates', () => {
 			expect(body.id).toBe(created.id);
 		});
 
+		it('should return 500 when template insert returns no row', async () => {
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'New Template' },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
 		it('should return 403 for VIEWER role', async () => {
 			vi.mocked(authUtils.requireProjectRole).mockRejectedValue(
 				Object.assign(new Error(), { status: 403, body: { message: 'Forbidden' } })

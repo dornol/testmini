@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCaseTemplate, user } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -45,6 +45,8 @@ export const POST = withProjectRole(
 				createdBy: user.id
 			})
 			.returning();
+
+		if (!created) error(500, 'Failed to create test case template');
 
 		return json({ id: created.id }, { status: 201 });
 	}

@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { projectApiKey } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { createHash } from 'crypto';
 
 /**
@@ -52,7 +52,13 @@ export async function authenticateApiKey(
 	// Update lastUsedAt asynchronously (fire-and-forget)
 	db.update(projectApiKey)
 		.set({ lastUsedAt: new Date() })
-		.where(eq(projectApiKey.id, record.id))
+		.where(
+			and(
+				eq(projectApiKey.id, record.id),
+				eq(projectApiKey.keyHash, keyHash),
+				eq(projectApiKey.projectId, record.projectId)
+			)
+		)
 		.catch(() => {});
 
 	return { projectId: record.projectId, keyId: record.id };

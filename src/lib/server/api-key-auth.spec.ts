@@ -15,7 +15,8 @@ vi.mock('$lib/server/db/schema', () => ({
 	}
 }));
 vi.mock('drizzle-orm', () => ({
-	eq: vi.fn((a: unknown, b: unknown) => [a, b])
+	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
+	and: vi.fn((...args: unknown[]) => args)
 }));
 
 const { hashApiKey, generateApiKey, authenticateApiKey } = await import('./api-key-auth');
@@ -129,6 +130,13 @@ describe('api-key-auth', () => {
 
 			const result = await authenticateApiKey(request);
 			expect(result).toEqual({ projectId: 7, keyId: 42 });
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 42],
+					['key_hash', hashApiKey('tmk_0123456789abcdef0123456789abcdef')],
+					['project_id', 7]
+				])
+			);
 		});
 
 		it('should trim whitespace from key', async () => {

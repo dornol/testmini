@@ -165,6 +165,21 @@ describe('MCP module tools', () => {
 				})
 			);
 		});
+
+		it('should return error when module insert returns no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'create-module',
+				arguments: { name: 'Auth Module', description: 'Authentication tests' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create module'
+			);
+		});
 	});
 
 	// ── delete-module ────────────────────────────────────

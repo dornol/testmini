@@ -64,6 +64,7 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create module');
 			return ok(created);
 		}
 	);

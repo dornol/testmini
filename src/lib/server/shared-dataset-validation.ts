@@ -7,12 +7,24 @@ const MAX_ROW_COUNT = 1000;
 const MAX_ROW_VALUE_LENGTH = 5000;
 const MAX_ROWS_JSON_LENGTH = 200000;
 const UNSAFE_DATASET_PARAMETER_NAMES = new Set(['__proto__', 'constructor', 'prototype']);
+export const SHARED_DATASET_FIELDS = new Set(['name', 'parameters', 'rows']);
+export const SHARED_DATASET_LINK_FIELDS = new Set(['testCaseId']);
 
 export function validateRequestBody(body: unknown): Record<string, unknown> | Response {
 	if (!body || typeof body !== 'object' || Array.isArray(body)) {
 		return badRequest('Invalid request body');
 	}
 	return body as Record<string, unknown>;
+}
+
+export function validateRequestFields(
+	body: Record<string, unknown>,
+	allowedFields: Set<string>
+): Response | null {
+	if (Object.keys(body).some((key) => !allowedFields.has(key))) {
+		return badRequest('Invalid shared data set field');
+	}
+	return null;
 }
 
 export function validateDataSetName(value: unknown): string | Response {

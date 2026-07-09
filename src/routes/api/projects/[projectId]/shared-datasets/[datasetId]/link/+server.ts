@@ -5,7 +5,12 @@ import { eq, and, asc } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
-import { validateDataSetRows, validateRequestBody } from '$lib/server/shared-dataset-validation';
+import {
+	SHARED_DATASET_LINK_FIELDS,
+	validateDataSetRows,
+	validateRequestFields,
+	validateRequestBody
+} from '$lib/server/shared-dataset-validation';
 import { parseCanonicalPositiveInteger } from '$lib/server/search-param-validation';
 
 function parsePositiveInteger(value: unknown, label: string): number | Response {
@@ -37,6 +42,8 @@ export const POST = withProjectRole(
 
 		const bodyOrError = validateRequestBody(await parseJsonBody(request));
 		if (bodyOrError instanceof Response) return bodyOrError;
+		const fieldError = validateRequestFields(bodyOrError, SHARED_DATASET_LINK_FIELDS);
+		if (fieldError) return fieldError;
 
 		if (bodyOrError.testCaseId === undefined || bodyOrError.testCaseId === null) {
 			return badRequest('testCaseId is required');

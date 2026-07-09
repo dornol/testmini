@@ -132,6 +132,21 @@ describe('/api/projects/[projectId]/shared-datasets', () => {
 			expect((await response.json()).error).toContain('Invalid request body');
 		});
 
+		it('should return 400 when body has unknown fields', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'DS', parameters: ['a'], rows: [], owner: 'qa' },
+				user: testUser
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid shared data set field');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when parameters contain non-strings', async () => {
 			const event = createMockEvent({
 				method: 'POST',

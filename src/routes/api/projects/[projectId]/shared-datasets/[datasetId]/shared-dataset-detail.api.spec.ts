@@ -100,15 +100,7 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 			);
 		});
 
-		it('should succeed with no updates when body is empty', async () => {
-			(
-				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
-			).findFirst.mockResolvedValue({
-				id: 10,
-				name: 'Name',
-				projectId: 1
-			});
-
+		it('should return 400 when no fields are provided', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -116,22 +108,15 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 				user: testUser
 			});
 			const response = await PATCH(event);
-			expect(response.status).toBe(200);
-			const body = await response.json();
-			expect(body.success).toBe(true);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('No fields to update');
+			expect(
+				(mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }).findFirst
+			).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when body is not an object', async () => {
-			(
-				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
-			).findFirst.mockResolvedValue({
-				id: 10,
-				name: 'Name',
-				projectId: 1,
-				parameters: ['user'],
-				rows: []
-			});
-
 			const event = createMockEvent({
 				method: 'PATCH',
 				params: PARAMS,
@@ -143,6 +128,28 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Invalid request body');
+			expect(
+				(mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }).findFirst
+			).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when body has unknown fields', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Updated', owner: 'qa' },
+				user: testUser
+			});
+
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid shared data set field');
+			expect(
+				(mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }).findFirst
+			).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when updated name is empty', async () => {

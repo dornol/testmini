@@ -4,11 +4,13 @@ import { sharedDataSet } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
-import { notFound } from '$lib/server/errors';
+import { badRequest, notFound } from '$lib/server/errors';
 import {
+	SHARED_DATASET_FIELDS,
 	validateDataSetName,
 	validateDataSetParameters,
 	validateDataSetRows,
+	validateRequestFields,
 	validateRequestBody
 } from '$lib/server/shared-dataset-validation';
 
@@ -17,13 +19,16 @@ export const PATCH = withProjectRole(
 	async ({ params, request, projectId }) => {
 		const datasetId = parseId(params.datasetId, 'dataset ID');
 
+		const bodyOrError = validateRequestBody(await parseJsonBody(request));
+		if (bodyOrError instanceof Response) return bodyOrError;
+		const fieldError = validateRequestFields(bodyOrError, SHARED_DATASET_FIELDS);
+		if (fieldError) return fieldError;
+		if (Object.keys(bodyOrError).length === 0) return badRequest('No fields to update');
+
 		const ds = await db.query.sharedDataSet.findFirst({
 			where: and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId))
 		});
 		if (!ds) return notFound('Shared data set not found');
-
-		const bodyOrError = validateRequestBody(await parseJsonBody(request));
-		if (bodyOrError instanceof Response) return bodyOrError;
 
 		const updates: Record<string, unknown> = {};
 
@@ -47,12 +52,12 @@ export const PATCH = withProjectRole(
 			updates.rows = rowsOrError;
 		}
 
-		if (Object.keys(updates).length > 0) {
-			await db
-				.update(sharedDataSet)
-				.set(updates)
-				.where(and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId)));
-		}
+		if (Object.keys(updates).length === 0) return badRequest('No fields to update');
+
+		await db
+			.update(sharedDataSet)
+			.set(updates)
+			.where(and(eq(sharedDataSet.id, datasetId), eq(sharedDataSet.projectId, projectId)));
 
 		return json({ success: true });
 	}

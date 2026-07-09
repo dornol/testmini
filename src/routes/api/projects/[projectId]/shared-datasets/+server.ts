@@ -5,9 +5,11 @@ import { eq, asc } from 'drizzle-orm';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import {
+	SHARED_DATASET_FIELDS,
 	validateDataSetName,
 	validateDataSetParameters,
 	validateDataSetRows,
+	validateRequestFields,
 	validateRequestBody
 } from '$lib/server/shared-dataset-validation';
 
@@ -26,6 +28,8 @@ export const POST = withProjectRole(
 	async ({ request, user, projectId }) => {
 		const bodyOrError = validateRequestBody(await parseJsonBody(request));
 		if (bodyOrError instanceof Response) return bodyOrError;
+		const fieldError = validateRequestFields(bodyOrError, SHARED_DATASET_FIELDS);
+		if (fieldError) return fieldError;
 
 		const nameOrError = validateDataSetName(bodyOrError.name);
 		if (nameOrError instanceof Response) return nameOrError;

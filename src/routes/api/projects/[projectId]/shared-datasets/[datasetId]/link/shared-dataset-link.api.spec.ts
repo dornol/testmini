@@ -99,9 +99,6 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 	});
 
 	it('should return 400 when body is not an object', async () => {
-		(mockDb.query.sharedDataSet.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
-			sampleSharedDataSet
-		);
 		const event = createMockEvent({
 			method: 'POST',
 			params: PARAMS,
@@ -113,6 +110,26 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]/link', () => {
 
 		expect(response.status).toBe(400);
 		expect((await response.json()).error).toContain('Invalid request body');
+		expect(mockDb.query.sharedDataSet.findFirst).not.toHaveBeenCalled();
+		expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+		expect(mockDb.insert).not.toHaveBeenCalled();
+	});
+
+	it('should return 400 when body has unknown fields', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { testCaseId: 10, mode: 'append' },
+			user: testUser
+		});
+
+		const response = await POST(event);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toContain('Invalid shared data set field');
+		expect(mockDb.query.sharedDataSet.findFirst).not.toHaveBeenCalled();
+		expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+		expect(mockDb.insert).not.toHaveBeenCalled();
 	});
 
 	it('should return 400 when testCaseId is invalid', async () => {

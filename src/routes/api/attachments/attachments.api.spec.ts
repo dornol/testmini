@@ -200,6 +200,26 @@ describe('/api/attachments', () => {
 			await expect(POST(event)).rejects.toThrow();
 		});
 
+		it('should reject empty file names before saving file', async () => {
+			const formData = createFileFormData({ name: '   ', type: 'image/png' });
+			const event = createMockEvent({ method: 'POST', formData, user: testUser });
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+			expect(authUtils.requireProjectAccess).not.toHaveBeenCalled();
+			expect(storage.saveFile).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject overlong file names before saving file', async () => {
+			const formData = createFileFormData({ name: `${'a'.repeat(256)}.png`, type: 'image/png' });
+			const event = createMockEvent({ method: 'POST', formData, user: testUser });
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+			expect(authUtils.requireProjectAccess).not.toHaveBeenCalled();
+			expect(storage.saveFile).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should reject oversized multipart bodies before parsing form data', async () => {
 			const formData = vi.fn();
 			const baseEvent = createMockEvent({ method: 'POST', user: testUser }) as Record<

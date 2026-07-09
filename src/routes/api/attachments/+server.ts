@@ -12,6 +12,7 @@ import {
 import { assertMultipartContentLength } from '$lib/server/multipart-limits';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_NAME_LENGTH = 255;
 const ALLOWED_MIME_TYPES = [
 	'image/jpeg',
 	'image/png',
@@ -41,6 +42,18 @@ function parseReferenceId(value: FormDataEntryValue | string | null): number {
 	}
 
 	return referenceId;
+}
+
+function validateFileName(name: string): string {
+	const fileName = name.trim();
+	if (!fileName) {
+		error(400, 'File name is required');
+	}
+	if (fileName.length > MAX_FILE_NAME_LENGTH) {
+		error(400, `File name must be ${MAX_FILE_NAME_LENGTH} characters or less`);
+	}
+
+	return fileName;
 }
 
 export const GET = withAuth(async ({ url, user }) => {
@@ -91,11 +104,12 @@ export const POST = withAuth(async ({ request, user }) => {
 	if (!ALLOWED_MIME_TYPES.includes(file.type)) {
 		error(400, 'File type not allowed');
 	}
+	const fileName = validateFileName(file.name);
 
 	const projectId = await getProjectIdForAttachmentReference(referenceType, referenceId);
 	await requireProjectAccess(user, projectId);
 
-	const objectKey = generateObjectKey(referenceType, referenceId, file.name);
+	const objectKey = generateObjectKey(referenceType, referenceId, fileName);
 	const buffer = Buffer.from(await file.arrayBuffer());
 
 	await saveFile(objectKey, buffer);
@@ -107,7 +121,7 @@ export const POST = withAuth(async ({ request, user }) => {
 			.values({
 				referenceType,
 				referenceId,
-				fileName: file.name,
+				fileName,
 				contentType: file.type || null,
 				objectKey,
 				fileSize: file.size,

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockInsertReturning, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockInsertReturning,
+	mockSelectResult
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -8,8 +12,14 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	module: {
-		id: 'id', projectId: 'project_id', name: 'name', parentModuleId: 'parent_module_id',
-		description: 'description', sortOrder: 'sort_order', createdBy: 'created_by', createdAt: 'created_at'
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		parentModuleId: 'parent_module_id',
+		description: 'description',
+		sortOrder: 'sort_order',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
 	},
 	moduleTestCase: { id: 'id', moduleId: 'module_id', testCaseId: 'test_case_id' }
 }));
@@ -17,13 +27,16 @@ vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args),
 	sql: Object.assign(
-		(strings: TemplateStringsArray, ...values: unknown[]) => ({ as: () => ({ sql: strings, values }) }),
+		(strings: TemplateStringsArray, ...values: unknown[]) => ({
+			as: () => ({ sql: strings, values })
+		}),
 		{ raw: (s: string) => s }
 	)
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -92,6 +105,24 @@ describe('/api/projects/[projectId]/modules', () => {
 			expect(data.parentModuleId).toBe(1);
 		});
 
+		it('should trim name and blank description before creating', async () => {
+			const created = { id: 3, name: 'Billing', parentModuleId: null, description: null };
+			const insertChain = mockInsertReturning(mockDb, [created]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: '  Billing  ', description: '   ' },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(201);
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({ name: 'Billing', description: null })
+			);
+		});
+
 		it('should return 400 for missing name', async () => {
 			const event = createMockEvent({
 				method: 'POST',
@@ -112,6 +143,32 @@ describe('/api/projects/[projectId]/modules', () => {
 			});
 			const response = await POST(event);
 			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 for whitespace-only name', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: '   ' },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for unsafe parent module ID', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Login', parentModuleId: Number.MAX_SAFE_INTEGER + 1 },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return 401 for unauthenticated', async () => {

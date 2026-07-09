@@ -42,32 +42,41 @@ if (!building) {
 	startupPromise = startupWithRetry();
 
 	// Log cache stats every 5 minutes for monitoring
-	setInterval(() => {
-		const stats = cacheStats();
-		if (stats.hits + stats.misses > 0) {
-			logger.info({ ...stats, hitRate: Math.round(stats.hitRate * 100) + '%' }, 'cache stats');
-		}
-	}, 5 * 60 * 1000).unref();
+	setInterval(
+		() => {
+			const stats = cacheStats();
+			if (stats.hits + stats.misses > 0) {
+				logger.info({ ...stats, hitRate: Math.round(stats.hitRate * 100) + '%' }, 'cache stats');
+			}
+		},
+		5 * 60 * 1000
+	).unref();
 
 	// Graceful shutdown — drain connections on SIGTERM/SIGINT
 	const shutdown = async (signal: string) => {
 		logger.info({ signal }, 'Shutting down gracefully...');
 		try {
 			if (redis) await redis.quit();
-		} catch { /* ignore */ }
+		} catch {
+			/* ignore */
+		}
 		process.exit(0);
 	};
 	process.on('SIGTERM', () => shutdown('SIGTERM'));
 	process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
-const handleParaglide: Handle = ({ event, resolve }) => paraglideMiddleware(event.request, ({ request, locale }) => {
-	event.request = request;
+const handleParaglide: Handle = ({ event, resolve }) =>
+	paraglideMiddleware(event.request, ({ request, locale }) => {
+		event.request = request;
 
-	return resolve(event, {
-		transformPageChunk: ({ html }) => html.replace('%paraglide.lang%', locale).replace('%paraglide.dir%', getTextDirection(locale))
+		return resolve(event, {
+			transformPageChunk: ({ html }) =>
+				html
+					.replace('%paraglide.lang%', locale)
+					.replace('%paraglide.dir%', getTextDirection(locale))
+		});
 	});
-});
 
 const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	const session = await auth.api.getSession({ headers: event.request.headers });
@@ -192,7 +201,7 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 		const authHeader = event.request.headers.get('authorization');
 		const isApiKey = authHeader?.startsWith('Bearer tmk_') ?? false;
 
-		const limit = (isApiKey && rule.apiKeyLimit) ? rule.apiKeyLimit : rule.limit;
+		const limit = isApiKey && rule.apiKeyLimit ? rule.apiKeyLimit : rule.limit;
 		const key = isApiKey
 			? `${rule.label}:apikey:${pathname.split('/')[2] ?? 'unknown'}`
 			: `${rule.label}:${ip}`;
@@ -202,17 +211,59 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 		if (!result.allowed) {
 			const retryAfter = result.retryAfter ?? Math.ceil(rule.windowMs / 1000);
 			logger.warn({ ip, path: pathname, label: rule.label }, 'rate limited');
-			return new Response(
-				JSON.stringify({ error: 'Too Many Requests', retryAfter }),
-				{
-					status: 429,
-					headers: {
-						'Content-Type': 'application/json',
-						'Retry-After': String(retryAfter)
-					}
+			return new Response(JSON.stringify({ error: 'Too Many Requests', retryAfter }), {
+				status: 429,
+				headers: {
+					'Content-Type': 'application/json',
+					'Retry-After': String(retryAfter)
 				}
-			);
+			});
 		}
+	}
+
+	return resolve(event);
+};
+
+const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+const SAME_ORIGIN_EXEMPT_PATHS = ['/api/webhooks/issues', '/api/automation/webhook'];
+
+function isApiKeyRequest(request: Request): boolean {
+	return request.headers.get('authorization')?.startsWith('Bearer tmk_') ?? false;
+}
+
+function isSameOriginExemptPath(pathname: string): boolean {
+	return SAME_ORIGIN_EXEMPT_PATHS.some(
+		(path) => pathname === path || pathname.startsWith(`${path}/`)
+	);
+}
+
+const handleSameOrigin: Handle = async ({ event, resolve }) => {
+	const method = event.request.method.toUpperCase();
+	if (!UNSAFE_METHODS.has(method)) {
+		return resolve(event);
+	}
+
+	const { pathname, origin: requestOrigin } = event.url;
+	if (isApiKeyRequest(event.request) || isSameOriginExemptPath(pathname)) {
+		return resolve(event);
+	}
+
+	const origin = event.request.headers.get('origin');
+	if (!origin) {
+		return resolve(event);
+	}
+
+	let parsedOrigin: URL;
+	try {
+		parsedOrigin = new URL(origin);
+	} catch {
+		logger.warn({ method, path: pathname, origin }, 'Rejected unsafe request with invalid origin');
+		return new Response('Forbidden', { status: 403 });
+	}
+
+	if (parsedOrigin.origin !== requestOrigin) {
+		logger.warn({ method, path: pathname, origin }, 'Rejected cross-origin unsafe request');
+		return new Response('Forbidden', { status: 403 });
 	}
 
 	return resolve(event);
@@ -282,6 +333,7 @@ export const handle: Handle = sequence(
 	handleStartupGate,
 	handleRequestLogging,
 	handleParaglide,
+	handleSameOrigin,
 	handleRateLimit,
 	handleBetterAuth,
 	handleSecurityHeaders
@@ -303,13 +355,19 @@ export const handleError: HandleServerError = ({ error, event, status, message }
 						stack: error.stack,
 						name: error.name
 					};
-					if (error.cause) info.cause = error.cause instanceof Error
-						? { message: error.cause.message, name: error.cause.name }
-						: String(error.cause);
+					if (error.cause)
+						info.cause =
+							error.cause instanceof Error
+								? { message: error.cause.message, name: error.cause.name }
+								: String(error.cause);
 					return info;
 				}
 				// Drizzle and other libs may throw non-Error objects
-				try { return JSON.parse(JSON.stringify(error)); } catch { return { raw: String(error) }; }
+				try {
+					return JSON.parse(JSON.stringify(error));
+				} catch {
+					return { raw: String(error) };
+				}
 			})()
 		},
 		message ?? 'Unexpected server error'

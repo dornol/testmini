@@ -65,10 +65,12 @@ vi.mock('$lib/paraglide/runtime', () => ({
 }));
 
 vi.mock('$lib/paraglide/server', () => ({
-	paraglideMiddleware: vi.fn((_req: unknown, cb: (opts: { request: Request; locale: string }) => Response) => {
-		// Just pass through to the callback with the original request
-		return cb({ request: _req as Request, locale: 'en' });
-	})
+	paraglideMiddleware: vi.fn(
+		(_req: unknown, cb: (opts: { request: Request; locale: string }) => Response) => {
+			// Just pass through to the callback with the original request
+			return cb({ request: _req as Request, locale: 'en' });
+		}
+	)
 }));
 
 vi.mock('$lib/server/rate-limit', () => ({
@@ -115,12 +117,13 @@ function createMockEvent(overrides: {
 	url?: string;
 	method?: string;
 	pathname?: string;
+	headers?: HeadersInit;
 }) {
 	const url = overrides.url ?? `http://localhost:5173${overrides.pathname ?? '/dashboard'}`;
 	const method = overrides.method ?? 'GET';
 
 	return {
-		request: new Request(url, { method }),
+		request: new Request(url, { method, headers: overrides.headers }),
 		url: new URL(url),
 		locals: {} as Record<string, unknown>,
 		getClientAddress: () => '127.0.0.1',
@@ -363,6 +366,80 @@ describe('hooks.server.ts — request logging', () => {
 			expect.objectContaining({ status: 301 }),
 			'Request completed'
 		);
+	});
+});
+
+describe('hooks.server.ts — same-origin guard', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('should reject cross-origin unsafe requests before route handling', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			pathname: '/api/projects/1/tags',
+			headers: { origin: 'https://evil.example' }
+		});
+		const resolve = vi.fn(async () => new Response('ok'));
+
+		const response = await handle({ event: event as never, resolve: resolve as never });
+
+		expect(response.status).toBe(403);
+		expect(await response.text()).toBe('Forbidden');
+		expect(resolve).not.toHaveBeenCalled();
+		expect(mockLogger.warn).toHaveBeenCalledWith(
+			expect.objectContaining({
+				method: 'POST',
+				path: '/api/projects/1/tags',
+				origin: 'https://evil.example'
+			}),
+			'Rejected cross-origin unsafe request'
+		);
+	});
+
+	it('should allow same-origin unsafe requests', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			pathname: '/api/projects/1/tags',
+			headers: { origin: 'http://localhost:5173' }
+		});
+		const resolve = vi.fn(async () => new Response('ok'));
+
+		const response = await handle({ event: event as never, resolve: resolve as never });
+
+		expect(response.status).toBe(200);
+		expect(resolve).toHaveBeenCalledTimes(1);
+	});
+
+	it('should allow API key unsafe requests without same-origin origin', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			pathname: '/api/mcp',
+			headers: {
+				origin: 'https://automation.example',
+				authorization: 'Bearer tmk_test'
+			}
+		});
+		const resolve = vi.fn(async () => new Response('ok'));
+
+		const response = await handle({ event: event as never, resolve: resolve as never });
+
+		expect(response.status).toBe(200);
+		expect(resolve).toHaveBeenCalledTimes(1);
+	});
+
+	it('should allow external webhook receivers without same-origin origin', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			pathname: '/api/webhooks/issues',
+			headers: { origin: 'https://jira.example' }
+		});
+		const resolve = vi.fn(async () => new Response('ok'));
+
+		const response = await handle({ event: event as never, resolve: resolve as never });
+
+		expect(response.status).toBe(200);
+		expect(resolve).toHaveBeenCalledTimes(1);
 	});
 });
 

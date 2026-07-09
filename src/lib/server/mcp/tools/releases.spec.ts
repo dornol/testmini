@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockInsertReturning,
 	mockUpdateReturning
 } from '$lib/server/test-helpers/mock-db';
@@ -151,6 +152,21 @@ describe('MCP release tools', () => {
 			);
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
+
+		it('should return error when release insert returns no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'create-release',
+				arguments: { name: 'v1.0.0' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create release'
+			);
+		});
 	});
 
 	// ── update-release ───────────────────────────────────
@@ -194,6 +210,21 @@ describe('MCP release tools', () => {
 				'Invalid date'
 			);
 			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return error when release disappears before update', async () => {
+			mockDb.query.release.findFirst.mockResolvedValue(sampleRelease);
+			mockUpdateReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'update-release',
+				arguments: { releaseId: 300, status: 'READY' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Release not found'
+			);
 		});
 
 		it('should reject invalid IDs before updating', async () => {
@@ -245,6 +276,7 @@ describe('MCP release tools', () => {
 	describe('delete-release', () => {
 		it('should delete successfully', async () => {
 			mockDb.query.release.findFirst.mockResolvedValue(sampleRelease);
+			mockDeleteReturning(mockDb, [{ id: 300 }]);
 
 			const result = await client.callTool({
 				name: 'delete-release',
@@ -273,6 +305,21 @@ describe('MCP release tools', () => {
 			const result = await client.callTool({
 				name: 'delete-release',
 				arguments: { releaseId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Release not found'
+			);
+		});
+
+		it('should return error when release disappears before delete', async () => {
+			mockDb.query.release.findFirst.mockResolvedValue(sampleRelease);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-release',
+				arguments: { releaseId: 300 }
 			});
 
 			expect(result.isError).toBe(true);

@@ -58,6 +58,7 @@ export function registerTestCycleTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create test cycle');
 			return ok(created);
 		}
 	);
@@ -72,9 +73,11 @@ export function registerTestCycleTools(server: McpServer, projectId: number) {
 			});
 			if (!c) return err('Test cycle not found');
 
-			await db
+			const [deleted] = await db
 				.delete(testCycle)
-				.where(and(eq(testCycle.id, testCycleId), eq(testCycle.projectId, projectId)));
+				.where(and(eq(testCycle.id, testCycleId), eq(testCycle.projectId, projectId)))
+				.returning({ id: testCycle.id });
+			if (!deleted) return err('Test cycle not found');
 			return ok({ success: true, deletedId: testCycleId });
 		}
 	);
@@ -118,6 +121,7 @@ export function registerTestCycleTools(server: McpServer, projectId: number) {
 				.set(updates)
 				.where(and(eq(testCycle.id, testCycleId), eq(testCycle.projectId, projectId)))
 				.returning();
+			if (!updated) return err('Test cycle not found');
 			return ok(updated);
 		}
 	);

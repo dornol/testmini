@@ -70,6 +70,7 @@ export function registerReleaseTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create release');
 			return ok(created);
 		}
 	);
@@ -124,6 +125,7 @@ export function registerReleaseTools(server: McpServer, projectId: number) {
 				.where(and(eq(release.id, releaseId), eq(release.projectId, projectId)))
 				.returning();
 
+			if (!updated) return err('Release not found');
 			return ok(updated);
 		}
 	);
@@ -138,9 +140,11 @@ export function registerReleaseTools(server: McpServer, projectId: number) {
 			});
 			if (!r) return err('Release not found');
 
-			await db
+			const [deleted] = await db
 				.delete(release)
-				.where(and(eq(release.id, releaseId), eq(release.projectId, projectId)));
+				.where(and(eq(release.id, releaseId), eq(release.projectId, projectId)))
+				.returning({ id: release.id });
+			if (!deleted) return err('Release not found');
 			return {
 				content: [
 					{

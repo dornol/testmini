@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockInsertReturning,
 	mockSelectResult,
 	mockUpdateReturning
@@ -165,6 +166,22 @@ describe('MCP test cycle tools', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should return error when test cycle insert returns no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockSelectResult(mockDb, [{ maxNum: 0 }]);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'create-test-cycle',
+				arguments: { name: 'Cycle 1' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create test cycle'
+			);
+		});
+
 		it('should reject create date ranges where end is before start', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
 			mockSelectResult(mockDb, [{ maxNum: 0 }]);
@@ -187,6 +204,7 @@ describe('MCP test cycle tools', () => {
 	describe('delete-test-cycle', () => {
 		it('should delete successfully', async () => {
 			mockDb.query.testCycle.findFirst.mockResolvedValue(sampleCycle);
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'delete-test-cycle',
@@ -215,6 +233,21 @@ describe('MCP test cycle tools', () => {
 			const result = await client.callTool({
 				name: 'delete-test-cycle',
 				arguments: { testCycleId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test cycle not found'
+			);
+		});
+
+		it('should return error when test cycle disappears before delete', async () => {
+			mockDb.query.testCycle.findFirst.mockResolvedValue(sampleCycle);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-test-cycle',
+				arguments: { testCycleId: 1 }
 			});
 
 			expect(result.isError).toBe(true);
@@ -274,6 +307,21 @@ describe('MCP test cycle tools', () => {
 			const result = await client.callTool({
 				name: 'update-test-cycle',
 				arguments: { testCycleId: 999, name: 'Updated' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test cycle not found'
+			);
+		});
+
+		it('should return error when test cycle disappears before update', async () => {
+			mockDb.query.testCycle.findFirst.mockResolvedValue(sampleCycle);
+			mockUpdateReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'update-test-cycle',
+				arguments: { testCycleId: 1, name: 'Updated' }
 			});
 
 			expect(result.isError).toBe(true);

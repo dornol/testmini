@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createMockDb,
+	mockDeleteReturning,
 	mockSelectResult,
 	mockInsertReturning,
 	mockUpdateReturning
@@ -208,6 +209,23 @@ describe('MCP group tools', () => {
 				'Project not found'
 			);
 		});
+
+		it('should return error when group insert returns no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(null);
+			mockSelectResult(mockDb, [{ maxOrder: 0 }]);
+			mockInsertReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'create-group',
+				arguments: { name: 'Authentication' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create group'
+			);
+		});
 	});
 
 	// ── delete-group ─────────────────────────────────────
@@ -215,6 +233,7 @@ describe('MCP group tools', () => {
 	describe('delete-group', () => {
 		it('should delete group and unassign test cases', async () => {
 			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(sampleGroup);
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'delete-group',
@@ -245,6 +264,21 @@ describe('MCP group tools', () => {
 			const result = await client.callTool({
 				name: 'delete-group',
 				arguments: { groupId: 999 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Group not found'
+			);
+		});
+
+		it('should return error when group disappears before delete', async () => {
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(sampleGroup);
+			mockDeleteReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'delete-group',
+				arguments: { groupId: 1 }
 			});
 
 			expect(result.isError).toBe(true);
@@ -293,6 +327,21 @@ describe('MCP group tools', () => {
 
 			expect(result.isError).toBeFalsy();
 			expect(updateChain.set).toHaveBeenCalledWith({ color: null });
+		});
+
+		it('should return error when group disappears before update', async () => {
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(sampleGroup);
+			mockUpdateReturning(mockDb, []);
+
+			const result = await client.callTool({
+				name: 'update-group',
+				arguments: { groupId: 1, name: 'Updated' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Group not found'
+			);
 		});
 
 		it('should reject invalid colors before updating a group', async () => {

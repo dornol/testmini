@@ -70,6 +70,7 @@ export function registerGroupTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!created) return err('Failed to create group');
 			return ok(created);
 		}
 	);
@@ -90,9 +91,11 @@ export function registerGroupTools(server: McpServer, projectId: number) {
 				.set({ groupId: null })
 				.where(and(eq(testCase.projectId, projectId), eq(testCase.groupId, groupId)));
 
-			await db
+			const [deleted] = await db
 				.delete(testCaseGroup)
-				.where(and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId)));
+				.where(and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId)))
+				.returning({ id: testCaseGroup.id });
+			if (!deleted) return err('Group not found');
 			return ok({ success: true, deletedId: groupId });
 		}
 	);
@@ -140,6 +143,7 @@ export function registerGroupTools(server: McpServer, projectId: number) {
 				.set(updates)
 				.where(and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId)))
 				.returning();
+			if (!updated) return err('Group not found');
 			return ok(updated);
 		}
 	);

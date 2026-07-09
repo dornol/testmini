@@ -2020,6 +2020,7 @@ describe('MCP Server', () => {
 	describe('tool: delete-group', () => {
 		it('should delete a group', async () => {
 			mockDb.query.testCaseGroup.findFirst.mockResolvedValue({ id: 1, projectId: 1, name: 'Auth' });
+			mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({ name: 'delete-group', arguments: { groupId: 1 } });
 

@@ -255,6 +255,8 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 		})
 		.returning();
 
+	if (!created) error(500, 'Failed to create issue tracker config');
+
 	return json(
 		{
 			id: created.id,

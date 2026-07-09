@@ -453,6 +453,28 @@ describe('/api/projects/[projectId]/issue-tracker', () => {
 			expect(body.apiToken).toBeUndefined();
 		});
 
+		it('should return 500 when new config insert returns no row', async () => {
+			mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(null);
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					provider: 'JIRA',
+					baseUrl: 'https://company.atlassian.net',
+					apiToken: 'user@test.com:token',
+					projectKey: 'PROJ'
+				}
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({
+				status: 500,
+				body: { message: 'Failed to create issue tracker config' }
+			});
+		});
+
 		it('should update existing config', async () => {
 			mockDb.query.issueTrackerConfig.findFirst.mockResolvedValueOnce(sampleConfig);
 			const updateChain = mockUpdateReturning(mockDb, [

@@ -223,6 +223,23 @@ describe('/api/projects/[projectId]/custom-fields', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 when name contains control characters before DB reads', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Browser\u0000Field', fieldType: 'TEXT' },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('Name must not contain control characters');
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when fieldType is invalid', async () => {
 			const event = createMockEvent({
 				method: 'POST',
@@ -333,6 +350,23 @@ describe('/api/projects/[projectId]/custom-fields', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toMatch(/duplicates/i);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when options contain control characters before DB reads', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Field', fieldType: 'SELECT', options: ['Chrome', 'Fire\u0000fox'] },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('Options must not contain control characters');
+			expect(mockDb.select).not.toHaveBeenCalled();
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 

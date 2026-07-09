@@ -29,6 +29,7 @@ type CreateCustomFieldInput = CustomFieldInput & {
 const MAX_NAME_LENGTH = 200;
 const MAX_OPTIONS = 100;
 const MAX_OPTION_LENGTH = 200;
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 const CREATE_CUSTOM_FIELD_FIELDS = new Set(['name', 'fieldType', 'options', 'required']);
 const UPDATE_CUSTOM_FIELD_FIELDS = new Set(['name', 'options', 'required', 'sortOrder']);
 
@@ -114,6 +115,9 @@ function validateCustomFieldName(value: unknown, emptyMessage: string): string |
 		return badRequest(emptyMessage);
 	}
 	const name = value.trim();
+	if (CONTROL_CHAR_PATTERN.test(name)) {
+		return badRequest('Name must not contain control characters');
+	}
 	if (name.length > MAX_NAME_LENGTH) {
 		return badRequest(`Name must be ${MAX_NAME_LENGTH} characters or less`);
 	}
@@ -148,6 +152,9 @@ function validateOptions(value: unknown, fieldType?: CustomFieldType): string[] 
 			return badRequest('Options must contain non-empty strings');
 		}
 		const trimmed = option.trim();
+		if (CONTROL_CHAR_PATTERN.test(trimmed)) {
+			return badRequest('Options must not contain control characters');
+		}
 		if (trimmed.length > MAX_OPTION_LENGTH) {
 			return badRequest(`Options must be ${MAX_OPTION_LENGTH} characters or less`);
 		}

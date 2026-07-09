@@ -204,6 +204,22 @@ describe('MCP custom-field tools', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should reject field names with control characters before insert', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-custom-field',
+				arguments: { name: 'Browser\u0000Field', fieldType: 'TEXT' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Field name must not contain control characters'
+			);
+			expect(mockDb.query.customField.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should reject options for non-select fields', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
 
@@ -250,6 +266,26 @@ describe('MCP custom-field tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
 				'Options must not contain duplicates'
 			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject options with control characters before insert', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-custom-field',
+				arguments: {
+					name: 'Browser',
+					fieldType: 'SELECT',
+					options: ['Chrome', 'Fire\u0000fox']
+				}
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Options must not contain control characters'
+			);
+			expect(mockDb.query.customField.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 

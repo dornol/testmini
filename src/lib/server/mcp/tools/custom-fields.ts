@@ -18,10 +18,14 @@ const SELECT_FIELD_TYPES = new Set<string>(['SELECT', 'MULTI_SELECT']);
 const MAX_NAME_LENGTH = 80;
 const MAX_OPTIONS = 50;
 const MAX_OPTION_LENGTH = 100;
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 
 function validateFieldName(name: string): string | ReturnType<typeof err> {
 	const trimmed = name.trim();
 	if (!trimmed) return err('Field name is required');
+	if (CONTROL_CHAR_PATTERN.test(trimmed)) {
+		return err('Field name must not contain control characters');
+	}
 	if (trimmed.length > MAX_NAME_LENGTH) {
 		return err(`Field name must be ${MAX_NAME_LENGTH} characters or less`);
 	}
@@ -51,6 +55,9 @@ function validateOptions(
 	for (const option of options) {
 		const trimmed = option.trim();
 		if (!trimmed) return err('Options must not contain empty values');
+		if (CONTROL_CHAR_PATTERN.test(trimmed)) {
+			return err('Options must not contain control characters');
+		}
 		if (trimmed.length > MAX_OPTION_LENGTH) {
 			return err(`Options must be ${MAX_OPTION_LENGTH} characters or less`);
 		}

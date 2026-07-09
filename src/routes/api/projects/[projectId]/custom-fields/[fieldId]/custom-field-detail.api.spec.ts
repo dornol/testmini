@@ -88,6 +88,23 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should reject names with control characters before lookup', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { name: 'Browser\u0000Field' }
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('Name must not contain control characters');
+			expect(mockDb.query.customField.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when request body is not an object', async () => {
 			mockDb.query.customField.findFirst.mockResolvedValue(sampleField);
 
@@ -121,6 +138,23 @@ describe('/api/projects/[projectId]/custom-fields/[fieldId]', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toMatch(/duplicates/i);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject options with control characters before lookup', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { options: ['Chrome', 'Fire\u0000fox'] }
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('Options must not contain control characters');
+			expect(mockDb.query.customField.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 

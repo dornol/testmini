@@ -27,7 +27,8 @@ vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' })
@@ -73,6 +74,34 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/versions', () => {
 				user: testUser
 			});
 			await expect(GET(event)).rejects.toThrow();
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 when version params are not positive integers', async () => {
+			const cases = [
+				{ v1: 'abc', v2: '2' },
+				{ v1: '0', v2: '2' },
+				{ v1: '-1', v2: '2' },
+				{ v1: '1.5', v2: '2' },
+				{ v1: '1', v2: String(Number.MAX_SAFE_INTEGER + 1) }
+			];
+
+			for (const searchParams of cases) {
+				vi.clearAllMocks();
+				vi.mocked(authUtils.requireProjectAccess).mockResolvedValue({ role: 'QA' });
+
+				const event = createMockEvent({
+					method: 'GET',
+					params: PARAMS,
+					searchParams,
+					user: testUser
+				});
+
+				await expect(GET(event)).rejects.toMatchObject({ status: 400 });
+				expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+				expect(mockDb.select).not.toHaveBeenCalled();
+			}
 		});
 
 		it('should return version history', async () => {

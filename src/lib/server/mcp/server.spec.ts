@@ -1898,12 +1898,21 @@ describe('MCP Server', () => {
 				name: 'smoke',
 				color: '#ff0000'
 			});
+			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
+				const tx = {
+					delete: vi.fn().mockReturnValue({
+						where: vi.fn().mockReturnThis()
+					})
+				};
+				return fn(tx);
+			});
 
 			const result = await client.callTool({ name: 'delete-tag', arguments: { tagId: 1 } });
 
 			expect(result.isError).toBeFalsy();
 			const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
 			expect(parsed.success).toBe(true);
+			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 		});
 
 		it('should return error when tag not found', async () => {

@@ -66,8 +66,10 @@ export function registerTagTools(server: McpServer, projectId: number) {
 			});
 			if (!t) return err('Tag not found');
 
-			await db.delete(testCaseTag).where(eq(testCaseTag.tagId, tagId));
-			await db.delete(tag).where(and(eq(tag.id, tagId), eq(tag.projectId, projectId)));
+			await db.transaction(async (tx) => {
+				await tx.delete(testCaseTag).where(eq(testCaseTag.tagId, tagId));
+				await tx.delete(tag).where(and(eq(tag.id, tagId), eq(tag.projectId, projectId)));
+			});
 			return ok({ success: true, deletedId: tagId });
 		}
 	);

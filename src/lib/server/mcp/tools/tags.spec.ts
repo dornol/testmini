@@ -188,17 +188,8 @@ describe('MCP tag tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
-			// Should have called delete twice (testCaseTag then tag)
-			expect(mockDb.delete).toHaveBeenCalledTimes(2);
-			const tagDeleteChain = mockDb.delete.mock.results[1]?.value as {
-				where: ReturnType<typeof vi.fn>;
-			};
-			expect(tagDeleteChain.where).toHaveBeenCalledWith(
-				expect.arrayContaining([
-					['id', 1],
-					['project_id', 1]
-				])
-			);
+			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 
 		it('should return error when tag not found', async () => {
@@ -213,6 +204,7 @@ describe('MCP tag tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Tag not found'
 			);
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 	});
 

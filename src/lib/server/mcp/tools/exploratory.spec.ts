@@ -377,13 +377,8 @@ describe('MCP exploratory tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
-			expect(mockDb.delete).toHaveBeenCalledTimes(2);
-			expect(mockDb._chains.delete.where).toHaveBeenLastCalledWith(
-				expect.arrayContaining([
-					['id', 1],
-					['project_id', PROJECT_ID]
-				])
-			);
+			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 
 		it('should return error when session not found', async () => {
@@ -398,6 +393,7 @@ describe('MCP exploratory tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Session not found'
 			);
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
 		it('should reject invalid IDs before deleting', async () => {

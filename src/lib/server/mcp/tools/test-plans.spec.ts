@@ -439,7 +439,7 @@ describe('MCP test-plan tools', () => {
 				environment: 'QA',
 				createdBy: 'user-1'
 			};
-			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
 				let insertCallCount = 0;
 				const tx = {
 					insert: vi.fn().mockImplementation(() => {
@@ -515,13 +515,8 @@ describe('MCP test-plan tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
-			expect(mockDb.delete).toHaveBeenCalledTimes(2);
-			expect(mockDb._chains.delete.where).toHaveBeenLastCalledWith(
-				expect.arrayContaining([
-					['id', 1],
-					['project_id', PROJECT_ID]
-				])
-			);
+			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+			expect(mockDb.delete).not.toHaveBeenCalled();
 		});
 
 		it('should return error when plan not found', async () => {
@@ -536,6 +531,7 @@ describe('MCP test-plan tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Test plan not found'
 			);
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 	});
 

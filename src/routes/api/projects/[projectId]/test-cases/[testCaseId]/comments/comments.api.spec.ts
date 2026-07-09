@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser, sampleTestCase } from '$lib/server/test-helpers/fixtures';
 
@@ -29,7 +33,8 @@ vi.mock('drizzle-orm', () => ({
 	isNull: vi.fn((a: unknown) => ['isNull', a])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' }),
@@ -191,6 +196,20 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments', () => {
 			expect(body.error).toMatch(/content/i);
 		});
 
+		it('should return 400 when request body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: ['New comment'],
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/request body/i);
+		});
+
 		it('should validate parentId belongs to same test case', async () => {
 			// parentId given but findFirst returns null (not found on this test case)
 			mockDb.query.testCaseComment.findFirst.mockResolvedValue(null);
@@ -206,6 +225,21 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments', () => {
 
 			expect(response.status).toBe(400);
 			expect(body.error).toMatch(/parent/i);
+		});
+
+		it('should reject invalid parentId without querying for a parent comment', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { content: 'Reply comment', parentId: 0 },
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/parentId must be a positive integer/);
+			expect(mockDb.query.testCaseComment.findFirst).not.toHaveBeenCalled();
 		});
 
 		it('should create a reply when parentId belongs to the same test case', async () => {

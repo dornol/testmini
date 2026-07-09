@@ -1,6 +1,11 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testCaseComment, testCaseAssignee, projectMember, user as userTable } from '$lib/server/db/schema';
+import {
+	testCaseComment,
+	testCaseAssignee,
+	projectMember,
+	user as userTable
+} from '$lib/server/db/schema';
 import { eq, and, asc, isNull } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
@@ -8,6 +13,7 @@ import { requireTestCase } from '$lib/server/queries';
 import { badRequest } from '$lib/server/errors';
 import { createNotification } from '$lib/server/notifications';
 import { validateCommentContent } from '$lib/server/crud-helpers';
+import { validatePositiveInteger, validateRequestBody } from '$lib/server/id-list-validation';
 
 /** Extract @mentioned names from comment content */
 function extractMentions(content: string): string[] {
@@ -41,101 +47,110 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 	return json(comments);
 });
 
-export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, user, projectId }) => {
-	const testCaseId = parseId(params.testCaseId, 'test case ID');
-	const tc = await requireTestCase(testCaseId, projectId);
+export const POST = withProjectRole(
+	['PROJECT_ADMIN', 'QA', 'DEV'],
+	async ({ params, request, user, projectId }) => {
+		const testCaseId = parseId(params.testCaseId, 'test case ID');
+		const tc = await requireTestCase(testCaseId, projectId);
 
-	const body = await parseJsonBody(request);
-	const { content: rawContent, parentId } = body as { content?: string; parentId?: number };
+		const bodyOrError = validateRequestBody(await parseJsonBody(request));
+		if (bodyOrError instanceof Response) return bodyOrError;
+		const { content: rawContent, parentId: rawParentId } = bodyOrError;
 
-	const contentOrError = validateCommentContent(rawContent);
-	if (contentOrError instanceof Response) return contentOrError;
-	const content = contentOrError;
+		const contentOrError = validateCommentContent(rawContent);
+		if (contentOrError instanceof Response) return contentOrError;
+		const content = contentOrError;
 
-	// If parentId given, verify it's a top-level comment on this test case
-	if (parentId != null) {
-		const parent = await db.query.testCaseComment.findFirst({
-			where: and(
-				eq(testCaseComment.id, parentId),
-				eq(testCaseComment.testCaseId, testCaseId),
-				isNull(testCaseComment.parentId)
-			)
-		});
+		// If parentId given, verify it's a top-level comment on this test case
+		let parentId: number | null = null;
+		if (rawParentId != null) {
+			const parentIdOrError = validatePositiveInteger(rawParentId, 'parentId');
+			if (parentIdOrError instanceof Response) return parentIdOrError;
+			parentId = parentIdOrError;
 
-		if (!parent) {
-			return badRequest('Parent comment not found or is already a reply');
-		}
-	}
-
-	const [inserted] = await db
-		.insert(testCaseComment)
-		.values({
-			testCaseId,
-			userId: user.id,
-			content,
-			parentId: parentId ?? null
-		})
-		.returning();
-
-	// Notify assignees (exclude comment author)
-	const assignees = await db
-		.select({ userId: testCaseAssignee.userId })
-		.from(testCaseAssignee)
-		.where(eq(testCaseAssignee.testCaseId, testCaseId));
-
-	const notifiedUserIds = new Set<string>([user.id]);
-
-	for (const a of assignees) {
-		if (!notifiedUserIds.has(a.userId)) {
-			notifiedUserIds.add(a.userId);
-			createNotification({
-				userId: a.userId,
-				type: 'COMMENT_ADDED',
-				title: 'New comment',
-				message: `${user.name ?? 'Someone'} commented on ${tc.key}`,
-				link: `/projects/${projectId}/test-cases/${testCaseId}`,
-				projectId
+			const parent = await db.query.testCaseComment.findFirst({
+				where: and(
+					eq(testCaseComment.id, parentId),
+					eq(testCaseComment.testCaseId, testCaseId),
+					isNull(testCaseComment.parentId)
+				)
 			});
+
+			if (!parent) {
+				return badRequest('Parent comment not found or is already a reply');
+			}
 		}
-	}
 
-	// Notify @mentioned users (only project members, exclude already notified)
-	const mentionedNames = extractMentions(content);
-	if (mentionedNames.length > 0) {
-		const members = await db
-			.select({ userId: projectMember.userId, userName: userTable.name })
-			.from(projectMember)
-			.innerJoin(userTable, eq(projectMember.userId, userTable.id))
-			.where(eq(projectMember.projectId, projectId));
+		const [inserted] = await db
+			.insert(testCaseComment)
+			.values({
+				testCaseId,
+				userId: user.id,
+				content,
+				parentId
+			})
+			.returning();
 
-		for (const name of mentionedNames) {
-			const member = members.find((m) => m.userName?.toLowerCase() === name.toLowerCase());
-			if (member && !notifiedUserIds.has(member.userId)) {
-				notifiedUserIds.add(member.userId);
+		// Notify assignees (exclude comment author)
+		const assignees = await db
+			.select({ userId: testCaseAssignee.userId })
+			.from(testCaseAssignee)
+			.where(eq(testCaseAssignee.testCaseId, testCaseId));
+
+		const notifiedUserIds = new Set<string>([user.id]);
+
+		for (const a of assignees) {
+			if (!notifiedUserIds.has(a.userId)) {
+				notifiedUserIds.add(a.userId);
 				createNotification({
-					userId: member.userId,
-					type: 'MENTION',
-					title: 'You were mentioned',
-					message: `${user.name ?? 'Someone'} mentioned you in a comment on ${tc.key}`,
+					userId: a.userId,
+					type: 'COMMENT_ADDED',
+					title: 'New comment',
+					message: `${user.name ?? 'Someone'} commented on ${tc.key}`,
 					link: `/projects/${projectId}/test-cases/${testCaseId}`,
 					projectId
 				});
 			}
 		}
+
+		// Notify @mentioned users (only project members, exclude already notified)
+		const mentionedNames = extractMentions(content);
+		if (mentionedNames.length > 0) {
+			const members = await db
+				.select({ userId: projectMember.userId, userName: userTable.name })
+				.from(projectMember)
+				.innerJoin(userTable, eq(projectMember.userId, userTable.id))
+				.where(eq(projectMember.projectId, projectId));
+
+			for (const name of mentionedNames) {
+				const member = members.find((m) => m.userName?.toLowerCase() === name.toLowerCase());
+				if (member && !notifiedUserIds.has(member.userId)) {
+					notifiedUserIds.add(member.userId);
+					createNotification({
+						userId: member.userId,
+						type: 'MENTION',
+						title: 'You were mentioned',
+						message: `${user.name ?? 'Someone'} mentioned you in a comment on ${tc.key}`,
+						link: `/projects/${projectId}/test-cases/${testCaseId}`,
+						projectId
+					});
+				}
+			}
+		}
+
+		// Return with user info
+		const userData = await db.query.user.findFirst({
+			where: eq(userTable.id, user.id)
+		});
+
+		return json(
+			{
+				...inserted,
+				userName: userData?.name ?? null,
+				userEmail: userData?.email ?? null,
+				userImage: userData?.image ?? null
+			},
+			{ status: 201 }
+		);
 	}
-
-	// Return with user info
-	const userData = await db.query.user.findFirst({
-		where: eq(userTable.id, user.id)
-	});
-
-	return json(
-		{
-			...inserted,
-			userName: userData?.name ?? null,
-			userEmail: userData?.email ?? null,
-			userImage: userData?.image ?? null
-		},
-		{ status: 201 }
-	);
-});
+);

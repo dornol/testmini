@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -38,9 +42,8 @@ vi.mock('drizzle-orm', () => ({
 	isNull: vi.fn((a: unknown) => a)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -152,6 +155,21 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 			expect((await response.json()).error).toContain('Content is required');
 		});
 
+		it('should reject non-object request body', async () => {
+			mockSelectResult(mockDb, [{ id: 200 }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: ['A comment']
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Invalid request body');
+		});
+
 		it('should reject content exceeding 10000 characters', async () => {
 			mockSelectResult(mockDb, [{ id: 200 }]);
 
@@ -181,6 +199,22 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 			const response = await POST(event);
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Parent comment not found');
+		});
+
+		it('should reject invalid parentId without querying for a parent comment', async () => {
+			mockSelectResult(mockDb, [{ id: 200 }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { content: 'Reply text', parentId: -1 }
+			});
+
+			const response = await POST(event);
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('parentId must be a positive integer');
+			expect(mockDb.query.executionComment.findFirst).not.toHaveBeenCalled();
 		});
 
 		it('should create comment successfully', async () => {
@@ -259,9 +293,20 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 function createChainResolving(result: unknown[]) {
 	const chain: Record<string, unknown> = {};
 	const methods = [
-		'from', 'where', 'orderBy', 'limit', 'offset',
-		'innerJoin', 'leftJoin', 'groupBy', 'as',
-		'set', 'values', 'returning', 'onConflictDoNothing', 'onConflictDoUpdate'
+		'from',
+		'where',
+		'orderBy',
+		'limit',
+		'offset',
+		'innerJoin',
+		'leftJoin',
+		'groupBy',
+		'as',
+		'set',
+		'values',
+		'returning',
+		'onConflictDoNothing',
+		'onConflictDoUpdate'
 	];
 	for (const m of methods) {
 		chain[m] = vi.fn().mockImplementation(() => chain);

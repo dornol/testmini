@@ -1,14 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockDb } from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
-import { testUser, adminUser, sampleTestRun, sampleExecution } from '$lib/server/test-helpers/fixtures';
+import {
+	testUser,
+	adminUser,
+	sampleTestRun,
+	sampleExecution
+} from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
-	testExecution: { id: 'id', testRunId: 'test_run_id', testCaseVersionId: 'test_case_version_id', status: 'status', executedBy: 'executed_by', executedAt: 'executed_at' },
-	testRun: { id: 'id', projectId: 'project_id', name: 'name', status: 'status', startedAt: 'started_at' },
+	testExecution: {
+		id: 'id',
+		testRunId: 'test_run_id',
+		testCaseVersionId: 'test_case_version_id',
+		status: 'status',
+		executedBy: 'executed_by',
+		executedAt: 'executed_at'
+	},
+	testRun: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		status: 'status',
+		startedAt: 'started_at'
+	},
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id' },
 	testCase: { id: 'id', key: 'key' },
 	testCaseAssignee: { testCaseId: 'test_case_id', userId: 'user_id' }
@@ -23,7 +41,8 @@ vi.mock('drizzle-orm', () => ({
 	)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
@@ -44,7 +63,9 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 		mockDb.query.testRun.findFirst = vi.fn().mockResolvedValue(sampleTestRun);
 		mockDb.query.testExecution = { findFirst: vi.fn().mockResolvedValue(sampleExecution) };
-		mockDb.query.testCaseVersion = { findFirst: vi.fn().mockResolvedValue({ id: 1, testCaseId: 10 }) };
+		mockDb.query.testCaseVersion = {
+			findFirst: vi.fn().mockResolvedValue({ id: 1, testCaseId: 10 })
+		};
 		mockDb.query.testCase = { findFirst: vi.fn().mockResolvedValue({ id: 10, key: 'TC-0001' }) };
 
 		const updateChain = {
@@ -99,6 +120,30 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 				method: 'PUT',
 				params: PARAMS,
 				body: { status: 'INVALID_STATUS' },
+				user: adminUser
+			});
+			await expect(PUT(event)).rejects.toThrow();
+		});
+
+		it('should return 400 when request body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: ['PASS'],
+				user: adminUser
+			});
+			const response = await PUT(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toMatch(/request body/i);
+		});
+
+		it('should return 400 when status is not a string', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: PARAMS,
+				body: { status: 1 },
 				user: adminUser
 			});
 			await expect(PUT(event)).rejects.toThrow();
@@ -173,8 +218,12 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 				vi.clearAllMocks();
 				mockDb.query.testRun.findFirst = vi.fn().mockResolvedValue(sampleTestRun);
 				mockDb.query.testExecution = { findFirst: vi.fn().mockResolvedValue(sampleExecution) };
-				mockDb.query.testCaseVersion = { findFirst: vi.fn().mockResolvedValue({ id: 1, testCaseId: 10 }) };
-				mockDb.query.testCase = { findFirst: vi.fn().mockResolvedValue({ id: 10, key: 'TC-0001' }) };
+				mockDb.query.testCaseVersion = {
+					findFirst: vi.fn().mockResolvedValue({ id: 1, testCaseId: 10 })
+				};
+				mockDb.query.testCase = {
+					findFirst: vi.fn().mockResolvedValue({ id: 10, key: 'TC-0001' })
+				};
 
 				const updateChain = {
 					set: vi.fn().mockReturnThis(),

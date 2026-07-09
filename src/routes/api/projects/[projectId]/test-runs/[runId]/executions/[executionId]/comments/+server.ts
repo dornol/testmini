@@ -6,6 +6,7 @@ import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
 import { validateCommentContent } from '$lib/server/crud-helpers';
+import { validatePositiveInteger, validateRequestBody } from '$lib/server/id-list-validation';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const runId = parseId(params.runId, 'run ID');
@@ -16,11 +17,13 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 		.select({ id: testExecution.id })
 		.from(testExecution)
 		.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
-		.where(and(
-			eq(testExecution.id, executionId),
-			eq(testExecution.testRunId, runId),
-			eq(testRun.projectId, projectId)
-		))
+		.where(
+			and(
+				eq(testExecution.id, executionId),
+				eq(testExecution.testRunId, runId),
+				eq(testRun.projectId, projectId)
+			)
+		)
 		.limit(1);
 
 	if (exec.length === 0) error(404, 'Execution not found');
@@ -46,63 +49,74 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 	return json(comments);
 });
 
-export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ params, request, user, projectId }) => {
-	const runId = parseId(params.runId, 'run ID');
-	const executionId = parseId(params.executionId, 'execution ID');
+export const POST = withProjectRole(
+	['PROJECT_ADMIN', 'QA', 'DEV'],
+	async ({ params, request, user, projectId }) => {
+		const runId = parseId(params.runId, 'run ID');
+		const executionId = parseId(params.executionId, 'execution ID');
 
-	// Verify execution belongs to run in this project
-	const exec = await db
-		.select({ id: testExecution.id })
-		.from(testExecution)
-		.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
-		.where(and(
-			eq(testExecution.id, executionId),
-			eq(testExecution.testRunId, runId),
-			eq(testRun.projectId, projectId)
-		))
-		.limit(1);
-
-	if (exec.length === 0) error(404, 'Execution not found');
-
-	const body = await parseJsonBody(request);
-	const { content: rawContent, parentId } = body as { content?: string; parentId?: number };
-
-	const contentOrError = validateCommentContent(rawContent);
-	if (contentOrError instanceof Response) return contentOrError;
-	const content = contentOrError;
-
-	if (parentId != null) {
-		const parent = await db.query.executionComment.findFirst({
-			where: and(
-				eq(executionComment.id, parentId),
-				eq(executionComment.testExecutionId, executionId),
-				isNull(executionComment.parentId)
+		// Verify execution belongs to run in this project
+		const exec = await db
+			.select({ id: testExecution.id })
+			.from(testExecution)
+			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
+			.where(
+				and(
+					eq(testExecution.id, executionId),
+					eq(testExecution.testRunId, runId),
+					eq(testRun.projectId, projectId)
+				)
 			)
+			.limit(1);
+
+		if (exec.length === 0) error(404, 'Execution not found');
+
+		const bodyOrError = validateRequestBody(await parseJsonBody(request));
+		if (bodyOrError instanceof Response) return bodyOrError;
+		const { content: rawContent, parentId: rawParentId } = bodyOrError;
+
+		const contentOrError = validateCommentContent(rawContent);
+		if (contentOrError instanceof Response) return contentOrError;
+		const content = contentOrError;
+
+		let parentId: number | null = null;
+		if (rawParentId != null) {
+			const parentIdOrError = validatePositiveInteger(rawParentId, 'parentId');
+			if (parentIdOrError instanceof Response) return parentIdOrError;
+			parentId = parentIdOrError;
+
+			const parent = await db.query.executionComment.findFirst({
+				where: and(
+					eq(executionComment.id, parentId),
+					eq(executionComment.testExecutionId, executionId),
+					isNull(executionComment.parentId)
+				)
+			});
+			if (!parent) return badRequest('Parent comment not found or is already a reply');
+		}
+
+		const [inserted] = await db
+			.insert(executionComment)
+			.values({
+				testExecutionId: executionId,
+				userId: user.id,
+				content,
+				parentId
+			})
+			.returning();
+
+		const userData = await db.query.user.findFirst({
+			where: eq(userTable.id, user.id)
 		});
-		if (!parent) return badRequest('Parent comment not found or is already a reply');
+
+		return json(
+			{
+				...inserted,
+				userName: userData?.name ?? null,
+				userEmail: userData?.email ?? null,
+				userImage: userData?.image ?? null
+			},
+			{ status: 201 }
+		);
 	}
-
-	const [inserted] = await db
-		.insert(executionComment)
-		.values({
-			testExecutionId: executionId,
-			userId: user.id,
-			content,
-			parentId: parentId ?? null
-		})
-		.returning();
-
-	const userData = await db.query.user.findFirst({
-		where: eq(userTable.id, user.id)
-	});
-
-	return json(
-		{
-			...inserted,
-			userName: userData?.name ?? null,
-			userEmail: userData?.email ?? null,
-			userImage: userData?.image ?? null
-		},
-		{ status: 201 }
-	);
-});
+);

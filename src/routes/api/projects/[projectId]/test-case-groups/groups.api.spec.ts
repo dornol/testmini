@@ -251,5 +251,26 @@ describe('/api/projects/[projectId]/test-case-groups', () => {
 			expect(response.status).toBe(201);
 			expect(data.color).toBeNull();
 		});
+
+		it('should return 500 when group insert returns no row', async () => {
+			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(null);
+			mockDb.select.mockReturnValueOnce({
+				from: vi.fn().mockReturnValue({
+					where: vi.fn().mockReturnValue({
+						then: (r: (v: unknown) => void) => Promise.resolve([{ maxOrder: 0 }]).then(r)
+					})
+				})
+			} as never);
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Group D' },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
 	});
 });

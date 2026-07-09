@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { customField } from '$lib/server/db/schema';
 import { eq, asc } from 'drizzle-orm';
@@ -37,6 +37,8 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 			createdBy: user.id
 		})
 		.returning();
+
+	if (!inserted) error(500, 'Failed to create custom field');
 
 	return json(inserted, { status: 201 });
 });

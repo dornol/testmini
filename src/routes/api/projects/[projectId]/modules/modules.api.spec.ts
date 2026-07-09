@@ -141,6 +141,19 @@ describe('/api/projects/[projectId]/modules', () => {
 			);
 		});
 
+		it('should return 500 when module insert returns no row', async () => {
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { name: 'Auth' },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
 		it('should return 400 for missing name', async () => {
 			const event = createMockEvent({
 				method: 'POST',

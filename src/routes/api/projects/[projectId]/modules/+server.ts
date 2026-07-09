@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db, col } from '$lib/server/db';
 import { module, moduleTestCase } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
@@ -63,6 +63,8 @@ export const POST = withProjectRole(
 				createdBy: currentUser.id
 			})
 			.returning();
+
+		if (!created) error(500, 'Failed to create module');
 
 		return json(created, { status: 201 });
 	}

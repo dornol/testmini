@@ -185,6 +185,20 @@ describe('/api/projects/[projectId]/custom-fields', () => {
 			expect(data.options).toEqual(['Low', 'Medium', 'High']);
 		});
 
+		it('should return 500 when custom field insert returns no row', async () => {
+			mockSelectResult(mockDb, [{ max: 0 }]);
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Description', fieldType: 'TEXT' },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
 		it('should return 400 when name is missing', async () => {
 			const event = createMockEvent({
 				method: 'POST',

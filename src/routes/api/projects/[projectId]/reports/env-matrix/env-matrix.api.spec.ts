@@ -196,4 +196,54 @@ describe('/api/projects/[projectId]/reports/env-matrix', () => {
 		expect(body.envStats).toBeDefined();
 		expect(body.envSpecificFailures).toBeDefined();
 	});
+
+	it('uses the execution version testCaseId so historical versions are included', async () => {
+		let callCount = 0;
+		mockDb.select.mockImplementation(() => {
+			callCount++;
+			const data =
+				callCount === 1
+					? [
+							{ id: 1, name: 'QA Run', environment: 'QA' },
+							{ id: 2, name: 'Staging Run', environment: 'STAGING' }
+						]
+					: [
+							{
+								runId: 1,
+								testCaseVersionId: 100,
+								status: 'PASS',
+								title: 'Historical Login Test',
+								testCaseId: 10
+							}
+						];
+			const chain: Record<string, unknown> = {};
+			for (const m of ['from', 'where', 'orderBy', 'innerJoin', 'leftJoin', 'groupBy']) {
+				chain[m] = vi.fn().mockReturnValue(chain);
+			}
+			chain.then = (r: (v: unknown) => void) => Promise.resolve(data).then(r);
+			return chain;
+		});
+
+		const event = createMockEvent({
+			params: PARAMS,
+			user: testUser,
+			searchParams: { runIds: '1,2' }
+		});
+
+		const response = await GET(event);
+
+		expect(response.status).toBe(200);
+		expect(mockDb.select).toHaveBeenNthCalledWith(
+			2,
+			expect.objectContaining({ testCaseId: 'test_case_id' })
+		);
+		const body = await response.json();
+		expect(body.matrix).toEqual([
+			{
+				testCaseId: 10,
+				title: 'Historical Login Test',
+				results: { QA: 'PASS' }
+			}
+		]);
+	});
 });

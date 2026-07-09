@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testRun, testExecution, testCaseVersion } from '$lib/server/db/schema';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
 
@@ -57,7 +57,7 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 			testCaseVersionId: testExecution.testCaseVersionId,
 			status: testExecution.status,
 			title: testCaseVersion.title,
-			testCaseId: sql<number>`(select id from test_case where latest_version_id = ${testExecution.testCaseVersionId} limit 1)::int`
+			testCaseId: testCaseVersion.testCaseId
 		})
 		.from(testExecution)
 		.innerJoin(testCaseVersion, eq(testCaseVersion.id, testExecution.testCaseVersionId))

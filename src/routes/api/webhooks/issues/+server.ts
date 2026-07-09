@@ -184,25 +184,37 @@ export const POST: RequestHandler = async ({ request }) => {
 		);
 
 	if (configs.length === 0) {
-		log.debug({ provider: event.provider, repoKey: event.repoKey }, 'No matching issue tracker config');
+		log.debug(
+			{ provider: event.provider, repoKey: event.repoKey },
+			'No matching issue tracker config'
+		);
 		return json({ received: true, matched: 0 });
 	}
 
 	let totalUpdated = 0;
-	const retestCaseIds: number[] = [];
+	const retestCaseIdsByProject = new Map<number, Set<number>>();
 
 	for (const config of configs) {
 		// Verify webhook signature if secret is configured
 		if (config.webhookSecret) {
 			let valid = false;
 			if (event.provider === 'GITHUB') {
-				valid = verifySignature(config.webhookSecret, rawBody, request.headers.get('x-hub-signature-256'));
+				valid = verifySignature(
+					config.webhookSecret,
+					rawBody,
+					request.headers.get('x-hub-signature-256')
+				);
 			} else if (event.provider === 'GITEA') {
 				// Gitea uses X-Gitea-Signature with HMAC-SHA256 (hex, no prefix)
 				const sig = request.headers.get('x-gitea-signature');
-				const expected = crypto.createHmac('sha256', config.webhookSecret).update(rawBody).digest('hex');
+				const expected = crypto
+					.createHmac('sha256', config.webhookSecret)
+					.update(rawBody)
+					.digest('hex');
 				try {
-					valid = sig ? crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(sig, 'hex')) : false;
+					valid = sig
+						? crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(sig, 'hex'))
+						: false;
 				} catch {
 					valid = false;
 				}
@@ -212,7 +224,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 
 			if (!valid) {
-				log.warn({ projectId: config.projectId, provider: event.provider }, 'Webhook signature verification failed');
+				log.warn(
+					{ projectId: config.projectId, provider: event.provider },
+					'Webhook signature verification failed'
+				);
 				continue;
 			}
 		}
@@ -226,10 +241,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				and(
 					eq(issueLink.projectId, config.projectId),
 					eq(issueLink.provider, event.provider),
-					or(
-						eq(issueLink.externalUrl, event.issueUrl),
-						eq(issueLink.externalKey, externalKey)
-					)
+					or(eq(issueLink.externalUrl, event.issueUrl), eq(issueLink.externalKey, externalKey))
 				)
 			);
 
@@ -242,37 +254,48 @@ export const POST: RequestHandler = async ({ request }) => {
 				status: event.issueState,
 				statusSyncedAt: new Date()
 			})
-			.where(inArray(issueLink.id, linkIds));
+			.where(and(eq(issueLink.projectId, config.projectId), inArray(issueLink.id, linkIds)));
 
 		totalUpdated += links.length;
 
 		// Track test cases that need retesting when issue is resolved
 		if (stateToCategory(event.issueState) === 'done') {
 			for (const link of links) {
-				if (link.testCaseId) retestCaseIds.push(link.testCaseId);
+				if (link.testCaseId) {
+					const ids = retestCaseIdsByProject.get(config.projectId) ?? new Set<number>();
+					ids.add(link.testCaseId);
+					retestCaseIdsByProject.set(config.projectId, ids);
+				}
 			}
 		}
 	}
 
 	// Mark linked test cases as retest needed
-	if (retestCaseIds.length > 0) {
+	let retestMarked = 0;
+	for (const [projectId, caseIds] of retestCaseIdsByProject) {
+		const ids = [...caseIds];
+		if (ids.length === 0) continue;
 		await db
 			.update(testCase)
 			.set({ retestNeeded: true })
-			.where(inArray(testCase.id, retestCaseIds));
+			.where(and(eq(testCase.projectId, projectId), inArray(testCase.id, ids)));
+		retestMarked += ids.length;
 	}
 
-	log.info({
-		provider: event.provider,
-		issueNumber: event.issueNumber,
-		state: event.issueState,
-		updated: totalUpdated,
-		retestMarked: retestCaseIds.length
-	}, 'Issue webhook processed');
+	log.info(
+		{
+			provider: event.provider,
+			issueNumber: event.issueNumber,
+			state: event.issueState,
+			updated: totalUpdated,
+			retestMarked
+		},
+		'Issue webhook processed'
+	);
 
 	return json({
 		received: true,
 		updated: totalUpdated,
-		retestMarked: retestCaseIds.length
+		retestMarked
 	});
 };

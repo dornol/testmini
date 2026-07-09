@@ -25,7 +25,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		enabled: 'enabled',
 		webhookSecret: 'webhook_secret'
 	},
-	testCase: { id: 'id', retestNeeded: 'retest_needed' }
+	testCase: { id: 'id', projectId: 'project_id', retestNeeded: 'retest_needed' }
 }));
 
 vi.mock('drizzle-orm', () => ({
@@ -144,12 +144,7 @@ function makeGiteaIssuePayload(
 		repoFullName?: string;
 	} = {}
 ) {
-	const {
-		action = 'opened',
-		state = 'open',
-		number = 7,
-		repoFullName = 'org/myrepo'
-	} = overrides;
+	const { action = 'opened', state = 'open', number = 7, repoFullName = 'org/myrepo' } = overrides;
 	return {
 		action,
 		number,
@@ -287,10 +282,7 @@ describe('/api/webhooks/issues POST', () => {
 		});
 
 		it('acknowledges GitHub ping event', async () => {
-			const event = createWebhookRequest(
-				{ zen: 'Keep it simple' },
-				{ 'x-github-event': 'ping' }
-			);
+			const event = createWebhookRequest({ zen: 'Keep it simple' }, { 'x-github-event': 'ping' });
 
 			const response = await POST(event);
 			const data = await response.json();
@@ -301,10 +293,7 @@ describe('/api/webhooks/issues POST', () => {
 		});
 
 		it('returns "Event type not handled" for unrecognized events', async () => {
-			const event = createWebhookRequest(
-				{ action: 'completed' },
-				{ 'x-github-event': 'push' }
-			);
+			const event = createWebhookRequest({ action: 'completed' }, { 'x-github-event': 'push' });
 
 			const response = await POST(event);
 			const data = await response.json();
@@ -335,15 +324,20 @@ describe('/api/webhooks/issues POST', () => {
 			expect(data.updated).toBe(1);
 			// update was called for issueLink status
 			expect(mockDb.update).toHaveBeenCalled();
+			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['project_id', 1],
+					['id', [100]]
+				])
+			);
 		});
 
 		it('returns matched:0 when no config matches repo', async () => {
 			setupDbChain([]);
 
-			const event = createWebhookRequest(
-				makeGitHubIssuePayload({ repoFullName: 'unknown/repo' }),
-				{ 'x-github-event': 'issues' }
-			);
+			const event = createWebhookRequest(makeGitHubIssuePayload({ repoFullName: 'unknown/repo' }), {
+				'x-github-event': 'issues'
+			});
 
 			const response = await POST(event);
 			const data = await response.json();
@@ -436,7 +430,8 @@ describe('/api/webhooks/issues POST', () => {
 
 			const event = createWebhookRequest(makeGitHubIssuePayload(), {
 				'x-github-event': 'issues',
-				'x-hub-signature-256': 'sha256=invalidsignature0000000000000000000000000000000000000000000000'
+				'x-hub-signature-256':
+					'sha256=invalidsignature0000000000000000000000000000000000000000000000'
 			});
 
 			const response = await POST(event);
@@ -585,6 +580,12 @@ describe('/api/webhooks/issues POST', () => {
 			expect(data.retestMarked).toBe(1);
 			// update should have been called twice: once for issueLink, once for testCase
 			expect(mockDb.update).toHaveBeenCalledTimes(2);
+			expect(mockDb._chains.update.where).toHaveBeenLastCalledWith(
+				expect.arrayContaining([
+					['project_id', 1],
+					['id', [55]]
+				])
+			);
 		});
 
 		it('does NOT set retestNeeded when issue is opened', async () => {
@@ -610,10 +611,7 @@ describe('/api/webhooks/issues POST', () => {
 
 	describe('edge cases', () => {
 		it('handles multiple configs matching the same repo', async () => {
-			const configs = [
-				makeConfig({ projectId: 1 }),
-				makeConfig({ projectId: 2 })
-			];
+			const configs = [makeConfig({ projectId: 1 }), makeConfig({ projectId: 2 })];
 			const link1 = makeIssueLink({ id: 100, projectId: 1, testCaseId: 10 });
 			const link2 = makeIssueLink({ id: 200, projectId: 2, testCaseId: 20 });
 
@@ -636,6 +634,18 @@ describe('/api/webhooks/issues POST', () => {
 			expect(response.status).toBe(200);
 			expect(data.updated).toBe(2);
 			expect(data.retestMarked).toBe(2);
+			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['project_id', 1],
+					['id', [10]]
+				])
+			);
+			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['project_id', 2],
+					['id', [20]]
+				])
+			);
 		});
 
 		it('no-ops gracefully when no issue links match', async () => {

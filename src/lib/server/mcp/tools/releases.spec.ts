@@ -147,7 +147,7 @@ describe('MCP release tools', () => {
 
 			expect(result.isError).toBe(true);
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
-				'Invalid release date'
+				'Invalid date'
 			);
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
@@ -191,7 +191,7 @@ describe('MCP release tools', () => {
 
 			expect(result.isError).toBe(true);
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
-				'Invalid release date'
+				'Invalid date'
 			);
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});

@@ -274,6 +274,32 @@ describe('/api/projects/[projectId]/releases/[releaseId]', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 for invalid target date before update', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { targetDate: 'not-a-date' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for invalid release date before update', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { releaseDate: 'not-a-date' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 404 when release not found', async () => {
 			(
 				mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>

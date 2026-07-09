@@ -1,12 +1,16 @@
 import { z } from 'zod';
 
+const releaseDateStringSchema = z
+	.string()
+	.refine((value) => !value || !Number.isNaN(new Date(value).getTime()), 'Invalid date');
+
 export const createReleaseSchema = z.object({
 	name: z.string().min(1).max(200),
 	version: z.string().max(100).optional(),
 	description: z.string().max(2000).optional(),
 	status: z.enum(['PLANNING', 'IN_PROGRESS', 'READY', 'RELEASED']).optional(),
-	targetDate: z.string().optional(),
-	releaseDate: z.string().optional()
+	targetDate: releaseDateStringSchema.optional(),
+	releaseDate: releaseDateStringSchema.optional()
 });
 
 export const updateReleaseSchema = z.object({
@@ -14,8 +18,8 @@ export const updateReleaseSchema = z.object({
 	version: z.string().max(100).nullable().optional(),
 	description: z.string().max(2000).nullable().optional(),
 	status: z.enum(['PLANNING', 'IN_PROGRESS', 'READY', 'RELEASED']).optional(),
-	targetDate: z.string().nullable().optional(),
-	releaseDate: z.string().nullable().optional()
+	targetDate: releaseDateStringSchema.nullable().optional(),
+	releaseDate: releaseDateStringSchema.nullable().optional()
 });
 
 export type CreateReleaseInput = z.infer<typeof createReleaseSchema>;

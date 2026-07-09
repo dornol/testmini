@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser } from '$lib/server/test-helpers/fixtures';
 
@@ -37,7 +41,8 @@ vi.mock('drizzle-orm', () => ({
 	count: vi.fn()
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -198,6 +203,32 @@ describe('/api/projects/[projectId]/releases', () => {
 			const response = await POST(event);
 
 			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 for invalid target date before insert', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'v1.0', targetDate: 'not-a-date' },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for invalid release date before insert', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'v1.0', releaseDate: 'not-a-date' },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return 401 when unauthenticated', async () => {

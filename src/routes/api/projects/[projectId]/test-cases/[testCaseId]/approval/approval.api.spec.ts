@@ -145,6 +145,24 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/approval', () => {
 				...sampleTestCase,
 				approvalStatus: 'DRAFT'
 			});
+			const txUpdateWhere = vi.fn().mockReturnValue({
+				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+			});
+			mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
+				const tx = {
+					update: vi.fn().mockReturnValue({
+						set: vi.fn().mockReturnValue({
+							where: txUpdateWhere
+						})
+					}),
+					insert: vi.fn().mockReturnValue({
+						values: vi.fn().mockReturnValue({
+							then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+						})
+					})
+				};
+				return fn(tx);
+			});
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -161,6 +179,12 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/approval', () => {
 			expect(body.fromStatus).toBe('DRAFT');
 
 			expect(mockDb.transaction).toHaveBeenCalled();
+			expect(txUpdateWhere).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 10],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should reject if not in DRAFT status', async () => {

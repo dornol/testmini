@@ -101,7 +101,7 @@ export const POST = withProjectRole(
 			await tx
 				.update(testCase)
 				.set({ approvalStatus: transition.to })
-				.where(eq(testCase.id, testCaseId));
+				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
 
 			await tx.insert(approvalHistory).values({
 				testCaseId,

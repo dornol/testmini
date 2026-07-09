@@ -11,7 +11,9 @@ export function registerApprovalTools(server: McpServer, projectId: number) {
 		'Update test case approval status (DRAFT → IN_REVIEW → APPROVED/REJECTED)',
 		{
 			testCaseId: z.number().describe('Test case ID'),
-			toStatus: z.enum(['DRAFT', 'IN_REVIEW', 'APPROVED', 'REJECTED']).describe('New approval status'),
+			toStatus: z
+				.enum(['DRAFT', 'IN_REVIEW', 'APPROVED', 'REJECTED'])
+				.describe('New approval status'),
 			comment: z.string().optional().describe('Approval comment')
 		},
 		async ({ testCaseId: tcId, toStatus, comment: approvalComment }) => {
@@ -29,7 +31,7 @@ export function registerApprovalTools(server: McpServer, projectId: number) {
 				await tx
 					.update(testCase)
 					.set({ approvalStatus: toStatus })
-					.where(eq(testCase.id, tcId));
+					.where(and(eq(testCase.id, tcId), eq(testCase.projectId, projectId)));
 
 				await tx.insert(approvalHistory).values({
 					testCaseId: tcId,

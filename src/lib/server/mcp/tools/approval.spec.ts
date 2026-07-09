@@ -8,14 +8,22 @@ vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql 
 vi.mock('$lib/server/db/schema', () => ({
 	project: { id: 'id', createdBy: 'created_by' },
 	testCase: { id: 'id', projectId: 'project_id', key: 'key', approvalStatus: 'approval_status' },
-	approvalHistory: { id: 'id', testCaseId: 'test_case_id', fromStatus: 'from_status', toStatus: 'to_status', comment: 'comment', userId: 'user_id', createdAt: 'created_at' }
+	approvalHistory: {
+		id: 'id',
+		testCaseId: 'test_case_id',
+		fromStatus: 'from_status',
+		toStatus: 'to_status',
+		comment: 'comment',
+		userId: 'user_id',
+		createdAt: 'created_at'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('../helpers', async () => {
-	const actual = await vi.importActual('../helpers') as Record<string, unknown>;
+	const actual = (await vi.importActual('../helpers')) as Record<string, unknown>;
 	return { ...actual };
 });
 
@@ -61,15 +69,19 @@ describe('MCP approval tools', () => {
 
 	describe('update-approval-status', () => {
 		it('should update approval status from DRAFT to IN_REVIEW', async () => {
-			mockDb.query.testCase.findFirst.mockResolvedValue({ ...sampleTestCase, approvalStatus: 'DRAFT' });
+			mockDb.query.testCase.findFirst.mockResolvedValue({
+				...sampleTestCase,
+				approvalStatus: 'DRAFT'
+			});
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			const txUpdateWhere = vi.fn().mockReturnValue({
+				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+			});
 			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
 				const tx = {
 					update: vi.fn().mockReturnValue({
 						set: vi.fn().mockReturnValue({
-							where: vi.fn().mockReturnValue({
-								then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
-							})
+							where: txUpdateWhere
 						})
 					}),
 					insert: vi.fn().mockReturnValue({
@@ -92,6 +104,12 @@ describe('MCP approval tools', () => {
 			expect(parsed.testCaseId).toBe(10);
 			expect(parsed.fromStatus).toBe('DRAFT');
 			expect(parsed.toStatus).toBe('IN_REVIEW');
+			expect(txUpdateWhere).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 10],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when test case not found', async () => {
@@ -103,7 +121,9 @@ describe('MCP approval tools', () => {
 			});
 
 			expect(result.isError).toBe(true);
-			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe('Test case not found');
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Test case not found'
+			);
 		});
 	});
 });

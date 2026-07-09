@@ -196,6 +196,32 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 			expect((await response.json()).error).toContain('Name is required');
 		});
 
+		it('should return 400 when updated name contains control characters before updating', async () => {
+			(
+				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
+			).findFirst.mockResolvedValue({
+				id: 10,
+				name: 'Name',
+				projectId: 1,
+				parameters: ['user'],
+				rows: []
+			});
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Login\u0000Data' },
+				user: testUser
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('Name must not contain control characters');
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when updated rows contain unknown parameters', async () => {
 			(
 				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
@@ -248,6 +274,32 @@ describe('/api/projects/[projectId]/shared-datasets/[datasetId]', () => {
 				expect((await response.json()).error).toContain('unsafe name');
 				expect(mockDb.update).not.toHaveBeenCalled();
 			}
+		});
+
+		it('should return 400 when updated parameters contain control characters before updating', async () => {
+			(
+				mockDb.query.sharedDataSet as { findFirst: ReturnType<typeof vi.fn> }
+			).findFirst.mockResolvedValue({
+				id: 10,
+				name: 'Name',
+				projectId: 1,
+				parameters: ['user'],
+				rows: []
+			});
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { parameters: ['user', 'pass\u0000word'] },
+				user: testUser
+			});
+
+			const response = await PATCH(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('Parameters must not contain control characters');
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});
 

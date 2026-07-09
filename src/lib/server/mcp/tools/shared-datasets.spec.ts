@@ -178,6 +178,21 @@ describe('MCP shared-dataset tools', () => {
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
+		it('should reject names with control characters before creating a shared dataset', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-shared-dataset',
+				arguments: { name: 'Login\u0000Data', parameters: ['col1'] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Name must not contain control characters'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should reject duplicate parameters before creating a shared dataset', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
 
@@ -189,6 +204,21 @@ describe('MCP shared-dataset tools', () => {
 			expect(result.isError).toBe(true);
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Parameters must be unique'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject parameters with control characters before creating a shared dataset', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-shared-dataset',
+				arguments: { name: 'Dataset', parameters: ['user', 'pass\u0000word'] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Parameters must not contain control characters'
 			);
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
@@ -359,6 +389,21 @@ describe('MCP shared-dataset tools', () => {
 			expect(result.isError).toBe(true);
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toContain(
 				'unknown parameter'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject parameters with control characters before updating', async () => {
+			mockDb.query.sharedDataSet.findFirst.mockResolvedValue(sampleDataset);
+
+			const result = await client.callTool({
+				name: 'update-shared-dataset',
+				arguments: { datasetId: 1, parameters: ['user', 'pass\u0000word'] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Parameters must not contain control characters'
 			);
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});

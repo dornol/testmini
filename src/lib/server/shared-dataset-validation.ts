@@ -8,6 +8,7 @@ const MAX_ROW_COUNT = 1000;
 const MAX_ROW_VALUE_LENGTH = 5000;
 const MAX_ROWS_JSON_LENGTH = 200000;
 const UNSAFE_DATASET_PARAMETER_NAMES = new Set(['__proto__', 'constructor', 'prototype']);
+const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 export const SHARED_DATASET_FIELDS = new Set(['name', 'parameters', 'rows']);
 export const SHARED_DATASET_LINK_FIELDS = new Set(['testCaseId']);
 
@@ -34,6 +35,9 @@ export function validateDataSetName(value: unknown): string | Response {
 	}
 	const name = value.trim();
 	if (!name) return badRequest('Name is required');
+	if (CONTROL_CHAR_PATTERN.test(name)) {
+		return badRequest('Name must not contain control characters');
+	}
 	if (name.length > MAX_NAME_LENGTH) {
 		return badRequest(`Name must be ${MAX_NAME_LENGTH} characters or less`);
 	}
@@ -56,6 +60,9 @@ export function validateDataSetParameters(value: unknown): string[] | Response {
 		}
 		const trimmed = parameter.trim();
 		if (!trimmed) return badRequest('Parameters must not be empty');
+		if (CONTROL_CHAR_PATTERN.test(trimmed)) {
+			return badRequest('Parameters must not contain control characters');
+		}
 		if (trimmed.length > MAX_PARAMETER_LENGTH) {
 			return badRequest(`Parameters must be ${MAX_PARAMETER_LENGTH} characters or less`);
 		}

@@ -96,6 +96,21 @@ describe('/api/projects/[projectId]/shared-datasets', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 when name contains control characters before inserting', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Login\u0000Data', parameters: ['user'], rows: [] },
+				user: testUser
+			});
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('Name must not contain control characters');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 when parameters is empty', async () => {
 			const event = createMockEvent({
 				method: 'POST',
@@ -159,6 +174,22 @@ describe('/api/projects/[projectId]/shared-datasets', () => {
 
 			expect(response.status).toBe(400);
 			expect((await response.json()).error).toContain('Parameters must be strings');
+		});
+
+		it('should return 400 when parameters contain control characters before inserting', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'DS', parameters: ['user', 'pass\u0000word'], rows: [] },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const body = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(body.error).toBe('Parameters must not contain control characters');
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when parameters are duplicated after trimming', async () => {

@@ -7,11 +7,36 @@ const mockDb = createMockDb();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
-	project: { id: 'id', name: 'name', description: 'description', active: 'active', createdBy: 'created_by', createdAt: 'created_at' },
+	project: {
+		id: 'id',
+		name: 'name',
+		description: 'description',
+		active: 'active',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
 	projectMember: { projectId: 'project_id', userId: 'user_id', role: 'role' },
 	auditLog: { id: 'id' },
-	priorityConfig: { id: 'id', projectId: 'project_id', name: 'name', color: 'color', position: 'position', isDefault: 'is_default', createdBy: 'created_by', createdAt: 'created_at' },
-	environmentConfig: { id: 'id', projectId: 'project_id', name: 'name', color: 'color', position: 'position', isDefault: 'is_default', createdBy: 'created_by', createdAt: 'created_at' }
+	priorityConfig: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		color: 'color',
+		position: 'position',
+		isDefault: 'is_default',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	},
+	environmentConfig: {
+		id: 'id',
+		projectId: 'project_id',
+		name: 'name',
+		color: 'color',
+		position: 'position',
+		isDefault: 'is_default',
+		createdBy: 'created_by',
+		createdAt: 'created_at'
+	}
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
@@ -29,6 +54,7 @@ vi.mock('drizzle-orm', () => ({
 
 // Import after mocks
 const { GET, POST } = await import('./+server');
+const drizzle = await import('drizzle-orm');
 
 describe('/api/projects', () => {
 	beforeEach(() => {
@@ -65,6 +91,26 @@ describe('/api/projects', () => {
 			expect(data.meta).toMatchObject({ page: 1, limit: 12 });
 		});
 
+		it('should cap large limit values and calculate offset from validated page', async () => {
+			const projectsChain = mockSelectResult(mockDb, []);
+			mockDb.select.mockReturnValueOnce(projectsChain as never);
+			const countChain = mockSelectResult(mockDb, [{ total: 0 }]);
+			mockDb.select.mockReturnValueOnce(countChain as never);
+
+			const event = createMockEvent({
+				method: 'GET',
+				user: adminUser,
+				searchParams: { page: '3', limit: '999' }
+			});
+			const response = await GET(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.meta).toMatchObject({ page: 3, limit: 50 });
+			expect(projectsChain.limit).toHaveBeenCalledWith(50);
+			expect(projectsChain.offset).toHaveBeenCalledWith(100);
+		});
+
 		it('should apply search parameter', async () => {
 			mockDb.select.mockImplementation(() => {
 				return mockSelectResult(mockDb, []) as never;
@@ -80,6 +126,70 @@ describe('/api/projects', () => {
 
 			expect(response.status).toBe(200);
 			expect(data.data).toEqual([]);
+		});
+
+		it('should trim search before applying filter', async () => {
+			mockDb.select.mockImplementation(() => {
+				return mockSelectResult(mockDb, []) as never;
+			});
+
+			const event = createMockEvent({
+				method: 'GET',
+				user: adminUser,
+				searchParams: { search: '  test  ' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(drizzle.ilike).toHaveBeenCalledWith('name', '%test%');
+		});
+
+		it('should return 400 for invalid page before querying projects', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: adminUser,
+				searchParams: { page: 'abc' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for zero limit before querying projects', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: adminUser,
+				searchParams: { limit: '0' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for unsafe page before querying projects', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: adminUser,
+				searchParams: { page: String(Number.MAX_SAFE_INTEGER + 1) }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for overlong search before querying projects', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				user: adminUser,
+				searchParams: { search: 'a'.repeat(101) }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 
 		it('should filter by active=false', async () => {
@@ -142,8 +252,7 @@ describe('/api/projects', () => {
 					returning: vi.fn().mockResolvedValue([created]),
 					then: undefined as unknown
 				};
-				txInsertChain.then = (r: (v: unknown) => void) =>
-					Promise.resolve([created]).then(r);
+				txInsertChain.then = (r: (v: unknown) => void) => Promise.resolve([created]).then(r);
 				const tx = {
 					insert: vi.fn().mockReturnValue(txInsertChain)
 				};

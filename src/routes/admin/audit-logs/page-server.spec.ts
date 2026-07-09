@@ -108,10 +108,11 @@ describe('admin/audit-logs +page.server', () => {
 			expect(selectChain.offset).toHaveBeenCalledWith(100);
 		});
 
-		it.each(['-5', '0', '1.5', 'Infinity', '9007199254740992'])(
+		it.each(['-5', '0', '+1', '01', '1.5', '1e3', ' 1', '1 ', 'Infinity', '9007199254740992'])(
 			'should normalize invalid page %s to 1',
 			async (page) => {
-				const url = new URL(`http://localhost:5173/admin/audit-logs?page=${page}`);
+				const url = new URL('http://localhost:5173/admin/audit-logs');
+				url.searchParams.set('page', page);
 				const selectChain = mockSelectResult(mockDb, []);
 
 				const result = (await load({ url } as never)) as Record<string, unknown>;
@@ -120,16 +121,26 @@ describe('admin/audit-logs +page.server', () => {
 			}
 		);
 
-		it.each(['abc', '0', '-1', '1.5', 'Infinity', '9007199254740992'])(
-			'should ignore invalid projectId %s',
-			async (projectId) => {
-				const url = new URL(`http://localhost:5173/admin/audit-logs?projectId=${projectId}`);
-				mockSelectResult(mockDb, []);
+		it.each([
+			'abc',
+			'0',
+			'-1',
+			'+1',
+			'01',
+			'1.5',
+			'1e3',
+			' 1',
+			'1 ',
+			'Infinity',
+			'9007199254740992'
+		])('should ignore invalid projectId %s', async (projectId) => {
+			const url = new URL('http://localhost:5173/admin/audit-logs');
+			url.searchParams.set('projectId', projectId);
+			mockSelectResult(mockDb, []);
 
-				const result = (await load({ url } as never)) as Record<string, unknown>;
-				expect((result.filters as Record<string, unknown>).projectId).toBe('');
-			}
-		);
+			const result = (await load({ url } as never)) as Record<string, unknown>;
+			expect((result.filters as Record<string, unknown>).projectId).toBe('');
+		});
 
 		it('should ignore invalid date filters', async () => {
 			const url = new URL('http://localhost:5173/admin/audit-logs?from=not-a-date&to=also-bad');

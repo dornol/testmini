@@ -2,14 +2,13 @@ import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { auditLog, user } from '$lib/server/db/schema';
 import { and, eq, gte, lte, count, desc } from 'drizzle-orm';
+import { parseCanonicalPositiveInteger } from '$lib/server/search-param-validation';
 
 const LIMIT = 50;
 
 function parsePositiveSearchInt(value: string | null): number | null {
 	if (value === null || value === '') return null;
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
-	return parsed;
+	return parseCanonicalPositiveInteger(value);
 }
 
 function parsePage(value: string | null): number {

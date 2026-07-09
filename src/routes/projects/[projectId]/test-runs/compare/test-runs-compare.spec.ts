@@ -57,7 +57,12 @@ describe('/projects/[projectId]/test-runs/compare', () => {
 		{ runA: '', runB: '2' },
 		{ runA: '0', runB: '2' },
 		{ runA: '-1', runB: '2' },
+		{ runA: '+1', runB: '2' },
+		{ runA: '01', runB: '2' },
 		{ runA: '1.5', runB: '2' },
+		{ runA: '1e3', runB: '2' },
+		{ runA: ' 1', runB: '2' },
+		{ runA: '1 ', runB: '2' },
 		{ runA: 'Infinity', runB: '2' },
 		{ runA: '9007199254740992', runB: '2' },
 		{ runA: '2', runB: '2' }

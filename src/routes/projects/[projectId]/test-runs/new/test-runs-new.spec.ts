@@ -149,7 +149,7 @@ describe('/projects/[projectId]/test-runs/new', () => {
 			expect(result.preselectedIds).toEqual([10, 11]);
 		});
 
-		it.each(['0', '-1', '1.5', 'Infinity', '9007199254740992'])(
+		it.each(['0', '-1', '+1', '01', '1.5', '1e3', ' 1', '1 ', 'Infinity', '9007199254740992'])(
 			'should ignore invalid suiteId %s before loading suite items',
 			async (suiteId) => {
 				let selectCallCount = 0;
@@ -247,7 +247,18 @@ describe('/projects/[projectId]/test-runs/new', () => {
 				createFormData({
 					name: 'Run 1',
 					environment: 'QA',
-					testCaseIds: ['0', '-1', '1.5', 'Infinity', '9007199254740992']
+					testCaseIds: [
+						'0',
+						'-1',
+						'+1',
+						'01',
+						'1.5',
+						'1e3',
+						' 1',
+						'1 ',
+						'Infinity',
+						'9007199254740992'
+					]
 				})
 			);
 
@@ -277,7 +288,19 @@ describe('/projects/[projectId]/test-runs/new', () => {
 				createFormData({
 					name: 'Run 1',
 					environment: 'QA',
-					testCaseIds: ['10', '0', '-1', '1.5', 'Infinity', '9007199254740992']
+					testCaseIds: [
+						'10',
+						'0',
+						'-1',
+						'+1',
+						'01',
+						'1.5',
+						'1e3',
+						' 1',
+						'1 ',
+						'Infinity',
+						'9007199254740992'
+					]
 				})
 			);
 

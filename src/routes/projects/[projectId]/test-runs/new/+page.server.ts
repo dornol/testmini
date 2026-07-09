@@ -16,13 +16,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { loadProjectTags } from '$lib/server/queries';
 import { createTestRunSchema, type CreateTestRunInput } from '$lib/schemas/test-run.schema';
-
-function parsePositiveId(value: string | FormDataEntryValue | null): number | null {
-	if (typeof value !== 'string') return null;
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
-	return parsed;
-}
+import { parsePositiveFormId } from '$lib/server/form-utils';
 
 export const load: PageServerLoad = async ({ params, parent, url }) => {
 	const { userRole } = await parent();
@@ -93,7 +87,7 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		.orderBy(testSuite.name);
 
 	// If suiteId is provided, preload suite items
-	const suiteIdParam = parsePositiveId(url.searchParams.get('suiteId'));
+	const suiteIdParam = parsePositiveFormId(url.searchParams.get('suiteId'));
 	let preselectedIds: number[] = [];
 	if (suiteIdParam) {
 		const suiteItems = await db
@@ -126,7 +120,7 @@ export const actions: Actions = {
 		const environment = formData.get('environment') as string;
 		const testCaseIdsRaw = formData.getAll('testCaseIds');
 		const testCaseIds = testCaseIdsRaw
-			.map(parsePositiveId)
+			.map(parsePositiveFormId)
 			.filter((id): id is number => id !== null);
 
 		const parsed = createTestRunSchema.safeParse({ name, environment, testCaseIds });

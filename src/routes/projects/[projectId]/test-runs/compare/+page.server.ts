@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { testRun, testExecution, testCaseVersion, testCase } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { parseId } from '$lib/server/auth-utils';
+import { parseCanonicalPositiveInteger } from '$lib/server/search-param-validation';
 
 type ComparisonRow = {
 	testCaseId: number;
@@ -16,9 +17,7 @@ type ComparisonRow = {
 
 function parsePositiveSearchId(value: string | null): number | null {
 	if (value === null) return null;
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
-	return parsed;
+	return parseCanonicalPositiveInteger(value);
 }
 
 export const load: PageServerLoad = async ({ params, url, parent }) => {

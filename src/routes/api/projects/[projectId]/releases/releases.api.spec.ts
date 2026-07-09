@@ -193,6 +193,19 @@ describe('/api/projects/[projectId]/releases', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 for unknown fields before insert', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'v1.0', owner: 'qa' },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for invalid status', async () => {
 			const event = createMockEvent({
 				method: 'POST',

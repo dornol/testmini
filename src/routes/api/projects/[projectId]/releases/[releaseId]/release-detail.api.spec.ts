@@ -262,6 +262,22 @@ describe('/api/projects/[projectId]/releases/[releaseId]', () => {
 			expect(data.error).toBe('No fields to update');
 		});
 
+		it('should return 400 for unknown fields before lookup', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'v1.1.0', owner: 'qa' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect(
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).release.findFirst
+			).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should return 400 for invalid status value', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -272,6 +288,9 @@ describe('/api/projects/[projectId]/releases/[releaseId]', () => {
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+			expect(
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).release.findFirst
+			).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for invalid target date before update', async () => {
@@ -284,6 +303,9 @@ describe('/api/projects/[projectId]/releases/[releaseId]', () => {
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+			expect(
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).release.findFirst
+			).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
@@ -297,6 +319,9 @@ describe('/api/projects/[projectId]/releases/[releaseId]', () => {
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+			expect(
+				(mockDb.query as Record<string, { findFirst: ReturnType<typeof vi.fn> }>).release.findFirst
+			).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 

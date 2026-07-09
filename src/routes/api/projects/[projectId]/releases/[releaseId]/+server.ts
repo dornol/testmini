@@ -82,11 +82,6 @@ export const PATCH = withProjectRole(
 	async ({ request, params, projectId }) => {
 		const releaseId = parseId(params.releaseId, 'release ID');
 
-		const rel = await db.query.release.findFirst({
-			where: and(eq(release.id, releaseId), eq(release.projectId, projectId))
-		});
-		if (!rel) return notFound('Release not found');
-
 		const body = await parseJsonBody(request);
 		const parsed = updateReleaseSchema.safeParse(body);
 		if (!parsed.success) {
@@ -106,6 +101,11 @@ export const PATCH = withProjectRole(
 		if (Object.keys(updates).length === 0) {
 			return badRequest('No fields to update');
 		}
+
+		const rel = await db.query.release.findFirst({
+			where: and(eq(release.id, releaseId), eq(release.projectId, projectId))
+		});
+		if (!rel) return notFound('Release not found');
 
 		const [updated] = await db
 			.update(release)

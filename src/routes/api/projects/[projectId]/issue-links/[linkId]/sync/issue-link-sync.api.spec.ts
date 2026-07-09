@@ -207,7 +207,7 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/sync', () => {
 		const retestUpdateChain = {
 			set: vi.fn().mockReturnThis(),
 			where: vi.fn().mockReturnThis(),
-			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+			returning: vi.fn().mockResolvedValue([{ id: 5 }])
 		};
 		const txUpdate = vi
 			.fn()
@@ -242,7 +242,66 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/sync', () => {
 				['project_id', 1]
 			])
 		);
+		expect(retestUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });
 		expect(mockDb.update).not.toHaveBeenCalled();
+	});
+
+	it('should return 404 when local issue link disappears during resolved sync', async () => {
+		mockDb.query.issueLink.findFirst.mockResolvedValue(sampleLink);
+		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+		mockFetchIssueStatus.mockResolvedValue({ status: 'Done', statusCategory: 'done' });
+
+		const linkUpdateChain = {
+			set: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			returning: vi.fn().mockResolvedValue([])
+		};
+		const txUpdate = vi.fn().mockReturnValueOnce(linkUpdateChain);
+		mockDb.transaction.mockImplementationOnce(async (fn) => fn({ update: txUpdate }));
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 404 });
+		expect(txUpdate).toHaveBeenCalledTimes(1);
+		expect(linkUpdateChain.returning).toHaveBeenCalled();
+	});
+
+	it('should return 404 when linked test case disappears during resolved sync', async () => {
+		mockDb.query.issueLink.findFirst.mockResolvedValue(sampleLink);
+		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+		mockFetchIssueStatus.mockResolvedValue({ status: 'Done', statusCategory: 'done' });
+
+		const linkUpdateChain = {
+			set: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			returning: vi.fn().mockReturnThis(),
+			then: (r: (v: unknown) => void) =>
+				Promise.resolve([{ ...sampleLink, status: 'Done', statusSyncedAt: new Date() }]).then(r)
+		};
+		const retestUpdateChain = {
+			set: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			returning: vi.fn().mockResolvedValue([])
+		};
+		const txUpdate = vi
+			.fn()
+			.mockReturnValueOnce(linkUpdateChain)
+			.mockReturnValueOnce(retestUpdateChain);
+		mockDb.transaction.mockImplementationOnce(async (fn) => fn({ update: txUpdate }));
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 404 });
+		expect(txUpdate).toHaveBeenCalledTimes(2);
+		expect(retestUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });
 	});
 
 	it('should not mark retest when issue is not resolved', async () => {
@@ -264,6 +323,24 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/sync', () => {
 		expect(response.status).toBe(200);
 		// Only one update call: the link status update
 		expect(mockDb.update).toHaveBeenCalledTimes(1);
+	});
+
+	it('should return 404 when local issue link disappears during non-resolved sync', async () => {
+		mockDb.query.issueLink.findFirst.mockResolvedValue(sampleLink);
+		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+		mockFetchIssueStatus.mockResolvedValue({
+			status: 'In Progress',
+			statusCategory: 'in_progress'
+		});
+		mockUpdateReturning(mockDb, []);
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 404 });
 	});
 
 	it('should not mark retest when link has no testCaseId', async () => {

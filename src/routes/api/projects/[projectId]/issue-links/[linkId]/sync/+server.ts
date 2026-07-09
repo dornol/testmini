@@ -47,11 +47,18 @@ export const POST = withProjectRole(
 					.set({ status: result.status, statusSyncedAt: new Date() })
 					.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)))
 					.returning();
+				if (!updatedLink) {
+					error(404, 'Issue link not found');
+				}
 
-				await tx
+				const [updatedTestCase] = await tx
 					.update(testCase)
 					.set({ retestNeeded: true })
-					.where(and(eq(testCase.id, linkedTestCaseId), eq(testCase.projectId, projectId)));
+					.where(and(eq(testCase.id, linkedTestCaseId), eq(testCase.projectId, projectId)))
+					.returning({ id: testCase.id });
+				if (!updatedTestCase) {
+					error(404, 'Test case not found');
+				}
 
 				return updatedLink;
 			});
@@ -63,6 +70,9 @@ export const POST = withProjectRole(
 			.set({ status: result.status, statusSyncedAt: new Date() })
 			.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)))
 			.returning();
+		if (!updated) {
+			error(404, 'Issue link not found');
+		}
 
 		return json({ ...updated, statusCategory: result.statusCategory });
 	}

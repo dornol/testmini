@@ -62,7 +62,7 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 
 	let affected = 0;
 
-	await db.transaction(async (tx) => {
+	const transactionResult = await db.transaction(async (tx) => {
 		switch (action) {
 			case 'addTag': {
 				if (!tagId) return badRequest('tagId required');
@@ -80,6 +80,11 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 
 			case 'removeTag': {
 				if (!tagId) return badRequest('tagId required');
+				const tagRecord = await tx.query.tag.findFirst({
+					where: and(eq(tag.id, tagId), eq(tag.projectId, projectId))
+				});
+				if (!tagRecord) return notFound('Tag not found');
+
 				await tx
 					.delete(testCaseTag)
 					.where(and(inArray(testCaseTag.testCaseId, validIds), eq(testCaseTag.tagId, tagId)));
@@ -278,6 +283,7 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 				return badRequest('Invalid action');
 		}
 	});
+	if (transactionResult instanceof Response) return transactionResult;
 
 	return json({ success: true, affected });
 });

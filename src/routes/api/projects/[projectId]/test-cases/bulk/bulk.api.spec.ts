@@ -190,5 +190,33 @@ describe('/api/projects/[projectId]/test-cases/bulk', () => {
 				])
 			);
 		});
+
+		it('should reject removeTag when the tag is not in the current project', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValue({ role: 'QA' });
+			mockSelectResult(mockDb, [{ id: 10 }]);
+			const { tx } = createTxWriteChains();
+			tx.query.tag.findFirst.mockResolvedValue(null);
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'removeTag', testCaseIds: [10], tagId: 99 },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(404);
+			expect(data.error).toBe('Tag not found');
+			expect(tx.delete).not.toHaveBeenCalled();
+			expect(tx.query.tag.findFirst).toHaveBeenCalledWith({
+				where: expect.arrayContaining([
+					['id', 99],
+					['project_id', 1]
+				])
+			});
+		});
 	});
 });

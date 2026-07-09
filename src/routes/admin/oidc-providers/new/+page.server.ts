@@ -18,6 +18,12 @@ function parseDisplayOrder(value: FormDataEntryValue | null): number {
 	return parsed;
 }
 
+function parseTrimmedText(value: FormDataEntryValue | null): string | null {
+	if (typeof value !== 'string') return null;
+	const trimmed = value.trim();
+	return trimmed || null;
+}
+
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
 		const authUser = requireAuth(locals);
@@ -26,19 +32,19 @@ export const actions: Actions = {
 		}
 
 		const formData = await request.formData();
-		const name = (formData.get('name') as string)?.trim();
-		const slug = (formData.get('slug') as string)?.trim();
-		const providerType = (formData.get('providerType') as string) || 'OIDC';
-		const clientId = (formData.get('clientId') as string)?.trim();
-		const clientSecret = (formData.get('clientSecret') as string)?.trim();
-		const issuerUrl = (formData.get('issuerUrl') as string)?.trim() || null;
-		const jwksUri = (formData.get('jwksUri') as string)?.trim() || null;
-		const authorizationUrl = (formData.get('authorizationUrl') as string)?.trim();
-		const tokenUrl = (formData.get('tokenUrl') as string)?.trim();
-		const userinfoUrl = (formData.get('userinfoUrl') as string)?.trim() || null;
-		const scopes = (formData.get('scopes') as string)?.trim() || 'openid profile email';
+		const name = parseTrimmedText(formData.get('name'));
+		const slug = parseTrimmedText(formData.get('slug'));
+		const providerType = parseTrimmedText(formData.get('providerType')) ?? 'OIDC';
+		const clientId = parseTrimmedText(formData.get('clientId'));
+		const clientSecret = parseTrimmedText(formData.get('clientSecret'));
+		const issuerUrl = parseTrimmedText(formData.get('issuerUrl'));
+		const jwksUri = parseTrimmedText(formData.get('jwksUri'));
+		const authorizationUrl = parseTrimmedText(formData.get('authorizationUrl'));
+		const tokenUrl = parseTrimmedText(formData.get('tokenUrl'));
+		const userinfoUrl = parseTrimmedText(formData.get('userinfoUrl'));
+		const scopes = parseTrimmedText(formData.get('scopes')) ?? 'openid profile email';
 		const autoRegister = formData.get('autoRegister') === 'on';
-		const iconUrl = (formData.get('iconUrl') as string)?.trim() || null;
+		const iconUrl = parseTrimmedText(formData.get('iconUrl'));
 		const displayOrder = parseDisplayOrder(formData.get('displayOrder'));
 
 		const fieldValidation = await validateOidcProviderFields(

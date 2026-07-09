@@ -26,7 +26,7 @@ vi.mock('$lib/server/oidc-provider-validation', () => ({
 
 const { actions } = await import('./+page.server');
 
-function createFormData(entries: Record<string, string>): FormData {
+function createFormData(entries: Record<string, FormDataEntryValue>): FormData {
 	const fd = new FormData();
 	for (const [k, v] of Object.entries(entries)) {
 		fd.set(k, v);
@@ -47,7 +47,7 @@ const validProviderData = {
 
 function createActionEvent(
 	user: NonNullable<App.Locals['user']> | null,
-	formEntries: Record<string, string>
+	formEntries: Record<string, FormDataEntryValue>
 ) {
 	const formData = createFormData(formEntries);
 	return {
@@ -114,6 +114,31 @@ describe('admin/oidc-providers/new +page.server', () => {
 			const event = createActionEvent(adminUser, { name: 'Google' });
 			const result = await actions.create(event);
 			expect(result).toMatchObject({ status: 400, data: { error: 'Missing required fields' } });
+		});
+
+		it('should reject file values before checking slug conflicts', async () => {
+			const event = createActionEvent(adminUser, {
+				...validProviderData,
+				name: new File(['content'], 'name.txt')
+			});
+			const result = await actions.create(event);
+
+			expect(result).toMatchObject({ status: 400, data: { error: 'Missing required fields' } });
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject file URL values before URL validation', async () => {
+			const event = createActionEvent(adminUser, {
+				...validProviderData,
+				authorizationUrl: new File(['content'], 'authorize.txt')
+			});
+			const result = await actions.create(event);
+
+			expect(result).toMatchObject({ status: 400, data: { error: 'Missing required fields' } });
+			expect(mockValidateOidcProviderUrls).not.toHaveBeenCalled();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for invalid slug format', async () => {

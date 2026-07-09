@@ -46,7 +46,7 @@ vi.mock('$lib/server/oidc-provider-validation', () => ({
 
 const { actions, load } = await import('./+page.server');
 
-function createFormData(entries: Record<string, string>): FormData {
+function createFormData(entries: Record<string, FormDataEntryValue>): FormData {
 	const fd = new FormData();
 	for (const [k, v] of Object.entries(entries)) {
 		fd.set(k, v);
@@ -66,7 +66,7 @@ const validUpdateData = {
 
 function createActionEvent(
 	user: NonNullable<App.Locals['user']> | null,
-	formEntries: Record<string, string>,
+	formEntries: Record<string, FormDataEntryValue>,
 	params: Record<string, string> = { providerId: '1' }
 ) {
 	const formData = createFormData(formEntries);
@@ -192,6 +192,31 @@ describe('admin/oidc-providers/[providerId] +page.server', () => {
 			const event = createActionEvent(adminUser, { name: 'Google' });
 			const result = await actions.update(event);
 			expect(result).toMatchObject({ status: 400, data: { error: 'Missing required fields' } });
+		});
+
+		it('should reject file values before checking slug conflicts', async () => {
+			const event = createActionEvent(adminUser, {
+				...validUpdateData,
+				name: new File(['content'], 'name.txt')
+			});
+			const result = await actions.update(event);
+
+			expect(result).toMatchObject({ status: 400, data: { error: 'Missing required fields' } });
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject file URL values before URL validation', async () => {
+			const event = createActionEvent(adminUser, {
+				...validUpdateData,
+				authorizationUrl: new File(['content'], 'authorize.txt')
+			});
+			const result = await actions.update(event);
+
+			expect(result).toMatchObject({ status: 400, data: { error: 'Missing required fields' } });
+			expect(mockValidateOidcProviderUrls).not.toHaveBeenCalled();
+			expect(mockDb.select).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for invalid slug format', async () => {

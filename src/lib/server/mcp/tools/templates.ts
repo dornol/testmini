@@ -17,6 +17,17 @@ const mcpTemplateStepSchema = z
 	})
 	.strict();
 
+class McpTransactionError extends Error {}
+
+function rollback(message: string): never {
+	throw new McpTransactionError(message);
+}
+
+function toMcpTransactionError(error: unknown): ReturnType<typeof err> {
+	if (error instanceof McpTransactionError) return err(error.message);
+	throw error;
+}
+
 async function mcpValidationError(
 	response: Response,
 	fallback: string
@@ -88,6 +99,7 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 				})
 				.returning();
 
+			if (!template) return err('Failed to create template');
 			return ok(template);
 		}
 	);
@@ -119,37 +131,44 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 			const maxNum = maxRow?.maxKey ? parseInt(maxRow.maxKey.replace(/^TC-/, ''), 10) : 0;
 			const nextKey = `TC-${String(maxNum + 1).padStart(4, '0')}`;
 
-			const result = await db.transaction(async (tx) => {
-				const [tc] = await tx
-					.insert(testCase)
-					.values({
-						projectId,
-						key: nextKey,
-						createdBy: creator,
-						sortOrder: maxNum + 1
-					})
-					.returning();
+			let result;
+			try {
+				result = await db.transaction(async (tx) => {
+					const [tc] = await tx
+						.insert(testCase)
+						.values({
+							projectId,
+							key: nextKey,
+							createdBy: creator,
+							sortOrder: maxNum + 1
+						})
+						.returning();
+					if (!tc) rollback('Failed to create test case');
 
-				const [version] = await tx
-					.insert(testCaseVersion)
-					.values({
-						testCaseId: tc.id,
-						versionNo: 1,
-						title: titleOrError,
-						precondition: template.precondition,
-						steps: template.steps,
-						priority: template.priority,
-						updatedBy: creator
-					})
-					.returning();
+					const [version] = await tx
+						.insert(testCaseVersion)
+						.values({
+							testCaseId: tc.id,
+							versionNo: 1,
+							title: titleOrError,
+							precondition: template.precondition,
+							steps: template.steps,
+							priority: template.priority,
+							updatedBy: creator
+						})
+						.returning();
+					if (!version) rollback('Failed to create test case version');
 
-				await tx
-					.update(testCase)
-					.set({ latestVersionId: version.id })
-					.where(and(eq(testCase.id, tc.id), eq(testCase.projectId, projectId)));
+					await tx
+						.update(testCase)
+						.set({ latestVersionId: version.id })
+						.where(and(eq(testCase.id, tc.id), eq(testCase.projectId, projectId)));
 
-				return { ...tc, latestVersion: version };
-			});
+					return { ...tc, latestVersion: version };
+				});
+			} catch (error) {
+				return toMcpTransactionError(error);
+			}
 
 			return ok(result);
 		}
@@ -200,6 +219,7 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 				.set(updates)
 				.where(and(eq(testCaseTemplate.id, templateId), eq(testCaseTemplate.projectId, projectId)))
 				.returning();
+			if (!updated) return err('Template not found');
 			return ok(updated);
 		}
 	);
@@ -214,9 +234,11 @@ export function registerTemplateTools(server: McpServer, projectId: number) {
 			});
 			if (!t) return err('Template not found');
 
-			await db
+			const [deleted] = await db
 				.delete(testCaseTemplate)
-				.where(and(eq(testCaseTemplate.id, templateId), eq(testCaseTemplate.projectId, projectId)));
+				.where(and(eq(testCaseTemplate.id, templateId), eq(testCaseTemplate.projectId, projectId)))
+				.returning({ id: testCaseTemplate.id });
+			if (!deleted) return err('Template not found');
 			return ok({ success: true, deletedId: templateId });
 		}
 	);

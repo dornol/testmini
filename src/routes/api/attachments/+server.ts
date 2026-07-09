@@ -59,6 +59,14 @@ function validateFileName(name: string): string {
 	return fileName;
 }
 
+async function cleanupSavedFile(objectKey: string) {
+	try {
+		await deleteFile(objectKey);
+	} catch {
+		// Preserve the primary failure; cleanup can be retried from storage tooling.
+	}
+}
+
 export const GET = withAuth(async ({ url, user }) => {
 	const referenceType = url.searchParams.get('referenceType');
 	const referenceIdValue = url.searchParams.get('referenceId');
@@ -132,12 +140,13 @@ export const POST = withAuth(async ({ request, user }) => {
 			})
 			.returning();
 	} catch (insertError) {
-		try {
-			await deleteFile(objectKey);
-		} catch {
-			// Preserve the database failure; cleanup can be retried from storage tooling.
-		}
+		await cleanupSavedFile(objectKey);
 		throw insertError;
+	}
+
+	if (!created) {
+		await cleanupSavedFile(objectKey);
+		error(500, 'Failed to create attachment');
 	}
 
 	return json(created, { status: 201 });

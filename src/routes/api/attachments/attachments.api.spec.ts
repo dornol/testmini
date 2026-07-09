@@ -307,6 +307,20 @@ describe('/api/attachments', () => {
 			expect(storage.deleteFile).toHaveBeenCalledWith('attachments/TESTCASE/1/test.png');
 		});
 
+		it('should remove the saved file when DB insert returns no created attachment', async () => {
+			mockInsertReturning(mockDb, []);
+
+			const formData = createFileFormData({ name: 'test.png', type: 'image/png' });
+			const event = createMockEvent({ method: 'POST', formData, user: testUser });
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+			expect(storage.saveFile).toHaveBeenCalledWith(
+				'attachments/TESTCASE/1/test.png',
+				expect.any(Buffer)
+			);
+			expect(storage.deleteFile).toHaveBeenCalledWith('attachments/TESTCASE/1/test.png');
+		});
+
 		it('should preserve the DB insert error when cleanup also fails', async () => {
 			const insertChain = {
 				values: vi.fn().mockReturnThis(),

@@ -7,6 +7,7 @@
 
 import { createVerify } from 'crypto';
 import { childLogger } from './logger';
+import { validatePublicHttpsUrl } from './url-safety';
 
 const log = childLogger('oidc-jwt');
 
@@ -71,7 +72,12 @@ function base64urlToBuffer(b64url: string): Buffer {
 }
 
 /** Parse the three dot-separated parts of a JWT without verifying. */
-function parseJwtParts(token: string): { header: Record<string, unknown>; payload: IdTokenClaims; rawSigningInput: string; signature: Buffer } | null {
+function parseJwtParts(token: string): {
+	header: Record<string, unknown>;
+	payload: IdTokenClaims;
+	rawSigningInput: string;
+	signature: Buffer;
+} | null {
 	const parts = token.split('.');
 	if (parts.length !== 3) return null;
 	try {
@@ -101,11 +107,7 @@ function jwkToPem(jwk: JwkRsa): string {
 	function encodeInteger(buf: Buffer): Buffer {
 		const needsPad = buf[0] & 0x80;
 		const value = needsPad ? Buffer.concat([Buffer.from([0x00]), buf]) : buf;
-		return Buffer.concat([
-			Buffer.from([0x02]),
-			encodeLengthBytes(value.length),
-			value
-		]);
+		return Buffer.concat([Buffer.from([0x02]), encodeLengthBytes(value.length), value]);
 	}
 
 	function encodeLengthBytes(len: number): Buffer {
@@ -115,11 +117,7 @@ function jwkToPem(jwk: JwkRsa): string {
 	}
 
 	function encodeSequence(content: Buffer): Buffer {
-		return Buffer.concat([
-			Buffer.from([0x30]),
-			encodeLengthBytes(content.length),
-			content
-		]);
+		return Buffer.concat([Buffer.from([0x30]), encodeLengthBytes(content.length), content]);
 	}
 
 	// RSAPublicKey SEQUENCE { modulus, exponent }
@@ -129,10 +127,21 @@ function jwkToPem(jwk: JwkRsa): string {
 
 	// OID for rsaEncryption: 1.2.840.113549.1.1.1
 	const rsaOid = Buffer.from([
-		0x30, 0x0d,                                          // SEQUENCE (13 bytes)
-		0x06, 0x09,                                          // OID (9 bytes)
-		0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, // 1.2.840.113549.1.1.1
-		0x05, 0x00                                           // NULL
+		0x30,
+		0x0d, // SEQUENCE (13 bytes)
+		0x06,
+		0x09, // OID (9 bytes)
+		0x2a,
+		0x86,
+		0x48,
+		0x86,
+		0xf7,
+		0x0d,
+		0x01,
+		0x01,
+		0x01, // 1.2.840.113549.1.1.1
+		0x05,
+		0x00 // NULL
 	]);
 
 	// BIT STRING wrapping RSAPublicKey (prepend 0x00 for "no unused bits")
@@ -146,17 +155,24 @@ function jwkToPem(jwk: JwkRsa): string {
 	// SubjectPublicKeyInfo SEQUENCE { OID, BIT STRING }
 	const spki = encodeSequence(Buffer.concat([rsaOid, bitString]));
 
-	const b64 = spki.toString('base64').match(/.{1,64}/g)!.join('\n');
+	const b64 = spki
+		.toString('base64')
+		.match(/.{1,64}/g)!
+		.join('\n');
 	return `-----BEGIN PUBLIC KEY-----\n${b64}\n-----END PUBLIC KEY-----\n`;
 }
 
 /** Map a JWT alg header to a Node.js crypto hash algorithm name. */
 function algToHashName(alg: string): string | null {
 	switch (alg) {
-		case 'RS256': return 'sha256';
-		case 'RS384': return 'sha384';
-		case 'RS512': return 'sha512';
-		default: return null;
+		case 'RS256':
+			return 'sha256';
+		case 'RS384':
+			return 'sha384';
+		case 'RS512':
+			return 'sha512';
+		default:
+			return null;
 	}
 }
 
@@ -170,10 +186,15 @@ async function fetchJwks(jwksUri: string): Promise<JwkRsa[]> {
 		return cached.keys;
 	}
 
+	const validation = await validatePublicHttpsUrl(jwksUri);
+	if (!validation.ok) {
+		throw new Error(validation.error ?? 'Invalid JWKS URI');
+	}
+
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), JWKS_FETCH_TIMEOUT);
 	try {
-		const res = await fetch(jwksUri, { signal: controller.signal });
+		const res = await fetch(jwksUri, { redirect: 'manual', signal: controller.signal });
 		if (!res.ok) {
 			throw new Error(`JWKS fetch failed with status ${res.status}`);
 		}
@@ -302,7 +323,10 @@ export async function verifyIdToken(opts: VerifyIdTokenOptions): Promise<VerifyR
 		try {
 			pem = jwkToPem(jwk);
 		} catch (e) {
-			log.warn({ err: e instanceof Error ? { message: e.message } : e, kid: jwk.kid }, 'JWK to PEM conversion failed');
+			log.warn(
+				{ err: e instanceof Error ? { message: e.message } : e, kid: jwk.kid },
+				'JWK to PEM conversion failed'
+			);
 			continue;
 		}
 
@@ -312,7 +336,10 @@ export async function verifyIdToken(opts: VerifyIdTokenOptions): Promise<VerifyR
 			const valid = verifier.verify(pem, signature);
 			if (!valid) continue;
 		} catch (e) {
-			log.warn({ err: e instanceof Error ? { message: e.message } : e, kid: jwk.kid }, 'Signature verification error');
+			log.warn(
+				{ err: e instanceof Error ? { message: e.message } : e, kid: jwk.kid },
+				'Signature verification error'
+			);
 			continue;
 		}
 

@@ -11,6 +11,12 @@ vi.mock('./logger', () => ({
 	})
 }));
 
+const mockValidatePublicHttpsUrl = vi.hoisted(() => vi.fn());
+
+vi.mock('./url-safety', () => ({
+	validatePublicHttpsUrl: mockValidatePublicHttpsUrl
+}));
+
 // ---------------------------------------------------------------------------
 // Test RSA key pair & JWT helper
 // ---------------------------------------------------------------------------
@@ -128,6 +134,7 @@ describe('oidc-jwt', () => {
 	beforeEach(() => {
 		// Reset fetch mock before each test
 		globalThis.fetch = vi.fn();
+		mockValidatePublicHttpsUrl.mockResolvedValue({ ok: true });
 	});
 
 	afterEach(() => {
@@ -370,8 +377,27 @@ describe('oidc-jwt', () => {
 
 			expect(globalThis.fetch).toHaveBeenCalledWith(
 				'https://unique-fetch-test.example.com/jwks',
-				expect.objectContaining({ signal: expect.any(AbortSignal) })
+				expect.objectContaining({ redirect: 'manual', signal: expect.any(AbortSignal) })
 			);
+		});
+
+		it('rejects unsafe JWKS URI before fetching', async () => {
+			mockValidatePublicHttpsUrl.mockResolvedValue({
+				ok: false,
+				error: 'URL resolves to a private or reserved IP address'
+			});
+
+			const token = createTestJwt();
+			const result = await verifyIdToken({
+				idToken: token,
+				jwksUri: 'https://127.0.0.1/jwks',
+				issuer: TEST_ISSUER,
+				audience: TEST_AUDIENCE
+			});
+
+			expect(result.verified).toBe(false);
+			expect(result.warning).toContain('JWKS unavailable');
+			expect(globalThis.fetch).not.toHaveBeenCalled();
 		});
 
 		it('caches JWKS and reuses on subsequent calls', async () => {
@@ -401,9 +427,9 @@ describe('oidc-jwt', () => {
 			});
 
 			// fetch should only be called once because of caching
-			const fetchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-				(call) => call[0] === uniqueUri
-			);
+			const fetchCalls = vi
+				.mocked(globalThis.fetch)
+				.mock.calls.filter((call) => call[0] === uniqueUri);
 			expect(fetchCalls.length).toBe(1);
 		});
 
@@ -441,9 +467,9 @@ describe('oidc-jwt', () => {
 			});
 
 			// fetch should have been called twice for the same URI
-			const fetchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-				(call) => call[0] === uniqueUri
-			);
+			const fetchCalls = vi
+				.mocked(globalThis.fetch)
+				.mock.calls.filter((call) => call[0] === uniqueUri);
 			expect(fetchCalls.length).toBe(2);
 		});
 	});
@@ -534,13 +560,15 @@ describe('oidc-jwt', () => {
 		it('returns error for unsupported algorithm', async () => {
 			// Manually build a token with unsupported algorithm
 			const header = base64url(JSON.stringify({ alg: 'ES256', typ: 'JWT', kid: TEST_KID }));
-			const payload = base64url(JSON.stringify({
-				iss: TEST_ISSUER,
-				aud: TEST_AUDIENCE,
-				sub: 'user-123',
-				exp: Math.floor(Date.now() / 1000) + 3600,
-				iat: Math.floor(Date.now() / 1000)
-			}));
+			const payload = base64url(
+				JSON.stringify({
+					iss: TEST_ISSUER,
+					aud: TEST_AUDIENCE,
+					sub: 'user-123',
+					exp: Math.floor(Date.now() / 1000) + 3600,
+					iat: Math.floor(Date.now() / 1000)
+				})
+			);
 			const fakeToken = `${header}.${payload}.${base64url('fake-sig')}`;
 
 			const result = await verifyIdToken({

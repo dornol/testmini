@@ -11,6 +11,9 @@ import { env } from '$env/dynamic/private';
 import { childLogger } from '$lib/server/logger';
 import { logAudit } from '$lib/server/audit';
 import { createNotification } from '$lib/server/notifications';
+import { validatePublicHttpsUrl } from '$lib/server/url-safety';
+
+const OIDC_FETCH_TIMEOUT = 10_000;
 
 const log = childLogger('oidc-callback');
 
@@ -28,32 +31,50 @@ async function exchangeToken(
 	slug: string,
 	clientSecret: string
 ): Promise<{ tokenData: Record<string, unknown>; accessToken: string } | null> {
-	const tokenRes = await fetch(provider.tokenUrl, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-		body: new URLSearchParams({
-			grant_type: 'authorization_code',
-			code,
-			redirect_uri: `${env.ORIGIN}/auth/oidc/${slug}/callback`,
-			client_id: provider.clientId,
-			client_secret: clientSecret,
-			code_verifier: codeVerifier
-		})
-	});
+	const validation = await validatePublicHttpsUrl(provider.tokenUrl);
+	if (!validation.ok) return null;
 
-	if (!tokenRes.ok) {
-		const errorBody = await tokenRes.text();
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), OIDC_FETCH_TIMEOUT);
+	try {
+		const tokenRes = await fetch(provider.tokenUrl, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: new URLSearchParams({
+				grant_type: 'authorization_code',
+				code,
+				redirect_uri: `${env.ORIGIN}/auth/oidc/${slug}/callback`,
+				client_id: provider.clientId,
+				client_secret: clientSecret,
+				code_verifier: codeVerifier
+			}),
+			redirect: 'manual',
+			signal: controller.signal
+		});
+
+		if (!tokenRes.ok) {
+			await tokenRes.text();
+			return null;
+		}
+
+		const tokenData = await tokenRes.json();
+		return { tokenData, accessToken: tokenData.access_token };
+	} catch {
 		return null;
+	} finally {
+		clearTimeout(timeout);
 	}
-
-	const tokenData = await tokenRes.json();
-	return { tokenData, accessToken: tokenData.access_token };
 }
 
 /** Resolve user identity (sub, email, name) from ID token verification and/or userinfo endpoint */
 async function resolveUserInfo(
 	tokenData: Record<string, unknown>,
-	provider: { jwksUri: string | null; issuerUrl: string | null; clientId: string; userinfoUrl: string | null },
+	provider: {
+		jwksUri: string | null;
+		issuerUrl: string | null;
+		clientId: string;
+		userinfoUrl: string | null;
+	},
 	accessToken: string,
 	callbackLog: typeof log
 ): Promise<{ sub?: string; email?: string; name?: string }> {
@@ -92,9 +113,19 @@ async function resolveUserInfo(
 	// Fetch userinfo if needed
 	if ((!sub || !email) && provider.userinfoUrl && accessToken) {
 		try {
+			const validation = await validatePublicHttpsUrl(provider.userinfoUrl);
+			if (!validation.ok) {
+				callbackLog.warn({ warning: validation.error }, 'Unsafe userinfo URL');
+				return { sub, email, name };
+			}
+
+			const controller = new AbortController();
+			const timeout = setTimeout(() => controller.abort(), OIDC_FETCH_TIMEOUT);
 			const userinfoRes = await fetch(provider.userinfoUrl, {
-				headers: { Authorization: `Bearer ${accessToken}` }
-			});
+				headers: { Authorization: `Bearer ${accessToken}` },
+				redirect: 'manual',
+				signal: controller.signal
+			}).finally(() => clearTimeout(timeout));
 			if (userinfoRes.ok) {
 				const userinfo = await userinfoRes.json();
 				sub = sub || userinfo.sub;
@@ -126,9 +157,7 @@ async function matchOrCreateUser(
 	const [existingAccount] = await db
 		.select({ userId: oidcAccount.userId })
 		.from(oidcAccount)
-		.where(
-			and(eq(oidcAccount.providerId, provider.id), eq(oidcAccount.externalId, sub))
-		);
+		.where(and(eq(oidcAccount.providerId, provider.id), eq(oidcAccount.externalId, sub)));
 
 	if (existingAccount) {
 		userId = existingAccount.userId;
@@ -136,20 +165,20 @@ async function matchOrCreateUser(
 
 	// 2. Try email matching if no existing link
 	if (!userId && email) {
-		const [existingUser] = await db
-			.select({ id: user.id })
-			.from(user)
-			.where(eq(user.email, email));
+		const [existingUser] = await db.select({ id: user.id }).from(user).where(eq(user.email, email));
 
 		if (existingUser) {
 			userId = existingUser.id;
-			await db.insert(oidcAccount).values({
-				userId,
-				providerId: provider.id,
-				externalId: sub,
-				email: email || null,
-				name: name || null
-			}).onConflictDoNothing();
+			await db
+				.insert(oidcAccount)
+				.values({
+					userId,
+					providerId: provider.id,
+					externalId: sub,
+					email: email || null,
+					name: name || null
+				})
+				.onConflictDoNothing();
 		}
 	}
 
@@ -177,10 +206,7 @@ async function matchOrCreateUser(
 		isPendingApproval = !approved;
 
 		if (!approved) {
-			const adminUsers = await db
-				.select({ id: user.id })
-				.from(user)
-				.where(eq(user.role, 'admin'));
+			const adminUsers = await db.select({ id: user.id }).from(user).where(eq(user.role, 'admin'));
 
 			const userName = name || email || sub;
 			const userEmail = email || `${sub}@oidc.local`;
@@ -248,7 +274,10 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 	try {
 		cookieData = JSON.parse(decrypt(cookieValue));
 	} catch (e) {
-		callbackLog.warn({ err: e instanceof Error ? { message: e.message } : e }, 'Cookie decrypt failed');
+		callbackLog.warn(
+			{ err: e instanceof Error ? { message: e.message } : e },
+			'Cookie decrypt failed'
+		);
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
@@ -272,7 +301,13 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 	const clientSecret = decrypt(provider.clientSecretEncrypted);
 
 	// Token exchange
-	const tokenResult = await exchangeToken(provider, code, cookieData.codeVerifier, params.slug, clientSecret);
+	const tokenResult = await exchangeToken(
+		provider,
+		code,
+		cookieData.codeVerifier,
+		params.slug,
+		clientSecret
+	);
 	if (!tokenResult) {
 		callbackLog.warn('Token exchange failed');
 		redirect(302, '/auth/login?error=oidc_callback_error');
@@ -291,19 +326,28 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 
 	// Link mode: attach to current user's session
 	if (cookieData.link && locals.user) {
-		await db.insert(oidcAccount).values({
-			userId: locals.user.id,
-			providerId: provider.id,
-			externalId: sub,
-			email: email || null,
-			name: name || null
-		}).onConflictDoNothing();
+		await db
+			.insert(oidcAccount)
+			.values({
+				userId: locals.user.id,
+				providerId: provider.id,
+				externalId: sub,
+				email: email || null,
+				name: name || null
+			})
+			.onConflictDoNothing();
 
 		redirect(302, '/auth/account');
 	}
 
 	// Match or create user account
-	const { userId, isNewUser, isPendingApproval } = await matchOrCreateUser(sub, email, name, provider, callbackLog);
+	const { userId, isNewUser, isPendingApproval } = await matchOrCreateUser(
+		sub,
+		email,
+		name,
+		provider,
+		callbackLog
+	);
 
 	// Create session
 	const sessionId = randomUUID();

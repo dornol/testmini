@@ -8,8 +8,17 @@ import {
 	testExecution,
 	testFailureDetail
 } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema, mcpIdListSchema } from '../helpers';
 import { eq, and, inArray, desc } from 'drizzle-orm';
+import { createTestRunSchema, updateTestRunSchema } from '$lib/schemas/test-run.schema';
+
+const mcpCreateTestRunSchema = createTestRunSchema
+	.omit({ testCaseIds: true })
+	.extend({ testCaseIds: mcpIdListSchema.optional() });
+
+function firstValidationError(error: { issues: Array<{ message: string }> }): string {
+	return error.issues[0]?.message ?? 'Invalid test run';
+}
 
 export function registerTestRunTools(server: McpServer, projectId: number) {
 	server.tool(
@@ -47,7 +56,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 	server.tool(
 		'get-test-run',
 		'Get test run details with execution results',
-		{ runId: z.number().describe('Test run ID') },
+		{ runId: mcpPositiveIdSchema.describe('Test run ID') },
 		async ({ runId }) => {
 			const run = await db.query.testRun.findFirst({
 				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
@@ -87,7 +96,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 	server.tool(
 		'get-failures',
 		'Get failure details for a test run',
-		{ runId: z.number().describe('Test run ID') },
+		{ runId: mcpPositiveIdSchema.describe('Test run ID') },
 		async ({ runId }) => {
 			const run = await db.query.testRun.findFirst({
 				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
@@ -121,19 +130,24 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 		{
 			name: z.string().describe('Test run name'),
 			environment: z.string().describe('Environment name (e.g., DEV, QA, STAGE, PROD)'),
-			testCaseIds: z.array(z.number()).optional().describe('Test case IDs to include (empty = all)')
+			testCaseIds: mcpIdListSchema.optional().describe('Test case IDs to include')
 		},
 		async ({ name, environment, testCaseIds }) => {
+			const parsed = mcpCreateTestRunSchema.safeParse({ name, environment, testCaseIds });
+			if (!parsed.success) return err(firstValidationError(parsed.error));
+
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
 
 			// Get test cases with latest versions
 			let cases;
-			if (testCaseIds && testCaseIds.length > 0) {
+			if (parsed.data.testCaseIds && parsed.data.testCaseIds.length > 0) {
 				cases = await db
 					.select({ id: testCase.id, latestVersionId: testCase.latestVersionId })
 					.from(testCase)
-					.where(and(eq(testCase.projectId, projectId), inArray(testCase.id, testCaseIds)));
+					.where(
+						and(eq(testCase.projectId, projectId), inArray(testCase.id, parsed.data.testCaseIds))
+					);
 			} else {
 				cases = await db
 					.select({ id: testCase.id, latestVersionId: testCase.latestVersionId })
@@ -150,8 +164,8 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 					.insert(testRun)
 					.values({
 						projectId,
-						name,
-						environment,
+						name: parsed.data.name,
+						environment: parsed.data.environment,
 						createdBy: creator
 					})
 					.returning();
@@ -178,8 +192,8 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 		'record-failure-detail',
 		'Record failure details for a failed test execution',
 		{
-			runId: z.number().describe('Test run ID'),
-			executionId: z.number().describe('Execution ID'),
+			runId: mcpPositiveIdSchema.describe('Test run ID'),
+			executionId: mcpPositiveIdSchema.describe('Execution ID'),
 			errorMessage: z.string().optional().describe('Error message'),
 			stackTrace: z.string().optional().describe('Stack trace'),
 			failureEnvironment: z.string().optional().describe('Environment details (OS, browser, etc.)'),
@@ -218,7 +232,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 	server.tool(
 		'export-run-results',
 		'Export test run results as structured data',
-		{ runId: z.number().describe('Test run ID') },
+		{ runId: mcpPositiveIdSchema.describe('Test run ID') },
 		async ({ runId }) => {
 			const run = await db.query.testRun.findFirst({
 				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
@@ -289,8 +303,8 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 		'update-execution-status',
 		'Update the execution status of a test case in a run',
 		{
-			runId: z.number().describe('Test run ID'),
-			executionId: z.number().describe('Execution ID'),
+			runId: mcpPositiveIdSchema.describe('Test run ID'),
+			executionId: mcpPositiveIdSchema.describe('Execution ID'),
 			status: z.enum(['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING']).describe('New status')
 		},
 		async ({ runId, executionId, status }) => {
@@ -317,7 +331,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 	server.tool(
 		'complete-test-run',
 		'Complete a test run (set status to COMPLETED)',
-		{ runId: z.number().describe('Test run ID') },
+		{ runId: mcpPositiveIdSchema.describe('Test run ID') },
 		async ({ runId }) => {
 			const run = await db.query.testRun.findFirst({
 				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
@@ -338,11 +352,11 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 		'bulk-update-execution-status',
 		'Update multiple execution statuses at once in a test run',
 		{
-			runId: z.number().describe('Test run ID'),
+			runId: mcpPositiveIdSchema.describe('Test run ID'),
 			updates: z
 				.array(
 					z.object({
-						executionId: z.number().describe('Execution ID'),
+						executionId: mcpPositiveIdSchema.describe('Execution ID'),
 						status: z.enum(['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING']).describe('New status')
 					})
 				)
@@ -392,19 +406,26 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 		'update-test-run',
 		'Update a test run name or environment',
 		{
-			runId: z.number().describe('Test run ID'),
+			runId: mcpPositiveIdSchema.describe('Test run ID'),
 			name: z.string().optional().describe('New name'),
 			environment: z.string().optional().describe('New environment')
 		},
 		async ({ runId, name, environment }) => {
+			const parsed = updateTestRunSchema.pick({ name: true, environment: true }).safeParse({
+				name,
+				environment
+			});
+			if (!parsed.success) return err(firstValidationError(parsed.error));
+
+			const updates: Record<string, unknown> = {};
+			if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+			if (parsed.data.environment !== undefined) updates.environment = parsed.data.environment;
+			if (Object.keys(updates).length === 0) return err('No fields to update');
+
 			const run = await db.query.testRun.findFirst({
 				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))
 			});
 			if (!run) return err('Test run not found');
-
-			const updates: Record<string, unknown> = {};
-			if (name !== undefined) updates.name = name;
-			if (environment !== undefined) updates.environment = environment;
 
 			const [updated] = await db
 				.update(testRun)
@@ -418,7 +439,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 	server.tool(
 		'delete-test-run',
 		'Delete a test run and all its executions',
-		{ runId: z.number().describe('Test run ID') },
+		{ runId: mcpPositiveIdSchema.describe('Test run ID') },
 		async ({ runId }) => {
 			const run = await db.query.testRun.findFirst({
 				where: and(eq(testRun.id, runId), eq(testRun.projectId, projectId))

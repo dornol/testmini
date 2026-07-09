@@ -207,13 +207,41 @@ describe('MCP test-run tools', () => {
 
 			const result = await client.callTool({
 				name: 'create-test-run',
-				arguments: { name: 'New Run', environment: 'QA' }
+				arguments: { name: ' New Run ', environment: ' QA ' }
 			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('New Run');
 			expect(parsed.executionCount).toBe(2);
+		});
+
+		it('should reject blank names before project lookup', async () => {
+			const result = await client.callTool({
+				name: 'create-test-run',
+				arguments: { name: '   ', environment: 'QA' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Name is required'
+			);
+			expect(mockDb.query.project.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
+		it('should reject blank environments before project lookup', async () => {
+			const result = await client.callTool({
+				name: 'create-test-run',
+				arguments: { name: 'Run', environment: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Environment is required'
+			);
+			expect(mockDb.query.project.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.transaction).not.toHaveBeenCalled();
 		});
 
 		it('should return error when project not found', async () => {
@@ -413,19 +441,48 @@ describe('MCP test-run tools', () => {
 
 			const result = await client.callTool({
 				name: 'update-test-run',
-				arguments: { runId: 50, name: 'Updated Run', environment: 'PROD' }
+				arguments: { runId: 50, name: ' Updated Run ', environment: ' PROD ' }
 			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.name).toBe('Updated Run');
 			expect(parsed.environment).toBe('PROD');
+			expect(updateChain.set).toHaveBeenCalledWith({ name: 'Updated Run', environment: 'PROD' });
 			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 50],
 					['project_id', PROJECT_ID]
 				])
 			);
+		});
+
+		it('should reject empty updates before run lookup', async () => {
+			const result = await client.callTool({
+				name: 'update-test-run',
+				arguments: { runId: 50 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'No fields to update'
+			);
+			expect(mockDb.query.testRun.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject blank update names before run lookup', async () => {
+			const result = await client.callTool({
+				name: 'update-test-run',
+				arguments: { runId: 50, name: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Name is required'
+			);
+			expect(mockDb.query.testRun.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return error when run not found', async () => {

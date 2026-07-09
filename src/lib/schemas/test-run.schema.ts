@@ -22,8 +22,8 @@ export const updateExecutionSchema = z.object({
 });
 
 export const updateTestRunSchema = z.object({
-	name: z.string().trim().min(1).max(200).optional(),
-	environment: z.string().trim().min(1).max(30).optional(),
+	name: z.string().trim().min(1, 'Name is required').max(200).optional(),
+	environment: z.string().trim().min(1, 'Environment is required').max(30).optional(),
 	releaseId: z.number().int().positive().nullable().optional()
 });
 

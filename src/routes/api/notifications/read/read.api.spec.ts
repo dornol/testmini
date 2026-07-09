@@ -89,5 +89,25 @@ describe('/api/notifications/read', () => {
 				expect(e.status).toBe(400);
 			}
 		});
+
+		it('should return 400 for non-positive notification IDs', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				body: { ids: [0, -1] },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		});
+
+		it('should return 400 for too many notification IDs', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				body: { ids: Array.from({ length: 101 }, (_, index) => index + 1) },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		});
 	});
 });

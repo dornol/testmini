@@ -15,9 +15,57 @@ export const GET = withAuth(async ({ user }) => {
 
 const VALID_LOCALES = ['ko', 'en'];
 const VALID_THEMES = ['light', 'dark', 'system'];
+const MAX_MUTED_TYPES = 100;
+const MAX_MUTED_TYPE_LENGTH = 100;
+
+function validatePreferenceBody(body: unknown): Record<string, unknown> {
+	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+		error(400, 'Invalid request body');
+	}
+	return body as Record<string, unknown>;
+}
+
+function validateNotificationSettings(
+	value: unknown
+): { enableInApp?: boolean; mutedTypes?: string[] } | null | undefined {
+	if (value === undefined || value === null) return value;
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		error(400, 'Invalid notificationSettings');
+	}
+
+	const settings = value as Record<string, unknown>;
+	const parsed: { enableInApp?: boolean; mutedTypes?: string[] } = {};
+
+	if (settings.enableInApp !== undefined) {
+		if (typeof settings.enableInApp !== 'boolean') {
+			error(400, 'enableInApp must be a boolean');
+		}
+		parsed.enableInApp = settings.enableInApp;
+	}
+
+	if (settings.mutedTypes !== undefined) {
+		if (!Array.isArray(settings.mutedTypes)) {
+			error(400, 'mutedTypes must be an array of strings');
+		}
+		if (settings.mutedTypes.length > MAX_MUTED_TYPES) {
+			error(400, `mutedTypes must contain ${MAX_MUTED_TYPES} items or fewer`);
+		}
+		const mutedTypes = settings.mutedTypes.map((item) =>
+			typeof item === 'string' ? item.trim() : ''
+		);
+		if (
+			mutedTypes.some((item) => !item || item.length > MAX_MUTED_TYPE_LENGTH) ||
+			new Set(mutedTypes).size !== mutedTypes.length
+		) {
+			error(400, 'mutedTypes must be unique non-empty strings');
+		}
+		parsed.mutedTypes = mutedTypes;
+	}
+
+	return parsed;
+}
 
 export const PUT = withAuth(async ({ request, user }) => {
-
 	let body: unknown;
 	try {
 		body = await parseJsonBody(request);
@@ -25,30 +73,24 @@ export const PUT = withAuth(async ({ request, user }) => {
 		error(400, 'Invalid JSON');
 	}
 
-	const { locale, theme, notificationSettings } = body as {
-		locale?: string;
-		theme?: string;
-		notificationSettings?: { enableInApp?: boolean; mutedTypes?: string[] } | null;
-	};
+	const raw = validatePreferenceBody(body);
+	const locale = raw.locale;
+	const theme = raw.theme;
+	const notificationSettings = validateNotificationSettings(raw.notificationSettings);
 
-	if (locale !== undefined && locale !== null && !VALID_LOCALES.includes(locale)) {
+	if (
+		locale !== undefined &&
+		locale !== null &&
+		(typeof locale !== 'string' || !VALID_LOCALES.includes(locale))
+	) {
 		error(400, 'Invalid locale');
 	}
-	if (theme !== undefined && theme !== null && !VALID_THEMES.includes(theme)) {
+	if (
+		theme !== undefined &&
+		theme !== null &&
+		(typeof theme !== 'string' || !VALID_THEMES.includes(theme))
+	) {
 		error(400, 'Invalid theme');
-	}
-	if (notificationSettings !== undefined && notificationSettings !== null) {
-		if (typeof notificationSettings !== 'object') {
-			error(400, 'Invalid notificationSettings');
-		}
-		if (notificationSettings.enableInApp !== undefined && typeof notificationSettings.enableInApp !== 'boolean') {
-			error(400, 'enableInApp must be a boolean');
-		}
-		if (notificationSettings.mutedTypes !== undefined) {
-			if (!Array.isArray(notificationSettings.mutedTypes) || !notificationSettings.mutedTypes.every((t) => typeof t === 'string')) {
-				error(400, 'mutedTypes must be an array of strings');
-			}
-		}
 	}
 
 	const values: {

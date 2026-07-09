@@ -123,6 +123,24 @@ describe('/api/users/me/preferences', () => {
 			await expect(PUT(event)).rejects.toThrow();
 		});
 
+		it('should reject non-object body', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				body: null,
+				user: testUser
+			});
+			await expect(PUT(event)).rejects.toMatchObject({ status: 400 });
+		});
+
+		it('should reject non-string locale', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				body: { locale: 123 },
+				user: testUser
+			});
+			await expect(PUT(event)).rejects.toMatchObject({ status: 400 });
+		});
+
 		it('should reject invalid mutedTypes', async () => {
 			const event = createMockEvent({
 				method: 'PUT',
@@ -130,6 +148,28 @@ describe('/api/users/me/preferences', () => {
 				user: testUser
 			});
 			await expect(PUT(event)).rejects.toThrow();
+		});
+
+		it('should reject duplicate mutedTypes', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				body: { notificationSettings: { mutedTypes: ['TEST_FAILED', 'TEST_FAILED'] } },
+				user: testUser
+			});
+			await expect(PUT(event)).rejects.toMatchObject({ status: 400 });
+		});
+
+		it('should reject too many mutedTypes', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				body: {
+					notificationSettings: {
+						mutedTypes: Array.from({ length: 101 }, (_, index) => `TYPE_${index}`)
+					}
+				},
+				user: testUser
+			});
+			await expect(PUT(event)).rejects.toMatchObject({ status: 400 });
 		});
 
 		it('should return 401 when unauthenticated', async () => {

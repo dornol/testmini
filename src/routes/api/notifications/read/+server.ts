@@ -6,8 +6,9 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { cacheDelete } from '$lib/server/cache';
 import { parseJsonBody } from '$lib/server/auth-utils';
 
-export const POST = withAuth(async ({ user, request }) => {
+const MAX_NOTIFICATION_IDS = 100;
 
+export const POST = withAuth(async ({ user, request }) => {
 	let body: unknown;
 	try {
 		body = await parseJsonBody(request);
@@ -35,8 +36,11 @@ export const POST = withAuth(async ({ user, request }) => {
 	if (Array.isArray(payload.ids) && payload.ids.length > 0) {
 		const ids = payload.ids as number[];
 
-		if (!ids.every((id) => typeof id === 'number' && Number.isInteger(id))) {
-			error(400, 'ids must be an array of integers');
+		if (ids.length > MAX_NOTIFICATION_IDS) {
+			error(400, `ids must contain ${MAX_NOTIFICATION_IDS} items or fewer`);
+		}
+		if (!ids.every((id) => typeof id === 'number' && Number.isInteger(id) && id > 0)) {
+			error(400, 'ids must be an array of positive integers');
 		}
 
 		// Only allow marking notifications that belong to the current user

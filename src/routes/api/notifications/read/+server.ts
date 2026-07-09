@@ -42,21 +42,31 @@ export const POST = withAuth(async ({ user, request }) => {
 
 	if ('all' in parsed.data) {
 		// Mark all unread notifications as read for this user
-		await db
+		const updated = await db
 			.update(notification)
 			.set({ isRead: true })
-			.where(and(eq(notification.userId, user.id), eq(notification.isRead, false)));
+			.where(and(eq(notification.userId, user.id), eq(notification.isRead, false)))
+			.returning({ id: notification.id });
 
 		cacheDelete(`user:${user.id}:unread_notifications`);
-		return json({ ok: true });
+		return json({ ok: true, updated: updated.length });
+	}
+
+	const ids = parsed.data.ids;
+	if (new Set(ids).size !== ids.length) {
+		error(400, 'Notification IDs must be unique');
 	}
 
 	// Only allow marking notifications that belong to the current user
-	await db
+	const updated = await db
 		.update(notification)
 		.set({ isRead: true })
-		.where(and(eq(notification.userId, user.id), inArray(notification.id, parsed.data.ids)));
+		.where(and(eq(notification.userId, user.id), inArray(notification.id, ids)))
+		.returning({ id: notification.id });
+	if (updated.length !== ids.length) {
+		error(404, 'Notification not found');
+	}
 
 	cacheDelete(`user:${user.id}:unread_notifications`);
-	return json({ ok: true });
+	return json({ ok: true, updated: updated.length });
 });

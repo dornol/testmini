@@ -28,18 +28,23 @@ describe('/api/notifications/read', () => {
 	});
 
 	describe('POST', () => {
+		function mockUpdateReturning(rows: unknown[]) {
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue(rows)
+			};
+			mockDb.update.mockReturnValue(updateChain as never);
+			return updateChain;
+		}
+
 		it('should return 401 when not authenticated', async () => {
 			const event = createMockEvent({ method: 'POST', body: { all: true }, user: null });
 			await expect(POST(event)).rejects.toThrow();
 		});
 
 		it('should mark all as read with { all: true }', async () => {
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockResolvedValue(undefined),
-				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			mockUpdateReturning([{ id: 1 }, { id: 2 }]);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -51,16 +56,12 @@ describe('/api/notifications/read', () => {
 
 			expect(response.status).toBe(200);
 			expect(data.ok).toBe(true);
+			expect(data.updated).toBe(2);
 			expect(mockDb.update).toHaveBeenCalled();
 		});
 
 		it('should mark specific IDs as read', async () => {
-			const updateChain = {
-				set: vi.fn().mockReturnThis(),
-				where: vi.fn().mockResolvedValue(undefined),
-				then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
-			};
-			mockDb.update.mockReturnValue(updateChain as never);
+			mockUpdateReturning([{ id: 1 }, { id: 2 }, { id: 3 }]);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -72,7 +73,32 @@ describe('/api/notifications/read', () => {
 
 			expect(response.status).toBe(200);
 			expect(data.ok).toBe(true);
+			expect(data.updated).toBe(3);
 			expect(mockDb.update).toHaveBeenCalled();
+		});
+
+		it('should return 404 when a specific notification ID is not updated', async () => {
+			mockUpdateReturning([{ id: 1 }, { id: 3 }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				body: { ids: [1, 2, 3] },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 404 });
+			expect(mockDb.update).toHaveBeenCalled();
+		});
+
+		it('should return 400 for duplicate notification IDs before updating', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				body: { ids: [1, 1] },
+				user: testUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 for invalid body', async () => {

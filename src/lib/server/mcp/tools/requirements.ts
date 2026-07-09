@@ -2,8 +2,17 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, requirement, requirementTestCase } from '$lib/server/db/schema';
-import { ok, err, requireProjectCreator, buildUpdates } from '../helpers';
+import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
 import { eq, and } from 'drizzle-orm';
+import { validateRequirementFields } from '$lib/server/requirement-validation';
+
+async function mcpValidationError(
+	response: Response,
+	fallback: string
+): Promise<ReturnType<typeof err>> {
+	const body = (await response.json().catch(() => null)) as { error?: string } | null;
+	return err(body?.error ?? fallback);
+}
 
 export function registerRequirementTools(server: McpServer, projectId: number) {
 	server.tool(
@@ -19,14 +28,22 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
 
+			const fields = validateRequirementFields(
+				{ title, externalId, description, source },
+				{ requireTitle: true }
+			);
+			if (fields instanceof Response) {
+				return mcpValidationError(fields, 'Invalid requirement');
+			}
+
 			const [req] = await db
 				.insert(requirement)
 				.values({
 					projectId,
-					title,
-					externalId: externalId ?? null,
-					description: description ?? null,
-					source: source ?? null,
+					title: fields.title!,
+					externalId: fields.externalId ?? null,
+					description: fields.description ?? null,
+					source: fields.source ?? null,
 					createdBy: creator
 				})
 				.returning();
@@ -39,8 +56,8 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 		'link-requirement-test-case',
 		'Link a requirement to a test case',
 		{
-			requirementId: z.number(),
-			testCaseId: z.number()
+			requirementId: mcpPositiveIdSchema,
+			testCaseId: mcpPositiveIdSchema
 		},
 		async ({ requirementId, testCaseId }) => {
 			const req = await db.query.requirement.findFirst({
@@ -138,11 +155,11 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 		'update-requirement',
 		'Update a requirement',
 		{
-			requirementId: z.number().describe('Requirement ID'),
+			requirementId: mcpPositiveIdSchema.describe('Requirement ID'),
 			title: z.string().optional().describe('New title'),
-			description: z.string().optional().describe('New description'),
-			externalId: z.string().optional().describe('New external ID'),
-			source: z.string().optional().describe('New source')
+			description: z.string().nullable().optional().describe('New description'),
+			externalId: z.string().nullable().optional().describe('New external ID'),
+			source: z.string().nullable().optional().describe('New source')
 		},
 		async ({ requirementId, title, description, externalId, source }) => {
 			const r = await db.query.requirement.findFirst({
@@ -150,11 +167,24 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 			});
 			if (!r) return err('Requirement not found');
 
+			const input: Record<string, unknown> = {};
+			if (title !== undefined) input.title = title;
+			if (description !== undefined) input.description = description;
+			if (externalId !== undefined) input.externalId = externalId;
+			if (source !== undefined) input.source = source;
+
+			const fields = validateRequirementFields(input);
+			if (fields instanceof Response) {
+				return mcpValidationError(fields, 'Invalid requirement');
+			}
+
 			const updates: Record<string, unknown> = {};
-			if (title !== undefined) updates.title = title;
-			if (description !== undefined) updates.description = description;
-			if (externalId !== undefined) updates.externalId = externalId;
-			if (source !== undefined) updates.source = source;
+			if (fields.title !== undefined) updates.title = fields.title;
+			if (fields.description !== undefined) updates.description = fields.description;
+			if (fields.externalId !== undefined) updates.externalId = fields.externalId;
+			if (fields.source !== undefined) updates.source = fields.source;
+
+			if (Object.keys(updates).length === 0) return err('No fields to update');
 
 			const [updated] = await db
 				.update(requirement)
@@ -168,7 +198,7 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 	server.tool(
 		'delete-requirement',
 		'Delete a requirement',
-		{ requirementId: z.number().describe('Requirement ID') },
+		{ requirementId: mcpPositiveIdSchema.describe('Requirement ID') },
 		async ({ requirementId }) => {
 			const r = await db.query.requirement.findFirst({
 				where: and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId))
@@ -189,8 +219,8 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 		'unlink-requirement-test-case',
 		'Remove link between a requirement and a test case',
 		{
-			requirementId: z.number().describe('Requirement ID'),
-			testCaseId: z.number().describe('Test case ID')
+			requirementId: mcpPositiveIdSchema.describe('Requirement ID'),
+			testCaseId: mcpPositiveIdSchema.describe('Test case ID')
 		},
 		async ({ requirementId, testCaseId }) => {
 			const req = await db.query.requirement.findFirst({

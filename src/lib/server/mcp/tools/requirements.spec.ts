@@ -96,17 +96,54 @@ describe('MCP requirement tools', () => {
 	describe('create-requirement', () => {
 		it('should create a requirement', async () => {
 			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
-			mockInsertReturning(mockDb, [sampleRequirement]);
+			const insertChain = mockInsertReturning(mockDb, [sampleRequirement]);
 
 			const result = await client.callTool({
 				name: 'create-requirement',
-				arguments: { title: 'User Authentication', externalId: 'REQ-001', source: 'JIRA' }
+				arguments: { title: ' User Authentication ', externalId: ' REQ-001 ', source: ' JIRA ' }
 			});
 
 			expect(result.isError).toBeFalsy();
 			const parsed = parseResult(result);
 			expect(parsed.title).toBe('User Authentication');
 			expect(parsed.externalId).toBe('REQ-001');
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({
+					title: 'User Authentication',
+					externalId: 'REQ-001',
+					source: 'JIRA'
+				})
+			);
+		});
+
+		it('should reject empty titles before creating a requirement', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-requirement',
+				arguments: { title: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Title is required'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject long fields before creating a requirement', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+
+			const result = await client.callTool({
+				name: 'create-requirement',
+				arguments: { title: 'A'.repeat(256) }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Title must be 255 characters or less'
+			);
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return error when project not found', async () => {
@@ -251,7 +288,7 @@ describe('MCP requirement tools', () => {
 
 			const result = await client.callTool({
 				name: 'update-requirement',
-				arguments: { requirementId: 1, title: 'Updated Title' }
+				arguments: { requirementId: 1, title: ' Updated Title ', description: '   ' }
 			});
 
 			expect(result.isError).toBeFalsy();
@@ -263,6 +300,57 @@ describe('MCP requirement tools', () => {
 					['project_id', 1]
 				])
 			);
+			expect(updateChain.set).toHaveBeenCalledWith(
+				expect.objectContaining({
+					title: 'Updated Title',
+					description: null
+				})
+			);
+		});
+
+		it('should reject empty titles before updating a requirement', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+
+			const result = await client.callTool({
+				name: 'update-requirement',
+				arguments: { requirementId: 1, title: '   ' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Title is required'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject empty updates', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+
+			const result = await client.callTool({
+				name: 'update-requirement',
+				arguments: { requirementId: 1 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'No fields to update'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
+		it('should reject long source before updating a requirement', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+
+			const result = await client.callTool({
+				name: 'update-requirement',
+				arguments: { requirementId: 1, source: 'A'.repeat(256) }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Source must be 255 characters or less'
+			);
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return error when not found', async () => {
@@ -277,6 +365,18 @@ describe('MCP requirement tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Requirement not found'
 			);
+		});
+
+		it('should reject unsafe IDs before linking', async () => {
+			const result = await client.callTool({
+				name: 'link-requirement-test-case',
+				arguments: { requirementId: Number.MAX_SAFE_INTEGER + 1, testCaseId: 10 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(mockDb.query.requirement.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.query.testCase.findFirst).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 	});
 

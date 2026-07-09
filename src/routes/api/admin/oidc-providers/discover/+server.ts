@@ -7,6 +7,34 @@ const discoveryCache = new Map<string, { data: unknown; expiresAt: number }>();
 const CACHE_TTL = 300_000; // 5 minutes
 const FETCH_TIMEOUT = 10_000; // 10 seconds
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseIssuerUrl(body: unknown): string {
+	if (!isRecord(body)) {
+		error(400, 'issuerUrl is required');
+	}
+
+	const rawIssuerUrl = body.issuerUrl;
+	if (typeof rawIssuerUrl !== 'string') {
+		error(400, 'issuerUrl is required');
+	}
+
+	const issuerUrl = rawIssuerUrl.trim().replace(/\/+$/, '');
+	if (!issuerUrl) {
+		error(400, 'issuerUrl is required');
+	}
+
+	return issuerUrl;
+}
+
+function readStringField(source: unknown, field: string): string {
+	if (!isRecord(source)) return '';
+	const value = source[field];
+	return typeof value === 'string' ? value : '';
+}
+
 async function assertSafeIssuerUrl(issuerUrl: string): Promise<void> {
 	const validation = await validatePublicHttpsUrl(issuerUrl);
 	if (!validation.ok) {
@@ -24,12 +52,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		error(403, 'Admin access required');
 	}
 
-	const body = (await parseJsonBody(request)) as Record<string, unknown>;
-	const issuerUrl = (body.issuerUrl as string)?.trim()?.replace(/\/+$/, '');
-
-	if (!issuerUrl) {
-		error(400, 'issuerUrl is required');
-	}
+	const issuerUrl = parseIssuerUrl(await parseJsonBody(request));
 
 	// SSRF defence: validate URL scheme and resolved IP before fetching.
 	await assertSafeIssuerUrl(issuerUrl);
@@ -57,10 +80,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const config = await res.json();
 
 		const data = {
-			authorizationUrl: config.authorization_endpoint ?? '',
-			tokenUrl: config.token_endpoint ?? '',
-			userinfoUrl: config.userinfo_endpoint ?? '',
-			jwksUri: config.jwks_uri ?? ''
+			authorizationUrl: readStringField(config, 'authorization_endpoint'),
+			tokenUrl: readStringField(config, 'token_endpoint'),
+			userinfoUrl: readStringField(config, 'userinfo_endpoint'),
+			jwksUri: readStringField(config, 'jwks_uri')
 		};
 
 		// Cache the result

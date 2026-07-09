@@ -57,6 +57,18 @@ describe('/api/admin/oidc-providers/discover', () => {
 		}
 	});
 
+	it('should return 400 when issuerUrl is not a string', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			body: { issuerUrl: { href: 'https://issuer.example' } },
+			user: adminUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		expect(mockLookup).not.toHaveBeenCalled();
+		expect(mockFetch).not.toHaveBeenCalled();
+	});
+
 	it('should reject issuerUrl resolving to a private address', async () => {
 		mockLookup.mockResolvedValue([{ address: '10.0.0.5', family: 4 }]);
 
@@ -86,6 +98,30 @@ describe('/api/admin/oidc-providers/discover', () => {
 			'https://issuer.example/.well-known/openid-configuration',
 			expect.objectContaining({ redirect: 'manual' })
 		);
+	});
+
+	it('should ignore non-object discovery documents', async () => {
+		mockFetch.mockResolvedValue({
+			ok: true,
+			json: vi.fn().mockResolvedValue(null)
+		});
+
+		const event = createMockEvent({
+			method: 'POST',
+			body: { issuerUrl: 'https://empty-issuer.example' },
+			user: adminUser
+		});
+
+		const response = await POST(event);
+		const body = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(body).toEqual({
+			authorizationUrl: '',
+			tokenUrl: '',
+			userinfoUrl: '',
+			jwksUri: ''
+		});
 	});
 
 	it('should reject discovery redirects instead of following them', async () => {

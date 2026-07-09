@@ -17,6 +17,28 @@ describe('createEnvironmentSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
+	it('should reject whitespace-only name', () => {
+		const result = createEnvironmentSchema.safeParse({ name: '   ', color: '#ff0000' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim environment name and baseUrl before returning parsed data', () => {
+		const result = createEnvironmentSchema.parse({
+			name: '  QA  ',
+			color: '#ff0000',
+			baseUrl: '  https://qa.example.com  ',
+			credentials: '  admin@test.com / pass123  ',
+			memo: '  VPN required  '
+		});
+
+		expect(result).toMatchObject({
+			name: 'QA',
+			baseUrl: 'https://qa.example.com',
+			credentials: '  admin@test.com / pass123  ',
+			memo: '  VPN required  '
+		});
+	});
+
 	it('should reject name exceeding 30 characters', () => {
 		const result = createEnvironmentSchema.safeParse({ name: 'a'.repeat(31), color: '#ff0000' });
 		expect(result.success).toBe(false);
@@ -230,6 +252,33 @@ describe('updateEnvironmentSchema', () => {
 			color: '#ff0000'
 		});
 		expect(result.success).toBe(false);
+	});
+
+	it('should reject whitespace-only name', () => {
+		const result = updateEnvironmentSchema.safeParse({
+			environmentId: 1,
+			name: '   ',
+			color: '#ff0000'
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim update environment name and baseUrl before returning parsed data', () => {
+		const result = updateEnvironmentSchema.parse({
+			environmentId: 1,
+			name: '  Staging  ',
+			color: '#00ff00',
+			baseUrl: '  https://staging.example.com  ',
+			credentials: '  deploy / token  ',
+			memo: '  Shared env  '
+		});
+
+		expect(result).toMatchObject({
+			name: 'Staging',
+			baseUrl: 'https://staging.example.com',
+			credentials: '  deploy / token  ',
+			memo: '  Shared env  '
+		});
 	});
 
 	it('should reject name exceeding 30 characters', () => {

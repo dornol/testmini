@@ -17,6 +17,16 @@ describe('createPrioritySchema', () => {
 		expect(result.success).toBe(false);
 	});
 
+	it('should reject whitespace-only name', () => {
+		const result = createPrioritySchema.safeParse({ name: '   ', color: '#ff0000' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim priority name before returning parsed data', () => {
+		const result = createPrioritySchema.parse({ name: '  High  ', color: '#ff0000' });
+		expect(result.name).toBe('High');
+	});
+
 	it('should reject name exceeding 30 characters', () => {
 		const result = createPrioritySchema.safeParse({ name: 'a'.repeat(31), color: '#ff0000' });
 		expect(result.success).toBe(false);
@@ -123,6 +133,24 @@ describe('updatePrioritySchema', () => {
 	it('should reject empty name', () => {
 		const result = updatePrioritySchema.safeParse({ priorityId: 1, name: '', color: '#ff0000' });
 		expect(result.success).toBe(false);
+	});
+
+	it('should reject whitespace-only name', () => {
+		const result = updatePrioritySchema.safeParse({
+			priorityId: 1,
+			name: '   ',
+			color: '#ff0000'
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('should trim update priority name before returning parsed data', () => {
+		const result = updatePrioritySchema.parse({
+			priorityId: 1,
+			name: '  High  ',
+			color: '#ff0000'
+		});
+		expect(result.name).toBe('High');
 	});
 
 	it('should reject name exceeding 30 characters', () => {

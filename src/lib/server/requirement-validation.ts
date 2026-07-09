@@ -1,4 +1,5 @@
 import { badRequest } from '$lib/server/errors';
+import { isPlainRecord } from './object-validation';
 
 const MAX_REQUIREMENT_TITLE_LENGTH = 255;
 const MAX_REQUIREMENT_EXTERNAL_ID_LENGTH = 255;
@@ -35,20 +36,19 @@ export function validateRequirementFields(
 	body: unknown,
 	options: { requireTitle?: boolean } = {}
 ): ValidatedRequirementFields | Response {
-	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+	if (!isPlainRecord(body)) {
 		return badRequest('Invalid request body');
 	}
 
-	const input = body as Record<string, unknown>;
-	if (Object.keys(input).some((key) => !REQUIREMENT_FIELDS.has(key))) {
+	if (Object.keys(body).some((key) => !REQUIREMENT_FIELDS.has(key))) {
 		return badRequest('Invalid requirement field');
 	}
 
 	const fields: ValidatedRequirementFields = {};
 
-	if (input.title !== undefined) {
-		if (typeof input.title !== 'string') return badRequest('Title must be a string');
-		const title = input.title.trim();
+	if (body.title !== undefined) {
+		if (typeof body.title !== 'string') return badRequest('Title must be a string');
+		const title = body.title.trim();
 		if (!title) return badRequest('Title is required');
 		if (title.length > MAX_REQUIREMENT_TITLE_LENGTH) {
 			return badRequest(`Title must be ${MAX_REQUIREMENT_TITLE_LENGTH} characters or less`);
@@ -59,7 +59,7 @@ export function validateRequirementFields(
 	}
 
 	const externalId = validateOptionalStringField(
-		input,
+		body,
 		'externalId',
 		'External ID',
 		MAX_REQUIREMENT_EXTERNAL_ID_LENGTH
@@ -68,7 +68,7 @@ export function validateRequirementFields(
 	if (externalId !== undefined) fields.externalId = externalId;
 
 	const description = validateOptionalStringField(
-		input,
+		body,
 		'description',
 		'Description',
 		MAX_REQUIREMENT_DESCRIPTION_LENGTH
@@ -77,7 +77,7 @@ export function validateRequirementFields(
 	if (description !== undefined) fields.description = description;
 
 	const source = validateOptionalStringField(
-		input,
+		body,
 		'source',
 		'Source',
 		MAX_REQUIREMENT_SOURCE_LENGTH

@@ -1,4 +1,5 @@
 import { badRequest } from '$lib/server/errors';
+import { isPlainRecord } from './object-validation';
 
 const MAX_BULK_TEST_CASES = 200;
 const MAX_PRIORITY_LENGTH = 30;
@@ -27,7 +28,7 @@ export type ValidatedBulkTestCasePayload = {
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
+	return isPlainRecord(value);
 }
 
 function validatePositiveInteger(value: unknown, field: string): number | Response {

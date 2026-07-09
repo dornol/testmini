@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -192,10 +196,8 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 		});
 
 		it('should update requirement title', async () => {
-			mockDb.query.requirement.findFirst
-				.mockResolvedValueOnce(sampleRequirement)
-				.mockResolvedValueOnce({ ...sampleRequirement, title: 'Updated Title' });
-			mockUpdateReturning(mockDb, []);
+			mockDb.query.requirement.findFirst.mockResolvedValueOnce(sampleRequirement);
+			mockUpdateReturning(mockDb, [{ ...sampleRequirement, title: 'Updated Title' }]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -217,10 +219,8 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 				description: 'New desc',
 				source: 'PRD v2.0'
 			};
-			mockDb.query.requirement.findFirst
-				.mockResolvedValueOnce(sampleRequirement)
-				.mockResolvedValueOnce(updated);
-			mockUpdateReturning(mockDb, []);
+			mockDb.query.requirement.findFirst.mockResolvedValueOnce(sampleRequirement);
+			mockUpdateReturning(mockDb, [updated]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -239,10 +239,8 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 
 		it('should set externalId to null when empty string', async () => {
 			const updated = { ...sampleRequirement, externalId: null };
-			mockDb.query.requirement.findFirst
-				.mockResolvedValueOnce(sampleRequirement)
-				.mockResolvedValueOnce(updated);
-			mockUpdateReturning(mockDb, []);
+			mockDb.query.requirement.findFirst.mockResolvedValueOnce(sampleRequirement);
+			mockUpdateReturning(mockDb, [updated]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -255,6 +253,20 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 			expect(response.status).toBe(200);
 			const body = await response.json();
 			expect(body.externalId).toBeNull();
+		});
+
+		it('should return 404 when requirement disappears before update', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValueOnce(sampleRequirement);
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { title: 'Updated Title' }
+			});
+
+			await expect(PATCH(event)).rejects.toMatchObject({ status: 404 });
 		});
 	});
 
@@ -282,6 +294,7 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 
 		it('should delete requirement and return success', async () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockDeleteReturning(mockDb, [sampleRequirement]);
 
 			const event = createMockEvent({
 				method: 'DELETE',
@@ -294,6 +307,19 @@ describe('/api/projects/[projectId]/requirements/[requirementId]', () => {
 			const body = await response.json();
 			expect(body.success).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
+		});
+
+		it('should return 404 when requirement disappears before delete', async () => {
+			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: PARAMS,
+				user: testUser
+			});
+
+			await expect(DELETE(event)).rejects.toMatchObject({ status: 404 });
 		});
 	});
 });

@@ -36,7 +36,10 @@ function chainable(terminal?: () => unknown) {
 }
 
 function rawSql(strings: TemplateStringsArray, ...values: unknown[]) {
-	const text = strings.reduce((acc, part, index) => `${acc}${part}${index < values.length ? String(values[index]) : ''}`, '');
+	const text = strings.reduce(
+		(acc, part, index) => `${acc}${part}${index < values.length ? String(values[index]) : ''}`,
+		''
+	);
 	return { as: vi.fn().mockReturnValue({ text }), text };
 }
 
@@ -94,7 +97,10 @@ export function createMockDb() {
 			projectWebhook: { findFirst: vi.fn() },
 			sharedDataSet: { findFirst: vi.fn() },
 			issueLink: { findFirst: vi.fn() }
-		} as Record<string, { findFirst: ReturnType<typeof vi.fn>; findMany?: ReturnType<typeof vi.fn> }>,
+		} as Record<
+			string,
+			{ findFirst: ReturnType<typeof vi.fn>; findMany?: ReturnType<typeof vi.fn> }
+		>,
 		_chains: { select: selectChain, insert: insertChain, update: updateChain, delete: deleteChain },
 		sql: Object.assign(vi.fn(rawSql), { raw: vi.fn((text: string) => ({ text })) }),
 		col: mockCol
@@ -127,5 +133,14 @@ export function mockInsertReturning(db: ReturnType<typeof createMockDb>, result:
 export function mockUpdateReturning(db: ReturnType<typeof createMockDb>, result: unknown[]) {
 	const chain = chainable(() => result);
 	db.update.mockReturnValue(chain);
+	return chain;
+}
+
+/**
+ * Sets what the delete().where().returning() chain resolves to.
+ */
+export function mockDeleteReturning(db: ReturnType<typeof createMockDb>, result: unknown[]) {
+	const chain = chainable(() => result);
+	db.delete.mockReturnValue(chain);
 	return chain;
 }

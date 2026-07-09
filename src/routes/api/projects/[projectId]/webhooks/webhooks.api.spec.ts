@@ -121,6 +121,19 @@ describe('/api/projects/[projectId]/webhooks', () => {
 			expect(data.name).toBe('My Hook');
 		});
 
+		it('should return 500 when webhook insert returns no row', async () => {
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'My Hook', url: 'https://example.com/hook' },
+				user: adminUser
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
 		it('should create a webhook with events filter', async () => {
 			const created = {
 				id: 3,

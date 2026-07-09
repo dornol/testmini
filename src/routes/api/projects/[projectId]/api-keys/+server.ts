@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { badRequest } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { projectApiKey } from '$lib/server/db/schema';
@@ -75,6 +75,8 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 			createdBy: user.id
 		})
 		.returning();
+
+	if (!created) error(500, 'Failed to create API key');
 
 	// Return the full key ONCE — it cannot be retrieved again
 	return json(

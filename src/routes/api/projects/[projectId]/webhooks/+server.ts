@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { badRequest } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { projectWebhook } from '$lib/server/db/schema';
@@ -43,6 +43,8 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 			createdBy: user.id
 		})
 		.returning();
+
+	if (!created) error(500, 'Failed to create webhook');
 
 	return json(
 		{

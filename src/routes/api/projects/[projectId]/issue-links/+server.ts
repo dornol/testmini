@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { issueLink, issueTrackerConfig } from '$lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -91,6 +91,8 @@ export const POST = withProjectRole(
 				createdBy: user.id
 			})
 			.returning();
+
+		if (!created) error(500, 'Failed to create issue link');
 
 		return json(
 			{

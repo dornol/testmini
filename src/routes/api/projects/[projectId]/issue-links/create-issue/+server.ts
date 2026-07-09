@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { badRequest, notFound } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { issueTrackerConfig, issueLink } from '$lib/server/db/schema';
@@ -204,6 +204,8 @@ export const POST = withProjectRole(
 				createdBy: user.id
 			})
 			.returning();
+
+		if (!created) error(500, 'Failed to create issue link');
 
 		return json(
 			{

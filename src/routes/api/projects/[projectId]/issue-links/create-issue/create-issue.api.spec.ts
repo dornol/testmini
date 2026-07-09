@@ -320,6 +320,25 @@ describe('/api/projects/[projectId]/issue-links/create-issue', () => {
 		expect(body.provider).toBe('JIRA');
 	});
 
+	it('should return 500 when created external issue cannot be linked locally', async () => {
+		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
+		mockCreateExternalIssue.mockResolvedValue({
+			url: 'https://company.atlassian.net/browse/PROJ-456',
+			key: 'PROJ-456',
+			title: 'Login fails on mobile'
+		});
+		mockInsertReturning(mockDb, []);
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			user: testUser,
+			body: { testCaseId: 10, title: 'Login fails on mobile', description: 'Steps to reproduce...' }
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+	});
+
 	it('should pass correct config to createExternalIssue', async () => {
 		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
 		mockCreateExternalIssue.mockResolvedValue({

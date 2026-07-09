@@ -414,6 +414,25 @@ describe('/api/projects/[projectId]/issue-links', () => {
 			expect(body.externalKey).toBe('PROJ-123');
 		});
 
+		it('should return 500 when issue link insert returns no row', async () => {
+			mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue({
+				provider: 'GITHUB'
+			});
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					testCaseId: 10,
+					externalUrl: 'https://company.atlassian.net/browse/PROJ-123'
+				}
+			});
+
+			await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+		});
+
 		it('should reject testCaseId outside the project before creating link', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(null);
 

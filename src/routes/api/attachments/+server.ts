@@ -29,16 +29,27 @@ const ALLOWED_MIME_TYPES = [
 	'video/webm'
 ];
 
+function parseReferenceId(value: FormDataEntryValue | string | null): number {
+	if (typeof value !== 'string') {
+		error(400, 'Invalid referenceId');
+	}
+
+	const referenceId = Number(value);
+	if (!Number.isSafeInteger(referenceId) || referenceId <= 0) {
+		error(400, 'Invalid referenceId');
+	}
+
+	return referenceId;
+}
+
 export const GET = withAuth(async ({ url, user }) => {
 	const referenceType = url.searchParams.get('referenceType');
-	const referenceId = Number(url.searchParams.get('referenceId'));
+	const referenceIdValue = url.searchParams.get('referenceId');
 
 	if (!isAttachmentReferenceType(referenceType)) {
 		error(400, 'Invalid referenceType');
 	}
-	if (isNaN(referenceId) || referenceId <= 0) {
-		error(400, 'Invalid referenceId');
-	}
+	const referenceId = parseReferenceId(referenceIdValue);
 
 	const projectId = await getProjectIdForAttachmentReference(referenceType, referenceId);
 	await requireProjectAccess(user, projectId);
@@ -58,7 +69,7 @@ export const POST = withAuth(async ({ request, user }) => {
 	const formData = await request.formData();
 	const file = formData.get('file') as File | null;
 	const referenceTypeValue = formData.get('referenceType');
-	const referenceId = Number(formData.get('referenceId'));
+	const referenceIdValue = formData.get('referenceId');
 
 	if (!file || !(file instanceof File)) {
 		error(400, 'No file provided');
@@ -68,10 +79,7 @@ export const POST = withAuth(async ({ request, user }) => {
 		error(400, 'Invalid referenceType');
 	}
 	const referenceType = referenceTypeValue;
-
-	if (isNaN(referenceId) || referenceId <= 0) {
-		error(400, 'Invalid referenceId');
-	}
+	const referenceId = parseReferenceId(referenceIdValue);
 
 	if (file.size > MAX_FILE_SIZE) {
 		error(400, 'File size exceeds 10MB limit');

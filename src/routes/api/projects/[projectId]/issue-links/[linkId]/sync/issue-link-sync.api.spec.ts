@@ -28,6 +28,7 @@ vi.mock('$lib/server/db/schema', () => ({
 	},
 	testCase: {
 		id: 'id',
+		projectId: 'project_id',
 		retestNeeded: 'retest_needed'
 	}
 }));
@@ -36,9 +37,8 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args)
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -144,7 +144,7 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/sync', () => {
 			statusCategory: 'IN_PROGRESS'
 		});
 		const updatedLink = { ...sampleLink, status: 'In Progress', statusSyncedAt: new Date() };
-		mockUpdateReturning(mockDb, [updatedLink]);
+		const updateChain = mockUpdateReturning(mockDb, [updatedLink]);
 
 		const event = createMockEvent({
 			method: 'POST',
@@ -157,6 +157,12 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/sync', () => {
 		const body = await response.json();
 		expect(body.status).toBe('In Progress');
 		expect(body.statusCategory).toBe('IN_PROGRESS');
+		expect(updateChain.where).toHaveBeenCalledWith(
+			expect.arrayContaining([
+				['id', 10],
+				['project_id', 1]
+			])
+		);
 	});
 
 	it('should pass correct config to fetchIssueStatus', async () => {
@@ -191,19 +197,21 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/sync', () => {
 		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
 		mockFetchIssueStatus.mockResolvedValue({ status: 'Done', statusCategory: 'done' });
 
-		const updatedLink = { ...sampleLink, status: 'Done', statusSyncedAt: new Date() };
-		mockUpdateReturning(mockDb, [updatedLink]);
-
-		// Mock the second update call (retest flag)
+		const linkUpdateChain = {
+			set: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			returning: vi.fn().mockReturnThis(),
+			then: (r: (v: unknown) => void) =>
+				Promise.resolve([{ ...sampleLink, status: 'Done', statusSyncedAt: new Date() }]).then(r)
+		};
 		const retestUpdateChain = {
 			set: vi.fn().mockReturnThis(),
 			where: vi.fn().mockReturnThis(),
 			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
 		};
-		mockDb.update.mockReturnValueOnce(
-			// first call returns the link update chain from mockUpdateReturning above
-			mockDb.update.getMockImplementation()?.() ?? retestUpdateChain as never
-		).mockReturnValue(retestUpdateChain as never);
+		mockDb.update
+			.mockReturnValueOnce(linkUpdateChain as never)
+			.mockReturnValueOnce(retestUpdateChain as never);
 
 		const event = createMockEvent({
 			method: 'POST',
@@ -215,12 +223,27 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/sync', () => {
 		expect(response.status).toBe(200);
 		// The update mock should have been called twice: once for link, once for testCase retest
 		expect(mockDb.update).toHaveBeenCalledTimes(2);
+		expect(linkUpdateChain.where).toHaveBeenCalledWith(
+			expect.arrayContaining([
+				['id', 10],
+				['project_id', 1]
+			])
+		);
+		expect(retestUpdateChain.where).toHaveBeenCalledWith(
+			expect.arrayContaining([
+				['id', 5],
+				['project_id', 1]
+			])
+		);
 	});
 
 	it('should not mark retest when issue is not resolved', async () => {
 		mockDb.query.issueLink.findFirst.mockResolvedValue(sampleLink);
 		mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(sampleConfig);
-		mockFetchIssueStatus.mockResolvedValue({ status: 'In Progress', statusCategory: 'in_progress' });
+		mockFetchIssueStatus.mockResolvedValue({
+			status: 'In Progress',
+			statusCategory: 'in_progress'
+		});
 		mockUpdateReturning(mockDb, [{ ...sampleLink, status: 'In Progress' }]);
 
 		const event = createMockEvent({

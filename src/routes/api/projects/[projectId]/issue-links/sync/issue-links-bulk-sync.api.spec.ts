@@ -28,6 +28,7 @@ vi.mock('$lib/server/db/schema', () => ({
 	},
 	testCase: {
 		id: 'id',
+		projectId: 'project_id',
 		retestNeeded: 'retest_needed'
 	}
 }));
@@ -136,6 +137,12 @@ describe('/api/projects/[projectId]/issue-links/sync', () => {
 		expect(body.total).toBe(2);
 		expect(body.synced).toBe(2);
 		expect(body.failed).toBe(0);
+		expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+			expect.arrayContaining([
+				['id', 1],
+				['project_id', 1]
+			])
+		);
 	});
 
 	it('should handle partial failures', async () => {
@@ -275,6 +282,12 @@ describe('/api/projects/[projectId]/issue-links/sync', () => {
 		expect(response.status).toBe(200);
 		const body = await response.json();
 		expect(body.retestMarked).toBe(2);
+		expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+			expect.arrayContaining([
+				['id', [5, 6]],
+				['project_id', 1]
+			])
+		);
 	});
 
 	it('should return retestMarked 0 when issues are not done', async () => {

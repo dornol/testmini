@@ -27,6 +27,7 @@ vi.mock('$lib/server/db/schema', () => ({
 	},
 	testCase: {
 		id: 'id',
+		projectId: 'project_id',
 		retestNeeded: 'retest_needed'
 	}
 }));
@@ -197,6 +198,12 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/state', () => {
 		expect(body.success).toBe(true);
 		expect(body.state).toBe('open');
 		expect(mockUpdateIssueState).toHaveBeenCalledOnce();
+		expect(updateChain.where).toHaveBeenCalledWith(
+			expect.arrayContaining([
+				['id', 20],
+				['project_id', 1]
+			])
+		);
 	});
 
 	it('should mark test case for retest when closing issue with linked test case', async () => {
@@ -220,12 +227,19 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/state', () => {
 		});
 		mockUpdateIssueState.mockResolvedValue(undefined);
 
-		const updateChain = {
+		const issueLinkUpdateChain = {
 			set: vi.fn().mockReturnThis(),
 			where: vi.fn().mockReturnThis(),
 			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
 		};
-		mockDb.update.mockReturnValue(updateChain as never);
+		const testCaseUpdateChain = {
+			set: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			then: (r: (v: unknown) => void) => Promise.resolve(undefined).then(r)
+		};
+		mockDb.update
+			.mockReturnValueOnce(issueLinkUpdateChain as never)
+			.mockReturnValueOnce(testCaseUpdateChain as never);
 
 		const event = createMockEvent({
 			method: 'POST',
@@ -240,5 +254,17 @@ describe('/api/projects/[projectId]/issue-links/[linkId]/state', () => {
 		expect(body.state).toBe('closed');
 		// update is called 2 times: once for issueLink status, once for testCase retest
 		expect(mockDb.update).toHaveBeenCalledTimes(2);
+		expect(issueLinkUpdateChain.where).toHaveBeenCalledWith(
+			expect.arrayContaining([
+				['id', 20],
+				['project_id', 1]
+			])
+		);
+		expect(testCaseUpdateChain.where).toHaveBeenCalledWith(
+			expect.arrayContaining([
+				['id', 10],
+				['project_id', 1]
+			])
+		);
 	});
 });

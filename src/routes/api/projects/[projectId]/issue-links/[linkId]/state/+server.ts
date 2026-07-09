@@ -70,11 +70,14 @@ export const POST = withProjectRole(
 		await db
 			.update(issueLink)
 			.set({ status: state, statusSyncedAt: new Date() })
-			.where(eq(issueLink.id, linkId));
+			.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)));
 
 		// Mark test case for retest when issue is closed
 		if (state === 'closed' && link.testCaseId) {
-			await db.update(testCase).set({ retestNeeded: true }).where(eq(testCase.id, link.testCaseId));
+			await db
+				.update(testCase)
+				.set({ retestNeeded: true })
+				.where(and(eq(testCase.id, link.testCaseId), eq(testCase.projectId, projectId)));
 		}
 
 		return json({ success: true, state });

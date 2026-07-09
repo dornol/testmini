@@ -65,7 +65,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ pro
 				await db
 					.update(issueLink)
 					.set({ status: result.status, statusSyncedAt: new Date() })
-					.where(eq(issueLink.id, link.id));
+					.where(and(eq(issueLink.id, link.id), eq(issueLink.projectId, projectId)));
 
 				// Track test cases that need retesting
 				if (result.statusCategory === 'done' && link.testCaseId) {
@@ -87,7 +87,7 @@ export const POST = withProjectRole(['PROJECT_ADMIN', 'QA', 'DEV'], async ({ pro
 		await db
 			.update(testCase)
 			.set({ retestNeeded: true })
-			.where(inArray(testCase.id, retestCaseIds));
+			.where(and(inArray(testCase.id, retestCaseIds), eq(testCase.projectId, projectId)));
 	}
 
 	return json({ synced, failed, total: links.length, retestMarked: retestCaseIds.length });

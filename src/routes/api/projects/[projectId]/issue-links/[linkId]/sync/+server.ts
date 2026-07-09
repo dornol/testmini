@@ -41,7 +41,7 @@ export const POST = withProjectRole(
 		const [updated] = await db
 			.update(issueLink)
 			.set({ status: result.status, statusSyncedAt: new Date() })
-			.where(eq(issueLink.id, linkId))
+			.where(and(eq(issueLink.id, linkId), eq(issueLink.projectId, projectId)))
 			.returning();
 
 		// Auto-mark linked test case as retest needed when issue is resolved
@@ -49,7 +49,7 @@ export const POST = withProjectRole(
 			await db
 				.update(testCase)
 				.set({ retestNeeded: true })
-				.where(eq(testCase.id, link.testCaseId));
+				.where(and(eq(testCase.id, link.testCaseId), eq(testCase.projectId, projectId)));
 		}
 
 		return json({ ...updated, statusCategory: result.statusCategory });

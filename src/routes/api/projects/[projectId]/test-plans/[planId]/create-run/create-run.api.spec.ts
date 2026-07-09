@@ -60,6 +60,15 @@ const PARAMS = { projectId: '1', planId: '1' };
 
 const samplePlan = { id: 1, projectId: 1, name: 'Sprint 1 Plan', status: 'DRAFT' };
 
+function chainableResult(result: unknown[]) {
+	const chain: Record<string, unknown> = {};
+	for (const method of ['values', 'returning']) {
+		chain[method] = vi.fn().mockReturnValue(chain);
+	}
+	chain.then = (resolve: (value: unknown) => void) => Promise.resolve(result).then(resolve);
+	return chain;
+}
+
 describe('/api/projects/[projectId]/test-plans/[planId]/create-run', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -106,7 +115,6 @@ describe('/api/projects/[projectId]/test-plans/[planId]/create-run', () => {
 			}
 		});
 
-		// Mock transaction
 		const createdRun = {
 			id: 99,
 			projectId: 1,
@@ -115,14 +123,14 @@ describe('/api/projects/[projectId]/test-plans/[planId]/create-run', () => {
 			testPlanId: 1,
 			createdBy: 'user-1'
 		};
+		let insertCallCount = 0;
 		mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
-			const txInsertChain = {
-				values: vi.fn().mockReturnThis(),
-				returning: vi.fn().mockReturnThis(),
-				then: (r: (v: unknown) => void) => Promise.resolve([createdRun]).then(r)
-			};
 			const tx = {
-				insert: vi.fn().mockReturnValue(txInsertChain),
+				insert: vi.fn().mockImplementation(() => {
+					insertCallCount++;
+					if (insertCallCount === 1) return chainableResult([createdRun]);
+					return chainableResult([{ id: 1 }, { id: 2 }]);
+				}),
 				update: vi.fn(),
 				delete: vi.fn(),
 				select: vi.fn()
@@ -142,6 +150,130 @@ describe('/api/projects/[projectId]/test-plans/[planId]/create-run', () => {
 		expect(response.status).toBe(201);
 		expect(data.runId).toBe(99);
 		expect(dataSetWhere).toHaveBeenCalledWith(['inArray', 'test_case_id', [10, 11]]);
+	});
+
+	it('should return 500 when run insert affects no row', async () => {
+		let selectCall = 0;
+		mockDb.select.mockImplementation(() => {
+			selectCall++;
+			if (selectCall === 1) {
+				return {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					orderBy: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([{ testCaseId: 10 }]).then(r)
+				} as never;
+			}
+			if (selectCall === 2) {
+				return {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) =>
+						Promise.resolve([{ id: 10, latestVersionId: 100 }]).then(r)
+				} as never;
+			}
+			return {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				orderBy: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+			} as never;
+		});
+		mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) =>
+			fn({ insert: vi.fn().mockReturnValue(chainableResult([])) })
+		);
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { name: 'Run from Plan', environment: 'QA' },
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+	});
+
+	it('should return 500 when execution insert creates fewer rows than requested', async () => {
+		let selectCall = 0;
+		mockDb.select.mockImplementation(() => {
+			selectCall++;
+			if (selectCall === 1) {
+				return {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					orderBy: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) =>
+						Promise.resolve([{ testCaseId: 10 }, { testCaseId: 11 }]).then(r)
+				} as never;
+			}
+			if (selectCall === 2) {
+				return {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) =>
+						Promise.resolve([
+							{ id: 10, latestVersionId: 100 },
+							{ id: 11, latestVersionId: 101 }
+						]).then(r)
+				} as never;
+			}
+			return {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				orderBy: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+			} as never;
+		});
+		let insertCallCount = 0;
+		mockDb.transaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) =>
+			fn({
+				insert: vi.fn().mockImplementation(() => {
+					insertCallCount++;
+					if (insertCallCount === 1) return chainableResult([{ id: 99 }]);
+					return chainableResult([{ id: 1 }]);
+				})
+			})
+		);
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { name: 'Run from Plan', environment: 'QA' },
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+	});
+
+	it('should reject when plan test cases have no versions before creating a run', async () => {
+		let selectCall = 0;
+		mockDb.select.mockImplementation(() => {
+			selectCall++;
+			if (selectCall === 1) {
+				return {
+					from: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					orderBy: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([{ testCaseId: 10 }]).then(r)
+				} as never;
+			}
+			return {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) =>
+					Promise.resolve([{ id: 10, latestVersionId: null }]).then(r)
+			} as never;
+		});
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			body: { name: 'Run from Plan', environment: 'QA' },
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 400 });
+		expect(mockDb.transaction).not.toHaveBeenCalled();
 	});
 
 	it('should reject when plan items do not resolve to project test cases', async () => {

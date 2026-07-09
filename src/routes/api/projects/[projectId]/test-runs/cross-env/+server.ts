@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testRun, testExecution, testCase } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
@@ -58,13 +58,23 @@ export const POST = withProjectRole(
 						testCycleId: testCycleId ?? null
 					})
 					.returning({ id: testRun.id });
+				if (!run) {
+					error(500, 'Failed to create test run');
+				}
 
 				const execValues = validTCs.map((tc) => ({
 					testRunId: run.id,
 					testCaseVersionId: tc.latestVersionId!
 				}));
 
-				await tx.insert(testExecution).values(execValues);
+				const insertedExecutions = await tx
+					.insert(testExecution)
+					.values(execValues)
+					.returning({ id: testExecution.id });
+				if (insertedExecutions.length !== execValues.length) {
+					error(500, 'Failed to create all test run executions');
+				}
+
 				createdRuns.push({ id: run.id, environment: env });
 			}
 		});

@@ -67,6 +67,9 @@ export const POST = withProjectRole(
 		if (selectedCases.length === 0) {
 			error(400, 'Plan has no valid test cases');
 		}
+		if (selectedCases.every((c) => c.latestVersionId === null)) {
+			error(400, 'Plan has no test cases with versions');
+		}
 
 		const caseMap = new Map(selectedCases.map((c) => [c.id, c.latestVersionId]));
 		const validTestCaseIds = selectedCases.map((c) => c.id);
@@ -96,7 +99,10 @@ export const POST = withProjectRole(
 					createdBy: authUser.id,
 					testPlanId: planId
 				})
-				.returning();
+				.returning({ id: testRun.id });
+			if (!run) {
+				error(500, 'Failed to create test run');
+			}
 
 			const executionValues: {
 				testRunId: number;
@@ -128,7 +134,13 @@ export const POST = withProjectRole(
 			}
 
 			if (executionValues.length > 0) {
-				await tx.insert(testExecution).values(executionValues);
+				const insertedExecutions = await tx
+					.insert(testExecution)
+					.values(executionValues)
+					.returning({ id: testExecution.id });
+				if (insertedExecutions.length !== executionValues.length) {
+					error(500, 'Failed to create all test run executions');
+				}
 			}
 
 			return run;

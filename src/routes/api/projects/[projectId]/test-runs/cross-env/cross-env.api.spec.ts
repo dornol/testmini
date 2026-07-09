@@ -37,6 +37,42 @@ vi.mock('$lib/server/auth-utils', async () => {
 
 const { POST } = await import('./+server');
 
+function chainableResult(result: unknown[]) {
+	const chain: Record<string, unknown> = {};
+	for (const method of ['values', 'returning']) {
+		chain[method] = vi.fn().mockReturnValue(chain);
+	}
+	chain.then = (resolve: (value: unknown) => void) => Promise.resolve(result).then(resolve);
+	return chain;
+}
+
+function mockCrossEnvTransaction(opts?: {
+	runResults?: unknown[][];
+	executionResults?: unknown[][];
+}) {
+	let runIndex = 0;
+	let executionIndex = 0;
+	let insertCallCount = 0;
+
+	mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+		const tx = {
+			insert: vi.fn().mockImplementation(() => {
+				insertCallCount++;
+				if (insertCallCount % 2 === 1) {
+					const result = opts?.runResults?.[runIndex] ?? [{ id: runIndex + 1 }];
+					runIndex++;
+					return chainableResult(result);
+				}
+
+				const result = opts?.executionResults?.[executionIndex] ?? [{ id: 100 }, { id: 101 }];
+				executionIndex++;
+				return chainableResult(result);
+			})
+		};
+		return fn(tx);
+	});
+}
+
 describe('/api/projects/[projectId]/test-runs/cross-env', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -48,26 +84,7 @@ describe('/api/projects/[projectId]/test-runs/cross-env', () => {
 			{ id: 1, latestVersionId: 100 },
 			{ id: 2, latestVersionId: 200 }
 		]);
-
-		// Mock transaction
-		const createdRuns: { id: number }[] = [];
-		let runCounter = 1;
-		mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
-			const tx = {
-				insert: vi.fn().mockReturnValue({
-					values: vi.fn().mockReturnValue({
-						returning: vi.fn().mockImplementation(() => ({
-							then: (r: (v: unknown) => void) => {
-								const run = { id: runCounter++ };
-								createdRuns.push(run);
-								return Promise.resolve([run]).then(r);
-							}
-						}))
-					})
-				})
-			};
-			return fn(tx);
-		});
+		mockCrossEnvTransaction();
 
 		const event = createMockEvent({
 			method: 'POST',
@@ -84,6 +101,48 @@ describe('/api/projects/[projectId]/test-runs/cross-env', () => {
 
 		expect(response.status).toBe(201);
 		expect(data.runs).toHaveLength(2);
+	});
+
+	it('should return 500 when a run insert affects no row', async () => {
+		mockSelectResult(mockDb, [
+			{ id: 1, latestVersionId: 100 },
+			{ id: 2, latestVersionId: 200 }
+		]);
+		mockCrossEnvTransaction({ runResults: [[]] });
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: { projectId: '1' },
+			body: {
+				name: 'Regression',
+				testCaseIds: [1, 2],
+				environments: ['QA', 'STAGE']
+			},
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 500 });
+	});
+
+	it('should return 500 when execution insert creates fewer rows than requested', async () => {
+		mockSelectResult(mockDb, [
+			{ id: 1, latestVersionId: 100 },
+			{ id: 2, latestVersionId: 200 }
+		]);
+		mockCrossEnvTransaction({ executionResults: [[{ id: 100 }]] });
+
+		const event = createMockEvent({
+			method: 'POST',
+			params: { projectId: '1' },
+			body: {
+				name: 'Regression',
+				testCaseIds: [1, 2],
+				environments: ['QA', 'STAGE']
+			},
+			user: testUser
+		});
+
+		await expect(POST(event)).rejects.toMatchObject({ status: 500 });
 	});
 
 	it('should return 400 for fewer than 2 environments', async () => {

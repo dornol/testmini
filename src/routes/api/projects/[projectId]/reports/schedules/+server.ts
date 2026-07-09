@@ -7,7 +7,9 @@ import { registerJob } from '$lib/server/report-scheduler';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { validateRequestBody } from '$lib/server/id-list-validation';
 import {
+	REPORT_SCHEDULE_FIELDS,
 	validateOptionalScheduleEnabled,
+	validateReportScheduleFields,
 	validateScheduleCronExpression,
 	validateScheduleName,
 	validateScheduleRecipientEmails,
@@ -27,6 +29,8 @@ export const GET = withProjectRole(['PROJECT_ADMIN'], async ({ projectId }) => {
 export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, projectId, user }) => {
 	const raw = validateRequestBody(await parseJsonBody(request));
 	if (raw instanceof Response) return raw;
+	validateReportScheduleFields(raw, REPORT_SCHEDULE_FIELDS);
+
 	const safeName = validateScheduleName(raw.name);
 	const safeCronExpression = validateScheduleCronExpression(raw.cronExpression);
 	const safeRecipientEmails = validateScheduleRecipientEmails(raw.recipientEmails);

@@ -5,11 +5,27 @@ export const MAX_REPORT_SCHEDULE_NAME_LENGTH = 120;
 export const MAX_REPORT_SCHEDULE_RECIPIENTS = 20;
 export const MAX_REPORT_SCHEDULE_EMAIL_LENGTH = 254;
 export const ALLOWED_REPORT_SCHEDULE_RANGES = new Set(['last_7_days', 'last_30_days', 'all']);
+export const REPORT_SCHEDULE_FIELDS = new Set([
+	'name',
+	'cronExpression',
+	'recipientEmails',
+	'reportRange',
+	'enabled'
+]);
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function isAllowedReportScheduleRange(value: unknown): value is string {
 	return typeof value === 'string' && ALLOWED_REPORT_SCHEDULE_RANGES.has(value);
+}
+
+export function validateReportScheduleFields(
+	body: Record<string, unknown>,
+	allowedFields: Set<string>
+): void {
+	if (Object.keys(body).some((key) => !allowedFields.has(key))) {
+		error(400, 'Invalid report schedule field');
+	}
 }
 
 export function validateScheduleName(value: unknown): string {

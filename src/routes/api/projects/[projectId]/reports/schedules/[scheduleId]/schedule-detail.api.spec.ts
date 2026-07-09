@@ -122,6 +122,20 @@ describe('/api/projects/[projectId]/reports/schedules/[scheduleId]', () => {
 			expect(body.error).toMatch(/request body/i);
 		});
 
+		it('should reject unknown fields before updating schedule', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				user: testUser,
+				body: { name: 'Updated', timezone: 'UTC' }
+			});
+
+			await expect(PATCH(event)).rejects.toThrow();
+			expect(mockDb.update).not.toHaveBeenCalled();
+			expect(mockRegisterJob).not.toHaveBeenCalled();
+			expect(mockRemoveJob).not.toHaveBeenCalled();
+		});
+
 		it('should reject empty name update', async () => {
 			const event = createMockEvent({
 				method: 'PATCH',

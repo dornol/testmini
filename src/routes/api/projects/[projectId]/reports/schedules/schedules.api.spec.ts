@@ -152,6 +152,24 @@ describe('/api/projects/[projectId]/reports/schedules', () => {
 			expect(body.error).toMatch(/request body/i);
 		});
 
+		it('should reject unknown fields before creating schedule', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					name: 'Report',
+					cronExpression: '0 9 * * *',
+					recipientEmails: ['a@b.com'],
+					timezone: 'UTC'
+				}
+			});
+
+			await expect(POST(event)).rejects.toThrow();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+			expect(mockRegisterJob).not.toHaveBeenCalled();
+		});
+
 		it('should reject missing cronExpression', async () => {
 			const event = createMockEvent({
 				method: 'POST',

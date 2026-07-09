@@ -7,7 +7,9 @@ import { registerJob, removeJob } from '$lib/server/report-scheduler';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { validateRequestBody } from '$lib/server/id-list-validation';
 import {
+	REPORT_SCHEDULE_FIELDS,
 	validateOptionalScheduleEnabled,
+	validateReportScheduleFields,
 	validateScheduleCronExpression,
 	validateScheduleName,
 	validateScheduleRecipientEmails,
@@ -19,6 +21,7 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params
 
 	const raw = validateRequestBody(await parseJsonBody(request));
 	if (raw instanceof Response) return raw;
+	validateReportScheduleFields(raw, REPORT_SCHEDULE_FIELDS);
 
 	const updates: Record<string, unknown> = {};
 	if (raw.name !== undefined) updates.name = validateScheduleName(raw.name);

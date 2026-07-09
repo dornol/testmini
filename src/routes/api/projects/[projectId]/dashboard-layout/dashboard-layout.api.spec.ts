@@ -150,6 +150,37 @@ describe('/api/projects/[projectId]/dashboard-layout', () => {
 			expect(mockDb.insert).toHaveBeenCalled();
 		});
 
+		it('should strip extra widget properties before saving layout', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1' },
+				body: {
+					layout: [
+						{
+							id: 'stats_summary',
+							visible: true,
+							order: 0,
+							size: 'lg',
+							untrusted: { nested: 'payload' }
+						}
+					]
+				},
+				user: testUser
+			});
+			const response = await PUT(event);
+			const body = await response.json();
+
+			const expectedLayout = [{ id: 'stats_summary', visible: true, order: 0, size: 'lg' }];
+			expect(response.status).toBe(200);
+			expect(body.layout).toEqual(expectedLayout);
+			const insertChain = mockDb.insert.mock.results[0]?.value as {
+				values: ReturnType<typeof vi.fn>;
+			};
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({ layout: expectedLayout })
+			);
+		});
+
 		it('should return 400 when layout field is missing', async () => {
 			const event = createMockEvent({
 				method: 'PUT',
@@ -158,6 +189,18 @@ describe('/api/projects/[projectId]/dashboard-layout', () => {
 				user: testUser
 			});
 			await expect(PUT(event)).rejects.toThrow();
+		});
+
+		it('should return 400 when request body is not an object', async () => {
+			const event = createMockEvent({
+				method: 'PUT',
+				params: { projectId: '1' },
+				body: null,
+				user: testUser
+			});
+
+			await expect(PUT(event)).rejects.toMatchObject({ status: 400 });
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when layout is not an array', async () => {

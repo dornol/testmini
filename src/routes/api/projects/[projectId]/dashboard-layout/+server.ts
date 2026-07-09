@@ -11,11 +11,11 @@ const VALID_SIZES = new Set<string>(['sm', 'md', 'lg']);
 const KNOWN_WIDGET_IDS = new Set(WIDGET_DEFINITIONS.map((w) => w.id));
 const MAX_LAYOUT_ITEMS = WIDGET_DEFINITIONS.length;
 
-function isWidgetConfig(value: unknown): value is WidgetConfig {
-	if (!value || typeof value !== 'object') return false;
+function validateWidgetConfig(value: unknown): WidgetConfig | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 	const item = value as Record<string, unknown>;
 	const order = item.order;
-	return (
+	if (
 		typeof item.id === 'string' &&
 		KNOWN_WIDGET_IDS.has(item.id) &&
 		typeof item.visible === 'boolean' &&
@@ -25,7 +25,24 @@ function isWidgetConfig(value: unknown): value is WidgetConfig {
 		order < MAX_LAYOUT_ITEMS &&
 		typeof item.size === 'string' &&
 		VALID_SIZES.has(item.size)
-	);
+	) {
+		const size = item.size as WidgetConfig['size'];
+		return {
+			id: item.id,
+			visible: item.visible,
+			order,
+			size
+		};
+	}
+
+	return null;
+}
+
+function validateRequestBody(body: unknown): Record<string, unknown> {
+	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+		error(400, 'Invalid request body');
+	}
+	return body as Record<string, unknown>;
 }
 
 export const GET = withProjectAccess(async ({ user, projectId }) => {
@@ -41,11 +58,13 @@ export const GET = withProjectAccess(async ({ user, projectId }) => {
 	// add new widgets that aren't in saved layout, remove obsolete ones
 	const seenSavedIds = new Set<string>();
 	const saved = Array.isArray(row.layout)
-		? row.layout.filter((item) => {
-				if (!isWidgetConfig(item) || seenSavedIds.has(item.id)) return false;
-				seenSavedIds.add(item.id);
-				return true;
-			})
+		? row.layout.reduce<WidgetConfig[]>((items, item) => {
+				const widget = validateWidgetConfig(item);
+				if (!widget || seenSavedIds.has(widget.id)) return items;
+				seenSavedIds.add(widget.id);
+				items.push(widget);
+				return items;
+			}, [])
 		: [];
 	const savedIds = new Set(saved.map((w) => w.id));
 
@@ -65,9 +84,9 @@ export const GET = withProjectAccess(async ({ user, projectId }) => {
 });
 
 export const PUT = withProjectAccess(async ({ request, user, projectId }) => {
-	const body = await parseJsonBody(request);
+	const body = validateRequestBody(await parseJsonBody(request));
 
-	const { layout } = body as { layout?: unknown };
+	const { layout } = body;
 
 	if (!Array.isArray(layout)) {
 		error(400, 'layout must be an array');
@@ -78,17 +97,18 @@ export const PUT = withProjectAccess(async ({ request, user, projectId }) => {
 
 	// Validate each widget config
 	const seenIds = new Set<string>();
+	const validatedLayout: WidgetConfig[] = [];
 	for (const item of layout) {
-		if (!isWidgetConfig(item)) {
+		const widget = validateWidgetConfig(item);
+		if (!widget) {
 			error(400, 'Invalid widget config in layout');
 		}
-		if (seenIds.has(item.id)) {
-			error(400, `Duplicate widget id: ${item.id}`);
+		if (seenIds.has(widget.id)) {
+			error(400, `Duplicate widget id: ${widget.id}`);
 		}
-		seenIds.add(item.id);
+		seenIds.add(widget.id);
+		validatedLayout.push(widget);
 	}
-
-	const validatedLayout = layout as WidgetConfig[];
 
 	await db
 		.insert(dashboardLayout)

@@ -39,6 +39,11 @@ describe('createProjectSchema', () => {
 		const result = createProjectSchema.safeParse({ name: 'P', description: 'x'.repeat(1001) });
 		expect(result.success).toBe(false);
 	});
+
+	it('should reject unknown fields', () => {
+		const result = createProjectSchema.safeParse({ name: 'Project', ownerId: 'user-1' });
+		expect(result.success).toBe(false);
+	});
 });
 
 describe('updateProjectSchema', () => {
@@ -54,6 +59,11 @@ describe('updateProjectSchema', () => {
 
 	it('should reject empty name when provided', () => {
 		const result = updateProjectSchema.safeParse({ name: '' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject unknown fields', () => {
+		const result = updateProjectSchema.safeParse({ name: 'Updated', active: false });
 		expect(result.success).toBe(false);
 	});
 });

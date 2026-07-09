@@ -21,7 +21,8 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' })
@@ -35,7 +36,10 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/risk', () => {
 		vi.clearAllMocks();
 		mockDb.query.testCase = {
 			findFirst: vi.fn().mockResolvedValue({
-				id: 10, riskImpact: 'HIGH', riskLikelihood: 'MEDIUM', riskLevel: 'HIGH'
+				id: 10,
+				riskImpact: 'HIGH',
+				riskLikelihood: 'MEDIUM',
+				riskLevel: 'HIGH'
 			})
 		};
 	});
@@ -76,9 +80,14 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/risk', () => {
 
 	describe('PATCH', () => {
 		it('should update risk assessment and compute level', async () => {
-			mockUpdateReturning(mockDb, [{
-				id: 10, riskImpact: 'HIGH', riskLikelihood: 'MEDIUM', riskLevel: 'HIGH'
-			}]);
+			mockUpdateReturning(mockDb, [
+				{
+					id: 10,
+					riskImpact: 'HIGH',
+					riskLikelihood: 'MEDIUM',
+					riskLevel: 'HIGH'
+				}
+			]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -94,9 +103,14 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/risk', () => {
 		});
 
 		it('should clear risk when set to null', async () => {
-			mockUpdateReturning(mockDb, [{
-				id: 10, riskImpact: null, riskLikelihood: null, riskLevel: null
-			}]);
+			mockUpdateReturning(mockDb, [
+				{
+					id: 10,
+					riskImpact: null,
+					riskLikelihood: null,
+					riskLevel: null
+				}
+			]);
 
 			const event = createMockEvent({
 				method: 'PATCH',
@@ -120,6 +134,19 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/risk', () => {
 			});
 			const response = await PATCH(event);
 			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 for unknown fields before updating', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: { projectId: '1', testCaseId: '10' },
+				body: { riskImpact: 'HIGH', riskLikelihood: 'LOW', riskOwner: 'qa-lead' },
+				user: testUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 404 when test case not found', async () => {

@@ -57,32 +57,61 @@ describe('createPrioritySchema', () => {
 	});
 
 	it('should accept explicit isDefault value', () => {
-		const result = createPrioritySchema.safeParse({ name: 'High', color: '#ff0000', isDefault: true });
+		const result = createPrioritySchema.safeParse({
+			name: 'High',
+			color: '#ff0000',
+			isDefault: true
+		});
 		expect(result.success).toBe(true);
 		if (result.success) {
 			expect(result.data.isDefault).toBe(true);
 		}
 	});
+
+	it('should reject unknown fields', () => {
+		const result = createPrioritySchema.safeParse({
+			name: 'High',
+			color: '#ff0000',
+			position: 1
+		});
+		expect(result.success).toBe(false);
+	});
 });
 
 describe('updatePrioritySchema', () => {
 	it('should accept valid input', () => {
-		const result = updatePrioritySchema.safeParse({ priorityId: 1, name: 'Updated', color: '#00ff00' });
+		const result = updatePrioritySchema.safeParse({
+			priorityId: 1,
+			name: 'Updated',
+			color: '#00ff00'
+		});
 		expect(result.success).toBe(true);
 	});
 
 	it('should reject non-positive priorityId', () => {
-		const result = updatePrioritySchema.safeParse({ priorityId: -1, name: 'High', color: '#000000' });
+		const result = updatePrioritySchema.safeParse({
+			priorityId: -1,
+			name: 'High',
+			color: '#000000'
+		});
 		expect(result.success).toBe(false);
 	});
 
 	it('should reject zero priorityId', () => {
-		const result = updatePrioritySchema.safeParse({ priorityId: 0, name: 'High', color: '#000000' });
+		const result = updatePrioritySchema.safeParse({
+			priorityId: 0,
+			name: 'High',
+			color: '#000000'
+		});
 		expect(result.success).toBe(false);
 	});
 
 	it('should reject non-integer priorityId', () => {
-		const result = updatePrioritySchema.safeParse({ priorityId: 2.5, name: 'High', color: '#000000' });
+		const result = updatePrioritySchema.safeParse({
+			priorityId: 2.5,
+			name: 'High',
+			color: '#000000'
+		});
 		expect(result.success).toBe(false);
 	});
 
@@ -97,7 +126,11 @@ describe('updatePrioritySchema', () => {
 	});
 
 	it('should reject name exceeding 30 characters', () => {
-		const result = updatePrioritySchema.safeParse({ priorityId: 1, name: 'a'.repeat(31), color: '#ff0000' });
+		const result = updatePrioritySchema.safeParse({
+			priorityId: 1,
+			name: 'a'.repeat(31),
+			color: '#ff0000'
+		});
 		expect(result.success).toBe(false);
 	});
 
@@ -123,7 +156,11 @@ describe('updatePrioritySchema', () => {
 	});
 
 	it('should default isDefault to false when not provided', () => {
-		const result = updatePrioritySchema.safeParse({ priorityId: 1, name: 'High', color: '#ff0000' });
+		const result = updatePrioritySchema.safeParse({
+			priorityId: 1,
+			name: 'High',
+			color: '#ff0000'
+		});
 		expect(result.success).toBe(true);
 		if (result.success) {
 			expect(result.data.isDefault).toBe(false);
@@ -131,10 +168,25 @@ describe('updatePrioritySchema', () => {
 	});
 
 	it('should accept explicit isDefault value', () => {
-		const result = updatePrioritySchema.safeParse({ priorityId: 1, name: 'High', color: '#ff0000', isDefault: true });
+		const result = updatePrioritySchema.safeParse({
+			priorityId: 1,
+			name: 'High',
+			color: '#ff0000',
+			isDefault: true
+		});
 		expect(result.success).toBe(true);
 		if (result.success) {
 			expect(result.data.isDefault).toBe(true);
 		}
+	});
+
+	it('should reject unknown fields', () => {
+		const result = updatePrioritySchema.safeParse({
+			priorityId: 1,
+			name: 'High',
+			color: '#ff0000',
+			position: 1
+		});
+		expect(result.success).toBe(false);
 	});
 });

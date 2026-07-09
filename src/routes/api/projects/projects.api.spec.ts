@@ -266,6 +266,18 @@ describe('/api/projects', () => {
 			expect(response.status).toBe(400);
 		});
 
+		it('should return 400 for unknown fields before creating a project', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				body: { name: 'New Project', ownerId: 'user-1' },
+				user: testUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.transaction).not.toHaveBeenCalled();
+		});
+
 		it('should create project with 201 via transaction', async () => {
 			const created = { ...sampleProject, id: 99 };
 			let capturedTx: { insert: ReturnType<typeof vi.fn> } | null = null;

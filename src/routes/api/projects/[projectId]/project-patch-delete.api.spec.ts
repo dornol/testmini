@@ -166,6 +166,19 @@ describe('/api/projects/[projectId] — PATCH & DELETE', () => {
 			expect(body.error).toMatch(/no fields/i);
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
+
+		it('should return 400 for unknown fields before updating', async () => {
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { name: 'Renamed Project', active: false },
+				user: adminUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
 	});
 
 	describe('DELETE', () => {

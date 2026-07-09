@@ -47,6 +47,11 @@ describe('team schemas', () => {
 			const result = createTeamSchema.safeParse({ name: 'Valid', description: 'x'.repeat(1000) });
 			expect(result.success).toBe(true);
 		});
+
+		it('should reject unknown fields', () => {
+			const result = createTeamSchema.safeParse({ name: 'Valid', visibility: 'public' });
+			expect(result.success).toBe(false);
+		});
 	});
 
 	// ── updateTeamSchema ─────────────────────────────────
@@ -74,6 +79,11 @@ describe('team schemas', () => {
 
 		it('should reject description longer than 1000 characters', () => {
 			const result = updateTeamSchema.safeParse({ description: 'x'.repeat(1001) });
+			expect(result.success).toBe(false);
+		});
+
+		it('should reject unknown fields', () => {
+			const result = updateTeamSchema.safeParse({ name: 'Updated', visibility: 'public' });
 			expect(result.success).toBe(false);
 		});
 	});
@@ -110,6 +120,15 @@ describe('team schemas', () => {
 
 		it('should reject invalid role', () => {
 			const result = addTeamMemberSchema.safeParse({ userId: 'user-1', role: 'SUPERADMIN' });
+			expect(result.success).toBe(false);
+		});
+
+		it('should reject unknown fields', () => {
+			const result = addTeamMemberSchema.safeParse({
+				userId: 'user-1',
+				role: 'MEMBER',
+				inviteMessage: 'hello'
+			});
 			expect(result.success).toBe(false);
 		});
 	});

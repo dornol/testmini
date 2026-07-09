@@ -33,6 +33,15 @@ describe('addMemberSchema', () => {
 			expect(result.success).toBe(true);
 		}
 	});
+
+	it('should reject unknown fields', () => {
+		const result = addMemberSchema.safeParse({
+			userId: 'user-123',
+			role: 'QA',
+			inviteMessage: 'hello'
+		});
+		expect(result.success).toBe(false);
+	});
 });
 
 describe('updateMemberRoleSchema', () => {
@@ -53,6 +62,15 @@ describe('updateMemberRoleSchema', () => {
 
 	it('should reject invalid role', () => {
 		const result = updateMemberRoleSchema.safeParse({ memberId: 1, role: 'ADMIN' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject unknown fields', () => {
+		const result = updateMemberRoleSchema.safeParse({
+			memberId: 1,
+			role: 'QA',
+			reason: 'temporary'
+		});
 		expect(result.success).toBe(false);
 	});
 });

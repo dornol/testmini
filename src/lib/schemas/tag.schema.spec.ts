@@ -42,6 +42,15 @@ describe('createTagSchema', () => {
 			expect(result.success).toBe(true);
 		}
 	});
+
+	it('should reject unknown fields', () => {
+		const result = createTagSchema.safeParse({
+			name: 'Bug',
+			color: '#ff0000',
+			description: 'unexpected'
+		});
+		expect(result.success).toBe(false);
+	});
 });
 
 describe('updateTagSchema', () => {
@@ -52,6 +61,16 @@ describe('updateTagSchema', () => {
 
 	it('should reject non-positive tagId', () => {
 		const result = updateTagSchema.safeParse({ tagId: 0, name: 'T', color: '#000000' });
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject unknown fields', () => {
+		const result = updateTagSchema.safeParse({
+			tagId: 1,
+			name: 'Updated',
+			color: '#00ff00',
+			description: 'unexpected'
+		});
 		expect(result.success).toBe(false);
 	});
 });
@@ -69,6 +88,11 @@ describe('assignTagSchema', () => {
 
 	it('should reject non-integer tagId', () => {
 		const result = assignTagSchema.safeParse({ tagId: 2.5 });
+		expect(result.success).toBe(false);
+	});
+
+	it('should reject unknown fields', () => {
+		const result = assignTagSchema.safeParse({ tagId: 5, source: 'bulk' });
 		expect(result.success).toBe(false);
 	});
 });

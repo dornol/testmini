@@ -24,5 +24,14 @@ describe('risk.schema', () => {
 				expect(result.success).toBe(true);
 			}
 		});
+
+		it('rejects unknown fields', () => {
+			const result = updateRiskSchema.safeParse({
+				riskImpact: 'HIGH',
+				riskLikelihood: 'LOW',
+				riskOwner: 'qa-lead'
+			});
+			expect(result.success).toBe(false);
+		});
 	});
 });

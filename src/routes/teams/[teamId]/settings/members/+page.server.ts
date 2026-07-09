@@ -69,11 +69,17 @@ export const actions: Actions = {
 			return message(form, 'User not found', { status: 400 });
 		}
 
-		await db.insert(teamMember).values({
-			teamId,
-			userId,
-			role
-		});
+		const [created] = await db
+			.insert(teamMember)
+			.values({
+				teamId,
+				userId,
+				role
+			})
+			.returning();
+		if (!created) {
+			return fail(500, { error: 'Failed to add member' });
+		}
 
 		return message(form, 'Member added successfully');
 	},
@@ -111,10 +117,14 @@ export const actions: Actions = {
 			}
 		}
 
-		await db
+		const [updated] = await db
 			.update(teamMember)
 			.set({ role })
-			.where(and(eq(teamMember.id, memberId), eq(teamMember.teamId, teamId)));
+			.where(and(eq(teamMember.id, memberId), eq(teamMember.teamId, teamId)))
+			.returning();
+		if (!updated) {
+			return fail(404, { error: 'Member not found' });
+		}
 
 		return { success: true };
 	},
@@ -151,9 +161,13 @@ export const actions: Actions = {
 			}
 		}
 
-		await db
+		const [deleted] = await db
 			.delete(teamMember)
-			.where(and(eq(teamMember.id, memberId), eq(teamMember.teamId, teamId)));
+			.where(and(eq(teamMember.id, memberId), eq(teamMember.teamId, teamId)))
+			.returning();
+		if (!deleted) {
+			return fail(404, { error: 'Member not found' });
+		}
 
 		return { success: true };
 	}

@@ -74,11 +74,17 @@ export const actions: Actions = {
 			return message(form, 'User not found', { status: 400 });
 		}
 
-		await db.insert(projectMember).values({
-			projectId,
-			userId,
-			role
-		});
+		const [created] = await db
+			.insert(projectMember)
+			.values({
+				projectId,
+				userId,
+				role
+			})
+			.returning();
+		if (!created) {
+			return fail(500, { error: 'Failed to add member' });
+		}
 
 		cacheDelete(`project:${projectId}:members`);
 
@@ -140,12 +146,16 @@ export const actions: Actions = {
 			}
 		}
 
-		await db
+		const [updated] = await db
 			.update(projectMember)
 			.set({ role: parsed.data.role })
 			.where(
 				and(eq(projectMember.id, parsed.data.memberId), eq(projectMember.projectId, projectId))
-			);
+			)
+			.returning();
+		if (!updated) {
+			return fail(404, { error: 'Member not found' });
+		}
 
 		cacheDelete(`project:${projectId}:members`);
 
@@ -195,9 +205,13 @@ export const actions: Actions = {
 			}
 		}
 
-		await db
+		const [deleted] = await db
 			.delete(projectMember)
-			.where(and(eq(projectMember.id, memberId), eq(projectMember.projectId, projectId)));
+			.where(and(eq(projectMember.id, memberId), eq(projectMember.projectId, projectId)))
+			.returning();
+		if (!deleted) {
+			return fail(404, { error: 'Member not found' });
+		}
 
 		cacheDelete(`project:${projectId}:members`);
 

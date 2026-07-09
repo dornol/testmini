@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockInsertReturning,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser } from '$lib/server/test-helpers/fixtures';
 
@@ -125,6 +131,7 @@ describe('/teams/[teamId]/settings/members', () => {
 				.mockResolvedValueOnce({ id: 1, teamId: 5, userId: testUser.id, role: 'OWNER' }) // requireTeamAdmin
 				.mockResolvedValueOnce(undefined); // existing check
 			mockSelectResult(mockDb, [{ id: 'user-3' }]);
+			mockInsertReturning(mockDb, [{ id: 3 }]);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -138,6 +145,25 @@ describe('/teams/[teamId]/settings/members', () => {
 			expect(mockDb.insert).toHaveBeenCalled();
 			// Should return a message form
 			expect(result).toBeDefined();
+		});
+
+		it('should return 500 when insert returns no created member', async () => {
+			mockDb.query.teamMember.findFirst
+				.mockResolvedValueOnce({ id: 1, teamId: 5, userId: testUser.id, role: 'OWNER' }) // requireTeamAdmin
+				.mockResolvedValueOnce(undefined); // existing check
+			mockSelectResult(mockDb, [{ id: 'user-3' }]);
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createFormData({ userId: 'user-3', role: 'MEMBER' }),
+				params: { teamId: '5' },
+				user: testUser
+			});
+
+			const result = await actions.addMember(event);
+
+			expect(result).toMatchObject({ status: 500, data: { error: 'Failed to add member' } });
 		});
 
 		it('should return 400 before insert when target user does not exist', async () => {
@@ -206,6 +232,7 @@ describe('/teams/[teamId]/settings/members', () => {
 			mockDb.query.teamMember.findFirst
 				.mockResolvedValueOnce({ id: 1, teamId: 5, userId: testUser.id, role: 'OWNER' }) // requireTeamAdmin
 				.mockResolvedValueOnce({ id: 2, teamId: 5, userId: 'user-2', role: 'MEMBER' }); // member lookup
+			const updateChain = mockUpdateReturning(mockDb, [{ id: 2 }]);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -217,13 +244,31 @@ describe('/teams/[teamId]/settings/members', () => {
 			const result = await actions.updateRole(event);
 
 			expect(mockDb.update).toHaveBeenCalled();
-			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 2],
 					['team_id', 5]
 				])
 			);
 			expect(result).toEqual({ success: true });
+		});
+
+		it('should return 404 when update affects no rows', async () => {
+			mockDb.query.teamMember.findFirst
+				.mockResolvedValueOnce({ id: 1, teamId: 5, userId: testUser.id, role: 'OWNER' }) // requireTeamAdmin
+				.mockResolvedValueOnce({ id: 2, teamId: 5, userId: 'user-2', role: 'MEMBER' }); // member lookup
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createFormData({ memberId: '2', role: 'ADMIN' }),
+				params: { teamId: '5' },
+				user: testUser
+			});
+
+			const result = await actions.updateRole(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Member not found' } });
 		});
 
 		it('should return 400 for missing memberId', async () => {
@@ -338,6 +383,7 @@ describe('/teams/[teamId]/settings/members', () => {
 			mockDb.query.teamMember.findFirst
 				.mockResolvedValueOnce({ id: 1, teamId: 5, userId: testUser.id, role: 'OWNER' }) // requireTeamAdmin
 				.mockResolvedValueOnce({ id: 2, teamId: 5, userId: 'user-2', role: 'MEMBER' }); // member to remove
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: 2 }]);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -349,13 +395,31 @@ describe('/teams/[teamId]/settings/members', () => {
 			const result = await actions.removeMember(event);
 
 			expect(mockDb.delete).toHaveBeenCalled();
-			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+			expect(deleteChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 2],
 					['team_id', 5]
 				])
 			);
 			expect(result).toEqual({ success: true });
+		});
+
+		it('should return 404 when delete affects no rows', async () => {
+			mockDb.query.teamMember.findFirst
+				.mockResolvedValueOnce({ id: 1, teamId: 5, userId: testUser.id, role: 'OWNER' }) // requireTeamAdmin
+				.mockResolvedValueOnce({ id: 2, teamId: 5, userId: 'user-2', role: 'MEMBER' }); // member to remove
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				formData: createFormData({ memberId: '2' }),
+				params: { teamId: '5' },
+				user: testUser
+			});
+
+			const result = await actions.removeMember(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Member not found' } });
 		});
 
 		it('should return 400 for missing memberId', async () => {

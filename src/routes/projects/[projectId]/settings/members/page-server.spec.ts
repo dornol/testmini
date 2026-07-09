@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockDeleteReturning,
+	mockInsertReturning,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -39,6 +44,9 @@ vi.mock('$lib/server/notifications', () => ({ createNotification: vi.fn() }));
 vi.mock('$lib/server/cache', () => ({ cacheDelete: vi.fn() }));
 
 const { actions } = await import('./+page.server');
+const { logAudit } = await import('$lib/server/audit');
+const { createNotification } = await import('$lib/server/notifications');
+const { cacheDelete } = await import('$lib/server/cache');
 
 function makeForm(values: Record<string, FormDataEntryValue>): FormData {
 	const formData = new FormData();
@@ -78,6 +86,33 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 			expect(selectChain.where).toHaveBeenCalledWith(['id', 'missing-user']);
 			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
+
+		it('returns 500 without side effects when insert returns no member', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValueOnce(null);
+			const selectChain = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				limit: vi.fn().mockReturnThis(),
+				then: (resolve: (value: unknown[]) => void) =>
+					Promise.resolve([{ id: 'user-2' }]).then(resolve)
+			};
+			mockDb.select.mockReturnValue(selectChain as never);
+			mockInsertReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				user: testUser,
+				formData: makeForm({ userId: 'user-2', role: 'QA' })
+			});
+
+			const result = await actions.addMember(event);
+
+			expect(result).toMatchObject({ status: 500, data: { error: 'Failed to add member' } });
+			expect(cacheDelete).not.toHaveBeenCalled();
+			expect(logAudit).not.toHaveBeenCalled();
+			expect(createNotification).not.toHaveBeenCalled();
+		});
 	});
 
 	describe('updateRole', () => {
@@ -88,6 +123,7 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 				userId: 'target-user',
 				role: 'QA'
 			});
+			const updateChain = mockUpdateReturning(mockDb, [{ id: 7 }]);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -99,7 +135,7 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 			const result = await actions.updateRole(event);
 
 			expect(result).toEqual({ success: true });
-			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 7],
 					['project_id', 1]
@@ -166,6 +202,29 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 			expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
+
+		it('returns 404 without side effects when update affects no rows', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValueOnce({
+				id: 7,
+				projectId: 1,
+				userId: 'target-user',
+				role: 'QA'
+			});
+			mockUpdateReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				user: testUser,
+				formData: makeForm({ memberId: '7', role: 'DEV' })
+			});
+
+			const result = await actions.updateRole(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Member not found' } });
+			expect(cacheDelete).not.toHaveBeenCalled();
+			expect(logAudit).not.toHaveBeenCalled();
+		});
 	});
 
 	describe('removeMember', () => {
@@ -176,6 +235,7 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 				userId: 'target-user',
 				role: 'QA'
 			});
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: 7 }]);
 
 			const event = createMockEvent({
 				method: 'POST',
@@ -187,7 +247,7 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 			const result = await actions.removeMember(event);
 
 			expect(result).toEqual({ success: true });
-			expect(mockDb._chains.delete.where).toHaveBeenCalledWith(
+			expect(deleteChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 7],
 					['project_id', 1]
@@ -223,6 +283,29 @@ describe('/projects/[projectId]/settings/members page actions', () => {
 				expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
 				expect(mockDb.delete).not.toHaveBeenCalled();
 			}
+		});
+
+		it('returns 404 without side effects when delete affects no rows', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValueOnce({
+				id: 7,
+				projectId: 1,
+				userId: 'target-user',
+				role: 'QA'
+			});
+			mockDeleteReturning(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				user: testUser,
+				formData: makeForm({ memberId: '7' })
+			});
+
+			const result = await actions.removeMember(event);
+
+			expect(result).toMatchObject({ status: 404, data: { error: 'Member not found' } });
+			expect(cacheDelete).not.toHaveBeenCalled();
+			expect(logAudit).not.toHaveBeenCalled();
 		});
 	});
 });

@@ -12,6 +12,7 @@ import { childLogger } from '$lib/server/logger';
 import { logAudit } from '$lib/server/audit';
 import { createNotification } from '$lib/server/notifications';
 import { validatePublicHttpsUrl } from '$lib/server/url-safety';
+import { isValidOidcProviderSlug } from '$lib/server/oidc-provider-validation';
 
 const OIDC_FETCH_TIMEOUT = 10_000;
 
@@ -249,6 +250,11 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 
 	callbackLog.info('Callback started');
 
+	if (!isValidOidcProviderSlug(slug)) {
+		callbackLog.warn('Invalid provider slug');
+		redirect(302, '/auth/login?error=oidc_callback_error');
+	}
+
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');
 	const errorParam = url.searchParams.get('error');
@@ -290,13 +296,13 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 	}
 
 	// Clean up cookie
-	cookies.delete(`oidc_${params.slug}`, { path: '/' });
+	cookies.delete(`oidc_${slug}`, { path: '/' });
 
 	// Get provider
 	const [provider] = await db
 		.select()
 		.from(oidcProvider)
-		.where(and(eq(oidcProvider.slug, params.slug), eq(oidcProvider.enabled, true)));
+		.where(and(eq(oidcProvider.slug, slug), eq(oidcProvider.enabled, true)));
 
 	if (!provider) error(404, 'Provider not found');
 
@@ -308,7 +314,7 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 		provider,
 		code,
 		cookieData.codeVerifier,
-		params.slug,
+		slug,
 		clientSecret
 	);
 	if (!tokenResult) {

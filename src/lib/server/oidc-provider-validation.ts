@@ -46,6 +46,16 @@ const MAX_CLIENT_SECRET_LENGTH = 4000;
 const MAX_SCOPES_LENGTH = 500;
 const MAX_ICON_URL_LENGTH = 2000;
 const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
+const OIDC_PROVIDER_SLUG_PATTERN = /^[a-z0-9-]+$/;
+
+export function isValidOidcProviderSlug(slug: string | undefined): slug is string {
+	return (
+		typeof slug === 'string' &&
+		slug.length > 0 &&
+		slug.length <= MAX_SLUG_LENGTH &&
+		OIDC_PROVIDER_SLUG_PATTERN.test(slug)
+	);
+}
 
 function normalizeRequiredString(
 	value: string | null | undefined,
@@ -105,7 +115,7 @@ export async function validateOidcProviderFields(
 		return { ok: false, error: 'Missing required fields' };
 	}
 
-	if (!/^[a-z0-9-]+$/.test(slug.value)) {
+	if (!isValidOidcProviderSlug(slug.value)) {
 		return {
 			ok: false,
 			error: 'Slug must contain only lowercase letters, numbers, and hyphens'

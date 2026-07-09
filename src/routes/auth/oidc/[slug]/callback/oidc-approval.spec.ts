@@ -314,6 +314,36 @@ describe('OIDC callback - approval queue', () => {
 		expect(mockFetch).not.toHaveBeenCalled();
 	});
 
+	it('should reject malformed provider slugs before cookie or database access', async () => {
+		const event = createCallbackEvent() as {
+			params: { slug: string };
+			cookies: {
+				get: ReturnType<typeof vi.fn>;
+				delete: ReturnType<typeof vi.fn>;
+			};
+		};
+		event.params.slug = 'bad\nslug';
+
+		let result: { redirected: boolean; status?: number; location?: string };
+		try {
+			await GET(event as never);
+			result = { redirected: false };
+		} catch (e: unknown) {
+			const err = e as { status: number; location: string };
+			result = { redirected: true, status: err.status, location: err.location };
+		}
+
+		expect(result).toEqual({
+			redirected: true,
+			status: 302,
+			location: '/auth/login?error=oidc_callback_error'
+		});
+		expect(event.cookies.get).not.toHaveBeenCalled();
+		expect(event.cookies.delete).not.toHaveBeenCalled();
+		expect(mockDb.select).not.toHaveBeenCalled();
+		expect(mockFetch).not.toHaveBeenCalled();
+	});
+
 	it('should redirect existing approved user to /projects with LOGIN audit', async () => {
 		const result = await runCallback([
 			[{ ...baseProvider, autoRegister: true }], // 0: provider

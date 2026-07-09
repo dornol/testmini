@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -35,15 +39,11 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
 	desc: vi.fn((a: unknown) => a),
 	count: vi.fn(() => 'count'),
-	sql: Object.assign(
-		(..._args: unknown[]) => ({ as: vi.fn() }),
-		{ raw: vi.fn() }
-	)
+	sql: Object.assign((..._args: unknown[]) => ({ as: vi.fn() }), { raw: vi.fn() })
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>(
-		'$lib/server/auth-utils'
-	);
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -52,6 +52,7 @@ vi.mock('$lib/server/auth-utils', async () => {
 });
 
 const { GET, POST } = await import('./+server');
+const drizzle = await import('drizzle-orm');
 
 const PARAMS = { projectId: '1' };
 
@@ -122,16 +123,7 @@ describe('/api/projects/[projectId]/exploratory-sessions', () => {
 			expect(body.total).toBe(0);
 		});
 
-		it('should ignore invalid status filter values (treat as no filter)', async () => {
-			let callCount = 0;
-			mockDb.select.mockImplementation(() => {
-				callCount++;
-				if (callCount === 1) {
-					return createChainResolving([sampleSession]);
-				}
-				return createChainResolving([{ total: 1 }]);
-			});
-
+		it('should return 400 for invalid status before querying sessions', async () => {
 			const event = createMockEvent({
 				method: 'GET',
 				params: PARAMS,
@@ -139,11 +131,9 @@ describe('/api/projects/[projectId]/exploratory-sessions', () => {
 				searchParams: { status: 'INVALID_STATUS' }
 			});
 			const response = await GET(event);
-			expect(response.status).toBe(200);
 
-			const body = await response.json();
-			// Invalid status is ignored, so all sessions are returned (no filter applied)
-			expect(body.sessions).toHaveLength(1);
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 
 		it('should pass status filter parameter', async () => {
@@ -167,6 +157,78 @@ describe('/api/projects/[projectId]/exploratory-sessions', () => {
 
 			const body = await response.json();
 			expect(body.sessions).toHaveLength(1);
+			expect(drizzle.eq).toHaveBeenCalledWith('status', 'ACTIVE');
+		});
+
+		it('should cap large limits and apply validated offset', async () => {
+			const sessionsChain = createChainResolving([]);
+			const countChain = createChainResolving([{ total: 0 }]);
+			mockDb.select.mockReturnValueOnce(sessionsChain as never);
+			mockDb.select.mockReturnValueOnce(countChain as never);
+
+			const event = createMockEvent({
+				method: 'GET',
+				params: PARAMS,
+				user: testUser,
+				searchParams: { limit: '999', offset: '30' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(sessionsChain.limit).toHaveBeenCalledWith(50);
+			expect(sessionsChain.offset).toHaveBeenCalledWith(30);
+		});
+
+		it('should return 400 for invalid limit before querying sessions', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				params: PARAMS,
+				user: testUser,
+				searchParams: { limit: 'abc' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for zero limit before querying sessions', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				params: PARAMS,
+				user: testUser,
+				searchParams: { limit: '0' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for invalid offset before querying sessions', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				params: PARAMS,
+				user: testUser,
+				searchParams: { offset: 'abc' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
+		});
+
+		it('should return 400 for negative offset before querying sessions', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				params: PARAMS,
+				user: testUser,
+				searchParams: { offset: '-1' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(400);
+			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 	});
 
@@ -347,9 +409,20 @@ describe('/api/projects/[projectId]/exploratory-sessions', () => {
 function createChainResolving(result: unknown[]) {
 	const chain: Record<string, unknown> = {};
 	const methods = [
-		'from', 'where', 'orderBy', 'limit', 'offset', 'innerJoin',
-		'leftJoin', 'groupBy', 'as', 'set', 'values', 'returning',
-		'onConflictDoNothing', 'onConflictDoUpdate'
+		'from',
+		'where',
+		'orderBy',
+		'limit',
+		'offset',
+		'innerJoin',
+		'leftJoin',
+		'groupBy',
+		'as',
+		'set',
+		'values',
+		'returning',
+		'onConflictDoNothing',
+		'onConflictDoUpdate'
 	];
 	for (const m of methods) {
 		chain[m] = vi.fn().mockReturnValue(chain);

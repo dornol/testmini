@@ -6,13 +6,62 @@ import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
 import { parseJsonBody } from '$lib/server/auth-utils';
 
+const VALID_STATUSES = ['ACTIVE', 'PAUSED', 'COMPLETED'] as const;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 50;
+
+function parseNonNegativeIntegerParam(value: string | null, label: string): number {
+	if (value === null || value === '') return 0;
+
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed < 0) {
+		throw new Error(`Invalid ${label}`);
+	}
+
+	return parsed;
+}
+
+function parsePositiveIntegerParam(
+	value: string | null,
+	label: string,
+	defaultValue: number
+): number {
+	if (value === null || value === '') return defaultValue;
+
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+		throw new Error(`Invalid ${label}`);
+	}
+
+	return parsed;
+}
+
+function parseStatus(value: string | null): (typeof VALID_STATUSES)[number] | null {
+	if (value === null || value === '') return null;
+	if (!VALID_STATUSES.includes(value as (typeof VALID_STATUSES)[number])) {
+		throw new Error('Invalid status');
+	}
+	return value as (typeof VALID_STATUSES)[number];
+}
+
 export const GET = withProjectAccess(async ({ projectId, url }) => {
-	const status = url.searchParams.get('status') ?? '';
-	const limit = Math.min(50, Math.max(1, Number(url.searchParams.get('limit') ?? '20')));
-	const offset = Math.max(0, Number(url.searchParams.get('offset') ?? '0'));
+	let status: (typeof VALID_STATUSES)[number] | null;
+	let limit: number;
+	let offset: number;
+
+	try {
+		status = parseStatus(url.searchParams.get('status'));
+		limit = Math.min(
+			parsePositiveIntegerParam(url.searchParams.get('limit'), 'limit', DEFAULT_LIMIT),
+			MAX_LIMIT
+		);
+		offset = parseNonNegativeIntegerParam(url.searchParams.get('offset'), 'offset');
+	} catch (err) {
+		return badRequest(err instanceof Error ? err.message : 'Invalid session query');
+	}
 
 	const conditions = [eq(exploratorySession.projectId, projectId)];
-	if (status && ['ACTIVE', 'PAUSED', 'COMPLETED'].includes(status)) {
+	if (status) {
 		conditions.push(eq(exploratorySession.status, status));
 	}
 
@@ -32,7 +81,10 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 				tags: exploratorySession.tags,
 				createdBy: user.name,
 				createdById: exploratorySession.createdBy,
-				noteCount: sql<number>`(select count(*)::int from session_note where session_id = ${col(exploratorySession.id)})`.as('note_count')
+				noteCount:
+					sql<number>`(select count(*)::int from session_note where session_id = ${col(exploratorySession.id)})`.as(
+						'note_count'
+					)
 			})
 			.from(exploratorySession)
 			.innerJoin(user, eq(exploratorySession.createdBy, user.id))
@@ -54,7 +106,7 @@ export const POST = withProjectRole(
 	async ({ request, user: authUser, projectId }) => {
 		let body: { title?: string; charter?: string; environment?: string; tags?: string[] };
 		try {
-			body = await parseJsonBody(request) as typeof body;
+			body = (await parseJsonBody(request)) as typeof body;
 		} catch {
 			error(400, 'Invalid JSON');
 		}
@@ -77,7 +129,10 @@ export const POST = withProjectRole(
 				})
 				.returning();
 		} catch {
-			error(500, 'Failed to create session. Please check that the database migration has been applied.');
+			error(
+				500,
+				'Failed to create session. Please check that the database migration has been applied.'
+			);
 		}
 
 		return json(created, { status: 201 });

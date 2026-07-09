@@ -52,6 +52,7 @@ function makeRequest(sessionId?: string): Request {
 describe('/api/mcp POST', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		vi.useRealTimers();
 		createdTransports.length = 0;
 		createdTransportOptions.length = 0;
 	});
@@ -96,6 +97,38 @@ describe('/api/mcp POST', () => {
 
 		expect(response.status).toBe(403);
 		expect(data.error).toBe('Forbidden');
+		expect(createdTransports).toHaveLength(1);
+		expect(createdTransports[0].handleRequest).toHaveBeenCalledTimes(1);
+		expect(mockConnect).toHaveBeenCalledTimes(1);
+	});
+
+	it('should reject an unknown MCP session id instead of creating a new session', async () => {
+		mockAuthenticateApiKey.mockResolvedValue({ projectId: 1, keyId: 1 });
+
+		const response = await POST({ request: makeRequest('missing-session') } as never);
+		const data = await response.json();
+
+		expect(response.status).toBe(404);
+		expect(data.error).toBe('MCP session not found');
+		expect(createdTransports).toHaveLength(0);
+		expect(mockConnect).not.toHaveBeenCalled();
+	});
+
+	it('should expire idle MCP sessions', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-07-09T00:00:00Z'));
+		mockAuthenticateApiKey.mockResolvedValue({ projectId: 1, keyId: 1 });
+
+		const initialResponse = await POST({ request: makeRequest() } as never);
+		await initialResponse.text();
+		createdTransportOptions[0].onsessioninitialized?.('stale-session');
+
+		vi.setSystemTime(new Date('2026-07-09T00:31:00Z'));
+		const response = await POST({ request: makeRequest('stale-session') } as never);
+		const data = await response.json();
+
+		expect(response.status).toBe(404);
+		expect(data.error).toBe('MCP session not found');
 		expect(createdTransports).toHaveLength(1);
 		expect(createdTransports[0].handleRequest).toHaveBeenCalledTimes(1);
 		expect(mockConnect).toHaveBeenCalledTimes(1);

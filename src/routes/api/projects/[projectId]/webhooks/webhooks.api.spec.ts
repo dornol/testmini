@@ -1,11 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
+const mockLookup = vi.fn();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
+vi.mock('dns/promises', () => ({
+	lookup: mockLookup
+}));
 vi.mock('$lib/server/db/schema', () => ({
 	projectWebhook: {
 		id: 'id',
@@ -26,7 +34,8 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
@@ -50,6 +59,7 @@ const sampleWebhook = {
 describe('/api/projects/[projectId]/webhooks', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockLookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 	});
 
@@ -234,6 +244,23 @@ describe('/api/projects/[projectId]/webhooks', () => {
 			expect(response.status).toBe(400);
 			const data = await response.json();
 			expect(data.error).toContain('http or https');
+		});
+
+		it('should return 400 when URL resolves to a private address', async () => {
+			mockLookup.mockResolvedValue([{ address: '127.0.0.1', family: 4 }]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				body: { name: 'Hook', url: 'https://localhost/hook' },
+				user: adminUser
+			});
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toContain('private or reserved IP');
+			expect(mockDb.insert).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when events contain invalid type', async () => {

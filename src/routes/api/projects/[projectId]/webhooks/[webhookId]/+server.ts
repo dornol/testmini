@@ -5,6 +5,7 @@ import { projectWebhook } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
+import { validatePublicHttpUrl } from '$lib/server/url-safety';
 
 const VALID_EVENTS = [
 	'TEST_RUN_COMPLETED',
@@ -22,7 +23,13 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params
 	});
 	if (!existing) error(404, 'Webhook not found');
 
-	const body = await parseJsonBody(request) as { name?: string; url?: string; secret?: string; events?: string[]; enabled?: boolean };
+	const body = (await parseJsonBody(request)) as {
+		name?: string;
+		url?: string;
+		secret?: string;
+		events?: string[];
+		enabled?: boolean;
+	};
 
 	const updates: Record<string, unknown> = {};
 
@@ -35,14 +42,8 @@ export const PATCH = withProjectRole(['PROJECT_ADMIN'], async ({ request, params
 	if (body.url !== undefined) {
 		const url = body.url.trim();
 		if (!url) return badRequest('URL is required');
-		try {
-			const parsed = new URL(url);
-			if (!['http:', 'https:'].includes(parsed.protocol)) {
-				return badRequest('URL must use http or https');
-			}
-		} catch {
-			return badRequest('Invalid URL');
-		}
+		const urlValidation = await validatePublicHttpUrl(url);
+		if (!urlValidation.ok) return badRequest(urlValidation.error ?? 'Invalid URL');
 		updates.url = url;
 	}
 

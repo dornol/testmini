@@ -3,6 +3,7 @@ import { projectWebhook, webhookDeliveryLog } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { childLogger } from './logger';
 import crypto from 'node:crypto';
+import { validatePublicHttpUrl } from './url-safety';
 
 const log = childLogger('webhooks');
 
@@ -33,9 +34,7 @@ export async function sendProjectWebhooks(
 			.from(projectWebhook)
 			.where(and(eq(projectWebhook.projectId, projectId), eq(projectWebhook.enabled, true)));
 
-		const matching = webhooks.filter(
-			(w) => w.events.length === 0 || w.events.includes(event)
-		);
+		const matching = webhooks.filter((w) => w.events.length === 0 || w.events.includes(event));
 
 		if (matching.length === 0) return;
 
@@ -72,7 +71,8 @@ async function deliverWithRetry(
 				webhookId,
 				event,
 				url,
-				requestBody: body.length > MAX_RESPONSE_BODY_LENGTH ? body.slice(0, MAX_RESPONSE_BODY_LENGTH) : body,
+				requestBody:
+					body.length > MAX_RESPONSE_BODY_LENGTH ? body.slice(0, MAX_RESPONSE_BODY_LENGTH) : body,
 				statusCode: result.statusCode,
 				responseBody: result.responseBody?.slice(0, MAX_RESPONSE_BODY_LENGTH) ?? null,
 				success: result.success,
@@ -112,10 +112,7 @@ async function deliverWebhook(
 	};
 
 	if (secret) {
-		const signature = crypto
-			.createHmac('sha256', secret)
-			.update(body)
-			.digest('hex');
+		const signature = crypto.createHmac('sha256', secret).update(body).digest('hex');
 		headers['X-Webhook-Signature'] = `sha256=${signature}`;
 	}
 
@@ -124,10 +121,22 @@ async function deliverWebhook(
 	const start = Date.now();
 
 	try {
+		const urlValidation = await validatePublicHttpUrl(url);
+		if (!urlValidation.ok) {
+			return {
+				success: false,
+				statusCode: null,
+				responseBody: null,
+				errorMessage: urlValidation.error ?? 'Unsafe webhook URL',
+				duration: Date.now() - start
+			};
+		}
+
 		const res = await fetch(url, {
 			method: 'POST',
 			headers,
 			body,
+			redirect: 'manual',
 			signal: controller.signal
 		});
 

@@ -3,8 +3,12 @@ import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db
 import crypto from 'node:crypto';
 
 const mockDb = createMockDb();
+const mockLookup = vi.fn();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
+vi.mock('dns/promises', () => ({
+	lookup: mockLookup
+}));
 vi.mock('$lib/server/db/schema', () => ({
 	projectWebhook: {
 		id: 'id',
@@ -68,6 +72,7 @@ describe('sendProjectWebhooks', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockLookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
 		fetchSpy = vi.fn().mockResolvedValue(new Response('ok', { status: 200 }));
 		vi.stubGlobal('fetch', fetchSpy);
 		// Re-setup insert mock after clearAllMocks
@@ -90,6 +95,7 @@ describe('sendProjectWebhooks', () => {
 		const [url, opts] = fetchSpy.mock.calls[0];
 		expect(url).toBe('https://hooks.example.com/webhook');
 		expect(opts.method).toBe('POST');
+		expect(opts.redirect).toBe('manual');
 		expect(opts.headers['Content-Type']).toBe('application/json');
 		expect(opts.headers['User-Agent']).toBe('testmini-webhook/1.0');
 
@@ -123,9 +129,7 @@ describe('sendProjectWebhooks', () => {
 	});
 
 	it('should skip webhooks that do not match the event', async () => {
-		mockSelectResult(mockDb, [
-			{ ...sampleWebhook, events: ['COMMENT_ADDED'] }
-		]);
+		mockSelectResult(mockDb, [{ ...sampleWebhook, events: ['COMMENT_ADDED'] }]);
 
 		await sendProjectWebhooks(1, 'TEST_RUN_COMPLETED', { title: 'Done', message: 'Done' });
 
@@ -153,10 +157,7 @@ describe('sendProjectWebhooks', () => {
 		expect(sig).toMatch(/^sha256=[a-f0-9]+$/);
 
 		// Verify HMAC is correct
-		const expectedSig = crypto
-			.createHmac('sha256', secret)
-			.update(opts.body)
-			.digest('hex');
+		const expectedSig = crypto.createHmac('sha256', secret).update(opts.body).digest('hex');
 		expect(sig).toBe(`sha256=${expectedSig}`);
 	});
 
@@ -191,6 +192,18 @@ describe('sendProjectWebhooks', () => {
 
 		// 3 attempts
 		expect(fetchSpy).toHaveBeenCalledTimes(3);
+	});
+
+	it('should not fetch unsafe private webhook URLs', async () => {
+		mockSelectResult(mockDb, [{ ...sampleWebhook, url: 'https://internal.example/hook' }]);
+		mockLookup.mockResolvedValue([{ address: '192.168.1.20', family: 4 }]);
+
+		await expect(
+			sendProjectWebhooks(1, 'TEST_FAILED', { title: 'Fail', message: 'Failed' })
+		).resolves.toBeUndefined();
+
+		expect(fetchSpy).not.toHaveBeenCalled();
+		expect(mockDb.insert).toHaveBeenCalled();
 	});
 
 	it('should not throw when DB query fails', async () => {

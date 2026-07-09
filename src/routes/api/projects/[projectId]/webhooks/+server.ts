@@ -5,6 +5,7 @@ import { projectWebhook } from '$lib/server/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { parseJsonBody } from '$lib/server/auth-utils';
+import { validatePublicHttpUrl } from '$lib/server/url-safety';
 
 const VALID_EVENTS = [
 	'TEST_RUN_COMPLETED',
@@ -35,7 +36,12 @@ export const GET = withProjectRole(
 );
 
 export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, projectId }) => {
-	const body = await parseJsonBody(request) as { name?: string; url?: string; secret?: string; events?: string[] };
+	const body = (await parseJsonBody(request)) as {
+		name?: string;
+		url?: string;
+		secret?: string;
+		events?: string[];
+	};
 
 	const name = (body.name ?? '').trim();
 	if (!name || name.length > 100) {
@@ -46,14 +52,8 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ request, user, p
 	if (!url) {
 		return badRequest('URL is required');
 	}
-	try {
-		const parsed = new URL(url);
-		if (!['http:', 'https:'].includes(parsed.protocol)) {
-			return badRequest('URL must use http or https');
-		}
-	} catch {
-		return badRequest('Invalid URL');
-	}
+	const urlValidation = await validatePublicHttpUrl(url);
+	if (!urlValidation.ok) return badRequest(urlValidation.error ?? 'Invalid URL');
 
 	const events = body.events ?? [];
 	for (const e of events) {

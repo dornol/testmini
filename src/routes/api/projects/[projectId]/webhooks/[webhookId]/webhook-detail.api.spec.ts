@@ -4,8 +4,12 @@ import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser, adminUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
+const mockLookup = vi.fn();
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
+vi.mock('dns/promises', () => ({
+	lookup: mockLookup
+}));
 vi.mock('$lib/server/db/schema', () => ({
 	projectWebhook: {
 		id: 'id',
@@ -25,7 +29,8 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
@@ -52,6 +57,7 @@ const existingWebhook = {
 describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockLookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
 		vi.mocked(authUtils.requireProjectRole).mockResolvedValue({ role: 'PROJECT_ADMIN' });
 		// Add projectWebhook to query mock
 		mockDb.query.projectWebhook = { findFirst: vi.fn() };
@@ -198,6 +204,24 @@ describe('/api/projects/[projectId]/webhooks/[webhookId]', () => {
 			const response = await PATCH(event);
 
 			expect(response.status).toBe(400);
+		});
+
+		it('should return 400 when URL resolves to a private address', async () => {
+			mockDb.query.projectWebhook.findFirst.mockResolvedValue(existingWebhook);
+			mockLookup.mockResolvedValue([{ address: '10.0.0.10', family: 4 }]);
+
+			const event = createMockEvent({
+				method: 'PATCH',
+				params: PARAMS,
+				body: { url: 'https://internal.example/hook' },
+				user: adminUser
+			});
+			const response = await PATCH(event);
+
+			expect(response.status).toBe(400);
+			const data = await response.json();
+			expect(data.error).toContain('private or reserved IP');
+			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should return 400 when events contain invalid type', async () => {

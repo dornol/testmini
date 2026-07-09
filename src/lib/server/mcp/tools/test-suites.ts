@@ -136,11 +136,6 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 			description: z.string().optional().describe('New description')
 		},
 		async ({ suiteId, name, description }) => {
-			const s = await db.query.testSuite.findFirst({
-				where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
-			});
-			if (!s) return err('Test suite not found');
-
 			const parsed = updateTestSuiteSchema.safeParse({
 				name,
 				description
@@ -152,6 +147,11 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 			if (parsed.data.description !== undefined) updates.description = parsed.data.description;
 
 			if (Object.keys(updates).length === 0) return err('No fields to update');
+
+			const s = await db.query.testSuite.findFirst({
+				where: and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId))
+			});
+			if (!s) return err('Test suite not found');
 
 			const [updated] = await db
 				.update(testSuite)

@@ -359,8 +359,6 @@ describe('MCP group tools', () => {
 		});
 
 		it('should reject empty updates', async () => {
-			mockDb.query.testCaseGroup.findFirst.mockResolvedValue(sampleGroup);
-
 			const result = await client.callTool({
 				name: 'update-group',
 				arguments: { groupId: 1 }
@@ -370,6 +368,7 @@ describe('MCP group tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'No fields to update'
 			);
+			expect(mockDb.query.testCaseGroup.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 

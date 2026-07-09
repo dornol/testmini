@@ -405,8 +405,6 @@ describe('MCP test-suite tools', () => {
 		});
 
 		it('should reject empty names before updating a suite', async () => {
-			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
-
 			const result = await client.callTool({
 				name: 'update-test-suite',
 				arguments: { suiteId: 1, name: '   ' }
@@ -416,12 +414,11 @@ describe('MCP test-suite tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Name is required'
 			);
+			expect(mockDb.query.testSuite.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 
 		it('should reject empty updates', async () => {
-			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
-
 			const result = await client.callTool({
 				name: 'update-test-suite',
 				arguments: { suiteId: 1 }
@@ -431,6 +428,7 @@ describe('MCP test-suite tools', () => {
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'No fields to update'
 			);
+			expect(mockDb.query.testSuite.findFirst).not.toHaveBeenCalled();
 			expect(mockDb.update).not.toHaveBeenCalled();
 		});
 	});

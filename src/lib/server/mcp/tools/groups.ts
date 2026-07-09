@@ -117,6 +117,12 @@ export function registerGroupTools(server: McpServer, projectId: number) {
 				return mcpValidationError(updatesOrError, 'Invalid group');
 			}
 
+			const updates: Record<string, unknown> = {};
+			if (updatesOrError.name !== undefined) updates.name = updatesOrError.name;
+			if ('color' in updatesOrError) updates.color = updatesOrError.color ?? null;
+
+			if (Object.keys(updates).length === 0) return err('No fields to update');
+
 			const g = await db.query.testCaseGroup.findFirst({
 				where: and(eq(testCaseGroup.id, groupId), eq(testCaseGroup.projectId, projectId))
 			});
@@ -131,12 +137,6 @@ export function registerGroupTools(server: McpServer, projectId: number) {
 					return err('A group with this name already exists');
 				}
 			}
-
-			const updates: Record<string, unknown> = {};
-			if (updatesOrError.name !== undefined) updates.name = updatesOrError.name;
-			if ('color' in updatesOrError) updates.color = updatesOrError.color ?? null;
-
-			if (Object.keys(updates).length === 0) return err('No fields to update');
 
 			const [updated] = await db
 				.update(testCaseGroup)

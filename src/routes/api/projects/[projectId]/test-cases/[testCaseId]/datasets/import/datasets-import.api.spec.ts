@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockInsertReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockInsertReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
@@ -9,10 +13,17 @@ const mockRequireTestCase = vi.fn().mockResolvedValue({ id: 10, projectId: 1 });
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testCaseParameter: {
-		id: 'id', testCaseId: 'test_case_id', name: 'name', orderIndex: 'order_index'
+		id: 'id',
+		testCaseId: 'test_case_id',
+		name: 'name',
+		orderIndex: 'order_index'
 	},
 	testCaseDataSet: {
-		id: 'id', testCaseId: 'test_case_id', name: 'name', values: 'values', orderIndex: 'order_index'
+		id: 'id',
+		testCaseId: 'test_case_id',
+		name: 'name',
+		values: 'values',
+		orderIndex: 'order_index'
 	}
 }));
 vi.mock('drizzle-orm', () => ({
@@ -21,7 +32,8 @@ vi.mock('drizzle-orm', () => ({
 	asc: vi.fn((a: unknown) => ['asc', a])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'QA' }),
@@ -39,6 +51,12 @@ const PARAMS = { projectId: '1', testCaseId: '10' };
 function createCsvFormData(csvContent: string): FormData {
 	const formData = new FormData();
 	const file = new File([csvContent], 'data.csv', { type: 'text/csv' });
+	formData.append('file', file);
+	return formData;
+}
+
+function createFileFormData(file: File): FormData {
+	const formData = new FormData();
 	formData.append('file', file);
 	return formData;
 }
@@ -71,6 +89,76 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/import', ()
 		expect(response.status).toBe(400);
 		const data = await response.json();
 		expect(data.error).toContain('header row and at least one data row');
+	});
+
+	it('should return 400 when CSV file exceeds the size limit', async () => {
+		const oversized = new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'data.csv', {
+			type: 'text/csv'
+		});
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: createFileFormData(oversized),
+			user: testUser
+		});
+
+		const response = await POST(event);
+		const data = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(data.error).toContain('must not exceed 10MB');
+		expect(mockDb.insert).not.toHaveBeenCalled();
+	});
+
+	it('should return 400 when CSV has too many data rows', async () => {
+		const csv = `param\n${Array.from({ length: 5001 }, (_, i) => `value-${i}`).join('\n')}`;
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: createCsvFormData(csv),
+			user: testUser
+		});
+
+		const response = await POST(event);
+		const data = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(data.error).toContain('5000 data rows or fewer');
+		expect(mockDb.insert).not.toHaveBeenCalled();
+	});
+
+	it('should return 400 when CSV has too many columns', async () => {
+		const headers = Array.from({ length: 101 }, (_, i) => `param${i}`).join(',');
+		const values = Array.from({ length: 101 }, (_, i) => `value${i}`).join(',');
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: createCsvFormData(`${headers}\n${values}`),
+			user: testUser
+		});
+
+		const response = await POST(event);
+		const data = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(data.error).toContain('100 columns or fewer');
+		expect(mockDb.insert).not.toHaveBeenCalled();
+	});
+
+	it('should return 400 when CSV has an empty header', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			params: PARAMS,
+			formData: createCsvFormData('param1,\nvalue1,value2'),
+			user: testUser
+		});
+
+		const response = await POST(event);
+		const data = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(data.error).toContain('headers cannot be empty');
+		expect(mockDb.insert).not.toHaveBeenCalled();
 	});
 
 	it('should import CSV with new parameters and datasets', async () => {
@@ -142,7 +230,9 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/datasets/import', ()
 				then: (r: (v: unknown) => void) => {
 					// First select: existing params
 					if (selectCallCount === 1) {
-						return Promise.resolve([{ id: 1, name: 'browser', orderIndex: 0, testCaseId: 10 }]).then(r);
+						return Promise.resolve([
+							{ id: 1, name: 'browser', orderIndex: 0, testCaseId: 10 }
+						]).then(r);
 					}
 					// Second select: existing datasets
 					return Promise.resolve([]).then(r);

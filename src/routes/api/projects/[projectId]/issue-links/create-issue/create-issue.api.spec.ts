@@ -126,17 +126,49 @@ describe('/api/projects/[projectId]/issue-links/create-issue', () => {
 	});
 
 	it('should reject invalid testCaseId', async () => {
-		const event = createMockEvent({
-			method: 'POST',
-			params: PARAMS,
-			user: testUser,
-			body: { testCaseId: 0, title: 'Bug title', description: 'desc' }
-		});
+		const cases = ['abc', 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
 
-		const response = await POST(event);
+		for (const testCaseId of cases) {
+			vi.clearAllMocks();
 
-		expect(response.status).toBe(400);
-		expect((await response.json()).error).toContain('testCaseId must be a positive integer');
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { testCaseId, title: 'Bug title', description: 'desc' }
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('testCaseId must be a positive integer');
+			expect(mockDb.query.issueTrackerConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockCreateExternalIssue).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		}
+	});
+
+	it('should reject invalid testExecutionId', async () => {
+		const cases = ['abc', 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
+
+		for (const testExecutionId of cases) {
+			vi.clearAllMocks();
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: { testExecutionId, title: 'Bug title', description: 'desc' }
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('testExecutionId must be a positive integer');
+			expect(mockDb.query.issueTrackerConfig.findFirst).not.toHaveBeenCalled();
+			expect(mockCreateExternalIssue).not.toHaveBeenCalled();
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		}
 	});
 
 	it('should reject non-string description', async () => {

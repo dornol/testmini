@@ -102,29 +102,45 @@ describe('/api/projects/[projectId]/issue-links', () => {
 		});
 
 		it('should reject invalid testCaseId filter', async () => {
-			const event = createMockEvent({
-				params: PARAMS,
-				user: testUser,
-				searchParams: { testCaseId: 'abc' }
-			});
+			const cases = ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)];
 
-			const response = await GET(event);
+			for (const testCaseId of cases) {
+				vi.clearAllMocks();
 
-			expect(response.status).toBe(400);
-			expect((await response.json()).error).toContain('testCaseId must be a positive integer');
+				const event = createMockEvent({
+					params: PARAMS,
+					user: testUser,
+					searchParams: { testCaseId }
+				});
+
+				const response = await GET(event);
+
+				expect(response.status).toBe(400);
+				expect((await response.json()).error).toContain('testCaseId must be a positive integer');
+				expect(mockDb.select).not.toHaveBeenCalled();
+			}
 		});
 
 		it('should reject invalid testExecutionId filter', async () => {
-			const event = createMockEvent({
-				params: PARAMS,
-				user: testUser,
-				searchParams: { testExecutionId: '0' }
-			});
+			const cases = ['abc', '0', '-1', '1.5', String(Number.MAX_SAFE_INTEGER + 1)];
 
-			const response = await GET(event);
+			for (const testExecutionId of cases) {
+				vi.clearAllMocks();
 
-			expect(response.status).toBe(400);
-			expect((await response.json()).error).toContain('testExecutionId must be a positive integer');
+				const event = createMockEvent({
+					params: PARAMS,
+					user: testUser,
+					searchParams: { testExecutionId }
+				});
+
+				const response = await GET(event);
+
+				expect(response.status).toBe(400);
+				expect((await response.json()).error).toContain(
+					'testExecutionId must be a positive integer'
+				);
+				expect(mockDb.select).not.toHaveBeenCalled();
+			}
 		});
 	});
 
@@ -202,17 +218,49 @@ describe('/api/projects/[projectId]/issue-links', () => {
 		});
 
 		it('should reject invalid testCaseId', async () => {
-			const event = createMockEvent({
-				method: 'POST',
-				params: PARAMS,
-				user: testUser,
-				body: { testCaseId: -1, externalUrl: 'https://github.com/org/repo/issues/1' }
-			});
+			const cases = ['abc', 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
 
-			const response = await POST(event);
+			for (const testCaseId of cases) {
+				vi.clearAllMocks();
 
-			expect(response.status).toBe(400);
-			expect((await response.json()).error).toContain('testCaseId must be a positive integer');
+				const event = createMockEvent({
+					method: 'POST',
+					params: PARAMS,
+					user: testUser,
+					body: { testCaseId, externalUrl: 'https://github.com/org/repo/issues/1' }
+				});
+
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+				expect((await response.json()).error).toContain('testCaseId must be a positive integer');
+				expect(mockDb.query.issueTrackerConfig.findFirst).not.toHaveBeenCalled();
+				expect(mockDb.insert).not.toHaveBeenCalled();
+			}
+		});
+
+		it('should reject invalid testExecutionId', async () => {
+			const cases = ['abc', 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
+
+			for (const testExecutionId of cases) {
+				vi.clearAllMocks();
+
+				const event = createMockEvent({
+					method: 'POST',
+					params: PARAMS,
+					user: testUser,
+					body: { testExecutionId, externalUrl: 'https://github.com/org/repo/issues/1' }
+				});
+
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+				expect((await response.json()).error).toContain(
+					'testExecutionId must be a positive integer'
+				);
+				expect(mockDb.query.issueTrackerConfig.findFirst).not.toHaveBeenCalled();
+				expect(mockDb.insert).not.toHaveBeenCalled();
+			}
 		});
 
 		it('should reject external URL with credentials', async () => {

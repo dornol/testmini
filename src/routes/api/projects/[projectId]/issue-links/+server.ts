@@ -21,7 +21,7 @@ type IssueLinkPayload = {
 function parsePositiveInteger(value: unknown, label: string): number | undefined | Response {
 	if (value === undefined || value === null || value === '') return undefined;
 	const parsed = typeof value === 'number' ? value : Number(value);
-	if (!Number.isInteger(parsed) || parsed <= 0) {
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
 		return badRequest(`${label} must be a positive integer`);
 	}
 	return parsed;

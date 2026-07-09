@@ -136,4 +136,52 @@ describe('Custom integration', () => {
 
 		expect(mockFetch.mock.calls[0][1].method).toBe('PUT');
 	});
+
+	it('normalizes custom HTTP method from legacy stored template', async () => {
+		const config = {
+			...baseConfig,
+			customTemplate: { method: 'patch', headers: {} }
+		};
+		mockFetch.mockResolvedValue(jsonResponse({ url: 'url', key: 'K' }));
+
+		await createCustomIssue(config, 'title', 'desc');
+
+		expect(mockFetch.mock.calls[0][1].method).toBe('PATCH');
+	});
+
+	it('rejects forbidden headers from legacy stored template', async () => {
+		const config = {
+			...baseConfig,
+			customTemplate: { method: 'POST', headers: { Authorization: 'Bearer secret' } }
+		};
+
+		await expect(createCustomIssue(config, 'title', 'desc')).rejects.toThrow(
+			'Authorization is not allowed'
+		);
+		expect(mockFetch).not.toHaveBeenCalled();
+	});
+
+	it('rejects non-string headers from legacy stored template', async () => {
+		const config = {
+			...baseConfig,
+			customTemplate: { method: 'POST', headers: { 'X-Custom': 123 } }
+		};
+
+		await expect(createCustomIssue(config, 'title', 'desc')).rejects.toThrow(
+			'X-Custom must be a string'
+		);
+		expect(mockFetch).not.toHaveBeenCalled();
+	});
+
+	it('rejects unsupported methods from legacy stored template', async () => {
+		const config = {
+			...baseConfig,
+			customTemplate: { method: 'TRACE', headers: {} }
+		};
+
+		await expect(createCustomIssue(config, 'title', 'desc')).rejects.toThrow(
+			'method must be POST, PUT, or PATCH'
+		);
+		expect(mockFetch).not.toHaveBeenCalled();
+	});
 });

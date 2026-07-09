@@ -1,5 +1,6 @@
 import type { IssueTrackerConfig, CreateIssueResult } from './types';
 import { safeIntegrationFetch } from './safe-fetch';
+import { validateCustomIssueTemplate } from './custom-template';
 
 export async function createCustomIssue(
 	config: IssueTrackerConfig,
@@ -7,14 +8,10 @@ export async function createCustomIssue(
 	description: string,
 	backlink?: string
 ): Promise<CreateIssueResult> {
-	const template = config.customTemplate as {
-		titleTemplate?: string;
-		bodyTemplate?: string;
-		method?: string;
-		headers?: Record<string, string>;
-	} | null;
-
-	if (!template) throw new Error('Custom template is required for CUSTOM provider');
+	if (!config.customTemplate) throw new Error('Custom template is required for CUSTOM provider');
+	const validation = validateCustomIssueTemplate(config.customTemplate);
+	if (!validation.ok) throw new Error(validation.error);
+	const template = validation.template;
 
 	const method = template.method || 'POST';
 	const headers: Record<string, string> = {

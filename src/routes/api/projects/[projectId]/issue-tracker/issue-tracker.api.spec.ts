@@ -313,6 +313,110 @@ describe('/api/projects/[projectId]/issue-tracker', () => {
 			expect((await response.json()).error).toContain('Custom template must be an object');
 		});
 
+		it('should reject custom template forbidden headers', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					provider: 'CUSTOM',
+					baseUrl: 'https://issues.example.com',
+					customTemplate: {
+						method: 'POST',
+						headers: { Authorization: 'Bearer leaked-secret' }
+					}
+				}
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('Authorization is not allowed');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject custom template non-string header values', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					provider: 'CUSTOM',
+					baseUrl: 'https://issues.example.com',
+					customTemplate: {
+						headers: { 'X-Custom': 123 }
+					}
+				}
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('X-Custom must be a string');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should reject custom template unsupported methods', async () => {
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					provider: 'CUSTOM',
+					baseUrl: 'https://issues.example.com',
+					customTemplate: { method: 'TRACE' }
+				}
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(400);
+			expect((await response.json()).error).toContain('method must be POST, PUT, or PATCH');
+			expect(mockDb.insert).not.toHaveBeenCalled();
+		});
+
+		it('should store a sanitized custom template', async () => {
+			mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(null);
+			const insertChain = mockInsertReturning(mockDb, [
+				{
+					...sampleConfig,
+					provider: 'CUSTOM',
+					customTemplate: {
+						method: 'PATCH',
+						headers: { 'X-Custom': 'value' }
+					}
+				}
+			]);
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: PARAMS,
+				user: testUser,
+				body: {
+					provider: 'CUSTOM',
+					baseUrl: 'https://issues.example.com',
+					customTemplate: {
+						method: 'patch',
+						headers: { 'X-Custom': 'value' },
+						ignoredSecret: 'do-not-store'
+					}
+				}
+			});
+
+			const response = await POST(event);
+
+			expect(response.status).toBe(201);
+			expect(mockDb.insert).toHaveBeenCalledWith(expect.anything());
+			expect(insertChain.values).toHaveBeenCalledWith(
+				expect.objectContaining({
+					customTemplate: {
+						method: 'PATCH',
+						headers: { 'X-Custom': 'value' }
+					}
+				})
+			);
+		});
+
 		it('should create new config when none exists', async () => {
 			mockDb.query.issueTrackerConfig.findFirst.mockResolvedValue(null);
 

@@ -7,6 +7,7 @@ import { withProjectRole, withProjectAccess } from '$lib/server/api-handler';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { childLogger } from '$lib/server/logger';
 import { validatePublicHttpUrl } from '$lib/server/url-safety';
+import { validateCustomIssueTemplate } from '$lib/server/integrations/custom-template';
 
 const log = childLogger('issue-tracker-config');
 
@@ -14,7 +15,6 @@ const VALID_PROVIDERS = ['JIRA', 'GITHUB', 'GITLAB', 'GITEA', 'CUSTOM'];
 const MAX_BASE_URL_LENGTH = 2000;
 const MAX_PROJECT_KEY_LENGTH = 128;
 const MAX_SECRET_LENGTH = 4000;
-const MAX_CUSTOM_TEMPLATE_JSON_LENGTH = 20000;
 
 type IssueTrackerConfigPayload = {
 	provider: string;
@@ -70,13 +70,9 @@ function optionalCustomTemplate(
 ): Record<string, unknown> | null | undefined | Response {
 	if (value === undefined) return undefined;
 	if (value === null) return null;
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		return badRequest('Custom template must be an object');
-	}
-	if (JSON.stringify(value).length > MAX_CUSTOM_TEMPLATE_JSON_LENGTH) {
-		return badRequest('Custom template is too large');
-	}
-	return value as Record<string, unknown>;
+	const validation = validateCustomIssueTemplate(value);
+	if (!validation.ok) return badRequest(validation.error);
+	return validation.template;
 }
 
 function optionalBoolean(value: unknown, label: string): boolean | undefined | Response {

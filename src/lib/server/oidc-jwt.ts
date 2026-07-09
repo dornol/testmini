@@ -8,6 +8,7 @@
 import { createVerify } from 'crypto';
 import { childLogger } from './logger';
 import { validatePublicHttpsUrl } from './url-safety';
+import { redactSecrets } from './secret-redaction';
 
 const log = childLogger('oidc-jwt');
 
@@ -303,8 +304,11 @@ export async function verifyIdToken(opts: VerifyIdTokenOptions): Promise<VerifyR
 	try {
 		keys = await fetchJwks(opts.jwksUri);
 	} catch (e) {
-		const msg = e instanceof Error ? e.message : String(e);
-		log.warn({ err: { message: msg }, jwksUri: opts.jwksUri }, 'JWKS fetch error');
+		const msg = sanitizeOidcLogValue(e instanceof Error ? e.message : String(e));
+		log.warn(
+			{ err: { message: msg }, jwksUri: sanitizeOidcLogValue(opts.jwksUri) },
+			'JWKS fetch error'
+		);
 		return {
 			verified: false,
 			claims: payload,
@@ -373,6 +377,10 @@ export async function verifyIdToken(opts: VerifyIdTokenOptions): Promise<VerifyR
 		claims: payload,
 		warning: 'No JWKS key produced a valid signature'
 	};
+}
+
+function sanitizeOidcLogValue(value: string): string {
+	return redactSecrets(value);
 }
 
 /**

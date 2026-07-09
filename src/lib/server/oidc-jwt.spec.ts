@@ -1,14 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
 import { generateKeyPairSync, createSign } from 'crypto';
 
+const mockLog = vi.hoisted(() => ({
+	info: vi.fn(),
+	warn: vi.fn(),
+	error: vi.fn(),
+	debug: vi.fn()
+}));
+
 // Mock the logger
 vi.mock('./logger', () => ({
-	childLogger: () => ({
-		info: vi.fn(),
-		warn: vi.fn(),
-		error: vi.fn(),
-		debug: vi.fn()
-	})
+	childLogger: () => mockLog
 }));
 
 const mockValidatePublicHttpsUrl = vi.hoisted(() => vi.fn());
@@ -135,6 +137,7 @@ describe('oidc-jwt', () => {
 		// Reset fetch mock before each test
 		globalThis.fetch = vi.fn();
 		mockValidatePublicHttpsUrl.mockResolvedValue({ ok: true });
+		mockLog.warn.mockClear();
 	});
 
 	afterEach(() => {
@@ -528,6 +531,31 @@ describe('oidc-jwt', () => {
 			// Should still return parsed claims even on JWKS failure
 			expect(result.claims).not.toBeNull();
 			expect(result.claims!.sub).toBe('user-123');
+		});
+
+		it('redacts secrets from JWKS fetch warnings and logs', async () => {
+			const querySecret = 'query-secret-12345';
+			const bearerSecret = 'jwks-token-12345';
+			const jwksUri = `https://network-fail.example.com/jwks?token=${querySecret}`;
+			vi.mocked(globalThis.fetch).mockRejectedValue(
+				new Error(`request failed for ${jwksUri} Authorization: Bearer ${bearerSecret}`)
+			);
+
+			const token = createTestJwt();
+			const result = await verifyIdToken({
+				idToken: token,
+				jwksUri,
+				issuer: TEST_ISSUER,
+				audience: TEST_AUDIENCE
+			});
+
+			const [warnMeta] = mockLog.warn.mock.calls[0];
+
+			expect(result.warning).not.toContain(querySecret);
+			expect(result.warning).not.toContain(bearerSecret);
+			expect(warnMeta.jwksUri).not.toContain(querySecret);
+			expect(warnMeta.err.message).not.toContain(querySecret);
+			expect(warnMeta.err.message).not.toContain(bearerSecret);
 		});
 
 		it('returns error for non-OK HTTP responses', async () => {

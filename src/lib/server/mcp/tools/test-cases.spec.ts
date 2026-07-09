@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-	createMockDb,
-	mockSelectResult,
-	mockInsertReturning
-} from '$lib/server/test-helpers/mock-db';
+import { createMockDb, mockSelectResult } from '$lib/server/test-helpers/mock-db';
 import {
 	sampleProject,
 	sampleTestCase,
@@ -85,6 +81,40 @@ async function createClient() {
 	const client = new Client({ name: 'test-client', version: '1.0.0' });
 	await client.connect(clientTransport);
 	return { client, close: () => clientTransport.close() };
+}
+
+function mockTransactionReturning(returningRows: unknown[][], selectRows: unknown[] = []) {
+	const txUpdateChain = {
+		set: vi.fn().mockReturnThis(),
+		where: vi.fn().mockReturnThis(),
+		then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+	};
+	const txSelectChain = {
+		from: vi.fn().mockReturnThis(),
+		where: vi.fn().mockReturnThis(),
+		then: (resolve: (v: unknown) => void) => Promise.resolve(selectRows).then(resolve)
+	};
+
+	mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+		let insertCallCount = 0;
+		const tx = {
+			insert: vi.fn().mockImplementation(() => {
+				insertCallCount++;
+				const rows = returningRows[insertCallCount - 1] ?? [];
+				return {
+					values: vi.fn().mockReturnThis(),
+					returning: vi.fn().mockReturnThis(),
+					onConflictDoNothing: vi.fn().mockReturnThis(),
+					then: (resolve: (v: unknown) => void) => Promise.resolve(rows).then(resolve)
+				};
+			}),
+			update: vi.fn().mockReturnValue(txUpdateChain),
+			select: vi.fn().mockReturnValue(txSelectChain)
+		};
+		return fn(tx);
+	});
+
+	return txUpdateChain;
 }
 
 describe('MCP test-case tools', () => {
@@ -356,6 +386,41 @@ describe('MCP test-case tools', () => {
 				'Project not found'
 			);
 		});
+
+		it('should return error when the test case insert returns no row', async () => {
+			mockSelectResult(mockDb, [{ maxKey: 'TC-0003' }]);
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockTransactionReturning([[]]);
+
+			const result = await client.callTool({
+				name: 'create-test-case',
+				arguments: { title: 'New test' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create test case'
+			);
+		});
+
+		it('should return error when the initial version insert returns no row', async () => {
+			mockSelectResult(mockDb, [{ maxKey: 'TC-0003' }]);
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockTransactionReturning([
+				[{ id: 14, projectId: 1, key: 'TC-0004', createdBy: 'user-1', sortOrder: 4 }],
+				[]
+			]);
+
+			const result = await client.callTool({
+				name: 'create-test-case',
+				arguments: { title: 'New test' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create test case version'
+			);
+		});
 	});
 
 	// ── update-test-case ─────────────────────────────────
@@ -458,6 +523,25 @@ describe('MCP test-case tools', () => {
 				'Test case not found'
 			);
 		});
+
+		it('should return error when the new version insert returns no row', async () => {
+			mockFindTestCaseWithLatestVersion.mockResolvedValue({
+				...sampleTestCase,
+				latestVersion: sampleTestCaseVersion
+			});
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockTransactionReturning([[]]);
+
+			const result = await client.callTool({
+				name: 'update-test-case',
+				arguments: { id: 10, title: 'Updated' }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create test case version'
+			);
+		});
 	});
 
 	// ── delete-test-case ─────────────────────────────────
@@ -500,6 +584,53 @@ describe('MCP test-case tools', () => {
 			expect(result.isError).toBe(true);
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Test case not found'
+			);
+		});
+	});
+
+	// ── clone-test-case ──────────────────────────────────
+
+	describe('clone-test-case', () => {
+		it('should return error when the cloned test case insert returns no row', async () => {
+			mockFindTestCaseWithLatestVersion.mockResolvedValue({
+				...sampleTestCase,
+				latestVersion: sampleTestCaseVersion
+			});
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockSelectResult(mockDb, [{ maxKey: 'TC-0003' }]);
+			mockTransactionReturning([[]]);
+
+			const result = await client.callTool({
+				name: 'clone-test-case',
+				arguments: { id: 10 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create test case'
+			);
+		});
+
+		it('should return error when the cloned version insert returns no row', async () => {
+			mockFindTestCaseWithLatestVersion.mockResolvedValue({
+				...sampleTestCase,
+				latestVersion: sampleTestCaseVersion
+			});
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockSelectResult(mockDb, [{ maxKey: 'TC-0003' }]);
+			mockTransactionReturning([
+				[{ id: 15, projectId: 1, key: 'TC-0004', createdBy: 'user-1' }],
+				[]
+			]);
+
+			const result = await client.callTool({
+				name: 'clone-test-case',
+				arguments: { id: 10 }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create test case version'
 			);
 		});
 	});
@@ -688,6 +819,41 @@ describe('MCP test-case tools', () => {
 			expect(result.isError).toBe(true);
 			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
 				'Group not found'
+			);
+		});
+
+		it('should return error when a batch test case insert returns no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockSelectResult(mockDb, [{ maxKey: 'TC-0003' }]);
+			mockTransactionReturning([[]]);
+
+			const result = await client.callTool({
+				name: 'batch-create-test-cases',
+				arguments: { testCases: [{ title: 'Test 1' }] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create test case'
+			);
+		});
+
+		it('should return error when a batch version insert returns no row', async () => {
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockSelectResult(mockDb, [{ maxKey: 'TC-0003' }]);
+			mockTransactionReturning([
+				[{ id: 15, projectId: 1, key: 'TC-0004', createdBy: 'user-1' }],
+				[]
+			]);
+
+			const result = await client.callTool({
+				name: 'batch-create-test-cases',
+				arguments: { testCases: [{ title: 'Test 1' }] }
+			});
+
+			expect(result.isError).toBe(true);
+			expect(((result as { content?: unknown }).content as ContentArray)[0].text).toBe(
+				'Failed to create test case version'
 			);
 		});
 	});

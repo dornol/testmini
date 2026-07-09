@@ -20,10 +20,7 @@ export const POST = withProjectRole(
 			error(500, 'No latest version found');
 		}
 
-		let newTestCaseId: number;
-		let newKey: string;
-
-		await db.transaction(async (tx) => {
+		const cloned = await db.transaction(async (tx) => {
 			// Generate key
 			const [maxResult] = await tx
 				.select({ maxKey: sql<string>`max(key)`.as('max_key') })
@@ -37,7 +34,7 @@ export const POST = withProjectRole(
 					nextNum = parseInt(match[1], 10) + 1;
 				}
 			}
-			newKey = `TC-${String(nextNum).padStart(4, '0')}`;
+			const newKey = `TC-${String(nextNum).padStart(4, '0')}`;
 
 			// Compute sortOrder for same group
 			const groupCondition =
@@ -62,8 +59,6 @@ export const POST = withProjectRole(
 			if (!created) {
 				error(500, 'Failed to create test case');
 			}
-
-			newTestCaseId = created.id;
 
 			// Create version from latest
 			const latest = tc.latestVersion!;
@@ -103,8 +98,10 @@ export const POST = withProjectRole(
 			for (const t of tcTags) {
 				await tx.insert(testCaseTag).values({ testCaseId: created.id, tagId: t.tagId });
 			}
+
+			return { newTestCaseId: created.id, newKey };
 		});
 
-		return json({ success: true, newTestCaseId: newTestCaseId!, newKey: newKey! });
+		return json({ success: true, ...cloned });
 	}
 );

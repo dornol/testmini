@@ -27,6 +27,18 @@ import {
 const DEFAULT_LIST_LIMIT = 50;
 const DEFAULT_SEARCH_LIMIT = 20;
 const MAX_TEST_CASE_LIMIT = 100;
+
+class McpTransactionError extends Error {}
+
+function rollback(message: string): never {
+	throw new McpTransactionError(message);
+}
+
+function toMcpTransactionError(error: unknown): ReturnType<typeof err> {
+	if (error instanceof McpTransactionError) return err(error.message);
+	throw error;
+}
+
 const mcpTestCaseStepSchema = z
 	.object({
 		action: z.string(),
@@ -182,39 +194,45 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
 
-			const result = await db.transaction(async (tx) => {
-				const [tc] = await tx
-					.insert(testCase)
-					.values({
-						projectId,
-						key: nextKey,
-						createdBy: creator,
-						sortOrder: maxNum + 1
-					})
-					.returning();
+			let result;
+			try {
+				result = await db.transaction(async (tx) => {
+					const [tc] = await tx
+						.insert(testCase)
+						.values({
+							projectId,
+							key: nextKey,
+							createdBy: creator,
+							sortOrder: maxNum + 1
+						})
+						.returning();
+					if (!tc) rollback('Failed to create test case');
 
-				const [version] = await tx
-					.insert(testCaseVersion)
-					.values({
-						testCaseId: tc.id,
-						versionNo: 1,
-						title: fields.title,
-						precondition: fields.precondition,
-						steps: fields.steps,
-						expectedResult: fields.expectedResult,
-						priority: fields.priority,
-						updatedBy: creator
-					})
-					.returning();
+					const [version] = await tx
+						.insert(testCaseVersion)
+						.values({
+							testCaseId: tc.id,
+							versionNo: 1,
+							title: fields.title,
+							precondition: fields.precondition,
+							steps: fields.steps,
+							expectedResult: fields.expectedResult,
+							priority: fields.priority,
+							updatedBy: creator
+						})
+						.returning();
+					if (!version) rollback('Failed to create test case version');
 
-				await tx
-					.update(testCase)
-					.set({ latestVersionId: version.id })
-					.where(and(eq(testCase.id, tc.id), eq(testCase.projectId, projectId)));
+					await tx
+						.update(testCase)
+						.set({ latestVersionId: version.id })
+						.where(and(eq(testCase.id, tc.id), eq(testCase.projectId, projectId)));
 
-				return { ...tc, latestVersion: version };
-			});
-
+					return { ...tc, latestVersion: version };
+				});
+			} catch (error) {
+				return toMcpTransactionError(error);
+			}
 			return ok(result);
 		}
 	);
@@ -261,31 +279,36 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
 
-			const result = await db.transaction(async (tx) => {
-				const [version] = await tx
-					.insert(testCaseVersion)
-					.values({
-						testCaseId: tc.id,
-						versionNo: prev.versionNo + 1,
-						title: fields.title ?? prev.title,
-						precondition:
-							fields.precondition !== undefined ? fields.precondition : prev.precondition,
-						steps: fields.steps ?? prev.steps,
-						expectedResult:
-							fields.expectedResult !== undefined ? fields.expectedResult : prev.expectedResult,
-						priority: fields.priority ?? prev.priority,
-						updatedBy: creator
-					})
-					.returning();
+			let result;
+			try {
+				result = await db.transaction(async (tx) => {
+					const [version] = await tx
+						.insert(testCaseVersion)
+						.values({
+							testCaseId: tc.id,
+							versionNo: prev.versionNo + 1,
+							title: fields.title ?? prev.title,
+							precondition:
+								fields.precondition !== undefined ? fields.precondition : prev.precondition,
+							steps: fields.steps ?? prev.steps,
+							expectedResult:
+								fields.expectedResult !== undefined ? fields.expectedResult : prev.expectedResult,
+							priority: fields.priority ?? prev.priority,
+							updatedBy: creator
+						})
+						.returning();
+					if (!version) rollback('Failed to create test case version');
 
-				await tx
-					.update(testCase)
-					.set({ latestVersionId: version.id })
-					.where(and(eq(testCase.id, tc.id), eq(testCase.projectId, projectId)));
+					await tx
+						.update(testCase)
+						.set({ latestVersionId: version.id })
+						.where(and(eq(testCase.id, tc.id), eq(testCase.projectId, projectId)));
 
-				return { ...tc, latestVersion: version };
-			});
-
+					return { ...tc, latestVersion: version };
+				});
+			} catch (error) {
+				return toMcpTransactionError(error);
+			}
 			return ok(result);
 		}
 	);
@@ -335,6 +358,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 
 			const tc = await findTestCaseWithLatestVersion(tcId, projectId);
 			if (!tc?.latestVersion) return err('Test case not found');
+			const latestVersion = tc.latestVersion;
 
 			const creator = await requireProjectCreator(projectId);
 			if (typeof creator !== 'string') return creator;
@@ -346,49 +370,54 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			const maxNum = maxResult?.maxKey ? parseInt(maxResult.maxKey.replace(/\D/g, ''), 10) : 0;
 			const newKey = `TC-${String(maxNum + 1).padStart(4, '0')}`;
 
-			const result = await db.transaction(async (tx) => {
-				const [newTc] = await tx
-					.insert(testCase)
-					.values({
-						projectId,
-						key: newKey,
-						groupId: tc.groupId,
-						createdBy: creator
-					})
-					.returning();
+			let result;
+			try {
+				result = await db.transaction(async (tx) => {
+					const [newTc] = await tx
+						.insert(testCase)
+						.values({
+							projectId,
+							key: newKey,
+							groupId: tc.groupId,
+							createdBy: creator
+						})
+						.returning();
+					if (!newTc) rollback('Failed to create test case');
 
-				const lv = tc.latestVersion!;
-				const [newVer] = await tx
-					.insert(testCaseVersion)
-					.values({
-						testCaseId: newTc.id,
-						versionNo: 1,
-						title: `${lv.title} (copy)`,
-						precondition: lv.precondition,
-						steps: lv.steps,
-						expectedResult: lv.expectedResult,
-						priority: lv.priority,
-						updatedBy: creator
-					})
-					.returning();
+					const [newVer] = await tx
+						.insert(testCaseVersion)
+						.values({
+							testCaseId: newTc.id,
+							versionNo: 1,
+							title: `${latestVersion.title} (copy)`,
+							precondition: latestVersion.precondition,
+							steps: latestVersion.steps,
+							expectedResult: latestVersion.expectedResult,
+							priority: latestVersion.priority,
+							updatedBy: creator
+						})
+						.returning();
+					if (!newVer) rollback('Failed to create test case version');
 
-				await tx
-					.update(testCase)
-					.set({ latestVersionId: newVer.id })
-					.where(and(eq(testCase.id, newTc.id), eq(testCase.projectId, projectId)));
-
-				// Copy tags
-				const tags = await tx.select().from(testCaseTag).where(eq(testCaseTag.testCaseId, tcId!));
-				if (tags.length > 0) {
 					await tx
-						.insert(testCaseTag)
-						.values(tags.map((t) => ({ testCaseId: newTc.id, tagId: t.tagId })))
-						.onConflictDoNothing();
-				}
+						.update(testCase)
+						.set({ latestVersionId: newVer.id })
+						.where(and(eq(testCase.id, newTc.id), eq(testCase.projectId, projectId)));
 
-				return { ...newTc, key: newKey, title: newVer.title };
-			});
+					// Copy tags
+					const tags = await tx.select().from(testCaseTag).where(eq(testCaseTag.testCaseId, tcId));
+					if (tags.length > 0) {
+						await tx
+							.insert(testCaseTag)
+							.values(tags.map((t) => ({ testCaseId: newTc.id, tagId: t.tagId })))
+							.onConflictDoNothing();
+					}
 
+					return { ...newTc, key: newKey, title: newVer.title };
+				});
+			} catch (error) {
+				return toMcpTransactionError(error);
+			}
 			return ok(result);
 		}
 	);
@@ -586,46 +615,52 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			let nextNum = maxResult?.maxKey ? parseInt(maxResult.maxKey.replace(/^TC-/, ''), 10) + 1 : 1;
 			if (isNaN(nextNum)) nextNum = 1;
 
-			for (const tc of testCaseFields) {
-				const key = `TC-${String(nextNum++).padStart(4, '0')}`;
+			try {
+				for (const tc of testCaseFields) {
+					const key = `TC-${String(nextNum++).padStart(4, '0')}`;
 
-				const result = await db.transaction(async (tx) => {
-					const [newTc] = await tx
-						.insert(testCase)
-						.values({ projectId, key, groupId: groupId ?? null, createdBy: creator })
-						.returning();
+					const result = await db.transaction(async (tx) => {
+						const [newTc] = await tx
+							.insert(testCase)
+							.values({ projectId, key, groupId: groupId ?? null, createdBy: creator })
+							.returning();
+						if (!newTc) rollback('Failed to create test case');
 
-					const [newVer] = await tx
-						.insert(testCaseVersion)
-						.values({
-							testCaseId: newTc.id,
-							versionNo: 1,
-							title: tc.title,
-							precondition: tc.precondition,
-							steps: tc.steps,
-							expectedResult: tc.expectedResult,
-							priority: tc.priority,
-							updatedBy: creator
-						})
-						.returning();
+						const [newVer] = await tx
+							.insert(testCaseVersion)
+							.values({
+								testCaseId: newTc.id,
+								versionNo: 1,
+								title: tc.title,
+								precondition: tc.precondition,
+								steps: tc.steps,
+								expectedResult: tc.expectedResult,
+								priority: tc.priority,
+								updatedBy: creator
+							})
+							.returning();
+						if (!newVer) rollback('Failed to create test case version');
 
-					await tx
-						.update(testCase)
-						.set({ latestVersionId: newVer.id })
-						.where(and(eq(testCase.id, newTc.id), eq(testCase.projectId, projectId)));
-
-					// Tags
-					if (tagIds && tagIds.length > 0) {
 						await tx
-							.insert(testCaseTag)
-							.values(tagIds.map((tagId) => ({ testCaseId: newTc.id, tagId })))
-							.onConflictDoNothing();
-					}
+							.update(testCase)
+							.set({ latestVersionId: newVer.id })
+							.where(and(eq(testCase.id, newTc.id), eq(testCase.projectId, projectId)));
 
-					return { id: newTc.id, key, title: newVer.title };
-				});
+						// Tags
+						if (tagIds && tagIds.length > 0) {
+							await tx
+								.insert(testCaseTag)
+								.values(tagIds.map((tagId) => ({ testCaseId: newTc.id, tagId })))
+								.onConflictDoNothing();
+						}
 
-				created.push(result);
+						return { id: newTc.id, key, title: newVer.title };
+					});
+
+					created.push(result);
+				}
+			} catch (error) {
+				return toMcpTransactionError(error);
 			}
 
 			// Link to requirement (outside transaction since it's optional)

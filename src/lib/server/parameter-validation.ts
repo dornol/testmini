@@ -56,7 +56,7 @@ function validateNonNegativeInteger(value: unknown, label: string): number | Res
 		return badRequest(`${label} must be a non-negative integer`);
 	}
 	const parsed = typeof value === 'number' ? value : Number(value);
-	if (!Number.isInteger(parsed) || parsed < 0) {
+	if (!Number.isSafeInteger(parsed) || parsed < 0) {
 		return badRequest(`${label} must be a non-negative integer`);
 	}
 	return parsed;

@@ -123,21 +123,26 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/parameters/[paramete
 		});
 
 		it('should return 400 when orderIndex is invalid', async () => {
-			(mockDb.query.testCaseParameter.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
-				sampleParam
-			);
-			const event = createMockEvent({
-				method: 'PATCH',
-				params: PARAMS,
-				body: { orderIndex: -1 },
-				user: testUser
-			});
-			const response = await PATCH(event);
-			const data = await response.json();
+			const cases = ['abc', -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
 
-			expect(response.status).toBe(400);
-			expect(data.error).toMatch(/non-negative integer/i);
-			expect(mockDb.update).not.toHaveBeenCalled();
+			for (const orderIndex of cases) {
+				vi.clearAllMocks();
+				mockRequireTestCase.mockResolvedValue({ id: 10, projectId: 1 });
+				mockDb.query.testCaseParameter = { findFirst: vi.fn().mockResolvedValue(sampleParam) };
+
+				const event = createMockEvent({
+					method: 'PATCH',
+					params: PARAMS,
+					body: { orderIndex },
+					user: testUser
+				});
+				const response = await PATCH(event);
+				const data = await response.json();
+
+				expect(response.status).toBe(400);
+				expect(data.error).toMatch(/non-negative integer/i);
+				expect(mockDb.update).not.toHaveBeenCalled();
+			}
 		});
 
 		it('should return 400 when orderIndex is blank', async () => {

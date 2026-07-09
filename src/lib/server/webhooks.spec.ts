@@ -249,6 +249,27 @@ describe('sendProjectWebhooks', () => {
 		expect(fetchSpy.mock.calls[0][0]).toBe('https://hook2.example.com');
 	});
 
+	it('should send selected test webhook regardless of event subscriptions', async () => {
+		mockSelectResult(mockDb, [
+			{
+				...sampleWebhook,
+				id: 2,
+				url: 'https://hook2.example.com',
+				events: ['TEST_RUN_COMPLETED']
+			}
+		]);
+
+		await sendProjectWebhooks(
+			1,
+			'TEST',
+			{ title: 'Test webhook', message: 'Test message' },
+			{ webhookId: 2 }
+		);
+
+		expect(fetchSpy).toHaveBeenCalledTimes(1);
+		expect(fetchSpy.mock.calls[0][0]).toBe('https://hook2.example.com');
+	});
+
 	it('should continue sending to other webhooks when one fails', async () => {
 		mockSelectResult(mockDb, [
 			{ ...sampleWebhook, id: 1, url: 'https://hook1.example.com' },

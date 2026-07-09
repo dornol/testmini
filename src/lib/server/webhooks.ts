@@ -35,10 +35,10 @@ export async function sendProjectWebhooks(
 			.from(projectWebhook)
 			.where(and(eq(projectWebhook.projectId, projectId), eq(projectWebhook.enabled, true)));
 
-		const matching = webhooks.filter(
-			(w) =>
-				(options.webhookId === undefined || w.id === options.webhookId) &&
-				(w.events.length === 0 || w.events.includes(event))
+		const matching = webhooks.filter((w) =>
+			options.webhookId === undefined
+				? w.events.length === 0 || w.events.includes(event)
+				: w.id === options.webhookId
 		);
 
 		if (matching.length === 0) return;

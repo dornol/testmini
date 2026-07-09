@@ -14,8 +14,8 @@ export const POST = withProjectRole(['PROJECT_ADMIN'], async ({ params, projectI
 	});
 	if (!existing) error(404, 'Webhook not found');
 
-	// Send a test event to this specific webhook
-	sendProjectWebhooks(
+	// Send a test event to this specific webhook.
+	await sendProjectWebhooks(
 		projectId,
 		'TEST',
 		{

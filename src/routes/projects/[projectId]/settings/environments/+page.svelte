@@ -16,8 +16,16 @@
 	const canEdit = $derived(data.userRole !== 'VIEWER');
 
 	const PALETTE = [
-		'#3b82f6', '#8b5cf6', '#f97316', '#ef4444', '#6b7280',
-		'#22c55e', '#14b8a6', '#eab308', '#ec4899', '#6366f1'
+		'#3b82f6',
+		'#8b5cf6',
+		'#f97316',
+		'#ef4444',
+		'#6b7280',
+		'#22c55e',
+		'#14b8a6',
+		'#eab308',
+		'#ec4899',
+		'#6366f1'
 	];
 
 	let newName = $state('');
@@ -36,7 +44,15 @@
 	let deleteEnv = $state<{ id: number; name: string } | null>(null);
 	let expandedId = $state<number | null>(null);
 
-	function startEdit(env: { id: number; name: string; color: string; isDefault: boolean; baseUrl: string | null; credentials: string | null; memo: string | null }) {
+	function startEdit(env: {
+		id: number;
+		name: string;
+		color: string;
+		isDefault: boolean;
+		baseUrl: string | null;
+		credentials: string | null;
+		memo: string | null;
+	}) {
 		editingId = env.id;
 		editName = env.name;
 		editColor = env.color;
@@ -61,7 +77,11 @@
 		expandedId = expandedId === id ? null : id;
 	}
 
-	function hasDetails(env: { baseUrl: string | null; credentials: string | null; memo: string | null }) {
+	function hasDetails(env: {
+		baseUrl: string | null;
+		credentials: string | null;
+		memo: string | null;
+	}) {
 		return env.baseUrl || env.credentials || env.memo;
 	}
 </script>
@@ -99,8 +119,8 @@
 					}}
 					class="space-y-4"
 				>
-					<div class="flex items-end gap-3">
-						<div class="flex-1 space-y-2">
+					<div class="flex flex-col gap-3 lg:flex-row lg:items-end">
+						<div class="w-full flex-1 space-y-2">
 							<Label for="env-name">{m.env_name()}</Label>
 							<Input
 								id="env-name"
@@ -112,11 +132,13 @@
 						</div>
 						<div class="space-y-2">
 							<Label>{m.env_color()}</Label>
-							<div class="flex gap-1">
+							<div class="flex flex-wrap gap-1">
 								{#each PALETTE as color (color)}
 									<button
 										type="button"
-										class="h-7 w-7 rounded-full border-2 transition-transform {newColor === color ? 'scale-110 border-foreground' : 'border-transparent'}"
+										class="h-7 w-7 rounded-full border-2 transition-transform {newColor === color
+											? 'scale-110 border-foreground'
+											: 'border-transparent'}"
 										style="background-color: {color}"
 										onclick={() => (newColor = color)}
 										aria-label={color}
@@ -126,7 +148,7 @@
 						</div>
 						<input type="hidden" name="color" value={newColor} />
 						<input type="hidden" name="isDefault" value={String(newIsDefault)} />
-						<label class="flex items-center gap-2 text-sm whitespace-nowrap pb-1">
+						<label class="flex items-center gap-2 pb-1 text-sm whitespace-nowrap">
 							<Checkbox bind:checked={newIsDefault} />
 							{m.env_is_default()}
 						</label>
@@ -170,7 +192,9 @@
 	{/if}
 
 	{#if data.environments.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+		<div
+			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+		>
 			<p class="text-muted-foreground text-sm">{m.env_empty()}</p>
 		</div>
 	{:else}
@@ -197,18 +221,15 @@
 									class="space-y-4"
 								>
 									<input type="hidden" name="environmentId" value={env.id} />
-									<div class="flex items-center gap-3">
-										<Input
-											name="name"
-											bind:value={editName}
-											class="max-w-xs"
-											required
-										/>
-										<div class="flex gap-1">
+									<div class="flex flex-col gap-3 lg:flex-row lg:items-center">
+										<Input name="name" bind:value={editName} class="w-full lg:max-w-xs" required />
+										<div class="flex flex-wrap gap-1">
 											{#each PALETTE as color (color)}
 												<button
 													type="button"
-													class="h-6 w-6 rounded-full border-2 {editColor === color ? 'border-foreground' : 'border-transparent'}"
+													class="h-6 w-6 rounded-full border-2 {editColor === color
+														? 'border-foreground'
+														: 'border-transparent'}"
 													style="background-color: {color}"
 													onclick={() => (editColor = color)}
 													aria-label={color}
@@ -253,27 +274,34 @@
 
 									<div class="flex gap-2">
 										<Button type="submit" size="sm">{m.common_save_changes()}</Button>
-										<Button type="button" variant="outline" size="sm" onclick={cancelEdit}>{m.common_cancel()}</Button>
+										<Button type="button" variant="outline" size="sm" onclick={cancelEdit}
+											>{m.common_cancel()}</Button
+										>
 									</div>
 								</form>
 							</div>
 						{:else}
 							<div class="rounded-md border px-4 py-3">
-								<div class="flex items-center justify-between">
+								<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 									<button
 										type="button"
-										class="flex items-center gap-3"
+										class="flex flex-wrap items-center gap-3 text-left"
 										onclick={() => toggleExpand(env.id)}
 									>
 										<Badge style="background-color: {env.color}; color: white">{env.name}</Badge>
 										{#if env.isDefault}
-											<span class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+											<span
+												class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+											>
 												{m.env_is_default()}
 											</span>
 										{/if}
 										{#if hasDetails(env)}
 											<svg
-												class="h-4 w-4 text-muted-foreground transition-transform {expandedId === env.id ? 'rotate-180' : ''}"
+												class="h-4 w-4 text-muted-foreground transition-transform {expandedId ===
+												env.id
+													? 'rotate-180'
+													: ''}"
 												xmlns="http://www.w3.org/2000/svg"
 												viewBox="0 0 24 24"
 												fill="none"
@@ -287,9 +315,16 @@
 										{/if}
 									</button>
 									{#if canEdit}
-										<div class="flex gap-2">
-											<Button variant="outline" size="sm" onclick={() => startEdit(env)}>{m.common_edit()}</Button>
-											<Button variant="outline" size="sm" onclick={() => (deleteEnv = { id: env.id, name: env.name })}>{m.common_delete()}</Button>
+										<div class="flex gap-2 sm:shrink-0">
+											<Button variant="outline" size="sm" onclick={() => startEdit(env)}
+												>{m.common_edit()}</Button
+											>
+											<Button
+												variant="outline"
+												size="sm"
+												onclick={() => (deleteEnv = { id: env.id, name: env.name })}
+												>{m.common_delete()}</Button
+											>
 										</div>
 									{/if}
 								</div>
@@ -329,7 +364,12 @@
 		</Card.Root>
 	{/if}
 
-	<AlertDialog.Root open={!!deleteEnv} onOpenChange={(open) => { if (!open) deleteEnv = null; }}>
+	<AlertDialog.Root
+		open={!!deleteEnv}
+		onOpenChange={(open) => {
+			if (!open) deleteEnv = null;
+		}}
+	>
 		<AlertDialog.Portal>
 			<AlertDialog.Overlay />
 			<AlertDialog.Content>

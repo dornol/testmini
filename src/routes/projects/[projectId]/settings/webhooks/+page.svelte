@@ -117,9 +117,7 @@
 			await apiPatch(`/api/projects/${projectId}/webhooks/${webhook.id}`, {
 				enabled: !webhook.enabled
 			});
-			webhooks = webhooks.map((w) =>
-				w.id === webhook.id ? { ...w, enabled: !w.enabled } : w
-			);
+			webhooks = webhooks.map((w) => (w.id === webhook.id ? { ...w, enabled: !w.enabled } : w));
 			toast.success(m.webhook_updated());
 		} catch {
 			// handled
@@ -272,7 +270,9 @@
 	{/if}
 
 	{#if webhooks.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+		<div
+			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+		>
 			<p class="text-muted-foreground text-sm">{m.webhook_empty()}</p>
 		</div>
 	{:else}
@@ -281,36 +281,30 @@
 				<div class="space-y-3">
 					{#each webhooks as webhook (webhook.id)}
 						<div class="rounded-md border {webhook.enabled ? '' : 'opacity-50'}">
-							<div class="flex items-center justify-between gap-4 px-4 py-3">
+							<div
+								class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+							>
 								<div class="min-w-0 flex-1">
-									<div class="flex items-center gap-2">
-										<p class="truncate text-sm font-medium">{webhook.name}</p>
+									<div class="flex flex-wrap items-center gap-2">
+										<p class="break-words text-sm font-medium">{webhook.name}</p>
 										{#if webhook.events.length > 0}
-											<span class="text-muted-foreground text-xs">
+											<span class="shrink-0 text-xs text-muted-foreground">
 												({webhook.events.length} events)
 											</span>
 										{:else}
-											<span class="text-muted-foreground text-xs">
+											<span class="shrink-0 text-xs text-muted-foreground">
 												({m.webhook_events_all()})
 											</span>
 										{/if}
 									</div>
-									<p class="truncate text-xs text-muted-foreground">{webhook.url}</p>
+									<p class="break-all text-xs text-muted-foreground">{webhook.url}</p>
 								</div>
 
-								<div class="flex shrink-0 items-center gap-2">
-									<Button
-										variant="outline"
-										size="sm"
-										onclick={() => toggleLogs(webhook.id)}
-									>
+								<div class="flex flex-wrap items-center gap-2 sm:shrink-0">
+									<Button variant="outline" size="sm" onclick={() => toggleLogs(webhook.id)}>
 										{m.webhook_logs_show()}
 									</Button>
-									<Button
-										variant="outline"
-										size="sm"
-										onclick={() => handleTest(webhook)}
-									>
+									<Button variant="outline" size="sm" onclick={() => handleTest(webhook)}>
 										{m.webhook_test()}
 									</Button>
 									<Button
@@ -320,11 +314,7 @@
 									>
 										{m.webhook_enabled()}
 									</Button>
-									<Button
-										variant="outline"
-										size="sm"
-										onclick={() => (deleteWebhook = webhook)}
-									>
+									<Button variant="outline" size="sm" onclick={() => (deleteWebhook = webhook)}>
 										{m.common_delete()}
 									</Button>
 								</div>
@@ -338,7 +328,32 @@
 									{:else if deliveryLogs.length === 0}
 										<p class="text-muted-foreground text-xs">{m.webhook_logs_empty()}</p>
 									{:else}
-										<div class="overflow-x-auto">
+										<div class="space-y-2 md:hidden">
+											{#each deliveryLogs as log (log.id)}
+												<div class="rounded-md border p-2 text-xs">
+													<div class="flex flex-wrap items-center gap-2">
+														<span class="font-medium">{eventLabel(log.event)}</span>
+														{#if log.success}
+															<Badge variant="default" class="bg-green-600 text-xs"
+																>{log.statusCode ?? m.webhook_logs_success()}</Badge
+															>
+														{:else}
+															<Badge variant="destructive" class="text-xs"
+																>{log.statusCode ?? m.webhook_logs_failed()}</Badge
+															>
+														{/if}
+														<span class="text-muted-foreground">{log.attempt}/3</span>
+														<span class="text-muted-foreground">{formatDuration(log.duration)}</span
+														>
+													</div>
+													<div class="mt-1 text-muted-foreground">{formatTime(log.createdAt)}</div>
+													{#if log.errorMessage}
+														<div class="mt-1 break-words text-destructive">{log.errorMessage}</div>
+													{/if}
+												</div>
+											{/each}
+										</div>
+										<div class="hidden overflow-x-auto md:block">
 											<table class="w-full text-xs">
 												<thead>
 													<tr class="text-muted-foreground border-b text-left">
@@ -353,18 +368,26 @@
 												<tbody>
 													{#each deliveryLogs as log (log.id)}
 														<tr class="border-b last:border-0">
-															<td class="whitespace-nowrap py-1.5 pr-3">{formatTime(log.createdAt)}</td>
+															<td class="whitespace-nowrap py-1.5 pr-3"
+																>{formatTime(log.createdAt)}</td
+															>
 															<td class="py-1.5 pr-3">{eventLabel(log.event)}</td>
 															<td class="py-1.5 pr-3">
 																{#if log.success}
-																	<Badge variant="default" class="bg-green-600 text-xs">{log.statusCode ?? m.webhook_logs_success()}</Badge>
+																	<Badge variant="default" class="bg-green-600 text-xs"
+																		>{log.statusCode ?? m.webhook_logs_success()}</Badge
+																	>
 																{:else}
-																	<Badge variant="destructive" class="text-xs">{log.statusCode ?? m.webhook_logs_failed()}</Badge>
+																	<Badge variant="destructive" class="text-xs"
+																		>{log.statusCode ?? m.webhook_logs_failed()}</Badge
+																	>
 																{/if}
 															</td>
 															<td class="py-1.5 pr-3">{log.attempt}/3</td>
 															<td class="py-1.5 pr-3">{formatDuration(log.duration)}</td>
-															<td class="text-destructive max-w-[200px] truncate py-1.5">{log.errorMessage ?? '-'}</td>
+															<td class="text-destructive max-w-[200px] truncate py-1.5"
+																>{log.errorMessage ?? '-'}</td
+															>
 														</tr>
 													{/each}
 												</tbody>

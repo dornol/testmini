@@ -15,7 +15,15 @@
 	const isAdmin = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
 	const baseUrl = $derived(`/api/projects/${data.project.id}/custom-fields`);
 
-	const FIELD_TYPES = ['TEXT', 'NUMBER', 'SELECT', 'MULTISELECT', 'DATE', 'CHECKBOX', 'URL'] as const;
+	const FIELD_TYPES = [
+		'TEXT',
+		'NUMBER',
+		'SELECT',
+		'MULTISELECT',
+		'DATE',
+		'CHECKBOX',
+		'URL'
+	] as const;
 
 	const typeLabels: Record<string, () => string> = {
 		TEXT: m.custom_field_type_TEXT,
@@ -42,7 +50,10 @@
 		creating = true;
 		try {
 			const options = needsOptions
-				? newOptions.split('\n').map((o) => o.trim()).filter(Boolean)
+				? newOptions
+						.split('\n')
+						.map((o) => o.trim())
+						.filter(Boolean)
 				: undefined;
 			await apiPost(baseUrl, {
 				name: newName.trim(),
@@ -87,8 +98,8 @@
 			</Card.Header>
 			<Card.Content>
 				<div class="space-y-3">
-					<div class="flex items-end gap-3">
-						<div class="flex-1 space-y-2">
+					<div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+						<div class="w-full flex-1 space-y-2">
 							<Label for="cf-name">{m.custom_field_name()}</Label>
 							<Input
 								id="cf-name"
@@ -96,7 +107,7 @@
 								bind:value={newName}
 							/>
 						</div>
-						<div class="w-40 space-y-2">
+						<div class="w-full space-y-2 sm:w-40">
 							<Label for="cf-type">{m.custom_field_type()}</Label>
 							<select
 								id="cf-type"
@@ -123,9 +134,13 @@
 						</div>
 					{/if}
 
-					<div class="flex items-center justify-between">
+					<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<label class="flex items-center gap-2 text-sm">
-							<input type="checkbox" bind:checked={newRequired} class="h-4 w-4 rounded border-gray-300" />
+							<input
+								type="checkbox"
+								bind:checked={newRequired}
+								class="h-4 w-4 rounded border-gray-300"
+							/>
 							{m.custom_field_required()}
 						</label>
 						<Button onclick={createField} disabled={!newName.trim() || creating}>
@@ -138,7 +153,9 @@
 	{/if}
 
 	{#if data.customFields.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+		<div
+			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+		>
 			<p class="text-muted-foreground text-sm">{m.custom_field_empty()}</p>
 		</div>
 	{:else}
@@ -146,21 +163,30 @@
 			<Card.Content class="pt-6">
 				<div class="space-y-2">
 					{#each data.customFields as field (field.id)}
-						<div class="flex items-center justify-between rounded-md border px-4 py-3">
-							<div class="flex items-center gap-3">
-								<span class="font-medium">{field.name}</span>
-								<Badge variant="outline" class="text-xs">{typeLabels[field.fieldType]?.() ?? field.fieldType}</Badge>
-								{#if field.required}
-									<Badge variant="secondary" class="text-xs">{m.custom_field_required()}</Badge>
-								{/if}
+						<div
+							class="flex flex-col gap-3 rounded-md border px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+						>
+							<div class="min-w-0 flex-1">
+								<div class="flex flex-wrap items-center gap-2">
+									<span class="break-words font-medium">{field.name}</span>
+									<Badge variant="outline" class="text-xs"
+										>{typeLabels[field.fieldType]?.() ?? field.fieldType}</Badge
+									>
+									{#if field.required}
+										<Badge variant="secondary" class="text-xs">{m.custom_field_required()}</Badge>
+									{/if}
+								</div>
 								{#if field.options && Array.isArray(field.options) && field.options.length > 0}
-									<span class="text-muted-foreground text-xs">{field.options.join(', ')}</span>
+									<div class="mt-1 break-words text-xs text-muted-foreground">
+										{field.options.join(', ')}
+									</div>
 								{/if}
 							</div>
 							{#if isAdmin}
 								<Button
 									variant="outline"
 									size="sm"
+									class="self-start sm:self-auto"
 									onclick={() => (deleteTarget = { id: field.id, name: field.name })}
 								>
 									{m.common_delete()}
@@ -174,7 +200,12 @@
 	{/if}
 </div>
 
-<AlertDialog.Root open={!!deleteTarget} onOpenChange={(open) => { if (!open) deleteTarget = null; }}>
+<AlertDialog.Root
+	open={!!deleteTarget}
+	onOpenChange={(open) => {
+		if (!open) deleteTarget = null;
+	}}
+>
 	<AlertDialog.Content>
 		<AlertDialog.Header>
 			<AlertDialog.Title>{m.custom_field_delete_title()}</AlertDialog.Title>

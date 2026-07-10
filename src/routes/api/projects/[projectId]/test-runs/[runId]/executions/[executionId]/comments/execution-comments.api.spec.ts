@@ -53,6 +53,7 @@ vi.mock('$lib/server/auth-utils', async () => {
 });
 
 const { GET, POST } = await import('./+server');
+const { testExecution, testRun, user: userTable } = await import('$lib/server/db/schema');
 
 const PARAMS = { projectId: '1', runId: '50', executionId: '200' };
 
@@ -98,14 +99,16 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 		it('should return comments list successfully', async () => {
 			// First call: execution verification, second call: comments list
 			let callCount = 0;
+			const executionChain = createChainResolving([{ id: 200 }]);
+			const commentsChain = createChainResolving([sampleComment]);
 			mockDb.select.mockImplementation(() => {
 				callCount++;
 				if (callCount === 1) {
 					// Execution exists
-					return createChainResolving([{ id: 200 }]);
+					return executionChain;
 				}
 				// Comments
-				return createChainResolving([sampleComment]);
+				return commentsChain;
 			});
 
 			const event = createMockEvent({
@@ -118,6 +121,19 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 			expect(response.status).toBe(200);
 			const body = await response.json();
 			expect(Array.isArray(body)).toBe(true);
+			expect(commentsChain.innerJoin).toHaveBeenCalledWith(userTable, ['user_id', 'id']);
+			expect(commentsChain.innerJoin).toHaveBeenCalledWith(testExecution, [
+				'test_execution_id',
+				'id'
+			]);
+			expect(commentsChain.innerJoin).toHaveBeenCalledWith(testRun, ['test_run_id', 'id']);
+			expect(commentsChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_execution_id', 200],
+					['test_run_id', 50],
+					['project_id', 1]
+				])
+			);
 		});
 	});
 

@@ -47,7 +47,15 @@ export const GET = withProjectAccess(async ({ params, projectId }) => {
 		})
 		.from(executionComment)
 		.innerJoin(userTable, eq(executionComment.userId, userTable.id))
-		.where(eq(executionComment.testExecutionId, executionId))
+		.innerJoin(testExecution, eq(executionComment.testExecutionId, testExecution.id))
+		.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
+		.where(
+			and(
+				eq(executionComment.testExecutionId, executionId),
+				eq(testExecution.testRunId, runId),
+				eq(testRun.projectId, projectId)
+			)
+		)
 		.orderBy(asc(executionComment.createdAt));
 
 	return json(comments);

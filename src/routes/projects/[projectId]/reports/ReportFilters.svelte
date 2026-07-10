@@ -2,6 +2,7 @@
 	import * as m from '$lib/paraglide/messages.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 
@@ -97,16 +98,14 @@
 			<!-- Preset buttons -->
 			<div class="flex flex-wrap gap-1.5">
 				{#each [['7', m.filter_last_7_days()], ['30', m.filter_last_30_days()], ['90', m.filter_last_90_days()], ['all', m.filter_all_time()]] as [preset, label] (preset)}
-					<button
-						type="button"
+					<Button
+						size="sm"
+						variant={activePreset === preset ? 'default' : 'outline'}
 						onclick={() => applyPreset(preset === 'all' ? 'all' : Number(preset))}
-						class="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors
-							{activePreset === preset
-							? 'bg-primary text-primary-foreground border-primary'
-							: 'bg-background hover:bg-accent border-input'}"
+						class="h-8 px-2.5 text-xs"
 					>
 						{label}
-					</button>
+					</Button>
 				{/each}
 			</div>
 
@@ -114,7 +113,7 @@
 			<div class="grid grid-cols-2 items-end gap-2 sm:flex">
 				<div class="flex min-w-0 flex-col gap-1">
 					<label for="date-from" class="text-muted-foreground text-xs">{m.filter_from()}</label>
-					<input
+					<Input
 						id="date-from"
 						type="date"
 						value={pendingFrom || fromInput}
@@ -122,12 +121,12 @@
 							pendingFrom = (e.currentTarget as HTMLInputElement).value;
 						}}
 						max={pendingTo || toInput || undefined}
-						class="border-input bg-background w-full rounded-md border px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+						class="h-8 w-full px-2 text-xs sm:w-36"
 					/>
 				</div>
 				<div class="flex min-w-0 flex-col gap-1">
 					<label for="date-to" class="text-muted-foreground text-xs">{m.filter_to()}</label>
-					<input
+					<Input
 						id="date-to"
 						type="date"
 						value={pendingTo || toInput}
@@ -135,12 +134,12 @@
 							pendingTo = (e.currentTarget as HTMLInputElement).value;
 						}}
 						min={pendingFrom || fromInput || undefined}
-						class="border-input bg-background w-full rounded-md border px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+						class="h-8 w-full px-2 text-xs sm:w-36"
 					/>
 				</div>
 				<Button
 					size="sm"
-					class="col-span-2 h-[34px] w-full text-xs sm:w-auto"
+					class="col-span-2 h-8 w-full text-xs sm:w-auto"
 					onclick={applyDateRange}
 					disabled={!pendingFrom && !pendingTo && !fromInput && !toInput}
 				>

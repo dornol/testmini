@@ -264,7 +264,7 @@
 					value={data.plan.status}
 					onValueChange={(v: string) => handleStatusChange(v)}
 				>
-					<Select.Trigger class="h-7 w-full text-xs sm:w-36">
+					<Select.Trigger size="sm" class="w-full text-xs sm:w-36">
 						<Badge variant={statusVariant(data.plan.status)}>{statusLabel(data.plan.status)}</Badge>
 					</Select.Trigger>
 					<Select.Content>
@@ -313,9 +313,12 @@
 					value={data.plan.releaseId?.toString() ?? ''}
 					onValueChange={(v: string) => handleReleaseChange(v)}
 				>
-					<Select.Trigger class="h-7 w-full min-w-0 text-xs sm:w-44">
+					<Select.Trigger size="sm" class="w-full min-w-0 text-xs sm:w-64">
 						{@const linked = data.releases.find((r) => r.id === data.plan.releaseId)}
-						{linked ? `${linked.name}${linked.version ? ` (${linked.version})` : ''}` : '-'}
+						{@const linkedLabel = linked
+							? `${linked.name}${linked.version ? ` (${linked.version})` : ''}`
+							: '-'}
+						<span class="min-w-0 flex-1 truncate text-left" title={linkedLabel}>{linkedLabel}</span>
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="" label="-" />

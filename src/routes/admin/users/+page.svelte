@@ -364,11 +364,11 @@
 
 	<!-- Pagination -->
 	{#if data.pagination.totalPages > 1}
-		<div class="flex items-center justify-between">
+		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<p class="text-muted-foreground text-sm">
 				{m.admin_users_total({ count: data.pagination.total })}
 			</p>
-			<div class="flex gap-2">
+			<div class="flex flex-wrap gap-2">
 				{#if data.pagination.page > 1}
 					<Button
 						variant="outline"
@@ -409,8 +409,9 @@
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+			<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
 			<form
+				class="w-full sm:w-auto"
 				method="POST"
 				action="?/approve"
 				use:enhance={() => {
@@ -427,7 +428,7 @@
 				}}
 			>
 				<input type="hidden" name="userId" value={approveTarget?.id ?? ''} />
-				<Button type="submit">{m.admin_approve()}</Button>
+				<Button type="submit" class="w-full sm:w-auto">{m.admin_approve()}</Button>
 			</form>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
@@ -443,8 +444,9 @@
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+			<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
 			<form
+				class="w-full sm:w-auto"
 				method="POST"
 				action="?/reject"
 				use:enhance={() => {
@@ -461,7 +463,9 @@
 				}}
 			>
 				<input type="hidden" name="userId" value={rejectTarget?.id ?? ''} />
-				<Button type="submit" variant="destructive">{m.admin_reject()}</Button>
+				<Button type="submit" variant="destructive" class="w-full sm:w-auto">
+					{m.admin_reject()}
+				</Button>
 			</form>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
@@ -484,11 +488,13 @@
 			/>
 		</div>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-			<form method="POST" action="?/ban" use:enhance={handleBanResult}>
+			<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+			<form class="w-full sm:w-auto" method="POST" action="?/ban" use:enhance={handleBanResult}>
 				<input type="hidden" name="userId" value={banTarget?.id ?? ''} />
 				<input type="hidden" name="banReason" value={banReason} />
-				<Button type="submit" variant="destructive">{m.admin_ban()}</Button>
+				<Button type="submit" variant="destructive" class="w-full sm:w-auto">
+					{m.admin_ban()}
+				</Button>
 			</form>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

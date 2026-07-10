@@ -48,7 +48,12 @@
 		return m.exploratory_status_completed();
 	}
 
-	function formatDuration(session: { startedAt: string | Date; pausedDuration: number; completedAt: string | Date | null; status: string }): string {
+	function formatDuration(session: {
+		startedAt: string | Date;
+		pausedDuration: number;
+		completedAt: string | Date | null;
+		status: string;
+	}): string {
 		const start = new Date(session.startedAt).getTime();
 		const end = session.completedAt ? new Date(session.completedAt).getTime() : Date.now();
 		const elapsed = Math.floor((end - start) / 1000) - session.pausedDuration;
@@ -68,7 +73,12 @@
 				title: newTitle.trim(),
 				charter: newCharter.trim() || undefined,
 				environment: newEnvironment.trim() || undefined,
-				tags: newTags.trim() ? newTags.split(',').map((t) => t.trim()).filter(Boolean) : []
+				tags: newTags.trim()
+					? newTags
+							.split(',')
+							.map((t) => t.trim())
+							.filter(Boolean)
+					: []
 			});
 			toast.success(m.exploratory_created());
 			showNewDialog = false;
@@ -86,42 +96,61 @@
 </script>
 
 <div class="space-y-4">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 		<h2 class="text-lg font-semibold">{m.exploratory_title()}</h2>
-		<Button size="sm" onclick={() => (showNewDialog = true)}>{m.exploratory_new()}</Button>
+		<Button size="sm" class="w-full sm:w-auto" onclick={() => (showNewDialog = true)}>
+			{m.exploratory_new()}
+		</Button>
 	</div>
 
-	<div class="flex gap-2">
+	<div class="flex flex-wrap gap-2">
 		<Button
 			variant={statusFilter === '' ? 'default' : 'outline'}
 			size="sm"
-			onclick={() => setStatusFilter('')}
-		>{m.common_all()}</Button>
+			onclick={() => setStatusFilter('')}>{m.common_all()}</Button
+		>
 		<Button
 			variant={statusFilter === 'ACTIVE' ? 'default' : 'outline'}
 			size="sm"
-			onclick={() => setStatusFilter('ACTIVE')}
-		>{m.exploratory_status_active()}</Button>
+			onclick={() => setStatusFilter('ACTIVE')}>{m.exploratory_status_active()}</Button
+		>
 		<Button
 			variant={statusFilter === 'PAUSED' ? 'default' : 'outline'}
 			size="sm"
-			onclick={() => setStatusFilter('PAUSED')}
-		>{m.exploratory_status_paused()}</Button>
+			onclick={() => setStatusFilter('PAUSED')}>{m.exploratory_status_paused()}</Button
+		>
 		<Button
 			variant={statusFilter === 'COMPLETED' ? 'default' : 'outline'}
 			size="sm"
-			onclick={() => setStatusFilter('COMPLETED')}
-		>{m.exploratory_status_completed()}</Button>
+			onclick={() => setStatusFilter('COMPLETED')}>{m.exploratory_status_completed()}</Button
+		>
 	</div>
 
 	{#if data.sessions.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-			<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground mb-4">
-				<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+		<div
+			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+		>
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				width="48"
+				height="48"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.5"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="text-muted-foreground mb-4"
+			>
+				<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path
+					d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"
+				/>
 			</svg>
 			<h3 class="text-lg font-semibold">{m.exploratory_empty()}</h3>
 			<p class="text-muted-foreground mt-1 text-sm">{m.exploratory_empty_hint()}</p>
-			<Button class="mt-4" size="sm" onclick={() => (showNewDialog = true)}>{m.exploratory_new()}</Button>
+			<Button class="mt-4" size="sm" onclick={() => (showNewDialog = true)}
+				>{m.exploratory_new()}</Button
+			>
 		</div>
 	{:else}
 		<div class="border rounded-md overflow-hidden">
@@ -129,12 +158,22 @@
 				<Table.Header>
 					<Table.Row>
 						<Table.Head class="py-1 px-2 text-xs">{m.common_title()}</Table.Head>
-						<Table.Head class="py-1 px-2 text-xs hidden md:table-cell">{m.exploratory_charter()}</Table.Head>
+						<Table.Head class="py-1 px-2 text-xs hidden md:table-cell"
+							>{m.exploratory_charter()}</Table.Head
+						>
 						<Table.Head class="w-24 py-1 px-2 text-xs">{m.common_status()}</Table.Head>
-						<Table.Head class="w-20 py-1 px-2 text-xs hidden sm:table-cell">{m.exploratory_duration()}</Table.Head>
-						<Table.Head class="w-16 py-1 px-2 text-xs hidden sm:table-cell">{m.exploratory_notes()}</Table.Head>
-						<Table.Head class="w-24 py-1 px-2 text-xs hidden lg:table-cell">{m.tr_created_by()}</Table.Head>
-						<Table.Head class="w-28 py-1 px-2 text-xs hidden lg:table-cell">{m.common_date()}</Table.Head>
+						<Table.Head class="w-20 py-1 px-2 text-xs hidden sm:table-cell"
+							>{m.exploratory_duration()}</Table.Head
+						>
+						<Table.Head class="w-16 py-1 px-2 text-xs hidden sm:table-cell"
+							>{m.exploratory_notes()}</Table.Head
+						>
+						<Table.Head class="w-24 py-1 px-2 text-xs hidden lg:table-cell"
+							>{m.tr_created_by()}</Table.Head
+						>
+						<Table.Head class="w-28 py-1 px-2 text-xs hidden lg:table-cell"
+							>{m.common_date()}</Table.Head
+						>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -149,15 +188,25 @@
 									{session.charter ?? ''}
 								</div>
 							</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs max-w-[200px] truncate hidden md:table-cell">
+							<Table.Cell
+								class="text-muted-foreground py-1 px-2 text-xs max-w-[200px] truncate hidden md:table-cell"
+							>
 								{session.charter ?? '-'}
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs">
-								<Badge variant={statusVariant(session.status)} class="text-[10px] px-1.5 py-0">{statusLabel(session.status)}</Badge>
+								<Badge variant={statusVariant(session.status)} class="text-[10px] px-1.5 py-0"
+									>{statusLabel(session.status)}</Badge
+								>
 							</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden sm:table-cell">{formatDuration(session)}</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden sm:table-cell">{session.noteCount}</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden lg:table-cell">{session.createdBy}</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden sm:table-cell"
+								>{formatDuration(session)}</Table.Cell
+							>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden sm:table-cell"
+								>{session.noteCount}</Table.Cell
+							>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden lg:table-cell"
+								>{session.createdBy}</Table.Cell
+							>
 							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden lg:table-cell">
 								{new Date(session.startedAt).toLocaleDateString()}
 							</Table.Cell>
@@ -183,7 +232,11 @@
 			</div>
 			<div>
 				<Label>{m.exploratory_charter()}</Label>
-				<Textarea bind:value={newCharter} placeholder={m.exploratory_charter_placeholder()} rows={3} />
+				<Textarea
+					bind:value={newCharter}
+					placeholder={m.exploratory_charter_placeholder()}
+					rows={3}
+				/>
 			</div>
 			<div>
 				<Label>{m.common_environment()}</Label>
@@ -195,8 +248,14 @@
 			</div>
 		</div>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (showNewDialog = false)}>{m.common_cancel()}</Button>
-			<Button onclick={createSession} disabled={creating || !newTitle.trim()}>
+			<Button class="w-full sm:w-auto" variant="outline" onclick={() => (showNewDialog = false)}>
+				{m.common_cancel()}
+			</Button>
+			<Button
+				class="w-full sm:w-auto"
+				onclick={createSession}
+				disabled={creating || !newTitle.trim()}
+			>
 				{creating ? m.common_creating() : m.exploratory_start()}
 			</Button>
 		</Dialog.Footer>

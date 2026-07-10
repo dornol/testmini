@@ -17,14 +17,16 @@
 	const validators = zodValidators(updateTeamSchema);
 	const { form, errors, enhance, submitting, tainted } = superForm(
 		// svelte-ignore state_referenced_locally
-		data.form, {
-		validators,
-		onUpdated({ form }) {
-			if (form.message) {
-				toast.success(m.team_updated());
+		data.form,
+		{
+			validators,
+			onUpdated({ form }) {
+				if (form.message) {
+					toast.success(m.team_updated());
+				}
 			}
 		}
-	});
+	);
 
 	let deleteOpen = $state(false);
 </script>
@@ -52,7 +54,9 @@
 						id="description"
 						name="description"
 						value={$form.description as string}
-						oninput={(e) => { $form.description = e.currentTarget.value; }}
+						oninput={(e) => {
+							$form.description = e.currentTarget.value;
+						}}
 						rows={4}
 					/>
 					{#if $errors.description}
@@ -92,9 +96,13 @@
 								</AlertDialog.Description>
 							</AlertDialog.Header>
 							<AlertDialog.Footer>
-								<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-								<form method="POST" action="?/delete">
-									<Button type="submit" variant="destructive">{m.common_delete()}</Button>
+								<AlertDialog.Cancel class="w-full sm:w-auto">
+									{m.common_cancel()}
+								</AlertDialog.Cancel>
+								<form class="w-full sm:w-auto" method="POST" action="?/delete">
+									<Button type="submit" variant="destructive" class="w-full sm:w-auto">
+										{m.common_delete()}
+									</Button>
 								</form>
 							</AlertDialog.Footer>
 						</AlertDialog.Content>

@@ -250,9 +250,12 @@
 											</AlertDialog.Description>
 										</AlertDialog.Header>
 										<AlertDialog.Footer>
-											<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+											<AlertDialog.Cancel class="w-full sm:w-auto">
+												{m.common_cancel()}
+											</AlertDialog.Cancel>
 											<Button
 												variant="destructive"
+												class="w-full sm:w-auto"
 												disabled={revoking}
 												onclick={() => revokeKey(key)}
 											>
@@ -288,6 +291,7 @@
 			<Dialog.Footer>
 				<Button
 					variant="outline"
+					class="w-full sm:w-auto"
 					onclick={() => {
 						generateOpen = false;
 						newKeyName = '';
@@ -295,7 +299,11 @@
 				>
 					{m.common_cancel()}
 				</Button>
-				<Button disabled={!newKeyName.trim() || generating} onclick={generateKey}>
+				<Button
+					class="w-full sm:w-auto"
+					disabled={!newKeyName.trim() || generating}
+					onclick={generateKey}
+				>
 					{generating ? m.api_key_generating() : m.api_key_generate()}
 				</Button>
 			</Dialog.Footer>
@@ -320,13 +328,14 @@
 				</div>
 				<div class="space-y-2">
 					<Label>{m.api_key_name_label()}: {generatedKeyName}</Label>
-					<div class="flex items-center gap-2">
+					<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
 						<code class="bg-muted flex-1 overflow-x-auto rounded p-2 font-mono text-sm break-all">
 							{generatedKey}
 						</code>
 						<Button
 							variant={keyCopied ? 'outline' : 'default'}
 							size="sm"
+							class="w-full sm:w-auto"
 							onclick={() => copyKey(generatedKey!)}
 						>
 							{#if keyCopied}
@@ -354,7 +363,7 @@
 					<h4 class="text-sm font-semibold">{m.mcp_connect_title()}</h4>
 					<p class="text-muted-foreground text-xs mt-0.5">{m.mcp_connect_desc()}</p>
 				</div>
-				<div class="flex gap-1">
+				<div class="flex flex-wrap gap-1">
 					{#each mcpAgents as agent, i (agent.name)}
 						<button
 							type="button"
@@ -396,7 +405,9 @@
 			</div>
 
 			<Dialog.Footer>
-				<Button onclick={() => tryCloseGeneratedKey(false)}>{m.common_close()}</Button>
+				<Button class="w-full sm:w-auto" onclick={() => tryCloseGeneratedKey(false)}>
+					{m.common_close()}
+				</Button>
 			</Dialog.Footer>
 		</Dialog.Content>
 	</Dialog.Portal>

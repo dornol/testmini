@@ -138,12 +138,19 @@
 
 					<div class="space-y-4 py-4">
 						{#if selectedUser}
-							<div class="flex items-center justify-between rounded-md border p-3">
-								<div>
-									<p class="font-medium">{selectedUser.name}</p>
-									<p class="text-muted-foreground text-sm">{selectedUser.email}</p>
+							<div
+								class="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"
+							>
+								<div class="min-w-0">
+									<p class="break-words font-medium">{selectedUser.name}</p>
+									<p class="text-muted-foreground break-all text-sm">{selectedUser.email}</p>
 								</div>
-								<Button variant="ghost" size="sm" onclick={() => (selectedUser = null)}>
+								<Button
+									variant="ghost"
+									size="sm"
+									class="w-full sm:w-auto"
+									onclick={() => (selectedUser = null)}
+								>
 									{m.members_change()}
 								</Button>
 							</div>
@@ -199,6 +206,7 @@
 					{#if selectedUser}
 						<Dialog.Footer>
 							<form
+								class="w-full sm:w-auto"
 								method="POST"
 								action="?/addMember"
 								use:enhance={() => {
@@ -217,7 +225,7 @@
 							>
 								<input type="hidden" name="userId" value={selectedUser.id} />
 								<input type="hidden" name="role" value={selectedRole} />
-								<Button type="submit">{m.team_add_member()}</Button>
+								<Button type="submit" class="w-full sm:w-auto">{m.team_add_member()}</Button>
 							</form>
 						</Dialog.Footer>
 					{/if}
@@ -375,8 +383,10 @@
 					</AlertDialog.Description>
 				</AlertDialog.Header>
 				<AlertDialog.Footer>
-					<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-					<Button onclick={executeRoleChange}>{m.members_role_change_action()}</Button>
+					<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+					<Button class="w-full sm:w-auto" onclick={executeRoleChange}>
+						{m.members_role_change_action()}
+					</Button>
 				</AlertDialog.Footer>
 			</AlertDialog.Content>
 		</AlertDialog.Portal>
@@ -394,8 +404,9 @@
 					</AlertDialog.Description>
 				</AlertDialog.Header>
 				<AlertDialog.Footer>
-					<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+					<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
 					<form
+						class="w-full sm:w-auto"
 						method="POST"
 						action="?/removeMember"
 						use:enhance={() => {
@@ -412,7 +423,9 @@
 						}}
 					>
 						<input type="hidden" name="memberId" value={removeMemberId} />
-						<Button type="submit" variant="destructive">{m.team_remove_member()}</Button>
+						<Button type="submit" variant="destructive" class="w-full sm:w-auto">
+							{m.team_remove_member()}
+						</Button>
 					</form>
 				</AlertDialog.Footer>
 			</AlertDialog.Content>

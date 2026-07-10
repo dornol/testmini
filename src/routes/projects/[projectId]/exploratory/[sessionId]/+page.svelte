@@ -444,10 +444,12 @@
 			/>
 		</div>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (showCompleteDialog = false)}
-				>{m.common_cancel()}</Button
+			<Button
+				variant="outline"
+				class="w-full sm:w-auto"
+				onclick={() => (showCompleteDialog = false)}>{m.common_cancel()}</Button
 			>
-			<Button onclick={completeSession} disabled={completing}>
+			<Button class="w-full sm:w-auto" onclick={completeSession} disabled={completing}>
 				{completing ? m.common_saving() : m.exploratory_complete()}
 			</Button>
 		</Dialog.Footer>
@@ -462,8 +464,8 @@
 			<AlertDialog.Description>{m.exploratory_delete_confirm()}</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-			<AlertDialog.Action onclick={deleteSession} disabled={deleting}>
+			<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+			<AlertDialog.Action class="w-full sm:w-auto" onclick={deleteSession} disabled={deleting}>
 				{m.common_delete()}
 			</AlertDialog.Action>
 		</AlertDialog.Footer>

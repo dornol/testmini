@@ -712,10 +712,14 @@
 			</div>
 		</div>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (createDialogOpen = false)}>
+			<Button class="w-full sm:w-auto" variant="outline" onclick={() => (createDialogOpen = false)}>
 				{m.common_cancel()}
 			</Button>
-			<Button onclick={handleCreate} disabled={creating || !newTitle.trim()}>
+			<Button
+				class="w-full sm:w-auto"
+				onclick={handleCreate}
+				disabled={creating || !newTitle.trim()}
+			>
 				{creating ? m.common_creating() : m.common_save_changes()}
 			</Button>
 		</Dialog.Footer>
@@ -755,10 +759,14 @@
 			</div>
 		</div>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (editDialogOpen = false)}>
+			<Button class="w-full sm:w-auto" variant="outline" onclick={() => (editDialogOpen = false)}>
 				{m.common_cancel()}
 			</Button>
-			<Button onclick={handleEdit} disabled={editSaving || !editTitle.trim()}>
+			<Button
+				class="w-full sm:w-auto"
+				onclick={handleEdit}
+				disabled={editSaving || !editTitle.trim()}
+			>
 				{editSaving ? m.common_saving() : m.common_save_changes()}
 			</Button>
 		</Dialog.Footer>
@@ -773,8 +781,13 @@
 			<AlertDialog.Description>{m.req_delete_confirm()}</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-			<Button variant="destructive" onclick={handleDelete} disabled={deleteSaving}>
+			<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+			<Button
+				variant="destructive"
+				class="w-full sm:w-auto"
+				onclick={handleDelete}
+				disabled={deleteSaving}
+			>
 				{deleteSaving ? m.common_saving() : m.common_delete()}
 			</Button>
 		</AlertDialog.Footer>
@@ -791,8 +804,13 @@
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-			<Button variant="destructive" onclick={handleUnlink} disabled={unlinkSaving}>
+			<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+			<Button
+				variant="destructive"
+				class="w-full sm:w-auto"
+				onclick={handleUnlink}
+				disabled={unlinkSaving}
+			>
 				{unlinkSaving ? m.common_saving() : m.req_unlink_test_case()}
 			</Button>
 		</AlertDialog.Footer>
@@ -801,11 +819,11 @@
 
 <!-- Link Test Case Dialog -->
 <Dialog.Root bind:open={linkDialogOpen}>
-	<Dialog.Content class="sm:max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+	<Dialog.Content class="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:max-w-2xl">
 		<Dialog.Header>
 			<Dialog.Title>{m.req_link_test_case()}</Dialog.Title>
 		</Dialog.Header>
-		<div class="space-y-4 py-4 flex-1 overflow-hidden flex flex-col">
+		<div class="flex flex-1 flex-col space-y-4 overflow-hidden py-4">
 			<Input
 				bind:value={linkSearch}
 				oninput={() => (linkDisplayCount = 50)}
@@ -814,15 +832,17 @@
 			/>
 			<div class="flex-1 overflow-y-auto space-y-1" onscroll={handleLinkListScroll}>
 				{#each filteredTestCases.slice(0, linkDisplayCount) as tc (tc.id)}
-					<div class="flex items-center justify-between rounded px-2 py-1 hover:bg-muted text-sm">
-						<div class="flex gap-2 items-center min-w-0">
+					<div
+						class="flex flex-col gap-2 rounded px-2 py-1 text-sm hover:bg-muted sm:flex-row sm:items-center sm:justify-between"
+					>
+						<div class="flex min-w-0 items-center gap-2">
 							<span class="font-mono text-xs text-muted-foreground shrink-0">{tc.key}</span>
 							<span class="truncate">{tc.title}</span>
 						</div>
 						<Button
 							variant="outline"
 							size="sm"
-							class="h-6 text-xs shrink-0 ml-2"
+							class="h-6 w-full shrink-0 text-xs sm:ml-2 sm:w-auto"
 							disabled={linkLoading}
 							onclick={() => linkTestCase(tc.id)}
 						>
@@ -838,7 +858,7 @@
 			</div>
 		</div>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (linkDialogOpen = false)}>
+			<Button class="w-full sm:w-auto" variant="outline" onclick={() => (linkDialogOpen = false)}>
 				{m.common_close()}
 			</Button>
 		</Dialog.Footer>

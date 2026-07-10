@@ -15,20 +15,22 @@
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
-		<div>
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+		<div class="min-w-0">
 			<div class="mb-1">
 				<a href="/teams" class="text-muted-foreground hover:text-foreground text-sm"
 					>&larr; {m.common_back_to({ target: m.nav_teams() })}</a
 				>
 			</div>
-			<h1 class="text-xl font-bold">{data.team.name}</h1>
+			<h1 class="break-words text-xl font-bold">{data.team.name}</h1>
 			{#if data.team.description}
-				<p class="text-muted-foreground mt-1 text-sm">{data.team.description}</p>
+				<p class="text-muted-foreground mt-1 break-words text-sm">{data.team.description}</p>
 			{/if}
 		</div>
 		{#if data.userTeamRole === 'OWNER' || data.userTeamRole === 'ADMIN'}
-			<Button variant="outline" href="/teams/{data.team.id}/settings">{m.team_settings()}</Button>
+			<Button class="w-full sm:w-auto" variant="outline" href="/teams/{data.team.id}/settings">
+				{m.team_settings()}
+			</Button>
 		{/if}
 	</div>
 

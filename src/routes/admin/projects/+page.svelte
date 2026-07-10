@@ -249,11 +249,11 @@
 
 	<!-- Pagination -->
 	{#if data.pagination.totalPages > 1}
-		<div class="flex items-center justify-between">
+		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<p class="text-muted-foreground text-sm">
 				{m.admin_projects_total({ count: data.pagination.total })}
 			</p>
-			<div class="flex gap-2">
+			<div class="flex flex-wrap gap-2">
 				{#if data.pagination.page > 1}
 					<Button
 						variant="outline"
@@ -296,9 +296,10 @@
 				</AlertDialog.Description>
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
 				<Button
 					variant={confirmProjectActive ? 'destructive' : 'default'}
+					class="w-full sm:w-auto"
 					onclick={handleConfirmToggle}
 				>
 					{confirmProjectActive ? m.admin_projects_deactivate() : m.admin_projects_activate()}

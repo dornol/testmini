@@ -41,7 +41,9 @@
 		{#if data.linkedAccounts.length > 0}
 			<div class="space-y-3">
 				{#each data.linkedAccounts as account (account.id)}
-					<div class="flex items-center justify-between gap-3 rounded-lg border p-3">
+					<div
+						class="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+					>
 						<div class="flex min-w-0 items-center gap-3">
 							{#if account.providerIconUrl && !failedIconUrls.has(account.providerIconUrl)}
 								<img
@@ -64,9 +66,14 @@
 								</p>
 							</div>
 						</div>
-						<form method="POST" action="?/unlink" use:enhance={handleResult}>
+						<form
+							method="POST"
+							action="?/unlink"
+							class="w-full sm:w-auto"
+							use:enhance={handleResult}
+						>
 							<input type="hidden" name="accountId" value={account.id} />
-							<Button type="submit" variant="outline" size="sm">
+							<Button type="submit" variant="outline" size="sm" class="w-full sm:w-auto">
 								{m.oidc_unlink_account()}
 							</Button>
 						</form>

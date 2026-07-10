@@ -119,9 +119,9 @@
 
 <div class="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
 	<!-- Header -->
-	<div class="text-center space-y-1">
-		<h1 class="text-2xl font-bold">{data.reportName}</h1>
-		<p class="text-muted-foreground text-sm">
+	<div class="space-y-1 text-center">
+		<h1 class="break-words text-2xl font-bold">{data.reportName}</h1>
+		<p class="text-muted-foreground break-words text-sm">
 			{data.projectName} &middot; {activeDateLabel}
 		</p>
 	</div>
@@ -244,7 +244,7 @@
 							<div>
 								<Badge variant="outline">{ps.priority}</Badge>
 							</div>
-							<div class="mt-3 grid grid-cols-4 gap-2 text-sm">
+							<div class="mt-3 grid grid-cols-2 gap-2 text-sm min-[420px]:grid-cols-4">
 								<div>
 									<p class="text-muted-foreground text-xs">{m.shared_total()}</p>
 									<p class="font-medium">{ps.total}</p>
@@ -306,7 +306,7 @@
 								<p class="text-muted-foreground text-xs break-all">{tc.testCaseKey}</p>
 								<p class="text-sm font-medium break-words">{tc.title}</p>
 							</div>
-							<div class="mt-3 grid grid-cols-3 gap-2 text-sm">
+							<div class="mt-3 grid grid-cols-1 gap-2 text-sm min-[360px]:grid-cols-3">
 								<div>
 									<p class="text-muted-foreground text-xs">{m.shared_total()}</p>
 									<p class="font-medium">{tc.totalExecs}</p>
@@ -383,7 +383,7 @@
 									>{run.environment}</Badge
 								>
 							</div>
-							<div class="mt-3 grid grid-cols-3 gap-2 text-sm">
+							<div class="mt-3 grid grid-cols-1 gap-2 text-sm min-[360px]:grid-cols-3">
 								<div>
 									<p class="text-muted-foreground text-xs">{m.shared_pass()}</p>
 									<p class="font-medium text-green-600">{run.passCount}</p>

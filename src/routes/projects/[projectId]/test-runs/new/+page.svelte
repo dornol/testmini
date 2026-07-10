@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
@@ -11,6 +12,8 @@
 	import VirtualList from '$lib/components/VirtualList.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as m from '$lib/paraglide/messages.js';
+	import { apiPost } from '$lib/api-client';
+	import { toast } from 'svelte-sonner';
 
 	type ProjectEnvironment = { name: string; isDefault: boolean };
 	type ProjectPriority = { name: string; color: string };
@@ -22,6 +25,13 @@
 	let searchFilter = $state('');
 	let priorityFilter = $state('');
 	let tagFilter = $state('');
+	let runName = $state('');
+	let crossEnvMode = $state(false);
+	let selectedEnvironments = $state<Set<string>>(new Set());
+	let creatingCrossEnv = $state(false);
+	const canCreateCrossEnv = $derived(
+		data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN' || data.userRole === 'QA'
+	);
 	const defaultEnv = $derived(
 		(data.projectEnvironments as ProjectEnvironment[]).find((e) => e.isDefault)?.name ??
 			(data.projectEnvironments as ProjectEnvironment[])[0]?.name ??
@@ -33,7 +43,36 @@
 	$effect(() => {
 		selectedIds = new Set(data.preselectedIds ?? []);
 		selectedEnv = defaultEnv;
+		selectedEnvironments = new Set([defaultEnv]);
 	});
+
+	function toggleEnvironment(name: string) {
+		const next = new Set(selectedEnvironments);
+		if (next.has(name)) next.delete(name);
+		else next.add(name);
+		selectedEnvironments = next;
+	}
+
+	async function createCrossEnvironmentRuns() {
+		if (!runName.trim() || selectedIds.size === 0 || selectedEnvironments.size < 2) return;
+		creatingCrossEnv = true;
+		try {
+			const result = await apiPost<{ runs: { id: number; environment: string }[] }>(
+				`/api/projects/${data.project.id}/test-runs/cross-env`,
+				{
+					name: runName.trim(),
+					testCaseIds: [...selectedIds],
+					environments: [...selectedEnvironments]
+				}
+			);
+			toast.success(`${m.cross_env_create()} (${result.runs.length})`);
+			goto(`/projects/${data.project.id}/test-runs`);
+		} catch {
+			// error toast handled by apiPost
+		} finally {
+			creatingCrossEnv = false;
+		}
+	}
 
 	function loadFromSuite(suiteId: string) {
 		if (!suiteId) return;
@@ -117,9 +156,39 @@
 		<Card.Content>
 			<form method="POST" use:enhance class="space-y-4">
 				<div class="grid gap-4 sm:grid-cols-2">
+					<div class="sm:col-span-2">
+						<div class="inline-flex w-full rounded-md border p-1 sm:w-auto" role="group">
+							<Button
+								type="button"
+								size="sm"
+								variant={!crossEnvMode ? 'default' : 'ghost'}
+								class="h-7 flex-1 text-xs sm:flex-none"
+								onclick={() => (crossEnvMode = false)}
+							>
+								{m.common_environment()}
+							</Button>
+							{#if canCreateCrossEnv}
+								<Button
+									type="button"
+									size="sm"
+									variant={crossEnvMode ? 'default' : 'ghost'}
+									class="h-7 flex-1 text-xs sm:flex-none"
+									onclick={() => (crossEnvMode = true)}
+								>
+									{m.cross_env_title()}
+								</Button>
+							{/if}
+						</div>
+					</div>
 					<div class="space-y-2">
 						<Label for="name">{m.tr_run_name()}</Label>
-						<Input id="name" name="name" placeholder={m.tr_run_name_placeholder()} required />
+						<Input
+							id="name"
+							name="name"
+							bind:value={runName}
+							placeholder={m.tr_run_name_placeholder()}
+							required
+						/>
 						{#if (actionData?.errors as Record<string, string[]> | undefined)?.name}
 							<p class="text-destructive text-sm">
 								{(actionData?.errors as Record<string, string[]>).name}
@@ -127,24 +196,42 @@
 						{/if}
 					</div>
 					<div class="space-y-2">
-						<Label for="environment">{m.common_environment()}</Label>
-						<input type="hidden" name="environment" value={selectedEnv} />
-						<Select.Root
-							type="single"
-							value={selectedEnv}
-							onValueChange={(v: string) => {
-								selectedEnv = v;
-							}}
+						<Label for="environment"
+							>{crossEnvMode ? m.cross_env_select_envs() : m.common_environment()}</Label
 						>
-							<Select.Trigger class="w-full">
-								{selectedEnv}
-							</Select.Trigger>
-							<Select.Content>
+						{#if crossEnvMode}
+							<div class="grid grid-cols-2 gap-2 rounded-md border p-2">
 								{#each environments as env (env.id)}
-									<Select.Item value={env.name} label={env.name} />
+									<label class="flex min-w-0 cursor-pointer items-center gap-2 text-sm">
+										<input
+											type="checkbox"
+											checked={selectedEnvironments.has(env.name)}
+											onchange={() => toggleEnvironment(env.name)}
+											class="shrink-0 rounded"
+										/>
+										<span class="truncate" title={env.name}>{env.name}</span>
+									</label>
 								{/each}
-							</Select.Content>
-						</Select.Root>
+							</div>
+						{:else}
+							<input type="hidden" name="environment" value={selectedEnv} />
+							<Select.Root
+								type="single"
+								value={selectedEnv}
+								onValueChange={(v: string) => {
+									selectedEnv = v;
+								}}
+							>
+								<Select.Trigger class="w-full">
+									{selectedEnv}
+								</Select.Trigger>
+								<Select.Content>
+									{#each environments as env (env.id)}
+										<Select.Item value={env.name} label={env.name} />
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						{/if}
 					</div>
 				</div>
 
@@ -349,9 +436,23 @@
 				{/each}
 
 				<div class="flex flex-col gap-2 pt-2 sm:flex-row sm:gap-3">
-					<Button type="submit" class="w-full sm:w-auto" disabled={selectedIds.size === 0}>
-						{m.tr_create_run({ count: selectedIds.size })}
-					</Button>
+					{#if crossEnvMode}
+						<Button
+							type="button"
+							class="w-full sm:w-auto"
+							disabled={creatingCrossEnv ||
+								!runName.trim() ||
+								selectedIds.size === 0 ||
+								selectedEnvironments.size < 2}
+							onclick={createCrossEnvironmentRuns}
+						>
+							{creatingCrossEnv ? m.common_creating() : m.cross_env_create()}
+						</Button>
+					{:else}
+						<Button type="submit" class="w-full sm:w-auto" disabled={selectedIds.size === 0}>
+							{m.tr_create_run({ count: selectedIds.size })}
+						</Button>
+					{/if}
 					<Button
 						variant="outline"
 						class="w-full sm:w-auto"

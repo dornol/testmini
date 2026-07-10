@@ -72,29 +72,88 @@
 
 <div class="space-y-4">
 	<!-- Search & Filters -->
-	<div class="flex flex-wrap items-center gap-2">
+	<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
 		<form
 			onsubmit={(e) => {
 				e.preventDefault();
 				doSearch();
 			}}
-			class="flex gap-2"
+			class="flex flex-col gap-2 sm:flex-row"
 		>
 			<Input
 				placeholder={m.admin_projects_search()}
-				class="max-w-sm"
+				class="w-full sm:max-w-sm"
 				bind:value={searchInput}
 				aria-label={m.admin_projects_search()}
 			/>
-			<Button type="submit" variant="outline">{m.common_search()}</Button>
+			<Button type="submit" variant="outline" class="w-full sm:w-auto">{m.common_search()}</Button>
 		</form>
-		<Button variant={data.showInactive ? 'default' : 'outline'} size="sm" onclick={toggleInactive}>
+		<Button
+			variant={data.showInactive ? 'default' : 'outline'}
+			size="sm"
+			class="w-full sm:w-auto"
+			onclick={toggleInactive}
+		>
 			{data.showInactive ? m.admin_projects_showing_all() : m.admin_projects_show_inactive()}
 		</Button>
 	</div>
 
+	<!-- Mobile projects list -->
+	<div class="space-y-3 sm:hidden">
+		{#each data.projects as proj (proj.id)}
+			<Card.Root class="gap-3 rounded-lg p-4">
+				<div class="min-w-0 space-y-1">
+					<a
+						href="/projects/{proj.id}"
+						class="text-primary block break-words text-sm font-semibold leading-snug hover:underline"
+					>
+						{proj.name}
+					</a>
+					<div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+						<span>{m.admin_projects_id()} {proj.id}</span>
+						<span>{m.dashboard_members()}: {proj.memberCount}</span>
+						<span>{new Date(proj.createdAt).toLocaleDateString()}</span>
+					</div>
+				</div>
+				<div class="flex flex-wrap items-center justify-between gap-2">
+					<Badge variant={proj.active ? 'default' : 'secondary'}>
+						{proj.active ? m.common_active() : m.common_inactive()}
+					</Badge>
+					<form
+						method="POST"
+						action="?/toggleActive"
+						use:enhance={handleResult}
+						onsubmit={(e) => {
+							if (!confirmDialogOpen) {
+								e.preventDefault();
+								openToggleConfirm(proj, e.currentTarget as HTMLFormElement);
+							}
+						}}
+					>
+						<input type="hidden" name="projectId" value={proj.id} />
+						<input type="hidden" name="active" value={proj.active ? 'false' : 'true'} />
+						<Button
+							type="submit"
+							variant="ghost"
+							size="sm"
+							class="h-7 px-2 text-xs {proj.active ? 'text-destructive' : 'text-green-600'}"
+						>
+							{proj.active ? m.admin_projects_deactivate() : m.admin_projects_activate()}
+						</Button>
+					</form>
+				</div>
+			</Card.Root>
+		{/each}
+		{#if data.projects.length === 0}
+			<Card.Root class="rounded-lg p-6 text-center">
+				<p class="text-sm font-medium text-muted-foreground">{m.admin_projects_no_results()}</p>
+				<p class="mt-1 text-xs text-muted-foreground">{m.admin_projects_no_results_hint()}</p>
+			</Card.Root>
+		{/if}
+	</div>
+
 	<!-- Projects Table -->
-	<Card.Root>
+	<Card.Root class="hidden overflow-hidden sm:flex">
 		<Table.Root>
 			<Table.Header>
 				<Table.Row>

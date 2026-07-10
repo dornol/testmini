@@ -437,7 +437,50 @@
 			<Card.Title class="text-sm font-medium">{m.reports_top_failing()}</Card.Title>
 		</Card.Header>
 		<Card.Content class="p-0">
-			<Table.Root>
+			<div class="space-y-2 px-4 pb-4 sm:hidden">
+				{#each topFailingCases as tc (tc.testCaseId)}
+					{@const total = tc.totalExecs}
+					{@const fail = tc.failCount}
+					{@const pass = tc.passCount}
+					<button
+						type="button"
+						class="w-full rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
+						onclick={() => {
+							window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`;
+						}}
+					>
+						<p class="font-mono text-xs text-muted-foreground">{tc.testCaseKey}</p>
+						<p class="mt-1 line-clamp-2 text-sm font-medium">{tc.title}</p>
+						<dl class="mt-3 grid grid-cols-4 gap-2 text-xs">
+							<div>
+								<dt class="text-muted-foreground">{m.reports_total()}</dt>
+								<dd class="font-medium">{total}</dd>
+							</div>
+							<div>
+								<dt class="text-muted-foreground">{m.reports_fail_count()}</dt>
+								<dd class="font-medium text-red-600">{fail}</dd>
+							</div>
+							<div>
+								<dt class="text-muted-foreground">{m.reports_pass()}</dt>
+								<dd class="font-medium text-green-600">{pass}</dd>
+							</div>
+							<div>
+								<dt class="text-muted-foreground">{m.reports_pass_rate()}</dt>
+								<dd class="font-medium">{passRate(pass, total)}</dd>
+							</div>
+						</dl>
+						<div class="mt-3 bg-secondary flex h-2 w-full overflow-hidden rounded-full">
+							{#if pass > 0}
+								<div class="bg-green-500" style="width: {barWidth(pass, total)}"></div>
+							{/if}
+							{#if fail > 0}
+								<div class="bg-red-500" style="width: {barWidth(fail, total)}"></div>
+							{/if}
+						</div>
+					</button>
+				{/each}
+			</div>
+			<Table.Root class="hidden sm:table">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>{m.reports_test_case()}</Table.Head>
@@ -495,7 +538,59 @@
 			<Card.Description>{m.trends_flaky_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content class="p-0">
-			<Table.Root>
+			<div class="space-y-2 px-4 pb-4 sm:hidden">
+				{#each flakyTests as tc (tc.testCaseId)}
+					{@const total = tc.totalExecs}
+					{@const pass = tc.passCount}
+					{@const fail = tc.failCount}
+					<button
+						type="button"
+						class="w-full rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
+						onclick={() => {
+							window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`;
+						}}
+					>
+						<div class="flex items-start gap-2">
+							<Badge
+								variant="outline"
+								class="shrink-0 bg-yellow-50 text-yellow-700 border-yellow-300 text-xs"
+								>{m.common_flaky()}</Badge
+							>
+							<div class="min-w-0">
+								<p class="font-mono text-xs text-muted-foreground">{tc.testCaseKey}</p>
+								<p class="mt-1 line-clamp-2 text-sm font-medium">{tc.title}</p>
+							</div>
+						</div>
+						<dl class="mt-3 grid grid-cols-4 gap-2 text-xs">
+							<div>
+								<dt class="text-muted-foreground">{m.reports_total()}</dt>
+								<dd class="font-medium">{total}</dd>
+							</div>
+							<div>
+								<dt class="text-muted-foreground">{m.trends_pass()}</dt>
+								<dd class="font-medium text-green-600">{pass}</dd>
+							</div>
+							<div>
+								<dt class="text-muted-foreground">{m.trends_fail()}</dt>
+								<dd class="font-medium text-red-600">{fail}</dd>
+							</div>
+							<div>
+								<dt class="text-muted-foreground">{m.reports_pass_rate()}</dt>
+								<dd class="font-medium">{passRate(pass, total)}</dd>
+							</div>
+						</dl>
+						<div class="mt-3 bg-secondary flex h-2 w-full overflow-hidden rounded-full">
+							{#if pass > 0}
+								<div class="bg-green-500" style="width: {barWidth(pass, total)}"></div>
+							{/if}
+							{#if fail > 0}
+								<div class="bg-red-500" style="width: {barWidth(fail, total)}"></div>
+							{/if}
+						</div>
+					</button>
+				{/each}
+			</div>
+			<Table.Root class="hidden sm:table">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>{m.reports_test_case()}</Table.Head>
@@ -737,7 +832,32 @@
 			<Card.Description>{m.defect_density_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content class="p-0">
-			<Table.Root>
+			<div class="space-y-2 px-4 pb-4 sm:hidden">
+				{#each defectDensity.filter((d) => d.defectCount > 0) as dd (dd.groupId ?? 'ungrouped')}
+					{@const density = dd.caseCount > 0 ? (dd.defectCount / dd.caseCount).toFixed(2) : '0'}
+					<div class="rounded-md border p-3">
+						<p class="text-sm font-medium">{dd.groupName ?? m.defect_ungrouped()}</p>
+						<dl class="mt-3 grid grid-cols-3 gap-2 text-xs">
+							<div>
+								<dt class="text-muted-foreground">{m.defect_cases()}</dt>
+								<dd class="font-medium">{dd.caseCount}</dd>
+							</div>
+							<div>
+								<dt class="text-muted-foreground">{m.defect_count()}</dt>
+								<dd class="font-medium text-red-600">{dd.defectCount}</dd>
+							</div>
+							<div>
+								<dt class="text-muted-foreground">{m.defect_density()}</dt>
+								<dd class="font-medium">{density}</dd>
+							</div>
+						</dl>
+						<div class="mt-3 bg-secondary flex h-2 w-full overflow-hidden rounded-full">
+							<div class="bg-red-500" style="width: {barWidth(dd.defectCount, maxDefects)}"></div>
+						</div>
+					</div>
+				{/each}
+			</div>
+			<Table.Root class="hidden sm:table">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>{m.defect_group()}</Table.Head>
@@ -785,7 +905,65 @@
 			{/if}
 		</Card.Header>
 		<Card.Content class="p-0">
-			<Table.Root>
+			<div class="space-y-2 px-4 pb-4 sm:hidden">
+				{#each [...recentRuns].reverse() as run (run.id)}
+					{@const rate =
+						run.totalCount > 0 ? Math.round((run.passCount / run.totalCount) * 100) : 0}
+					<div class="rounded-md border p-3">
+						<div class="flex items-start gap-3">
+							<input
+								type="checkbox"
+								checked={selectedRunIds.has(run.id)}
+								onchange={() => toggleRun(run.id)}
+								aria-label={`${m.reports_select_all()} ${run.name}`}
+								class="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300"
+							/>
+							<button
+								type="button"
+								class="min-w-0 flex-1 text-left"
+								onclick={() => {
+									window.location.href = `/projects/${projectId}/test-runs/${run.id}`;
+								}}
+							>
+								<p class="line-clamp-2 text-sm font-medium">{run.name}</p>
+								<div class="mt-2 flex flex-wrap items-center gap-2">
+									<Badge variant="outline">{run.environment}</Badge>
+									<span class="text-xs text-muted-foreground">
+										{run.finishedAt ? new Date(run.finishedAt).toLocaleDateString() : '-'}
+									</span>
+								</div>
+								<dl class="mt-3 grid grid-cols-4 gap-2 text-xs">
+									<div>
+										<dt class="text-muted-foreground">{m.reports_pass()}</dt>
+										<dd class="font-medium text-green-600">{run.passCount}</dd>
+									</div>
+									<div>
+										<dt class="text-muted-foreground">{m.reports_fail()}</dt>
+										<dd class="font-medium text-red-600">{run.failCount}</dd>
+									</div>
+									<div>
+										<dt class="text-muted-foreground">{m.dashboard_blocked()}</dt>
+										<dd class="font-medium text-orange-600">{run.blockedCount}</dd>
+									</div>
+									<div>
+										<dt class="text-muted-foreground">{m.reports_pass_rate()}</dt>
+										<dd
+											class="font-medium {rate >= 80
+												? 'text-green-600'
+												: rate >= 50
+													? 'text-yellow-600'
+													: 'text-red-600'}"
+										>
+											{rate}%
+										</dd>
+									</div>
+								</dl>
+							</button>
+						</div>
+					</div>
+				{/each}
+			</div>
+			<Table.Root class="hidden sm:table">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head class="w-10 px-2">

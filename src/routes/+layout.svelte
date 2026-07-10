@@ -8,6 +8,7 @@
 	import Header from '$lib/components/Header.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import KeyboardShortcuts from '$lib/components/KeyboardShortcuts.svelte';
+	import CommandPalette from '$lib/components/CommandPalette.svelte';
 	import { setLocale } from '$lib/paraglide/runtime';
 	import { onMount } from 'svelte';
 
@@ -20,7 +21,9 @@
 
 	$effect(() => {
 		if ($navigating) {
-			progressTimer = setTimeout(() => { showProgress = true; }, 300);
+			progressTimer = setTimeout(() => {
+				showProgress = true;
+			}, 300);
 		} else {
 			clearTimeout(progressTimer);
 			showProgress = false;
@@ -28,7 +31,9 @@
 		return () => clearTimeout(progressTimer);
 	});
 
-	const isAuthPage = $derived(page.url.pathname.startsWith('/auth') || page.url.pathname.startsWith('/shared'));
+	const isAuthPage = $derived(
+		page.url.pathname.startsWith('/auth') || page.url.pathname.startsWith('/shared')
+	);
 
 	// Global data-tip tooltip
 	onMount(() => {
@@ -38,7 +43,10 @@
 
 		function show(e: MouseEvent) {
 			const target = (e.target as HTMLElement).closest<HTMLElement>('[data-tip]');
-			if (!target || !target.dataset.tip) { tip.style.opacity = '0'; return; }
+			if (!target || !target.dataset.tip) {
+				tip.style.opacity = '0';
+				return;
+			}
 			tip.textContent = target.dataset.tip;
 			// Make visible off-screen first to measure
 			tip.style.left = '-9999px';
@@ -54,7 +62,9 @@
 			tip.style.top = top + 'px';
 		}
 
-		function hide() { tip.style.opacity = '0'; }
+		function hide() {
+			tip.style.opacity = '0';
+		}
 
 		document.addEventListener('mouseover', show);
 		document.addEventListener('mouseout', hide);
@@ -89,17 +99,23 @@
 <ModeWatcher />
 <Toaster />
 <KeyboardShortcuts />
+<CommandPalette />
 
 {#if showProgress}
 	<div class="bg-muted-foreground/20 fixed top-0 right-0 left-0 z-50 h-0.5 overflow-hidden">
-		<div class="bg-muted-foreground/30 h-full w-1/3 animate-[shimmer_1.5s_ease-in-out_infinite]"></div>
+		<div
+			class="bg-muted-foreground/30 h-full w-1/3 animate-[shimmer_1.5s_ease-in-out_infinite]"
+		></div>
 	</div>
 {/if}
 
 {#if isAuthPage}
 	{@render children()}
 {:else}
-	<a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[100] focus:rounded focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg focus:ring-2 focus:ring-ring">
+	<a
+		href="#main-content"
+		class="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[100] focus:rounded focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg focus:ring-2 focus:ring-ring"
+	>
 		Skip to main content
 	</a>
 	<div class="flex h-dvh flex-col">

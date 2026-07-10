@@ -4,7 +4,7 @@
 		shortcutManager,
 		SHORTCUTS_CONTEXT_KEY,
 		SHORTCUT_COMBOS,
-		type ShortcutsContext,
+		type ShortcutsContext
 	} from '$lib/shortcuts';
 	import ShortcutHintPanel from './ShortcutHintPanel.svelte';
 
@@ -16,7 +16,7 @@
 		register(combo, definition) {
 			return shortcutManager.register(combo, definition);
 		},
-		manager: shortcutManager,
+		manager: shortcutManager
 	};
 
 	setContext(SHORTCUTS_CONTEXT_KEY, context);
@@ -44,7 +44,7 @@
 							form.requestSubmit();
 						}
 					}
-				},
+				}
 			})
 		);
 
@@ -54,14 +54,8 @@
 				label: 'Search / Command palette',
 				category: 'Navigation',
 				handler() {
-					const searchInput = document.querySelector<HTMLInputElement>(
-						'[data-shortcut-search], input[type="search"], input[placeholder*="search" i], input[placeholder*="검색" i]'
-					);
-					if (searchInput) {
-						searchInput.focus();
-						searchInput.select();
-					}
-				},
+					window.dispatchEvent(new CustomEvent('testmini:open-command-palette'));
+				}
 			})
 		);
 
@@ -72,7 +66,7 @@
 				category: 'General',
 				handler() {
 					hintPanelOpen = !hintPanelOpen;
-				},
+				}
 			})
 		);
 
@@ -83,7 +77,7 @@
 				category: 'General',
 				handler() {
 					hintPanelOpen = !hintPanelOpen;
-				},
+				}
 			})
 		);
 
@@ -97,11 +91,15 @@
 						hintPanelOpen = false;
 						return;
 					}
-					const openDialog = document.querySelector<HTMLElement>('[data-state="open"][role="dialog"]');
+					const openDialog = document.querySelector<HTMLElement>(
+						'[data-state="open"][role="dialog"]'
+					);
 					if (openDialog) {
-						openDialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+						openDialog.dispatchEvent(
+							new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+						);
 					}
-				},
+				}
 			})
 		);
 

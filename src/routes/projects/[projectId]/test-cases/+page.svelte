@@ -32,6 +32,8 @@
 	import TestCasePaginationBar from './TestCasePaginationBar.svelte';
 	import TestCaseQuickCreateRow from './TestCaseQuickCreateRow.svelte';
 	import TestCaseTableHeader from './TestCaseTableHeader.svelte';
+	import TestCaseGroupHeaderContent from './TestCaseGroupHeaderContent.svelte';
+	import TestCaseUncategorizedHeaderContent from './TestCaseUncategorizedHeaderContent.svelte';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import { TAG_PALETTE } from '$lib/constants';
 
@@ -1555,120 +1557,23 @@
 								<div
 									class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 text-sm font-semibold"
 								>
-									<button
-										type="button"
-										class="text-muted-foreground hover:text-foreground transition-colors"
-										onclick={() => toggleGroupCollapse(group.id)}
-									>
-										{#if collapsedGroups.has(group.id)}
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												width="14"
-												height="14"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												stroke-width="2"
-												stroke-linecap="round"
-												stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg
-											>
-										{:else}
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												width="14"
-												height="14"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												stroke-width="2"
-												stroke-linecap="round"
-												stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg
-											>
-										{/if}
-									</button>
-									{#if group.color}
-										<span
-											class="h-2.5 w-2.5 rounded-full shrink-0"
-											style="background-color: {group.color}"
-										></span>
-									{/if}
-									{#if editingGroupId === group.id}
-										<!-- svelte-ignore a11y_autofocus -->
-										<input
-											type="text"
-											class="border-primary bg-background h-6 rounded border px-1.5 text-xs font-semibold outline-none ring-1 ring-primary/30 flex-1"
-											bind:value={editingGroupName}
-											onblur={commitGroupNameEdit}
-											onkeydown={handleGroupNameKeydown}
-											autofocus
-										/>
-									{:else}
-										<button
-											type="button"
-											class="text-sm font-semibold hover:underline text-left"
-											ondblclick={() => {
-												if (canEdit) startEditGroupName(group.id, group.name);
-											}}
-										>
-											{group.name}
-										</button>
-									{/if}
-									<span class="text-xs text-muted-foreground font-normal"
-										>({group.items.length})</span
-									>
-									<div class="ml-auto flex items-center gap-1">
-										{#if canEdit}
-											<button
-												type="button"
-												class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"
-												title={m.aria_edit_name()}
-												aria-label={m.aria_edit_name()}
-												onclick={() => startEditGroupName(group.id, group.name)}
-											>
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													width="12"
-													height="12"
-													viewBox="0 0 24 24"
-													fill="none"
-													stroke="currentColor"
-													stroke-width="2"
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path
-														d="m15 5 4 4"
-													/></svg
-												>
-											</button>
-										{/if}
-										{#if canDelete}
-											<button
-												type="button"
-												class="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted transition-colors"
-												title={m.aria_delete_group()}
-												aria-label={m.aria_delete_group()}
-												onclick={() => {
-													deleteGroupId = group.id;
-													deleteGroupOpen = true;
-												}}
-											>
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													width="12"
-													height="12"
-													viewBox="0 0 24 24"
-													fill="none"
-													stroke="currentColor"
-													stroke-width="2"
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													><path d="M3 6h18" /><path
-														d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"
-													/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg
-												>
-											</button>
-										{/if}
-									</div>
+									<TestCaseGroupHeaderContent
+										{group}
+										collapsed={collapsedGroups.has(group.id)}
+										editing={editingGroupId === group.id}
+										editingName={editingGroupName}
+										{canEdit}
+										{canDelete}
+										onToggle={() => toggleGroupCollapse(group.id)}
+										onEditNameChange={(value) => (editingGroupName = value)}
+										onEditCommit={commitGroupNameEdit}
+										onEditKeydown={handleGroupNameKeydown}
+										onStartEdit={() => startEditGroupName(group.id, group.name)}
+										onDelete={() => {
+											deleteGroupId = group.id;
+											deleteGroupOpen = true;
+										}}
+									/>
 								</div>
 							{:else if row._type === 'tc'}
 								<div
@@ -1684,41 +1589,11 @@
 								<div
 									class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/20 text-sm font-semibold"
 								>
-									<button
-										type="button"
-										class="text-muted-foreground hover:text-foreground transition-colors"
-										onclick={() => toggleGroupCollapse(-1)}
-									>
-										{#if collapsedGroups.has(-1)}
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												width="14"
-												height="14"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												stroke-width="2"
-												stroke-linecap="round"
-												stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg
-											>
-										{:else}
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												width="14"
-												height="14"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												stroke-width="2"
-												stroke-linecap="round"
-												stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg
-											>
-										{/if}
-									</button>
-									<span class="text-muted-foreground">{m.group_uncategorized()}</span>
-									<span class="text-xs text-muted-foreground font-normal"
-										>({(row as { itemCount: number }).itemCount})</span
-									>
+									<TestCaseUncategorizedHeaderContent
+										collapsed={collapsedGroups.has(-1)}
+										count={(row as { itemCount: number }).itemCount}
+										onToggle={() => toggleGroupCollapse(-1)}
+									/>
 								</div>
 							{/if}
 						{/snippet}
@@ -1772,120 +1647,23 @@
 												>
 											</span>
 										{/if}
-										<button
-											type="button"
-											class="text-muted-foreground hover:text-foreground transition-colors"
-											onclick={() => toggleGroupCollapse(group.id)}
-										>
-											{#if collapsedGroups.has(group.id)}
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													width="14"
-													height="14"
-													viewBox="0 0 24 24"
-													fill="none"
-													stroke="currentColor"
-													stroke-width="2"
-													stroke-linecap="round"
-													stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg
-												>
-											{:else}
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													width="14"
-													height="14"
-													viewBox="0 0 24 24"
-													fill="none"
-													stroke="currentColor"
-													stroke-width="2"
-													stroke-linecap="round"
-													stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg
-												>
-											{/if}
-										</button>
-										{#if group.color}
-											<span
-												class="h-2.5 w-2.5 rounded-full shrink-0"
-												style="background-color: {group.color}"
-											></span>
-										{/if}
-										{#if editingGroupId === group.id}
-											<!-- svelte-ignore a11y_autofocus -->
-											<input
-												type="text"
-												class="border-primary bg-background h-6 rounded border px-1.5 text-xs font-semibold outline-none ring-1 ring-primary/30 flex-1"
-												bind:value={editingGroupName}
-												onblur={commitGroupNameEdit}
-												onkeydown={handleGroupNameKeydown}
-												autofocus
-											/>
-										{:else}
-											<button
-												type="button"
-												class="text-sm font-semibold hover:underline text-left"
-												ondblclick={() => {
-													if (canEdit) startEditGroupName(group.id, group.name);
-												}}
-											>
-												{group.name}
-											</button>
-										{/if}
-										<span class="text-xs text-muted-foreground font-normal"
-											>({group.items.length})</span
-										>
-										<div class="ml-auto flex items-center gap-1">
-											{#if canEdit}
-												<button
-													type="button"
-													class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"
-													title={m.aria_edit_name()}
-													aria-label={m.aria_edit_name()}
-													onclick={() => startEditGroupName(group.id, group.name)}
-												>
-													<svg
-														xmlns="http://www.w3.org/2000/svg"
-														width="12"
-														height="12"
-														viewBox="0 0 24 24"
-														fill="none"
-														stroke="currentColor"
-														stroke-width="2"
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path
-															d="m15 5 4 4"
-														/></svg
-													>
-												</button>
-											{/if}
-											{#if canDelete}
-												<button
-													type="button"
-													class="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted transition-colors"
-													title={m.aria_delete_group()}
-													aria-label={m.aria_delete_group()}
-													onclick={() => {
-														deleteGroupId = group.id;
-														deleteGroupOpen = true;
-													}}
-												>
-													<svg
-														xmlns="http://www.w3.org/2000/svg"
-														width="12"
-														height="12"
-														viewBox="0 0 24 24"
-														fill="none"
-														stroke="currentColor"
-														stroke-width="2"
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														><path d="M3 6h18" /><path
-															d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"
-														/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg
-													>
-												</button>
-											{/if}
-										</div>
+										<TestCaseGroupHeaderContent
+											{group}
+											collapsed={collapsedGroups.has(group.id)}
+											editing={editingGroupId === group.id}
+											editingName={editingGroupName}
+											{canEdit}
+											{canDelete}
+											onToggle={() => toggleGroupCollapse(group.id)}
+											onEditNameChange={(value) => (editingGroupName = value)}
+											onEditCommit={commitGroupNameEdit}
+											onEditKeydown={handleGroupNameKeydown}
+											onStartEdit={() => startEditGroupName(group.id, group.name)}
+											onDelete={() => {
+												deleteGroupId = group.id;
+												deleteGroupOpen = true;
+											}}
+										/>
 									</div>
 
 									<!-- Group content (TC list) -->
@@ -1929,41 +1707,11 @@
 								class="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/20 text-sm font-semibold"
 							>
 								{#if !dndDisabled}<span class="w-6 shrink-0"></span>{/if}
-								<button
-									type="button"
-									class="text-muted-foreground hover:text-foreground transition-colors"
-									onclick={() => toggleGroupCollapse(-1)}
-								>
-									{#if collapsedGroups.has(-1)}
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											width="14"
-											height="14"
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="2"
-											stroke-linecap="round"
-											stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg
-										>
-									{:else}
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											width="14"
-											height="14"
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="2"
-											stroke-linecap="round"
-											stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg
-										>
-									{/if}
-								</button>
-								<span class="text-muted-foreground">{m.group_uncategorized()}</span>
-								<span class="text-xs text-muted-foreground font-normal"
-									>({dndUncategorized.length})</span
-								>
+								<TestCaseUncategorizedHeaderContent
+									collapsed={collapsedGroups.has(-1)}
+									count={dndUncategorized.length}
+									onToggle={() => toggleGroupCollapse(-1)}
+								/>
 							</div>
 
 							{#if !collapsedGroups.has(-1)}

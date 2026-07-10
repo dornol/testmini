@@ -15,7 +15,8 @@ vi.mock('$lib/server/db/schema', () => ({
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
-	and: vi.fn((...args: unknown[]) => args)
+	and: vi.fn((...args: unknown[]) => args),
+	sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }))
 }));
 vi.mock('$lib/server/auth-utils', async () => {
 	const actual =
@@ -92,6 +93,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]',
 			(mockDb.query.testExecution.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
 				sampleExecution
 			);
+			const { deleteChains } = mockTransactionDeleteResults([], [sampleExecution]);
 
 			const event = createMockEvent({ method: 'DELETE', params: PARAMS, user: testUser });
 			const response = await DELETE(event);
@@ -101,6 +103,19 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]',
 			expect(data.success).toBe(true);
 			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 			expect(mockDb.delete).not.toHaveBeenCalled();
+			expect(deleteChains[0].where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_execution_id', 200],
+					expect.objectContaining({ values: [50, 1] })
+				])
+			);
+			expect(deleteChains[1].where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 200],
+					['test_run_id', 50],
+					expect.objectContaining({ values: [50, 1] })
+				])
+			);
 		});
 
 		it('should return 404 when execution disappears before delete', async () => {

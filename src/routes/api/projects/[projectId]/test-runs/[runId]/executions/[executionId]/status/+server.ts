@@ -52,7 +52,13 @@ export const PUT = withProjectRole(
 				executedBy: user.id,
 				executedAt: new Date()
 			})
-			.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)))
+			.where(
+				and(
+					eq(testExecution.id, executionId),
+					eq(testExecution.testRunId, runId),
+					sql`exists (select 1 from test_run where id = ${runId} and project_id = ${projectId})`
+				)
+			)
 			.returning({ id: testExecution.id });
 		if (!updatedExecution) {
 			error(404, 'Execution not found');
@@ -68,7 +74,7 @@ export const PUT = withProjectRole(
 			});
 			if (version) {
 				const tc = await db.query.testCase.findFirst({
-					where: eq(testCase.id, version.testCaseId)
+					where: and(eq(testCase.id, version.testCaseId), eq(testCase.projectId, projectId))
 				});
 				if (tc) {
 					const assignees = await db

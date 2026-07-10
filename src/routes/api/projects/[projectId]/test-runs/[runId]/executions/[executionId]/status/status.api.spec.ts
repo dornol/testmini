@@ -28,7 +28,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		startedAt: 'started_at'
 	},
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id' },
-	testCase: { id: 'id', key: 'key' },
+	testCase: { id: 'id', key: 'key', projectId: 'project_id' },
 	testCaseAssignee: { testCaseId: 'test_case_id', userId: 'user_id' }
 }));
 vi.mock('$lib/server/notifications', () => ({ createNotification: vi.fn() }));
@@ -101,7 +101,8 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 			expect(executionUpdateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 200],
-					['test_run_id', 50]
+					['test_run_id', 50],
+					expect.objectContaining({ values: [50, 1] })
 				])
 			);
 			expect(executionUpdateChain.where).toHaveBeenCalledWith(
@@ -127,6 +128,14 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/s
 			expect(response.status).toBe(200);
 			expect(body.success).toBe(true);
 			expect(body.status).toBe('FAIL');
+			expect(mockDb.query.testCase.findFirst).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: expect.arrayContaining([
+						['id', 10],
+						['project_id', 1]
+					])
+				})
+			);
 		});
 
 		it('should keep the status update successful when run event publish fails', async () => {

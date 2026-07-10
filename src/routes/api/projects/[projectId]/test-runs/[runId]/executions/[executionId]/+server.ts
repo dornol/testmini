@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testExecution, testFailureDetail } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { requireEditableRun } from '$lib/server/crud-helpers';
 import { parseId } from '$lib/server/auth-utils';
@@ -24,10 +24,20 @@ export const DELETE = withProjectRole(
 		}
 
 		await db.transaction(async (tx) => {
-			await tx.delete(testFailureDetail).where(eq(testFailureDetail.testExecutionId, executionId));
+			const executionProjectScope = sql`exists (select 1 from test_run where id = ${runId} and project_id = ${projectId})`;
+
+			await tx
+				.delete(testFailureDetail)
+				.where(and(eq(testFailureDetail.testExecutionId, executionId), executionProjectScope));
 			const [deleted] = await tx
 				.delete(testExecution)
-				.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)))
+				.where(
+					and(
+						eq(testExecution.id, executionId),
+						eq(testExecution.testRunId, runId),
+						executionProjectScope
+					)
+				)
 				.returning();
 
 			if (!deleted) {

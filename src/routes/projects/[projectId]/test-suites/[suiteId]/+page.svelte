@@ -206,7 +206,9 @@
 							<div class="font-mono text-xs text-muted-foreground">{item.key}</div>
 							<div class="mt-1 break-words font-medium">{item.title}</div>
 						</div>
-						<PriorityBadge name={item.priority} color={getPriorityColor(item.priority)} />
+						<span class="max-w-[40%] shrink-0">
+							<PriorityBadge name={item.priority} color={getPriorityColor(item.priority)} />
+						</span>
 					</div>
 					{#if canManage}
 						<Button

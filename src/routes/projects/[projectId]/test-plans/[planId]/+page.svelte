@@ -439,7 +439,9 @@
 									<p class="font-mono text-xs text-muted-foreground">{item.key}</p>
 									<p class="break-words font-medium leading-snug">{item.title}</p>
 								</div>
-								<PriorityBadge name={item.priority} color={getPriorityColor(item.priority)} />
+								<span class="max-w-[40%] shrink-0">
+									<PriorityBadge name={item.priority} color={getPriorityColor(item.priority)} />
+								</span>
 							</div>
 							{#if canManage}
 								<div class="flex justify-end">

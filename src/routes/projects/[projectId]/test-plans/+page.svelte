@@ -149,7 +149,7 @@
 							<div class="flex flex-wrap items-center gap-2">
 								<Badge variant={statusVariant(plan.status)}>{statusLabel(plan.status)}</Badge>
 								{#if plan.milestone}
-									<span class="text-muted-foreground text-xs"
+									<span class="min-w-0 break-words text-xs text-muted-foreground"
 										>{m.tp_milestone()}: {plan.milestone}</span
 									>
 								{/if}
@@ -205,7 +205,7 @@
 							</DropdownMenu.Root>
 						{/if}
 					</div>
-					<div class="mt-4 grid grid-cols-3 gap-3 text-sm">
+					<div class="mt-4 grid grid-cols-2 gap-3 text-sm min-[420px]:grid-cols-3">
 						<div>
 							<div class="text-muted-foreground text-xs">{m.nav_test_cases()}</div>
 							<div class="font-medium">{plan.itemCount}</div>
@@ -216,7 +216,7 @@
 						</div>
 						<div>
 							<div class="text-muted-foreground text-xs">{m.tr_created_by()}</div>
-							<div class="truncate font-medium">{plan.createdBy}</div>
+							<div class="min-w-0 truncate font-medium">{plan.createdBy}</div>
 						</div>
 					</div>
 					<div class="text-muted-foreground mt-3 text-xs">{formatDate(plan.createdAt)}</div>

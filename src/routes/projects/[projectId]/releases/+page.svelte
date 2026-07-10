@@ -242,7 +242,7 @@
 			{/each}
 		</div>
 		<div class="hidden overflow-hidden rounded-md border md:block">
-			<Table.Root>
+			<Table.Root class="table-fixed">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head class="py-1 px-2 text-xs">{m.common_name()}</Table.Head>
@@ -263,10 +263,12 @@
 							class="cursor-pointer hover:bg-muted/50"
 							onclick={() => goto(`${basePath}/${rel.id}`)}
 						>
-							<Table.Cell class="py-1 px-2 text-xs font-medium">{rel.name}</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs"
-								>{rel.version ?? '-'}</Table.Cell
-							>
+							<Table.Cell class="py-1 px-2 text-xs font-medium">
+								<span class="block truncate" title={rel.name}>{rel.name}</span>
+							</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs">
+								<span class="block truncate" title={rel.version ?? '-'}>{rel.version ?? '-'}</span>
+							</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs">
 								<Badge variant={statusVariant(rel.status)}>{statusLabel(rel.status)}</Badge>
 							</Table.Cell>
@@ -275,9 +277,9 @@
 							>
 							<Table.Cell class="py-1 px-2 text-xs">{rel.planCount}</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs">{rel.runCount}</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs"
-								>{rel.createdBy}</Table.Cell
-							>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs">
+								<span class="block truncate" title={rel.createdBy}>{rel.createdBy}</span>
+							</Table.Cell>
 							{#if canDelete}
 								<Table.Cell class="py-1 px-2">
 									<DropdownMenu.Root>

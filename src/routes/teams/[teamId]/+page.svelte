@@ -49,14 +49,16 @@
 					<a href="/projects/{proj.id}" class="block">
 						<Card.Root class="transition-shadow hover:shadow-md">
 							<Card.Header>
-								<div class="flex items-start justify-between">
-									<Card.Title class="text-lg">{proj.name}</Card.Title>
+								<div class="flex items-start justify-between gap-3">
+									<Card.Title class="min-w-0 break-words text-lg">{proj.name}</Card.Title>
 									{#if !proj.active}
-										<Badge variant="secondary">{m.common_inactive()}</Badge>
+										<Badge variant="secondary" class="shrink-0">{m.common_inactive()}</Badge>
 									{/if}
 								</div>
 								{#if proj.description}
-									<Card.Description class="line-clamp-2">{proj.description}</Card.Description>
+									<Card.Description class="line-clamp-2 break-words"
+										>{proj.description}</Card.Description
+									>
 								{/if}
 							</Card.Header>
 							<Card.Footer class="text-muted-foreground text-sm">

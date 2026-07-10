@@ -493,9 +493,11 @@
 						}}
 					>
 						<span class="min-w-0 break-words text-sm font-medium">{run.name}</span>
-						<div class="flex flex-wrap gap-1">
+						<div class="flex min-w-0 flex-wrap gap-1 sm:justify-end">
 							<Badge variant="secondary" class="text-xs">{run.status}</Badge>
-							<Badge variant="outline" class="text-xs">{run.environment}</Badge>
+							<Badge variant="outline" class="max-w-full truncate text-xs" title={run.environment}>
+								{run.environment}
+							</Badge>
 						</div>
 					</button>
 				{/each}

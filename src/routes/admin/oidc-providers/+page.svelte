@@ -130,11 +130,11 @@
 		{/if}
 	</div>
 
-	<Card.Root class="hidden md:block">
-		<Table.Root>
+	<Card.Root class="hidden overflow-hidden md:block">
+		<Table.Root class="table-fixed">
 			<Table.Header>
 				<Table.Row>
-					<Table.Head>{m.common_name()}</Table.Head>
+					<Table.Head class="min-w-0">{m.common_name()}</Table.Head>
 					<Table.Head class="w-24">{m.oidc_type()}</Table.Head>
 					<Table.Head class="w-36">{m.oidc_slug()}</Table.Head>
 					<Table.Head class="w-24">{m.oidc_enabled()}</Table.Head>
@@ -145,15 +145,21 @@
 			<Table.Body>
 				{#each data.providers as provider (provider.id)}
 					<Table.Row>
-						<Table.Cell>
-							<a href="/admin/oidc-providers/{provider.id}" class="font-medium hover:underline">
+						<Table.Cell class="min-w-0">
+							<a
+								href="/admin/oidc-providers/{provider.id}"
+								class="block truncate font-medium hover:underline"
+								title={provider.name}
+							>
 								{provider.name}
 							</a>
 						</Table.Cell>
 						<Table.Cell>
 							<Badge variant="secondary">{provider.providerType}</Badge>
 						</Table.Cell>
-						<Table.Cell class="text-muted-foreground text-sm">{provider.slug}</Table.Cell>
+						<Table.Cell class="text-sm text-muted-foreground">
+							<div class="truncate" title={provider.slug}>{provider.slug}</div>
+						</Table.Cell>
 						<Table.Cell>
 							<form method="POST" action="?/toggle" use:enhance={handleResult}>
 								<input type="hidden" name="providerId" value={provider.id} />

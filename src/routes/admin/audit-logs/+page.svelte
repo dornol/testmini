@@ -176,13 +176,13 @@
 
 	<!-- Table -->
 	<Card.Root class="hidden overflow-hidden md:flex">
-		<Table.Root>
+		<Table.Root class="table-fixed">
 			<Table.Header>
 				<Table.Row>
 					<Table.Head class="w-40">{m.audit_logs_col_date()}</Table.Head>
-					<Table.Head>{m.audit_logs_col_user()}</Table.Head>
+					<Table.Head class="min-w-0">{m.audit_logs_col_user()}</Table.Head>
 					<Table.Head class="w-40">{m.audit_logs_col_action()}</Table.Head>
-					<Table.Head>{m.audit_logs_col_entity()}</Table.Head>
+					<Table.Head class="min-w-0">{m.audit_logs_col_entity()}</Table.Head>
 					<Table.Head class="w-24">{m.audit_logs_col_project()}</Table.Head>
 					<Table.Head class="w-32">{m.audit_logs_col_ip()}</Table.Head>
 				</Table.Row>
@@ -193,24 +193,32 @@
 						<Table.Cell class="text-muted-foreground whitespace-nowrap text-xs">
 							{new Date(log.createdAt).toLocaleString()}
 						</Table.Cell>
-						<Table.Cell>
+						<Table.Cell class="min-w-0">
 							{#if log.userName}
-								<div class="text-sm font-medium">{log.userName}</div>
-								<div class="text-muted-foreground text-xs">{log.userEmail}</div>
+								<div class="truncate text-sm font-medium" title={log.userName}>{log.userName}</div>
+								<div class="truncate text-xs text-muted-foreground" title={log.userEmail}>
+									{log.userEmail}
+								</div>
 							{:else}
 								<span class="text-muted-foreground text-xs">{m.audit_logs_system()}</span>
 							{/if}
 						</Table.Cell>
 						<Table.Cell>
-							<Badge variant={badgeVariant(log.action)} class="font-mono text-xs">
+							<Badge
+								variant={badgeVariant(log.action)}
+								class="max-w-full truncate font-mono text-xs"
+								title={log.action}
+							>
 								{log.action}
 							</Badge>
 						</Table.Cell>
-						<Table.Cell class="text-sm">
+						<Table.Cell class="min-w-0 text-sm">
 							{#if log.entityType}
-								<span class="text-muted-foreground text-xs">{log.entityType}</span>
+								<div class="truncate text-xs text-muted-foreground" title={log.entityType}>
+									{log.entityType}
+								</div>
 								{#if log.entityId}
-									<span class="ml-1 font-mono text-xs">#{log.entityId}</span>
+									<div class="font-mono text-xs break-all">#{log.entityId}</div>
 								{/if}
 							{:else}
 								<span class="text-muted-foreground">—</span>
@@ -219,8 +227,8 @@
 						<Table.Cell class="text-muted-foreground text-xs">
 							{log.projectId ?? '—'}
 						</Table.Cell>
-						<Table.Cell class="text-muted-foreground font-mono text-xs">
-							{log.ipAddress ?? '—'}
+						<Table.Cell class="text-muted-foreground min-w-0 font-mono text-xs">
+							<div class="truncate" title={log.ipAddress ?? undefined}>{log.ipAddress ?? '—'}</div>
 						</Table.Cell>
 					</Table.Row>
 				{/each}

@@ -290,12 +290,12 @@
 </script>
 
 <div class="space-y-4">
-	<div class="flex items-center justify-between">
-		<div>
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+		<div class="min-w-0">
 			<h2 class="text-lg font-semibold">{m.req_title()}</h2>
-			<p class="text-muted-foreground text-sm">{m.req_desc()}</p>
+			<p class="text-muted-foreground text-sm leading-relaxed">{m.req_desc()}</p>
 		</div>
-		<div class="flex gap-2">
+		<div class="flex flex-wrap gap-2 sm:shrink-0">
 			<Button variant="outline" size="sm" onclick={exportCsv}>
 				{m.req_export_matrix()}
 			</Button>

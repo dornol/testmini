@@ -4,6 +4,7 @@
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data, children } = $props();
+	let subNavList: HTMLUListElement;
 
 	const projectId = $derived(data.project.id);
 
@@ -29,11 +30,23 @@
 		if (exact) return page.url.pathname === href;
 		return page.url.pathname.startsWith(href);
 	}
+
+	$effect(() => {
+		page.url.pathname;
+		requestAnimationFrame(() => {
+			subNavList
+				?.querySelector<HTMLElement>('[aria-current="page"]')
+				?.scrollIntoView({ block: 'nearest', inline: 'center' });
+		});
+	});
 </script>
 
 <div class="flex flex-col gap-4 md:flex-row md:gap-6">
 	<nav class="shrink-0 md:w-44">
-		<ul class="flex gap-1 overflow-x-auto scrollbar-none md:flex-col md:space-y-1 md:overflow-visible">
+		<ul
+			bind:this={subNavList}
+			class="flex gap-1 overflow-x-auto scrollbar-none md:flex-col md:space-y-1 md:overflow-visible"
+		>
 			{#each subNav as item (item.href)}
 				<li class="shrink-0 md:shrink">
 					<a
@@ -44,6 +57,7 @@
 								? 'bg-accent text-accent-foreground'
 								: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
 						)}
+						aria-current={isActive(item.href, item.exact) ? 'page' : undefined}
 					>
 						{item.label}
 					</a>

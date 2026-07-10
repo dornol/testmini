@@ -4,6 +4,7 @@
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { children } = $props();
+	let tabList: HTMLElement;
 
 	const tabs = [
 		{ href: '/admin/users', label: m.nav_users() },
@@ -12,6 +13,15 @@
 		{ href: '/admin/oidc-providers', label: m.oidc_providers_title() },
 		{ href: '/admin/audit-logs', label: m.nav_audit_logs() }
 	];
+
+	$effect(() => {
+		page.url.pathname;
+		requestAnimationFrame(() => {
+			tabList
+				?.querySelector<HTMLElement>('[aria-current="page"]')
+				?.scrollIntoView({ block: 'nearest', inline: 'center' });
+		});
+	});
 </script>
 
 <div class="space-y-4">
@@ -21,7 +31,10 @@
 	</div>
 
 	<div class="border-b">
-		<nav class="-mb-px flex gap-2 overflow-x-auto overscroll-x-contain pb-px pr-4 snap-x">
+		<nav
+			bind:this={tabList}
+			class="-mb-px flex gap-2 overflow-x-auto overscroll-x-contain pb-px pr-4 snap-x"
+		>
 			{#each tabs as tab (tab.href)}
 				<a
 					href={tab.href}
@@ -31,6 +44,7 @@
 							? 'border-primary text-foreground'
 							: 'border-transparent text-muted-foreground hover:text-foreground'
 					)}
+					aria-current={page.url.pathname.startsWith(tab.href) ? 'page' : undefined}
 				>
 					{tab.label}
 				</a>

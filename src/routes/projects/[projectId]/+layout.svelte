@@ -4,6 +4,7 @@
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data, children } = $props();
+	let tabList: HTMLDivElement;
 
 	const tabs = $derived([
 		{ href: `/projects/${data.project.id}`, label: m.nav_dashboard(), exact: true },
@@ -24,6 +25,15 @@
 		if (exact) return page.url.pathname === href;
 		return page.url.pathname.startsWith(href);
 	}
+
+	$effect(() => {
+		page.url.pathname;
+		requestAnimationFrame(() => {
+			tabList
+				?.querySelector<HTMLElement>('[aria-current="page"]')
+				?.scrollIntoView({ block: 'nearest', inline: 'center' });
+		});
+	});
 </script>
 
 <div class="space-y-4">
@@ -37,7 +47,10 @@
 	</div>
 
 	<nav class="border-b" aria-label={m.nav_projects()}>
-		<div class="-mb-px flex gap-2 overflow-x-auto overscroll-x-contain pb-px pr-4 snap-x">
+		<div
+			bind:this={tabList}
+			class="-mb-px flex gap-2 overflow-x-auto overscroll-x-contain pb-px pr-4 snap-x"
+		>
 			{#each tabs as tab (tab.href)}
 				<a
 					href={tab.href}

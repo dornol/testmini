@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
-import { testCase, testCaseVersion, testCaseTag } from '$lib/server/db/schema';
+import { tag, testCase, testCaseVersion, testCaseTag } from '$lib/server/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
@@ -93,7 +93,8 @@ export const POST = withProjectRole(
 			const tcTags = await tx
 				.select({ tagId: testCaseTag.tagId })
 				.from(testCaseTag)
-				.where(eq(testCaseTag.testCaseId, testCaseId));
+				.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
+				.where(and(eq(testCaseTag.testCaseId, testCaseId), eq(tag.projectId, projectId)));
 
 			for (const t of tcTags) {
 				await tx.insert(testCaseTag).values({ testCaseId: created.id, tagId: t.tagId });

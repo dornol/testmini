@@ -27,7 +27,8 @@ vi.mock('$lib/server/db/schema', () => ({
 		priority: 'priority',
 		updatedBy: 'updated_by'
 	},
-	testCaseTag: { testCaseId: 'test_case_id', tagId: 'tag_id' }
+	testCaseTag: { testCaseId: 'test_case_id', tagId: 'tag_id' },
+	tag: { id: 'tag_id', projectId: 'tag_project_id' }
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
@@ -84,6 +85,7 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/clone', () => {
 				where: vi.fn().mockReturnThis(),
 				returning: vi.fn().mockResolvedValue([{ id: newTestCaseId }])
 			};
+			const txTagsWhere = vi.fn().mockReturnThis();
 
 			mockDb.transaction.mockImplementation(async (fn) => {
 				// max key select returns TC-0001, so nextNum = 2, newKey = TC-0002
@@ -101,7 +103,8 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/clone', () => {
 				// tags select returns empty
 				const txTagsChain = {
 					from: vi.fn().mockReturnThis(),
-					where: vi.fn().mockReturnThis(),
+					innerJoin: vi.fn().mockReturnThis(),
+					where: txTagsWhere,
 					then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
 				};
 
@@ -149,6 +152,12 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/clone', () => {
 				])
 			);
 			expect(txUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });
+			expect(txTagsWhere).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_case_id', 10],
+					['tag_project_id', 1]
+				])
+			);
 		});
 
 		it('should return 500 when test case insert returns no row', async () => {

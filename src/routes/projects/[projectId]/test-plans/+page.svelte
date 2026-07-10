@@ -91,10 +91,10 @@
 </script>
 
 <div class="space-y-4">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 		<h2 class="text-lg font-semibold">{m.tp_title()}</h2>
 		{#if canManage}
-			<Button size="sm" href="{basePath}/new">{m.tp_new()}</Button>
+			<Button size="sm" class="w-full sm:w-auto" href="{basePath}/new">{m.tp_new()}</Button>
 		{/if}
 	</div>
 
@@ -329,8 +329,13 @@
 				<AlertDialog.Description>{m.tp_delete_confirm()}</AlertDialog.Description>
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-				<Button variant="destructive" onclick={handleDelete} disabled={deleteSaving}>
+				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+				<Button
+					variant="destructive"
+					class="w-full sm:w-auto"
+					onclick={handleDelete}
+					disabled={deleteSaving}
+				>
 					{deleteSaving ? m.common_saving() : m.common_delete()}
 				</Button>
 			</AlertDialog.Footer>

@@ -332,7 +332,7 @@
 		{#if data.requireSignoff}
 			<div class="space-y-1">
 				<span class="text-xs font-medium text-muted-foreground">{m.signoff_title()}</span>
-				<div class="flex items-center gap-2">
+				<div class="flex flex-wrap items-center gap-2">
 					{#if data.signoffs.length > 0}
 						{@const latest = data.signoffs[data.signoffs.length - 1]}
 						<Badge variant={latest.decision === 'APPROVED' ? 'default' : 'destructive'}>
@@ -398,11 +398,11 @@
 
 	<!-- Test Cases Section -->
 	<div class="space-y-2">
-		<div class="flex items-center justify-between">
+		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<h3 class="font-semibold">{m.tp_select_cases()} ({data.items.length})</h3>
-			<div class="flex gap-2">
+			<div class="flex flex-col gap-2 sm:flex-row">
 				{#if canManage}
-					<Button variant="outline" size="sm" onclick={openAddCases}>
+					<Button variant="outline" size="sm" class="w-full sm:w-auto" onclick={openAddCases}>
 						{m.tp_add_cases()}
 					</Button>
 				{/if}
@@ -488,10 +488,12 @@
 
 	<!-- Linked Runs Section -->
 	<div class="space-y-2">
-		<div class="flex items-center justify-between">
+		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<h3 class="font-semibold">{m.tp_linked_runs()}</h3>
 			{#if canManage && data.items.length > 0}
-				<Button size="sm" onclick={openCreateRun}>{m.tp_create_run()}</Button>
+				<Button size="sm" class="w-full sm:w-auto" onclick={openCreateRun}
+					>{m.tp_create_run()}</Button
+				>
 			{/if}
 		</div>
 
@@ -581,7 +583,7 @@
 <Dialog.Root bind:open={addCasesDialogOpen}>
 	<Dialog.Portal>
 		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-2xl max-h-[80vh] flex flex-col">
+		<Dialog.Content class="flex max-h-[calc(100dvh-2rem)] flex-col sm:max-w-2xl">
 			<Dialog.Header>
 				<Dialog.Title>{m.tp_add_cases()}</Dialog.Title>
 			</Dialog.Header>
@@ -642,10 +644,16 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (addCasesDialogOpen = false)}
-					>{m.common_cancel()}</Button
+				<Button
+					variant="outline"
+					class="w-full sm:w-auto"
+					onclick={() => (addCasesDialogOpen = false)}>{m.common_cancel()}</Button
 				>
-				<Button onclick={handleAddCases} disabled={addCasesSaving || addCasesSelected.size === 0}>
+				<Button
+					class="w-full sm:w-auto"
+					onclick={handleAddCases}
+					disabled={addCasesSaving || addCasesSelected.size === 0}
+				>
 					{addCasesSaving ? m.common_saving() : m.tp_add_cases()} ({addCasesSelected.size})
 				</Button>
 			</Dialog.Footer>
@@ -662,10 +670,11 @@
 				<Dialog.Title>{m.signoff_submit()}</Dialog.Title>
 			</Dialog.Header>
 			<div class="space-y-4 py-4">
-				<div class="flex gap-2">
+				<div class="flex flex-col gap-2 sm:flex-row">
 					<Button
 						variant={signoffDecision === 'APPROVED' ? 'default' : 'outline'}
 						size="sm"
+						class="w-full sm:w-auto"
 						onclick={() => {
 							signoffDecision = 'APPROVED';
 						}}
@@ -675,6 +684,7 @@
 					<Button
 						variant={signoffDecision === 'REJECTED' ? 'destructive' : 'outline'}
 						size="sm"
+						class="w-full sm:w-auto"
 						onclick={() => {
 							signoffDecision = 'REJECTED';
 						}}
@@ -693,10 +703,12 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (signoffDialogOpen = false)}
-					>{m.common_cancel()}</Button
+				<Button
+					variant="outline"
+					class="w-full sm:w-auto"
+					onclick={() => (signoffDialogOpen = false)}>{m.common_cancel()}</Button
 				>
-				<Button onclick={handleSignoff} disabled={signoffSaving}>
+				<Button class="w-full sm:w-auto" onclick={handleSignoff} disabled={signoffSaving}>
 					{signoffSaving ? m.common_saving() : m.signoff_submit()}
 				</Button>
 			</Dialog.Footer>
@@ -738,10 +750,16 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (createRunDialogOpen = false)}
-					>{m.common_cancel()}</Button
+				<Button
+					variant="outline"
+					class="w-full sm:w-auto"
+					onclick={() => (createRunDialogOpen = false)}>{m.common_cancel()}</Button
 				>
-				<Button onclick={handleCreateRun} disabled={creatingSaving || !runName.trim()}>
+				<Button
+					class="w-full sm:w-auto"
+					onclick={handleCreateRun}
+					disabled={creatingSaving || !runName.trim()}
+				>
 					{creatingSaving ? m.common_creating() : m.tp_create_run()}
 				</Button>
 			</Dialog.Footer>

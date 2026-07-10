@@ -245,12 +245,13 @@
 
 	<!-- Linked Plans -->
 	<div class="space-y-2">
-		<div class="flex items-center justify-between">
+		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<h3 class="font-semibold">{m.rel_linked_plans()} ({data.plans.length})</h3>
 			{#if canManage && data.availablePlans.length > 0}
 				<Button
 					variant="outline"
 					size="sm"
+					class="w-full sm:w-auto"
 					onclick={() => {
 						selectedLinkId = null;
 						linkPlanDialogOpen = true;
@@ -312,12 +313,13 @@
 
 	<!-- Linked Runs -->
 	<div class="space-y-2">
-		<div class="flex items-center justify-between">
+		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<h3 class="font-semibold">{m.rel_linked_runs()} ({data.runs.length})</h3>
 			{#if canManage && data.availableRuns.length > 0}
 				<Button
 					variant="outline"
 					size="sm"
+					class="w-full sm:w-auto"
 					onclick={() => {
 						selectedLinkId = null;
 						linkRunDialogOpen = true;
@@ -416,8 +418,13 @@
 				<AlertDialog.Description>{m.rel_delete_confirm()}</AlertDialog.Description>
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-				<Button variant="destructive" onclick={handleDelete} disabled={deleteSaving}>
+				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+				<Button
+					variant="destructive"
+					class="w-full sm:w-auto"
+					onclick={handleDelete}
+					disabled={deleteSaving}
+				>
 					{deleteSaving ? m.common_saving() : m.common_delete()}
 				</Button>
 			</AlertDialog.Footer>
@@ -436,7 +443,7 @@
 			<div class="py-4 space-y-2 max-h-60 overflow-auto">
 				{#each data.availablePlans as plan (plan.id)}
 					<button
-						class="w-full text-left px-3 py-2 rounded-md hover:bg-muted/50 flex items-center justify-between {selectedLinkId ===
+						class="flex w-full flex-col gap-2 rounded-md px-3 py-2 text-left hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between {selectedLinkId ===
 						plan.id
 							? 'bg-muted'
 							: ''}"
@@ -444,16 +451,21 @@
 							selectedLinkId = plan.id;
 						}}
 					>
-						<span class="text-sm font-medium">{plan.name}</span>
-						<Badge variant="secondary" class="text-xs">{plan.status}</Badge>
+						<span class="min-w-0 break-words text-sm font-medium">{plan.name}</span>
+						<Badge variant="secondary" class="w-fit text-xs">{plan.status}</Badge>
 					</button>
 				{/each}
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (linkPlanDialogOpen = false)}
-					>{m.common_cancel()}</Button
+				<Button
+					variant="outline"
+					class="w-full sm:w-auto"
+					onclick={() => (linkPlanDialogOpen = false)}>{m.common_cancel()}</Button
 				>
-				<Button onclick={handleLinkPlan} disabled={!selectedLinkId || linkSaving}
+				<Button
+					class="w-full sm:w-auto"
+					onclick={handleLinkPlan}
+					disabled={!selectedLinkId || linkSaving}
 					>{linkSaving ? m.common_saving() : m.rel_link_plan()}</Button
 				>
 			</Dialog.Footer>
@@ -472,7 +484,7 @@
 			<div class="py-4 space-y-2 max-h-60 overflow-auto">
 				{#each data.availableRuns as run (run.id)}
 					<button
-						class="w-full text-left px-3 py-2 rounded-md hover:bg-muted/50 flex items-center justify-between {selectedLinkId ===
+						class="flex w-full flex-col gap-2 rounded-md px-3 py-2 text-left hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between {selectedLinkId ===
 						run.id
 							? 'bg-muted'
 							: ''}"
@@ -480,8 +492,8 @@
 							selectedLinkId = run.id;
 						}}
 					>
-						<span class="text-sm font-medium">{run.name}</span>
-						<div class="flex gap-1">
+						<span class="min-w-0 break-words text-sm font-medium">{run.name}</span>
+						<div class="flex flex-wrap gap-1">
 							<Badge variant="secondary" class="text-xs">{run.status}</Badge>
 							<Badge variant="outline" class="text-xs">{run.environment}</Badge>
 						</div>
@@ -489,10 +501,15 @@
 				{/each}
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (linkRunDialogOpen = false)}
-					>{m.common_cancel()}</Button
+				<Button
+					variant="outline"
+					class="w-full sm:w-auto"
+					onclick={() => (linkRunDialogOpen = false)}>{m.common_cancel()}</Button
 				>
-				<Button onclick={handleLinkRun} disabled={!selectedLinkId || linkSaving}
+				<Button
+					class="w-full sm:w-auto"
+					onclick={handleLinkRun}
+					disabled={!selectedLinkId || linkSaving}
 					>{linkSaving ? m.common_saving() : m.rel_link_run()}</Button
 				>
 			</Dialog.Footer>

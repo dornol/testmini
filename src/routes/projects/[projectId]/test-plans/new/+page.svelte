@@ -136,7 +136,7 @@
 
 				<!-- Test Case Selection -->
 				<div class="space-y-3">
-					<div class="flex items-center justify-between">
+					<div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
 						<Label>{m.tp_select_cases()} ({selectedIds.size})</Label>
 					</div>
 
@@ -221,12 +221,18 @@
 					{/if}
 				</div>
 
-				<div class="flex gap-3 pt-2">
-					<Button onclick={handleCreate} disabled={creating || !name.trim()}>
+				<div class="flex flex-col gap-2 pt-2 sm:flex-row sm:gap-3">
+					<Button
+						class="w-full sm:w-auto"
+						onclick={handleCreate}
+						disabled={creating || !name.trim()}
+					>
 						{creating ? m.common_creating() : m.tp_create()}
 					</Button>
-					<Button variant="outline" href="/projects/{data.project.id}/test-plans"
-						>{m.common_cancel()}</Button
+					<Button
+						class="w-full sm:w-auto"
+						variant="outline"
+						href="/projects/{data.project.id}/test-plans">{m.common_cancel()}</Button
 					>
 				</div>
 			</div>

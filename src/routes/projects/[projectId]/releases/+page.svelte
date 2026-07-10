@@ -118,10 +118,10 @@
 </script>
 
 <div class="space-y-4">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 		<h2 class="text-lg font-semibold">{m.rel_title()}</h2>
 		{#if canManage}
-			<Button size="sm" onclick={openCreate}>{m.rel_new()}</Button>
+			<Button size="sm" class="w-full sm:w-auto" onclick={openCreate}>{m.rel_new()}</Button>
 		{/if}
 	</div>
 
@@ -361,10 +361,16 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (createDialogOpen = false)}
-					>{m.common_cancel()}</Button
+				<Button
+					variant="outline"
+					class="w-full sm:w-auto"
+					onclick={() => (createDialogOpen = false)}>{m.common_cancel()}</Button
 				>
-				<Button onclick={handleCreate} disabled={createSaving || !createName.trim()}>
+				<Button
+					class="w-full sm:w-auto"
+					onclick={handleCreate}
+					disabled={createSaving || !createName.trim()}
+				>
 					{createSaving ? m.common_creating() : m.rel_create()}
 				</Button>
 			</Dialog.Footer>
@@ -382,8 +388,13 @@
 				<AlertDialog.Description>{m.rel_delete_confirm()}</AlertDialog.Description>
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-				<Button variant="destructive" onclick={handleDelete} disabled={deleteSaving}>
+				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+				<Button
+					variant="destructive"
+					class="w-full sm:w-auto"
+					onclick={handleDelete}
+					disabled={deleteSaving}
+				>
 					{deleteSaving ? m.common_saving() : m.common_delete()}
 				</Button>
 			</AlertDialog.Footer>

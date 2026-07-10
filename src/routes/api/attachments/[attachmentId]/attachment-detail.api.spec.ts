@@ -241,6 +241,20 @@ describe('/api/attachments/[attachmentId]', () => {
 			await expect(GET(event)).rejects.toThrow();
 		});
 
+		it('should return 404 when referenced execution has no run', async () => {
+			setupAttachmentQuery(executionAttachment);
+			setupExecutionQuery({ testRun: null });
+
+			const event = createMockEvent({
+				method: 'GET',
+				params: { attachmentId: '2' },
+				user: testUser
+			});
+			await expect(GET(event)).rejects.toMatchObject({ status: 404 });
+			expect(authUtils.requireProjectAccess).not.toHaveBeenCalled();
+			expect(storage.getFile).not.toHaveBeenCalled();
+		});
+
 		it('should return 404 when referenced failure detail not found', async () => {
 			setupAttachmentQuery(failureAttachment);
 			setupFailureQuery(undefined);
@@ -251,6 +265,20 @@ describe('/api/attachments/[attachmentId]', () => {
 				user: testUser
 			});
 			await expect(GET(event)).rejects.toThrow();
+		});
+
+		it('should return 404 when referenced failure has no execution run', async () => {
+			setupAttachmentQuery(failureAttachment);
+			setupFailureQuery({ testExecution: { testRun: null } });
+
+			const event = createMockEvent({
+				method: 'GET',
+				params: { attachmentId: '3' },
+				user: testUser
+			});
+			await expect(GET(event)).rejects.toMatchObject({ status: 404 });
+			expect(authUtils.requireProjectAccess).not.toHaveBeenCalled();
+			expect(storage.getFile).not.toHaveBeenCalled();
 		});
 
 		it('should use application/octet-stream when contentType is null', async () => {
@@ -502,6 +530,21 @@ describe('/api/attachments/[attachmentId]', () => {
 				user: testUser
 			});
 			await expect(DELETE(event)).rejects.toThrow();
+			expect(storage.deleteFile).not.toHaveBeenCalled();
+			expect(mockDb.delete).not.toHaveBeenCalled();
+		});
+
+		it('should return 404 when referenced execution has no run during delete', async () => {
+			setupAttachmentQuery(executionAttachment);
+			setupExecutionQuery({ testRun: null });
+
+			const event = createMockEvent({
+				method: 'DELETE',
+				params: { attachmentId: '2' },
+				user: testUser
+			});
+			await expect(DELETE(event)).rejects.toMatchObject({ status: 404 });
+			expect(authUtils.requireProjectAccess).not.toHaveBeenCalled();
 			expect(storage.deleteFile).not.toHaveBeenCalled();
 			expect(mockDb.delete).not.toHaveBeenCalled();
 		});

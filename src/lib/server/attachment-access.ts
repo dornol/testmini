@@ -30,6 +30,7 @@ export async function getProjectIdForAttachmentReference(
 			with: { testRun: { columns: { projectId: true } } }
 		});
 		if (!exec) error(404, 'Referenced execution not found');
+		if (!exec.testRun) error(404, 'Referenced execution run not found');
 		return exec.testRun.projectId;
 	}
 
@@ -42,5 +43,6 @@ export async function getProjectIdForAttachmentReference(
 		}
 	});
 	if (!failure) error(404, 'Referenced failure detail not found');
+	if (!failure.testExecution?.testRun) error(404, 'Referenced failure execution not found');
 	return failure.testExecution.testRun.projectId;
 }

@@ -88,46 +88,154 @@
 			e.preventDefault();
 			doSearch();
 		}}
-		class="flex gap-2"
+		class="flex flex-col gap-2 sm:flex-row"
 	>
 		<Input
 			placeholder={m.admin_search_placeholder()}
-			class="max-w-sm"
+			class="w-full sm:max-w-sm"
 			bind:value={searchInput}
 			aria-label={m.admin_search_placeholder()}
 		/>
-		<Button type="submit" variant="outline">{m.common_search()}</Button>
-		<Button
-			variant={data.pendingOnly ? 'default' : 'outline'}
-			href={data.pendingOnly ? '/admin/users' : '/admin/users?pending=true'}
-		>
-			{m.admin_show_pending()}
-		</Button>
+		<div class="flex flex-wrap gap-2">
+			<Button type="submit" variant="outline">{m.common_search()}</Button>
+			<Button
+				variant={data.pendingOnly ? 'default' : 'outline'}
+				href={data.pendingOnly ? '/admin/users' : '/admin/users?pending=true'}
+			>
+				{m.admin_show_pending()}
+			</Button>
+		</div>
 	</form>
 
+	<!-- Mobile users list -->
+	<div class="space-y-3 sm:hidden">
+		{#each data.users as u (u.id)}
+			<Card.Root class="gap-3 rounded-lg p-4">
+				<div class="min-w-0 space-y-1">
+					<p class="break-words text-sm font-semibold leading-snug">{u.name}</p>
+					<p class="break-all text-xs text-muted-foreground">{u.email}</p>
+				</div>
+				<div class="flex flex-wrap items-center gap-2">
+					<Badge variant={u.role === 'admin' ? 'default' : 'secondary'}>
+						{u.role ?? 'user'}
+					</Badge>
+					{#if u.banned}
+						<Badge variant="destructive">{m.admin_banned()}</Badge>
+					{:else if !u.approved}
+						<Badge
+							class="border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-900 dark:text-amber-200"
+							>{m.admin_pending()}</Badge
+						>
+					{:else}
+						<Badge variant="outline">{m.common_active()}</Badge>
+					{/if}
+					<span class="text-xs text-muted-foreground">
+						{new Date(u.createdAt).toLocaleDateString()}
+					</span>
+				</div>
+				<div class="flex flex-wrap gap-1">
+					{#if u.id !== currentUserId?.id}
+						{#if !u.approved}
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								class="h-7 px-2 text-xs text-green-600"
+								onclick={() => {
+									approveTarget = { id: u.id, name: u.name };
+									approveDialogOpen = true;
+								}}
+							>
+								{m.admin_approve()}
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								class="h-7 px-2 text-xs text-destructive"
+								onclick={() => {
+									rejectTarget = { id: u.id, name: u.name };
+									rejectDialogOpen = true;
+								}}
+							>
+								{m.admin_reject()}
+							</Button>
+						{:else if u.role !== 'admin'}
+							<form method="POST" action="?/updateRole" use:enhance={handleResult}>
+								<input type="hidden" name="userId" value={u.id} />
+								<input type="hidden" name="role" value="admin" />
+								<Button type="submit" variant="ghost" size="sm" class="h-7 px-2 text-xs">
+									{m.admin_make_admin()}
+								</Button>
+							</form>
+						{:else}
+							<form method="POST" action="?/updateRole" use:enhance={handleResult}>
+								<input type="hidden" name="userId" value={u.id} />
+								<input type="hidden" name="role" value="user" />
+								<Button type="submit" variant="ghost" size="sm" class="h-7 px-2 text-xs">
+									{m.admin_remove_admin()}
+								</Button>
+							</form>
+						{/if}
+						{#if u.banned}
+							<form method="POST" action="?/unban" use:enhance={handleResult}>
+								<input type="hidden" name="userId" value={u.id} />
+								<Button
+									type="submit"
+									variant="ghost"
+									size="sm"
+									class="h-7 px-2 text-xs text-green-600"
+								>
+									{m.admin_unban()}
+								</Button>
+							</form>
+						{:else}
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								class="h-7 px-2 text-xs text-destructive"
+								onclick={() => openBanDialog(u.id, u.name)}
+							>
+								{m.admin_ban()}
+							</Button>
+						{/if}
+					{:else}
+						<span class="text-xs text-muted-foreground">{m.admin_you()}</span>
+					{/if}
+				</div>
+			</Card.Root>
+		{/each}
+		{#if data.users.length === 0}
+			<Card.Root class="rounded-lg p-6 text-center">
+				<p class="text-sm font-medium text-muted-foreground">{m.admin_no_users()}</p>
+				<p class="mt-1 text-xs text-muted-foreground">{m.admin_no_users_hint()}</p>
+			</Card.Root>
+		{/if}
+	</div>
+
 	<!-- Users Table -->
-	<Card.Root>
-		<Table.Root>
+	<Card.Root class="hidden overflow-hidden sm:flex">
+		<Table.Root class="table-fixed">
 			<Table.Header>
 				<Table.Row>
-					<Table.Head>{m.common_name()}</Table.Head>
-					<Table.Head class="hidden sm:table-cell">{m.common_email()}</Table.Head>
+					<Table.Head class="w-[34%]">{m.common_name()}</Table.Head>
+					<Table.Head class="w-[34%]">{m.common_email()}</Table.Head>
 					<Table.Head class="w-24">{m.common_role()}</Table.Head>
 					<Table.Head class="w-24">{m.common_status()}</Table.Head>
-					<Table.Head class="hidden w-32 md:table-cell">{m.common_created()}</Table.Head>
-					<Table.Head class="w-28">{m.common_actions()}</Table.Head>
+					<Table.Head class="w-28">{m.common_created()}</Table.Head>
+					<Table.Head class="w-40">{m.common_actions()}</Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
 				{#each data.users as u (u.id)}
 					<Table.Row>
-						<Table.Cell class="font-medium">
-							<div>{u.name}</div>
-							<div class="text-muted-foreground mt-0.5 max-w-36 truncate text-xs sm:hidden">
-								{u.email}
-							</div>
+						<Table.Cell class="min-w-0 font-medium">
+							<div class="truncate" title={u.name}>{u.name}</div>
 						</Table.Cell>
-						<Table.Cell class="text-muted-foreground hidden sm:table-cell">{u.email}</Table.Cell>
+						<Table.Cell class="min-w-0 text-muted-foreground">
+							<div class="truncate" title={u.email}>{u.email}</div>
+						</Table.Cell>
 						<Table.Cell>
 							<Badge variant={u.role === 'admin' ? 'default' : 'secondary'}>
 								{u.role ?? 'user'}
@@ -145,12 +253,12 @@
 								<Badge variant="outline">{m.common_active()}</Badge>
 							{/if}
 						</Table.Cell>
-						<Table.Cell class="text-muted-foreground hidden text-xs md:table-cell">
+						<Table.Cell class="text-xs text-muted-foreground">
 							{new Date(u.createdAt).toLocaleDateString()}
 						</Table.Cell>
 						<Table.Cell>
 							{#if u.id !== currentUserId?.id}
-								<div class="flex gap-1">
+								<div class="flex flex-wrap gap-1">
 									{#if !u.approved}
 										<Button
 											type="button"

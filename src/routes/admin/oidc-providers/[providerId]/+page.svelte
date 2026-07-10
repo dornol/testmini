@@ -270,8 +270,15 @@
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-			<form method="POST" action="?/deleteProvider" use:enhance={handleDeleteResult}>
-				<Button type="submit" variant="destructive">{m.common_delete()}</Button>
+			<form
+				method="POST"
+				action="?/deleteProvider"
+				use:enhance={handleDeleteResult}
+				class="w-full sm:w-auto"
+			>
+				<Button type="submit" variant="destructive" class="w-full sm:w-auto"
+					>{m.common_delete()}</Button
+				>
 			</form>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

@@ -238,9 +238,16 @@
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-			<form method="POST" action="?/deleteProvider" use:enhance={handleResult}>
+			<form
+				method="POST"
+				action="?/deleteProvider"
+				use:enhance={handleResult}
+				class="w-full sm:w-auto"
+			>
 				<input type="hidden" name="providerId" value={deleteTarget?.id ?? ''} />
-				<Button type="submit" variant="destructive">{m.common_delete()}</Button>
+				<Button type="submit" variant="destructive" class="w-full sm:w-auto"
+					>{m.common_delete()}</Button
+				>
 			</form>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

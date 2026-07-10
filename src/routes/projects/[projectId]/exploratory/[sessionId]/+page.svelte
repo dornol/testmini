@@ -343,7 +343,7 @@
 		<div class="border rounded-lg p-4 space-y-3">
 			<h3 class="font-medium">{m.exploratory_add_note()}</h3>
 			<Textarea bind:value={noteContent} placeholder={m.exploratory_note_placeholder()} rows={2} />
-			<div class="flex items-center gap-3 flex-wrap">
+			<div class="flex flex-wrap items-center gap-3">
 				<div class="flex flex-wrap gap-1">
 					{#each ['NOTE', 'BUG', 'QUESTION', 'IDEA'] as type (type)}
 						<Button
@@ -353,13 +353,26 @@
 						>
 					{/each}
 				</div>
-				<input
-					id="screenshot-input"
-					type="file"
-					accept="image/*"
-					onchange={handleFileChange}
-					class="max-w-full text-sm"
-				/>
+				<div class="flex min-w-0 flex-wrap items-center gap-2">
+					<input
+						id="screenshot-input"
+						type="file"
+						accept="image/*"
+						onchange={handleFileChange}
+						class="sr-only"
+					/>
+					<label
+						for="screenshot-input"
+						class="inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+					>
+						{m.tc_import_select_file()}
+					</label>
+					{#if screenshotFile}
+						<span class="max-w-48 truncate text-sm text-muted-foreground"
+							>{screenshotFile.name}</span
+						>
+					{/if}
+				</div>
 				<Button size="sm" onclick={addNote} disabled={submittingNote || !noteContent.trim()}
 					>{submittingNote ? m.common_saving() : m.exploratory_add_note_btn()}</Button
 				>
@@ -395,7 +408,7 @@
 									<img
 										src="/api/uploads/{note.screenshotPath}"
 										alt="Screenshot"
-										class="max-w-xs rounded border"
+										class="max-w-full rounded border"
 									/>
 								</button>
 							{/if}

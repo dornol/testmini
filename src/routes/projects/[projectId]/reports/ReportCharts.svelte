@@ -560,7 +560,42 @@
 			<Card.Description>{m.stale_tests_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content class="p-0">
-			<Table.Root>
+			<div class="space-y-2 px-4 pb-4 sm:hidden">
+				{#each staleTests as tc (tc.testCaseId)}
+					{@const daysAgo = tc.lastExecutedAt
+						? Math.floor((Date.now() - new Date(tc.lastExecutedAt).getTime()) / 86400000)
+						: null}
+					<button
+						type="button"
+						class="w-full rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
+						onclick={() => {
+							window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`;
+						}}
+					>
+						<div class="flex items-start justify-between gap-3">
+							<div class="min-w-0">
+								<p class="font-mono text-xs text-muted-foreground">{tc.testCaseKey}</p>
+								<p class="mt-1 line-clamp-2 text-sm font-medium">{tc.title}</p>
+							</div>
+							<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
+						</div>
+						<div class="mt-3">
+							{#if daysAgo === null}
+								<Badge variant="outline" class="bg-red-50 text-red-700 border-red-300 text-xs"
+									>{m.stale_tests_never()}</Badge
+								>
+							{:else}
+								<span
+									class="text-sm text-muted-foreground {daysAgo > 30
+										? 'font-medium text-yellow-600'
+										: ''}">{m.stale_tests_days_ago({ days: daysAgo })}</span
+								>
+							{/if}
+						</div>
+					</button>
+				{/each}
+			</div>
+			<Table.Root class="hidden sm:table">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>{m.reports_test_case()}</Table.Head>
@@ -617,7 +652,40 @@
 			<Card.Description>{m.slowest_tests_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content class="p-0">
-			<Table.Root>
+			<div class="space-y-2 px-4 pb-4 sm:hidden">
+				{#each slowestTests as tc (tc.testCaseId)}
+					<button
+						type="button"
+						class="w-full rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
+						onclick={() => {
+							window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`;
+						}}
+					>
+						<div class="flex items-start justify-between gap-3">
+							<div class="min-w-0">
+								<p class="font-mono text-xs text-muted-foreground">{tc.testCaseKey}</p>
+								<p class="mt-1 line-clamp-2 text-sm font-medium">{tc.title}</p>
+							</div>
+							<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
+						</div>
+						<dl class="mt-3 grid grid-cols-3 gap-2 text-xs">
+							<div>
+								<dt class="text-muted-foreground">{m.slowest_avg()}</dt>
+								<dd class="font-medium">{formatDuration(tc.avgDuration)}</dd>
+							</div>
+							<div>
+								<dt class="text-muted-foreground">{m.slowest_max()}</dt>
+								<dd class="font-medium">{formatDuration(tc.maxDuration)}</dd>
+							</div>
+							<div>
+								<dt class="text-muted-foreground">{m.slowest_execs()}</dt>
+								<dd class="font-medium">{tc.execCount}</dd>
+							</div>
+						</dl>
+					</button>
+				{/each}
+			</div>
+			<Table.Root class="hidden sm:table">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>{m.reports_test_case()}</Table.Head>

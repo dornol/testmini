@@ -7,9 +7,9 @@
 </script>
 
 <div class="space-y-4">
-	<div class="flex flex-wrap items-center justify-between gap-2">
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 		<h1 class="text-xl font-bold">{m.team_title()}</h1>
-		<Button href="/teams/new">{m.team_new()}</Button>
+		<Button href="/teams/new" class="w-full sm:w-auto">{m.team_new()}</Button>
 	</div>
 
 	{#if data.teams.length === 0}
@@ -35,7 +35,7 @@
 			</svg>
 			<h3 class="text-lg font-semibold">{m.team_empty_title()}</h3>
 			<p class="text-muted-foreground mt-1 text-sm">{m.team_empty_create()}</p>
-			<Button href="/teams/new" class="mt-4">{m.team_create()}</Button>
+			<Button href="/teams/new" class="mt-4 w-full sm:w-auto">{m.team_create()}</Button>
 		</div>
 	{:else}
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -50,8 +50,10 @@
 							{/if}
 						</Card.Header>
 						<Card.Footer class="text-muted-foreground text-sm">
-							<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-								<span class="flex items-center gap-1">
+							<div
+								class="flex flex-col gap-1 min-[420px]:flex-row min-[420px]:flex-wrap min-[420px]:gap-x-4"
+							>
+								<span class="flex min-w-0 items-center gap-1">
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
 										width="14"
@@ -70,7 +72,7 @@
 									</svg>
 									{m.team_members()}: {t.memberCount}
 								</span>
-								<span class="flex items-center gap-1">
+								<span class="flex min-w-0 items-center gap-1">
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
 										width="14"

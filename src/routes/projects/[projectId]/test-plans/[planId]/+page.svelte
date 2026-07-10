@@ -275,7 +275,9 @@
 				</Select.Root>
 			</div>
 			{#if data.plan.milestone}
-				<p class="text-muted-foreground mt-1 text-sm">{m.tp_milestone()}: {data.plan.milestone}</p>
+				<p class="text-muted-foreground mt-1 break-words text-sm">
+					{m.tp_milestone()}: {data.plan.milestone}
+				</p>
 			{/if}
 			{#if data.plan.startDate || data.plan.endDate}
 				<p class="text-muted-foreground text-sm">
@@ -283,15 +285,15 @@
 				</p>
 			{/if}
 			{#if data.plan.description}
-				<p class="text-muted-foreground mt-1 text-sm">{data.plan.description}</p>
+				<p class="text-muted-foreground mt-1 break-words text-sm">{data.plan.description}</p>
 			{/if}
 		</div>
-		<div class="flex shrink-0 gap-2">
+		<div class="flex w-full shrink-0 gap-2 sm:w-auto">
 			{#if canDelete}
 				<Button
 					variant="outline"
 					size="sm"
-					class="text-destructive hover:text-destructive"
+					class="w-full text-destructive hover:text-destructive sm:w-auto"
 					onclick={() => (deleteDialogOpen = true)}
 				>
 					{m.common_delete()}
@@ -301,17 +303,17 @@
 	</div>
 
 	<!-- Release & Sign-off Row -->
-	<div class="flex flex-wrap gap-4 items-start">
+	<div class="grid gap-4 sm:flex sm:flex-wrap sm:items-start">
 		<!-- Release Link -->
 		{#if data.releases.length > 0}
-			<div class="space-y-1">
+			<div class="min-w-0 space-y-1">
 				<span class="text-xs font-medium text-muted-foreground">{m.nav_releases()}</span>
 				<Select.Root
 					type="single"
 					value={data.plan.releaseId?.toString() ?? ''}
 					onValueChange={(v: string) => handleReleaseChange(v)}
 				>
-					<Select.Trigger class="w-44 h-7 text-xs">
+					<Select.Trigger class="h-7 w-full min-w-0 text-xs sm:w-44">
 						{@const linked = data.releases.find((r) => r.id === data.plan.releaseId)}
 						{linked ? `${linked.name}${linked.version ? ` (${linked.version})` : ''}` : '-'}
 					</Select.Trigger>
@@ -330,7 +332,7 @@
 
 		<!-- Sign-off Status -->
 		{#if data.requireSignoff}
-			<div class="space-y-1">
+			<div class="min-w-0 space-y-1">
 				<span class="text-xs font-medium text-muted-foreground">{m.signoff_title()}</span>
 				<div class="flex flex-wrap items-center gap-2">
 					{#if data.signoffs.length > 0}
@@ -345,7 +347,12 @@
 						<Badge variant="outline">{m.signoff_required()}</Badge>
 					{/if}
 					{#if canSignoff}
-						<Button variant="outline" size="sm" class="h-7 text-xs" onclick={openSignoff}>
+						<Button
+							variant="outline"
+							size="sm"
+							class="h-8 w-full text-xs sm:h-7 sm:w-auto"
+							onclick={openSignoff}
+						>
 							{m.signoff_submit()}
 						</Button>
 					{/if}
@@ -415,7 +422,7 @@
 			>
 				<p class="text-muted-foreground text-sm">{m.tp_no_cases()}</p>
 				{#if canManage}
-					<Button class="mt-4" onclick={openAddCases}>{m.tp_add_cases()}</Button>
+					<Button class="mt-4 w-full sm:w-auto" onclick={openAddCases}>{m.tp_add_cases()}</Button>
 				{/if}
 			</div>
 		{:else}
@@ -426,7 +433,7 @@
 							<div class="flex items-start justify-between gap-3">
 								<div class="min-w-0">
 									<p class="font-mono text-xs text-muted-foreground">{item.key}</p>
-									<p class="font-medium leading-snug">{item.title}</p>
+									<p class="break-words font-medium leading-snug">{item.title}</p>
 								</div>
 								<PriorityBadge name={item.priority} color={getPriorityColor(item.priority)} />
 							</div>
@@ -435,7 +442,7 @@
 									<Button
 										variant="ghost"
 										size="sm"
-										class="text-destructive hover:text-destructive h-7 px-2 text-xs"
+										class="h-8 w-full px-2 text-xs text-destructive hover:text-destructive sm:h-7 sm:w-auto"
 										onclick={() => removeCase(item.testCaseId)}
 									>
 										{m.tp_remove_case()}
@@ -513,8 +520,8 @@
 					>
 						<div class="flex items-start justify-between gap-3">
 							<div class="min-w-0">
-								<p class="font-medium leading-snug">{run.name}</p>
-								<p class="mt-1 text-sm text-muted-foreground">
+								<p class="break-words font-medium leading-snug">{run.name}</p>
+								<p class="mt-1 break-words text-sm text-muted-foreground">
 									{run.environment} · {formatDate(run.createdAt)}
 								</p>
 							</div>
@@ -570,8 +577,13 @@
 				<AlertDialog.Description>{m.tp_delete_confirm()}</AlertDialog.Description>
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-				<Button variant="destructive" onclick={handleDelete} disabled={deleteSaving}>
+				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+				<Button
+					variant="destructive"
+					class="w-full sm:w-auto"
+					onclick={handleDelete}
+					disabled={deleteSaving}
+				>
 					{deleteSaving ? m.common_saving() : m.common_delete()}
 				</Button>
 			</AlertDialog.Footer>

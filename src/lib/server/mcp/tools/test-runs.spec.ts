@@ -116,7 +116,7 @@ describe('MCP test-run tools', () => {
 	describe('get-test-run', () => {
 		it('should return run with executions and status counts', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-			mockSelectResult(mockDb, [
+			const selectChain = mockSelectResult(mockDb, [
 				{
 					id: 200,
 					status: 'PASS',
@@ -141,6 +141,12 @@ describe('MCP test-run tools', () => {
 			expect(parsed.statusCounts.PASS).toBe(1);
 			expect(parsed.statusCounts.FAIL).toBe(1);
 			expect(parsed.executions).toHaveLength(2);
+			expect(selectChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_run_id', 50],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when run not found', async () => {
@@ -160,7 +166,7 @@ describe('MCP test-run tools', () => {
 	describe('get-failures', () => {
 		it('should return failure details', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-			mockSelectResult(mockDb, [
+			const selectChain = mockSelectResult(mockDb, [
 				{
 					executionId: 200,
 					testCaseKey: 'TC-0001',
@@ -178,6 +184,12 @@ describe('MCP test-run tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed).toHaveLength(1);
 			expect(parsed[0].errorMessage).toBe('Timeout');
+			expect(selectChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_run_id', 50],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when run not found', async () => {
@@ -709,6 +721,8 @@ describe('MCP test-run tools', () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(run);
 
 			let selectCallCount = 0;
+			const executionsWhere = vi.fn().mockReturnThis();
+			const failuresWhere = vi.fn().mockReturnThis();
 			mockDb.select.mockImplementation(() => {
 				selectCallCount++;
 				const data =
@@ -735,7 +749,7 @@ describe('MCP test-run tools', () => {
 				const chain = {
 					from: vi.fn().mockReturnThis(),
 					innerJoin: vi.fn().mockReturnThis(),
-					where: vi.fn().mockReturnThis(),
+					where: selectCallCount === 1 ? executionsWhere : failuresWhere,
 					then: (resolve: (v: unknown) => void) => Promise.resolve(data).then(resolve)
 				};
 				return chain as never;
@@ -752,6 +766,18 @@ describe('MCP test-run tools', () => {
 			expect(parsed.statusCounts.FAIL).toBe(1);
 			expect(parsed.totalExecutions).toBe(1);
 			expect(parsed.results[0].failures).toHaveLength(1);
+			expect(executionsWhere).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_run_id', 50],
+					['project_id', PROJECT_ID]
+				])
+			);
+			expect(failuresWhere).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_run_id', 50],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when run not found', async () => {

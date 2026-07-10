@@ -102,7 +102,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 				.from(testExecution)
 				.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 				.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
-				.where(eq(testExecution.testRunId, runId));
+				.where(and(eq(testExecution.testRunId, runId), eq(testCase.projectId, projectId)));
 
 			const statusCounts = { PASS: 0, FAIL: 0, BLOCKED: 0, SKIPPED: 0, PENDING: 0 };
 			for (const e of executions) {
@@ -145,7 +145,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 				.innerJoin(testExecution, eq(testFailureDetail.testExecutionId, testExecution.id))
 				.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 				.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
-				.where(eq(testExecution.testRunId, runId));
+				.where(and(eq(testExecution.testRunId, runId), eq(testCase.projectId, projectId)));
 
 			return ok(failures);
 		}
@@ -290,7 +290,7 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 				.from(testExecution)
 				.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 				.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
-				.where(eq(testExecution.testRunId, runId));
+				.where(and(eq(testExecution.testRunId, runId), eq(testCase.projectId, projectId)));
 
 			const failures = await db
 				.select({
@@ -302,7 +302,8 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 				})
 				.from(testFailureDetail)
 				.innerJoin(testExecution, eq(testFailureDetail.testExecutionId, testExecution.id))
-				.where(eq(testExecution.testRunId, runId));
+				.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
+				.where(and(eq(testExecution.testRunId, runId), eq(testRun.projectId, projectId)));
 
 			const failureMap = new Map<number, typeof failures>();
 			for (const f of failures) {

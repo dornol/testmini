@@ -17,6 +17,17 @@
 		data.form,
 		{ validators }
 	);
+
+	function validationMessage(error: string | string[] | undefined): string {
+		const message = Array.isArray(error) ? error[0] : error;
+		if (!message) return '';
+		if (message === 'Project name is required') return m.validation_project_name_required();
+		if (message === 'Name must be 100 characters or less') return m.validation_name_max_100();
+		if (message === 'Description must be 1000 characters or less') {
+			return m.validation_description_max_1000();
+		}
+		return message;
+	}
 </script>
 
 <div class="mx-auto max-w-lg">
@@ -44,7 +55,7 @@
 						placeholder={m.project_name_placeholder()}
 					/>
 					{#if $errors.name}
-						<p class="text-destructive text-sm">{$errors.name}</p>
+						<p class="text-destructive text-sm">{validationMessage($errors.name)}</p>
 					{/if}
 				</div>
 
@@ -61,7 +72,7 @@
 						rows={4}
 					/>
 					{#if $errors.description}
-						<p class="text-destructive text-sm">{$errors.description}</p>
+						<p class="text-destructive text-sm">{validationMessage($errors.description)}</p>
 					{/if}
 				</div>
 

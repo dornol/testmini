@@ -17,6 +17,21 @@
 		data.form,
 		{ validators }
 	);
+
+	function validationMessage(error: string | string[] | undefined): string {
+		const message = Array.isArray(error) ? error[0] : error;
+		if (!message) return '';
+		if (message.includes('expected string to have >=1 characters')) {
+			return m.validation_team_name_required();
+		}
+		if (message.includes('expected string to have <=100 characters')) {
+			return m.validation_name_max_100();
+		}
+		if (message.includes('expected string to have <=1000 characters')) {
+			return m.validation_description_max_1000();
+		}
+		return message;
+	}
 </script>
 
 <div class="mx-auto max-w-lg">
@@ -39,7 +54,7 @@
 					<Label for="name">{m.team_name()}</Label>
 					<Input id="name" name="name" bind:value={$form.name} placeholder={m.team_name()} />
 					{#if $errors.name}
-						<p class="text-destructive text-sm">{$errors.name}</p>
+						<p class="text-destructive text-sm">{validationMessage($errors.name)}</p>
 					{/if}
 				</div>
 
@@ -56,7 +71,7 @@
 						rows={4}
 					/>
 					{#if $errors.description}
-						<p class="text-destructive text-sm">{$errors.description}</p>
+						<p class="text-destructive text-sm">{validationMessage($errors.description)}</p>
 					{/if}
 				</div>
 

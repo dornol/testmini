@@ -20,9 +20,9 @@ export function requireAuth(locals: App.Locals): AuthUser {
 	return locals.user;
 }
 
-async function requireProjectExists(projectId: number): Promise<void> {
+async function requireActiveProject(projectId: number): Promise<void> {
 	const existingProject = await db.query.project.findFirst({
-		where: (projects, { eq }) => eq(projects.id, projectId),
+		where: (projects, { and, eq }) => and(eq(projects.id, projectId), eq(projects.active, true)),
 		columns: { id: true }
 	});
 
@@ -35,8 +35,9 @@ export async function requireProjectAccess(
 	user: AuthUser,
 	projectId: number
 ): Promise<{ role: string }> {
+	await requireActiveProject(projectId);
+
 	if (isGlobalAdmin(user)) {
-		await requireProjectExists(projectId);
 		return { role: 'ADMIN' };
 	}
 
@@ -56,8 +57,9 @@ export async function requireProjectRole(
 	projectId: number,
 	allowedRoles: string[]
 ): Promise<{ role: string }> {
+	await requireActiveProject(projectId);
+
 	if (isGlobalAdmin(user)) {
-		await requireProjectExists(projectId);
 		return { role: 'ADMIN' };
 	}
 

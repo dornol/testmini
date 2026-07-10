@@ -110,7 +110,15 @@ describe('requireProjectAccess', () => {
 			columns: { id: true }
 		});
 		const where = mockDb.query.project.findFirst.mock.calls[0][0].where;
-		expect(where({ id: 'id' }, { eq: (a: unknown, b: unknown) => [a, b] })).toEqual(['id', 42]);
+		expect(
+			where(
+				{ id: 'id', active: 'active' },
+				{ and: (...args: unknown[]) => args, eq: (a: unknown, b: unknown) => [a, b] }
+			)
+		).toEqual([
+			['id', 42],
+			['active', true]
+		]);
 		expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
 	});
 
@@ -123,6 +131,32 @@ describe('requireProjectAccess', () => {
 			status: 404,
 			body: { message: 'Project not found' }
 		});
+		expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
+	});
+
+	it('should reject member access when the project is inactive', async () => {
+		const user = { id: '2', role: 'user', name: 'User', email: 'u@b.com' } as App.Locals['user'] &
+			object;
+		mockDb.query.project.findFirst.mockResolvedValueOnce(null);
+
+		await expect(requireProjectAccess(user, 42)).rejects.toMatchObject({
+			status: 404,
+			body: { message: 'Project not found' }
+		});
+		expect(mockDb.query.project.findFirst).toHaveBeenCalledWith({
+			where: expect.any(Function),
+			columns: { id: true }
+		});
+		const where = mockDb.query.project.findFirst.mock.calls[0][0].where;
+		expect(
+			where(
+				{ id: 'id', active: 'active' },
+				{ and: (...args: unknown[]) => args, eq: (a: unknown, b: unknown) => [a, b] }
+			)
+		).toEqual([
+			['id', 42],
+			['active', true]
+		]);
 		expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
 	});
 });
@@ -141,7 +175,15 @@ describe('requireProjectRole', () => {
 			columns: { id: true }
 		});
 		const where = mockDb.query.project.findFirst.mock.calls[0][0].where;
-		expect(where({ id: 'id' }, { eq: (a: unknown, b: unknown) => [a, b] })).toEqual(['id', 42]);
+		expect(
+			where(
+				{ id: 'id', active: 'active' },
+				{ and: (...args: unknown[]) => args, eq: (a: unknown, b: unknown) => [a, b] }
+			)
+		).toEqual([
+			['id', 42],
+			['active', true]
+		]);
 		expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
 	});
 
@@ -154,6 +196,32 @@ describe('requireProjectRole', () => {
 			status: 404,
 			body: { message: 'Project not found' }
 		});
+		expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
+	});
+
+	it('should reject member role checks when the project is inactive', async () => {
+		const user = { id: '2', role: 'user', name: 'User', email: 'u@b.com' } as App.Locals['user'] &
+			object;
+		mockDb.query.project.findFirst.mockResolvedValueOnce(null);
+
+		await expect(requireProjectRole(user, 42, ['PROJECT_ADMIN'])).rejects.toMatchObject({
+			status: 404,
+			body: { message: 'Project not found' }
+		});
+		expect(mockDb.query.project.findFirst).toHaveBeenCalledWith({
+			where: expect.any(Function),
+			columns: { id: true }
+		});
+		const where = mockDb.query.project.findFirst.mock.calls[0][0].where;
+		expect(
+			where(
+				{ id: 'id', active: 'active' },
+				{ and: (...args: unknown[]) => args, eq: (a: unknown, b: unknown) => [a, b] }
+			)
+		).toEqual([
+			['id', 42],
+			['active', true]
+		]);
 		expect(mockDb.query.projectMember.findFirst).not.toHaveBeenCalled();
 	});
 });

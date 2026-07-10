@@ -98,6 +98,7 @@ describe('/api/projects/[projectId]/test-cases/bulk', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockFindTestCasesWithLatestVersions.mockReset();
+		mockDb.query.project.findFirst.mockResolvedValue({ id: 1 });
 	});
 
 	describe('POST', () => {

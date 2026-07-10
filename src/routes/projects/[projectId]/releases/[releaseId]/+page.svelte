@@ -188,12 +188,12 @@
 				<p class="text-muted-foreground mt-1 text-sm">{data.release.description}</p>
 			{/if}
 		</div>
-		<div class="flex shrink-0 gap-2">
+		<div class="grid w-full shrink-0 gap-2 sm:w-auto sm:flex sm:justify-end">
 			{#if canDelete}
 				<Button
 					variant="outline"
 					size="sm"
-					class="text-destructive hover:text-destructive"
+					class="w-full text-destructive hover:text-destructive sm:w-auto"
 					onclick={() => (deleteDialogOpen = true)}
 				>
 					{m.common_delete()}
@@ -351,7 +351,7 @@
 							>
 							<Badge variant="outline">{run.environment}</Badge>
 						</div>
-						<div class="mt-3 grid grid-cols-3 gap-2 text-xs">
+						<div class="mt-3 grid grid-cols-1 gap-2 text-xs min-[360px]:grid-cols-3">
 							<div>
 								<div class="text-muted-foreground">{m.dashboard_pass()}</div>
 								<div class="font-medium text-green-600">{pass}</div>

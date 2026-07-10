@@ -157,7 +157,44 @@
 			>
 		</div>
 	{:else}
-		<div class="border rounded-md overflow-hidden">
+		<div class="grid gap-3 md:hidden">
+			{#each data.sessions as session (session.id)}
+				<button
+					type="button"
+					class="w-full rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
+					onclick={() => goto(`/projects/${projectId}/exploratory/${session.id}`)}
+				>
+					<div
+						class="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between"
+					>
+						<div class="min-w-0">
+							<div class="break-words text-sm font-medium">{session.title}</div>
+							{#if session.charter}
+								<p class="mt-1 line-clamp-2 text-xs text-muted-foreground">{session.charter}</p>
+							{/if}
+						</div>
+						<Badge variant={statusVariant(session.status)} class="w-fit text-[10px] px-1.5 py-0">
+							{statusLabel(session.status)}
+						</Badge>
+					</div>
+					<dl class="mt-3 grid grid-cols-1 gap-2 text-xs min-[360px]:grid-cols-3">
+						<div>
+							<dt class="text-muted-foreground">{m.exploratory_duration()}</dt>
+							<dd class="font-medium">{formatDuration(session)}</dd>
+						</div>
+						<div>
+							<dt class="text-muted-foreground">{m.exploratory_notes()}</dt>
+							<dd class="font-medium">{session.noteCount}</dd>
+						</div>
+						<div>
+							<dt class="text-muted-foreground">{m.common_date()}</dt>
+							<dd class="font-medium">{new Date(session.startedAt).toLocaleDateString()}</dd>
+						</div>
+					</dl>
+				</button>
+			{/each}
+		</div>
+		<div class="hidden overflow-hidden rounded-md border md:block">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>

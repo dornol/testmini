@@ -126,10 +126,11 @@
 	</div>
 
 	<!-- Status filter tabs -->
-	<div class="flex gap-1 flex-wrap">
+	<div class="grid grid-cols-2 gap-2 min-[420px]:flex min-[420px]:flex-wrap">
 		<Button
 			variant={statusFilter === '' ? 'default' : 'outline'}
 			size="sm"
+			class="w-full min-[420px]:w-auto"
 			onclick={() => (statusFilter = '')}
 		>
 			{m.common_all()}
@@ -138,6 +139,7 @@
 			<Button
 				variant={statusFilter === s ? 'default' : 'outline'}
 				size="sm"
+				class="w-full min-[420px]:w-auto"
 				onclick={() => (statusFilter = s)}
 			>
 				{statusLabel(s)}
@@ -152,7 +154,7 @@
 			<h3 class="text-lg font-semibold">{m.rel_empty_title()}</h3>
 			<p class="text-muted-foreground mt-1 text-sm">{m.rel_empty_create()}</p>
 			{#if canManage}
-				<Button class="mt-4" onclick={openCreate}>{m.rel_create()}</Button>
+				<Button class="mt-4 w-full sm:w-auto" onclick={openCreate}>{m.rel_create()}</Button>
 			{/if}
 		</div>
 	{:else}
@@ -222,7 +224,7 @@
 							</DropdownMenu.Root>
 						{/if}
 					</div>
-					<div class="mt-3 grid grid-cols-3 gap-2 text-xs">
+					<div class="mt-3 grid grid-cols-1 gap-2 text-xs min-[360px]:grid-cols-3">
 						<div>
 							<div class="text-muted-foreground">{m.rel_target_date()}</div>
 							<div>{formatDate(rel.targetDate)}</div>

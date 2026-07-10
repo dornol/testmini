@@ -255,15 +255,15 @@
 <Dialog.Root bind:open={comparisonDialogOpen}>
 	<Dialog.Portal>
 		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-3xl max-h-[80vh] overflow-y-auto">
+		<Dialog.Content class="max-h-[80vh] overflow-y-auto sm:max-w-3xl">
 			<Dialog.Header>
 				<Dialog.Title>{m.comparison_title()}</Dialog.Title>
 			</Dialog.Header>
 			{#if comparisonLoading}
 				<p class="text-muted-foreground py-4 text-sm">{m.common_loading()}</p>
 			{:else if comparisonData}
-				<div class="space-y-4 py-2">
-					<div class="flex gap-4 text-sm">
+				<div class="min-w-0 space-y-4 py-2">
+					<div class="flex flex-wrap gap-2 text-sm">
 						<Badge variant="default" class="bg-green-600"
 							>{m.comparison_improved()}: {comparisonData.summary.improved}</Badge
 						>
@@ -274,49 +274,90 @@
 							>{m.comparison_unchanged()}: {comparisonData.summary.unchanged}</Badge
 						>
 					</div>
-					<Table.Root>
-						<Table.Header>
-							<Table.Row>
-								<Table.Head>{m.reports_test_case()}</Table.Head>
-								<Table.Head class="w-28">{m.comparison_original()}</Table.Head>
-								<Table.Head class="w-28">{m.comparison_retest()}</Table.Head>
-								<Table.Head class="w-24"></Table.Head>
-							</Table.Row>
-						</Table.Header>
-						<Table.Body>
-							{#each comparisonData.comparisons as c (c.testCaseKey)}
-								{@const regressed =
-									c.originalStatus === 'PASS' &&
-									(c.retestStatus === 'FAIL' || c.retestStatus === 'BLOCKED')}
+					<div class="space-y-2 md:hidden">
+						{#each comparisonData.comparisons as c (c.testCaseKey)}
+							{@const regressed =
+								c.originalStatus === 'PASS' &&
+								(c.retestStatus === 'FAIL' || c.retestStatus === 'BLOCKED')}
+							<div class="rounded-md border p-3">
+								<div class="flex min-w-0 items-start justify-between gap-2">
+									<div class="min-w-0">
+										<div class="text-muted-foreground text-xs">{c.testCaseKey}</div>
+										<div class="break-words text-sm font-medium">{c.title}</div>
+									</div>
+									{#if c.improved}
+										<Badge variant="default" class="shrink-0 bg-green-600 text-xs"
+											>{m.comparison_improved()}</Badge
+										>
+									{:else if regressed}
+										<Badge variant="destructive" class="shrink-0 text-xs"
+											>{m.comparison_regressed()}</Badge
+										>
+									{/if}
+								</div>
+								<div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+									<div>
+										<div class="text-muted-foreground">{m.comparison_original()}</div>
+										<div class="font-medium {statusColorText(c.originalStatus)}">
+											{c.originalStatus}
+										</div>
+									</div>
+									<div>
+										<div class="text-muted-foreground">{m.comparison_retest()}</div>
+										<div class="font-medium {statusColorText(c.retestStatus)}">
+											{c.retestStatus}
+										</div>
+									</div>
+								</div>
+							</div>
+						{/each}
+					</div>
+					<div class="hidden md:block">
+						<Table.Root>
+							<Table.Header>
 								<Table.Row>
-									<Table.Cell>
-										<span class="text-muted-foreground text-xs">{c.testCaseKey}</span>
-										<span class="ml-1">{c.title}</span>
-									</Table.Cell>
-									<Table.Cell>
-										<span class="font-medium {statusColorText(c.originalStatus)}"
-											>{c.originalStatus}</span
-										>
-									</Table.Cell>
-									<Table.Cell>
-										<span class="font-medium {statusColorText(c.retestStatus)}"
-											>{c.retestStatus}</span
-										>
-									</Table.Cell>
-									<Table.Cell>
-										{#if c.improved}
-											<Badge variant="default" class="bg-green-600 text-xs"
-												>{m.comparison_improved()}</Badge
-											>
-										{:else if regressed}
-											<Badge variant="destructive" class="text-xs">{m.comparison_regressed()}</Badge
-											>
-										{/if}
-									</Table.Cell>
+									<Table.Head>{m.reports_test_case()}</Table.Head>
+									<Table.Head class="w-28">{m.comparison_original()}</Table.Head>
+									<Table.Head class="w-28">{m.comparison_retest()}</Table.Head>
+									<Table.Head class="w-24"></Table.Head>
 								</Table.Row>
-							{/each}
-						</Table.Body>
-					</Table.Root>
+							</Table.Header>
+							<Table.Body>
+								{#each comparisonData.comparisons as c (c.testCaseKey)}
+									{@const regressed =
+										c.originalStatus === 'PASS' &&
+										(c.retestStatus === 'FAIL' || c.retestStatus === 'BLOCKED')}
+									<Table.Row>
+										<Table.Cell>
+											<span class="text-muted-foreground text-xs">{c.testCaseKey}</span>
+											<span class="ml-1">{c.title}</span>
+										</Table.Cell>
+										<Table.Cell>
+											<span class="font-medium {statusColorText(c.originalStatus)}"
+												>{c.originalStatus}</span
+											>
+										</Table.Cell>
+										<Table.Cell>
+											<span class="font-medium {statusColorText(c.retestStatus)}"
+												>{c.retestStatus}</span
+											>
+										</Table.Cell>
+										<Table.Cell>
+											{#if c.improved}
+												<Badge variant="default" class="bg-green-600 text-xs"
+													>{m.comparison_improved()}</Badge
+												>
+											{:else if regressed}
+												<Badge variant="destructive" class="text-xs"
+													>{m.comparison_regressed()}</Badge
+												>
+											{/if}
+										</Table.Cell>
+									</Table.Row>
+								{/each}
+							</Table.Body>
+						</Table.Root>
+					</div>
 				</div>
 			{:else}
 				<p class="text-muted-foreground py-4 text-sm">{m.error_operation_failed()}</p>

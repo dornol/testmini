@@ -19,14 +19,16 @@
 	const validators = zodValidators(updateProjectSchema);
 	const { form, errors, enhance, submitting, tainted } = superForm(
 		// svelte-ignore state_referenced_locally
-		data.form, {
-		validators,
-		onUpdated({ form }) {
-			if (form.message) {
-				toast.success(form.message);
+		data.form,
+		{
+			validators,
+			onUpdated({ form }) {
+				if (form.message) {
+					toast.success(form.message);
+				}
 			}
 		}
-	});
+	);
 
 	let deactivateOpen = $state(false);
 </script>
@@ -55,7 +57,9 @@
 						id="description"
 						name="description"
 						value={$form.description as string}
-						oninput={(e) => { $form.description = e.currentTarget.value; }}
+						oninput={(e) => {
+							$form.description = e.currentTarget.value;
+						}}
 						rows={4}
 					/>
 					{#if $errors.description}
@@ -63,7 +67,7 @@
 					{/if}
 				</div>
 
-				<Button type="submit" disabled={$submitting}>
+				<Button type="submit" class="w-full sm:w-auto" disabled={$submitting}>
 					{$submitting ? m.common_saving() : m.common_save_changes()}
 				</Button>
 			</form>
@@ -72,13 +76,18 @@
 
 	<!-- Sign-off requirement -->
 	<Card.Root>
-		<Card.Content class="flex items-center justify-between py-4">
-			<div>
+		<Card.Content class="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+			<div class="min-w-0">
 				<p class="text-sm font-medium">{m.settings_require_signoff()}</p>
 				<p class="text-muted-foreground text-xs">{m.signoff_required()}</p>
 			</div>
 			<form method="POST" action="?/toggleSignoff">
-				<Button type="submit" variant={data.requireSignoff ? 'default' : 'outline'} size="sm">
+				<Button
+					type="submit"
+					variant={data.requireSignoff ? 'default' : 'outline'}
+					size="sm"
+					class="w-full sm:w-auto"
+				>
 					{data.requireSignoff ? m.common_active() : m.common_inactive()}
 				</Button>
 			</form>
@@ -97,7 +106,9 @@
 				<AlertDialog.Root bind:open={deactivateOpen}>
 					<AlertDialog.Trigger>
 						{#snippet child({ props })}
-							<Button variant="destructive" {...props}>{m.settings_deactivate()}</Button>
+							<Button variant="destructive" class="w-full sm:w-auto" {...props}>
+								{m.settings_deactivate()}
+							</Button>
 						{/snippet}
 					</AlertDialog.Trigger>
 					<AlertDialog.Portal>
@@ -110,9 +121,13 @@
 								</AlertDialog.Description>
 							</AlertDialog.Header>
 							<AlertDialog.Footer>
-								<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-								<form method="POST" action="?/deactivate">
-									<Button type="submit" variant="destructive">{m.settings_deactivate()}</Button>
+								<AlertDialog.Cancel class="w-full sm:w-auto">
+									{m.common_cancel()}
+								</AlertDialog.Cancel>
+								<form class="w-full sm:w-auto" method="POST" action="?/deactivate">
+									<Button type="submit" variant="destructive" class="w-full sm:w-auto">
+										{m.settings_deactivate()}
+									</Button>
 								</form>
 							</AlertDialog.Footer>
 						</AlertDialog.Content>

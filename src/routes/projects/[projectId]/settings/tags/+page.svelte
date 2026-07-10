@@ -91,7 +91,7 @@
 						</div>
 					</div>
 					<input type="hidden" name="color" value={newColor} />
-					<Button class="self-start sm:self-auto" type="submit" disabled={!newName.trim()}
+					<Button class="w-full sm:w-auto sm:self-auto" type="submit" disabled={!newName.trim()}
 						>{m.tag_new()}</Button
 					>
 				</form>
@@ -146,10 +146,16 @@
 										{/each}
 									</div>
 									<input type="hidden" name="color" value={editColor} />
-									<div class="flex flex-wrap gap-2">
-										<Button type="submit" size="sm">{m.common_save_changes()}</Button>
-										<Button type="button" variant="outline" size="sm" onclick={cancelEdit}
-											>{m.common_cancel()}</Button
+									<div class="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap">
+										<Button type="submit" size="sm" class="w-full sm:w-auto"
+											>{m.common_save_changes()}</Button
+										>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											class="w-full sm:w-auto"
+											onclick={cancelEdit}>{m.common_cancel()}</Button
 										>
 									</div>
 								</form>
@@ -158,13 +164,17 @@
 									<TagBadge name={t.name} color={t.color} />
 								</div>
 								{#if canEdit}
-									<div class="flex flex-wrap gap-2">
-										<Button variant="outline" size="sm" onclick={() => startEdit(t)}
-											>{m.common_edit()}</Button
+									<div class="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap">
+										<Button
+											variant="outline"
+											size="sm"
+											class="w-full sm:w-auto"
+											onclick={() => startEdit(t)}>{m.common_edit()}</Button
 										>
 										<Button
 											variant="outline"
 											size="sm"
+											class="w-full sm:w-auto"
 											onclick={() => (deleteTag = { id: t.id, name: t.name })}
 											>{m.common_delete()}</Button
 										>
@@ -194,8 +204,9 @@
 					</AlertDialog.Description>
 				</AlertDialog.Header>
 				<AlertDialog.Footer>
-					<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+					<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
 					<form
+						class="w-full sm:w-auto"
 						method="POST"
 						action="?/delete"
 						use:enhance={() => {
@@ -209,7 +220,9 @@
 						}}
 					>
 						<input type="hidden" name="tagId" value={deleteTag?.id ?? ''} />
-						<Button type="submit" variant="destructive">{m.common_delete()}</Button>
+						<Button type="submit" variant="destructive" class="w-full sm:w-auto">
+							{m.common_delete()}
+						</Button>
 					</form>
 				</AlertDialog.Footer>
 			</AlertDialog.Content>

@@ -76,10 +76,12 @@
 				</div>
 
 				<div class="flex flex-col gap-2 pt-2 sm:flex-row sm:gap-3">
-					<Button type="submit" disabled={$submitting}>
+					<Button type="submit" class="w-full sm:w-auto" disabled={$submitting}>
 						{$submitting ? m.common_creating() : m.team_create()}
 					</Button>
-					<Button variant="outline" href="/teams">{m.common_cancel()}</Button>
+					<Button variant="outline" href="/teams" class="w-full sm:w-auto">
+						{m.common_cancel()}
+					</Button>
 				</div>
 			</form>
 		</Card.Content>

@@ -113,7 +113,7 @@
 						<Checkbox bind:checked={newIsDefault} />
 						{m.priority_is_default()}
 					</label>
-					<Button class="self-start sm:self-auto" type="submit" disabled={!newName.trim()}
+					<Button class="w-full sm:w-auto sm:self-auto" type="submit" disabled={!newName.trim()}
 						>{m.priority_new()}</Button
 					>
 				</form>
@@ -173,10 +173,16 @@
 										<Checkbox bind:checked={editIsDefault} />
 										{m.priority_is_default()}
 									</label>
-									<div class="flex flex-wrap gap-2">
-										<Button type="submit" size="sm">{m.common_save_changes()}</Button>
-										<Button type="button" variant="outline" size="sm" onclick={cancelEdit}
-											>{m.common_cancel()}</Button
+									<div class="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap">
+										<Button type="submit" size="sm" class="w-full sm:w-auto"
+											>{m.common_save_changes()}</Button
+										>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											class="w-full sm:w-auto"
+											onclick={cancelEdit}>{m.common_cancel()}</Button
 										>
 									</div>
 								</form>
@@ -192,13 +198,17 @@
 									{/if}
 								</div>
 								{#if canEdit}
-									<div class="flex flex-wrap gap-2">
-										<Button variant="outline" size="sm" onclick={() => startEdit(p)}
-											>{m.common_edit()}</Button
+									<div class="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap">
+										<Button
+											variant="outline"
+											size="sm"
+											class="w-full sm:w-auto"
+											onclick={() => startEdit(p)}>{m.common_edit()}</Button
 										>
 										<Button
 											variant="outline"
 											size="sm"
+											class="w-full sm:w-auto"
 											onclick={() => (deletePriority = { id: p.id, name: p.name })}
 											>{m.common_delete()}</Button
 										>
@@ -228,8 +238,9 @@
 					</AlertDialog.Description>
 				</AlertDialog.Header>
 				<AlertDialog.Footer>
-					<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+					<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
 					<form
+						class="w-full sm:w-auto"
 						method="POST"
 						action="?/delete"
 						use:enhance={() => {
@@ -243,7 +254,9 @@
 						}}
 					>
 						<input type="hidden" name="priorityId" value={deletePriority?.id ?? ''} />
-						<Button type="submit" variant="destructive">{m.common_delete()}</Button>
+						<Button type="submit" variant="destructive" class="w-full sm:w-auto">
+							{m.common_delete()}
+						</Button>
 					</form>
 				</AlertDialog.Footer>
 			</AlertDialog.Content>

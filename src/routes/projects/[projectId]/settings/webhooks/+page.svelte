@@ -193,7 +193,9 @@
 	</div>
 
 	{#if !showCreateForm}
-		<Button onclick={() => (showCreateForm = true)}>{m.webhook_new()}</Button>
+		<Button class="w-full sm:w-auto" onclick={() => (showCreateForm = true)}>
+			{m.webhook_new()}
+		</Button>
 	{:else}
 		<Card.Root>
 			<Card.Header>
@@ -304,21 +306,39 @@
 									<p class="break-all text-xs text-muted-foreground">{webhook.url}</p>
 								</div>
 
-								<div class="flex flex-wrap items-center gap-2 sm:shrink-0">
-									<Button variant="outline" size="sm" onclick={() => toggleLogs(webhook.id)}>
+								<div
+									class="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:shrink-0"
+								>
+									<Button
+										variant="outline"
+										size="sm"
+										class="w-full sm:w-auto"
+										onclick={() => toggleLogs(webhook.id)}
+									>
 										{m.webhook_logs_show()}
 									</Button>
-									<Button variant="outline" size="sm" onclick={() => handleTest(webhook)}>
+									<Button
+										variant="outline"
+										size="sm"
+										class="w-full sm:w-auto"
+										onclick={() => handleTest(webhook)}
+									>
 										{m.webhook_test()}
 									</Button>
 									<Button
 										variant={webhook.enabled ? 'default' : 'outline'}
 										size="sm"
+										class="w-full sm:w-auto"
 										onclick={() => handleToggleEnabled(webhook)}
 									>
 										{m.webhook_enabled()}
 									</Button>
-									<Button variant="outline" size="sm" onclick={() => (deleteWebhook = webhook)}>
+									<Button
+										variant="outline"
+										size="sm"
+										class="w-full sm:w-auto"
+										onclick={() => (deleteWebhook = webhook)}
+									>
 										{m.common_delete()}
 									</Button>
 								</div>
@@ -423,8 +443,10 @@
 					</AlertDialog.Description>
 				</AlertDialog.Header>
 				<AlertDialog.Footer>
-					<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-					<Button variant="destructive" onclick={handleDelete}>{m.common_delete()}</Button>
+					<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+					<Button variant="destructive" class="w-full sm:w-auto" onclick={handleDelete}>
+						{m.common_delete()}
+					</Button>
 				</AlertDialog.Footer>
 			</AlertDialog.Content>
 		</AlertDialog.Portal>

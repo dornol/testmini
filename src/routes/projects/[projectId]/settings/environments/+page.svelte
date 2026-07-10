@@ -185,7 +185,9 @@
 						/>
 					</div>
 
-					<Button type="submit" disabled={!newName.trim()}>{m.env_new()}</Button>
+					<Button type="submit" class="w-full sm:w-auto" disabled={!newName.trim()}>
+						{m.env_new()}
+					</Button>
 				</form>
 			</Card.Content>
 		</Card.Root>
@@ -272,10 +274,16 @@
 										/>
 									</div>
 
-									<div class="flex gap-2">
-										<Button type="submit" size="sm">{m.common_save_changes()}</Button>
-										<Button type="button" variant="outline" size="sm" onclick={cancelEdit}
-											>{m.common_cancel()}</Button
+									<div class="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex">
+										<Button type="submit" size="sm" class="w-full sm:w-auto"
+											>{m.common_save_changes()}</Button
+										>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											class="w-full sm:w-auto"
+											onclick={cancelEdit}>{m.common_cancel()}</Button
 										>
 									</div>
 								</form>
@@ -315,13 +323,17 @@
 										{/if}
 									</button>
 									{#if canEdit}
-										<div class="flex gap-2 sm:shrink-0">
-											<Button variant="outline" size="sm" onclick={() => startEdit(env)}
-												>{m.common_edit()}</Button
+										<div class="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:shrink-0">
+											<Button
+												variant="outline"
+												size="sm"
+												class="w-full sm:w-auto"
+												onclick={() => startEdit(env)}>{m.common_edit()}</Button
 											>
 											<Button
 												variant="outline"
 												size="sm"
+												class="w-full sm:w-auto"
 												onclick={() => (deleteEnv = { id: env.id, name: env.name })}
 												>{m.common_delete()}</Button
 											>
@@ -380,8 +392,9 @@
 					</AlertDialog.Description>
 				</AlertDialog.Header>
 				<AlertDialog.Footer>
-					<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+					<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
 					<form
+						class="w-full sm:w-auto"
 						method="POST"
 						action="?/delete"
 						use:enhance={() => {
@@ -395,7 +408,9 @@
 						}}
 					>
 						<input type="hidden" name="environmentId" value={deleteEnv?.id ?? ''} />
-						<Button type="submit" variant="destructive">{m.common_delete()}</Button>
+						<Button type="submit" variant="destructive" class="w-full sm:w-auto">
+							{m.common_delete()}
+						</Button>
 					</form>
 				</AlertDialog.Footer>
 			</AlertDialog.Content>

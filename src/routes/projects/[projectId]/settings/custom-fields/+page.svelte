@@ -143,7 +143,11 @@
 							/>
 							{m.custom_field_required()}
 						</label>
-						<Button onclick={createField} disabled={!newName.trim() || creating}>
+						<Button
+							class="w-full sm:w-auto"
+							onclick={createField}
+							disabled={!newName.trim() || creating}
+						>
 							{creating ? m.common_creating() : m.custom_field_new()}
 						</Button>
 					</div>
@@ -186,7 +190,7 @@
 								<Button
 									variant="outline"
 									size="sm"
-									class="self-start sm:self-auto"
+									class="w-full sm:w-auto sm:self-auto"
 									onclick={() => (deleteTarget = { id: field.id, name: field.name })}
 								>
 									{m.common_delete()}
@@ -214,8 +218,10 @@
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-			<AlertDialog.Action onclick={deleteField}>{m.common_delete()}</AlertDialog.Action>
+			<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+			<AlertDialog.Action class="w-full sm:w-auto" onclick={deleteField}>
+				{m.common_delete()}
+			</AlertDialog.Action>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>

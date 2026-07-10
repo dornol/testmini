@@ -64,7 +64,7 @@
 					{/if}
 				</div>
 
-				<Button type="submit" disabled={$submitting}>
+				<Button type="submit" class="w-full sm:w-auto" disabled={$submitting}>
 					{$submitting ? m.common_saving() : m.common_save_changes()}
 				</Button>
 			</form>
@@ -83,7 +83,9 @@
 				<AlertDialog.Root bind:open={deleteOpen}>
 					<AlertDialog.Trigger>
 						{#snippet child({ props })}
-							<Button variant="destructive" {...props}>{m.team_delete_title()}</Button>
+							<Button variant="destructive" class="w-full sm:w-auto" {...props}>
+								{m.team_delete_title()}
+							</Button>
 						{/snippet}
 					</AlertDialog.Trigger>
 					<AlertDialog.Portal>

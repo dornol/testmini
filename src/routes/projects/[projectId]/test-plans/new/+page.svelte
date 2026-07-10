@@ -171,8 +171,8 @@
 					{#if data.testCases.length === 0}
 						<p class="text-muted-foreground text-sm">{m.tr_no_cases()}</p>
 					{:else}
-						<Card.Root>
-							<Table.Root class="table-fixed">
+						<Card.Root class="overflow-hidden">
+							<Table.Root class="hidden table-fixed md:table">
 								<Table.Header>
 									<Table.Row>
 										<Table.Head class="w-10">
@@ -192,7 +192,30 @@
 							<VirtualList items={filteredCases} rowHeight={64} height="420px">
 								{#snippet children({ item })}
 									{@const tc = item as (typeof filteredCases)[0]}
-									<Table.Root class="table-fixed">
+									<button
+										type="button"
+										class="flex h-16 w-full items-center gap-2 px-3 text-left md:hidden"
+										onclick={() => toggleCase(tc.id)}
+									>
+										<input
+											type="checkbox"
+											checked={selectedIds.has(tc.id)}
+											onchange={() => toggleCase(tc.id)}
+											onclick={(e: MouseEvent) => e.stopPropagation()}
+											class="shrink-0 rounded"
+											aria-label={tc.key}
+										/>
+										<span class="w-16 shrink-0 font-mono text-xs text-muted-foreground"
+											>{tc.key}</span
+										>
+										<span class="min-w-0 flex-1 truncate text-sm font-medium" title={tc.title}
+											>{tc.title}</span
+										>
+										<span class="max-w-20 shrink-0 overflow-hidden">
+											<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
+										</span>
+									</button>
+									<Table.Root class="hidden table-fixed md:table">
 										<Table.Body>
 											<Table.Row class="cursor-pointer" onclick={() => toggleCase(tc.id)}>
 												<Table.Cell class="w-10">

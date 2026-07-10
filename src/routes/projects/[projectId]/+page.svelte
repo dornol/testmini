@@ -23,22 +23,25 @@
 	const activityLog = $derived(data.activityLog);
 	const ACTIVITY_LIMIT = 20;
 	let showAllActivity = $state(false);
-	const visibleActivities = $derived(showAllActivity ? activityLog : activityLog.slice(0, ACTIVITY_LIMIT));
+	const visibleActivities = $derived(
+		showAllActivity ? activityLog : activityLog.slice(0, ACTIVITY_LIMIT)
+	);
 
 	// ── Layout state ──────────────────────────────────────
 	// Read data.initialLayout once via untrack() so the $state initializer does not
 	// register a reactive dependency on `data`.  After this point, `layout` is owned
 	// entirely by local state and is never re-derived from props.
 	let layout = $state<WidgetConfig[]>(
-		untrack(() =>
-			(data.initialLayout ?? DEFAULT_LAYOUT).slice().sort((a, b) => a.order - b.order)
-		)
+		untrack(() => (data.initialLayout ?? DEFAULT_LAYOUT).slice().sort((a, b) => a.order - b.order))
 	);
 	let customizeOpen = $state(false);
 
 	// Sorted visible widgets for the main grid
 	const visibleWidgets = $derived(
-		layout.slice().sort((a, b) => a.order - b.order).filter((w) => w.visible)
+		layout
+			.slice()
+			.sort((a, b) => a.order - b.order)
+			.filter((w) => w.visible)
 	);
 
 	// ── Debounced auto-save ───────────────────────────────
@@ -51,7 +54,9 @@
 
 	async function saveLayout() {
 		try {
-			await apiPut(`/api/projects/${proj.id}/dashboard-layout`, { layout: $state.snapshot(layout) });
+			await apiPut(`/api/projects/${proj.id}/dashboard-layout`, {
+				layout: $state.snapshot(layout)
+			});
 			toast.success(m.dashboard_layout_saved());
 		} catch {
 			// error toast handled by apiPut
@@ -300,15 +305,15 @@
 						{dragOverId === widget.id ? 'border-primary' : ''}"
 					draggable="true"
 					ondragstart={() => onDragStart(widget.id)}
-					ondragover={(e) => { e.preventDefault(); onDragOver(widget.id); }}
+					ondragover={(e) => {
+						e.preventDefault();
+						onDragOver(widget.id);
+					}}
 					ondragend={onDragEnd}
 					role="listitem"
 				>
 					<!-- Drag handle -->
-					<span
-						class="text-muted-foreground cursor-grab active:cursor-grabbing"
-						aria-hidden="true"
-					>
+					<span class="text-muted-foreground cursor-grab active:cursor-grabbing" aria-hidden="true">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							width="14"
@@ -362,14 +367,14 @@
 						role="group"
 						aria-label="Size for {widgetLabel(widget.id)}"
 					>
-						{#each (['sm', 'md', 'lg'] as const) as size (size)}
+						{#each ['sm', 'md', 'lg'] as const as size (size)}
 							<button
 								type="button"
 								onclick={() => setSize(widget.id, size)}
 								class="rounded px-2 py-0.5 text-xs transition-colors
 									{widget.size === size
-										? 'bg-primary text-primary-foreground'
-										: 'text-muted-foreground hover:bg-accent'}"
+									? 'bg-primary text-primary-foreground'
+									: 'text-muted-foreground hover:bg-accent'}"
 								aria-pressed={widget.size === size}
 								aria-label="{size} size"
 							>
@@ -528,7 +533,7 @@
 					</Card.Root>
 				{/if}
 
-			<!-- pass_rate_trend -->
+				<!-- pass_rate_trend -->
 			{:else if widget.id === 'pass_rate_trend'}
 				<Card.Root class="h-full">
 					<Card.Header>
@@ -538,12 +543,14 @@
 						{#if trendRuns.length > 0}
 							<Chart config={trendConfig} aria-label="Pass rate trend chart" />
 						{:else}
-							<p class="text-muted-foreground text-sm text-center py-8">{m.dashboard_no_chart_data()}</p>
+							<p class="text-muted-foreground text-sm text-center py-8">
+								{m.dashboard_no_chart_data()}
+							</p>
 						{/if}
 					</Card.Content>
 				</Card.Root>
 
-			<!-- status_distribution -->
+				<!-- status_distribution -->
 			{:else if widget.id === 'status_distribution'}
 				<Card.Root class="h-full">
 					<Card.Header>
@@ -559,16 +566,17 @@
 								/>
 							</div>
 						{:else}
-							<p class="text-muted-foreground text-sm text-center py-8">{m.dashboard_no_chart_data()}</p>
+							<p class="text-muted-foreground text-sm text-center py-8">
+								{m.dashboard_no_chart_data()}
+							</p>
 						{/if}
 					</Card.Content>
 				</Card.Root>
 
-			<!-- recent_runs -->
+				<!-- recent_runs -->
 			{:else if widget.id === 'recent_runs'}
 				{#if recentRuns.length > 0}
 					<Card.Root class="h-full">
-
 						<Card.Header>
 							<div class="flex items-center justify-between">
 								<Card.Title class="text-sm font-medium">{m.dashboard_recent_runs()}</Card.Title>
@@ -580,28 +588,29 @@
 								</a>
 							</div>
 						</Card.Header>
-						<Card.Content class="p-0">
-							<Table.Root>
+						<Card.Content class="overflow-x-auto p-0">
+							<Table.Root class="min-w-[360px] table-fixed">
 								<Table.Header>
 									<Table.Row>
 										<Table.Head>{m.common_name()}</Table.Head>
 										<Table.Head class="w-24 hidden sm:table-cell">{m.dashboard_env()}</Table.Head>
 										<Table.Head class="w-28">{m.common_status()}</Table.Head>
-										<Table.Head class="w-40 hidden md:table-cell">{m.dashboard_result()}</Table.Head>
+										<Table.Head class="w-40 hidden md:table-cell">{m.dashboard_result()}</Table.Head
+										>
 										<Table.Head class="w-28 hidden lg:table-cell">{m.common_date()}</Table.Head>
 									</Table.Row>
 								</Table.Header>
 								<Table.Body>
 									{#each recentRuns as run (run.id)}
 										{@const runPassRate =
-											run.totalCount > 0
-												? Math.round((run.passCount / run.totalCount) * 100)
-												: 0}
+											run.totalCount > 0 ? Math.round((run.passCount / run.totalCount) * 100) : 0}
 										<Table.Row
 											class="cursor-pointer"
 											onclick={() => goto(`/projects/${proj.id}/test-runs/${run.id}`)}
 										>
-											<Table.Cell class="font-medium">{run.name}</Table.Cell>
+											<Table.Cell class="min-w-0 font-medium">
+												<div class="truncate" title={run.name}>{run.name}</div>
+											</Table.Cell>
 											<Table.Cell class="hidden sm:table-cell">
 												<Badge variant="outline">{run.environment}</Badge>
 											</Table.Cell>
@@ -649,12 +658,14 @@
 							<Card.Title class="text-sm font-medium">{m.dashboard_recent_runs()}</Card.Title>
 						</Card.Header>
 						<Card.Content>
-							<p class="text-muted-foreground text-sm text-center py-8">{m.dashboard_no_chart_data()}</p>
+							<p class="text-muted-foreground text-sm text-center py-8">
+								{m.dashboard_no_chart_data()}
+							</p>
 						</Card.Content>
 					</Card.Root>
 				{/if}
 
-			<!-- priority_breakdown -->
+				<!-- priority_breakdown -->
 			{:else if widget.id === 'priority_breakdown'}
 				<Card.Root class="h-full">
 					<Card.Header>
@@ -662,7 +673,7 @@
 					</Card.Header>
 					<Card.Content>
 						<div class="space-y-2 text-sm">
-							{#each ([['CRITICAL', 'bg-red-500'], ['HIGH', 'bg-orange-500'], ['MEDIUM', 'bg-yellow-500'], ['LOW', 'bg-blue-400']] as const) as [label, color] (label)}
+							{#each [['CRITICAL', 'bg-red-500'], ['HIGH', 'bg-orange-500'], ['MEDIUM', 'bg-yellow-500'], ['LOW', 'bg-blue-400']] as const as [label, color] (label)}
 								<div class="flex items-center gap-2">
 									<span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full {color}"></span>
 									<span class="text-muted-foreground flex-1">{label}</span>
@@ -675,7 +686,7 @@
 					</Card.Content>
 				</Card.Root>
 
-			<!-- top_failing -->
+				<!-- top_failing -->
 			{:else if widget.id === 'top_failing'}
 				<Card.Root class="h-full">
 					<Card.Header>
@@ -684,7 +695,9 @@
 					<Card.Content>
 						{#if activityLog.filter((a) => a.status === 'FAIL').length > 0}
 							<ul class="space-y-1.5 text-sm">
-								{#each activityLog.filter((a) => a.status === 'FAIL').slice(0, 5) as activity (activity.id)}
+								{#each activityLog
+									.filter((a) => a.status === 'FAIL')
+									.slice(0, 5) as activity (activity.id)}
 									<li class="flex items-center gap-2">
 										<span class="inline-block h-2 w-2 shrink-0 rounded-full bg-red-500"></span>
 										<span class="text-muted-foreground min-w-0 flex-1 truncate">
@@ -727,9 +740,9 @@
 		<Card.Content>
 			<div class="space-y-2">
 				{#each visibleActivities as activity (activity.id)}
-					<div class="flex items-center gap-3 text-sm">
+					<div class="flex min-w-0 items-start gap-3 text-sm">
 						<span
-							class="inline-block h-2 w-2 rounded-full {activity.status === 'PASS'
+							class="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full {activity.status === 'PASS'
 								? 'bg-green-500'
 								: activity.status === 'FAIL'
 									? 'bg-red-500'
@@ -737,11 +750,16 @@
 										? 'bg-orange-500'
 										: 'bg-gray-400'}"
 						></span>
-						<span class="font-medium {statusColorText(activity.status)}">{activity.status}</span>
-						<span class="text-muted-foreground">
+						<span class="shrink-0 font-medium {statusColorText(activity.status)}"
+							>{activity.status}</span
+						>
+						<span
+							class="text-muted-foreground min-w-0 flex-1 truncate"
+							title="{activity.executedBy ?? '?'} · {activity.testRunName}"
+						>
 							{activity.executedBy ?? '?'} &middot; {activity.testRunName}
 						</span>
-						<span class="text-muted-foreground ml-auto text-xs">
+						<span class="text-muted-foreground shrink-0 text-xs">
 							{activity.executedAt ? timeAgo(activity.executedAt) : ''}
 						</span>
 					</div>
@@ -751,7 +769,9 @@
 				<button
 					type="button"
 					class="mt-3 w-full text-center text-xs text-primary hover:underline"
-					onclick={() => { showAllActivity = true; }}
+					onclick={() => {
+						showAllActivity = true;
+					}}
 				>
 					{m.dashboard_activity_show_more()} ({activityLog.length - ACTIVITY_LIMIT})
 				</button>

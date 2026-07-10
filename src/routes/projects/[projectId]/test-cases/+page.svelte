@@ -3,10 +3,8 @@
 	import { page } from '$app/state';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import TagBadge from '$lib/components/TagBadge.svelte';
-	import { enhance } from '$app/forms';
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
 	import { apiPut, apiPost, apiPatch, apiDelete } from '$lib/api-client';
@@ -32,6 +30,7 @@
 	import TestCaseListControls from './TestCaseListControls.svelte';
 	import TestCaseListHeader from './TestCaseListHeader.svelte';
 	import TestCasePaginationBar from './TestCasePaginationBar.svelte';
+	import TestCaseQuickCreateRow from './TestCaseQuickCreateRow.svelte';
 	import TestCaseTableHeader from './TestCaseTableHeader.svelte';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import { TAG_PALETTE } from '$lib/constants';
@@ -1507,80 +1506,28 @@
 		{/snippet}
 
 		{#snippet quickCreateRow(groupKey: number)}
-			<form
-				method="POST"
-				action="?/quickCreate"
-				class="flex items-center gap-2 px-3 py-1.5"
-				use:enhance={() => {
-					quickSubmittings[groupKey] = true;
-					return async ({ result }) => {
-						quickSubmittings[groupKey] = false;
-						if (result.type === 'success') {
-							quickTitles[groupKey] = '';
-							quickPriorities[groupKey] = 'MEDIUM';
-							await invalidateAll();
-						}
-					};
+			<TestCaseQuickCreateRow
+				{groupKey}
+				{canEdit}
+				{dndDisabled}
+				title={quickTitles[groupKey] ?? ''}
+				priority={quickPriorities[groupKey] ?? 'MEDIUM'}
+				submitting={quickSubmittings[groupKey] ?? false}
+				{priorityOptions}
+				onTitleChange={(value) => {
+					quickTitles[groupKey] = value;
 				}}
-			>
-				{#if groupKey !== -1}
-					<input type="hidden" name="groupId" value={String(groupKey)} />
-				{/if}
-				{#if canEdit}<span class="w-3.5 shrink-0"></span>{/if}
-				{#if !dndDisabled}<span class="w-6 shrink-0 hidden sm:block"></span>{/if}
-				<span class="w-20 shrink-0 hidden sm:block"></span>
-				<Input
-					name="title"
-					placeholder={m.tc_quick_create_placeholder()}
-					class="h-6 flex-1 min-w-0 text-xs"
-					value={quickTitles[groupKey] ?? ''}
-					oninput={(e) => {
-						quickTitles[groupKey] = (e.currentTarget as HTMLInputElement).value;
-					}}
-				/>
-				<input type="hidden" name="priority" value={quickPriorities[groupKey] ?? 'MEDIUM'} />
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger>
-						{#snippet child({ props })}
-							<Button variant="outline" size="sm" class="h-6 px-1.5 text-xs shrink-0" {...props}>
-								{quickPriorities[groupKey] ?? 'MEDIUM'}
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="10"
-									height="10"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									class="ml-0.5"><polyline points="6 9 12 15 18 9" /></svg
-								>
-							</Button>
-						{/snippet}
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="start" class="min-w-[100px]">
-						{#each priorityOptions as p (p.id)}
-							<DropdownMenu.Item
-								onclick={() => {
-									quickPriorities[groupKey] = p.name;
-								}}
-								class="text-xs"
-							>
-								<PriorityBadge name={p.name} color={p.color} />
-							</DropdownMenu.Item>
-						{/each}
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
-				<Button
-					type="submit"
-					size="sm"
-					class="h-6 shrink-0 px-2 text-xs"
-					disabled={!(quickTitles[groupKey] ?? '').trim() || quickSubmittings[groupKey]}
-				>
-					{quickSubmittings[groupKey] ? '...' : '+'}
-				</Button>
-			</form>
+				onPriorityChange={(value) => {
+					quickPriorities[groupKey] = value;
+				}}
+				onSubmittingChange={(value) => {
+					quickSubmittings[groupKey] = value;
+				}}
+				onCreated={() => {
+					quickTitles[groupKey] = '';
+					quickPriorities[groupKey] = 'MEDIUM';
+				}}
+			/>
 		{/snippet}
 
 		<div>

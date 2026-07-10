@@ -21,7 +21,6 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Popover from '$lib/components/ui/popover/index.js';
-	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import ImportDialog from '$lib/components/ImportDialog.svelte';
 	import VirtualList from '$lib/components/VirtualList.svelte';
 	import AddCircleButton from '$lib/components/AddCircleButton.svelte';
@@ -30,6 +29,9 @@
 	import FailWithDetailDialog from './FailWithDetailDialog.svelte';
 	import TestCaseFilterBar from './TestCaseFilterBar.svelte';
 	import TestCaseBulkActionBar from './TestCaseBulkActionBar.svelte';
+	import TestCaseListControls from './TestCaseListControls.svelte';
+	import TestCaseListHeader from './TestCaseListHeader.svelte';
+	import TestCasePaginationBar from './TestCasePaginationBar.svelte';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import { TAG_PALETTE } from '$lib/constants';
 
@@ -933,47 +935,17 @@
 		}
 	}}
 >
-	<div class="flex items-center justify-between">
-		<div class="flex items-center gap-2">
-			<h2 class="text-lg font-semibold">{m.tc_title()}</h2>
-			{#if data.pagination.total > 0}
-				<span class="text-muted-foreground text-xs"
-					>{m.common_total_count({ count: data.pagination.total })}</span
-				>
-			{/if}
-		</div>
-		<div class="flex items-center gap-2">
-			<DropdownMenu.Root>
-				<DropdownMenu.Trigger>
-					{#snippet child({ props })}
-						<Button variant="outline" size="sm" {...props}>{m.tc_export()}</Button>
-					{/snippet}
-				</DropdownMenu.Trigger>
-				<DropdownMenu.Content align="end">
-					<DropdownMenu.Item
-						onclick={() => {
-							window.location.href = buildExportUrl('csv');
-						}}
-					>
-						{m.tc_export_csv()}
-					</DropdownMenu.Item>
-					<DropdownMenu.Item
-						onclick={() => {
-							window.location.href = buildExportUrl('json');
-						}}
-					>
-						{m.tc_export_json()}
-					</DropdownMenu.Item>
-				</DropdownMenu.Content>
-			</DropdownMenu.Root>
-			{#if data.userRole !== 'VIEWER'}
-				<Button variant="outline" size="sm" onclick={() => (importDialogOpen = true)}
-					>{m.tc_import()}</Button
-				>
-				<Button href="{basePath}/new" size="sm">{m.tc_new()}</Button>
-			{/if}
-		</div>
-	</div>
+	<TestCaseListHeader
+		total={data.pagination.total}
+		{canEdit}
+		newHref={`${basePath}/new`}
+		onExport={(format) => {
+			window.location.href = buildExportUrl(format);
+		}}
+		onImport={() => {
+			importDialogOpen = true;
+		}}
+	/>
 
 	<TestCaseFilterBar
 		{basePath}
@@ -1000,151 +972,27 @@
 		savedFilters={data.savedFilters}
 	/>
 
-	{#if data.pagination.pageCount > 1}
-		<div
-			class="flex items-center justify-between gap-3 rounded-md border bg-card px-3 py-2 text-sm"
-		>
-			<div class="text-muted-foreground">
-				{m.common_page_of({
-					page: data.pagination.page,
-					totalPages: data.pagination.pageCount
-				})}
-				<span class="ml-2 text-xs">
-					{data.testCases.length} / {data.pagination.total}
-				</span>
-			</div>
-			<div class="flex items-center gap-2">
-				<Button
-					variant="outline"
-					size="sm"
-					href={buildPageUrl(data.pagination.page - 1)}
-					disabled={!data.pagination.hasPrevious}
-				>
-					{m.common_previous()}
-				</Button>
-				<Button
-					variant="outline"
-					size="sm"
-					href={buildPageUrl(data.pagination.page + 1)}
-					disabled={!data.pagination.hasNext}
-				>
-					{m.common_next()}
-				</Button>
-			</div>
-		</div>
-	{/if}
+	<TestCasePaginationBar
+		page={data.pagination.page}
+		pageCount={data.pagination.pageCount}
+		total={data.pagination.total}
+		visibleCount={data.testCases.length}
+		hasPrevious={data.pagination.hasPrevious}
+		hasNext={data.pagination.hasNext}
+		{buildPageUrl}
+	/>
 
-	<!-- Column settings row -->
-	<div class="flex flex-wrap items-center gap-2">
-		<Popover.Root>
-			<Popover.Trigger>
-				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
-						{m.tc_columns()}
-					</Button>
-				{/snippet}
-			</Popover.Trigger>
-			<Popover.Content class="w-60 p-2 max-h-[70vh] overflow-y-auto" align="start">
-				{#each colConfig as col, absIdx (col.id)}
-					{@const visIdx = orderedColIds.indexOf(col.id)}
-					<div class="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-muted">
-						<Checkbox checked={col.visible} onCheckedChange={() => toggleColVisible(col.id)} />
-						<span class="flex-1 truncate ml-1">{getColLabel(col.id)}</span>
-						{#if col.visible}
-							<button
-								type="button"
-								class="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
-								disabled={visIdx === 0}
-								onclick={() => moveCol(visIdx, -1)}
-								aria-label={m.aria_move_column_up()}
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="12"
-									height="12"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									aria-hidden="true"><polyline points="18 15 12 9 6 15" /></svg
-								>
-							</button>
-							<button
-								type="button"
-								class="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
-								disabled={visIdx === orderedColIds.length - 1}
-								onclick={() => moveCol(visIdx, 1)}
-								aria-label={m.aria_move_column_down()}
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="12"
-									height="12"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg
-								>
-							</button>
-						{/if}
-					</div>
-				{/each}
-			</Popover.Content>
-		</Popover.Root>
-	</div>
-
-	<!-- Run column selector -->
-	{#if data.projectRuns.length > 0}
-		<div class="flex flex-wrap items-center gap-2">
-			{#if availableRuns.length > 0}
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger>
-						{#snippet child({ props })}
-							<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
-								{m.tc_add_run_column()}
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="12"
-									height="12"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									class="ml-1"><polyline points="6 9 12 15 18 9" /></svg
-								>
-							</Button>
-						{/snippet}
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="start" class="min-w-[180px]">
-						{#each availableRuns as run (run.id)}
-							<DropdownMenu.Item onclick={() => addRunColumn(String(run.id))} class="text-xs">
-								{run.name} ({run.environment})
-							</DropdownMenu.Item>
-						{/each}
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
-			{/if}
-			{#each selectedRuns as run (run.id)}
-				<span class="bg-secondary inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs">
-					{run.name}
-					<button
-						type="button"
-						class="text-muted-foreground hover:text-foreground ml-0.5"
-						onclick={() => removeRunColumn(run.id)}
-					>
-						✕
-					</button>
-				</span>
-			{/each}
-		</div>
-	{/if}
+	<TestCaseListControls
+		{colConfig}
+		{orderedColIds}
+		{availableRuns}
+		{selectedRuns}
+		getColLabel={(colId) => getColLabel(colId as ColId)}
+		toggleColVisible={(colId) => toggleColVisible(colId as ColId)}
+		{moveCol}
+		{addRunColumn}
+		{removeRunColumn}
+	/>
 
 	{#if selectedTcIds.size > 0 && canEdit}
 		<TestCaseBulkActionBar

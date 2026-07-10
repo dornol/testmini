@@ -4,6 +4,9 @@
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
+	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
 	import { apiPost, apiPatch, apiDelete } from '$lib/api-client';
@@ -118,7 +121,7 @@
 			</Button>
 		{/snippet}
 	</Popover.Trigger>
-	<Popover.Content class="w-64 p-2" align="start">
+	<Popover.Content class="w-[calc(100vw-2rem)] max-w-sm p-2 sm:w-72" align="start">
 		<div class="mb-2 text-xs font-medium text-muted-foreground">{m.saved_view_title()}</div>
 
 		{#if savedFilters.length === 0 && !showSaveInput}
@@ -176,86 +179,52 @@
 					<div class="group flex items-center gap-1 rounded px-2 py-1.5 hover:bg-muted">
 						<button
 							type="button"
-							class="flex-1 text-left text-xs truncate cursor-pointer"
+							class="min-w-0 flex-1 cursor-pointer truncate text-left text-xs"
 							onclick={() => applyFilter(filter)}
 						>
 							{filter.name}
 						</button>
-						<div class="hidden items-center gap-0.5 group-hover:flex">
+						<div
+							class="flex shrink-0 items-center gap-0.5 sm:opacity-0 sm:transition-opacity sm:group-focus-within:opacity-100 sm:group-hover:opacity-100"
+						>
 							{#if hasActiveFilters}
 								<button
 									type="button"
-									class="rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 cursor-pointer"
+									class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-muted-foreground/10 hover:text-foreground"
 									title={m.saved_view_overwrite()}
+									aria-label={m.saved_view_overwrite()}
 									onclick={(e) => {
 										e.stopPropagation();
 										updateFilters(filter);
 									}}
 								>
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										width="12"
-										height="12"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path
-											d="M3 3v5h5"
-										/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path
-											d="M16 16h5v5"
-										/></svg
-									>
+									<RefreshCw class="size-3" />
 								</button>
 							{/if}
 							<button
 								type="button"
-								class="rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 cursor-pointer"
+								class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-muted-foreground/10 hover:text-foreground"
 								title={m.saved_view_rename()}
+								aria-label={m.saved_view_rename()}
 								onclick={(e) => {
 									e.stopPropagation();
 									renamingId = filter.id;
 									renamingValue = filter.name;
 								}}
 							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="12"
-									height="12"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg
-								>
+								<Pencil class="size-3" />
 							</button>
 							<button
 								type="button"
-								class="rounded p-0.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+								class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
 								title={m.common_delete()}
+								aria-label={m.common_delete()}
 								onclick={(e) => {
 									e.stopPropagation();
 									confirmDeleteId = filter.id;
 								}}
 							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="12"
-									height="12"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path
-										d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"
-									/></svg
-								>
+								<Trash2 class="size-3" />
 							</button>
 						</div>
 					</div>

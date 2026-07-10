@@ -11,9 +11,29 @@
 		projectPriorities
 	}: {
 		open: boolean;
-		v1: { versionNo: number; priority: string; title: string; precondition?: string | null; expectedResult?: string | null; steps?: Step[] | null } | null;
-		v2: { versionNo: number; priority: string; title: string; precondition?: string | null; expectedResult?: string | null; steps?: Step[] | null } | null;
-		projectPriorities: { id: number; name: string; color: string; position: number; isDefault: boolean }[];
+		v1: {
+			versionNo: number;
+			priority: string;
+			title: string;
+			precondition?: string | null;
+			expectedResult?: string | null;
+			steps?: Step[] | null;
+		} | null;
+		v2: {
+			versionNo: number;
+			priority: string;
+			title: string;
+			precondition?: string | null;
+			expectedResult?: string | null;
+			steps?: Step[] | null;
+		} | null;
+		projectPriorities: {
+			id: number;
+			name: string;
+			color: string;
+			position: number;
+			isDefault: boolean;
+		}[];
 	} = $props();
 
 	function getPriorityColor(name: string): string {
@@ -41,12 +61,14 @@
 
 		// Backtrack
 		const result: { type: 'same' | 'added' | 'removed'; text: string }[] = [];
-		let i = m2, j = n;
+		let i = m2,
+			j = n;
 		const stack: { type: 'same' | 'added' | 'removed'; text: string }[] = [];
 		while (i > 0 || j > 0) {
 			if (i > 0 && j > 0 && wordsA[i - 1] === wordsB[j - 1]) {
 				stack.push({ type: 'same', text: wordsA[i - 1] });
-				i--; j--;
+				i--;
+				j--;
 			} else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
 				stack.push({ type: 'added', text: wordsB[j - 1] });
 				j--;
@@ -80,7 +102,7 @@
 <Dialog.Root bind:open>
 	<Dialog.Portal>
 		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+		<Dialog.Content class="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
 			<Dialog.Header>
 				<Dialog.Title>{m.tc_version_diff_title()}</Dialog.Title>
 				{#if v1 && v2}
@@ -91,13 +113,17 @@
 			</Dialog.Header>
 
 			{#if v1 && v2}
-				<div class="space-y-4 py-4">
+				<div class="min-w-0 space-y-4 py-4">
 					<!-- Priority -->
 					{#if v1.priority !== v2.priority}
 						<div class="space-y-1">
-							<h4 class="text-xs font-semibold uppercase text-muted-foreground">{m.common_priority()}</h4>
+							<h4 class="text-xs font-semibold uppercase text-muted-foreground">
+								{m.common_priority()}
+							</h4>
 							<div class="flex items-center gap-2">
-								<span class="line-through opacity-60"><PriorityBadge name={v1.priority} color={getPriorityColor(v1.priority)} /></span>
+								<span class="line-through opacity-60"
+									><PriorityBadge name={v1.priority} color={getPriorityColor(v1.priority)} /></span
+								>
 								<span class="text-muted-foreground">&rarr;</span>
 								<PriorityBadge name={v2.priority} color={getPriorityColor(v2.priority)} />
 							</div>
@@ -107,13 +133,20 @@
 					<!-- Title -->
 					{#if v1.title !== v2.title}
 						<div class="space-y-1">
-							<h4 class="text-xs font-semibold uppercase text-muted-foreground">{m.common_title()}</h4>
-							<div class="rounded border p-3 text-sm">
+							<h4 class="text-xs font-semibold uppercase text-muted-foreground">
+								{m.common_title()}
+							</h4>
+							<div class="rounded border p-3 text-sm break-words [overflow-wrap:anywhere]">
 								{#each wordDiff(v1.title, v2.title) as seg}
 									{#if seg.type === 'removed'}
-										<span class="bg-red-100 text-red-800 line-through dark:bg-red-950 dark:text-red-300">{seg.text}</span>
+										<span
+											class="bg-red-100 text-red-800 line-through dark:bg-red-950 dark:text-red-300"
+											>{seg.text}</span
+										>
 									{:else if seg.type === 'added'}
-										<span class="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">{seg.text}</span>
+										<span class="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300"
+											>{seg.text}</span
+										>
 									{:else}
 										<span>{seg.text}</span>
 									{/if}
@@ -125,13 +158,22 @@
 					<!-- Precondition -->
 					{#if (v1.precondition ?? '') !== (v2.precondition ?? '')}
 						<div class="space-y-1">
-							<h4 class="text-xs font-semibold uppercase text-muted-foreground">{m.tc_precondition()}</h4>
-							<div class="rounded border p-3 text-sm whitespace-pre-wrap">
+							<h4 class="text-xs font-semibold uppercase text-muted-foreground">
+								{m.tc_precondition()}
+							</h4>
+							<div
+								class="rounded border p-3 text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+							>
 								{#each wordDiff(v1.precondition ?? '', v2.precondition ?? '') as seg}
 									{#if seg.type === 'removed'}
-										<span class="bg-red-100 text-red-800 line-through dark:bg-red-950 dark:text-red-300">{seg.text}</span>
+										<span
+											class="bg-red-100 text-red-800 line-through dark:bg-red-950 dark:text-red-300"
+											>{seg.text}</span
+										>
 									{:else if seg.type === 'added'}
-										<span class="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">{seg.text}</span>
+										<span class="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300"
+											>{seg.text}</span
+										>
 									{:else}
 										<span>{seg.text}</span>
 									{/if}
@@ -143,13 +185,22 @@
 					<!-- Expected Result -->
 					{#if (v1.expectedResult ?? '') !== (v2.expectedResult ?? '')}
 						<div class="space-y-1">
-							<h4 class="text-xs font-semibold uppercase text-muted-foreground">{m.tc_expected_result()}</h4>
-							<div class="rounded border p-3 text-sm whitespace-pre-wrap">
+							<h4 class="text-xs font-semibold uppercase text-muted-foreground">
+								{m.tc_expected_result()}
+							</h4>
+							<div
+								class="rounded border p-3 text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+							>
 								{#each wordDiff(v1.expectedResult ?? '', v2.expectedResult ?? '') as seg}
 									{#if seg.type === 'removed'}
-										<span class="bg-red-100 text-red-800 line-through dark:bg-red-950 dark:text-red-300">{seg.text}</span>
+										<span
+											class="bg-red-100 text-red-800 line-through dark:bg-red-950 dark:text-red-300"
+											>{seg.text}</span
+										>
 									{:else if seg.type === 'added'}
-										<span class="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">{seg.text}</span>
+										<span class="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300"
+											>{seg.text}</span
+										>
 									{:else}
 										<span>{seg.text}</span>
 									{/if}
@@ -161,29 +212,47 @@
 					<!-- Steps -->
 					{#if stepsChanged(v1.steps ?? [], v2.steps ?? [])}
 						<div class="space-y-2">
-							<h4 class="text-xs font-semibold uppercase text-muted-foreground">{m.tc_version_diff_steps()}</h4>
+							<h4 class="text-xs font-semibold uppercase text-muted-foreground">
+								{m.tc_version_diff_steps()}
+							</h4>
 							{#each Array(Math.max((v1.steps ?? []).length, (v2.steps ?? []).length)) as _, idx}
 								{@const s1 = (v1.steps ?? [])[idx]}
 								{@const s2 = (v2.steps ?? [])[idx]}
-								<div class="rounded border p-3 text-sm {!s1 ? 'border-green-300 bg-green-50 dark:bg-green-950/20' : !s2 ? 'border-red-300 bg-red-50 dark:bg-red-950/20' : ''}">
+								<div
+									class="min-w-0 rounded border p-3 text-sm break-words [overflow-wrap:anywhere] {!s1
+										? 'border-green-300 bg-green-50 dark:bg-green-950/20'
+										: !s2
+											? 'border-red-300 bg-red-50 dark:bg-red-950/20'
+											: ''}"
+								>
 									<div class="flex items-center gap-2 mb-1">
 										<span class="text-xs font-bold text-muted-foreground">#{idx + 1}</span>
 										{#if !s1}
-											<Badge variant="outline" class="text-[10px] text-green-600">{m.tc_version_diff_added()}</Badge>
+											<Badge variant="outline" class="text-[10px] text-green-600"
+												>{m.tc_version_diff_added()}</Badge
+											>
 										{:else if !s2}
-											<Badge variant="outline" class="text-[10px] text-red-600">{m.tc_version_diff_removed()}</Badge>
+											<Badge variant="outline" class="text-[10px] text-red-600"
+												>{m.tc_version_diff_removed()}</Badge
+											>
 										{/if}
 									</div>
 									{#if s1 && s2}
 										{#if s1.action !== s2.action}
-											<div class="mb-1">
+											<div class="mb-1 min-w-0">
 												<span class="text-xs text-muted-foreground">{m.tc_detail_action()}:</span>
-												<div>
+												<div class="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
 													{#each wordDiff(s1.action, s2.action) as seg}
 														{#if seg.type === 'removed'}
-															<span class="bg-red-100 text-red-800 line-through dark:bg-red-950 dark:text-red-300">{seg.text}</span>
+															<span
+																class="bg-red-100 text-red-800 line-through dark:bg-red-950 dark:text-red-300"
+																>{seg.text}</span
+															>
 														{:else if seg.type === 'added'}
-															<span class="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">{seg.text}</span>
+															<span
+																class="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300"
+																>{seg.text}</span
+															>
 														{:else}
 															<span>{seg.text}</span>
 														{/if}
@@ -192,14 +261,20 @@
 											</div>
 										{/if}
 										{#if s1.expected !== s2.expected}
-											<div>
+											<div class="min-w-0">
 												<span class="text-xs text-muted-foreground">{m.tc_detail_expected()}:</span>
-												<div>
+												<div class="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
 													{#each wordDiff(s1.expected, s2.expected) as seg}
 														{#if seg.type === 'removed'}
-															<span class="bg-red-100 text-red-800 line-through dark:bg-red-950 dark:text-red-300">{seg.text}</span>
+															<span
+																class="bg-red-100 text-red-800 line-through dark:bg-red-950 dark:text-red-300"
+																>{seg.text}</span
+															>
 														{:else if seg.type === 'added'}
-															<span class="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">{seg.text}</span>
+															<span
+																class="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300"
+																>{seg.text}</span
+															>
 														{:else}
 															<span>{seg.text}</span>
 														{/if}
@@ -208,11 +283,25 @@
 											</div>
 										{/if}
 									{:else if s2}
-										<div>{m.tc_detail_action()}: {s2.action}</div>
-										{#if s2.expected}<div class="text-muted-foreground">{m.tc_detail_expected()}: {s2.expected}</div>{/if}
+										<div class="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+											{m.tc_detail_action()}: {s2.action}
+										</div>
+										{#if s2.expected}<div
+												class="whitespace-pre-wrap break-words text-muted-foreground [overflow-wrap:anywhere]"
+											>
+												{m.tc_detail_expected()}: {s2.expected}
+											</div>{/if}
 									{:else if s1}
-										<div class="line-through">{m.tc_detail_action()}: {s1.action}</div>
-										{#if s1.expected}<div class="text-muted-foreground line-through">{m.tc_detail_expected()}: {s1.expected}</div>{/if}
+										<div
+											class="whitespace-pre-wrap break-words line-through [overflow-wrap:anywhere]"
+										>
+											{m.tc_detail_action()}: {s1.action}
+										</div>
+										{#if s1.expected}<div
+												class="whitespace-pre-wrap break-words text-muted-foreground line-through [overflow-wrap:anywhere]"
+											>
+												{m.tc_detail_expected()}: {s1.expected}
+											</div>{/if}
 									{/if}
 								</div>
 							{/each}

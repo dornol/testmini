@@ -76,14 +76,14 @@
 		<div class="rounded-lg border">
 			<button
 				type="button"
-				class="flex w-full items-center justify-between rounded-lg px-4 py-3 text-sm font-medium transition-colors hover:bg-accent"
+				class="flex w-full items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors hover:bg-accent"
 				onclick={() => {
 					failedRowsExpanded = !failedRowsExpanded;
 				}}
 			>
-				<span class="flex items-center gap-2">
+				<span class="flex min-w-0 items-center gap-2">
 					<svg
-						class="h-4 w-4 text-destructive"
+						class="h-4 w-4 shrink-0 text-destructive"
 						fill="none"
 						viewBox="0 0 24 24"
 						stroke="currentColor"
@@ -94,10 +94,10 @@
 						<line x1="12" y1="8" x2="12" y2="12"></line>
 						<line x1="12" y1="16" x2="12.01" y2="16"></line>
 					</svg>
-					{m.tc_import_failed_rows()} ({failedRows.length})
+					<span class="truncate">{m.tc_import_failed_rows()} ({failedRows.length})</span>
 				</span>
 				<svg
-					class="h-4 w-4 text-muted-foreground transition-transform duration-200 {failedRowsExpanded
+					class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 {failedRowsExpanded
 						? 'rotate-180'
 						: ''}"
 					fill="none"
@@ -112,7 +112,26 @@
 
 			{#if failedRowsExpanded}
 				<div class="max-h-48 overflow-auto border-t">
-					<Table.Root>
+					<div class="space-y-2 p-2 sm:hidden">
+						{#each failedRows as r (r.row)}
+							<div class="rounded-md border bg-muted/20 p-2 text-xs">
+								<div class="mb-1 flex items-center justify-between gap-2">
+									<span class="shrink-0 font-medium text-muted-foreground">#{r.row}</span>
+									{#if r.status === 'skipped'}
+										<Badge variant="secondary" class="shrink-0 text-xs">Skipped</Badge>
+									{:else}
+										<Badge variant="destructive" class="shrink-0 text-xs">Error</Badge>
+									{/if}
+								</div>
+								<p
+									class="whitespace-pre-wrap break-words text-muted-foreground [overflow-wrap:anywhere]"
+								>
+									{r.error}
+								</p>
+							</div>
+						{/each}
+					</div>
+					<Table.Root class="hidden sm:table">
 						<Table.Header>
 							<Table.Row>
 								<Table.Head class="w-12 text-xs">#</Table.Head>

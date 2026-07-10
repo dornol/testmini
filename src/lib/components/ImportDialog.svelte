@@ -17,7 +17,13 @@
 	} = $props();
 
 	type ImportStatus = 'idle' | 'uploading' | 'processing' | 'complete' | 'error';
-	type RowResult = { row: number; status: 'success' | 'skipped' | 'error'; title?: string; key?: string; error?: string };
+	type RowResult = {
+		row: number;
+		status: 'success' | 'skipped' | 'error';
+		title?: string;
+		key?: string;
+		error?: string;
+	};
 
 	let fileInput: HTMLInputElement | undefined = $state();
 	let selectedFile: File | null = $state(null);
@@ -153,7 +159,12 @@
 	}
 </script>
 
-<Dialog.Root bind:open onOpenChange={(v) => { if (!v) resetState(); }}>
+<Dialog.Root
+	bind:open
+	onOpenChange={(v) => {
+		if (!v) resetState();
+	}}
+>
 	<Dialog.Portal>
 		<Dialog.Overlay />
 		<Dialog.Content class="sm:max-w-lg">
@@ -168,7 +179,9 @@
 				<div class="flex flex-col items-center gap-4 py-8">
 					<div class="w-full space-y-2">
 						<div class="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
-							<div class="progress-indeterminate absolute inset-y-0 w-2/5 rounded-full bg-primary"></div>
+							<div
+								class="progress-indeterminate absolute inset-y-0 w-2/5 rounded-full bg-primary"
+							></div>
 						</div>
 						<p class="text-center text-sm text-muted-foreground">
 							{importStatus === 'uploading' ? m.tc_import_uploading() : m.tc_import_processing()}
@@ -178,7 +191,6 @@
 						<p class="max-w-xs truncate text-xs text-muted-foreground">{selectedFile.name}</p>
 					{/if}
 				</div>
-
 			{:else if importStatus === 'complete' && importResult}
 				<Dialog.Header>
 					<Dialog.Title>{m.tc_import_results()}</Dialog.Title>
@@ -194,17 +206,19 @@
 				<ImportResults
 					{importResult}
 					onreset={resetState}
-					onclose={() => { resetState(); open = false; }}
+					onclose={() => {
+						resetState();
+						open = false;
+					}}
 				/>
-
 			{:else}
 				<Dialog.Header>
 					<Dialog.Title>{m.tc_import_title()}</Dialog.Title>
 					<Dialog.Description>{m.tc_import_desc()}</Dialog.Description>
 				</Dialog.Header>
 
-				<div class="space-y-4 py-4">
-					<div>
+				<div class="min-w-0 space-y-4 py-4">
+					<div class="flex min-w-0 flex-wrap items-center gap-2">
 						<input
 							bind:this={fileInput}
 							type="file"
@@ -216,12 +230,16 @@
 							{m.tc_import_select_file()}
 						</Button>
 						{#if selectedFile}
-							<span class="ml-2 text-sm text-muted-foreground">{selectedFile.name}</span>
+							<span
+								class="max-w-full min-w-0 flex-1 basis-0 truncate text-sm text-muted-foreground"
+							>
+								{selectedFile.name}
+							</span>
 						{/if}
 					</div>
 
 					{#if preview}
-						<div>
+						<div class="min-w-0">
 							<h4 class="mb-2 text-sm font-medium">{m.tc_import_preview()}</h4>
 							<div class="max-h-48 overflow-auto rounded border">
 								<Table.Root>

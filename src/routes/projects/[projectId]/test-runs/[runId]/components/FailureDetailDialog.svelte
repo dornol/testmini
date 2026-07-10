@@ -195,10 +195,17 @@
 					</div>
 				</div>
 				<Dialog.Footer>
-					<Button type="button" variant="outline" onclick={() => onfailDialogOpenChange(false)}>
+					<Button
+						type="button"
+						variant="outline"
+						class="w-full sm:w-auto"
+						onclick={() => onfailDialogOpenChange(false)}
+					>
 						{m.common_cancel()}
 					</Button>
-					<Button type="submit" variant="destructive">{m.fail_mark_submit()}</Button>
+					<Button type="submit" variant="destructive" class="w-full sm:w-auto"
+						>{m.fail_mark_submit()}</Button
+					>
 				</Dialog.Footer>
 			</form>
 		</Dialog.Content>
@@ -218,12 +225,7 @@
 				<div class="space-y-4 py-4">
 					<div class="space-y-2">
 						<Label for="editErrorMessage">{m.fail_error_message()}</Label>
-						<Textarea
-							id="editErrorMessage"
-							name="errorMessage"
-							value={editErrorMessage}
-							rows={2}
-						/>
+						<Textarea id="editErrorMessage" name="errorMessage" value={editErrorMessage} rows={2} />
 					</div>
 					<div class="grid gap-4 sm:grid-cols-2">
 						<div class="space-y-2">
@@ -258,11 +260,12 @@
 					<Button
 						type="button"
 						variant="outline"
+						class="w-full sm:w-auto"
 						onclick={() => oneditFailureDialogOpenChange(false)}
 					>
 						{m.common_cancel()}
 					</Button>
-					<Button type="submit">{m.common_save_changes()}</Button>
+					<Button type="submit" class="w-full sm:w-auto">{m.common_save_changes()}</Button>
 				</Dialog.Footer>
 			</form>
 		</Dialog.Content>
@@ -282,9 +285,16 @@
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
 				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-				<form method="POST" action="?/deleteFailure" use:enhance={handleDeleteFailResult}>
+				<form
+					method="POST"
+					action="?/deleteFailure"
+					class="w-full sm:w-auto"
+					use:enhance={handleDeleteFailResult}
+				>
 					<input type="hidden" name="failureId" value={deleteFailureId} />
-					<Button type="submit" variant="destructive">{m.common_delete()}</Button>
+					<Button type="submit" variant="destructive" class="w-full sm:w-auto"
+						>{m.common_delete()}</Button
+					>
 				</form>
 			</AlertDialog.Footer>
 		</AlertDialog.Content>

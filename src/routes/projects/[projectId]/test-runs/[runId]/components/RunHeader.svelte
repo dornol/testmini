@@ -283,21 +283,26 @@
 			{/if}
 		</div>
 	</div>
-	<div class="flex flex-wrap gap-2 sm:justify-end">
-		<Button variant="outline" size="sm" href="/api/projects/{projectId}/test-runs/{run.id}/export">
+	<div class="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap sm:justify-end">
+		<Button
+			variant="outline"
+			size="sm"
+			class="w-full sm:w-auto"
+			href="/api/projects/{projectId}/test-runs/{run.id}/export"
+		>
 			{m.run_export_csv()}
 		</Button>
 		{#if canExecute && run.status === 'CREATED'}
-			<Button variant="outline" size="sm" onclick={openEditRun}>
+			<Button variant="outline" size="sm" class="w-full sm:w-auto" onclick={openEditRun}>
 				{m.tr_edit()}
 			</Button>
 		{/if}
 		{#if canExecute}
-			<Button variant="outline" size="sm" onclick={openCloneRun}>
+			<Button variant="outline" size="sm" class="w-full sm:w-auto" onclick={openCloneRun}>
 				{m.tr_clone()}
 			</Button>
 			{#if hasFailures}
-				<Button variant="outline" size="sm" onclick={openRetestRun}>
+				<Button variant="outline" size="sm" class="w-full sm:w-auto" onclick={openRetestRun}>
 					{m.tr_retest()}
 				</Button>
 			{/if}
@@ -306,7 +311,7 @@
 			<Button
 				variant="outline"
 				size="sm"
-				class="text-destructive hover:text-destructive"
+				class="w-full text-destructive hover:text-destructive sm:w-auto"
 				onclick={() => (deleteRunDialogOpen = true)}
 			>
 				{m.tr_delete()}
@@ -316,13 +321,15 @@
 			{#if run.status === 'CREATED'}
 				<form method="POST" action="?/updateRunStatus" use:enhance={handleResult}>
 					<input type="hidden" name="status" value="IN_PROGRESS" />
-					<Button type="submit" size="sm">{m.run_start()}</Button>
+					<Button type="submit" size="sm" class="w-full sm:w-auto">{m.run_start()}</Button>
 				</form>
 			{/if}
 			{#if run.status === 'IN_PROGRESS'}
 				<form method="POST" action="?/updateRunStatus" use:enhance={handleResult}>
 					<input type="hidden" name="status" value="COMPLETED" />
-					<Button type="submit" variant="outline" size="sm">{m.run_complete()}</Button>
+					<Button type="submit" variant="outline" size="sm" class="w-full sm:w-auto"
+						>{m.run_complete()}</Button
+					>
 				</form>
 			{/if}
 		{/if}

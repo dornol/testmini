@@ -364,7 +364,7 @@
 				use:measureHeight={{ execId: exec.id }}
 				class="bg-red-50 dark:bg-red-950/30 space-y-3 rounded-md p-4"
 			>
-				<div class="flex items-center justify-between">
+				<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 					<h4 class="text-sm font-medium text-red-800 dark:text-red-300">
 						{m.fail_details()}
 					</h4>
@@ -373,6 +373,7 @@
 							type="button"
 							variant="outline"
 							size="sm"
+							class="w-full sm:w-auto"
 							onclick={() => onOpenFailDialog(exec.id, exec.testCaseKey)}
 						>
 							{m.fail_add_detail()}
@@ -389,7 +390,7 @@
 				<!-- Issue Links for this execution -->
 				{#if issueLinks.length > 0 || canExecute}
 					<div class="border-t pt-3 mt-3">
-						<div class="flex items-center justify-between mb-2">
+						<div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 							<h5 class="text-xs font-medium text-red-800 dark:text-red-300">
 								{m.issue_link_title()}
 							</h5>
@@ -398,7 +399,7 @@
 									type="button"
 									variant="outline"
 									size="sm"
-									class="h-6 text-xs"
+									class="h-8 w-full text-xs sm:h-6 sm:w-auto"
 									onclick={() => (showIssueLinkForm = !showIssueLinkForm)}
 								>
 									{m.issue_link_add()}
@@ -411,19 +412,19 @@
 									e.preventDefault();
 									handleLinkIssue();
 								}}
-								class="flex gap-2 mb-2"
+								class="mb-2 flex flex-col gap-2 sm:flex-row"
 							>
 								<Input
 									placeholder={m.issue_link_url_placeholder()}
 									type="url"
 									bind:value={newIssueLinkUrl}
 									required
-									class="h-7 text-xs flex-1"
+									class="h-8 w-full text-xs sm:h-7 sm:flex-1"
 								/>
 								<Button
 									type="submit"
 									size="sm"
-									class="h-7 text-xs"
+									class="h-8 w-full text-xs sm:h-7 sm:w-auto"
 									disabled={linkingIssue || !newIssueLinkUrl.trim()}
 								>
 									{linkingIssue ? m.common_loading() : m.issue_link_add()}
@@ -431,8 +432,10 @@
 							</form>
 						{/if}
 						{#each issueLinks as link (link.id)}
-							<div class="flex items-center justify-between gap-2 text-xs py-1">
-								<div class="flex items-center gap-2 min-w-0">
+							<div
+								class="flex flex-col gap-2 py-1 text-xs sm:flex-row sm:items-center sm:justify-between"
+							>
+								<div class="flex min-w-0 items-center gap-2">
 									{#if link.issueKey}
 										<span class="font-mono font-medium">{link.issueKey}</span>
 									{/if}
@@ -470,8 +473,8 @@
 				{:else}
 					{#each failures as f (f.id)}
 						<div class="rounded border bg-white p-3 dark:bg-gray-900">
-							<div class="flex items-start justify-between">
-								<div class="space-y-1 text-sm">
+							<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+								<div class="min-w-0 space-y-1 text-sm">
 									{#if f.errorMessage}
 										<div>
 											<span class="font-medium">{m.fail_error()}:</span>
@@ -506,12 +509,12 @@
 									{/if}
 								</div>
 								{#if canExecute}
-									<div class="flex gap-1">
+									<div class="flex flex-col gap-1 sm:flex-row">
 										<Button
 											type="button"
 											variant="ghost"
 											size="sm"
-											class="h-7 px-2 text-xs"
+											class="h-8 w-full px-2 text-xs sm:h-7 sm:w-auto"
 											onclick={() => onOpenEditFailure(f)}
 										>
 											{m.common_edit()}
@@ -520,7 +523,7 @@
 											type="button"
 											variant="ghost"
 											size="sm"
-											class="text-destructive hover:text-destructive h-7 px-2 text-xs"
+											class="h-8 w-full px-2 text-xs text-destructive hover:text-destructive sm:h-7 sm:w-auto"
 											onclick={() => onOpenDeleteFailure(f.id)}
 										>
 											{m.common_delete()}

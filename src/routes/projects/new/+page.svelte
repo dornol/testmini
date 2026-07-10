@@ -14,12 +14,18 @@
 	const validators = zodValidators(createProjectSchema);
 	const { form, errors, enhance, submitting } = superForm(
 		// svelte-ignore state_referenced_locally
-		data.form, { validators });
+		data.form,
+		{ validators }
+	);
 </script>
 
 <div class="mx-auto max-w-lg">
 	<div class="mb-4">
-		<a href="/projects" class="text-muted-foreground hover:text-foreground text-sm">&larr; {m.common_back_to({ target: m.nav_projects() })}</a>
+		<a
+			href="/projects"
+			class="text-muted-foreground hover:text-foreground inline-flex min-h-8 items-center text-sm"
+			>&larr; {m.common_back_to({ target: m.nav_projects() })}</a
+		>
 	</div>
 
 	<Card.Root>
@@ -31,7 +37,12 @@
 			<form method="POST" use:enhance class="space-y-4">
 				<div class="space-y-2">
 					<Label for="name">{m.project_name_label()}</Label>
-					<Input id="name" name="name" bind:value={$form.name} placeholder={m.project_name_placeholder()} />
+					<Input
+						id="name"
+						name="name"
+						bind:value={$form.name}
+						placeholder={m.project_name_placeholder()}
+					/>
 					{#if $errors.name}
 						<p class="text-destructive text-sm">{$errors.name}</p>
 					{/if}
@@ -43,7 +54,9 @@
 						id="description"
 						name="description"
 						value={$form.description as string}
-						oninput={(e) => { $form.description = e.currentTarget.value; }}
+						oninput={(e) => {
+							$form.description = e.currentTarget.value;
+						}}
 						placeholder={m.project_desc_placeholder()}
 						rows={4}
 					/>
@@ -52,7 +65,7 @@
 					{/if}
 				</div>
 
-				<div class="flex gap-3 pt-2">
+				<div class="flex flex-col gap-2 pt-2 sm:flex-row sm:gap-3">
 					<Button type="submit" disabled={$submitting}>
 						{$submitting ? m.common_creating() : m.projects_create()}
 					</Button>

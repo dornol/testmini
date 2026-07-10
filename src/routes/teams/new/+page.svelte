@@ -14,12 +14,18 @@
 	const validators = zodValidators(createTeamSchema);
 	const { form, errors, enhance, submitting } = superForm(
 		// svelte-ignore state_referenced_locally
-		data.form, { validators });
+		data.form,
+		{ validators }
+	);
 </script>
 
 <div class="mx-auto max-w-lg">
 	<div class="mb-4">
-		<a href="/teams" class="text-muted-foreground hover:text-foreground text-sm">&larr; {m.common_back_to({ target: m.nav_teams() })}</a>
+		<a
+			href="/teams"
+			class="text-muted-foreground hover:text-foreground inline-flex min-h-8 items-center text-sm"
+			>&larr; {m.common_back_to({ target: m.nav_teams() })}</a
+		>
 	</div>
 
 	<Card.Root>
@@ -43,7 +49,9 @@
 						id="description"
 						name="description"
 						value={$form.description as string}
-						oninput={(e) => { $form.description = e.currentTarget.value; }}
+						oninput={(e) => {
+							$form.description = e.currentTarget.value;
+						}}
 						placeholder={m.team_desc()}
 						rows={4}
 					/>
@@ -52,7 +60,7 @@
 					{/if}
 				</div>
 
-				<div class="flex gap-3 pt-2">
+				<div class="flex flex-col gap-2 pt-2 sm:flex-row sm:gap-3">
 					<Button type="submit" disabled={$submitting}>
 						{$submitting ? m.common_creating() : m.team_create()}
 					</Button>

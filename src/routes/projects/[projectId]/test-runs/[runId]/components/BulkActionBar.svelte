@@ -35,17 +35,40 @@
 </script>
 
 {#if selectedPending.size > 0}
-	<div class="bg-muted flex items-center gap-3 rounded-lg p-3">
-		<span class="text-sm font-medium"
+	<div class="bg-muted flex flex-col gap-3 rounded-lg p-3 sm:flex-row sm:items-center">
+		<span class="text-sm font-medium break-words"
 			>{m.run_pending_selected({ count: selectedPending.size })}</span
 		>
 		<form method="POST" action="?/bulkPass" use:enhance={handleResult}>
 			{#each [...selectedPending] as id (id)}
 				<input type="hidden" name="executionIds" value={id} />
 			{/each}
-			<Button type="submit" size="sm" variant="outline" disabled={submitting}>
+			<Button
+				type="submit"
+				size="sm"
+				variant="outline"
+				disabled={submitting}
+				class="w-full sm:w-auto"
+			>
 				{#if submitting}
-					<svg class="mr-1 h-3 w-3 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+					<svg
+						class="mr-1 h-3 w-3 animate-spin"
+						xmlns="http://www.w3.org/2000/svg"
+						fill="none"
+						viewBox="0 0 24 24"
+						><circle
+							class="opacity-25"
+							cx="12"
+							cy="12"
+							r="10"
+							stroke="currentColor"
+							stroke-width="4"
+						></circle><path
+							class="opacity-75"
+							fill="currentColor"
+							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+						></path></svg
+					>
 				{/if}
 				{m.run_bulk_pass()}
 			</Button>

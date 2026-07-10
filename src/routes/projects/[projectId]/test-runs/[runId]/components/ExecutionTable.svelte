@@ -88,23 +88,23 @@
 
 	// Virtual scroll constants & state
 	const DESKTOP_ROW_HEIGHT = 44;
-	const MOBILE_ROW_HEIGHT = 68;
+	const COMPACT_ROW_HEIGHT = 68;
 	const STATUS_DROPDOWN_WIDTH = 120;
 	const STATUS_DROPDOWN_MARGIN = 8;
 	const OVERSCAN = 10;
 
-	let isMobile = $state(false);
+	let isCompact = $state(false);
 	let scrollContainer = $state<HTMLDivElement | undefined>(undefined);
 	let scrollTop = $state(0);
 	let viewportHeight = $state(0);
 	let expandedHeights = new SvelteMap<number, number>();
-	const rowHeight = $derived(isMobile ? MOBILE_ROW_HEIGHT : DESKTOP_ROW_HEIGHT);
+	const rowHeight = $derived(isCompact ? COMPACT_ROW_HEIGHT : DESKTOP_ROW_HEIGHT);
 
 	$effect(() => {
-		const mq = window.matchMedia('(max-width: 639px)');
-		isMobile = mq.matches;
+		const mq = window.matchMedia('(max-width: 767px)');
+		isCompact = mq.matches;
 		const update = () => {
-			isMobile = mq.matches;
+			isCompact = mq.matches;
 		};
 		mq.addEventListener('change', update);
 		return () => mq.removeEventListener('change', update);
@@ -316,7 +316,7 @@
 </script>
 
 <!-- Desktop executions table with virtual scroll -->
-<Card.Root class="hidden sm:flex">
+<Card.Root class="hidden md:flex">
 	<div
 		use:setupScrollContainer
 		class="overflow-y-auto"
@@ -408,9 +408,9 @@
 	</div>
 </Card.Root>
 
-<!-- Mobile execution list -->
-{#if isMobile}
-	<div class="space-y-2 sm:hidden">
+<!-- Compact execution list -->
+{#if isCompact}
+	<div class="space-y-2 md:hidden">
 		{#each executions as exec (exec.id)}
 			{@const failuresForExec = getFailures(exec.id)}
 			<Card.Root class="gap-2 rounded-lg py-3">

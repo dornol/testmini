@@ -153,7 +153,7 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 				.select({ name: tag.name, color: tag.color })
 				.from(testCaseTag)
 				.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
-				.where(eq(testCaseTag.testCaseId, tc.id));
+				.where(and(eq(testCaseTag.testCaseId, tc.id), eq(tag.projectId, projectId)));
 
 			return ok({ ...tc, tags });
 		}
@@ -405,7 +405,11 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 						.where(and(eq(testCase.id, newTc.id), eq(testCase.projectId, projectId)));
 
 					// Copy tags
-					const tags = await tx.select().from(testCaseTag).where(eq(testCaseTag.testCaseId, tcId));
+					const tags = await tx
+						.select({ tagId: testCaseTag.tagId })
+						.from(testCaseTag)
+						.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
+						.where(and(eq(testCaseTag.testCaseId, tcId), eq(tag.projectId, projectId)));
 					if (tags.length > 0) {
 						await tx
 							.insert(testCaseTag)

@@ -97,6 +97,7 @@ function mockTransactionReturning(returningRows: unknown[][], selectRows: unknow
 	};
 	const txSelectChain = {
 		from: vi.fn().mockReturnThis(),
+		innerJoin: vi.fn().mockReturnThis(),
 		where: vi.fn().mockReturnThis(),
 		then: (resolve: (v: unknown) => void) => Promise.resolve(selectRows).then(resolve)
 	};
@@ -227,7 +228,7 @@ describe('MCP test-case tools', () => {
 				...sampleTestCase,
 				latestVersion: sampleTestCaseVersion
 			});
-			mockSelectResult(mockDb, [{ name: 'smoke', color: '#ff0000' }]);
+			const selectChain = mockSelectResult(mockDb, [{ name: 'smoke', color: '#ff0000' }]);
 
 			const result = await client.callTool({ name: 'get-test-case', arguments: { id: 10 } });
 
@@ -236,6 +237,12 @@ describe('MCP test-case tools', () => {
 			expect(parsed.key).toBe('TC-0001');
 			expect(parsed.tags).toHaveLength(1);
 			expect(parsed.tags[0].name).toBe('smoke');
+			expect(selectChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_case_id', sampleTestCase.id],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return test case by key', async () => {
@@ -597,6 +604,69 @@ describe('MCP test-case tools', () => {
 	// ── clone-test-case ──────────────────────────────────
 
 	describe('clone-test-case', () => {
+		it('should clone only tags that belong to the project', async () => {
+			mockFindTestCaseWithLatestVersion.mockResolvedValue({
+				...sampleTestCase,
+				latestVersion: sampleTestCaseVersion
+			});
+			mockDb.query.project.findFirst.mockResolvedValue(sampleProject);
+			mockSelectResult(mockDb, [{ maxKey: 'TC-0003' }]);
+
+			const txTagsWhere = vi.fn().mockReturnThis();
+			mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+				let insertCallCount = 0;
+				const txSelectChain = {
+					from: vi.fn().mockReturnThis(),
+					innerJoin: vi.fn().mockReturnThis(),
+					where: txTagsWhere,
+					then: (resolve: (v: unknown) => void) => Promise.resolve([{ tagId: 7 }]).then(resolve)
+				};
+				const txInsertTagChain = {
+					values: vi.fn().mockReturnThis(),
+					onConflictDoNothing: vi.fn().mockReturnThis(),
+					then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+				};
+				const tx = {
+					insert: vi.fn().mockImplementation(() => {
+						insertCallCount++;
+						if (insertCallCount === 3) return txInsertTagChain;
+						return {
+							values: vi.fn().mockReturnThis(),
+							returning: vi.fn().mockReturnThis(),
+							then: (resolve: (v: unknown) => void) =>
+								Promise.resolve(
+									insertCallCount === 1
+										? [{ id: 15, projectId: 1, key: 'TC-0004', createdBy: 'user-1' }]
+										: [{ id: 150, testCaseId: 15, versionNo: 1, title: 'Login test (copy)' }]
+								).then(resolve)
+						};
+					}),
+					update: vi.fn().mockReturnValue({
+						set: vi.fn().mockReturnThis(),
+						where: vi.fn().mockReturnThis(),
+						then: (resolve: (v: unknown) => void) => Promise.resolve(undefined).then(resolve)
+					}),
+					select: vi.fn().mockReturnValue(txSelectChain)
+				};
+				return fn(tx);
+			});
+
+			const result = await client.callTool({
+				name: 'clone-test-case',
+				arguments: { id: 10 }
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.key).toBe('TC-0004');
+			expect(txTagsWhere).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_case_id', 10],
+					['project_id', PROJECT_ID]
+				])
+			);
+		});
+
 		it('should return error when the cloned test case insert returns no row', async () => {
 			mockFindTestCaseWithLatestVersion.mockResolvedValue({
 				...sampleTestCase,

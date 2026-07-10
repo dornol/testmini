@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { exploratorySession, sessionNote } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { notFound } from '$lib/server/errors';
 import { parseId } from '$lib/server/auth-utils';
@@ -26,7 +26,13 @@ export const DELETE = withProjectRole(
 
 		const [deleted] = await db
 			.delete(sessionNote)
-			.where(and(eq(sessionNote.id, noteId), eq(sessionNote.sessionId, sessionId)))
+			.where(
+				and(
+					eq(sessionNote.id, noteId),
+					eq(sessionNote.sessionId, sessionId),
+					sql`exists (select 1 from exploratory_session where id = ${sessionId} and project_id = ${projectId})`
+				)
+			)
 			.returning({ id: sessionNote.id });
 		if (!deleted) return notFound('Note not found');
 

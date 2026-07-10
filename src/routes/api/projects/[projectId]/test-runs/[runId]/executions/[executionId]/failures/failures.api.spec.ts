@@ -115,7 +115,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/f
 
 	describe('GET', () => {
 		it('should return failure details', async () => {
-			mockSelectResult(mockDb, [sampleFailure]);
+			const selectChain = mockSelectResult(mockDb, [sampleFailure]);
 
 			const event = createMockEvent({ params: PARAMS, user: testUser });
 			const response = await GET(event);
@@ -125,6 +125,13 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/f
 			expect(Array.isArray(body.failures)).toBe(true);
 			expect(body.failures).toHaveLength(1);
 			expect(body.failures[0].errorMessage).toBe('NullPointerException');
+			expect(selectChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_execution_id', 200],
+					['test_run_id', 50],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return 401 when unauthenticated', async () => {

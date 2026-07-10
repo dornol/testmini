@@ -58,8 +58,16 @@ export const GET = withProjectRole(
 				createdByName: user.name
 			})
 			.from(testFailureDetail)
+			.innerJoin(testExecution, eq(testFailureDetail.testExecutionId, testExecution.id))
+			.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
 			.leftJoin(user, eq(testFailureDetail.createdBy, user.id))
-			.where(eq(testFailureDetail.testExecutionId, executionId))
+			.where(
+				and(
+					eq(testFailureDetail.testExecutionId, executionId),
+					eq(testExecution.testRunId, runId),
+					eq(testRun.projectId, projectId)
+				)
+			)
 			.orderBy(testFailureDetail.createdAt);
 
 		return json({ failures });

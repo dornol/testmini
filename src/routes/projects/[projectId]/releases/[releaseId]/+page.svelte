@@ -205,12 +205,12 @@
 	<!-- Readiness Card -->
 	<Card.Root>
 		<Card.Content class="p-4">
-			<div class="flex items-center justify-between">
+			<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
 					<h3 class="font-semibold text-sm">{m.rel_readiness()}</h3>
-					<div class="mt-2 flex items-center gap-4">
+					<div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
 						<span
-							class={`rounded-md border px-3 py-1 text-lg font-bold ${verdictColor(data.verdict)}`}
+							class={`w-fit rounded-md border px-3 py-1 text-lg font-bold ${verdictColor(data.verdict)}`}
 						>
 							{verdictLabel(data.verdict)}
 						</span>
@@ -219,7 +219,9 @@
 						</span>
 					</div>
 				</div>
-				<div class="flex gap-4 text-center text-sm">
+				<div
+					class="grid w-full grid-cols-2 gap-3 text-center text-sm sm:w-auto sm:grid-cols-4 sm:gap-4"
+				>
 					<div>
 						<div class="text-lg font-bold text-green-600">{data.stats.pass}</div>
 						<div class="text-muted-foreground text-xs">{m.dashboard_pass()}</div>

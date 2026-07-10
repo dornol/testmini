@@ -15,6 +15,7 @@ test.describe.serial('Import / Export', () => {
 	const ts = Date.now();
 	const projectName = `Import Export Project ${ts}`;
 	let projectId: string;
+	let firstTestCaseId: string;
 
 	// -------------------------------------------------------------------------
 	// 1. Create a project
@@ -53,6 +54,9 @@ test.describe.serial('Import / Export', () => {
 		await page.waitForURL(new RegExp(`/projects/${projectId}/test-cases/\\d+$`), {
 			timeout: 15000
 		});
+		const match = page.url().match(/\/test-cases\/(\d+)$/);
+		expect(match).not.toBeNull();
+		firstTestCaseId = match![1];
 		await expect(page.locator('text=TC-0001').first()).toBeVisible({ timeout: 10000 });
 	});
 
@@ -122,5 +126,22 @@ test.describe.serial('Import / Export', () => {
 
 		// Clean up temp file
 		fs.unlinkSync(csvPath);
+	});
+
+	// -------------------------------------------------------------------------
+	// 5. Export selected CSV and verify only selected cases are included
+	// -------------------------------------------------------------------------
+
+	test('5. Export selected CSV and verify scope', async ({ page }) => {
+		const response = await page.request.get(
+			`/api/projects/${projectId}/test-cases/export?format=csv&ids=${firstTestCaseId}`
+		);
+		expect(response.ok()).toBeTruthy();
+		expect(response.headers()['content-type']).toContain('text/csv');
+
+		const content = await response.text();
+		expect(content).toContain(`Export Test Case ${ts}`);
+		expect(content).not.toContain(`Imported TC 1 ${ts}`);
+		expect(content).not.toContain(`Imported TC 2 ${ts}`);
 	});
 });

@@ -237,7 +237,53 @@
 							{m.tr_no_cases()}
 						</p>
 					{:else}
-						<Card.Root>
+						<div class="rounded-lg border sm:hidden">
+							<label
+								class="flex min-h-11 items-center gap-3 border-b px-3 py-2 text-sm font-medium"
+							>
+								<input
+									type="checkbox"
+									checked={allFilteredSelected}
+									onchange={toggleAll}
+									class="rounded"
+								/>
+								<span>{m.common_all()}</span>
+							</label>
+							<VirtualList items={filteredCases} rowHeight={112} height="420px">
+								{#snippet children({ item })}
+									{@const tc = item as (typeof filteredCases)[0]}
+									<label
+										class="hover:bg-muted/50 flex min-h-28 cursor-pointer gap-3 border-b px-3 py-3 last:border-b-0"
+									>
+										<input
+											type="checkbox"
+											checked={selectedIds.has(tc.id)}
+											onchange={() => toggleCase(tc.id)}
+											class="mt-1 rounded"
+											aria-label={tc.title}
+										/>
+										<div class="min-w-0 flex-1 space-y-2">
+											<div class="flex min-w-0 items-start justify-between gap-2">
+												<span class="text-muted-foreground shrink-0 font-mono text-xs"
+													>{tc.key}</span
+												>
+												<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
+											</div>
+											<p class="text-sm leading-snug font-medium break-words">{tc.title}</p>
+											{#if tc.tags.length > 0}
+												<div class="flex flex-wrap gap-1">
+													{#each tc.tags as tag (tag.id)}
+														<TagBadge name={tag.name} color={tag.color} />
+													{/each}
+												</div>
+											{/if}
+										</div>
+									</label>
+								{/snippet}
+							</VirtualList>
+						</div>
+
+						<Card.Root class="hidden sm:block">
 							<Table.Root class="table-fixed">
 								<Table.Header>
 									<Table.Row>

@@ -34,6 +34,7 @@
 	import TestCaseTableHeader from './TestCaseTableHeader.svelte';
 	import TestCaseGroupHeaderContent from './TestCaseGroupHeaderContent.svelte';
 	import TestCaseUncategorizedHeaderContent from './TestCaseUncategorizedHeaderContent.svelte';
+	import TestCaseAvatarStack from './TestCaseAvatarStack.svelte';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import { TAG_PALETTE } from '$lib/constants';
 
@@ -1064,27 +1065,6 @@
 			</p>
 		{/if}
 
-		{#snippet avatarStack(assignees: { userId: string; userName: string }[])}
-			{#if assignees && assignees.length > 0}
-				<div class="flex -space-x-1.5">
-					{#each assignees.slice(0, 3) as a (a.userId)}
-						<span
-							class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted border-2 border-background text-[9px] font-medium uppercase leading-none"
-							title={a.userName}>{a.userName.charAt(0)}</span
-						>
-					{/each}
-					{#if assignees.length > 3}
-						<span
-							class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted border-2 border-background text-[9px] font-medium leading-none text-muted-foreground"
-							>+{assignees.length - 3}</span
-						>
-					{/if}
-				</div>
-			{:else if canEdit}
-				<AddCircleButton size="sm" />
-			{/if}
-		{/snippet}
-
 		{#snippet tcRow(tc: TcItem)}
 			{#if canEdit}
 				<input
@@ -1347,11 +1327,11 @@
 								openAssigneePopover(tc.id, e);
 							}}
 						>
-							{@render avatarStack(tc.assignees)}
+							<TestCaseAvatarStack assignees={tc.assignees} {canEdit} />
 						</button>
 					{:else}
 						<div class="w-16 shrink-0 items-center hidden lg:flex">
-							{@render avatarStack(tc.assignees)}
+							<TestCaseAvatarStack assignees={tc.assignees} {canEdit} />
 						</div>
 					{/if}
 				{:else if colId === 'updatedBy'}

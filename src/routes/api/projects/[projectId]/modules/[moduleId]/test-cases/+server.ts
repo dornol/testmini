@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { moduleTestCase, module, testCase } from '$lib/server/db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { parseJsonBody } from '$lib/server/auth-utils';
 import { badRequest, notFound } from '$lib/server/errors';
@@ -76,7 +76,11 @@ export const DELETE = withProjectRole(
 		const deleted = await db
 			.delete(moduleTestCase)
 			.where(
-				and(eq(moduleTestCase.moduleId, moduleId), inArray(moduleTestCase.testCaseId, testCaseIds))
+				and(
+					eq(moduleTestCase.moduleId, moduleId),
+					inArray(moduleTestCase.testCaseId, testCaseIds),
+					sql`exists (select 1 from module where id = ${moduleId} and project_id = ${projectId})`
+				)
 			)
 			.returning({ id: moduleTestCase.id });
 

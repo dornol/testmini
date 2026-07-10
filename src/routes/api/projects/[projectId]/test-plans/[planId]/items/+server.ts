@@ -90,7 +90,8 @@ export const DELETE = withProjectRole(
 			.where(
 				and(
 					eq(testPlanTestCase.testPlanId, planId),
-					inArray(testPlanTestCase.testCaseId, testCaseIds)
+					inArray(testPlanTestCase.testCaseId, testCaseIds),
+					sql`exists (select 1 from test_plan where id = ${planId} and project_id = ${projectId})`
 				)
 			)
 			.returning({ id: testPlanTestCase.id });

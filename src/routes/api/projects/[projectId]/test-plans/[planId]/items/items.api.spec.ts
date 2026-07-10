@@ -28,7 +28,8 @@ vi.mock('drizzle-orm', () => ({
 	inArray: vi.fn((a: unknown, b: unknown) => ['inArray', a, b]),
 	sql: Object.assign(
 		(strings: TemplateStringsArray, ...values: unknown[]) => ({
-			as: () => ({ sql: strings, values })
+			as: () => ({ sql: strings, values }),
+			values
 		}),
 		{ raw: (s: string) => s }
 	)
@@ -280,6 +281,13 @@ describe('/api/projects/[projectId]/test-plans/[planId]/items', () => {
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
 			expect(data.removed).toBe(1);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_plan_id', 1],
+					['inArray', 'test_case_id', [10, 11]],
+					expect.objectContaining({ values: [1, 1] })
+				])
+			);
 			expect(deleteChain.returning).toHaveBeenCalledWith({ id: 'id' });
 		});
 

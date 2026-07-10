@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import { badRequest } from '$lib/server/errors';
 import { db } from '$lib/server/db';
 import { testSuite, testSuiteItem, testCase } from '$lib/server/db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { validatePositiveIntegerList, validateRequestBody } from '$lib/server/id-list-validation';
@@ -88,7 +88,11 @@ export const DELETE = withProjectRole(
 		const deleted = await db
 			.delete(testSuiteItem)
 			.where(
-				and(eq(testSuiteItem.suiteId, suiteId), inArray(testSuiteItem.testCaseId, testCaseIds))
+				and(
+					eq(testSuiteItem.suiteId, suiteId),
+					inArray(testSuiteItem.testCaseId, testCaseIds),
+					sql`exists (select 1 from test_suite where id = ${suiteId} and project_id = ${projectId})`
+				)
 			)
 			.returning({ id: testSuiteItem.id });
 

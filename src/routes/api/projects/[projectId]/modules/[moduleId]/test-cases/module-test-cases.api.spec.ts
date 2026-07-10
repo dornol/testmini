@@ -19,7 +19,8 @@ vi.mock('$lib/server/db/schema', () => ({
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args),
-	inArray: vi.fn((a: unknown, b: unknown) => [a, b])
+	inArray: vi.fn((a: unknown, b: unknown) => [a, b]),
+	sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }))
 }));
 vi.mock('$lib/server/auth-utils', async () => {
 	const actual =
@@ -288,6 +289,13 @@ describe('/api/projects/[projectId]/modules/[moduleId]/test-cases', () => {
 			expect(response.status).toBe(200);
 			const body = await response.json();
 			expect(body.removed).toBe(1);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['module_id', 5],
+					['test_case_id', [1, 2]],
+					expect.objectContaining({ values: [5, 1] })
+				])
+			);
 			expect(deleteChain.returning).toHaveBeenCalledWith({ id: 'id' });
 		});
 

@@ -10,7 +10,9 @@ vi.mock('$lib/server/db/schema', () => ({
 	user: {
 		id: 'id',
 		name: 'name',
-		email: 'email'
+		email: 'email',
+		approved: 'approved',
+		banned: 'banned'
 	},
 	projectMember: {
 		projectId: 'project_id',
@@ -123,6 +125,21 @@ describe('/api/users/search', () => {
 			expect(response.status).toBe(200);
 			expect(drizzle.ilike).toHaveBeenCalledWith('name', '%Alice%');
 			expect(drizzle.ilike).toHaveBeenCalledWith('email', '%Alice%');
+		});
+
+		it('should only return approved users that are not banned', async () => {
+			mockSelectResult(mockDb, []);
+
+			const event = createMockEvent({
+				method: 'GET',
+				user: testUser,
+				searchParams: { q: 'Test', excludeProjectId: '42' }
+			});
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(drizzle.eq).toHaveBeenCalledWith('approved', true);
+			expect(drizzle.eq).toHaveBeenCalledWith('banned', false);
 		});
 
 		it('should return 400 for invalid offset', async () => {

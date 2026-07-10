@@ -67,7 +67,7 @@ export const GET = withAuth(async ({ url, user: currentUser }) => {
 
 	const searchCondition = or(ilike(user.name, `%${q}%`), ilike(user.email, `%${q}%`));
 
-	const conditions = [searchCondition];
+	const conditions = [searchCondition, eq(user.approved, true), eq(user.banned, false)];
 
 	if (excludeProjectId !== null) {
 		await requireProjectRole(currentUser, excludeProjectId, ['PROJECT_ADMIN']);

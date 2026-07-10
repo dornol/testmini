@@ -32,7 +32,9 @@
 		if (file) {
 			removeLogo = false;
 			const reader = new FileReader();
-			reader.onload = () => { logoPreview = reader.result as string; };
+			reader.onload = () => {
+				logoPreview = reader.result as string;
+			};
 			reader.readAsDataURL(file);
 		}
 	}
@@ -43,7 +45,9 @@
 		if (file) {
 			removeFavicon = false;
 			const reader = new FileReader();
-			reader.onload = () => { faviconPreview = reader.result as string; };
+			reader.onload = () => {
+				faviconPreview = reader.result as string;
+			};
 			reader.readAsDataURL(file);
 		}
 	}
@@ -92,7 +96,7 @@
 					name="appName"
 					bind:value={appName}
 					placeholder={m.admin_branding_app_name_placeholder()}
-					class="max-w-sm"
+					class="w-full sm:max-w-sm"
 				/>
 			</div>
 
@@ -100,7 +104,7 @@
 			<div class="space-y-2">
 				<Label>{m.admin_branding_logo()}</Label>
 				<p class="text-muted-foreground text-xs">{m.admin_branding_logo_desc()}</p>
-				<div class="flex items-center gap-4">
+				<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
 					<div class="bg-muted flex h-16 w-16 items-center justify-center rounded-lg border">
 						{#if logoPreview}
 							<img src={logoPreview} alt="Logo preview" class="h-10 w-10 object-contain" />
@@ -110,7 +114,7 @@
 							<img src={logo} alt="Default logo" class="h-10 w-10 object-contain opacity-40" />
 						{/if}
 					</div>
-					<div class="flex gap-2">
+					<div class="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:w-auto">
 						<label class="cursor-pointer">
 							<input
 								type="file"
@@ -119,15 +123,29 @@
 								class="hidden"
 								onchange={handleLogoChange}
 							/>
-							<Button variant="outline" size="sm" type="button" onclick={(e) => {
-								const input = (e.currentTarget as HTMLElement).parentElement?.querySelector('input');
-								input?.click();
-							}}>
+							<Button
+								variant="outline"
+								size="sm"
+								type="button"
+								class="w-full sm:w-auto"
+								onclick={(e) => {
+									const input = (e.currentTarget as HTMLElement).parentElement?.querySelector(
+										'input'
+									);
+									input?.click();
+								}}
+							>
 								{m.admin_branding_upload()}
 							</Button>
 						</label>
 						{#if (data.config?.logoUrl && !removeLogo) || logoPreview}
-							<Button variant="ghost" size="sm" type="button" onclick={clearLogo}>
+							<Button
+								variant="ghost"
+								size="sm"
+								type="button"
+								class="w-full sm:w-auto"
+								onclick={clearLogo}
+							>
 								{m.admin_branding_remove()}
 							</Button>
 						{/if}
@@ -139,14 +157,25 @@
 			<div class="space-y-2">
 				<Label>{m.admin_branding_favicon()}</Label>
 				<p class="text-muted-foreground text-xs">{m.admin_branding_favicon_desc()}</p>
-				<div class="flex items-center gap-4">
+				<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
 					<div class="bg-muted flex h-16 w-16 items-center justify-center rounded-lg border">
 						{#if faviconPreview}
 							<img src={faviconPreview} alt="Favicon preview" class="h-8 w-8 object-contain" />
 						{:else if !removeFavicon && data.config?.faviconUrl}
-							<img src={data.config.faviconUrl} alt="Current favicon" class="h-8 w-8 object-contain" />
+							<img
+								src={data.config.faviconUrl}
+								alt="Current favicon"
+								class="h-8 w-8 object-contain"
+							/>
 						{:else}
-							<svg xmlns="http://www.w3.org/2000/svg" class="text-muted-foreground/40 h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="text-muted-foreground/40 h-8 w-8"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.5"
+							>
 								<rect x="3" y="3" width="18" height="18" rx="3" />
 								<path d="M3 9h18" />
 								<circle cx="7" cy="6" r="1" fill="currentColor" />
@@ -154,7 +183,7 @@
 							</svg>
 						{/if}
 					</div>
-					<div class="flex gap-2">
+					<div class="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:w-auto">
 						<label class="cursor-pointer">
 							<input
 								type="file"
@@ -163,15 +192,29 @@
 								class="hidden"
 								onchange={handleFaviconChange}
 							/>
-							<Button variant="outline" size="sm" type="button" onclick={(e) => {
-								const input = (e.currentTarget as HTMLElement).parentElement?.querySelector('input');
-								input?.click();
-							}}>
+							<Button
+								variant="outline"
+								size="sm"
+								type="button"
+								class="w-full sm:w-auto"
+								onclick={(e) => {
+									const input = (e.currentTarget as HTMLElement).parentElement?.querySelector(
+										'input'
+									);
+									input?.click();
+								}}
+							>
 								{m.admin_branding_upload()}
 							</Button>
 						</label>
 						{#if (data.config?.faviconUrl && !removeFavicon) || faviconPreview}
-							<Button variant="ghost" size="sm" type="button" onclick={clearFavicon}>
+							<Button
+								variant="ghost"
+								size="sm"
+								type="button"
+								class="w-full sm:w-auto"
+								onclick={clearFavicon}
+							>
 								{m.admin_branding_remove()}
 							</Button>
 						{/if}
@@ -182,7 +225,7 @@
 			<input type="hidden" name="removeLogo" value={removeLogo.toString()} />
 			<input type="hidden" name="removeFavicon" value={removeFavicon.toString()} />
 
-			<Button type="submit" disabled={saving}>
+			<Button type="submit" class="w-full sm:w-auto" disabled={saving}>
 				{saving ? m.common_saving() : m.common_save_changes()}
 			</Button>
 		</form>

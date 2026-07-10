@@ -96,11 +96,12 @@
 			bind:value={searchInput}
 			aria-label={m.admin_search_placeholder()}
 		/>
-		<div class="flex flex-wrap gap-2">
-			<Button type="submit" variant="outline">{m.common_search()}</Button>
+		<div class="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap">
+			<Button type="submit" variant="outline" class="w-full sm:w-auto">{m.common_search()}</Button>
 			<Button
 				variant={data.pendingOnly ? 'default' : 'outline'}
 				href={data.pendingOnly ? '/admin/users' : '/admin/users?pending=true'}
+				class="w-full sm:w-auto"
 			>
 				{m.admin_show_pending()}
 			</Button>
@@ -133,14 +134,14 @@
 						{new Date(u.createdAt).toLocaleDateString()}
 					</span>
 				</div>
-				<div class="flex flex-wrap gap-1">
+				<div class="grid grid-cols-2 gap-1 min-[420px]:flex min-[420px]:flex-wrap">
 					{#if u.id !== currentUserId?.id}
 						{#if !u.approved}
 							<Button
 								type="button"
 								variant="ghost"
 								size="sm"
-								class="h-7 px-2 text-xs text-green-600"
+								class="h-7 w-full px-2 text-xs text-green-600 min-[420px]:w-auto"
 								onclick={() => {
 									approveTarget = { id: u.id, name: u.name };
 									approveDialogOpen = true;
@@ -152,7 +153,7 @@
 								type="button"
 								variant="ghost"
 								size="sm"
-								class="h-7 px-2 text-xs text-destructive"
+								class="h-7 w-full px-2 text-xs text-destructive min-[420px]:w-auto"
 								onclick={() => {
 									rejectTarget = { id: u.id, name: u.name };
 									rejectDialogOpen = true;
@@ -164,7 +165,12 @@
 							<form method="POST" action="?/updateRole" use:enhance={handleResult}>
 								<input type="hidden" name="userId" value={u.id} />
 								<input type="hidden" name="role" value="admin" />
-								<Button type="submit" variant="ghost" size="sm" class="h-7 px-2 text-xs">
+								<Button
+									type="submit"
+									variant="ghost"
+									size="sm"
+									class="h-7 w-full px-2 text-xs min-[420px]:w-auto"
+								>
 									{m.admin_make_admin()}
 								</Button>
 							</form>
@@ -172,7 +178,12 @@
 							<form method="POST" action="?/updateRole" use:enhance={handleResult}>
 								<input type="hidden" name="userId" value={u.id} />
 								<input type="hidden" name="role" value="user" />
-								<Button type="submit" variant="ghost" size="sm" class="h-7 px-2 text-xs">
+								<Button
+									type="submit"
+									variant="ghost"
+									size="sm"
+									class="h-7 w-full px-2 text-xs min-[420px]:w-auto"
+								>
 									{m.admin_remove_admin()}
 								</Button>
 							</form>
@@ -184,7 +195,7 @@
 									type="submit"
 									variant="ghost"
 									size="sm"
-									class="h-7 px-2 text-xs text-green-600"
+									class="h-7 w-full px-2 text-xs text-green-600 min-[420px]:w-auto"
 								>
 									{m.admin_unban()}
 								</Button>
@@ -194,7 +205,7 @@
 								type="button"
 								variant="ghost"
 								size="sm"
-								class="h-7 px-2 text-xs text-destructive"
+								class="h-7 w-full px-2 text-xs text-destructive min-[420px]:w-auto"
 								onclick={() => openBanDialog(u.id, u.name)}
 							>
 								{m.admin_ban()}

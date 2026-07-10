@@ -106,10 +106,12 @@
 				aria-label={m.audit_logs_filter_to()}
 			/>
 		</div>
-		<div class="mt-3 flex gap-2">
-			<Button size="sm" onclick={applyFilters}>{m.common_search()}</Button>
+		<div class="mt-3 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex">
+			<Button size="sm" class="w-full sm:w-auto" onclick={applyFilters}>{m.common_search()}</Button>
 			{#if hasFilters}
-				<Button size="sm" variant="outline" onclick={resetFilters}>{m.common_all()}</Button>
+				<Button size="sm" variant="outline" class="w-full sm:w-auto" onclick={resetFilters}>
+					{m.common_all()}
+				</Button>
 			{/if}
 		</div>
 	</Card.Root>
@@ -238,11 +240,11 @@
 
 	<!-- Pagination -->
 	{#if data.pagination.totalPages > 1}
-		<div class="flex items-center justify-between">
+		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<p class="text-muted-foreground text-sm">
 				{m.audit_logs_total({ count: data.pagination.total })}
 			</p>
-			<div class="flex gap-2">
+			<div class="flex flex-wrap gap-2">
 				{#if data.pagination.page > 1}
 					<Button variant="outline" size="sm" href={buildPageUrl(data.pagination.page - 1)}>
 						{m.common_previous()}

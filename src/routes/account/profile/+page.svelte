@@ -191,9 +191,11 @@
 			<form method="POST" action="?/updateName" use:enhance={handleNameResult} class="space-y-4">
 				<div class="space-y-2">
 					<Label for="displayName">{m.profile_display_name()}</Label>
-					<div class="flex gap-2">
+					<div class="flex flex-col gap-2 sm:flex-row">
 						<Input id="displayName" name="name" bind:value={displayName} class="flex-1" />
-						<Button type="submit" size="sm">{m.common_save_changes()}</Button>
+						<Button type="submit" size="sm" class="w-full sm:w-auto">
+							{m.common_save_changes()}
+						</Button>
 					</div>
 				</div>
 			</form>
@@ -249,6 +251,7 @@
 					</div>
 					<Button
 						type="submit"
+						class="w-full sm:w-auto"
 						disabled={!currentPassword || !newPassword || !confirmPassword || pwSaving}
 					>
 						{pwSaving ? m.common_saving() : m.profile_change_password()}
@@ -310,7 +313,7 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-			<Button onclick={savePreferences} disabled={prefSaving}>
+			<Button onclick={savePreferences} class="w-full sm:w-auto" disabled={prefSaving}>
 				{prefSaving ? m.common_saving() : m.common_save_changes()}
 			</Button>
 		</Card.Content>
@@ -350,7 +353,7 @@
 				</div>
 			{/if}
 
-			<Button onclick={saveNotificationPreferences} disabled={notifSaving}>
+			<Button onclick={saveNotificationPreferences} class="w-full sm:w-auto" disabled={notifSaving}>
 				{notifSaving ? m.common_saving() : m.common_save_changes()}
 			</Button>
 		</Card.Content>
@@ -365,7 +368,9 @@
 			{#if data.linkedAccounts.length > 0}
 				<div class="space-y-3">
 					{#each data.linkedAccounts as acct (acct.id)}
-						<div class="flex items-center justify-between gap-3 rounded-lg border p-3">
+						<div
+							class="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+						>
 							<div class="flex min-w-0 items-center gap-3">
 								{#if acct.providerIconUrl && !failedIconUrls.has(acct.providerIconUrl)}
 									<img
@@ -390,7 +395,7 @@
 							</div>
 							<form method="POST" action="?/unlink" use:enhance={handleUnlinkResult}>
 								<input type="hidden" name="accountId" value={acct.id} />
-								<Button type="submit" variant="outline" size="sm">
+								<Button type="submit" variant="outline" size="sm" class="w-full sm:w-auto">
 									{m.oidc_unlink_account()}
 								</Button>
 							</form>

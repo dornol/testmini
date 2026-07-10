@@ -245,7 +245,7 @@
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			transition:fly={{ y: -8, duration: 150 }}
-			class="border-border bg-popover text-popover-foreground fixed left-2 right-2 top-12 z-50 max-h-[calc(100dvh-3.5rem)] rounded-md border shadow-lg sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-1 sm:w-96"
+			class="border-border bg-popover text-popover-foreground fixed left-2 right-2 top-12 z-50 flex max-h-[calc(100dvh-3.5rem)] flex-col overflow-hidden rounded-md border shadow-lg sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-1 sm:w-96"
 			role="dialog"
 			aria-modal="true"
 			aria-label="Notifications panel"
@@ -253,13 +253,13 @@
 			onkeydown={handleKeydown}
 		>
 			<!-- Header -->
-			<div class="flex items-center justify-between border-b border-border px-4 py-3">
-				<h2 class="text-sm font-semibold">Notifications</h2>
+			<div class="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3">
+				<h2 class="min-w-0 break-words text-sm font-semibold">Notifications</h2>
 				{#if unreadInList > 0}
 					<Button
 						variant="ghost"
 						size="sm"
-						class="h-auto px-2 py-0.5 text-xs"
+						class="h-auto shrink-0 px-2 py-0.5 text-xs"
 						onclick={markAllAsRead}
 					>
 						Mark all as read
@@ -268,7 +268,7 @@
 			</div>
 
 			<!-- Notification list -->
-			<div class="max-h-[400px] overflow-y-auto">
+			<div class="min-h-0 flex-1 overflow-y-auto">
 				{#if loading && notifications.length === 0}
 					<div class="flex items-center justify-center py-8 text-sm text-muted-foreground">
 						Loading…
@@ -308,13 +308,17 @@
 
 							<div class="min-w-0 flex-1">
 								<div class="flex items-start justify-between gap-2">
-									<p class="line-clamp-2 text-sm font-medium">{n.title}</p>
+									<p class="min-w-0 break-words text-sm font-medium [overflow-wrap:anywhere]">
+										{n.title}
+									</p>
 									{#if !n.isRead}
 										<span class="bg-primary mt-1 h-2 w-2 shrink-0 rounded-full" aria-hidden="true"
 										></span>
 									{/if}
 								</div>
-								<p class="line-clamp-3 text-xs text-muted-foreground">{n.message}</p>
+								<p class="break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
+									{n.message}
+								</p>
 								<p class="mt-1 text-[11px] text-muted-foreground/70">
 									{formatRelativeTime(n.createdAt)}
 								</p>

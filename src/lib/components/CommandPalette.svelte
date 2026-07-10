@@ -122,7 +122,7 @@
 		onclick={closePalette}
 	></button>
 	<div
-		class="fixed left-1/2 top-16 z-[101] w-[min(640px,calc(100vw-24px))] -translate-x-1/2 overflow-hidden rounded-lg border bg-popover shadow-xl"
+		class="fixed left-1/2 top-3 z-[101] flex max-h-[calc(100dvh-1.5rem)] w-[min(640px,calc(100vw-24px))] -translate-x-1/2 flex-col overflow-hidden rounded-lg border bg-popover shadow-xl sm:top-16 sm:max-h-[calc(100dvh-5rem)]"
 		role="dialog"
 		aria-modal="true"
 		aria-label={m.command_palette_title()}
@@ -133,7 +133,7 @@
 			placeholder={m.command_palette_placeholder()}
 			bind:value={query}
 		/>
-		<div class="max-h-[420px] overflow-y-auto p-1">
+		<div class="min-h-0 flex-1 overflow-y-auto p-1">
 			{#if !canSearch}
 				<div class="px-3 py-8 text-center text-sm text-muted-foreground">
 					{m.command_palette_project_required()}
@@ -154,21 +154,21 @@
 				{#each results as result, i (`${result.type}-${result.id}`)}
 					<button
 						type="button"
-						class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-accent {i ===
+						class="flex w-full items-start justify-between gap-3 rounded-md px-3 py-2 text-left text-sm hover:bg-accent {i ===
 						selectedIndex
 							? 'bg-accent'
 							: ''}"
 						onmouseenter={() => (selectedIndex = i)}
 						onclick={() => selectResult(result)}
 					>
-						<span class="min-w-0">
+						<span class="min-w-0 flex-1">
 							<span class="block truncate font-medium">{result.title}</span>
 							{#if result.subtitle}
 								<span class="block truncate text-xs text-muted-foreground">{result.subtitle}</span>
 							{/if}
 						</span>
 						<span
-							class="ml-3 shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
+							class="max-w-[40%] shrink-0 break-words rounded bg-muted px-1.5 py-0.5 text-right text-[11px] leading-tight text-muted-foreground"
 						>
 							{resultTypeLabel(result.type)}
 						</span>

@@ -49,6 +49,10 @@
 	});
 	let notifSaving = $state(false);
 
+	function hideFailedImage(event: Event) {
+		(event.currentTarget as HTMLImageElement).hidden = true;
+	}
+
 	async function savePreferences() {
 		prefSaving = true;
 		try {
@@ -199,7 +203,9 @@
 
 			<div class="space-y-2">
 				<Label>{m.profile_member_since()}</Label>
-				<p class="text-muted-foreground text-sm">{new Date(data.userData.createdAt).toLocaleDateString()}</p>
+				<p class="text-muted-foreground text-sm">
+					{new Date(data.userData.createdAt).toLocaleDateString()}
+				</p>
 			</div>
 		</Card.Content>
 	</Card.Root>
@@ -211,10 +217,20 @@
 				<Card.Title>{m.profile_change_password()}</Card.Title>
 			</Card.Header>
 			<Card.Content>
-				<form method="POST" action="?/changePassword" use:enhance={handlePasswordResult} class="space-y-4">
+				<form
+					method="POST"
+					action="?/changePassword"
+					use:enhance={handlePasswordResult}
+					class="space-y-4"
+				>
 					<div class="space-y-2">
 						<Label for="currentPassword">{m.profile_current_password()}</Label>
-						<Input id="currentPassword" name="currentPassword" type="password" bind:value={currentPassword} />
+						<Input
+							id="currentPassword"
+							name="currentPassword"
+							type="password"
+							bind:value={currentPassword}
+						/>
 					</div>
 					<div class="space-y-2">
 						<Label for="newPassword">{m.profile_new_password()}</Label>
@@ -222,9 +238,17 @@
 					</div>
 					<div class="space-y-2">
 						<Label for="confirmPassword">{m.profile_confirm_password()}</Label>
-						<Input id="confirmPassword" name="confirmPassword" type="password" bind:value={confirmPassword} />
+						<Input
+							id="confirmPassword"
+							name="confirmPassword"
+							type="password"
+							bind:value={confirmPassword}
+						/>
 					</div>
-					<Button type="submit" disabled={!currentPassword || !newPassword || !confirmPassword || pwSaving}>
+					<Button
+						type="submit"
+						disabled={!currentPassword || !newPassword || !confirmPassword || pwSaving}
+					>
 						{pwSaving ? m.common_saving() : m.profile_change_password()}
 					</Button>
 				</form>
@@ -244,10 +268,16 @@
 				<Select.Root
 					type="single"
 					value={prefLocale}
-					onValueChange={(v: string) => { prefLocale = v; }}
+					onValueChange={(v: string) => {
+						prefLocale = v;
+					}}
 				>
 					<Select.Trigger class="w-full">
-						{prefLocale === 'ko' ? '한국어' : prefLocale === 'en' ? 'English' : m.profile_theme_system()}
+						{prefLocale === 'ko'
+							? '한국어'
+							: prefLocale === 'en'
+								? 'English'
+								: m.profile_theme_system()}
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="en" label="English" />
@@ -260,10 +290,16 @@
 				<Select.Root
 					type="single"
 					value={prefTheme}
-					onValueChange={(v: string) => { prefTheme = v; }}
+					onValueChange={(v: string) => {
+						prefTheme = v;
+					}}
 				>
 					<Select.Trigger class="w-full">
-						{prefTheme === 'light' ? m.profile_theme_light() : prefTheme === 'dark' ? m.profile_theme_dark() : m.profile_theme_system()}
+						{prefTheme === 'light'
+							? m.profile_theme_light()
+							: prefTheme === 'dark'
+								? m.profile_theme_dark()
+								: m.profile_theme_system()}
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="system" label={m.profile_theme_system()} />
@@ -289,7 +325,9 @@
 				<Checkbox
 					id="notif-enabled"
 					checked={notifEnabled}
-					onCheckedChange={(v) => { notifEnabled = !!v; }}
+					onCheckedChange={(v) => {
+						notifEnabled = !!v;
+					}}
 				/>
 				<Label for="notif-enabled">{m.notification_enable_in_app()}</Label>
 			</div>
@@ -325,18 +363,27 @@
 			{#if data.linkedAccounts.length > 0}
 				<div class="space-y-3">
 					{#each data.linkedAccounts as acct (acct.id)}
-						<div class="flex items-center justify-between rounded-lg border p-3">
-							<div class="flex items-center gap-3">
+						<div class="flex items-center justify-between gap-3 rounded-lg border p-3">
+							<div class="flex min-w-0 items-center gap-3">
 								{#if acct.providerIconUrl}
-									<img src={acct.providerIconUrl} alt="" class="h-6 w-6" />
+									<img
+										src={acct.providerIconUrl}
+										alt=""
+										class="h-6 w-6 shrink-0"
+										onerror={hideFailedImage}
+									/>
 								{:else}
-									<div class="bg-muted flex h-6 w-6 items-center justify-center rounded text-xs font-bold">
+									<div
+										class="bg-muted flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs font-bold"
+									>
 										{acct.providerName.charAt(0).toUpperCase()}
 									</div>
 								{/if}
-								<div>
-									<p class="text-sm font-medium">{acct.providerName}</p>
-									<p class="text-muted-foreground text-xs">{acct.email || acct.externalId}</p>
+								<div class="min-w-0">
+									<p class="truncate text-sm font-medium">{acct.providerName}</p>
+									<p class="text-muted-foreground truncate text-xs">
+										{acct.email || acct.externalId}
+									</p>
 								</div>
 							</div>
 							<form method="POST" action="?/unlink" use:enhance={handleUnlinkResult}>
@@ -356,11 +403,21 @@
 				<div class="space-y-2 pt-2">
 					<p class="text-sm font-medium">{m.oidc_link_account()}</p>
 					{#each data.availableProviders as provider (provider.slug)}
-						<Button variant="outline" class="w-full" href="/auth/oidc/{provider.slug}?link=true" data-sveltekit-reload>
+						<Button
+							variant="outline"
+							class="w-full"
+							href="/auth/oidc/{provider.slug}?link=true"
+							data-sveltekit-reload
+						>
 							{#if provider.iconUrl}
-								<img src={provider.iconUrl} alt="" class="mr-2 h-4 w-4" />
+								<img
+									src={provider.iconUrl}
+									alt=""
+									class="h-4 w-4 shrink-0"
+									onerror={hideFailedImage}
+								/>
 							{/if}
-							{m.oidc_login_with({ name: provider.name })}
+							<span class="min-w-0 truncate">{m.oidc_login_with({ name: provider.name })}</span>
 						</Button>
 					{/each}
 				</div>

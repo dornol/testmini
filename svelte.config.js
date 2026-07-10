@@ -11,7 +11,7 @@ const config = {
 				'default-src': ['self'],
 				'script-src': dev ? ['self', 'unsafe-inline'] : ['self'],
 				'style-src': ['self', 'unsafe-inline'],
-				'img-src': ['self', 'data:', 'blob:'],
+				'img-src': ['self', 'data:', 'blob:', 'https:'],
 				'font-src': ['self'],
 				'connect-src': dev
 					? ['self', 'ws://localhost:5173', 'ws://127.0.0.1:5173', 'ws://home-macmini:5173']

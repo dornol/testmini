@@ -8,6 +8,10 @@
 
 	let { data } = $props();
 
+	function hideFailedImage(event: Event) {
+		(event.currentTarget as HTMLImageElement).hidden = true;
+	}
+
 	function handleResult() {
 		return async ({
 			result,
@@ -35,18 +39,27 @@
 		{#if data.linkedAccounts.length > 0}
 			<div class="space-y-3">
 				{#each data.linkedAccounts as account (account.id)}
-					<div class="flex items-center justify-between rounded-lg border p-3">
-						<div class="flex items-center gap-3">
+					<div class="flex items-center justify-between gap-3 rounded-lg border p-3">
+						<div class="flex min-w-0 items-center gap-3">
 							{#if account.providerIconUrl}
-								<img src={account.providerIconUrl} alt="" class="h-6 w-6" />
+								<img
+									src={account.providerIconUrl}
+									alt=""
+									class="h-6 w-6 shrink-0"
+									onerror={hideFailedImage}
+								/>
 							{:else}
-								<div class="bg-muted flex h-6 w-6 items-center justify-center rounded text-xs font-bold">
+								<div
+									class="bg-muted flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs font-bold"
+								>
 									{account.providerName.charAt(0).toUpperCase()}
 								</div>
 							{/if}
-							<div>
-								<p class="text-sm font-medium">{account.providerName}</p>
-								<p class="text-muted-foreground text-xs">{account.email || account.externalId}</p>
+							<div class="min-w-0">
+								<p class="truncate text-sm font-medium">{account.providerName}</p>
+								<p class="text-muted-foreground truncate text-xs">
+									{account.email || account.externalId}
+								</p>
 							</div>
 						</div>
 						<form method="POST" action="?/unlink" use:enhance={handleResult}>
@@ -66,11 +79,21 @@
 			<div class="space-y-2 pt-2">
 				<p class="text-sm font-medium">{m.oidc_link_account()}</p>
 				{#each data.availableProviders as provider (provider.slug)}
-					<Button variant="outline" class="w-full" href="/auth/oidc/{provider.slug}?link=true" data-sveltekit-reload>
+					<Button
+						variant="outline"
+						class="w-full"
+						href="/auth/oidc/{provider.slug}?link=true"
+						data-sveltekit-reload
+					>
 						{#if provider.iconUrl}
-							<img src={provider.iconUrl} alt="" class="mr-2 h-4 w-4" />
+							<img
+								src={provider.iconUrl}
+								alt=""
+								class="h-4 w-4 shrink-0"
+								onerror={hideFailedImage}
+							/>
 						{/if}
-						{m.oidc_login_with({ name: provider.name })}
+						<span class="min-w-0 truncate">{m.oidc_login_with({ name: provider.name })}</span>
 					</Button>
 				{/each}
 			</div>

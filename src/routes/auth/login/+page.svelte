@@ -15,6 +15,10 @@
 	let password = $state('');
 	let loading = $state(false);
 
+	function hideFailedImage(event: Event) {
+		(event.currentTarget as HTMLImageElement).hidden = true;
+	}
+
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
 		if (!email || !password) return;
@@ -82,9 +86,14 @@
 						data-sveltekit-reload
 					>
 						{#if provider.iconUrl}
-							<img src={provider.iconUrl} alt="" class="mr-2 h-4 w-4" />
+							<img
+								src={provider.iconUrl}
+								alt=""
+								class="h-4 w-4 shrink-0"
+								onerror={hideFailedImage}
+							/>
 						{/if}
-						{m.oidc_login_with({ name: provider.name })}
+						<span class="min-w-0 truncate">{m.oidc_login_with({ name: provider.name })}</span>
 					</Button>
 				{/each}
 			</div>

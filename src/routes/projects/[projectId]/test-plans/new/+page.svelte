@@ -12,6 +12,8 @@
 	import * as m from '$lib/paraglide/messages.js';
 	import { apiPost } from '$lib/api-client';
 
+	type ProjectPriority = { name: string; color: string };
+
 	let { data } = $props();
 
 	let name = $state('');
@@ -62,7 +64,10 @@
 	}
 
 	function getPriorityColor(pName: string): string {
-		return data.projectPriorities.find((p) => p.name === pName)?.color ?? '#6b7280';
+		return (
+			(data.projectPriorities as ProjectPriority[]).find((p) => p.name === pName)?.color ??
+			'#6b7280'
+		);
 	}
 
 	async function handleCreate() {

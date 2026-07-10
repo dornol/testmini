@@ -38,6 +38,8 @@
 	import ApprovalSection from './ApprovalSection.svelte';
 	import VersionHistoryPanel from './VersionHistoryPanel.svelte';
 
+	type ProjectPriority = { name: string; color: string };
+
 	let { data } = $props();
 
 	let editing = $state(false);
@@ -436,7 +438,9 @@
 	}
 
 	function getPriorityColor(name: string): string {
-		return data.projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
+		return (
+			(data.projectPriorities as ProjectPriority[]).find((p) => p.name === name)?.color ?? '#6b7280'
+		);
 	}
 </script>
 

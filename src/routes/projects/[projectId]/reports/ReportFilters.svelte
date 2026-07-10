@@ -10,7 +10,7 @@
 		isAdmin,
 		onExportPdf,
 		onOpenShareDialog,
-		onOpenScheduleDialog,
+		onOpenScheduleDialog
 	}: {
 		dateRange: { allTime: boolean; from: string | null; to: string | null };
 		isAdmin: boolean;
@@ -57,7 +57,11 @@
 
 	function formatDisplayDate(iso: string | null): string {
 		if (!iso) return '';
-		return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+		return new Date(iso).toLocaleDateString(undefined, {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric'
+		});
 	}
 
 	const activeDateLabel = $derived(
@@ -98,8 +102,8 @@
 						onclick={() => applyPreset(preset === 'all' ? 'all' : Number(preset))}
 						class="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors
 							{activePreset === preset
-								? 'bg-primary text-primary-foreground border-primary'
-								: 'bg-background hover:bg-accent border-input'}"
+							? 'bg-primary text-primary-foreground border-primary'
+							: 'bg-background hover:bg-accent border-input'}"
 					>
 						{label}
 					</button>
@@ -107,41 +111,51 @@
 			</div>
 
 			<!-- Custom date inputs -->
-			<div class="flex items-end gap-2">
-				<div class="flex flex-col gap-1">
+			<div class="grid grid-cols-2 items-end gap-2 sm:flex">
+				<div class="flex min-w-0 flex-col gap-1">
 					<label for="date-from" class="text-muted-foreground text-xs">{m.filter_from()}</label>
 					<input
 						id="date-from"
 						type="date"
 						value={pendingFrom || fromInput}
-						oninput={(e) => { pendingFrom = (e.currentTarget as HTMLInputElement).value; }}
+						oninput={(e) => {
+							pendingFrom = (e.currentTarget as HTMLInputElement).value;
+						}}
 						max={pendingTo || toInput || undefined}
-						class="border-input bg-background rounded-md border px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+						class="border-input bg-background w-full rounded-md border px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
 					/>
 				</div>
-				<div class="flex flex-col gap-1">
+				<div class="flex min-w-0 flex-col gap-1">
 					<label for="date-to" class="text-muted-foreground text-xs">{m.filter_to()}</label>
 					<input
 						id="date-to"
 						type="date"
 						value={pendingTo || toInput}
-						oninput={(e) => { pendingTo = (e.currentTarget as HTMLInputElement).value; }}
+						oninput={(e) => {
+							pendingTo = (e.currentTarget as HTMLInputElement).value;
+						}}
 						min={pendingFrom || fromInput || undefined}
-						class="border-input bg-background rounded-md border px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+						class="border-input bg-background w-full rounded-md border px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
 					/>
 				</div>
-				<Button size="sm" class="h-[34px] text-xs" onclick={applyDateRange} disabled={!pendingFrom && !pendingTo && !fromInput && !toInput}>
+				<Button
+					size="sm"
+					class="col-span-2 h-[34px] w-full text-xs sm:w-auto"
+					onclick={applyDateRange}
+					disabled={!pendingFrom && !pendingTo && !fromInput && !toInput}
+				>
 					{m.filter_apply()}
 				</Button>
 			</div>
 		</div>
 
 		<!-- Active range label + action buttons -->
-		<div class="mt-2 flex items-center justify-between">
-			<p class="text-muted-foreground text-xs">
-				{m.filter_showing_data_for()} <span class="text-foreground font-medium">{activeDateLabel}</span>
+		<div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+			<p class="text-muted-foreground min-w-0 text-xs">
+				{m.filter_showing_data_for()}
+				<span class="text-foreground font-medium">{activeDateLabel}</span>
 			</p>
-			<div class="flex gap-2">
+			<div class="flex flex-wrap gap-2">
 				<Button size="sm" variant="outline" class="h-7 text-xs" onclick={onExportPdf}>
 					{m.report_export_pdf()}
 				</Button>

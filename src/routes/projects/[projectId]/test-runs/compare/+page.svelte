@@ -6,13 +6,21 @@
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 
+	type ProjectPriority = { name: string; color: string };
+
 	let { data } = $props();
 
 	let filter = $state<'all' | 'diff' | 'regression'>('all');
 
 	function exportCsv() {
 		const BOM = '\uFEFF';
-		const headers = [m.compare_csv_key(), m.compare_csv_title(), m.compare_csv_priority(), m.compare_csv_run_a_status(), m.compare_csv_run_b_status()];
+		const headers = [
+			m.compare_csv_key(),
+			m.compare_csv_title(),
+			m.compare_csv_priority(),
+			m.compare_csv_run_a_status(),
+			m.compare_csv_run_b_status()
+		];
 		const rows = filteredRows.map((r) => [
 			r.key,
 			`"${(r.title ?? '').replace(/"/g, '""')}"`,
@@ -40,15 +48,21 @@
 
 	function statusVariant(s: string | null): 'default' | 'secondary' | 'outline' | 'destructive' {
 		switch (s) {
-			case 'PASS': return 'default';
-			case 'FAIL': return 'destructive';
-			case 'BLOCKED': return 'secondary';
-			default: return 'outline';
+			case 'PASS':
+				return 'default';
+			case 'FAIL':
+				return 'destructive';
+			case 'BLOCKED':
+				return 'secondary';
+			default:
+				return 'outline';
 		}
 	}
 
 	function getPriorityColor(name: string): string {
-		return data.projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
+		return (
+			(data.projectPriorities as ProjectPriority[]).find((p) => p.name === name)?.color ?? '#6b7280'
+		);
 	}
 
 	function rowHighlight(statusA: string | null, statusB: string | null): string {
@@ -62,7 +76,12 @@
 
 <div class="space-y-4">
 	<div class="flex items-center gap-2">
-		<Button variant="outline" size="sm" href="/projects/{data.project.id}/test-runs" class="h-7 text-xs">
+		<Button
+			variant="outline"
+			size="sm"
+			href="/projects/{data.project.id}/test-runs"
+			class="h-7 text-xs"
+		>
 			&larr; {m.common_back_to({ target: m.tr_title() })}
 		</Button>
 		<h2 class="text-lg font-semibold">{m.tr_compare_title()}</h2>
@@ -128,13 +147,28 @@
 
 	<!-- Filter tabs -->
 	<div class="flex items-center gap-1">
-		<Button variant={filter === 'all' ? 'default' : 'outline'} size="sm" class="h-7 px-2 text-xs" onclick={() => (filter = 'all')}>
+		<Button
+			variant={filter === 'all' ? 'default' : 'outline'}
+			size="sm"
+			class="h-7 px-2 text-xs"
+			onclick={() => (filter = 'all')}
+		>
 			{m.tr_compare_filter_all()} ({data.rows.length})
 		</Button>
-		<Button variant={filter === 'diff' ? 'default' : 'outline'} size="sm" class="h-7 px-2 text-xs" onclick={() => (filter = 'diff')}>
+		<Button
+			variant={filter === 'diff' ? 'default' : 'outline'}
+			size="sm"
+			class="h-7 px-2 text-xs"
+			onclick={() => (filter = 'diff')}
+		>
 			{m.tr_compare_filter_diff()} ({data.rows.filter((r) => r.statusA !== r.statusB).length})
 		</Button>
-		<Button variant={filter === 'regression' ? 'default' : 'outline'} size="sm" class="h-7 px-2 text-xs" onclick={() => (filter = 'regression')}>
+		<Button
+			variant={filter === 'regression' ? 'default' : 'outline'}
+			size="sm"
+			class="h-7 px-2 text-xs"
+			onclick={() => (filter = 'regression')}
+		>
 			{m.tr_compare_filter_regression()} ({data.summary.regression})
 		</Button>
 		<div class="ml-auto">
@@ -146,7 +180,9 @@
 
 	<!-- Comparison table -->
 	{#if filteredRows.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+		<div
+			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+		>
 			<p class="text-muted-foreground text-sm">{m.tr_compare_no_diff()}</p>
 		</div>
 	{:else}
@@ -171,14 +207,18 @@
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2">
 								{#if row.statusA}
-									<Badge variant={statusVariant(row.statusA)} class="text-[10px] px-1.5 py-0">{row.statusA}</Badge>
+									<Badge variant={statusVariant(row.statusA)} class="text-[10px] px-1.5 py-0"
+										>{row.statusA}</Badge
+									>
 								{:else}
 									<span class="text-muted-foreground text-[10px]">-</span>
 								{/if}
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2">
 								{#if row.statusB}
-									<Badge variant={statusVariant(row.statusB)} class="text-[10px] px-1.5 py-0">{row.statusB}</Badge>
+									<Badge variant={statusVariant(row.statusB)} class="text-[10px] px-1.5 py-0"
+										>{row.statusB}</Badge
+									>
 								{:else}
 									<span class="text-muted-foreground text-[10px]">-</span>
 								{/if}

@@ -12,6 +12,9 @@
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as m from '$lib/paraglide/messages.js';
 
+	type ProjectEnvironment = { name: string; isDefault: boolean };
+	type ProjectPriority = { name: string; color: string };
+
 	let { data } = $props();
 	const actionData = $derived(page.form as Record<string, unknown> | null);
 
@@ -20,8 +23,8 @@
 	let priorityFilter = $state('');
 	let tagFilter = $state('');
 	const defaultEnv = $derived(
-		data.projectEnvironments.find((e) => e.isDefault)?.name ??
-			data.projectEnvironments[0]?.name ??
+		(data.projectEnvironments as ProjectEnvironment[]).find((e) => e.isDefault)?.name ??
+			(data.projectEnvironments as ProjectEnvironment[])[0]?.name ??
 			'DEV'
 	);
 	let selectedEnv = $state('DEV');
@@ -89,7 +92,9 @@
 	}
 
 	function getPriorityColor(name: string): string {
-		return data.projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
+		return (
+			(data.projectPriorities as ProjectPriority[]).find((p) => p.name === name)?.color ?? '#6b7280'
+		);
 	}
 
 	const environments = $derived(data.projectEnvironments);

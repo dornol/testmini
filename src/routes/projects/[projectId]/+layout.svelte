@@ -36,13 +36,13 @@
 		<h1 class="text-lg font-bold sm:text-xl">{data.project.name}</h1>
 	</div>
 
-	<nav class="border-b">
-		<div class="-mb-px flex gap-2 overflow-x-auto scrollbar-none">
+	<nav class="border-b" aria-label={m.nav_projects()}>
+		<div class="-mb-px flex gap-2 overflow-x-auto overscroll-x-contain pb-px pr-4 snap-x">
 			{#each tabs as tab (tab.href)}
 				<a
 					href={tab.href}
 					class={cn(
-						'shrink-0 border-b-2 px-1 py-1.5 text-xs font-medium whitespace-nowrap transition-colors sm:text-sm',
+						'shrink-0 snap-start border-b-2 px-1 py-1.5 text-xs font-medium whitespace-nowrap transition-colors sm:text-sm',
 						isActive(tab.href, tab.exact)
 							? 'border-primary text-foreground'
 							: 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'

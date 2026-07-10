@@ -23,7 +23,7 @@
 		staleTests,
 		slowestTests,
 		defectDensity,
-		projectPriorities,
+		projectPriorities
 	}: {
 		projectId: number;
 		recentRuns: Array<{
@@ -138,9 +138,7 @@
 	const trendBarConfig = $derived<ChartConfiguration>({
 		type: 'bar',
 		data: {
-			labels: recentRuns.map((r) =>
-				r.name.length > 10 ? r.name.slice(0, 10) + '..' : r.name
-			),
+			labels: recentRuns.map((r) => (r.name.length > 10 ? r.name.slice(0, 10) + '..' : r.name)),
 			datasets: [
 				{
 					label: m.reports_pass(),
@@ -224,7 +222,6 @@
 		if (total === 0) return '0%';
 		return `${(value / total) * 100}%`;
 	}
-
 </script>
 
 <!-- Pass Rate Trend (bar chart) -->
@@ -323,7 +320,10 @@
 							<Table.Cell>{cs.caseCount}</Table.Cell>
 							<Table.Cell>
 								<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
-									<div class="bg-blue-500" style="width: {barWidth(cs.caseCount, maxCreatorCount)}"></div>
+									<div
+										class="bg-blue-500"
+										style="width: {barWidth(cs.caseCount, maxCreatorCount)}"
+									></div>
 								</div>
 							</Table.Cell>
 						</Table.Row>
@@ -455,7 +455,9 @@
 						{@const pass = tc.passCount}
 						<Table.Row
 							class="cursor-pointer"
-							onclick={() => { window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`; }}
+							onclick={() => {
+								window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`;
+							}}
 						>
 							<Table.Cell>
 								<div>
@@ -511,11 +513,17 @@
 						{@const fail = tc.failCount}
 						<Table.Row
 							class="cursor-pointer"
-							onclick={() => { window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`; }}
+							onclick={() => {
+								window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`;
+							}}
 						>
 							<Table.Cell>
 								<div class="flex items-center gap-2">
-									<Badge variant="outline" class="bg-yellow-50 text-yellow-700 border-yellow-300 text-xs">{m.common_flaky()}</Badge>
+									<Badge
+										variant="outline"
+										class="bg-yellow-50 text-yellow-700 border-yellow-300 text-xs"
+										>{m.common_flaky()}</Badge
+									>
 									<div>
 										<span class="text-muted-foreground text-xs">{tc.testCaseKey}</span>
 										<span class="ml-1 font-medium">{tc.title}</span>
@@ -562,10 +570,14 @@
 				</Table.Header>
 				<Table.Body>
 					{#each staleTests as tc (tc.testCaseId)}
-						{@const daysAgo = tc.lastExecutedAt ? Math.floor((Date.now() - new Date(tc.lastExecutedAt).getTime()) / 86400000) : null}
+						{@const daysAgo = tc.lastExecutedAt
+							? Math.floor((Date.now() - new Date(tc.lastExecutedAt).getTime()) / 86400000)
+							: null}
 						<Table.Row
 							class="cursor-pointer"
-							onclick={() => { window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`; }}
+							onclick={() => {
+								window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`;
+							}}
 						>
 							<Table.Cell>
 								<div>
@@ -578,9 +590,15 @@
 							</Table.Cell>
 							<Table.Cell>
 								{#if daysAgo === null}
-									<Badge variant="outline" class="bg-red-50 text-red-700 border-red-300 text-xs">{m.stale_tests_never()}</Badge>
+									<Badge variant="outline" class="bg-red-50 text-red-700 border-red-300 text-xs"
+										>{m.stale_tests_never()}</Badge
+									>
 								{:else}
-									<span class="text-muted-foreground text-sm {daysAgo > 30 ? 'text-yellow-600 font-medium' : ''}">{m.stale_tests_days_ago({ days: daysAgo })}</span>
+									<span
+										class="text-muted-foreground text-sm {daysAgo > 30
+											? 'text-yellow-600 font-medium'
+											: ''}">{m.stale_tests_days_ago({ days: daysAgo })}</span
+									>
 								{/if}
 							</Table.Cell>
 						</Table.Row>
@@ -613,7 +631,9 @@
 					{#each slowestTests as tc (tc.testCaseId)}
 						<Table.Row
 							class="cursor-pointer"
-							onclick={() => { window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`; }}
+							onclick={() => {
+								window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`;
+							}}
 						>
 							<Table.Cell>
 								<div>
@@ -625,7 +645,8 @@
 								<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
 							</Table.Cell>
 							<Table.Cell class="font-medium">{formatDuration(tc.avgDuration)}</Table.Cell>
-							<Table.Cell class="text-muted-foreground">{formatDuration(tc.maxDuration)}</Table.Cell>
+							<Table.Cell class="text-muted-foreground">{formatDuration(tc.maxDuration)}</Table.Cell
+							>
 							<Table.Cell class="text-muted-foreground">{tc.execCount}</Table.Cell>
 						</Table.Row>
 					{/each}
@@ -636,8 +657,8 @@
 {/if}
 
 <!-- Defect Density by Group -->
-{#if defectDensity.length > 0 && defectDensity.some(d => d.defectCount > 0)}
-	{@const maxDefects = Math.max(...defectDensity.map(d => d.defectCount))}
+{#if defectDensity.length > 0 && defectDensity.some((d) => d.defectCount > 0)}
+	{@const maxDefects = Math.max(...defectDensity.map((d) => d.defectCount))}
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-sm font-medium">{m.defect_density_title()}</Card.Title>
@@ -655,7 +676,7 @@
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					{#each defectDensity.filter(d => d.defectCount > 0) as dd (dd.groupId ?? 'ungrouped')}
+					{#each defectDensity.filter((d) => d.defectCount > 0) as dd (dd.groupId ?? 'ungrouped')}
 						{@const density = dd.caseCount > 0 ? (dd.defectCount / dd.caseCount).toFixed(2) : '0'}
 						<Table.Row>
 							<Table.Cell class="font-medium">
@@ -666,7 +687,10 @@
 							<Table.Cell>{density}</Table.Cell>
 							<Table.Cell>
 								<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
-									<div class="bg-red-500" style="width: {barWidth(dd.defectCount, maxDefects)}"></div>
+									<div
+										class="bg-red-500"
+										style="width: {barWidth(dd.defectCount, maxDefects)}"
+									></div>
 								</div>
 							</Table.Cell>
 						</Table.Row>
@@ -679,7 +703,7 @@
 
 <!-- Recent Completed Runs Table -->
 {#if recentRuns.length > 0}
-	<Card.Root>
+	<Card.Root data-testid="recent-completed-runs">
 		<Card.Header class="flex flex-row items-center justify-between">
 			<Card.Title class="text-sm font-medium">{m.reports_recent_completed()}</Card.Title>
 			{#if selectedRunIds.size > 0}
@@ -713,16 +737,20 @@
 				</Table.Header>
 				<Table.Body>
 					{#each [...recentRuns].reverse() as run (run.id)}
-						{@const rate = run.totalCount > 0 ? Math.round((run.passCount / run.totalCount) * 100) : 0}
+						{@const rate =
+							run.totalCount > 0 ? Math.round((run.passCount / run.totalCount) * 100) : 0}
 						<Table.Row
 							class="cursor-pointer"
-							onclick={() => { window.location.href = `/projects/${projectId}/test-runs/${run.id}`; }}
+							onclick={() => {
+								window.location.href = `/projects/${projectId}/test-runs/${run.id}`;
+							}}
 						>
 							<Table.Cell class="px-2" onclick={(e: MouseEvent) => e.stopPropagation()}>
 								<input
 									type="checkbox"
 									checked={selectedRunIds.has(run.id)}
 									onchange={() => toggleRun(run.id)}
+									aria-label={`${m.reports_select_all()} ${run.name}`}
 									class="h-4 w-4 rounded border-gray-300"
 								/>
 							</Table.Cell>
@@ -735,7 +763,13 @@
 							<Table.Cell class="text-orange-600">{run.blockedCount}</Table.Cell>
 							<Table.Cell class="text-gray-500">{run.skippedCount}</Table.Cell>
 							<Table.Cell>
-								<span class="font-medium {rate >= 80 ? 'text-green-600' : rate >= 50 ? 'text-yellow-600' : 'text-red-600'}">
+								<span
+									class="font-medium {rate >= 80
+										? 'text-green-600'
+										: rate >= 50
+											? 'text-yellow-600'
+											: 'text-red-600'}"
+								>
 									{rate}%
 								</span>
 							</Table.Cell>

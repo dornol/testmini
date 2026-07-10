@@ -18,14 +18,14 @@
 	} = $props();
 </script>
 
-<div class="flex items-center justify-between">
-	<div class="flex items-center gap-2">
+<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+	<div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
 		<h2 class="text-lg font-semibold">{m.tc_title()}</h2>
 		{#if total > 0}
 			<span class="text-muted-foreground text-xs">{m.common_total_count({ count: total })}</span>
 		{/if}
 	</div>
-	<div class="flex items-center gap-2">
+	<div class="flex flex-wrap items-center gap-2">
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}

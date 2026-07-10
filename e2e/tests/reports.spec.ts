@@ -230,14 +230,14 @@ test.describe.serial('Reports', () => {
 		await page.goto(reportsUrl('preset=all'));
 		await page.waitForLoadState('networkidle');
 
-		// If there are runs in the table, the select-all checkbox and row
-		// checkboxes should be rendered inside the recent runs card.
-		const tableRows = page.locator('table tbody tr');
-		const rowCount = await tableRows.count();
+		// If there are runs in the recent completed runs card, the select-all checkbox and row
+		// checkboxes should be rendered inside that card.
+		const recentRunsCard = page.getByTestId('recent-completed-runs');
+		const rowCount = await recentRunsCard.locator('tbody tr').count();
 
 		if (rowCount > 0) {
 			// Select-all checkbox (aria-label set in the svelte template)
-			const selectAll = page.locator('input[type="checkbox"][aria-label]').first();
+			const selectAll = recentRunsCard.locator('input[type="checkbox"][aria-label]').first();
 			await expect(selectAll).toBeVisible();
 
 			// Select all runs
@@ -245,7 +245,7 @@ test.describe.serial('Reports', () => {
 			await page.waitForTimeout(500);
 
 			// The "Export selected" button should now appear
-			await expect(page.locator('button', { hasText: /export/i }).first()).toBeVisible({
+			await expect(page.locator('button', { hasText: /export|내보내기/i }).first()).toBeVisible({
 				timeout: 5000
 			});
 		} else {

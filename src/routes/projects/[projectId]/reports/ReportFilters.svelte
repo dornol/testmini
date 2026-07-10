@@ -3,6 +3,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
+	import CalendarIcon from '@lucide/svelte/icons/calendar';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 
@@ -113,29 +114,41 @@
 			<div class="grid grid-cols-2 items-end gap-2 sm:flex">
 				<div class="flex min-w-0 flex-col gap-1">
 					<label for="date-from" class="text-muted-foreground text-xs">{m.filter_from()}</label>
-					<Input
-						id="date-from"
-						type="date"
-						value={pendingFrom || fromInput}
-						oninput={(e) => {
-							pendingFrom = (e.currentTarget as HTMLInputElement).value;
-						}}
-						max={pendingTo || toInput || undefined}
-						class="report-date-input h-8 w-full px-2 text-xs sm:w-36"
-					/>
+					<div class="relative">
+						<Input
+							id="date-from"
+							type="date"
+							value={pendingFrom || fromInput}
+							oninput={(e) => {
+								pendingFrom = (e.currentTarget as HTMLInputElement).value;
+							}}
+							max={pendingTo || toInput || undefined}
+							class="report-date-input h-8 w-full px-2 pr-8 text-xs sm:w-36"
+						/>
+						<CalendarIcon
+							class="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2"
+							aria-hidden="true"
+						/>
+					</div>
 				</div>
 				<div class="flex min-w-0 flex-col gap-1">
 					<label for="date-to" class="text-muted-foreground text-xs">{m.filter_to()}</label>
-					<Input
-						id="date-to"
-						type="date"
-						value={pendingTo || toInput}
-						oninput={(e) => {
-							pendingTo = (e.currentTarget as HTMLInputElement).value;
-						}}
-						min={pendingFrom || fromInput || undefined}
-						class="report-date-input h-8 w-full px-2 text-xs sm:w-36"
-					/>
+					<div class="relative">
+						<Input
+							id="date-to"
+							type="date"
+							value={pendingTo || toInput}
+							oninput={(e) => {
+								pendingTo = (e.currentTarget as HTMLInputElement).value;
+							}}
+							min={pendingFrom || fromInput || undefined}
+							class="report-date-input h-8 w-full px-2 pr-8 text-xs sm:w-36"
+						/>
+						<CalendarIcon
+							class="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2"
+							aria-hidden="true"
+						/>
+					</div>
 				</div>
 				<Button
 					size="sm"
@@ -212,9 +225,13 @@
 	}
 
 	:global(.report-date-input)::-webkit-calendar-picker-indicator {
-		width: 1rem;
-		height: 1rem;
-		margin: 0 0 0 auto;
+		position: absolute;
+		inset: 0;
+		width: auto;
+		height: auto;
+		margin: 0;
 		padding: 0;
+		cursor: pointer;
+		opacity: 0;
 	}
 </style>

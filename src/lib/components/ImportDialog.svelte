@@ -285,6 +285,7 @@
 				<Dialog.Footer>
 					<Button
 						variant="outline"
+						class="w-full sm:w-auto"
 						onclick={() => {
 							resetState();
 							open = false;
@@ -292,7 +293,7 @@
 					>
 						{m.common_cancel()}
 					</Button>
-					<Button onclick={doImport} disabled={!selectedFile || importing}>
+					<Button class="w-full sm:w-auto" onclick={doImport} disabled={!selectedFile || importing}>
 						{m.tc_import()}
 					</Button>
 				</Dialog.Footer>

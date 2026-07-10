@@ -167,7 +167,7 @@
 							variant="outline"
 							onclick={discover}
 							disabled={discovering || !issuerUrl}
-							class="sm:w-auto"
+							class="w-full sm:w-auto"
 						>
 							{m.oidc_discover()}
 						</Button>
@@ -223,8 +223,10 @@
 				</div>
 
 				<div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-					<Button variant="outline" href="/admin/oidc-providers">{m.common_cancel()}</Button>
-					<Button type="submit">{m.common_save_changes()}</Button>
+					<Button class="w-full sm:w-auto" variant="outline" href="/admin/oidc-providers">
+						{m.common_cancel()}
+					</Button>
+					<Button class="w-full sm:w-auto" type="submit">{m.common_save_changes()}</Button>
 				</div>
 			</form>
 		</Card.Content>
@@ -247,7 +249,7 @@
 					onclick={() => {
 						deleteDialogOpen = true;
 					}}
-					class="sm:self-auto self-start"
+					class="w-full sm:w-auto sm:self-auto"
 				>
 					{m.common_delete()}
 				</Button>
@@ -269,7 +271,7 @@
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+			<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
 			<form
 				method="POST"
 				action="?/deleteProvider"

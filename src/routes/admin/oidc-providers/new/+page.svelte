@@ -158,7 +158,7 @@
 							variant="outline"
 							onclick={discover}
 							disabled={discovering || !issuerUrl}
-							class="sm:w-auto"
+							class="w-full sm:w-auto"
 						>
 							{m.oidc_discover()}
 						</Button>
@@ -214,8 +214,10 @@
 				</div>
 
 				<div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-					<Button variant="outline" href="/admin/oidc-providers">{m.common_cancel()}</Button>
-					<Button type="submit">{m.oidc_add_provider()}</Button>
+					<Button class="w-full sm:w-auto" variant="outline" href="/admin/oidc-providers">
+						{m.common_cancel()}
+					</Button>
+					<Button class="w-full sm:w-auto" type="submit">{m.oidc_add_provider()}</Button>
 				</div>
 			</form>
 		</Card.Content>

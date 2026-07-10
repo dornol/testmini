@@ -25,11 +25,15 @@
 			<span class="text-muted-foreground text-xs">{m.common_total_count({ count: total })}</span>
 		{/if}
 	</div>
-	<div class="flex flex-wrap items-center gap-2">
+	<div
+		class="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center"
+	>
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
-					<Button variant="outline" size="sm" {...props}>{m.tc_export()}</Button>
+					<Button class="w-full sm:w-auto" variant="outline" size="sm" {...props}>
+						{m.tc_export()}
+					</Button>
 				{/snippet}
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content align="end">
@@ -42,8 +46,10 @@
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
 		{#if canEdit}
-			<Button variant="outline" size="sm" onclick={onImport}>{m.tc_import()}</Button>
-			<Button href={newHref} size="sm">{m.tc_new()}</Button>
+			<Button class="w-full sm:w-auto" variant="outline" size="sm" onclick={onImport}>
+				{m.tc_import()}
+			</Button>
+			<Button class="w-full sm:w-auto" href={newHref} size="sm">{m.tc_new()}</Button>
 		{/if}
 	</div>
 </div>

@@ -53,7 +53,7 @@
 			<h2 class="text-lg font-semibold">{m.oidc_providers_title()}</h2>
 			<p class="text-muted-foreground text-sm">{m.oidc_providers_desc()}</p>
 		</div>
-		<Button href="/admin/oidc-providers/new" class="sm:self-auto self-start"
+		<Button href="/admin/oidc-providers/new" class="w-full sm:w-auto sm:self-auto"
 			>{m.oidc_add_provider()}</Button
 		>
 	</div>
@@ -237,7 +237,7 @@
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+			<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
 			<form
 				method="POST"
 				action="?/deleteProvider"

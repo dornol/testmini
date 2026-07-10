@@ -155,15 +155,30 @@
 				{m.filter_showing_data_for()}
 				<span class="text-foreground font-medium">{activeDateLabel}</span>
 			</p>
-			<div class="flex flex-wrap gap-2">
-				<Button size="sm" variant="outline" class="h-7 text-xs" onclick={onExportPdf}>
+			<div class="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3 sm:flex sm:flex-wrap">
+				<Button
+					size="sm"
+					variant="outline"
+					class="h-8 w-full text-xs sm:h-7 sm:w-auto"
+					onclick={onExportPdf}
+				>
 					{m.report_export_pdf()}
 				</Button>
-				<Button size="sm" variant="outline" class="h-7 text-xs" onclick={onOpenShareDialog}>
+				<Button
+					size="sm"
+					variant="outline"
+					class="h-8 w-full text-xs sm:h-7 sm:w-auto"
+					onclick={onOpenShareDialog}
+				>
 					{m.report_share()}
 				</Button>
 				{#if isAdmin}
-					<Button size="sm" variant="outline" class="h-7 text-xs" onclick={onOpenScheduleDialog}>
+					<Button
+						size="sm"
+						variant="outline"
+						class="h-8 w-full text-xs sm:h-7 sm:w-auto"
+						onclick={onOpenScheduleDialog}
+					>
 						{m.report_schedule()}
 					</Button>
 				{/if}

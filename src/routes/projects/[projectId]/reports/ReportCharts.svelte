@@ -255,44 +255,46 @@
 			<Card.Title class="text-sm font-medium">{m.reports_by_priority()}</Card.Title>
 		</Card.Header>
 		<Card.Content class="p-0">
-			<Table.Root>
-				<Table.Header>
-					<Table.Row>
-						<Table.Head>{m.common_priority()}</Table.Head>
-						<Table.Head class="w-28">{m.reports_total()}</Table.Head>
-						<Table.Head class="w-28">{m.reports_pass()}</Table.Head>
-						<Table.Head class="w-28">{m.reports_fail()}</Table.Head>
-						<Table.Head class="w-28">{m.reports_pass_rate()}</Table.Head>
-						<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#each priorityStats as ps (ps.priority)}
-						{@const total = ps.total}
-						{@const pass = ps.passCount}
-						{@const fail = ps.failCount}
+			<div class="overflow-x-auto">
+				<Table.Root class="min-w-[640px]">
+					<Table.Header>
 						<Table.Row>
-							<Table.Cell>
-								<PriorityBadge name={ps.priority} color={getPriorityColor(ps.priority)} />
-							</Table.Cell>
-							<Table.Cell>{total}</Table.Cell>
-							<Table.Cell class="text-green-600">{pass}</Table.Cell>
-							<Table.Cell class="text-red-600">{fail}</Table.Cell>
-							<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
-							<Table.Cell>
-								<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
-									{#if pass > 0}
-										<div class="bg-green-500" style="width: {barWidth(pass, total)}"></div>
-									{/if}
-									{#if fail > 0}
-										<div class="bg-red-500" style="width: {barWidth(fail, total)}"></div>
-									{/if}
-								</div>
-							</Table.Cell>
+							<Table.Head>{m.common_priority()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_total()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_fail()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass_rate()}</Table.Head>
+							<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
 						</Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
+					</Table.Header>
+					<Table.Body>
+						{#each priorityStats as ps (ps.priority)}
+							{@const total = ps.total}
+							{@const pass = ps.passCount}
+							{@const fail = ps.failCount}
+							<Table.Row>
+								<Table.Cell>
+									<PriorityBadge name={ps.priority} color={getPriorityColor(ps.priority)} />
+								</Table.Cell>
+								<Table.Cell>{total}</Table.Cell>
+								<Table.Cell class="text-green-600">{pass}</Table.Cell>
+								<Table.Cell class="text-red-600">{fail}</Table.Cell>
+								<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
+								<Table.Cell>
+									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
+										{#if pass > 0}
+											<div class="bg-green-500" style="width: {barWidth(pass, total)}"></div>
+										{/if}
+										{#if fail > 0}
+											<div class="bg-red-500" style="width: {barWidth(fail, total)}"></div>
+										{/if}
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</div>
 		</Card.Content>
 	</Card.Root>
 {/if}
@@ -305,31 +307,33 @@
 			<Card.Title class="text-sm font-medium">{m.reports_by_creator()}</Card.Title>
 		</Card.Header>
 		<Card.Content class="p-0">
-			<Table.Root>
-				<Table.Header>
-					<Table.Row>
-						<Table.Head>{m.reports_creator()}</Table.Head>
-						<Table.Head class="w-28">{m.reports_case_count()}</Table.Head>
-						<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#each creatorStats as cs (cs.userId)}
+			<div class="overflow-x-auto">
+				<Table.Root class="min-w-[480px]">
+					<Table.Header>
 						<Table.Row>
-							<Table.Cell class="font-medium">{cs.userName}</Table.Cell>
-							<Table.Cell>{cs.caseCount}</Table.Cell>
-							<Table.Cell>
-								<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
-									<div
-										class="bg-blue-500"
-										style="width: {barWidth(cs.caseCount, maxCreatorCount)}"
-									></div>
-								</div>
-							</Table.Cell>
+							<Table.Head>{m.reports_creator()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_case_count()}</Table.Head>
+							<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
 						</Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
+					</Table.Header>
+					<Table.Body>
+						{#each creatorStats as cs (cs.userId)}
+							<Table.Row>
+								<Table.Cell class="font-medium">{cs.userName}</Table.Cell>
+								<Table.Cell>{cs.caseCount}</Table.Cell>
+								<Table.Cell>
+									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
+										<div
+											class="bg-blue-500"
+											style="width: {barWidth(cs.caseCount, maxCreatorCount)}"
+										></div>
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</div>
 		</Card.Content>
 	</Card.Root>
 {/if}
@@ -341,42 +345,44 @@
 			<Card.Title class="text-sm font-medium">{m.reports_by_assignee()}</Card.Title>
 		</Card.Header>
 		<Card.Content class="p-0">
-			<Table.Root>
-				<Table.Header>
-					<Table.Row>
-						<Table.Head>{m.reports_assignee()}</Table.Head>
-						<Table.Head class="w-28">{m.reports_assigned()}</Table.Head>
-						<Table.Head class="w-28">{m.reports_pass()}</Table.Head>
-						<Table.Head class="w-28">{m.reports_fail()}</Table.Head>
-						<Table.Head class="w-28">{m.reports_pass_rate()}</Table.Head>
-						<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#each assigneeStats as as_ (as_.userId)}
-						{@const total = as_.totalExecs}
-						{@const pass = as_.passCount}
-						{@const fail = as_.failCount}
+			<div class="overflow-x-auto">
+				<Table.Root class="min-w-[640px]">
+					<Table.Header>
 						<Table.Row>
-							<Table.Cell class="font-medium">{as_.userName}</Table.Cell>
-							<Table.Cell>{as_.assignedCount}</Table.Cell>
-							<Table.Cell class="text-green-600">{pass}</Table.Cell>
-							<Table.Cell class="text-red-600">{fail}</Table.Cell>
-							<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
-							<Table.Cell>
-								<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
-									{#if pass > 0}
-										<div class="bg-green-500" style="width: {barWidth(pass, total)}"></div>
-									{/if}
-									{#if fail > 0}
-										<div class="bg-red-500" style="width: {barWidth(fail, total)}"></div>
-									{/if}
-								</div>
-							</Table.Cell>
+							<Table.Head>{m.reports_assignee()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_assigned()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_fail()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass_rate()}</Table.Head>
+							<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
 						</Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
+					</Table.Header>
+					<Table.Body>
+						{#each assigneeStats as as_ (as_.userId)}
+							{@const total = as_.totalExecs}
+							{@const pass = as_.passCount}
+							{@const fail = as_.failCount}
+							<Table.Row>
+								<Table.Cell class="font-medium">{as_.userName}</Table.Cell>
+								<Table.Cell>{as_.assignedCount}</Table.Cell>
+								<Table.Cell class="text-green-600">{pass}</Table.Cell>
+								<Table.Cell class="text-red-600">{fail}</Table.Cell>
+								<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
+								<Table.Cell>
+									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
+										{#if pass > 0}
+											<div class="bg-green-500" style="width: {barWidth(pass, total)}"></div>
+										{/if}
+										{#if fail > 0}
+											<div class="bg-red-500" style="width: {barWidth(fail, total)}"></div>
+										{/if}
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</div>
 		</Card.Content>
 	</Card.Root>
 {/if}
@@ -389,42 +395,44 @@
 			<Card.Title class="text-sm font-medium">{m.reports_by_executor()}</Card.Title>
 		</Card.Header>
 		<Card.Content class="p-0">
-			<Table.Root>
-				<Table.Header>
-					<Table.Row>
-						<Table.Head>{m.reports_executor()}</Table.Head>
-						<Table.Head class="w-28">{m.reports_executions()}</Table.Head>
-						<Table.Head class="w-28">{m.reports_pass()}</Table.Head>
-						<Table.Head class="w-28">{m.reports_fail()}</Table.Head>
-						<Table.Head class="w-28">{m.reports_pass_rate()}</Table.Head>
-						<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#each executorStats as es (es.userId)}
-						{@const total = es.execCount}
-						{@const pass = es.passCount}
-						{@const fail = es.failCount}
+			<div class="overflow-x-auto">
+				<Table.Root class="min-w-[640px]">
+					<Table.Header>
 						<Table.Row>
-							<Table.Cell class="font-medium">{es.userName}</Table.Cell>
-							<Table.Cell>{total}</Table.Cell>
-							<Table.Cell class="text-green-600">{pass}</Table.Cell>
-							<Table.Cell class="text-red-600">{fail}</Table.Cell>
-							<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
-							<Table.Cell>
-								<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
-									{#if pass > 0}
-										<div class="bg-green-500" style="width: {barWidth(pass, total)}"></div>
-									{/if}
-									{#if fail > 0}
-										<div class="bg-red-500" style="width: {barWidth(fail, total)}"></div>
-									{/if}
-								</div>
-							</Table.Cell>
+							<Table.Head>{m.reports_executor()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_executions()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_fail()}</Table.Head>
+							<Table.Head class="w-28">{m.reports_pass_rate()}</Table.Head>
+							<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
 						</Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
+					</Table.Header>
+					<Table.Body>
+						{#each executorStats as es (es.userId)}
+							{@const total = es.execCount}
+							{@const pass = es.passCount}
+							{@const fail = es.failCount}
+							<Table.Row>
+								<Table.Cell class="font-medium">{es.userName}</Table.Cell>
+								<Table.Cell>{total}</Table.Cell>
+								<Table.Cell class="text-green-600">{pass}</Table.Cell>
+								<Table.Cell class="text-red-600">{fail}</Table.Cell>
+								<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
+								<Table.Cell>
+									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
+										{#if pass > 0}
+											<div class="bg-green-500" style="width: {barWidth(pass, total)}"></div>
+										{/if}
+										{#if fail > 0}
+											<div class="bg-red-500" style="width: {barWidth(fail, total)}"></div>
+										{/if}
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</div>
 		</Card.Content>
 	</Card.Root>
 {/if}

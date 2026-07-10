@@ -210,18 +210,23 @@
 					placeholder={m.report_share_name()}
 					class="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
 				/>
-				<div class="flex items-center gap-2">
+				<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
 					<label for="share-expires" class="text-sm">{m.report_share_expires()}</label>
 					<input
 						id="share-expires"
 						type="number"
 						bind:value={shareExpiresDays}
 						min="0"
-						class="border-input bg-background w-20 rounded-md border px-2 py-1 text-sm"
+						class="border-input bg-background w-full rounded-md border px-2 py-1 text-sm sm:w-20"
 					/>
 					<span class="text-muted-foreground text-xs">({m.report_share_never_expires()})</span>
 				</div>
-				<Button size="sm" onclick={createShareLink} disabled={!shareName.trim()}>
+				<Button
+					size="sm"
+					class="w-full sm:w-auto"
+					onclick={createShareLink}
+					disabled={!shareName.trim()}
+				>
 					{m.report_share()}
 				</Button>
 			</div>
@@ -234,8 +239,8 @@
 			{:else}
 				<div class="divide-y">
 					{#each sharedLinks as link (link.id)}
-						<div class="flex items-center justify-between py-2">
-							<div>
+						<div class="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between">
+							<div class="min-w-0">
 								<p class="text-sm font-medium">{link.name}</p>
 								<p class="text-muted-foreground text-xs">
 									{link.expiresAt
@@ -243,11 +248,11 @@
 										: m.report_share_never_expires()}
 								</p>
 							</div>
-							<div class="flex gap-1">
+							<div class="flex flex-col gap-1 sm:flex-row">
 								<Button
 									size="sm"
 									variant="outline"
-									class="h-7 text-xs"
+									class="h-8 w-full text-xs sm:h-7 sm:w-auto"
 									onclick={() => copyShareLink(link.token)}
 								>
 									{m.report_share_copy()}
@@ -255,7 +260,7 @@
 								<Button
 									size="sm"
 									variant="destructive"
-									class="h-7 text-xs"
+									class="h-8 w-full text-xs sm:h-7 sm:w-auto"
 									onclick={() => revokeShareLink(link.id)}
 								>
 									{m.report_share_revoke()}
@@ -286,17 +291,17 @@
 						placeholder={m.report_schedule_name()}
 						class="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
 					/>
-					<div class="flex gap-2">
+					<div class="flex flex-col gap-2 sm:flex-row">
 						<select
 							bind:value={newScheduleCron}
-							class="border-input bg-background rounded-md border px-2 py-1 text-sm"
+							class="border-input bg-background w-full rounded-md border px-2 py-1 text-sm sm:w-auto"
 						>
 							<option value="0 9 * * 1">{m.report_schedule_weekly()}</option>
 							<option value="0 9 1 * *">{m.report_schedule_monthly()}</option>
 						</select>
 						<select
 							bind:value={newScheduleRange}
-							class="border-input bg-background rounded-md border px-2 py-1 text-sm"
+							class="border-input bg-background w-full rounded-md border px-2 py-1 text-sm sm:w-auto"
 						>
 							<option value="last_7_days">{m.filter_last_7_days()}</option>
 							<option value="last_30_days">{m.filter_last_30_days()}</option>
@@ -311,6 +316,7 @@
 					/>
 					<Button
 						size="sm"
+						class="w-full sm:w-auto"
 						onclick={createSchedule}
 						disabled={!newScheduleName.trim() || !newScheduleEmails.trim()}
 					>
@@ -326,8 +332,8 @@
 				{:else}
 					<div class="divide-y">
 						{#each schedules as sched (sched.id)}
-							<div class="flex items-center justify-between py-2">
-								<div>
+							<div class="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between">
+								<div class="min-w-0">
 									<p class="text-sm font-medium">{sched.name}</p>
 									<p class="text-muted-foreground text-xs">
 										{sched.cronExpression} &middot; {m.common_recipients({
@@ -340,7 +346,7 @@
 										{/if}
 									</p>
 								</div>
-								<div class="flex items-center gap-1">
+								<div class="flex items-center gap-2 sm:gap-1">
 									<input
 										type="checkbox"
 										checked={sched.enabled}
@@ -350,7 +356,7 @@
 									<Button
 										size="sm"
 										variant="destructive"
-										class="h-7 text-xs"
+										class="h-8 flex-1 text-xs sm:h-7 sm:flex-none"
 										onclick={() => deleteSchedule(sched.id)}
 									>
 										{m.common_delete()}

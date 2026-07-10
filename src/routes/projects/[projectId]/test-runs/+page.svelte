@@ -71,26 +71,26 @@
 
 	const environments = $derived(data.projectEnvironments);
 
-	function openEdit(run: typeof data.runs[0]) {
+	function openEdit(run: (typeof data.runs)[0]) {
 		editRunId = run.id;
 		editRunName = run.name;
 		editRunEnv = run.environment;
 		editDialogOpen = true;
 	}
 
-	function openClone(run: typeof data.runs[0]) {
+	function openClone(run: (typeof data.runs)[0]) {
 		cloneRunId = run.id;
 		cloneRunName = `Copy of ${run.name}`;
 		cloneDialogOpen = true;
 	}
 
-	function openRetest(run: typeof data.runs[0]) {
+	function openRetest(run: (typeof data.runs)[0]) {
 		retestRunId = run.id;
 		retestRunName = `Retest of ${run.name}`;
 		retestDialogOpen = true;
 	}
 
-	function openDelete(run: typeof data.runs[0]) {
+	function openDelete(run: (typeof data.runs)[0]) {
 		deleteRunId = run.id;
 		deleteDialogOpen = true;
 	}
@@ -99,7 +99,10 @@
 		if (!editRunId) return;
 		editRunSaving = true;
 		try {
-			await apiPatch(`/api/projects/${data.project.id}/test-runs/${editRunId}`, { name: editRunName, environment: editRunEnv });
+			await apiPatch(`/api/projects/${data.project.id}/test-runs/${editRunId}`, {
+				name: editRunName,
+				environment: editRunEnv
+			});
 			editDialogOpen = false;
 			toast.success(m.tr_updated());
 			await invalidateAll();
@@ -114,7 +117,10 @@
 		if (!cloneRunId) return;
 		cloneRunSaving = true;
 		try {
-			const { id } = await apiPost<{ id: number }>(`/api/projects/${data.project.id}/test-runs/${cloneRunId}/clone`, { name: cloneRunName });
+			const { id } = await apiPost<{ id: number }>(
+				`/api/projects/${data.project.id}/test-runs/${cloneRunId}/clone`,
+				{ name: cloneRunName }
+			);
 			cloneDialogOpen = false;
 			toast.success(m.tr_cloned());
 			goto(`${basePath}/${id}`);
@@ -129,7 +135,10 @@
 		if (!retestRunId) return;
 		retestRunSaving = true;
 		try {
-			const { id } = await apiPost<{ id: number }>(`/api/projects/${data.project.id}/test-runs/${retestRunId}/retest`, { name: retestRunName });
+			const { id } = await apiPost<{ id: number }>(
+				`/api/projects/${data.project.id}/test-runs/${retestRunId}/retest`,
+				{ name: retestRunName }
+			);
 			retestDialogOpen = false;
 			toast.success(m.tr_retested());
 			goto(`${basePath}/${id}`);
@@ -192,21 +201,24 @@
 </script>
 
 <div class="space-y-4">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 		<h2 class="text-lg font-semibold">{m.tr_title()}</h2>
-		<div class="flex items-center gap-2">
+		<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
 			{#if compareSelectedIds.size === 2}
-				<Button variant="outline" size="sm" onclick={goToCompare}>{m.tr_compare()}</Button>
+				<Button variant="outline" size="sm" class="w-full sm:w-auto" onclick={goToCompare}
+					>{m.tr_compare()}</Button
+				>
 			{:else if compareSelectedIds.size > 0}
-				<span class="text-muted-foreground text-xs">{m.tr_compare_select_hint()}</span>
+				<span class="text-muted-foreground text-xs sm:text-right">{m.tr_compare_select_hint()}</span
+				>
 			{/if}
 			{#if data.userRole !== 'VIEWER'}
-				<Button href="{basePath}/new" size="sm">{m.tr_new()}</Button>
+				<Button href="{basePath}/new" size="sm" class="w-full sm:w-auto">{m.tr_new()}</Button>
 			{/if}
 		</div>
 	</div>
 
-	<div class="flex gap-1">
+	<div class="flex flex-wrap gap-1">
 		{#each statuses as s (s)}
 			<Button
 				variant={data.statusFilter === s ? 'default' : 'outline'}
@@ -249,23 +261,33 @@
 				{/if}
 			</p>
 			{#if data.statusFilter}
-				<Button variant="outline" size="sm" class="mt-4" onclick={() => setStatus('')}>{m.tr_clear_filter()}</Button>
+				<Button variant="outline" size="sm" class="mt-4" onclick={() => setStatus('')}
+					>{m.tr_clear_filter()}</Button
+				>
 			{:else if data.userRole !== 'VIEWER'}
 				<Button href="{basePath}/new" class="mt-4">{m.tr_create()}</Button>
 			{/if}
 		</div>
 	{:else}
-		<div class="border rounded-md overflow-hidden">
+		<div class="overflow-x-auto rounded-md border">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
 						<Table.Head class="w-8 py-1 px-2 hidden sm:table-cell"></Table.Head>
 						<Table.Head class="py-1 px-2 text-xs">{m.common_name()}</Table.Head>
-						<Table.Head class="w-20 py-1 px-2 text-xs hidden sm:table-cell">{m.common_environment()}</Table.Head>
+						<Table.Head class="w-20 py-1 px-2 text-xs hidden sm:table-cell"
+							>{m.common_environment()}</Table.Head
+						>
 						<Table.Head class="w-24 py-1 px-2 text-xs">{m.common_status()}</Table.Head>
-						<Table.Head class="w-36 py-1 px-2 text-xs hidden md:table-cell">{m.tr_progress()}</Table.Head>
-						<Table.Head class="w-24 py-1 px-2 text-xs hidden lg:table-cell">{m.tr_created_by()}</Table.Head>
-						<Table.Head class="w-28 py-1 px-2 text-xs hidden lg:table-cell">{m.tr_created_at()}</Table.Head>
+						<Table.Head class="w-36 py-1 px-2 text-xs hidden md:table-cell"
+							>{m.tr_progress()}</Table.Head
+						>
+						<Table.Head class="w-24 py-1 px-2 text-xs hidden lg:table-cell"
+							>{m.tr_created_by()}</Table.Head
+						>
+						<Table.Head class="w-28 py-1 px-2 text-xs hidden lg:table-cell"
+							>{m.tr_created_at()}</Table.Head
+						>
 						{#if canExecute}
 							<Table.Head class="w-16 py-1 px-2 text-xs">{m.common_actions()}</Table.Head>
 						{/if}
@@ -274,8 +296,14 @@
 				<Table.Body>
 					{#each data.runs as run (run.id)}
 						{@const pct = progressPercent(run.passedCount, run.totalCount)}
-						<Table.Row class="cursor-pointer hover:bg-muted/50" onclick={() => goto(`${basePath}/${run.id}`)}>
-							<Table.Cell class="py-1 px-2 hidden sm:table-cell" onclick={(e: MouseEvent) => e.stopPropagation()}>
+						<Table.Row
+							class="cursor-pointer hover:bg-muted/50"
+							onclick={() => goto(`${basePath}/${run.id}`)}
+						>
+							<Table.Cell
+								class="py-1 px-2 hidden sm:table-cell"
+								onclick={(e: MouseEvent) => e.stopPropagation()}
+							>
 								<input
 									type="checkbox"
 									checked={compareSelectedIds.has(run.id)}
@@ -287,7 +315,9 @@
 								<div class="flex items-center gap-1.5">
 									{run.name}
 									{#if run.retestOfRunId}
-										<Badge variant="secondary" class="text-[9px] px-1 py-0">{m.tr_retest_badge()}</Badge>
+										<Badge variant="secondary" class="text-[9px] px-1 py-0"
+											>{m.tr_retest_badge()}</Badge
+										>
 									{/if}
 								</div>
 								<div class="text-muted-foreground sm:hidden text-[10px]">
@@ -303,7 +333,10 @@
 								</Badge>
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2 hidden md:table-cell">
-								<div class="flex items-center gap-1" title="{m.dashboard_pass()}: {run.passedCount} / {m.common_all()}: {run.totalCount} ({pct}%)">
+								<div
+									class="flex items-center gap-1"
+									title="{m.dashboard_pass()}: {run.passedCount} / {m.common_all()}: {run.totalCount} ({pct}%)"
+								>
 									<div class="bg-secondary h-1.5 w-full rounded-full">
 										<div
 											class="bg-primary h-1.5 rounded-full transition-all"
@@ -315,7 +348,9 @@
 									</span>
 								</div>
 							</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden lg:table-cell">{run.createdBy}</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden lg:table-cell"
+								>{run.createdBy}</Table.Cell
+							>
 							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden lg:table-cell">
 								{new Date(run.createdAt).toLocaleDateString()}
 							</Table.Cell>
@@ -324,26 +359,66 @@
 									<DropdownMenu.Root>
 										<DropdownMenu.Trigger>
 											{#snippet child({ props })}
-												<Button variant="ghost" size="sm" class="h-6 w-6 p-0" {...props} onclick={(e: MouseEvent) => e.stopPropagation()} aria-label={m.common_actions()}>
-													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+												<Button
+													variant="ghost"
+													size="sm"
+													class="h-6 w-6 p-0"
+													{...props}
+													onclick={(e: MouseEvent) => e.stopPropagation()}
+													aria-label={m.common_actions()}
+												>
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														width="14"
+														height="14"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														stroke-width="2"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														aria-hidden="true"
+														><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle
+															cx="12"
+															cy="19"
+															r="1"
+														/></svg
+													>
 												</Button>
 											{/snippet}
 										</DropdownMenu.Trigger>
 										<DropdownMenu.Content align="end">
 											{#if run.status === 'CREATED'}
-												<DropdownMenu.Item onclick={() => { openEdit(run); }}>
+												<DropdownMenu.Item
+													onclick={() => {
+														openEdit(run);
+													}}
+												>
 													{m.tr_edit()}
 												</DropdownMenu.Item>
 											{/if}
-											<DropdownMenu.Item onclick={() => { openClone(run); }}>
+											<DropdownMenu.Item
+												onclick={() => {
+													openClone(run);
+												}}
+											>
 												{m.tr_clone()}
 											</DropdownMenu.Item>
-											<DropdownMenu.Item onclick={() => { openRetest(run); }}>
+											<DropdownMenu.Item
+												onclick={() => {
+													openRetest(run);
+												}}
+											>
 												{m.tr_retest()}
 											</DropdownMenu.Item>
 											{#if isAdmin}
 												<DropdownMenu.Separator />
-												<DropdownMenu.Item class="text-destructive" onclick={() => { openDelete(run); }}>
+												<DropdownMenu.Item
+													class="text-destructive"
+													onclick={() => {
+														openDelete(run);
+													}}
+												>
 													{m.tr_delete()}
 												</DropdownMenu.Item>
 											{/if}
@@ -358,23 +433,23 @@
 		</div>
 
 		{#if data.meta.totalPages > 1}
-			<div class="flex items-center justify-center gap-2">
+			<div class="flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
 				<Button
 					variant="outline"
 					size="sm"
-					class="h-7 px-2 text-xs"
+					class="h-8 w-full px-2 text-xs sm:h-7 sm:w-auto"
 					disabled={data.meta.page <= 1}
 					onclick={() => goToPage(data.meta.page - 1)}
 				>
 					{m.common_previous()}
 				</Button>
-				<span class="text-muted-foreground text-xs">
+				<span class="text-muted-foreground text-center text-xs">
 					Page {data.meta.page} of {data.meta.totalPages}
 				</span>
 				<Button
 					variant="outline"
 					size="sm"
-					class="h-7 px-2 text-xs"
+					class="h-8 w-full px-2 text-xs sm:h-7 sm:w-auto"
 					disabled={data.meta.page >= data.meta.totalPages}
 					onclick={() => goToPage(data.meta.page + 1)}
 				>
@@ -403,7 +478,9 @@
 					<Select.Root
 						type="single"
 						value={editRunEnv}
-						onValueChange={(v: string) => { editRunEnv = v; }}
+						onValueChange={(v: string) => {
+							editRunEnv = v;
+						}}
 					>
 						<Select.Trigger class="w-full">
 							{editRunEnv}
@@ -422,7 +499,24 @@
 				</Button>
 				<Button onclick={handleEdit} disabled={editRunSaving || !editRunName.trim()}>
 					{#if editRunSaving}
-						<svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+						<svg
+							class="mr-2 h-4 w-4 animate-spin"
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+							><circle
+								class="opacity-25"
+								cx="12"
+								cy="12"
+								r="10"
+								stroke="currentColor"
+								stroke-width="4"
+							></circle><path
+								class="opacity-75"
+								fill="currentColor"
+								d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+							></path></svg
+						>
 						{m.common_saving()}
 					{:else}
 						{m.common_save_changes()}
@@ -448,12 +542,33 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (cloneDialogOpen = false)} disabled={cloneRunSaving}>
+				<Button
+					variant="outline"
+					onclick={() => (cloneDialogOpen = false)}
+					disabled={cloneRunSaving}
+				>
 					{m.common_cancel()}
 				</Button>
 				<Button onclick={handleClone} disabled={cloneRunSaving || !cloneRunName.trim()}>
 					{#if cloneRunSaving}
-						<svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+						<svg
+							class="mr-2 h-4 w-4 animate-spin"
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+							><circle
+								class="opacity-25"
+								cx="12"
+								cy="12"
+								r="10"
+								stroke="currentColor"
+								stroke-width="4"
+							></circle><path
+								class="opacity-75"
+								fill="currentColor"
+								d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+							></path></svg
+						>
 						{m.common_creating()}
 					{:else}
 						{m.tr_clone()}
@@ -480,12 +595,33 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (retestDialogOpen = false)} disabled={retestRunSaving}>
+				<Button
+					variant="outline"
+					onclick={() => (retestDialogOpen = false)}
+					disabled={retestRunSaving}
+				>
 					{m.common_cancel()}
 				</Button>
 				<Button onclick={handleRetest} disabled={retestRunSaving || !retestRunName.trim()}>
 					{#if retestRunSaving}
-						<svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+						<svg
+							class="mr-2 h-4 w-4 animate-spin"
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+							><circle
+								class="opacity-25"
+								cx="12"
+								cy="12"
+								r="10"
+								stroke="currentColor"
+								stroke-width="4"
+							></circle><path
+								class="opacity-75"
+								fill="currentColor"
+								d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+							></path></svg
+						>
 						{m.common_creating()}
 					{:else}
 						{m.tr_retest()}
@@ -511,7 +647,24 @@
 				<AlertDialog.Cancel disabled={deleteRunSaving}>{m.common_cancel()}</AlertDialog.Cancel>
 				<Button variant="destructive" onclick={handleDelete} disabled={deleteRunSaving}>
 					{#if deleteRunSaving}
-						<svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+						<svg
+							class="mr-2 h-4 w-4 animate-spin"
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+							><circle
+								class="opacity-25"
+								cx="12"
+								cy="12"
+								r="10"
+								stroke="currentColor"
+								stroke-width="4"
+							></circle><path
+								class="opacity-75"
+								fill="currentColor"
+								d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+							></path></svg
+						>
 						{m.common_saving()}
 					{:else}
 						{m.common_delete()}

@@ -103,25 +103,29 @@
 		</Button>
 	</div>
 
-	<div class="flex flex-wrap gap-2">
+	<div class="grid grid-cols-2 gap-2 min-[420px]:flex min-[420px]:flex-wrap">
 		<Button
 			variant={statusFilter === '' ? 'default' : 'outline'}
 			size="sm"
+			class="w-full min-[420px]:w-auto"
 			onclick={() => setStatusFilter('')}>{m.common_all()}</Button
 		>
 		<Button
 			variant={statusFilter === 'ACTIVE' ? 'default' : 'outline'}
 			size="sm"
+			class="w-full min-[420px]:w-auto"
 			onclick={() => setStatusFilter('ACTIVE')}>{m.exploratory_status_active()}</Button
 		>
 		<Button
 			variant={statusFilter === 'PAUSED' ? 'default' : 'outline'}
 			size="sm"
+			class="w-full min-[420px]:w-auto"
 			onclick={() => setStatusFilter('PAUSED')}>{m.exploratory_status_paused()}</Button
 		>
 		<Button
 			variant={statusFilter === 'COMPLETED' ? 'default' : 'outline'}
 			size="sm"
+			class="w-full min-[420px]:w-auto"
 			onclick={() => setStatusFilter('COMPLETED')}>{m.exploratory_status_completed()}</Button
 		>
 	</div>
@@ -148,7 +152,7 @@
 			</svg>
 			<h3 class="text-lg font-semibold">{m.exploratory_empty()}</h3>
 			<p class="text-muted-foreground mt-1 text-sm">{m.exploratory_empty_hint()}</p>
-			<Button class="mt-4" size="sm" onclick={() => (showNewDialog = true)}
+			<Button class="mt-4 w-full sm:w-auto" size="sm" onclick={() => (showNewDialog = true)}
 				>{m.exploratory_new()}</Button
 			>
 		</div>

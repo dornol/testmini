@@ -80,7 +80,7 @@
 			variant="outline"
 			size="sm"
 			href="/projects/{data.project.id}/test-runs"
-			class="h-8 self-start text-xs sm:h-7"
+			class="h-8 w-full text-xs sm:h-7 sm:w-auto sm:self-start"
 		>
 			&larr; {m.common_back_to({ target: m.tr_title() })}
 		</Button>
@@ -146,11 +146,11 @@
 	</div>
 
 	<!-- Filter tabs -->
-	<div class="flex flex-wrap items-center gap-1">
+	<div class="grid grid-cols-1 gap-1 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap sm:items-center">
 		<Button
 			variant={filter === 'all' ? 'default' : 'outline'}
 			size="sm"
-			class="h-8 px-2 text-xs sm:h-7"
+			class="h-8 w-full px-2 text-xs sm:h-7 sm:w-auto"
 			onclick={() => (filter = 'all')}
 		>
 			{m.tr_compare_filter_all()} ({data.rows.length})
@@ -158,7 +158,7 @@
 		<Button
 			variant={filter === 'diff' ? 'default' : 'outline'}
 			size="sm"
-			class="h-8 px-2 text-xs sm:h-7"
+			class="h-8 w-full px-2 text-xs sm:h-7 sm:w-auto"
 			onclick={() => (filter = 'diff')}
 		>
 			{m.tr_compare_filter_diff()} ({data.rows.filter((r) => r.statusA !== r.statusB).length})
@@ -166,13 +166,18 @@
 		<Button
 			variant={filter === 'regression' ? 'default' : 'outline'}
 			size="sm"
-			class="h-8 px-2 text-xs sm:h-7"
+			class="h-8 w-full px-2 text-xs sm:h-7 sm:w-auto"
 			onclick={() => (filter = 'regression')}
 		>
 			{m.tr_compare_filter_regression()} ({data.summary.regression})
 		</Button>
-		<div class="w-full sm:ml-auto sm:w-auto">
-			<Button variant="outline" size="sm" class="h-8 px-2 text-xs sm:h-7" onclick={exportCsv}>
+		<div class="min-[420px]:col-span-2 sm:ml-auto sm:w-auto">
+			<Button
+				variant="outline"
+				size="sm"
+				class="h-8 w-full px-2 text-xs sm:h-7 sm:w-auto"
+				onclick={exportCsv}
+			>
 				{m.run_export_csv()}
 			</Button>
 		</div>

@@ -295,12 +295,14 @@
 			<h2 class="text-lg font-semibold">{m.req_title()}</h2>
 			<p class="text-muted-foreground text-sm leading-relaxed">{m.req_desc()}</p>
 		</div>
-		<div class="flex flex-wrap gap-2 sm:shrink-0">
-			<Button variant="outline" size="sm" onclick={exportCsv}>
+		<div
+			class="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:w-auto sm:shrink-0"
+		>
+			<Button variant="outline" size="sm" class="w-full sm:w-auto" onclick={exportCsv}>
 				{m.req_export_matrix()}
 			</Button>
 			{#if canManage}
-				<Button size="sm" onclick={() => (createDialogOpen = true)}>
+				<Button size="sm" class="w-full sm:w-auto" onclick={() => (createDialogOpen = true)}>
 					{m.req_new()}
 				</Button>
 			{/if}
@@ -424,22 +426,27 @@
 					</button>
 
 					{#if canManage}
-						<div class="mt-3 flex flex-wrap gap-2 border-t pt-3">
+						<div class="mt-3 grid grid-cols-1 gap-2 border-t pt-3 min-[420px]:grid-cols-3">
 							<Button
 								variant="outline"
 								size="sm"
-								class="h-7 text-xs"
+								class="h-8 w-full text-xs min-[420px]:h-7"
 								onclick={() => openLinkDialog(req.id)}
 							>
 								{m.req_link_test_case()}
 							</Button>
-							<Button variant="outline" size="sm" class="h-7 text-xs" onclick={() => openEdit(req)}>
+							<Button
+								variant="outline"
+								size="sm"
+								class="h-8 w-full text-xs min-[420px]:h-7"
+								onclick={() => openEdit(req)}
+							>
 								{m.common_edit()}
 							</Button>
 							<Button
 								variant="ghost"
 								size="sm"
-								class="text-destructive hover:text-destructive h-7 text-xs"
+								class="h-8 w-full text-xs text-destructive hover:text-destructive min-[420px]:h-7"
 								onclick={() => openDelete(req.id)}
 							>
 								{m.common_delete()}
@@ -472,7 +479,7 @@
 													<Button
 														variant="ghost"
 														size="sm"
-														class="h-6 px-1 text-[10px] text-destructive"
+														class="h-7 w-full px-1 text-[10px] text-destructive sm:w-auto"
 														onclick={() => openUnlink(req.id, tc)}
 													>
 														{m.req_unlink_test_case()}

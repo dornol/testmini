@@ -178,17 +178,18 @@
 						</div>
 					{/if}
 
-					<div class="flex flex-wrap items-center gap-2">
+					<div class="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
 						<Input
 							placeholder={m.tr_filter_placeholder()}
 							class="w-full sm:max-w-xs"
 							bind:value={searchFilter}
 						/>
-						<div class="flex flex-wrap gap-1">
+						<div class="grid grid-cols-2 gap-1 min-[420px]:flex min-[420px]:flex-wrap">
 							<Button
 								type="button"
 								variant={priorityFilter === '' ? 'default' : 'outline'}
 								size="sm"
+								class="w-full min-[420px]:w-auto"
 								onclick={() => (priorityFilter = '')}
 							>
 								{m.common_all()}
@@ -198,6 +199,7 @@
 									type="button"
 									variant={priorityFilter === p.name ? 'default' : 'outline'}
 									size="sm"
+									class="w-full min-[420px]:w-auto"
 									onclick={() => (priorityFilter = p.name)}
 								>
 									{p.name}
@@ -205,11 +207,12 @@
 							{/each}
 						</div>
 						{#if data.projectTags.length > 0}
-							<div class="flex flex-wrap gap-1">
+							<div class="grid grid-cols-2 gap-1 min-[420px]:flex min-[420px]:flex-wrap">
 								<Button
 									type="button"
 									variant={!tagFilter ? 'default' : 'outline'}
 									size="sm"
+									class="w-full min-[420px]:w-auto"
 									onclick={() => (tagFilter = '')}
 								>
 									{m.common_all()}
@@ -219,6 +222,7 @@
 										type="button"
 										variant={tagFilter === String(t.id) ? 'default' : 'outline'}
 										size="sm"
+										class="w-full min-[420px]:w-auto"
 										onclick={() => (tagFilter = String(t.id))}
 									>
 										<span
@@ -344,12 +348,14 @@
 					<input type="hidden" name="testCaseIds" value={id} />
 				{/each}
 
-				<div class="flex gap-3 pt-2">
-					<Button type="submit" disabled={selectedIds.size === 0}>
+				<div class="flex flex-col gap-2 pt-2 sm:flex-row sm:gap-3">
+					<Button type="submit" class="w-full sm:w-auto" disabled={selectedIds.size === 0}>
 						{m.tr_create_run({ count: selectedIds.size })}
 					</Button>
-					<Button variant="outline" href="/projects/{data.project.id}/test-runs"
-						>{m.common_cancel()}</Button
+					<Button
+						variant="outline"
+						class="w-full sm:w-auto"
+						href="/projects/{data.project.id}/test-runs">{m.common_cancel()}</Button
 					>
 				</div>
 			</form>

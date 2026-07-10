@@ -218,12 +218,12 @@
 		</div>
 	</div>
 
-	<div class="flex flex-wrap gap-1">
+	<div class="grid grid-cols-2 gap-1 min-[420px]:flex min-[420px]:flex-wrap">
 		{#each statuses as s (s)}
 			<Button
 				variant={data.statusFilter === s ? 'default' : 'outline'}
 				size="sm"
-				class="h-7 px-2 text-xs"
+				class="h-8 w-full px-2 text-xs min-[420px]:h-7 min-[420px]:w-auto"
 				onclick={() => setStatus(s)}
 			>
 				{s || m.common_all()}
@@ -494,10 +494,19 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (editDialogOpen = false)} disabled={editRunSaving}>
+				<Button
+					variant="outline"
+					class="w-full sm:w-auto"
+					onclick={() => (editDialogOpen = false)}
+					disabled={editRunSaving}
+				>
 					{m.common_cancel()}
 				</Button>
-				<Button onclick={handleEdit} disabled={editRunSaving || !editRunName.trim()}>
+				<Button
+					class="w-full sm:w-auto"
+					onclick={handleEdit}
+					disabled={editRunSaving || !editRunName.trim()}
+				>
 					{#if editRunSaving}
 						<svg
 							class="mr-2 h-4 w-4 animate-spin"
@@ -544,12 +553,17 @@
 			<Dialog.Footer>
 				<Button
 					variant="outline"
+					class="w-full sm:w-auto"
 					onclick={() => (cloneDialogOpen = false)}
 					disabled={cloneRunSaving}
 				>
 					{m.common_cancel()}
 				</Button>
-				<Button onclick={handleClone} disabled={cloneRunSaving || !cloneRunName.trim()}>
+				<Button
+					class="w-full sm:w-auto"
+					onclick={handleClone}
+					disabled={cloneRunSaving || !cloneRunName.trim()}
+				>
 					{#if cloneRunSaving}
 						<svg
 							class="mr-2 h-4 w-4 animate-spin"
@@ -597,12 +611,17 @@
 			<Dialog.Footer>
 				<Button
 					variant="outline"
+					class="w-full sm:w-auto"
 					onclick={() => (retestDialogOpen = false)}
 					disabled={retestRunSaving}
 				>
 					{m.common_cancel()}
 				</Button>
-				<Button onclick={handleRetest} disabled={retestRunSaving || !retestRunName.trim()}>
+				<Button
+					class="w-full sm:w-auto"
+					onclick={handleRetest}
+					disabled={retestRunSaving || !retestRunName.trim()}
+				>
 					{#if retestRunSaving}
 						<svg
 							class="mr-2 h-4 w-4 animate-spin"
@@ -644,8 +663,15 @@
 				</AlertDialog.Description>
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel disabled={deleteRunSaving}>{m.common_cancel()}</AlertDialog.Cancel>
-				<Button variant="destructive" onclick={handleDelete} disabled={deleteRunSaving}>
+				<AlertDialog.Cancel class="w-full sm:w-auto" disabled={deleteRunSaving}>
+					{m.common_cancel()}
+				</AlertDialog.Cancel>
+				<Button
+					variant="destructive"
+					class="w-full sm:w-auto"
+					onclick={handleDelete}
+					disabled={deleteRunSaving}
+				>
 					{#if deleteRunSaving}
 						<svg
 							class="mr-2 h-4 w-4 animate-spin"

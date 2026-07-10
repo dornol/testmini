@@ -308,24 +308,41 @@
 			{/if}
 		</div>
 		<div class="flex items-center gap-2 sm:justify-end">
-			<Button variant="outline" size="sm" onclick={() => (showDeleteDialog = true)}>
+			<Button
+				variant="outline"
+				size="sm"
+				class="w-full sm:w-auto"
+				onclick={() => (showDeleteDialog = true)}
+			>
 				{m.common_delete()}
 			</Button>
 		</div>
 	</div>
 
 	<!-- Timer -->
-	<div class="flex flex-wrap items-center gap-3 rounded-lg border p-4">
+	<div
+		class="grid gap-3 rounded-lg border p-4 min-[420px]:flex min-[420px]:flex-wrap min-[420px]:items-center"
+	>
 		<div class="text-3xl font-mono font-bold tracking-wider">{timerDisplay}</div>
 		{#if session.status === 'ACTIVE'}
-			<Button variant="secondary" size="sm" onclick={pauseSession}>{m.exploratory_pause()}</Button>
-			<Button variant="default" size="sm" onclick={() => (showCompleteDialog = true)}
-				>{m.exploratory_complete()}</Button
+			<Button class="w-full min-[420px]:w-auto" variant="secondary" size="sm" onclick={pauseSession}
+				>{m.exploratory_pause()}</Button
+			>
+			<Button
+				class="w-full min-[420px]:w-auto"
+				variant="default"
+				size="sm"
+				onclick={() => (showCompleteDialog = true)}>{m.exploratory_complete()}</Button
 			>
 		{:else if session.status === 'PAUSED'}
-			<Button variant="default" size="sm" onclick={resumeSession}>{m.exploratory_resume()}</Button>
-			<Button variant="outline" size="sm" onclick={() => (showCompleteDialog = true)}
-				>{m.exploratory_complete()}</Button
+			<Button class="w-full min-[420px]:w-auto" variant="default" size="sm" onclick={resumeSession}
+				>{m.exploratory_resume()}</Button
+			>
+			<Button
+				class="w-full min-[420px]:w-auto"
+				variant="outline"
+				size="sm"
+				onclick={() => (showCompleteDialog = true)}>{m.exploratory_complete()}</Button
 			>
 		{/if}
 	</div>
@@ -343,12 +360,13 @@
 		<div class="border rounded-lg p-4 space-y-3">
 			<h3 class="font-medium">{m.exploratory_add_note()}</h3>
 			<Textarea bind:value={noteContent} placeholder={m.exploratory_note_placeholder()} rows={2} />
-			<div class="flex flex-wrap items-center gap-3">
-				<div class="flex flex-wrap gap-1">
+			<div class="grid gap-3 sm:flex sm:flex-wrap sm:items-center">
+				<div class="grid grid-cols-2 gap-1 min-[420px]:flex min-[420px]:flex-wrap">
 					{#each ['NOTE', 'BUG', 'QUESTION', 'IDEA'] as type (type)}
 						<Button
 							variant={noteType === type ? 'default' : 'outline'}
 							size="sm"
+							class="w-full min-[420px]:w-auto"
 							onclick={() => (noteType = type)}>{noteTypeLabel(type)}</Button
 						>
 					{/each}
@@ -363,7 +381,7 @@
 					/>
 					<label
 						for="screenshot-input"
-						class="inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+						class="inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground sm:w-auto"
 					>
 						{m.tc_import_select_file()}
 					</label>
@@ -373,7 +391,11 @@
 						>
 					{/if}
 				</div>
-				<Button size="sm" onclick={addNote} disabled={submittingNote || !noteContent.trim()}
+				<Button
+					size="sm"
+					class="w-full sm:w-auto"
+					onclick={addNote}
+					disabled={submittingNote || !noteContent.trim()}
 					>{submittingNote ? m.common_saving() : m.exploratory_add_note_btn()}</Button
 				>
 			</div>

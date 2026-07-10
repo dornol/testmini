@@ -54,6 +54,7 @@ vi.mock('$lib/server/test-case-filters', () => ({
 const { GET } = await import('./+server');
 const authUtils = await import('$lib/server/auth-utils');
 const testCaseFilters = await import('$lib/server/test-case-filters');
+const drizzle = await import('drizzle-orm');
 
 const PARAMS = { projectId: '1' };
 
@@ -77,6 +78,18 @@ describe('/api/projects/[projectId]/test-cases/export', () => {
 				user: testUser
 			});
 			await expect(GET(event)).rejects.toThrow();
+		});
+
+		it('should return 400 for invalid selected IDs', async () => {
+			const event = createMockEvent({
+				method: 'GET',
+				params: PARAMS,
+				searchParams: { ids: '1,bad' },
+				user: testUser
+			});
+
+			await expect(GET(event)).rejects.toThrow();
+			expect(mockDb.select).not.toHaveBeenCalled();
 		});
 
 		it('should return CSV data', async () => {
@@ -167,6 +180,30 @@ describe('/api/projects/[projectId]/test-cases/export', () => {
 			const body = await response.json();
 			expect(body.testCases).toHaveLength(1);
 			expect(body.testCases[0].key).toBe(sampleTestCase.key);
+		});
+
+		it('should scope export to selected test case IDs', async () => {
+			mockDb.select.mockImplementation(() => {
+				return {
+					from: vi.fn().mockReturnThis(),
+					innerJoin: vi.fn().mockReturnThis(),
+					where: vi.fn().mockReturnThis(),
+					orderBy: vi.fn().mockReturnThis(),
+					then: (r: (v: unknown) => void) => Promise.resolve([]).then(r)
+				} as never;
+			});
+
+			const event = createMockEvent({
+				method: 'GET',
+				params: PARAMS,
+				searchParams: { ids: '3,5,3' },
+				user: testUser
+			});
+
+			const response = await GET(event);
+
+			expect(response.status).toBe(200);
+			expect(drizzle.inArray).toHaveBeenCalledWith('id', [3, 5]);
 		});
 
 		it('should pass list filters to the export query', async () => {

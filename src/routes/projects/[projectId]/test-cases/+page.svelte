@@ -217,6 +217,13 @@
 		return `/api/projects/${data.project.id}/test-cases/export?${params.toString()}`;
 	}
 
+	function buildSelectedExportUrl(format: 'csv' | 'json'): string {
+		const params = new URLSearchParams();
+		params.set('format', format);
+		params.set('ids', [...selectedTcIds].join(','));
+		return `/api/projects/${data.project.id}/test-cases/export?${params.toString()}`;
+	}
+
 	function getPriorityColor(name: string): string {
 		return data.projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
 	}
@@ -1004,6 +1011,9 @@
 			groups={data.groups}
 			projectSuites={data.projectSuites}
 			{canDelete}
+			onExportSelected={(format) => {
+				window.location.href = buildSelectedExportUrl(format);
+			}}
 			oncomplete={() => {
 				selectedTcIds = new Set();
 				invalidateAll();

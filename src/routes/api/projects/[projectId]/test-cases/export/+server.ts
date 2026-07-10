@@ -15,7 +15,8 @@ import { withProjectAccess } from '$lib/server/api-handler';
 import { buildTestCaseConditions } from '$lib/server/test-case-filters';
 import {
 	parseCanonicalPositiveInteger,
-	parseCanonicalPositiveIntegerList
+	parseCanonicalPositiveIntegerList,
+	parseRequiredCanonicalPositiveIntegerList
 } from '$lib/server/search-param-validation';
 
 export const GET = withProjectAccess(async ({ url, projectId }) => {
@@ -42,7 +43,17 @@ export const GET = withProjectAccess(async ({ url, projectId }) => {
 		}
 	}
 
-	const where = buildTestCaseConditions({
+	const selectedIdsParam = url.searchParams.get('ids');
+	let selectedTestCaseIds: number[] = [];
+	if (selectedIdsParam !== null && selectedIdsParam.trim() !== '') {
+		try {
+			selectedTestCaseIds = parseRequiredCanonicalPositiveIntegerList(selectedIdsParam, 'ids');
+		} catch {
+			error(400, 'ids must contain only positive integers');
+		}
+	}
+
+	let where = buildTestCaseConditions({
 		projectId,
 		search,
 		priority,
@@ -55,6 +66,9 @@ export const GET = withProjectAccess(async ({ url, projectId }) => {
 		retestNeeded,
 		customFieldFilters
 	});
+	if (selectedTestCaseIds.length > 0) {
+		where = and(where, inArray(testCase.id, selectedTestCaseIds))!;
+	}
 
 	const testCasesBase = await db
 		.select({

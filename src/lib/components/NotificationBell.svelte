@@ -308,13 +308,13 @@
 
 							<div class="min-w-0 flex-1">
 								<div class="flex items-start justify-between gap-2">
-									<p class="truncate text-sm font-medium">{n.title}</p>
+									<p class="line-clamp-2 text-sm font-medium">{n.title}</p>
 									{#if !n.isRead}
 										<span class="bg-primary mt-1 h-2 w-2 shrink-0 rounded-full" aria-hidden="true"
 										></span>
 									{/if}
 								</div>
-								<p class="line-clamp-2 text-xs text-muted-foreground">{n.message}</p>
+								<p class="line-clamp-3 text-xs text-muted-foreground">{n.message}</p>
 								<p class="mt-1 text-[11px] text-muted-foreground/70">
 									{formatRelativeTime(n.createdAt)}
 								</p>

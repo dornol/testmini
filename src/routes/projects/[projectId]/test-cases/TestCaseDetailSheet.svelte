@@ -681,12 +681,12 @@
 		class="!max-w-none overflow-y-auto p-0 data-[state=open]:duration-300 data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-end data-[state=closed]:slide-out-to-end {isResizing
 			? 'select-none'
 			: ''}"
-		style="width: {sheetWidth}px !important"
+		style="width: min({sheetWidth}px, 100vw) !important"
 	>
 		<!-- Resize handle -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
-			class="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors z-50"
+			class="absolute left-0 top-0 bottom-0 z-50 hidden w-1.5 cursor-col-resize transition-colors hover:bg-primary/20 active:bg-primary/30 md:block"
 			onmousedown={startResize}
 		></div>
 		{#if detailLoading}
@@ -710,10 +710,10 @@
 			{@const version = tc.latestVersion}
 
 			<!-- Header area -->
-			<div class="border-b bg-muted/30 px-6 pt-6 pb-4">
+			<div class="border-b bg-muted/30 px-4 pt-6 pb-4 sm:px-6">
 				<div class="flex items-start justify-between gap-4 pr-8">
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-2.5">
+					<div class="min-w-0 space-y-1.5">
+						<div class="flex flex-wrap items-center gap-2.5">
 							<span class="bg-muted font-mono text-xs font-semibold px-2 py-0.5 rounded"
 								>{tc.key}</span
 							>
@@ -731,7 +731,7 @@
 								</span>
 							{/if}
 						</div>
-						<h3 class="text-lg font-semibold leading-tight">{version?.title ?? ''}</h3>
+						<h3 class="break-words text-lg font-semibold leading-tight">{version?.title ?? ''}</h3>
 						<p class="text-muted-foreground text-xs">
 							Created {new Date(tc.createdAt).toLocaleDateString()}
 						</p>
@@ -743,7 +743,7 @@
 						{m.lock_editing_by({ name: sheetLockHolder.userName })}
 					</div>
 				{/if}
-				<div class="flex items-center gap-2 mt-4">
+				<div class="mt-4 flex flex-wrap items-center gap-2">
 					<a
 						href="/projects/{projectId}/test-cases/{tc.id}"
 						class="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md h-7 text-xs px-3"

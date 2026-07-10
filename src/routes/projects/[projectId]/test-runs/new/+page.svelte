@@ -19,7 +19,11 @@
 	let searchFilter = $state('');
 	let priorityFilter = $state('');
 	let tagFilter = $state('');
-	const defaultEnv = $derived(data.projectEnvironments.find((e) => e.isDefault)?.name ?? data.projectEnvironments[0]?.name ?? 'DEV');
+	const defaultEnv = $derived(
+		data.projectEnvironments.find((e) => e.isDefault)?.name ??
+			data.projectEnvironments[0]?.name ??
+			'DEV'
+	);
 	let selectedEnv = $state('DEV');
 
 	// Sync from data (reactive)
@@ -95,7 +99,8 @@
 	<div class="mb-4">
 		<a
 			href="/projects/{data.project.id}/test-runs"
-			class="text-muted-foreground hover:text-foreground text-sm">&larr; {m.common_back_to({ target: m.tr_title() })}</a
+			class="text-muted-foreground hover:text-foreground text-sm"
+			>&larr; {m.common_back_to({ target: m.tr_title() })}</a
 		>
 	</div>
 
@@ -111,7 +116,9 @@
 						<Label for="name">{m.tr_run_name()}</Label>
 						<Input id="name" name="name" placeholder={m.tr_run_name_placeholder()} required />
 						{#if (actionData?.errors as Record<string, string[]> | undefined)?.name}
-							<p class="text-destructive text-sm">{(actionData?.errors as Record<string, string[]>).name}</p>
+							<p class="text-destructive text-sm">
+								{(actionData?.errors as Record<string, string[]>).name}
+							</p>
 						{/if}
 					</div>
 					<div class="space-y-2">
@@ -120,7 +127,9 @@
 						<Select.Root
 							type="single"
 							value={selectedEnv}
-							onValueChange={(v: string) => { selectedEnv = v; }}
+							onValueChange={(v: string) => {
+								selectedEnv = v;
+							}}
 						>
 							<Select.Trigger class="w-full">
 								{selectedEnv}
@@ -141,18 +150,23 @@
 					</div>
 
 					{#if data.suites.length > 0}
-						<div class="flex items-center gap-2">
+						<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
 							<Label class="text-sm whitespace-nowrap">{m.tr_load_suite()}:</Label>
 							<Select.Root
 								type="single"
-								onValueChange={(v: string) => { loadFromSuite(v); }}
+								onValueChange={(v: string) => {
+									loadFromSuite(v);
+								}}
 							>
-								<Select.Trigger class="w-60">
+								<Select.Trigger class="w-full sm:w-60">
 									{m.tr_load_suite()}
 								</Select.Trigger>
 								<Select.Content>
 									{#each data.suites as suite}
-										<Select.Item value={String(suite.id)} label="{suite.name} ({suite.itemCount})" />
+										<Select.Item
+											value={String(suite.id)}
+											label="{suite.name} ({suite.itemCount})"
+										/>
 									{/each}
 								</Select.Content>
 							</Select.Root>
@@ -162,10 +176,10 @@
 					<div class="flex flex-wrap items-center gap-2">
 						<Input
 							placeholder={m.tr_filter_placeholder()}
-							class="max-w-xs"
+							class="w-full sm:max-w-xs"
 							bind:value={searchFilter}
 						/>
-						<div class="flex gap-1">
+						<div class="flex flex-wrap gap-1">
 							<Button
 								type="button"
 								variant={priorityFilter === '' ? 'default' : 'outline'}
@@ -186,7 +200,7 @@
 							{/each}
 						</div>
 						{#if data.projectTags.length > 0}
-							<div class="flex gap-1">
+							<div class="flex flex-wrap gap-1">
 								<Button
 									type="button"
 									variant={!tagFilter ? 'default' : 'outline'}
@@ -202,7 +216,10 @@
 										size="sm"
 										onclick={() => (tagFilter = String(t.id))}
 									>
-										<span class="mr-1.5 inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
+										<span
+											class="mr-1.5 inline-block h-2 w-2 rounded-full"
+											style="background-color: {t.color}"
+										></span>
 										{t.name}
 									</Button>
 								{/each}
@@ -216,7 +233,7 @@
 						</p>
 					{:else}
 						<Card.Root>
-							<Table.Root>
+							<Table.Root class="table-fixed">
 								<Table.Header>
 									<Table.Row>
 										<Table.Head class="w-10">
@@ -227,21 +244,18 @@
 												class="rounded"
 											/>
 										</Table.Head>
-										<Table.Head class="w-28">{m.common_key()}</Table.Head>
+										<Table.Head class="w-24">{m.common_key()}</Table.Head>
 										<Table.Head>{m.common_title()}</Table.Head>
-										<Table.Head class="w-28">{m.common_priority()}</Table.Head>
+										<Table.Head class="w-24">{m.common_priority()}</Table.Head>
 									</Table.Row>
 								</Table.Header>
 							</Table.Root>
-							<VirtualList items={filteredCases} rowHeight={44} height="420px">
+							<VirtualList items={filteredCases} rowHeight={64} height="420px">
 								{#snippet children({ item })}
-									{@const tc = item as typeof filteredCases[0]}
-									<Table.Root>
+									{@const tc = item as (typeof filteredCases)[0]}
+									<Table.Root class="table-fixed">
 										<Table.Body>
-											<Table.Row
-												class="cursor-pointer"
-												onclick={() => toggleCase(tc.id)}
-											>
+											<Table.Row class="cursor-pointer" onclick={() => toggleCase(tc.id)}>
 												<Table.Cell class="w-10">
 													<input
 														type="checkbox"
@@ -251,9 +265,12 @@
 														class="rounded"
 													/>
 												</Table.Cell>
-												<Table.Cell class="w-28 font-mono text-sm">{tc.key}</Table.Cell>
-												<Table.Cell class="font-medium">{tc.title}</Table.Cell>
-												<Table.Cell class="w-28">
+												<Table.Cell class="w-24 font-mono text-sm">{tc.key}</Table.Cell>
+												<Table.Cell
+													class="min-w-0 whitespace-normal break-words font-medium leading-snug"
+													>{tc.title}</Table.Cell
+												>
+												<Table.Cell class="w-24">
 													<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
 												</Table.Cell>
 											</Table.Row>
@@ -265,7 +282,9 @@
 					{/if}
 
 					{#if (actionData?.errors as Record<string, string[]> | undefined)?.testCaseIds}
-						<p class="text-destructive text-sm">{(actionData?.errors as Record<string, string[]>).testCaseIds}</p>
+						<p class="text-destructive text-sm">
+							{(actionData?.errors as Record<string, string[]>).testCaseIds}
+						</p>
 					{/if}
 				</div>
 
@@ -278,7 +297,9 @@
 					<Button type="submit" disabled={selectedIds.size === 0}>
 						{m.tr_create_run({ count: selectedIds.size })}
 					</Button>
-					<Button variant="outline" href="/projects/{data.project.id}/test-runs">{m.common_cancel()}</Button>
+					<Button variant="outline" href="/projects/{data.project.id}/test-runs"
+						>{m.common_cancel()}</Button
+					>
 				</div>
 			</form>
 		</Card.Content>

@@ -91,7 +91,8 @@
 	<div class="mb-4">
 		<a
 			href="/projects/{data.project.id}/test-plans"
-			class="text-muted-foreground hover:text-foreground text-sm">&larr; {m.common_back_to({ target: m.tp_title() })}</a
+			class="text-muted-foreground hover:text-foreground text-sm"
+			>&larr; {m.common_back_to({ target: m.tp_title() })}</a
 		>
 	</div>
 
@@ -137,10 +138,10 @@
 					<div class="flex flex-wrap items-center gap-2">
 						<Input
 							placeholder={m.tr_filter_placeholder()}
-							class="max-w-xs"
+							class="w-full sm:max-w-xs"
 							bind:value={searchFilter}
 						/>
-						<div class="flex gap-1">
+						<div class="flex flex-wrap gap-1">
 							<Button
 								type="button"
 								variant={priorityFilter === '' ? 'default' : 'outline'}
@@ -166,7 +167,7 @@
 						<p class="text-muted-foreground text-sm">{m.tr_no_cases()}</p>
 					{:else}
 						<Card.Root>
-							<Table.Root>
+							<Table.Root class="table-fixed">
 								<Table.Header>
 									<Table.Row>
 										<Table.Head class="w-10">
@@ -177,21 +178,18 @@
 												class="rounded"
 											/>
 										</Table.Head>
-										<Table.Head class="w-28">{m.common_key()}</Table.Head>
+										<Table.Head class="w-24">{m.common_key()}</Table.Head>
 										<Table.Head>{m.common_title()}</Table.Head>
-										<Table.Head class="w-28">{m.common_priority()}</Table.Head>
+										<Table.Head class="w-24">{m.common_priority()}</Table.Head>
 									</Table.Row>
 								</Table.Header>
 							</Table.Root>
-							<VirtualList items={filteredCases} rowHeight={44} height="420px">
+							<VirtualList items={filteredCases} rowHeight={64} height="420px">
 								{#snippet children({ item })}
-									{@const tc = item as typeof filteredCases[0]}
-									<Table.Root>
+									{@const tc = item as (typeof filteredCases)[0]}
+									<Table.Root class="table-fixed">
 										<Table.Body>
-											<Table.Row
-												class="cursor-pointer"
-												onclick={() => toggleCase(tc.id)}
-											>
+											<Table.Row class="cursor-pointer" onclick={() => toggleCase(tc.id)}>
 												<Table.Cell class="w-10">
 													<input
 														type="checkbox"
@@ -201,9 +199,12 @@
 														class="rounded"
 													/>
 												</Table.Cell>
-												<Table.Cell class="w-28 font-mono text-sm">{tc.key}</Table.Cell>
-												<Table.Cell class="font-medium">{tc.title}</Table.Cell>
-												<Table.Cell class="w-28">
+												<Table.Cell class="w-24 font-mono text-sm">{tc.key}</Table.Cell>
+												<Table.Cell
+													class="min-w-0 whitespace-normal break-words font-medium leading-snug"
+													>{tc.title}</Table.Cell
+												>
+												<Table.Cell class="w-24">
 													<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
 												</Table.Cell>
 											</Table.Row>
@@ -219,7 +220,9 @@
 					<Button onclick={handleCreate} disabled={creating || !name.trim()}>
 						{creating ? m.common_creating() : m.tp_create()}
 					</Button>
-					<Button variant="outline" href="/projects/{data.project.id}/test-plans">{m.common_cancel()}</Button>
+					<Button variant="outline" href="/projects/{data.project.id}/test-plans"
+						>{m.common_cancel()}</Button
+					>
 				</div>
 			</div>
 		</Card.Content>

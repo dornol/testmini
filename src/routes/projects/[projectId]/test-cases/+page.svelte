@@ -98,6 +98,14 @@
 	// Checkbox selection state (bulk ops)
 	let selectedTcIds = $state<Set<number>>(new Set());
 
+	$effect(() => {
+		const visibleIds = new Set(data.testCases.map((tc) => tc.id));
+		untrack(() => {
+			if ([...selectedTcIds].every((id) => visibleIds.has(id))) return;
+			selectedTcIds = new Set([...selectedTcIds].filter((id) => visibleIds.has(id)));
+		});
+	});
+
 	// DnD state for grouped view
 	type TcItem = {
 		id: number;

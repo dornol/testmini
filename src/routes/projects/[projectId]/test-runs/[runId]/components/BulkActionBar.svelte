@@ -12,7 +12,7 @@
 	let { selectedPending, onresult }: Props = $props();
 	let submitting = $state(false);
 
-	function handleResult() {
+	function handleResult(status: string) {
 		submitting = true;
 		const count = selectedPending.size;
 		return async ({
@@ -24,7 +24,9 @@
 		}) => {
 			submitting = false;
 			if (result.type === 'success') {
-				toast.success(m.bulk_pass_success({ count }));
+				toast.success(
+					status === 'PASS' ? m.bulk_pass_success({ count }) : m.bulk_status_success({ count })
+				);
 				onresult();
 			} else if (result.type === 'failure') {
 				toast.error(m.bulk_pass_error());
@@ -39,7 +41,12 @@
 		<span class="text-sm font-medium break-words"
 			>{m.run_pending_selected({ count: selectedPending.size })}</span
 		>
-		<form method="POST" action="?/bulkPass" use:enhance={handleResult}>
+		<form
+			method="POST"
+			action="?/bulkPass"
+			class="flex flex-wrap gap-2"
+			use:enhance={() => handleResult('PASS')}
+		>
 			{#each [...selectedPending] as id (id)}
 				<input type="hidden" name="executionIds" value={id} />
 			{/each}
@@ -72,6 +79,22 @@
 				{/if}
 				{m.run_bulk_pass()}
 			</Button>
+			<Button
+				type="submit"
+				name="status"
+				value="BLOCKED"
+				size="sm"
+				variant="outline"
+				disabled={submitting}>{m.run_bulk_blocked()}</Button
+			>
+			<Button
+				type="submit"
+				name="status"
+				value="SKIPPED"
+				size="sm"
+				variant="outline"
+				disabled={submitting}>{m.run_bulk_skipped()}</Button
+			>
 		</form>
 	</div>
 {/if}

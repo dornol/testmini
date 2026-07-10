@@ -1107,6 +1107,36 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			);
 		});
 
+		it('should apply a supported non-pass bulk status', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			const updateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockResolvedValue(undefined)
+			};
+			mockDb.update.mockReturnValue(updateChain as never);
+
+			const event = createActionEvent(
+				createFormData({ executionIds: ['200', '201'], status: 'BLOCKED' })
+			);
+			await actions.bulkPass(event as never);
+
+			expect(updateChain.set).toHaveBeenCalledWith(expect.objectContaining({ status: 'BLOCKED' }));
+			expect(mockPublish).toHaveBeenCalledWith(
+				'run:50:events',
+				expect.objectContaining({ status: 'BLOCKED', executionIds: [200, 201] })
+			);
+		});
+
+		it('should reject an unsupported bulk status', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			const event = createActionEvent(createFormData({ executionIds: ['200'], status: 'FAIL' }));
+
+			const result = await actions.bulkPass(event as never);
+
+			expect(result).toEqual(expect.objectContaining({ status: 400 }));
+			expect(mockDb.update).not.toHaveBeenCalled();
+		});
+
 		it('should publish bulk_updated SSE event', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			const updateChain = {

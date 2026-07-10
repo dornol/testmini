@@ -15,6 +15,7 @@
 		{ href: `/projects/${data.project.id}/releases`, label: m.nav_releases() },
 		{ href: `/projects/${data.project.id}/test-runs`, label: m.nav_test_runs() },
 		{ href: `/projects/${data.project.id}/reports`, label: m.nav_reports() },
+		{ href: `/projects/${data.project.id}/quality`, label: m.nav_quality() },
 		{ href: `/projects/${data.project.id}/exploratory`, label: m.nav_exploratory() },
 		{ href: `/projects/${data.project.id}/traceability`, label: m.nav_traceability() },
 		...(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN'

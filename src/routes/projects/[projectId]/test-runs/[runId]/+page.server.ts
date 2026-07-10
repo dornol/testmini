@@ -591,12 +591,17 @@ export const actions: Actions = {
 		assertTestRunActionFormBodySize(request);
 
 		const formData = await request.formData();
+		const status = parseEnumValue(formData.get('status') ?? 'PASS', [
+			'PASS',
+			'BLOCKED',
+			'SKIPPED'
+		] as const);
 		const executionIds = formData
 			.getAll('executionIds')
 			.map(parsePositiveFormId)
 			.filter((id): id is number => id !== null);
 
-		if (executionIds.length === 0) {
+		if (executionIds.length === 0 || !status) {
 			return fail(400, { error: 'No executions selected' });
 		}
 
@@ -604,7 +609,7 @@ export const actions: Actions = {
 		await db
 			.update(testExecution)
 			.set({
-				status: 'PASS',
+				status,
 				executedBy: authUser.id,
 				executedAt: now,
 				startedAt: now,
@@ -624,7 +629,7 @@ export const actions: Actions = {
 		const event: RunEvent = {
 			type: 'executions:bulk_updated',
 			executionIds,
-			status: 'PASS'
+			status
 		};
 		await publishRunEvent(runId, event);
 

@@ -52,16 +52,17 @@
 		return `/admin/audit-logs?${params.toString()}`;
 	}
 
-	const ACTION_BADGE_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-		LOGIN: 'default',
-		REGISTER: 'default',
-		CREATE_PROJECT: 'secondary',
-		UPDATE_PROJECT: 'secondary',
-		DELETE_PROJECT: 'destructive',
-		ADD_MEMBER: 'secondary',
-		REMOVE_MEMBER: 'destructive',
-		CHANGE_ROLE: 'outline'
-	};
+	const ACTION_BADGE_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> =
+		{
+			LOGIN: 'default',
+			REGISTER: 'default',
+			CREATE_PROJECT: 'secondary',
+			UPDATE_PROJECT: 'secondary',
+			DELETE_PROJECT: 'destructive',
+			ADD_MEMBER: 'secondary',
+			REMOVE_MEMBER: 'destructive',
+			CHANGE_ROLE: 'outline'
+		};
 
 	function badgeVariant(act: string): 'default' | 'secondary' | 'destructive' | 'outline' {
 		return ACTION_BADGE_VARIANT[act] ?? 'outline';
@@ -92,8 +93,18 @@
 					{/each}
 				</Select.Content>
 			</Select.Root>
-			<Input type="date" bind:value={from} max={to || undefined} aria-label={m.audit_logs_filter_from()} />
-			<Input type="date" bind:value={to} min={from || undefined} aria-label={m.audit_logs_filter_to()} />
+			<Input
+				type="date"
+				bind:value={from}
+				max={to || undefined}
+				aria-label={m.audit_logs_filter_from()}
+			/>
+			<Input
+				type="date"
+				bind:value={to}
+				min={from || undefined}
+				aria-label={m.audit_logs_filter_to()}
+			/>
 		</div>
 		<div class="mt-3 flex gap-2">
 			<Button size="sm" onclick={applyFilters}>{m.common_search()}</Button>
@@ -103,8 +114,66 @@
 		</div>
 	</Card.Root>
 
+	<!-- Mobile audit log list -->
+	<div class="space-y-3 md:hidden">
+		{#each data.logs as log (log.id)}
+			<Card.Root class="gap-3 rounded-lg p-4">
+				<div class="flex flex-wrap items-center justify-between gap-2">
+					<Badge
+						variant={badgeVariant(log.action)}
+						class="max-w-full justify-start overflow-visible text-left font-mono text-xs whitespace-normal break-all"
+					>
+						{log.action}
+					</Badge>
+					<span class="text-xs text-muted-foreground">
+						{new Date(log.createdAt).toLocaleString()}
+					</span>
+				</div>
+
+				<div class="min-w-0 space-y-1">
+					{#if log.userName}
+						<p class="break-words text-sm font-medium">{log.userName}</p>
+						<p class="break-all text-xs text-muted-foreground">{log.userEmail}</p>
+					{:else}
+						<p class="text-sm font-medium text-muted-foreground">{m.audit_logs_system()}</p>
+					{/if}
+				</div>
+
+				<div class="grid gap-2 text-xs text-muted-foreground">
+					<div class="min-w-0">
+						<span class="font-medium text-foreground">{m.audit_logs_col_entity()}:</span>
+						{#if log.entityType}
+							<span class="break-all">{log.entityType}</span>
+							{#if log.entityId}
+								<span class="break-all font-mono">#{log.entityId}</span>
+							{/if}
+						{:else}
+							<span>—</span>
+						{/if}
+					</div>
+					<div class="flex flex-wrap gap-x-3 gap-y-1">
+						<span>
+							<span class="font-medium text-foreground">{m.audit_logs_col_project()}:</span>
+							{log.projectId ?? '—'}
+						</span>
+						<span class="break-all">
+							<span class="font-medium text-foreground">{m.audit_logs_col_ip()}:</span>
+							{log.ipAddress ?? '—'}
+						</span>
+					</div>
+				</div>
+			</Card.Root>
+		{/each}
+		{#if data.logs.length === 0}
+			<Card.Root class="rounded-lg p-6 text-center">
+				<p class="text-sm font-medium text-muted-foreground">{m.audit_logs_no_results()}</p>
+				<p class="mt-1 text-xs text-muted-foreground">{m.audit_logs_no_results_hint()}</p>
+			</Card.Root>
+		{/if}
+	</div>
+
 	<!-- Table -->
-	<Card.Root>
+	<Card.Root class="hidden overflow-hidden md:flex">
 		<Table.Root>
 			<Table.Header>
 				<Table.Row>

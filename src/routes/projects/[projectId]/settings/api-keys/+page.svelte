@@ -327,7 +327,7 @@
 					</p>
 				</div>
 				<div class="space-y-2">
-					<Label>{m.api_key_name_label()}: {generatedKeyName}</Label>
+					<Label class="break-words">{m.api_key_name_label()}: {generatedKeyName}</Label>
 					<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
 						<code class="bg-muted flex-1 overflow-x-auto rounded p-2 font-mono text-sm break-all">
 							{generatedKey}
@@ -381,7 +381,7 @@
 				</div>
 				<div class="relative">
 					<pre
-						class="bg-muted rounded-md p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all max-h-36">{generatedKey
+						class="bg-muted max-h-36 overflow-x-auto rounded-md p-3 pr-16 font-mono text-xs whitespace-pre-wrap break-all">{generatedKey
 							? mcpAgents[selectedAgent].command(generatedKey)
 							: ''}</pre>
 					<Button

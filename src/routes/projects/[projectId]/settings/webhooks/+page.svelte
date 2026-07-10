@@ -247,12 +247,13 @@
 						</p>
 						<div class="flex flex-wrap gap-3">
 							{#each EVENT_TYPES as event (event)}
-								<label class="flex items-center gap-1.5 text-sm">
+								<label class="flex min-w-0 items-start gap-1.5 text-sm">
 									<Checkbox
+										class="mt-0.5 shrink-0"
 										checked={newEvents.includes(event)}
 										onCheckedChange={() => toggleEvent(event)}
 									/>
-									{eventLabel(event)}
+									<span class="min-w-0 break-words">{eventLabel(event)}</span>
 								</label>
 							{/each}
 						</div>

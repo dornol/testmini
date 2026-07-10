@@ -50,14 +50,26 @@ const { POST } = await import('./+server');
 
 // ── Helpers ──────────────────────────────────────────────
 
+const DEFAULT_WEBHOOK_SECRET = 'webhook_secret';
+
 function createWebhookRequest(
 	body: unknown,
 	headers: Record<string, string> = {}
 ): Parameters<typeof POST>[0] {
 	const bodyStr = JSON.stringify(body);
+	const requestHeaders: Record<string, string> = { 'Content-Type': 'application/json', ...headers };
+	if (requestHeaders['x-github-event'] === 'issues' && !requestHeaders['x-hub-signature-256']) {
+		requestHeaders['x-hub-signature-256'] = computeGitHubSignature(DEFAULT_WEBHOOK_SECRET, bodyStr);
+	}
+	if (requestHeaders['x-gitlab-event'] === 'Issue Hook' && !requestHeaders['x-gitlab-token']) {
+		requestHeaders['x-gitlab-token'] = DEFAULT_WEBHOOK_SECRET;
+	}
+	if (requestHeaders['x-gitea-event'] === 'issues' && !requestHeaders['x-gitea-signature']) {
+		requestHeaders['x-gitea-signature'] = computeGiteaSignature(DEFAULT_WEBHOOK_SECRET, bodyStr);
+	}
 	const request = new Request('http://localhost/api/webhooks/issues', {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json', ...headers },
+		headers: requestHeaders,
 		body: bodyStr
 	});
 	return {
@@ -165,7 +177,7 @@ function makeConfig(overrides: Record<string, unknown> = {}) {
 		provider: 'GITHUB',
 		projectKey: 'owner/repo',
 		enabled: true,
-		webhookSecret: null,
+		webhookSecret: DEFAULT_WEBHOOK_SECRET,
 		...overrides
 	};
 }
@@ -549,6 +561,27 @@ describe('/api/webhooks/issues POST', () => {
 	// ── Signature verification ──────────────────────────
 
 	describe('signature verification', () => {
+		it('skips configs without a webhook secret before querying issue links', async () => {
+			const config = makeConfig({ webhookSecret: null });
+			setupDbChain([config], [makeIssueLink()]);
+
+			const event = createWebhookRequest(makeGitHubIssuePayload(), {
+				'x-github-event': 'issues'
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.updated).toBe(0);
+			expect(mockDb.update).not.toHaveBeenCalled();
+			expect(mockDb.select).toHaveBeenCalledTimes(1);
+			expect(mockLog.warn).toHaveBeenCalledWith(
+				{ projectId: 1, provider: 'GITHUB' },
+				'Skipping issue webhook config without a webhook secret'
+			);
+		});
+
 		it('skips config with invalid GitHub signature', async () => {
 			const config = makeConfig({ webhookSecret: 'my-secret' });
 			setupDbChain([config], []);

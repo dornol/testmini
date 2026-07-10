@@ -264,41 +264,47 @@ export const POST: RequestHandler = async ({ request }) => {
 	const retestCaseIdsByProject = new Map<number, Set<number>>();
 
 	for (const config of configs) {
-		// Verify webhook signature if secret is configured
-		if (config.webhookSecret) {
-			let valid = false;
-			if (event.provider === 'GITHUB') {
-				valid = verifySignature(
-					config.webhookSecret,
-					rawBody,
-					request.headers.get('x-hub-signature-256')
-				);
-			} else if (event.provider === 'GITEA') {
-				// Gitea uses X-Gitea-Signature with HMAC-SHA256 (hex, no prefix)
-				const sig = request.headers.get('x-gitea-signature');
-				const expected = crypto
-					.createHmac('sha256', config.webhookSecret)
-					.update(rawBody)
-					.digest('hex');
-				try {
-					valid = sig
-						? crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(sig, 'hex'))
-						: false;
-				} catch {
-					valid = false;
-				}
-			} else if (event.provider === 'GITLAB') {
-				// GitLab uses X-Gitlab-Token (plain token comparison)
-				valid = timingSafeStringEqual(config.webhookSecret, request.headers.get('x-gitlab-token'));
-			}
+		if (!config.webhookSecret) {
+			log.warn(
+				{ projectId: config.projectId, provider: event.provider },
+				'Skipping issue webhook config without a webhook secret'
+			);
+			continue;
+		}
 
-			if (!valid) {
-				log.warn(
-					{ projectId: config.projectId, provider: event.provider },
-					'Webhook signature verification failed'
-				);
-				continue;
+		// Verify webhook signature if secret is configured
+		let valid = false;
+		if (event.provider === 'GITHUB') {
+			valid = verifySignature(
+				config.webhookSecret,
+				rawBody,
+				request.headers.get('x-hub-signature-256')
+			);
+		} else if (event.provider === 'GITEA') {
+			// Gitea uses X-Gitea-Signature with HMAC-SHA256 (hex, no prefix)
+			const sig = request.headers.get('x-gitea-signature');
+			const expected = crypto
+				.createHmac('sha256', config.webhookSecret)
+				.update(rawBody)
+				.digest('hex');
+			try {
+				valid = sig
+					? crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(sig, 'hex'))
+					: false;
+			} catch {
+				valid = false;
 			}
+		} else if (event.provider === 'GITLAB') {
+			// GitLab uses X-Gitlab-Token (plain token comparison)
+			valid = timingSafeStringEqual(config.webhookSecret, request.headers.get('x-gitlab-token'));
+		}
+
+		if (!valid) {
+			log.warn(
+				{ projectId: config.projectId, provider: event.provider },
+				'Webhook signature verification failed'
+			);
+			continue;
 		}
 
 		// Find matching issue links by URL pattern or external key

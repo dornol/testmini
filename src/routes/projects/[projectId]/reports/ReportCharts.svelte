@@ -573,11 +573,13 @@
 						}}
 					>
 						<div class="flex items-start justify-between gap-3">
-							<div class="min-w-0">
+							<div class="min-w-0 flex-1">
 								<p class="font-mono text-xs text-muted-foreground">{tc.testCaseKey}</p>
 								<p class="mt-1 line-clamp-2 text-sm font-medium">{tc.title}</p>
 							</div>
-							<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
+							<span class="shrink-0">
+								<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
+							</span>
 						</div>
 						<div class="mt-3">
 							{#if daysAgo === null}
@@ -662,11 +664,13 @@
 						}}
 					>
 						<div class="flex items-start justify-between gap-3">
-							<div class="min-w-0">
+							<div class="min-w-0 flex-1">
 								<p class="font-mono text-xs text-muted-foreground">{tc.testCaseKey}</p>
 								<p class="mt-1 line-clamp-2 text-sm font-medium">{tc.title}</p>
 							</div>
-							<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
+							<span class="shrink-0">
+								<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
+							</span>
 						</div>
 						<dl class="mt-3 grid grid-cols-3 gap-2 text-xs">
 							<div>

@@ -75,12 +75,12 @@
 </script>
 
 <div class="space-y-4">
-	<div class="flex items-center gap-2">
+	<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
 		<Button
 			variant="outline"
 			size="sm"
 			href="/projects/{data.project.id}/test-runs"
-			class="h-7 text-xs"
+			class="h-8 self-start text-xs sm:h-7"
 		>
 			&larr; {m.common_back_to({ target: m.tr_title() })}
 		</Button>
@@ -88,7 +88,7 @@
 	</div>
 
 	<!-- Run headers -->
-	<div class="grid grid-cols-2 gap-4">
+	<div class="grid gap-3 sm:grid-cols-2 sm:gap-4">
 		<Card.Root>
 			<Card.Content class="p-4">
 				<div class="text-xs text-muted-foreground mb-1">{m.compare_run_a()}</div>
@@ -146,11 +146,11 @@
 	</div>
 
 	<!-- Filter tabs -->
-	<div class="flex items-center gap-1">
+	<div class="flex flex-wrap items-center gap-1">
 		<Button
 			variant={filter === 'all' ? 'default' : 'outline'}
 			size="sm"
-			class="h-7 px-2 text-xs"
+			class="h-8 px-2 text-xs sm:h-7"
 			onclick={() => (filter = 'all')}
 		>
 			{m.tr_compare_filter_all()} ({data.rows.length})
@@ -158,7 +158,7 @@
 		<Button
 			variant={filter === 'diff' ? 'default' : 'outline'}
 			size="sm"
-			class="h-7 px-2 text-xs"
+			class="h-8 px-2 text-xs sm:h-7"
 			onclick={() => (filter = 'diff')}
 		>
 			{m.tr_compare_filter_diff()} ({data.rows.filter((r) => r.statusA !== r.statusB).length})
@@ -166,13 +166,13 @@
 		<Button
 			variant={filter === 'regression' ? 'default' : 'outline'}
 			size="sm"
-			class="h-7 px-2 text-xs"
+			class="h-8 px-2 text-xs sm:h-7"
 			onclick={() => (filter = 'regression')}
 		>
 			{m.tr_compare_filter_regression()} ({data.summary.regression})
 		</Button>
-		<div class="ml-auto">
-			<Button variant="outline" size="sm" class="h-7 px-2 text-xs" onclick={exportCsv}>
+		<div class="w-full sm:ml-auto sm:w-auto">
+			<Button variant="outline" size="sm" class="h-8 px-2 text-xs sm:h-7" onclick={exportCsv}>
 				{m.run_export_csv()}
 			</Button>
 		</div>
@@ -186,7 +186,51 @@
 			<p class="text-muted-foreground text-sm">{m.tr_compare_no_diff()}</p>
 		</div>
 	{:else}
-		<div class="border rounded-md overflow-hidden">
+		<div class="space-y-2 sm:hidden">
+			{#each filteredRows as row (row.testCaseId)}
+				<button
+					type="button"
+					class="w-full rounded-md border p-3 text-left transition-colors hover:bg-muted/50 {rowHighlight(
+						row.statusA,
+						row.statusB
+					)}"
+				>
+					<div class="flex items-start justify-between gap-3">
+						<div class="min-w-0 flex-1">
+							<p class="font-mono text-xs text-muted-foreground">{row.key}</p>
+							<p class="mt-1 break-words text-sm font-medium">{row.title}</p>
+						</div>
+						<span class="shrink-0">
+							<PriorityBadge name={row.priority} color={getPriorityColor(row.priority)} />
+						</span>
+					</div>
+					<div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+						<div class="rounded border bg-background/70 p-2">
+							<div class="mb-1 text-muted-foreground">{m.compare_run_a()}</div>
+							{#if row.statusA}
+								<Badge variant={statusVariant(row.statusA)} class="text-[10px] px-1.5 py-0"
+									>{row.statusA}</Badge
+								>
+							{:else}
+								<span class="text-muted-foreground">-</span>
+							{/if}
+						</div>
+						<div class="rounded border bg-background/70 p-2">
+							<div class="mb-1 text-muted-foreground">{m.compare_run_b()}</div>
+							{#if row.statusB}
+								<Badge variant={statusVariant(row.statusB)} class="text-[10px] px-1.5 py-0"
+									>{row.statusB}</Badge
+								>
+							{:else}
+								<span class="text-muted-foreground">-</span>
+							{/if}
+						</div>
+					</div>
+				</button>
+			{/each}
+		</div>
+
+		<div class="hidden overflow-hidden rounded-md border sm:block">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>

@@ -18,6 +18,26 @@ const OIDC_FETCH_TIMEOUT = 10_000;
 
 const log = childLogger('oidc-callback');
 
+function requireOidcOrigin(): string {
+	const origin = env.ORIGIN?.replace(/\/+$/, '');
+	if (!origin) {
+		error(500, 'ORIGIN is not configured');
+	}
+
+	let url: URL;
+	try {
+		url = new URL(origin);
+	} catch {
+		error(500, 'ORIGIN must be a valid URL');
+	}
+
+	if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+		error(500, 'ORIGIN must use http or https');
+	}
+
+	return origin;
+}
+
 function asRecord(value: unknown): Record<string, unknown> | null {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 	return value as Record<string, unknown>;
@@ -39,7 +59,8 @@ async function exchangeToken(
 	code: string,
 	codeVerifier: string,
 	slug: string,
-	clientSecret: string
+	clientSecret: string,
+	origin: string
 ): Promise<{ tokenData: Record<string, unknown>; accessToken: string } | null> {
 	const validation = await validatePublicHttpsUrl(provider.tokenUrl);
 	if (!validation.ok) return null;
@@ -53,7 +74,7 @@ async function exchangeToken(
 			body: new URLSearchParams({
 				grant_type: 'authorization_code',
 				code,
-				redirect_uri: `${env.ORIGIN}/auth/oidc/${slug}/callback`,
+				redirect_uri: `${origin}/auth/oidc/${slug}/callback`,
 				client_id: provider.clientId,
 				client_secret: clientSecret,
 				code_verifier: codeVerifier
@@ -309,6 +330,8 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 		redirect(302, '/auth/login?error=oidc_callback_error');
 	}
 
+	const origin = requireOidcOrigin();
+
 	// Clean up cookie
 	cookies.delete(`oidc_${slug}`, { path: '/' });
 
@@ -329,7 +352,8 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 		code,
 		cookieData.codeVerifier,
 		slug,
-		clientSecret
+		clientSecret,
+		origin
 	);
 	if (!tokenResult) {
 		callbackLog.warn('Token exchange failed');
@@ -406,7 +430,7 @@ export const GET: RequestHandler = async ({ params, url, cookies, locals }) => {
 	cookies.set('better-auth.session_token', signedToken, {
 		path: '/',
 		httpOnly: true,
-		secure: env.ORIGIN?.startsWith('https') ?? false,
+		secure: origin.startsWith('https'),
 		sameSite: 'lax',
 		expires: expiresAt
 	});

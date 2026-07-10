@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockDb } from '$lib/server/test-helpers/mock-db';
 
 const mockDb = createMockDb();
+const mockEnv = vi.hoisted(() => ({ ORIGIN: 'http://localhost:5173' as string | undefined }));
 
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
@@ -18,7 +19,7 @@ vi.mock('$lib/server/crypto', () => ({
 	encrypt: vi.fn((value: string) => `encrypted:${value}`)
 }));
 vi.mock('$env/dynamic/private', () => ({
-	env: { ORIGIN: 'http://localhost:5173' }
+	env: mockEnv
 }));
 vi.mock('$lib/server/logger', () => ({
 	childLogger: () => ({
@@ -32,6 +33,7 @@ const { GET } = await import('./+server');
 describe('OIDC authorization start', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockEnv.ORIGIN = 'http://localhost:5173';
 	});
 
 	it('rejects malformed provider slugs before database or cookie access', async () => {
@@ -48,6 +50,26 @@ describe('OIDC authorization start', () => {
 				url: new URL('http://localhost:5173/auth/oidc/bad%0Aslug')
 			} as never)
 		).rejects.toMatchObject({ status: 404 });
+
+		expect(mockDb.select).not.toHaveBeenCalled();
+		expect(cookies.set).not.toHaveBeenCalled();
+	});
+
+	it('rejects missing ORIGIN before provider lookup or cookie write', async () => {
+		mockEnv.ORIGIN = undefined;
+		const cookies = {
+			set: vi.fn(),
+			get: vi.fn(),
+			delete: vi.fn()
+		};
+
+		await expect(
+			GET({
+				params: { slug: 'okta' },
+				cookies,
+				url: new URL('http://localhost:5173/auth/oidc/okta')
+			} as never)
+		).rejects.toMatchObject({ status: 500 });
 
 		expect(mockDb.select).not.toHaveBeenCalled();
 		expect(cookies.set).not.toHaveBeenCalled();

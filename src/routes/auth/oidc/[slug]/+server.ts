@@ -11,6 +11,26 @@ import { isValidOidcProviderSlug } from '$lib/server/oidc-provider-validation';
 
 const log = childLogger('oidc-auth');
 
+function requireOidcOrigin(): string {
+	const origin = env.ORIGIN?.replace(/\/+$/, '');
+	if (!origin) {
+		error(500, 'ORIGIN is not configured');
+	}
+
+	let url: URL;
+	try {
+		url = new URL(origin);
+	} catch {
+		error(500, 'ORIGIN must be a valid URL');
+	}
+
+	if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+		error(500, 'ORIGIN must use http or https');
+	}
+
+	return origin;
+}
+
 export const GET: RequestHandler = async ({ params, cookies, url }) => {
 	const slug = params.slug;
 	log.info({ slug }, 'Authorization start');
@@ -19,6 +39,8 @@ export const GET: RequestHandler = async ({ params, cookies, url }) => {
 		log.warn({ slug }, 'Invalid provider slug');
 		error(404, 'Provider not found');
 	}
+
+	const origin = requireOidcOrigin();
 
 	const [provider] = await db
 		.select()
@@ -47,7 +69,7 @@ export const GET: RequestHandler = async ({ params, cookies, url }) => {
 	cookies.set(`oidc_${slug}`, encryptedCookie, {
 		path: '/',
 		httpOnly: true,
-		secure: env.ORIGIN?.startsWith('https') ?? false,
+		secure: origin.startsWith('https'),
 		sameSite: 'lax',
 		maxAge: 300 // 5 minutes
 	});
@@ -55,7 +77,7 @@ export const GET: RequestHandler = async ({ params, cookies, url }) => {
 	const authUrl = new URL(provider.authorizationUrl);
 	authUrl.searchParams.set('response_type', 'code');
 	authUrl.searchParams.set('client_id', provider.clientId);
-	authUrl.searchParams.set('redirect_uri', `${env.ORIGIN}/auth/oidc/${slug}/callback`);
+	authUrl.searchParams.set('redirect_uri', `${origin}/auth/oidc/${slug}/callback`);
 	authUrl.searchParams.set('scope', provider.scopes);
 	authUrl.searchParams.set('code_challenge', codeChallenge);
 	authUrl.searchParams.set('code_challenge_method', 'S256');

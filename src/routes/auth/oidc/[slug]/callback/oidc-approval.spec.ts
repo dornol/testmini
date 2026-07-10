@@ -22,6 +22,10 @@ const mockLogAudit = vi.fn();
 const mockCreateNotification = vi.fn();
 const mockFetch = vi.fn();
 const mockValidatePublicHttpsUrl = vi.hoisted(() => vi.fn());
+const mockEnv = vi.hoisted(() => ({
+	ORIGIN: 'http://localhost:5173' as string | undefined,
+	BETTER_AUTH_SECRET: 'test-secret-key'
+}));
 
 function resolveChain(result: unknown[]) {
 	const c: Record<string, unknown> = {};
@@ -97,7 +101,7 @@ vi.mock('$lib/server/oidc-jwt', () => ({
 	}))
 }));
 vi.mock('$env/dynamic/private', () => ({
-	env: { ORIGIN: 'http://localhost:5173', BETTER_AUTH_SECRET: 'test-secret-key' }
+	env: mockEnv
 }));
 vi.mock('$lib/server/logger', () => ({
 	childLogger: () => ({
@@ -190,6 +194,8 @@ describe('OIDC callback - approval queue', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockFetch.mockReset();
+		mockEnv.ORIGIN = 'http://localhost:5173';
+		mockEnv.BETTER_AUTH_SECRET = 'test-secret-key';
 		mockValidatePublicHttpsUrl.mockResolvedValue({ ok: true });
 	});
 
@@ -313,6 +319,19 @@ describe('OIDC callback - approval queue', () => {
 		expect(result.redirected).toBe(true);
 		expect(result.location).toBe('/auth/login?error=oidc_callback_error');
 		expect(mockFetch).not.toHaveBeenCalled();
+	});
+
+	it('should reject missing ORIGIN before token exchange', async () => {
+		mockEnv.ORIGIN = undefined;
+		const event = createCallbackEvent();
+
+		await expect(GET(event)).rejects.toMatchObject({
+			status: 500,
+			body: { message: 'ORIGIN is not configured' }
+		});
+
+		expect(mockFetch).not.toHaveBeenCalled();
+		expect(mockDb.insert).not.toHaveBeenCalled();
 	});
 
 	it('should reject userinfo responses without a string subject before creating users', async () => {

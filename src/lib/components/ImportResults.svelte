@@ -4,7 +4,13 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as m from '$lib/paraglide/messages.js';
 
-	type RowResult = { row: number; status: 'success' | 'skipped' | 'error'; title?: string; key?: string; error?: string };
+	type RowResult = {
+		row: number;
+		status: 'success' | 'skipped' | 'error';
+		title?: string;
+		key?: string;
+		error?: string;
+	};
 
 	let {
 		importResult,
@@ -18,26 +24,36 @@
 
 	let failedRowsExpanded = $state(false);
 
-	const failedRows = $derived(importResult.rows.filter((r) => r.status === 'error' || r.status === 'skipped'));
+	const failedRows = $derived(
+		importResult.rows.filter((r) => r.status === 'error' || r.status === 'skipped')
+	);
 	const successCount = $derived(importResult.rows.filter((r) => r.status === 'success').length);
 	const totalCount = $derived(importResult.rows.length);
 	const successRatio = $derived(totalCount > 0 ? (successCount / totalCount) * 100 : 0);
 	const skippedCount = $derived(importResult.rows.filter((r) => r.status === 'skipped').length);
 	const errorCount = $derived(importResult.rows.filter((r) => r.status === 'error').length);
-	const allSucceeded = $derived(importResult.rows.length > 0 && importResult.rows.every((r) => r.status === 'success'));
+	const allSucceeded = $derived(
+		importResult.rows.length > 0 && importResult.rows.every((r) => r.status === 'success')
+	);
 </script>
 
 <div class="space-y-4 py-4">
 	<div class="space-y-3 rounded-lg border bg-card p-4">
-		<div class="flex items-center justify-between text-sm">
+		<div class="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
 			<span class="text-muted-foreground">{m.tc_import_rows_total({ total: totalCount })}</span>
-			<div class="flex items-center gap-3">
-				<span class="font-medium text-green-600">{m.tc_import_rows_success({ count: successCount })}</span>
+			<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+				<span class="font-medium text-green-600"
+					>{m.tc_import_rows_success({ count: successCount })}</span
+				>
 				{#if errorCount > 0}
-					<span class="font-medium text-destructive">{m.tc_import_rows_failed({ count: errorCount })}</span>
+					<span class="font-medium text-destructive"
+						>{m.tc_import_rows_failed({ count: errorCount })}</span
+					>
 				{/if}
 				{#if skippedCount > 0}
-					<span class="text-muted-foreground">{m.tc_import_rows_skipped({ count: skippedCount })}</span>
+					<span class="text-muted-foreground"
+						>{m.tc_import_rows_skipped({ count: skippedCount })}</span
+					>
 				{/if}
 			</div>
 		</div>
@@ -61,7 +77,9 @@
 			<button
 				type="button"
 				class="flex w-full items-center justify-between rounded-lg px-4 py-3 text-sm font-medium transition-colors hover:bg-accent"
-				onclick={() => { failedRowsExpanded = !failedRowsExpanded; }}
+				onclick={() => {
+					failedRowsExpanded = !failedRowsExpanded;
+				}}
 			>
 				<span class="flex items-center gap-2">
 					<svg
@@ -79,7 +97,9 @@
 					{m.tc_import_failed_rows()} ({failedRows.length})
 				</span>
 				<svg
-					class="h-4 w-4 text-muted-foreground transition-transform duration-200 {failedRowsExpanded ? 'rotate-180' : ''}"
+					class="h-4 w-4 text-muted-foreground transition-transform duration-200 {failedRowsExpanded
+						? 'rotate-180'
+						: ''}"
 					fill="none"
 					viewBox="0 0 24 24"
 					stroke="currentColor"
@@ -130,11 +150,11 @@
 	{/if}
 </div>
 
-<div class="flex justify-end gap-2">
-	<Button variant="outline" onclick={onreset}>
+<div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+	<Button variant="outline" onclick={onreset} class="w-full sm:w-auto">
 		{m.tc_import_new_import()}
 	</Button>
-	<Button onclick={onclose}>
+	<Button onclick={onclose} class="w-full sm:w-auto">
 		{m.common_close()}
 	</Button>
 </div>

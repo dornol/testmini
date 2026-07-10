@@ -139,7 +139,14 @@
 	let comparisonDialogOpen = $state(false);
 	let comparisonData = $state<{
 		summary: { total: number; improved: number; regressed: number; unchanged: number };
-		comparisons: Array<{ testCaseKey: string; title: string; priority: string; originalStatus: string; retestStatus: string; improved: boolean }>;
+		comparisons: Array<{
+			testCaseKey: string;
+			title: string;
+			priority: string;
+			originalStatus: string;
+			retestStatus: string;
+			improved: boolean;
+		}>;
 	} | null>(null);
 	let comparisonLoading = $state(false);
 
@@ -153,7 +160,6 @@
 		}
 		comparisonLoading = false;
 	}
-
 </script>
 
 <div class="space-y-6">
@@ -182,7 +188,8 @@
 						<div class="flex flex-wrap gap-6 text-sm">
 							<div>
 								<span class="text-muted-foreground">{m.duration_total()}:</span>
-								<span class="ml-1 font-medium">{formatDuration(durationSummary.totalDuration)}</span>
+								<span class="ml-1 font-medium">{formatDuration(durationSummary.totalDuration)}</span
+								>
 							</div>
 							<div>
 								<span class="text-muted-foreground">{m.duration_avg()}:</span>
@@ -215,11 +222,7 @@
 		</div>
 	{/if}
 
-	<ExecutionFilters
-		{statusTabs}
-		{statusFilter}
-		executionCount={data.executions.length}
-	/>
+	<ExecutionFilters {statusTabs} {statusFilter} executionCount={data.executions.length} />
 
 	{#if canExecute && selectedPending.size > 0}
 		<BulkActionBar {selectedPending} onresult={handleMutationSuccess} />
@@ -252,7 +255,7 @@
 <Dialog.Root bind:open={comparisonDialogOpen}>
 	<Dialog.Portal>
 		<Dialog.Overlay />
-		<Dialog.Content class="max-w-3xl max-h-[80vh] overflow-y-auto">
+		<Dialog.Content class="sm:max-w-3xl max-h-[80vh] overflow-y-auto">
 			<Dialog.Header>
 				<Dialog.Title>{m.comparison_title()}</Dialog.Title>
 			</Dialog.Header>
@@ -261,9 +264,15 @@
 			{:else if comparisonData}
 				<div class="space-y-4 py-2">
 					<div class="flex gap-4 text-sm">
-						<Badge variant="default" class="bg-green-600">{m.comparison_improved()}: {comparisonData.summary.improved}</Badge>
-						<Badge variant="destructive">{m.comparison_regressed()}: {comparisonData.summary.regressed}</Badge>
-						<Badge variant="secondary">{m.comparison_unchanged()}: {comparisonData.summary.unchanged}</Badge>
+						<Badge variant="default" class="bg-green-600"
+							>{m.comparison_improved()}: {comparisonData.summary.improved}</Badge
+						>
+						<Badge variant="destructive"
+							>{m.comparison_regressed()}: {comparisonData.summary.regressed}</Badge
+						>
+						<Badge variant="secondary"
+							>{m.comparison_unchanged()}: {comparisonData.summary.unchanged}</Badge
+						>
 					</div>
 					<Table.Root>
 						<Table.Header>
@@ -276,23 +285,32 @@
 						</Table.Header>
 						<Table.Body>
 							{#each comparisonData.comparisons as c (c.testCaseKey)}
-								{@const regressed = c.originalStatus === 'PASS' && (c.retestStatus === 'FAIL' || c.retestStatus === 'BLOCKED')}
+								{@const regressed =
+									c.originalStatus === 'PASS' &&
+									(c.retestStatus === 'FAIL' || c.retestStatus === 'BLOCKED')}
 								<Table.Row>
 									<Table.Cell>
 										<span class="text-muted-foreground text-xs">{c.testCaseKey}</span>
 										<span class="ml-1">{c.title}</span>
 									</Table.Cell>
 									<Table.Cell>
-										<span class="font-medium {statusColorText(c.originalStatus)}">{c.originalStatus}</span>
+										<span class="font-medium {statusColorText(c.originalStatus)}"
+											>{c.originalStatus}</span
+										>
 									</Table.Cell>
 									<Table.Cell>
-										<span class="font-medium {statusColorText(c.retestStatus)}">{c.retestStatus}</span>
+										<span class="font-medium {statusColorText(c.retestStatus)}"
+											>{c.retestStatus}</span
+										>
 									</Table.Cell>
 									<Table.Cell>
 										{#if c.improved}
-											<Badge variant="default" class="bg-green-600 text-xs">{m.comparison_improved()}</Badge>
+											<Badge variant="default" class="bg-green-600 text-xs"
+												>{m.comparison_improved()}</Badge
+											>
 										{:else if regressed}
-											<Badge variant="destructive" class="text-xs">{m.comparison_regressed()}</Badge>
+											<Badge variant="destructive" class="text-xs">{m.comparison_regressed()}</Badge
+											>
 										{/if}
 									</Table.Cell>
 								</Table.Row>

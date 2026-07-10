@@ -14,12 +14,24 @@
 	let shareDialogOpen = $state(false);
 	let shareName = $state('');
 	let shareExpiresDays = $state(0);
-	let sharedLinks = $state<Array<{ id: number; token: string; name: string; expiresAt: string | null; createdAt: string }>>([]);
+	let sharedLinks = $state<
+		Array<{ id: number; token: string; name: string; expiresAt: string | null; createdAt: string }>
+	>([]);
 	let shareLoading = $state(false);
 
 	// ── Schedule dialog state ──
 	let scheduleDialogOpen = $state(false);
-	let schedules = $state<Array<{ id: number; name: string; cronExpression: string; recipientEmails: string[]; reportRange: string; enabled: boolean; lastSentAt: string | null }>>([]);
+	let schedules = $state<
+		Array<{
+			id: number;
+			name: string;
+			cronExpression: string;
+			recipientEmails: string[];
+			reportRange: string;
+			enabled: boolean;
+			lastSentAt: string | null;
+		}>
+	>([]);
 	let newScheduleName = $state('');
 	let newScheduleCron = $state('0 9 * * 1');
 	let newScheduleEmails = $state('');
@@ -45,7 +57,9 @@
 		shareLoading = true;
 		try {
 			sharedLinks = await apiFetch(`/api/projects/${projectId}/reports/share`);
-		} catch { /* handled by apiFetch */ }
+		} catch {
+			/* handled by apiFetch */
+		}
 		shareLoading = false;
 	}
 
@@ -68,7 +82,9 @@
 			shareName = '';
 			shareExpiresDays = 0;
 			sharedLinks = await apiFetch(`/api/projects/${projectId}/reports/share`);
-		} catch { /* handled by apiFetch */ }
+		} catch {
+			/* handled by apiFetch */
+		}
 	}
 
 	async function revokeShareLink(id: number) {
@@ -76,7 +92,9 @@
 			await apiDelete(`/api/projects/${projectId}/reports/share/${id}`);
 			toast.success(m.report_share_revoked());
 			sharedLinks = sharedLinks.filter((l) => l.id !== id);
-		} catch { /* handled by apiFetch */ }
+		} catch {
+			/* handled by apiFetch */
+		}
 	}
 
 	function copyShareLink(token: string) {
@@ -90,13 +108,18 @@
 		scheduleLoading = true;
 		try {
 			schedules = await apiFetch(`/api/projects/${projectId}/reports/schedules`);
-		} catch { /* handled by apiFetch */ }
+		} catch {
+			/* handled by apiFetch */
+		}
 		scheduleLoading = false;
 	}
 
 	async function createSchedule() {
 		if (!newScheduleName.trim() || !newScheduleEmails.trim()) return;
-		const emails = newScheduleEmails.split(',').map((e) => e.trim()).filter(Boolean);
+		const emails = newScheduleEmails
+			.split(',')
+			.map((e) => e.trim())
+			.filter(Boolean);
 		try {
 			await apiPost(`/api/projects/${projectId}/reports/schedules`, {
 				name: newScheduleName.trim(),
@@ -110,7 +133,9 @@
 			newScheduleCron = '0 9 * * 1';
 			newScheduleRange = 'last_7_days';
 			schedules = await apiFetch(`/api/projects/${projectId}/reports/schedules`);
-		} catch { /* handled by apiFetch */ }
+		} catch {
+			/* handled by apiFetch */
+		}
 	}
 
 	async function toggleSchedule(id: number, enabled: boolean) {
@@ -121,7 +146,9 @@
 				body: JSON.stringify({ enabled })
 			});
 			schedules = schedules.map((s) => (s.id === id ? { ...s, enabled } : s));
-		} catch { /* handled by apiFetch */ }
+		} catch {
+			/* handled by apiFetch */
+		}
 	}
 
 	async function deleteSchedule(id: number) {
@@ -129,7 +156,9 @@
 			await apiDelete(`/api/projects/${projectId}/reports/schedules/${id}`);
 			toast.success(m.report_schedule_deleted());
 			schedules = schedules.filter((s) => s.id !== id);
-		} catch { /* handled by apiFetch */ }
+		} catch {
+			/* handled by apiFetch */
+		}
 	}
 </script>
 
@@ -166,7 +195,7 @@
 
 <!-- Share Dialog -->
 <Dialog.Root bind:open={shareDialogOpen}>
-	<Dialog.Content class="max-w-lg">
+	<Dialog.Content class="sm:max-w-lg">
 		<Dialog.Header>
 			<Dialog.Title>{m.report_share()}</Dialog.Title>
 		</Dialog.Header>
@@ -209,14 +238,26 @@
 							<div>
 								<p class="text-sm font-medium">{link.name}</p>
 								<p class="text-muted-foreground text-xs">
-									{link.expiresAt ? m.common_expires({ date: new Date(link.expiresAt).toLocaleDateString() }) : m.report_share_never_expires()}
+									{link.expiresAt
+										? m.common_expires({ date: new Date(link.expiresAt).toLocaleDateString() })
+										: m.report_share_never_expires()}
 								</p>
 							</div>
 							<div class="flex gap-1">
-								<Button size="sm" variant="outline" class="h-7 text-xs" onclick={() => copyShareLink(link.token)}>
+								<Button
+									size="sm"
+									variant="outline"
+									class="h-7 text-xs"
+									onclick={() => copyShareLink(link.token)}
+								>
 									{m.report_share_copy()}
 								</Button>
-								<Button size="sm" variant="destructive" class="h-7 text-xs" onclick={() => revokeShareLink(link.id)}>
+								<Button
+									size="sm"
+									variant="destructive"
+									class="h-7 text-xs"
+									onclick={() => revokeShareLink(link.id)}
+								>
 									{m.report_share_revoke()}
 								</Button>
 							</div>
@@ -231,7 +272,7 @@
 <!-- Schedule Dialog -->
 {#if isAdmin}
 	<Dialog.Root bind:open={scheduleDialogOpen}>
-		<Dialog.Content class="max-w-lg">
+		<Dialog.Content class="sm:max-w-lg">
 			<Dialog.Header>
 				<Dialog.Title>{m.report_schedule()}</Dialog.Title>
 			</Dialog.Header>
@@ -268,7 +309,11 @@
 						placeholder={m.report_schedule_recipients() + ' ' + m.common_comma_separated()}
 						class="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
 					/>
-					<Button size="sm" onclick={createSchedule} disabled={!newScheduleName.trim() || !newScheduleEmails.trim()}>
+					<Button
+						size="sm"
+						onclick={createSchedule}
+						disabled={!newScheduleName.trim() || !newScheduleEmails.trim()}
+					>
 						{m.report_schedule_create()}
 					</Button>
 				</div>
@@ -285,9 +330,13 @@
 								<div>
 									<p class="text-sm font-medium">{sched.name}</p>
 									<p class="text-muted-foreground text-xs">
-										{sched.cronExpression} &middot; {m.common_recipients({ count: sched.recipientEmails.length })}
+										{sched.cronExpression} &middot; {m.common_recipients({
+											count: sched.recipientEmails.length
+										})}
 										{#if sched.lastSentAt}
-											&middot; {m.report_schedule_last_sent()}: {new Date(sched.lastSentAt).toLocaleDateString()}
+											&middot; {m.report_schedule_last_sent()}: {new Date(
+												sched.lastSentAt
+											).toLocaleDateString()}
 										{/if}
 									</p>
 								</div>
@@ -298,7 +347,12 @@
 										onchange={() => toggleSchedule(sched.id, !sched.enabled)}
 										class="h-4 w-4"
 									/>
-									<Button size="sm" variant="destructive" class="h-7 text-xs" onclick={() => deleteSchedule(sched.id)}>
+									<Button
+										size="sm"
+										variant="destructive"
+										class="h-7 text-xs"
+										onclick={() => deleteSchedule(sched.id)}
+									>
 										{m.common_delete()}
 									</Button>
 								</div>

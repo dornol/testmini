@@ -60,7 +60,7 @@
 <Dialog.Root bind:open>
 	<Dialog.Portal>
 		<Dialog.Overlay />
-		<Dialog.Content class="max-w-md">
+		<Dialog.Content class="sm:max-w-md">
 			<Dialog.Header>
 				<Dialog.Title>{m.template_save_as()}</Dialog.Title>
 			</Dialog.Header>
@@ -71,12 +71,19 @@
 						id="template-name"
 						bind:value={templateName}
 						placeholder={m.template_name_placeholder()}
-						onkeydown={(e) => { if (e.key === 'Enter') save(); }}
+						onkeydown={(e) => {
+							if (e.key === 'Enter') save();
+						}}
 					/>
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => { open = false; }}>{m.common_cancel()}</Button>
+				<Button
+					variant="outline"
+					onclick={() => {
+						open = false;
+					}}>{m.common_cancel()}</Button
+				>
 				<Button onclick={save} disabled={saving || !templateName.trim()}>
 					{saving ? m.template_saving() : m.common_save_changes()}
 				</Button>

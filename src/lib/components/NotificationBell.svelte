@@ -245,7 +245,7 @@
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			transition:fly={{ y: -8, duration: 150 }}
-			class="border-border bg-popover text-popover-foreground absolute right-0 z-50 mt-1 w-80 rounded-md border shadow-lg sm:w-96"
+			class="border-border bg-popover text-popover-foreground fixed left-2 right-2 top-12 z-50 max-h-[calc(100dvh-3.5rem)] rounded-md border shadow-lg sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-1 sm:w-96"
 			role="dialog"
 			aria-modal="true"
 			aria-label="Notifications panel"

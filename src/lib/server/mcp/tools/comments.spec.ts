@@ -49,6 +49,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
 const { registerCommentTools } = await import('./comments');
+const { testExecution, testRun } = await import('$lib/server/db/schema');
 
 const PROJECT_ID = 1;
 
@@ -329,7 +330,7 @@ describe('MCP comment tools', () => {
 		it('should return comments array', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
 			mockDb.query.testExecution.findFirst.mockResolvedValue(sampleExecution);
-			mockSelectResult(mockDb, [
+			const selectChain = mockSelectResult(mockDb, [
 				{
 					id: 5,
 					testExecutionId: 200,
@@ -349,6 +350,18 @@ describe('MCP comment tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed).toHaveLength(1);
 			expect(parsed[0].content).toBe('Execution comment');
+			expect(selectChain.innerJoin).toHaveBeenCalledWith(testExecution, [
+				'test_execution_id',
+				'id'
+			]);
+			expect(selectChain.innerJoin).toHaveBeenCalledWith(testRun, ['test_run_id', 'id']);
+			expect(selectChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_execution_id', 200],
+					['test_run_id', 50],
+					['project_id', PROJECT_ID]
+				])
+			);
 		});
 
 		it('should return error when run is not in the project', async () => {

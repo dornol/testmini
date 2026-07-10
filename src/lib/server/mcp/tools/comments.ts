@@ -194,7 +194,15 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 			const comments = await db
 				.select()
 				.from(executionComment)
-				.where(eq(executionComment.testExecutionId, executionId))
+				.innerJoin(testExecution, eq(executionComment.testExecutionId, testExecution.id))
+				.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
+				.where(
+					and(
+						eq(executionComment.testExecutionId, executionId),
+						eq(testExecution.testRunId, runId),
+						eq(testRun.projectId, projectId)
+					)
+				)
 				.orderBy(desc(executionComment.createdAt));
 
 			return ok(comments);

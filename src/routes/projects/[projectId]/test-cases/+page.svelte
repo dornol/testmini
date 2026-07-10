@@ -32,6 +32,7 @@
 	import TestCaseListControls from './TestCaseListControls.svelte';
 	import TestCaseListHeader from './TestCaseListHeader.svelte';
 	import TestCasePaginationBar from './TestCasePaginationBar.svelte';
+	import TestCaseTableHeader from './TestCaseTableHeader.svelte';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import { TAG_PALETTE } from '$lib/constants';
 
@@ -1583,120 +1584,18 @@
 		{/snippet}
 
 		<div>
-			<!-- Sticky Column header -->
-			<div
-				class="flex items-center gap-2 px-3 py-1.5 border-b bg-card sticky top-0 z-10 rounded-t-lg border-x border-t text-[10px] text-muted-foreground font-medium uppercase tracking-wider"
-			>
-				{#if canEdit}
-					<input
-						type="checkbox"
-						class="h-3.5 w-3.5 shrink-0 rounded border-gray-300"
-						checked={selectedTcIds.size === data.testCases.length && data.testCases.length > 0}
-						onchange={toggleSelectAll}
-					/>
-				{/if}
-				{#if !dndDisabled}<span class="w-6 shrink-0 hidden sm:block"></span>{/if}
-				{#each orderedColIds as colId (colId)}
-					{#if colId === 'key'}
-						<span class="w-20 shrink-0 text-center hidden sm:block">{m.common_key()}</span>
-					{:else if colId === 'title'}
-						<span class="flex-1 min-w-0 text-center">{m.common_title()}</span>
-					{:else if colId === 'priority'}
-						<span class="w-16 shrink-0 text-center hidden md:block">{m.common_priority()}</span>
-					{:else if colId === 'tags'}
-						{#if data.projectTags.length > 0 || canEdit}
-							<span class="w-28 shrink-0 text-center hidden lg:block">{m.tag_title()}</span>
-						{/if}
-					{:else if colId === 'assignees'}
-						<span class="w-16 shrink-0 text-center hidden lg:block">{m.assignee_title()}</span>
-					{:else if colId === 'updatedBy'}
-						<span class="w-20 shrink-0 text-center hidden xl:block">{m.tc_updated_by()}</span>
-					{:else if colId.startsWith('cf_')}
-						{@const cfId = Number(colId.slice(3))}
-						{@const cf = data.projectCustomFields.find((c) => c.id === cfId)}
-						{#if cf}
-							<span class="w-24 shrink-0 text-center truncate hidden xl:block" data-tip={cf.name}
-								>{cf.name}</span
-							>
-						{/if}
-					{:else if colId.startsWith('run_')}
-						{@const runId = Number(colId.slice(4))}
-						{@const run = selectedRuns.find((r) => r.id === runId)}
-						{#if run}
-							{@const envConfig = data.projectEnvironments.find((e) => e.name === run.environment)}
-							{@const hasEnvInfo = envConfig?.baseUrl || envConfig?.credentials || envConfig?.memo}
-							{#if hasEnvInfo}
-								<Popover.Root>
-									<Popover.Trigger
-										class="w-16 shrink-0 text-center truncate hidden lg:block cursor-pointer hover:text-primary transition-colors"
-										title={run.name}
-									>
-										<span class="inline-flex items-center gap-0.5">
-											{run.name}
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												width="10"
-												height="10"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												stroke-width="2"
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												class="text-muted-foreground shrink-0"
-												><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path
-													d="M12 8h.01"
-												/></svg
-											>
-										</span>
-									</Popover.Trigger>
-									<Popover.Content class="w-72 text-left" align="start">
-										<div class="space-y-2">
-											<div class="font-medium text-sm flex items-center gap-2">
-												{#if envConfig?.color}
-													<span
-														class="h-2.5 w-2.5 rounded-full shrink-0"
-														style="background-color: {envConfig.color}"
-													></span>
-												{/if}
-												{run.environment}
-											</div>
-											{#if envConfig?.baseUrl}
-												<div>
-													<div class="text-xs font-medium text-muted-foreground">
-														{m.env_base_url()}
-													</div>
-													<div class="text-xs break-all">{envConfig.baseUrl}</div>
-												</div>
-											{/if}
-											{#if envConfig?.credentials}
-												<div>
-													<div class="text-xs font-medium text-muted-foreground">
-														{m.env_credentials()}
-													</div>
-													<div class="text-xs whitespace-pre-wrap">{envConfig.credentials}</div>
-												</div>
-											{/if}
-											{#if envConfig?.memo}
-												<div>
-													<div class="text-xs font-medium text-muted-foreground">
-														{m.env_memo()}
-													</div>
-													<div class="text-xs whitespace-pre-wrap">{envConfig.memo}</div>
-												</div>
-											{/if}
-										</div>
-									</Popover.Content>
-								</Popover.Root>
-							{:else}
-								<span class="w-16 shrink-0 text-center truncate hidden lg:block" title={run.name}
-									>{run.name}</span
-								>
-							{/if}
-						{/if}
-					{/if}
-				{/each}
-			</div>
+			<TestCaseTableHeader
+				{canEdit}
+				{dndDisabled}
+				{orderedColIds}
+				selectedCount={selectedTcIds.size}
+				testCaseCount={data.testCases.length}
+				projectTagsCount={data.projectTags.length}
+				projectCustomFields={data.projectCustomFields}
+				{selectedRuns}
+				projectEnvironments={data.projectEnvironments}
+				onToggleSelectAll={toggleSelectAll}
+			/>
 
 			<div class="rounded-b-lg border-x border-b bg-card">
 				{#if useVirtualScroll}

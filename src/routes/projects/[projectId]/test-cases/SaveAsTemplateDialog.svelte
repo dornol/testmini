@@ -80,11 +80,12 @@
 			<Dialog.Footer>
 				<Button
 					variant="outline"
+					class="w-full sm:w-auto"
 					onclick={() => {
 						open = false;
 					}}>{m.common_cancel()}</Button
 				>
-				<Button onclick={save} disabled={saving || !templateName.trim()}>
+				<Button class="w-full sm:w-auto" onclick={save} disabled={saving || !templateName.trim()}>
 					{saving ? m.template_saving() : m.common_save_changes()}
 				</Button>
 			</Dialog.Footer>

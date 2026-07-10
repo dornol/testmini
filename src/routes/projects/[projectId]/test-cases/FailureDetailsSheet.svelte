@@ -5,7 +5,10 @@
 	import { apiFetch } from '$lib/api-client';
 	import { toast } from 'svelte-sonner';
 
-	let { projectId, onaddfailure }: {
+	let {
+		projectId,
+		onaddfailure
+	}: {
 		projectId: number;
 		onaddfailure: (runId: number, executionId: number, tcKey: string) => void;
 	} = $props();
@@ -43,20 +46,21 @@
 
 	async function fetchFailures(runId: number, executionId: number) {
 		try {
-			const data = await apiFetch<{ failures: Array<{
-			id: number;
-			errorMessage: string | null;
-			testMethod: string | null;
-			failureEnvironment: string | null;
-			stackTrace: string | null;
-			comment: string | null;
-			createdBy: string;
-			createdAt: string;
-			createdByName: string | null;
-		}> }>(
-				`/api/projects/${projectId}/test-runs/${runId}/executions/${executionId}/failures`,
-				{ silent: true }
-			);
+			const data = await apiFetch<{
+				failures: Array<{
+					id: number;
+					errorMessage: string | null;
+					testMethod: string | null;
+					failureEnvironment: string | null;
+					stackTrace: string | null;
+					comment: string | null;
+					createdBy: string;
+					createdAt: string;
+					createdByName: string | null;
+				}>;
+			}>(`/api/projects/${projectId}/test-runs/${runId}/executions/${executionId}/failures`, {
+				silent: true
+			});
 			if (sheetData && sheetData.executionId === executionId) {
 				sheetData.failures = data.failures;
 			}
@@ -77,13 +81,16 @@
 </script>
 
 <Sheet.Root bind:open={sheetOpen} onOpenChange={handleClose}>
-	<Sheet.Content side="right" class="sm:max-w-xl w-full overflow-y-auto p-0">
-		<Sheet.Header class="px-6 py-4 border-b flex flex-row items-center justify-between">
-			<Sheet.Title>{m.fail_details()}</Sheet.Title>
+	<Sheet.Content side="right" class="w-full overflow-y-auto p-0 sm:max-w-xl">
+		<Sheet.Header
+			class="flex flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+		>
+			<Sheet.Title class="break-words">{m.fail_details()}</Sheet.Title>
 			{#if sheetData && !sheetData.loading}
 				<Button
 					variant="outline"
 					size="sm"
+					class="w-full sm:w-auto"
 					onclick={() => {
 						if (sheetData) {
 							onaddfailure(sheetData.runId, sheetData.executionId, sheetData.tcKey);
@@ -94,7 +101,7 @@
 				</Button>
 			{/if}
 		</Sheet.Header>
-		<div class="px-6 py-4">
+		<div class="px-4 py-4 sm:px-6">
 			{#if sheetData?.loading}
 				<div class="text-center text-sm text-muted-foreground py-8">{m.tc_failure_loading()}</div>
 			{:else if sheetData && sheetData.failures.length === 0}
@@ -102,41 +109,52 @@
 			{:else if sheetData}
 				<div class="space-y-4">
 					{#each sheetData.failures as f (f.id)}
-						<div class="border rounded-lg p-4 space-y-2">
+						<div class="space-y-2 rounded-lg border p-4">
 							{#if f.errorMessage}
 								<div>
 									<div class="text-xs font-medium text-muted-foreground mb-1">{m.fail_error()}</div>
-									<div class="text-sm text-red-600 dark:text-red-400">{f.errorMessage}</div>
+									<div class="break-words text-sm text-red-600 dark:text-red-400">
+										{f.errorMessage}
+									</div>
 								</div>
 							{/if}
 							{#if f.testMethod}
 								<div>
-									<div class="text-xs font-medium text-muted-foreground mb-1">{m.fail_method()}</div>
-									<div class="text-sm">{f.testMethod}</div>
+									<div class="text-xs font-medium text-muted-foreground mb-1">
+										{m.fail_method()}
+									</div>
+									<div class="break-words text-sm">{f.testMethod}</div>
 								</div>
 							{/if}
 							{#if f.failureEnvironment}
 								<div>
-									<div class="text-xs font-medium text-muted-foreground mb-1">{m.common_environment()}</div>
-									<div class="text-sm">{f.failureEnvironment}</div>
+									<div class="text-xs font-medium text-muted-foreground mb-1">
+										{m.common_environment()}
+									</div>
+									<div class="break-words text-sm">{f.failureEnvironment}</div>
 								</div>
 							{/if}
 							{#if f.stackTrace}
 								<div>
-									<div class="text-xs font-medium text-muted-foreground mb-1">{m.fail_stack_trace()}</div>
-									<pre class="text-xs bg-muted p-3 rounded-md overflow-x-auto whitespace-pre-wrap break-all max-h-60 overflow-y-auto">{f.stackTrace}</pre>
+									<div class="text-xs font-medium text-muted-foreground mb-1">
+										{m.fail_stack_trace()}
+									</div>
+									<pre
+										class="text-xs bg-muted p-3 rounded-md overflow-x-auto whitespace-pre-wrap break-all max-h-60 overflow-y-auto">{f.stackTrace}</pre>
 								</div>
 							{/if}
 							{#if f.comment}
 								<div>
-									<div class="text-xs font-medium text-muted-foreground mb-1">{m.common_comment()}</div>
-									<div class="text-sm">{f.comment}</div>
+									<div class="text-xs font-medium text-muted-foreground mb-1">
+										{m.common_comment()}
+									</div>
+									<div class="break-words text-sm">{f.comment}</div>
 								</div>
 							{/if}
 							{#if !f.errorMessage && !f.testMethod && !f.failureEnvironment && !f.stackTrace && !f.comment}
 								<div class="text-sm text-muted-foreground italic">{m.fail_no_details()}</div>
 							{/if}
-							<div class="text-xs text-muted-foreground pt-1 border-t">
+							<div class="break-words border-t pt-1 text-xs text-muted-foreground">
 								{f.createdByName ?? f.createdBy} &middot; {new Date(f.createdAt).toLocaleString()}
 							</div>
 						</div>

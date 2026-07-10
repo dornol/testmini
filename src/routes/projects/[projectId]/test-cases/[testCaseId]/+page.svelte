@@ -470,22 +470,34 @@
 				{/if}
 			</div>
 		</div>
-		<div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+		<div
+			class="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end"
+		>
 			{#if lockHolder && !editing}
 				<span class="flex w-full flex-wrap items-center gap-1 text-xs text-orange-600 sm:w-auto">
 					{m.lock_editing_by({ name: lockHolder.userName })}
 					{#if canEdit}
-						<Button variant="ghost" size="sm" class="h-5 px-1 text-xs" onclick={startEdit}>
+						<Button
+							variant="ghost"
+							size="sm"
+							class="h-7 w-full px-2 text-xs sm:h-5 sm:w-auto sm:px-1"
+							onclick={startEdit}
+						>
 							{m.lock_retry()}
 						</Button>
 					{/if}
 				</span>
 			{/if}
-			<Button variant="outline" size="sm" onclick={() => (showVersions = !showVersions)}>
+			<Button
+				class="w-full sm:w-auto"
+				variant="outline"
+				size="sm"
+				onclick={() => (showVersions = !showVersions)}
+			>
 				{showVersions ? m.tc_detail_hide_history() : m.tc_detail_version_history()}
 			</Button>
 			{#if canEdit && !editing}
-				<Button variant="outline" size="sm" onclick={cloneTestCase}>
+				<Button class="w-full sm:w-auto" variant="outline" size="sm" onclick={cloneTestCase}>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						width="14"
@@ -504,6 +516,7 @@
 					{m.tc_clone()}
 				</Button>
 				<Button
+					class="w-full sm:w-auto"
 					variant="outline"
 					size="sm"
 					onclick={() => {
@@ -512,13 +525,15 @@
 				>
 					{m.template_save_as()}
 				</Button>
-				<Button size="sm" onclick={startEdit}>{m.common_edit()}</Button>
+				<Button class="w-full sm:w-auto" size="sm" onclick={startEdit}>{m.common_edit()}</Button>
 			{/if}
 			{#if canDelete && !editing}
 				<AlertDialog.Root bind:open={deleteDialogOpen}>
 					<AlertDialog.Trigger>
 						{#snippet child({ props })}
-							<Button variant="destructive" size="sm" {...props}>{m.common_delete()}</Button>
+							<Button class="w-full sm:w-auto" variant="destructive" size="sm" {...props}
+								>{m.common_delete()}</Button
+							>
 						{/snippet}
 					</AlertDialog.Trigger>
 					<AlertDialog.Portal>
@@ -531,10 +546,12 @@
 								</AlertDialog.Description>
 							</AlertDialog.Header>
 							<AlertDialog.Footer>
-								<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+								<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel
+								>
 								<form
 									method="POST"
 									action="?/delete"
+									class="w-full sm:w-auto"
 									use:formEnhance={() => {
 										return async ({ result }) => {
 											if (result.type === 'success') {
@@ -546,7 +563,9 @@
 										};
 									}}
 								>
-									<Button type="submit" variant="destructive">{m.common_delete()}</Button>
+									<Button class="w-full sm:w-auto" type="submit" variant="destructive"
+										>{m.common_delete()}</Button
+									>
 								</form>
 							</AlertDialog.Footer>
 						</AlertDialog.Content>
@@ -1038,12 +1057,15 @@
 								</div>
 							{/if}
 
-							<div class="flex gap-3">
-								<Button type="submit" disabled={$submitting}>
+							<div class="flex flex-col gap-2 sm:flex-row sm:gap-3">
+								<Button class="w-full sm:w-auto" type="submit" disabled={$submitting}>
 									{$submitting ? m.common_saving() : m.common_save_changes()}
 								</Button>
-								<Button type="button" variant="outline" onclick={cancelEdit}
-									>{m.common_cancel()}</Button
+								<Button
+									class="w-full sm:w-auto"
+									type="button"
+									variant="outline"
+									onclick={cancelEdit}>{m.common_cancel()}</Button
 								>
 							</div>
 						</form>
@@ -1582,8 +1604,8 @@
 							</AlertDialog.Description>
 						</AlertDialog.Header>
 						<AlertDialog.Footer>
-							<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-							<Button variant="destructive" onclick={handleRemoveIssueLink}
+							<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+							<Button class="w-full sm:w-auto" variant="destructive" onclick={handleRemoveIssueLink}
 								>{m.common_delete()}</Button
 							>
 						</AlertDialog.Footer>

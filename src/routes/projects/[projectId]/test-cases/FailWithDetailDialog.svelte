@@ -8,7 +8,10 @@
 	import { toast } from 'svelte-sonner';
 	import { apiPost } from '$lib/api-client';
 
-	let { projectId, onsubmitted }: {
+	let {
+		projectId,
+		onsubmitted
+	}: {
 		projectId: number;
 		onsubmitted: (runId: number, executionId: number) => void;
 	} = $props();
@@ -117,10 +120,20 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button type="button" variant="outline" onclick={() => (dialogOpen = false)}>
+				<Button
+					type="button"
+					variant="outline"
+					class="w-full sm:w-auto"
+					onclick={() => (dialogOpen = false)}
+				>
 					{m.common_cancel()}
 				</Button>
-				<Button variant="destructive" disabled={submitting} onclick={submit}>
+				<Button
+					variant="destructive"
+					class="w-full sm:w-auto"
+					disabled={submitting}
+					onclick={submit}
+				>
 					{submitting ? m.common_saving() : m.fail_mark_submit()}
 				</Button>
 			</Dialog.Footer>

@@ -28,7 +28,7 @@ vi.mock('$lib/server/db/schema', () => ({
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args),
-	sql: vi.fn(),
+	sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values })),
 	inArray: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 vi.mock('../helpers', async () => {
@@ -470,7 +470,7 @@ describe('MCP module tools', () => {
 		it('should remove test cases from module', async () => {
 			mockDb.query.module.findFirst.mockResolvedValue(sampleModule);
 			mockSelectResult(mockDb, [{ id: 10 }, { id: 20 }]);
-			mockDeleteReturning(mockDb, [{ id: 1 }, { id: 2 }]);
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: 1 }, { id: 2 }]);
 
 			const result = await client.callTool({
 				name: 'remove-module-test-cases',
@@ -482,6 +482,13 @@ describe('MCP module tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.moduleId).toBe(1);
 			expect(parsed.removedCount).toBe(2);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['module_id', 1],
+					['test_case_id', [10, 20]],
+					expect.objectContaining({ values: [1, 1] })
+				])
+			);
 		});
 
 		it('should report actual removed module links', async () => {

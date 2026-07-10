@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, requirement, requirementTestCase } from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { validateRequirementFields } from '$lib/server/requirement-validation';
 
 async function mcpValidationError(
@@ -210,7 +210,12 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 
 			await db
 				.delete(requirementTestCase)
-				.where(eq(requirementTestCase.requirementId, requirementId));
+				.where(
+					and(
+						eq(requirementTestCase.requirementId, requirementId),
+						sql`exists (select 1 from requirement where id = ${requirementId} and project_id = ${projectId})`
+					)
+				);
 			const [deleted] = await db
 				.delete(requirement)
 				.where(and(eq(requirement.id, requirementId), eq(requirement.projectId, projectId)))
@@ -243,7 +248,8 @@ export function registerRequirementTools(server: McpServer, projectId: number) {
 				.where(
 					and(
 						eq(requirementTestCase.requirementId, requirementId),
-						eq(requirementTestCase.testCaseId, testCaseId)
+						eq(requirementTestCase.testCaseId, testCaseId),
+						sql`exists (select 1 from requirement where id = ${requirementId} and project_id = ${projectId})`
 					)
 				)
 				.returning({ id: requirementTestCase.id });

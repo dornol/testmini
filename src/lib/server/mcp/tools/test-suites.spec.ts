@@ -29,7 +29,8 @@ vi.mock('$lib/server/db/schema', () => ({
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args),
-	inArray: vi.fn((a: unknown, b: unknown) => [a, b])
+	inArray: vi.fn((a: unknown, b: unknown) => [a, b]),
+	sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }))
 }));
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -280,7 +281,7 @@ describe('MCP test-suite tools', () => {
 	describe('remove-suite-items', () => {
 		it('should remove test cases from suite', async () => {
 			mockDb.query.testSuite.findFirst.mockResolvedValue(sampleSuite);
-			mockDeleteReturning(mockDb, [{ id: 1 }]);
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'remove-suite-items',
@@ -291,6 +292,13 @@ describe('MCP test-suite tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.success).toBe(true);
 			expect(parsed.removedCount).toBe(1);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['suite_id', 1],
+					['test_case_id', [10]],
+					expect.objectContaining({ values: [1, 1] })
+				])
+			);
 		});
 
 		it('should report actual removed suite items', async () => {
@@ -451,6 +459,15 @@ describe('MCP test-suite tools', () => {
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 			expect(mockDb.delete).not.toHaveBeenCalled();
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([['suite_id', 1], expect.objectContaining({ values: [1, 1] })])
+			);
 			expect(deleteChain.returning).toHaveBeenCalledTimes(1);
 		});
 

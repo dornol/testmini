@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { testCase, tag, testCaseTag } from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { createTagSchema, updateTagSchema } from '$lib/schemas/tag.schema';
 
 function firstValidationError(error: { issues: Array<{ message: string }> }): string {
@@ -68,7 +68,14 @@ export function registerTagTools(server: McpServer, projectId: number) {
 			if (!t) return err('Tag not found');
 
 			const deleted = await db.transaction(async (tx) => {
-				await tx.delete(testCaseTag).where(eq(testCaseTag.tagId, tagId));
+				await tx
+					.delete(testCaseTag)
+					.where(
+						and(
+							eq(testCaseTag.tagId, tagId),
+							sql`exists (select 1 from tag where id = ${tagId} and project_id = ${projectId})`
+						)
+					);
 				const [deletedTag] = await tx
 					.delete(tag)
 					.where(and(eq(tag.id, tagId), eq(tag.projectId, projectId)))
@@ -129,7 +136,13 @@ export function registerTagTools(server: McpServer, projectId: number) {
 
 			const deleted = await db
 				.delete(testCaseTag)
-				.where(and(eq(testCaseTag.testCaseId, testCaseId), eq(testCaseTag.tagId, tagId)))
+				.where(
+					and(
+						eq(testCaseTag.testCaseId, testCaseId),
+						eq(testCaseTag.tagId, tagId),
+						sql`exists (select 1 from tag where id = ${tagId} and project_id = ${projectId})`
+					)
+				)
 				.returning({ testCaseId: testCaseTag.testCaseId });
 
 			return ok({ success: true, testCaseId, tagId, removed: deleted.length > 0 });

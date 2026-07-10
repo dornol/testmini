@@ -445,6 +445,12 @@ describe('MCP requirement tools', () => {
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.delete).toHaveBeenCalledTimes(2);
+			const linkDeleteChain = mockDb.delete.mock.results[0]?.value as {
+				where: ReturnType<typeof vi.fn>;
+			};
+			expect(linkDeleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([['requirement_id', 1], expect.objectContaining({ values: [1, 1] })])
+			);
 			const requirementDeleteChain = mockDb.delete.mock.results[1]?.value as {
 				where: ReturnType<typeof vi.fn>;
 			};
@@ -492,7 +498,7 @@ describe('MCP requirement tools', () => {
 		it('should unlink requirement from test case', async () => {
 			mockDb.query.requirement.findFirst.mockResolvedValue(sampleRequirement);
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
-			mockDeleteReturning(mockDb, [{ id: 1 }]);
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'unlink-requirement-test-case',
@@ -505,6 +511,13 @@ describe('MCP requirement tools', () => {
 			expect(parsed.requirementId).toBe(1);
 			expect(parsed.testCaseId).toBe(10);
 			expect(parsed.unlinked).toBe(true);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['requirement_id', 1],
+					['test_case_id', 10],
+					expect.objectContaining({ values: [1, 1] })
+				])
+			);
 		});
 
 		it('should report unlinked false when requirement link does not exist', async () => {

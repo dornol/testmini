@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { testCase, testCaseVersion, testSuite, testSuiteItem } from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator, mcpPositiveIdSchema, mcpIdListSchema } from '../helpers';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { createTestSuiteSchema, updateTestSuiteSchema } from '$lib/schemas/test-suite.schema';
 
 function firstValidationError(error: { issues: Array<{ message: string }> }): string {
@@ -119,7 +119,11 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 			const deleted = await db
 				.delete(testSuiteItem)
 				.where(
-					and(eq(testSuiteItem.suiteId, suiteId), inArray(testSuiteItem.testCaseId, testCaseIds))
+					and(
+						eq(testSuiteItem.suiteId, suiteId),
+						inArray(testSuiteItem.testCaseId, testCaseIds),
+						sql`exists (select 1 from test_suite where id = ${suiteId} and project_id = ${projectId})`
+					)
 				)
 				.returning({ id: testSuiteItem.id });
 
@@ -174,7 +178,14 @@ export function registerTestSuiteTools(server: McpServer, projectId: number) {
 			if (!s) return err('Test suite not found');
 
 			const deleted = await db.transaction(async (tx) => {
-				await tx.delete(testSuiteItem).where(eq(testSuiteItem.suiteId, suiteId));
+				await tx
+					.delete(testSuiteItem)
+					.where(
+						and(
+							eq(testSuiteItem.suiteId, suiteId),
+							sql`exists (select 1 from test_suite where id = ${suiteId} and project_id = ${projectId})`
+						)
+					);
 				const [deletedSuite] = await tx
 					.delete(testSuite)
 					.where(and(eq(testSuite.id, suiteId), eq(testSuite.projectId, projectId)))

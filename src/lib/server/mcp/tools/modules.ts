@@ -222,7 +222,8 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 				.where(
 					and(
 						eq(moduleTestCase.moduleId, moduleId),
-						inArray(moduleTestCase.testCaseId, testCaseIds)
+						inArray(moduleTestCase.testCaseId, testCaseIds),
+						sql`exists (select 1 from module where id = ${moduleId} and project_id = ${projectId})`
 					)
 				)
 				.returning({ id: moduleTestCase.id });

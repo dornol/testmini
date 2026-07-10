@@ -26,7 +26,8 @@ vi.mock('$lib/server/db/schema', () => ({
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
-	and: vi.fn((...args: unknown[]) => args)
+	and: vi.fn((...args: unknown[]) => args),
+	sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }))
 }));
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -209,6 +210,15 @@ describe('MCP tag tools', () => {
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 			expect(mockDb.delete).not.toHaveBeenCalled();
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([['tag_id', 1], expect.objectContaining({ values: [1, 1] })])
+			);
 			expect(deleteChain.returning).toHaveBeenCalledTimes(1);
 		});
 
@@ -316,7 +326,7 @@ describe('MCP tag tools', () => {
 		it('should remove tag from test case', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
 			mockDb.query.tag.findFirst.mockResolvedValue(sampleTag);
-			mockDeleteReturning(mockDb, [{ testCaseId: 10 }]);
+			const deleteChain = mockDeleteReturning(mockDb, [{ testCaseId: 10 }]);
 
 			const result = await client.callTool({
 				name: 'remove-tag-from-test-case',
@@ -329,6 +339,13 @@ describe('MCP tag tools', () => {
 			expect(parsed.testCaseId).toBe(10);
 			expect(parsed.tagId).toBe(1);
 			expect(parsed.removed).toBe(true);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_case_id', 10],
+					['tag_id', 1],
+					expect.objectContaining({ values: [1, 1] })
+				])
+			);
 		});
 
 		it('should report removed false when tag link does not exist', async () => {

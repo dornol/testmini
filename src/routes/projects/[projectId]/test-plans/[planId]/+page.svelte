@@ -585,10 +585,10 @@
 			<Dialog.Header>
 				<Dialog.Title>{m.tp_add_cases()}</Dialog.Title>
 			</Dialog.Header>
-			<div class="py-4 space-y-3 flex-1 overflow-hidden flex flex-col">
+			<div class="flex flex-1 flex-col space-y-3 overflow-hidden py-4">
 				<Input placeholder={m.tr_filter_placeholder()} bind:value={addCasesSearch} />
-				<div class="flex-1 border rounded-md">
-					<Table.Root>
+				<div class="flex-1 rounded-md border">
+					<Table.Root class="hidden md:table">
 						<Table.Header>
 							<Table.Row>
 								<Table.Head class="w-10"></Table.Head>
@@ -601,7 +601,23 @@
 					<VirtualList items={availableCases} rowHeight={44} height="360px">
 						{#snippet children({ item })}
 							{@const tc = item as (typeof availableCases)[0]}
-							<Table.Root>
+							<button
+								type="button"
+								class="flex h-11 w-full items-center gap-2 px-3 text-left text-sm md:hidden"
+								onclick={() => toggleAddCase(tc.id)}
+							>
+								<input
+									type="checkbox"
+									checked={addCasesSelected.has(tc.id)}
+									onchange={() => toggleAddCase(tc.id)}
+									onclick={(e: MouseEvent) => e.stopPropagation()}
+									class="rounded"
+									aria-label={tc.key}
+								/>
+								<span class="w-16 shrink-0 font-mono text-xs text-muted-foreground">{tc.key}</span>
+								<span class="min-w-0 flex-1 truncate font-medium">{tc.title}</span>
+							</button>
+							<Table.Root class="hidden md:table">
 								<Table.Body>
 									<Table.Row class="cursor-pointer" onclick={() => toggleAddCase(tc.id)}>
 										<Table.Cell class="w-10">

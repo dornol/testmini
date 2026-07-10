@@ -347,8 +347,10 @@
 					<button type="button" class="w-full text-left" onclick={() => toggleExpand(req.id)}>
 						<div class="flex items-start justify-between gap-3">
 							<div class="min-w-0">
-								<p class="font-mono text-xs text-muted-foreground">{req.externalId ?? '-'}</p>
-								<p class="mt-1 font-medium leading-snug">{req.title}</p>
+								{#if req.externalId}
+									<p class="break-all font-mono text-xs text-muted-foreground">{req.externalId}</p>
+								{/if}
+								<p class="mt-1 break-words font-medium leading-snug">{req.title}</p>
 								{#if req.source}
 									<p class="mt-1 text-xs text-muted-foreground">{req.source}</p>
 								{/if}

@@ -49,8 +49,10 @@
 	});
 	let notifSaving = $state(false);
 
-	function hideFailedImage(event: Event) {
-		(event.currentTarget as HTMLImageElement).hidden = true;
+	let failedIconUrls = new SvelteSet<string>();
+
+	function markIconFailed(url: string) {
+		failedIconUrls.add(url);
 	}
 
 	async function savePreferences() {
@@ -365,12 +367,12 @@
 					{#each data.linkedAccounts as acct (acct.id)}
 						<div class="flex items-center justify-between gap-3 rounded-lg border p-3">
 							<div class="flex min-w-0 items-center gap-3">
-								{#if acct.providerIconUrl}
+								{#if acct.providerIconUrl && !failedIconUrls.has(acct.providerIconUrl)}
 									<img
 										src={acct.providerIconUrl}
 										alt=""
 										class="h-6 w-6 shrink-0"
-										onerror={hideFailedImage}
+										onerror={() => markIconFailed(acct.providerIconUrl!)}
 									/>
 								{:else}
 									<div
@@ -409,13 +411,18 @@
 							href="/auth/oidc/{provider.slug}?link=true"
 							data-sveltekit-reload
 						>
-							{#if provider.iconUrl}
+							{#if provider.iconUrl && !failedIconUrls.has(provider.iconUrl)}
 								<img
 									src={provider.iconUrl}
 									alt=""
 									class="h-4 w-4 shrink-0"
-									onerror={hideFailedImage}
+									onerror={() => markIconFailed(provider.iconUrl!)}
 								/>
+							{:else}
+								<span
+									class="bg-muted text-muted-foreground flex h-4 w-4 shrink-0 items-center justify-center rounded text-[10px] font-bold"
+									>{provider.name.charAt(0).toUpperCase()}</span
+								>
 							{/if}
 							<span class="min-w-0 truncate">{m.oidc_login_with({ name: provider.name })}</span>
 						</Button>

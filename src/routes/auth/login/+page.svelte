@@ -8,15 +8,17 @@
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as m from '$lib/paraglide/messages.js';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	let { data } = $props();
 
 	let email = $state('');
 	let password = $state('');
 	let loading = $state(false);
+	let failedIconUrls = new SvelteSet<string>();
 
-	function hideFailedImage(event: Event) {
-		(event.currentTarget as HTMLImageElement).hidden = true;
+	function markIconFailed(url: string) {
+		failedIconUrls.add(url);
 	}
 
 	async function handleSubmit(e: SubmitEvent) {
@@ -85,13 +87,18 @@
 						href="/auth/oidc/{provider.slug}"
 						data-sveltekit-reload
 					>
-						{#if provider.iconUrl}
+						{#if provider.iconUrl && !failedIconUrls.has(provider.iconUrl)}
 							<img
 								src={provider.iconUrl}
 								alt=""
 								class="h-4 w-4 shrink-0"
-								onerror={hideFailedImage}
+								onerror={() => markIconFailed(provider.iconUrl!)}
 							/>
+						{:else}
+							<span
+								class="bg-muted text-muted-foreground flex h-4 w-4 shrink-0 items-center justify-center rounded text-[10px] font-bold"
+								>{provider.name.charAt(0).toUpperCase()}</span
+							>
 						{/if}
 						<span class="min-w-0 truncate">{m.oidc_login_with({ name: provider.name })}</span>
 					</Button>

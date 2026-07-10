@@ -5,11 +5,13 @@
 	import { toast } from 'svelte-sonner';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	let { data } = $props();
+	let failedIconUrls = new SvelteSet<string>();
 
-	function hideFailedImage(event: Event) {
-		(event.currentTarget as HTMLImageElement).hidden = true;
+	function markIconFailed(url: string) {
+		failedIconUrls.add(url);
 	}
 
 	function handleResult() {
@@ -41,12 +43,12 @@
 				{#each data.linkedAccounts as account (account.id)}
 					<div class="flex items-center justify-between gap-3 rounded-lg border p-3">
 						<div class="flex min-w-0 items-center gap-3">
-							{#if account.providerIconUrl}
+							{#if account.providerIconUrl && !failedIconUrls.has(account.providerIconUrl)}
 								<img
 									src={account.providerIconUrl}
 									alt=""
 									class="h-6 w-6 shrink-0"
-									onerror={hideFailedImage}
+									onerror={() => markIconFailed(account.providerIconUrl!)}
 								/>
 							{:else}
 								<div
@@ -85,13 +87,18 @@
 						href="/auth/oidc/{provider.slug}?link=true"
 						data-sveltekit-reload
 					>
-						{#if provider.iconUrl}
+						{#if provider.iconUrl && !failedIconUrls.has(provider.iconUrl)}
 							<img
 								src={provider.iconUrl}
 								alt=""
 								class="h-4 w-4 shrink-0"
-								onerror={hideFailedImage}
+								onerror={() => markIconFailed(provider.iconUrl!)}
 							/>
+						{:else}
+							<span
+								class="bg-muted text-muted-foreground flex h-4 w-4 shrink-0 items-center justify-center rounded text-[10px] font-bold"
+								>{provider.name.charAt(0).toUpperCase()}</span
+							>
 						{/if}
 						<span class="min-w-0 truncate">{m.oidc_login_with({ name: provider.name })}</span>
 					</Button>

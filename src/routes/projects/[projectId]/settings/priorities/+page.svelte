@@ -15,8 +15,16 @@
 	const canEdit = $derived(data.userRole !== 'VIEWER');
 
 	const PALETTE = [
-		'#6b7280', '#3b82f6', '#f97316', '#ef4444', '#eab308',
-		'#22c55e', '#14b8a6', '#8b5cf6', '#ec4899', '#6366f1'
+		'#6b7280',
+		'#3b82f6',
+		'#f97316',
+		'#ef4444',
+		'#eab308',
+		'#22c55e',
+		'#14b8a6',
+		'#8b5cf6',
+		'#ec4899',
+		'#6366f1'
 	];
 
 	let newName = $state('');
@@ -71,7 +79,7 @@
 							}
 						};
 					}}
-					class="flex items-end gap-3"
+					class="flex flex-col gap-3 sm:flex-row sm:items-end"
 				>
 					<div class="flex-1 space-y-2">
 						<Label for="priority-name">{m.priority_name()}</Label>
@@ -85,11 +93,13 @@
 					</div>
 					<div class="space-y-2">
 						<Label>{m.priority_color()}</Label>
-						<div class="flex gap-1">
+						<div class="flex flex-wrap gap-1">
 							{#each PALETTE as color (color)}
 								<button
 									type="button"
-									class="h-7 w-7 rounded-full border-2 transition-transform {newColor === color ? 'scale-110 border-foreground' : 'border-transparent'}"
+									class="h-7 w-7 rounded-full border-2 transition-transform {newColor === color
+										? 'scale-110 border-foreground'
+										: 'border-transparent'}"
 									style="background-color: {color}"
 									onclick={() => (newColor = color)}
 									aria-label={color}
@@ -99,18 +109,22 @@
 					</div>
 					<input type="hidden" name="color" value={newColor} />
 					<input type="hidden" name="isDefault" value={String(newIsDefault)} />
-					<label class="flex items-center gap-2 text-sm whitespace-nowrap pb-1">
+					<label class="flex items-center gap-2 pb-1 text-sm">
 						<Checkbox bind:checked={newIsDefault} />
 						{m.priority_is_default()}
 					</label>
-					<Button type="submit" disabled={!newName.trim()}>{m.priority_new()}</Button>
+					<Button class="self-start sm:self-auto" type="submit" disabled={!newName.trim()}
+						>{m.priority_new()}</Button
+					>
 				</form>
 			</Card.Content>
 		</Card.Root>
 	{/if}
 
 	{#if data.priorities.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+		<div
+			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+		>
 			<p class="text-muted-foreground text-sm">{m.priority_empty()}</p>
 		</div>
 	{:else}
@@ -118,7 +132,9 @@
 			<Card.Content class="pt-6">
 				<div class="space-y-2">
 					{#each data.priorities as p (p.id)}
-						<div class="flex items-center justify-between rounded-md border px-4 py-3">
+						<div
+							class="flex flex-col gap-3 rounded-md border px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+						>
 							{#if editingId === p.id}
 								<form
 									method="POST"
@@ -134,20 +150,17 @@
 											}
 										};
 									}}
-									class="flex flex-1 items-center gap-3"
+									class="flex w-full flex-col gap-3 sm:flex-row sm:items-center"
 								>
 									<input type="hidden" name="priorityId" value={p.id} />
-									<Input
-										name="name"
-										bind:value={editName}
-										class="max-w-xs"
-										required
-									/>
-									<div class="flex gap-1">
+									<Input name="name" bind:value={editName} class="w-full sm:max-w-xs" required />
+									<div class="flex flex-wrap gap-1">
 										{#each PALETTE as color (color)}
 											<button
 												type="button"
-												class="h-6 w-6 rounded-full border-2 {editColor === color ? 'border-foreground' : 'border-transparent'}"
+												class="h-6 w-6 rounded-full border-2 {editColor === color
+													? 'border-foreground'
+													: 'border-transparent'}"
 												style="background-color: {color}"
 												onclick={() => (editColor = color)}
 												aria-label={color}
@@ -156,26 +169,39 @@
 									</div>
 									<input type="hidden" name="color" value={editColor} />
 									<input type="hidden" name="isDefault" value={String(editIsDefault)} />
-									<label class="flex items-center gap-2 text-sm whitespace-nowrap">
+									<label class="flex items-center gap-2 text-sm">
 										<Checkbox bind:checked={editIsDefault} />
 										{m.priority_is_default()}
 									</label>
-									<Button type="submit" size="sm">{m.common_save_changes()}</Button>
-									<Button type="button" variant="outline" size="sm" onclick={cancelEdit}>{m.common_cancel()}</Button>
+									<div class="flex flex-wrap gap-2">
+										<Button type="submit" size="sm">{m.common_save_changes()}</Button>
+										<Button type="button" variant="outline" size="sm" onclick={cancelEdit}
+											>{m.common_cancel()}</Button
+										>
+									</div>
 								</form>
 							{:else}
-								<div class="flex items-center gap-3">
+								<div class="flex min-w-0 flex-wrap items-center gap-3">
 									<PriorityBadge name={p.name} color={p.color} />
 									{#if p.isDefault}
-										<span class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+										<span
+											class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+										>
 											{m.priority_is_default()}
 										</span>
 									{/if}
 								</div>
 								{#if canEdit}
-									<div class="flex gap-2">
-										<Button variant="outline" size="sm" onclick={() => startEdit(p)}>{m.common_edit()}</Button>
-										<Button variant="outline" size="sm" onclick={() => (deletePriority = { id: p.id, name: p.name })}>{m.common_delete()}</Button>
+									<div class="flex flex-wrap gap-2">
+										<Button variant="outline" size="sm" onclick={() => startEdit(p)}
+											>{m.common_edit()}</Button
+										>
+										<Button
+											variant="outline"
+											size="sm"
+											onclick={() => (deletePriority = { id: p.id, name: p.name })}
+											>{m.common_delete()}</Button
+										>
 									</div>
 								{/if}
 							{/if}
@@ -186,7 +212,12 @@
 		</Card.Root>
 	{/if}
 
-	<AlertDialog.Root open={!!deletePriority} onOpenChange={(open) => { if (!open) deletePriority = null; }}>
+	<AlertDialog.Root
+		open={!!deletePriority}
+		onOpenChange={(open) => {
+			if (!open) deletePriority = null;
+		}}
+	>
 		<AlertDialog.Portal>
 			<AlertDialog.Overlay />
 			<AlertDialog.Content>

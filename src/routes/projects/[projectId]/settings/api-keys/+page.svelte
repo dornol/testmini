@@ -50,7 +50,10 @@
 		if (!newKeyName.trim()) return;
 		generating = true;
 		try {
-			const result = await apiPost<{ key: string; name: string }>(`/api/projects/${projectId}/api-keys`, { name: newKeyName.trim() });
+			const result = await apiPost<{ key: string; name: string }>(
+				`/api/projects/${projectId}/api-keys`,
+				{ name: newKeyName.trim() }
+			);
 			generatedKey = result.key;
 			generatedKeyName = result.name;
 			keyCopied = false;
@@ -105,7 +108,12 @@
 
 	const origin = $derived(typeof window !== 'undefined' ? window.location.origin : '');
 	const mcpEndpoint = $derived(`${origin}/api/mcp`);
-	const mcpName = $derived(data.project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'project');
+	const mcpName = $derived(
+		data.project.name
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-|-$/g, '') || 'project'
+	);
 
 	interface McpAgent {
 		name: string;
@@ -115,29 +123,40 @@
 	const mcpAgents = $derived<McpAgent[]>([
 		{
 			name: 'Claude Code',
-			command: (key) => `claude mcp add ${mcpName} --transport http ${mcpEndpoint} -H "Authorization: Bearer ${key}"`
+			command: (key) =>
+				`claude mcp add ${mcpName} --transport http ${mcpEndpoint} -H "Authorization: Bearer ${key}"`
 		},
 		{
 			name: 'Cursor',
-			command: (key) => JSON.stringify({
-				mcpServers: {
-					[mcpName]: {
-						url: mcpEndpoint,
-						headers: { Authorization: `Bearer ${key}` }
-					}
-				}
-			}, null, 2)
+			command: (key) =>
+				JSON.stringify(
+					{
+						mcpServers: {
+							[mcpName]: {
+								url: mcpEndpoint,
+								headers: { Authorization: `Bearer ${key}` }
+							}
+						}
+					},
+					null,
+					2
+				)
 		},
 		{
 			name: 'Windsurf',
-			command: (key) => JSON.stringify({
-				mcpServers: {
-					[mcpName]: {
-						serverUrl: mcpEndpoint,
-						headers: { Authorization: `Bearer ${key}` }
-					}
-				}
-			}, null, 2)
+			command: (key) =>
+				JSON.stringify(
+					{
+						mcpServers: {
+							[mcpName]: {
+								serverUrl: mcpEndpoint,
+								headers: { Authorization: `Bearer ${key}` }
+							}
+						}
+					},
+					null,
+					2
+				)
 		}
 	]);
 
@@ -170,12 +189,17 @@
 <div class="space-y-4">
 	<Card.Root>
 		<Card.Header>
-			<div class="flex items-center justify-between">
-				<div>
+			<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+				<div class="min-w-0">
 					<Card.Title>{m.api_keys_title()}</Card.Title>
 					<Card.Description>{m.api_keys_desc()}</Card.Description>
 				</div>
-				<Button onclick={() => { generateOpen = true; }}>
+				<Button
+					class="self-start sm:self-auto"
+					onclick={() => {
+						generateOpen = true;
+					}}
+				>
 					{m.api_key_generate()}
 				</Button>
 			</div>
@@ -188,22 +212,30 @@
 			{:else}
 				<div class="space-y-3">
 					{#each apiKeys as key (key.id)}
-						<div class="flex items-center justify-between rounded-md border p-3">
+						<div
+							class="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"
+						>
 							<div class="min-w-0 flex-1">
-								<div class="flex items-center gap-2">
-									<span class="text-sm font-medium">{key.name}</span>
-									<Badge variant="outline" class="font-mono text-xs">{key.prefix}...</Badge>
+								<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+									<span class="text-sm font-medium break-words">{key.name}</span>
+									<Badge variant="outline" class="w-fit max-w-full truncate font-mono text-xs"
+										>{key.prefix}...</Badge
+									>
 								</div>
-								<div class="text-muted-foreground mt-1 text-xs">
-									{m.common_created()}: {formatDate(key.createdAt)}
-									&middot;
-									{m.api_key_last_used()}: {formatDate(key.lastUsedAt)}
+								<div class="text-muted-foreground mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs">
+									<span>{m.common_created()}: {formatDate(key.createdAt)}</span>
+									<span>{m.api_key_last_used()}: {formatDate(key.lastUsedAt)}</span>
 								</div>
 							</div>
 							<AlertDialog.Root>
 								<AlertDialog.Trigger>
 									{#snippet child({ props })}
-										<Button variant="destructive" size="sm" {...props}>
+										<Button
+											class="self-start sm:self-auto"
+											variant="destructive"
+											size="sm"
+											{...props}
+										>
 											{m.api_key_revoke()}
 										</Button>
 									{/snippet}
@@ -250,15 +282,17 @@
 			<div class="space-y-4 py-2">
 				<div class="space-y-2">
 					<Label for="keyName">{m.api_key_name_label()}</Label>
-					<Input
-						id="keyName"
-						bind:value={newKeyName}
-						placeholder={m.api_key_name_placeholder()}
-					/>
+					<Input id="keyName" bind:value={newKeyName} placeholder={m.api_key_name_placeholder()} />
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => { generateOpen = false; newKeyName = ''; }}>
+				<Button
+					variant="outline"
+					onclick={() => {
+						generateOpen = false;
+						newKeyName = '';
+					}}
+				>
 					{m.common_cancel()}
 				</Button>
 				<Button disabled={!newKeyName.trim() || generating} onclick={generateKey}>
@@ -280,7 +314,9 @@
 			</Dialog.Header>
 			<div class="space-y-4 py-2">
 				<div class="rounded-md border border-amber-500/50 bg-amber-50 p-3 dark:bg-amber-950/30">
-					<p class="text-sm font-medium text-amber-800 dark:text-amber-200">{m.api_key_copy_warning()}</p>
+					<p class="text-sm font-medium text-amber-800 dark:text-amber-200">
+						{m.api_key_copy_warning()}
+					</p>
 				</div>
 				<div class="space-y-2">
 					<Label>{m.api_key_name_label()}: {generatedKeyName}</Label>
@@ -288,9 +324,24 @@
 						<code class="bg-muted flex-1 overflow-x-auto rounded p-2 font-mono text-sm break-all">
 							{generatedKey}
 						</code>
-						<Button variant={keyCopied ? 'outline' : 'default'} size="sm" onclick={() => copyKey(generatedKey!)}>
+						<Button
+							variant={keyCopied ? 'outline' : 'default'}
+							size="sm"
+							onclick={() => copyKey(generatedKey!)}
+						>
 							{#if keyCopied}
-								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M20 6 9 17l-5-5"/></svg>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="14"
+									height="14"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="mr-1"><path d="M20 6 9 17l-5-5" /></svg
+								>
 							{/if}
 							{m.api_key_copy()}
 						</Button>
@@ -309,16 +360,21 @@
 							type="button"
 							class="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors
 								{selectedAgent === i
-									? 'bg-primary text-primary-foreground border-primary'
-									: 'bg-background hover:bg-accent border-input'}"
-							onclick={() => { selectedAgent = i; }}
+								? 'bg-primary text-primary-foreground border-primary'
+								: 'bg-background hover:bg-accent border-input'}"
+							onclick={() => {
+								selectedAgent = i;
+							}}
 						>
 							{agent.name}
 						</button>
 					{/each}
 				</div>
 				<div class="relative">
-					<pre class="bg-muted rounded-md p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all max-h-36">{generatedKey ? mcpAgents[selectedAgent].command(generatedKey) : ''}</pre>
+					<pre
+						class="bg-muted rounded-md p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all max-h-36">{generatedKey
+							? mcpAgents[selectedAgent].command(generatedKey)
+							: ''}</pre>
 					<Button
 						variant="outline"
 						size="sm"
@@ -332,7 +388,9 @@
 					<p class="text-muted-foreground text-[11px]">{m.mcp_hint_terminal()}</p>
 				{:else}
 					<p class="text-muted-foreground text-[11px]">
-						{m.mcp_hint_config({ file: selectedAgent === 1 ? '.cursor/mcp.json' : '.windsurf/mcp.json' })}
+						{m.mcp_hint_config({
+							file: selectedAgent === 1 ? '.cursor/mcp.json' : '.windsurf/mcp.json'
+						})}
 					</p>
 				{/if}
 			</div>

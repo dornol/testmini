@@ -62,7 +62,7 @@
 							}
 						};
 					}}
-					class="flex items-end gap-3"
+					class="flex flex-col gap-3 sm:flex-row sm:items-end"
 				>
 					<div class="flex-1 space-y-2">
 						<Label for="tag-name">{m.tag_name()}</Label>
@@ -76,11 +76,13 @@
 					</div>
 					<div class="space-y-2">
 						<Label>{m.tag_color()}</Label>
-						<div class="flex gap-1">
+						<div class="flex flex-wrap gap-1">
 							{#each TAG_PALETTE as color (color)}
 								<button
 									type="button"
-									class="h-7 w-7 rounded-full border-2 transition-transform {newColor === color ? 'scale-110 border-foreground' : 'border-transparent'}"
+									class="h-7 w-7 rounded-full border-2 transition-transform {newColor === color
+										? 'scale-110 border-foreground'
+										: 'border-transparent'}"
 									style="background-color: {color}"
 									onclick={() => (newColor = color)}
 									aria-label={color}
@@ -89,14 +91,18 @@
 						</div>
 					</div>
 					<input type="hidden" name="color" value={newColor} />
-					<Button type="submit" disabled={!newName.trim()}>{m.tag_new()}</Button>
+					<Button class="self-start sm:self-auto" type="submit" disabled={!newName.trim()}
+						>{m.tag_new()}</Button
+					>
 				</form>
 			</Card.Content>
 		</Card.Root>
 	{/if}
 
 	{#if data.tags.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+		<div
+			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+		>
 			<p class="text-muted-foreground text-sm">{m.tag_empty()}</p>
 		</div>
 	{:else}
@@ -104,7 +110,9 @@
 			<Card.Content class="pt-6">
 				<div class="space-y-2">
 					{#each data.tags as t (t.id)}
-						<div class="flex items-center justify-between rounded-md border px-4 py-3">
+						<div
+							class="flex flex-col gap-3 rounded-md border px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+						>
 							{#if editingId === t.id}
 								<form
 									method="POST"
@@ -120,20 +128,17 @@
 											}
 										};
 									}}
-									class="flex flex-1 items-center gap-3"
+									class="flex w-full flex-col gap-3 sm:flex-row sm:items-center"
 								>
 									<input type="hidden" name="tagId" value={t.id} />
-									<Input
-										name="name"
-										bind:value={editName}
-										class="max-w-xs"
-										required
-									/>
-									<div class="flex gap-1">
+									<Input name="name" bind:value={editName} class="w-full sm:max-w-xs" required />
+									<div class="flex flex-wrap gap-1">
 										{#each TAG_PALETTE as color (color)}
 											<button
 												type="button"
-												class="h-6 w-6 rounded-full border-2 {editColor === color ? 'border-foreground' : 'border-transparent'}"
+												class="h-6 w-6 rounded-full border-2 {editColor === color
+													? 'border-foreground'
+													: 'border-transparent'}"
 												style="background-color: {color}"
 												onclick={() => (editColor = color)}
 												aria-label={color}
@@ -141,17 +146,28 @@
 										{/each}
 									</div>
 									<input type="hidden" name="color" value={editColor} />
-									<Button type="submit" size="sm">{m.common_save_changes()}</Button>
-									<Button type="button" variant="outline" size="sm" onclick={cancelEdit}>{m.common_cancel()}</Button>
+									<div class="flex flex-wrap gap-2">
+										<Button type="submit" size="sm">{m.common_save_changes()}</Button>
+										<Button type="button" variant="outline" size="sm" onclick={cancelEdit}
+											>{m.common_cancel()}</Button
+										>
+									</div>
 								</form>
 							{:else}
-								<div class="flex items-center gap-3">
+								<div class="min-w-0">
 									<TagBadge name={t.name} color={t.color} />
 								</div>
 								{#if canEdit}
-									<div class="flex gap-2">
-										<Button variant="outline" size="sm" onclick={() => startEdit(t)}>{m.common_edit()}</Button>
-										<Button variant="outline" size="sm" onclick={() => (deleteTag = { id: t.id, name: t.name })}>{m.common_delete()}</Button>
+									<div class="flex flex-wrap gap-2">
+										<Button variant="outline" size="sm" onclick={() => startEdit(t)}
+											>{m.common_edit()}</Button
+										>
+										<Button
+											variant="outline"
+											size="sm"
+											onclick={() => (deleteTag = { id: t.id, name: t.name })}
+											>{m.common_delete()}</Button
+										>
 									</div>
 								{/if}
 							{/if}
@@ -162,7 +178,12 @@
 		</Card.Root>
 	{/if}
 
-	<AlertDialog.Root open={!!deleteTag} onOpenChange={(open) => { if (!open) deleteTag = null; }}>
+	<AlertDialog.Root
+		open={!!deleteTag}
+		onOpenChange={(open) => {
+			if (!open) deleteTag = null;
+		}}
+	>
 		<AlertDialog.Portal>
 			<AlertDialog.Overlay />
 			<AlertDialog.Content>

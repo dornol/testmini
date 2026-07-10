@@ -47,9 +47,9 @@
 
 	function executeRoleChange() {
 		if (!roleChangeMemberId) return;
-		const form = document.querySelector<HTMLFormElement>(
-			`[data-role-form="${roleChangeMemberId}"]`
-		);
+		const form =
+			document.querySelector<HTMLFormElement>(`[data-role-form="${roleChangeMemberId}"]`) ??
+			document.querySelector<HTMLFormElement>(`[data-role-form="mobile-${roleChangeMemberId}"]`);
 		if (form) {
 			const hidden = form.querySelector<HTMLInputElement>('input[name="role"]');
 			if (hidden) hidden.value = roleChangeNewRole;
@@ -113,8 +113,8 @@
 </script>
 
 <div class="space-y-4">
-	<div class="flex items-center justify-between">
-		<div>
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+		<div class="min-w-0">
 			<h2 class="text-lg font-semibold">{m.team_members()}</h2>
 		</div>
 
@@ -126,7 +126,7 @@
 		>
 			<Dialog.Trigger>
 				{#snippet child({ props })}
-					<Button {...props}>{m.team_add_member()}</Button>
+					<Button class="self-start sm:self-auto" {...props}>{m.team_add_member()}</Button>
 				{/snippet}
 			</Dialog.Trigger>
 			<Dialog.Portal>
@@ -226,73 +226,138 @@
 		</Dialog.Root>
 	</div>
 
-	<Card.Root>
-		<Table.Root>
-			<Table.Header>
-				<Table.Row>
-					<Table.Head>{m.common_name()}</Table.Head>
-					<Table.Head>{m.common_email()}</Table.Head>
-					<Table.Head>{m.common_role()}</Table.Head>
-					<Table.Head class="w-24">{m.common_actions()}</Table.Head>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each data.members as member}
-					<Table.Row>
-						<Table.Cell class="font-medium">{member.userName}</Table.Cell>
-						<Table.Cell class="text-muted-foreground">{member.userEmail}</Table.Cell>
-						<Table.Cell>
-							<form
-								method="POST"
-								action="?/updateRole"
-								data-role-form={member.id}
-								use:enhance={() => {
-									return async ({ result, update }) => {
-										if (result.type === 'success') {
-											toast.success(m.members_role_updated());
-											await invalidateAll();
-										} else if (result.type === 'failure') {
-											toast.error((result.data?.error as string) ?? m.error_update_failed());
-											await update();
-										}
-									};
+	<div class="space-y-3 md:hidden">
+		{#each data.members as member}
+			<Card.Root>
+				<Card.Content class="space-y-3 p-4">
+					<div class="min-w-0">
+						<p class="font-medium break-words">{member.userName}</p>
+						<p class="text-muted-foreground text-sm break-all">{member.userEmail}</p>
+					</div>
+					<div class="flex flex-wrap items-center gap-2">
+						<form
+							method="POST"
+							action="?/updateRole"
+							data-role-form={`mobile-${member.id}`}
+							use:enhance={() => {
+								return async ({ result, update }) => {
+									if (result.type === 'success') {
+										toast.success(m.members_role_updated());
+										await invalidateAll();
+									} else if (result.type === 'failure') {
+										toast.error((result.data?.error as string) ?? m.error_update_failed());
+										await update();
+									}
+								};
+							}}
+						>
+							<input type="hidden" name="memberId" value={member.id} />
+							<input type="hidden" name="role" value={member.role} />
+							<Select.Root
+								type="single"
+								value={member.role}
+								onValueChange={(v: string) => {
+									if (v === member.role) return;
+									confirmRoleChange(member.id, member.userName, v);
 								}}
 							>
-								<input type="hidden" name="memberId" value={member.id} />
-								<input type="hidden" name="role" value={member.role} />
-								<Select.Root
-									type="single"
-									value={member.role}
-									onValueChange={(v: string) => {
-										if (v === member.role) return;
-										confirmRoleChange(member.id, member.userName, v);
+								<Select.Trigger size="sm" class="h-8" data-member-role={member.id}>
+									{roleLabel(member.role)}
+								</Select.Trigger>
+								<Select.Content>
+									{#each roles as r}
+										<Select.Item value={r} label={roleLabel(r)} />
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</form>
+						<Button
+							variant="outline"
+							size="sm"
+							class="text-destructive hover:text-destructive"
+							onclick={() => openRemoveDialog(member.id, member.userName)}
+						>
+							{m.team_remove_member()}
+						</Button>
+					</div>
+				</Card.Content>
+			</Card.Root>
+		{/each}
+	</div>
+
+	<Card.Root class="hidden overflow-hidden md:block">
+		<div class="overflow-x-auto">
+			<Table.Root class="min-w-full table-fixed">
+				<Table.Header>
+					<Table.Row>
+						<Table.Head class="w-[28%]">{m.common_name()}</Table.Head>
+						<Table.Head class="w-[38%]">{m.common_email()}</Table.Head>
+						<Table.Head class="w-[20%]">{m.common_role()}</Table.Head>
+						<Table.Head class="w-24">{m.common_actions()}</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each data.members as member}
+						<Table.Row>
+							<Table.Cell class="font-medium">
+								<span class="block truncate">{member.userName}</span>
+							</Table.Cell>
+							<Table.Cell class="text-muted-foreground">
+								<span class="block truncate">{member.userEmail}</span>
+							</Table.Cell>
+							<Table.Cell>
+								<form
+									method="POST"
+									action="?/updateRole"
+									data-role-form={member.id}
+									use:enhance={() => {
+										return async ({ result, update }) => {
+											if (result.type === 'success') {
+												toast.success(m.members_role_updated());
+												await invalidateAll();
+											} else if (result.type === 'failure') {
+												toast.error((result.data?.error as string) ?? m.error_update_failed());
+												await update();
+											}
+										};
 									}}
 								>
-									<Select.Trigger size="sm" class="h-8" data-member-role={member.id}>
-										{roleLabel(member.role)}
-									</Select.Trigger>
-									<Select.Content>
-										{#each roles as r}
-											<Select.Item value={r} label={roleLabel(r)} />
-										{/each}
-									</Select.Content>
-								</Select.Root>
-							</form>
-						</Table.Cell>
-						<Table.Cell>
-							<Button
-								variant="ghost"
-								size="sm"
-								class="text-destructive hover:text-destructive"
-								onclick={() => openRemoveDialog(member.id, member.userName)}
-							>
-								{m.team_remove_member()}
-							</Button>
-						</Table.Cell>
-					</Table.Row>
-				{/each}
-			</Table.Body>
-		</Table.Root>
+									<input type="hidden" name="memberId" value={member.id} />
+									<input type="hidden" name="role" value={member.role} />
+									<Select.Root
+										type="single"
+										value={member.role}
+										onValueChange={(v: string) => {
+											if (v === member.role) return;
+											confirmRoleChange(member.id, member.userName, v);
+										}}
+									>
+										<Select.Trigger size="sm" class="h-8" data-member-role={member.id}>
+											{roleLabel(member.role)}
+										</Select.Trigger>
+										<Select.Content>
+											{#each roles as r}
+												<Select.Item value={r} label={roleLabel(r)} />
+											{/each}
+										</Select.Content>
+									</Select.Root>
+								</form>
+							</Table.Cell>
+							<Table.Cell>
+								<Button
+									variant="ghost"
+									size="sm"
+									class="text-destructive hover:text-destructive"
+									onclick={() => openRemoveDialog(member.id, member.userName)}
+								>
+									{m.team_remove_member()}
+								</Button>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</div>
 	</Card.Root>
 
 	<!-- Role Change Confirmation Dialog -->

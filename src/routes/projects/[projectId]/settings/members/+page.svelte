@@ -47,7 +47,9 @@
 
 	function executeRoleChange() {
 		if (!roleChangeMemberId) return;
-		const form = document.querySelector<HTMLFormElement>(`[data-role-form="${roleChangeMemberId}"]`);
+		const form =
+			document.querySelector<HTMLFormElement>(`[data-role-form="${roleChangeMemberId}"]`) ??
+			document.querySelector<HTMLFormElement>(`[data-role-form="mobile-${roleChangeMemberId}"]`);
 		if (form) {
 			const hidden = form.querySelector<HTMLInputElement>('input[name="role"]');
 			if (hidden) hidden.value = roleChangeNewRole;
@@ -104,16 +106,21 @@
 </script>
 
 <div class="space-y-4">
-	<div class="flex items-center justify-between">
-		<div>
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+		<div class="min-w-0">
 			<h2 class="text-lg font-semibold">{m.members_title()}</h2>
 			<p class="text-muted-foreground text-sm">{m.members_desc()}</p>
 		</div>
 
-		<Dialog.Root bind:open={addDialogOpen} onOpenChange={(open) => { if (!open) resetAddDialog(); }}>
+		<Dialog.Root
+			bind:open={addDialogOpen}
+			onOpenChange={(open) => {
+				if (!open) resetAddDialog();
+			}}
+		>
 			<Dialog.Trigger>
 				{#snippet child({ props })}
-					<Button {...props}>{m.members_add()}</Button>
+					<Button class="self-start sm:self-auto" {...props}>{m.members_add()}</Button>
 				{/snippet}
 			</Dialog.Trigger>
 			<Dialog.Portal>
@@ -168,7 +175,9 @@
 							<Select.Root
 								type="single"
 								value={selectedRole}
-								onValueChange={(v: string) => { selectedRole = v; }}
+								onValueChange={(v: string) => {
+									selectedRole = v;
+								}}
 							>
 								<Select.Trigger class="w-full" aria-labelledby="role-label">
 									{selectedRole.replace('_', ' ')}
@@ -212,73 +221,138 @@
 		</Dialog.Root>
 	</div>
 
-	<Card.Root>
-		<Table.Root>
-			<Table.Header>
-				<Table.Row class="text-xs">
-					<Table.Head class="py-1 px-2">{m.common_name()}</Table.Head>
-					<Table.Head class="py-1 px-2">{m.common_email()}</Table.Head>
-					<Table.Head class="py-1 px-2">{m.common_role()}</Table.Head>
-					<Table.Head class="py-1 px-2 w-24">{m.common_actions()}</Table.Head>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each data.members as member}
-					<Table.Row class="text-xs">
-						<Table.Cell class="py-1 px-2 font-medium">{member.userName}</Table.Cell>
-						<Table.Cell class="py-1 px-2 text-muted-foreground">{member.userEmail}</Table.Cell>
-						<Table.Cell class="py-1 px-2">
-							<form
-								method="POST"
-								action="?/updateRole"
-								data-role-form={member.id}
-								use:enhance={() => {
-									return async ({ result, update }) => {
-										if (result.type === 'success') {
-											toast.success(m.members_role_updated());
-											await invalidateAll();
-										} else if (result.type === 'failure') {
-											toast.error(result.data?.error as string ?? m.error_update_failed());
-											await update();
-										}
-									};
+	<div class="space-y-3 md:hidden">
+		{#each data.members as member}
+			<Card.Root>
+				<Card.Content class="space-y-3 p-4">
+					<div class="min-w-0">
+						<p class="font-medium break-words">{member.userName}</p>
+						<p class="text-muted-foreground text-sm break-all">{member.userEmail}</p>
+					</div>
+					<div class="flex flex-wrap items-center gap-2">
+						<form
+							method="POST"
+							action="?/updateRole"
+							data-role-form={`mobile-${member.id}`}
+							use:enhance={() => {
+								return async ({ result, update }) => {
+									if (result.type === 'success') {
+										toast.success(m.members_role_updated());
+										await invalidateAll();
+									} else if (result.type === 'failure') {
+										toast.error((result.data?.error as string) ?? m.error_update_failed());
+										await update();
+									}
+								};
+							}}
+						>
+							<input type="hidden" name="memberId" value={member.id} />
+							<input type="hidden" name="role" value={member.role} />
+							<Select.Root
+								type="single"
+								value={member.role}
+								onValueChange={(v: string) => {
+									if (v === member.role) return;
+									confirmRoleChange(member.id, member.userName, v);
 								}}
 							>
-								<input type="hidden" name="memberId" value={member.id} />
-								<input type="hidden" name="role" value={member.role} />
-								<Select.Root
-									type="single"
-									value={member.role}
-									onValueChange={(v: string) => {
-										if (v === member.role) return;
-										confirmRoleChange(member.id, member.userName, v);
+								<Select.Trigger size="sm" class="h-8 text-xs" data-member-role={member.id}>
+									{member.role.replace('_', ' ')}
+								</Select.Trigger>
+								<Select.Content>
+									{#each roles as r}
+										<Select.Item value={r} label={r.replace('_', ' ')} />
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</form>
+						<Button
+							variant="outline"
+							size="sm"
+							class="text-destructive hover:text-destructive"
+							onclick={() => openRemoveDialog(member.id, member.userName)}
+						>
+							{m.members_remove()}
+						</Button>
+					</div>
+				</Card.Content>
+			</Card.Root>
+		{/each}
+	</div>
+
+	<Card.Root class="hidden overflow-hidden md:block">
+		<div class="overflow-x-auto">
+			<Table.Root class="min-w-full table-fixed">
+				<Table.Header>
+					<Table.Row class="text-xs">
+						<Table.Head class="w-[28%] py-1 px-2">{m.common_name()}</Table.Head>
+						<Table.Head class="w-[38%] py-1 px-2">{m.common_email()}</Table.Head>
+						<Table.Head class="w-[20%] py-1 px-2">{m.common_role()}</Table.Head>
+						<Table.Head class="py-1 px-2 w-24">{m.common_actions()}</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each data.members as member}
+						<Table.Row class="text-xs">
+							<Table.Cell class="py-1 px-2 font-medium">
+								<span class="block truncate">{member.userName}</span>
+							</Table.Cell>
+							<Table.Cell class="py-1 px-2 text-muted-foreground">
+								<span class="block truncate">{member.userEmail}</span>
+							</Table.Cell>
+							<Table.Cell class="py-1 px-2">
+								<form
+									method="POST"
+									action="?/updateRole"
+									data-role-form={member.id}
+									use:enhance={() => {
+										return async ({ result, update }) => {
+											if (result.type === 'success') {
+												toast.success(m.members_role_updated());
+												await invalidateAll();
+											} else if (result.type === 'failure') {
+												toast.error((result.data?.error as string) ?? m.error_update_failed());
+												await update();
+											}
+										};
 									}}
 								>
-									<Select.Trigger size="sm" class="h-7 text-xs" data-member-role={member.id}>
-										{member.role.replace('_', ' ')}
-									</Select.Trigger>
-									<Select.Content>
-										{#each roles as r}
-											<Select.Item value={r} label={r.replace('_', ' ')} />
-										{/each}
-									</Select.Content>
-								</Select.Root>
-							</form>
-						</Table.Cell>
-						<Table.Cell class="py-1 px-2">
-							<Button
-								variant="ghost"
-								size="sm"
-								class="text-destructive hover:text-destructive h-7 text-xs"
-								onclick={() => openRemoveDialog(member.id, member.userName)}
-							>
-								{m.members_remove()}
-							</Button>
-						</Table.Cell>
-					</Table.Row>
-				{/each}
-			</Table.Body>
-		</Table.Root>
+									<input type="hidden" name="memberId" value={member.id} />
+									<input type="hidden" name="role" value={member.role} />
+									<Select.Root
+										type="single"
+										value={member.role}
+										onValueChange={(v: string) => {
+											if (v === member.role) return;
+											confirmRoleChange(member.id, member.userName, v);
+										}}
+									>
+										<Select.Trigger size="sm" class="h-7 text-xs" data-member-role={member.id}>
+											{member.role.replace('_', ' ')}
+										</Select.Trigger>
+										<Select.Content>
+											{#each roles as r}
+												<Select.Item value={r} label={r.replace('_', ' ')} />
+											{/each}
+										</Select.Content>
+									</Select.Root>
+								</form>
+							</Table.Cell>
+							<Table.Cell class="py-1 px-2">
+								<Button
+									variant="ghost"
+									size="sm"
+									class="text-destructive hover:text-destructive h-7 text-xs"
+									onclick={() => openRemoveDialog(member.id, member.userName)}
+								>
+									{m.members_remove()}
+								</Button>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</div>
 	</Card.Root>
 
 	<!-- Role Change Confirmation Dialog -->
@@ -289,7 +363,10 @@
 				<AlertDialog.Header>
 					<AlertDialog.Title>{m.members_role_change_title()}</AlertDialog.Title>
 					<AlertDialog.Description>
-						{m.members_role_change_confirm({ name: roleChangeMemberName, role: roleChangeNewRole.replace('_', ' ') })}
+						{m.members_role_change_confirm({
+							name: roleChangeMemberName,
+							role: roleChangeNewRole.replace('_', ' ')
+						})}
 					</AlertDialog.Description>
 				</AlertDialog.Header>
 				<AlertDialog.Footer>
@@ -323,7 +400,7 @@
 									removeDialogOpen = false;
 									await invalidateAll();
 								} else if (result.type === 'failure') {
-									toast.error(result.data?.error as string ?? m.error_remove_failed());
+									toast.error((result.data?.error as string) ?? m.error_remove_failed());
 									await update();
 								}
 							};

@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { testRun, testExecution, testCaseVersion } from '$lib/server/db/schema';
+import { testRun, testExecution, testCase, testCaseVersion } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { withProjectAccess } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
@@ -48,10 +48,14 @@ export const GET = withProjectAccess(async ({ projectId, url }) => {
 		})
 		.from(testExecution)
 		.innerJoin(testCaseVersion, eq(testCaseVersion.id, testExecution.testCaseVersionId))
+		.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
 		.where(
-			inArray(
-				testExecution.testRunId,
-				runs.map((r) => r.id)
+			and(
+				inArray(
+					testExecution.testRunId,
+					runs.map((r) => r.id)
+				),
+				eq(testCase.projectId, projectId)
 			)
 		);
 

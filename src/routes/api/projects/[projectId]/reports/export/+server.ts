@@ -91,7 +91,13 @@ export const GET = withProjectAccess(async ({ url, projectId }) => {
 							.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 							.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
 							.leftJoin(userTable, eq(testExecution.executedBy, userTable.id))
-							.where(and(eq(testExecution.testRunId, runId), gt(testExecution.id, lastId)))
+							.where(
+								and(
+									eq(testExecution.testRunId, runId),
+									eq(testCase.projectId, projectId),
+									gt(testExecution.id, lastId)
+								)
+							)
 							.orderBy(testExecution.id)
 							.limit(BATCH_SIZE);
 

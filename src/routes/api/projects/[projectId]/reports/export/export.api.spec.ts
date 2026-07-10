@@ -18,7 +18,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		executedAt: 'executed_at'
 	},
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id', title: 'title', priority: 'priority' },
-	testCase: { id: 'id', key: 'key' },
+	testCase: { id: 'id', projectId: 'project_id', key: 'key' },
 	testFailureDetail: { testExecutionId: 'test_execution_id', errorMessage: 'error_message' },
 	user: { id: 'id', name: 'name' },
 	projectMember: { projectId: 'project_id', userId: 'user_id', role: 'role' }
@@ -26,6 +26,7 @@ vi.mock('$lib/server/db/schema', () => ({
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
+	gt: vi.fn((a: unknown, b: unknown) => ['gt', a, b]),
 	inArray: vi.fn((a: unknown, b: unknown) => ['inArray', a, b]),
 	sql: Object.assign(
 		(strings: TemplateStringsArray, ...values: unknown[]) => ({
@@ -137,6 +138,68 @@ describe('/api/projects/[projectId]/reports/export', () => {
 				['inArray', 'id', [1, 2]],
 				['project_id', 1]
 			]);
+		});
+
+		it('should scope streamed execution rows to test cases in the project', async () => {
+			mockDb.select.mockImplementationOnce(
+				() =>
+					({
+						from: vi.fn().mockReturnThis(),
+						where: vi.fn().mockReturnThis(),
+						then: (r: (v: unknown) => void) =>
+							Promise.resolve([{ id: 1, name: 'Run 1', environment: 'QA' }]).then(r)
+					}) as never
+			);
+
+			const executionWhere = vi.fn().mockReturnThis();
+			let streamSelectCount = 0;
+			const makeStreamSelect = (result: unknown[]) => ({
+				from: vi.fn().mockReturnThis(),
+				innerJoin: vi.fn().mockReturnThis(),
+				leftJoin: vi.fn().mockReturnThis(),
+				where: streamSelectCount === 1 ? executionWhere : vi.fn().mockReturnThis(),
+				orderBy: vi.fn().mockReturnThis(),
+				limit: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve(result).then(r)
+			});
+
+			mockDb.select.mockImplementation(() => {
+				streamSelectCount++;
+				if (streamSelectCount === 1) {
+					return makeStreamSelect([
+						{
+							id: 10,
+							testRunId: 1,
+							testCaseKey: 'TC-1',
+							testCaseTitle: 'Login',
+							priority: 'HIGH',
+							status: 'PASS',
+							comment: null,
+							executedBy: 'QA',
+							executedAt: null
+						}
+					]) as never;
+				}
+				return makeStreamSelect([]) as never;
+			});
+
+			const event = createMockEvent({
+				method: 'GET',
+				params: { projectId: '1' },
+				searchParams: { runs: '1' },
+				user: adminUser
+			});
+
+			const response = await GET(event);
+			await response.text();
+
+			expect(executionWhere).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_run_id', 1],
+					['project_id', 1],
+					['gt', 'id', 0]
+				])
+			);
 		});
 	});
 });

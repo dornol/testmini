@@ -23,6 +23,10 @@ vi.mock('$lib/server/db/schema', () => ({
 		id: 'id',
 		title: 'title',
 		testCaseId: 'test_case_id'
+	},
+	testCase: {
+		id: 'id',
+		projectId: 'project_id'
 	}
 }));
 vi.mock('drizzle-orm', () => ({
@@ -168,6 +172,7 @@ describe('/api/projects/[projectId]/reports/env-matrix', () => {
 
 	it('should return env matrix data on success', async () => {
 		let callCount = 0;
+		const executionWhere = vi.fn().mockReturnThis();
 		mockDb.select.mockImplementation(() => {
 			callCount++;
 			let data: unknown[];
@@ -188,6 +193,7 @@ describe('/api/projects/[projectId]/reports/env-matrix', () => {
 			for (const m of ['from', 'where', 'orderBy', 'innerJoin', 'leftJoin', 'groupBy']) {
 				chain[m] = vi.fn().mockReturnValue(chain);
 			}
+			if (callCount === 2) chain.where = executionWhere;
 			chain.then = (r: (v: unknown) => void) => Promise.resolve(data).then(r);
 			return chain;
 		});
@@ -205,6 +211,12 @@ describe('/api/projects/[projectId]/reports/env-matrix', () => {
 		expect(body.matrix).toBeDefined();
 		expect(body.envStats).toBeDefined();
 		expect(body.envSpecificFailures).toBeDefined();
+		expect(executionWhere).toHaveBeenCalledWith(
+			expect.arrayContaining([
+				['inArray', 'test_run_id', [1, 2]],
+				['project_id', 1]
+			])
+		);
 	});
 
 	it('uses the execution version testCaseId so historical versions are included', async () => {

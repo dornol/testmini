@@ -8,9 +8,23 @@ const mockDb = createMockDb();
 vi.mock('$lib/server/db', () => ({ db: mockDb, col: mockDb.col, sql: mockDb.sql }));
 vi.mock('$lib/server/db/schema', () => ({
 	testRun: { id: 'id', projectId: 'project_id', name: 'name', environment: 'environment' },
-	testExecution: { id: 'id', testRunId: 'test_run_id', testCaseVersionId: 'test_case_version_id', status: 'status', comment: 'comment', executedBy: 'executed_by', executedAt: 'executed_at' },
-	testCaseVersion: { id: 'id', testCaseId: 'test_case_id', title: 'title', priority: 'priority', versionNo: 'version_no' },
-	testCase: { id: 'id', key: 'key' },
+	testExecution: {
+		id: 'id',
+		testRunId: 'test_run_id',
+		testCaseVersionId: 'test_case_version_id',
+		status: 'status',
+		comment: 'comment',
+		executedBy: 'executed_by',
+		executedAt: 'executed_at'
+	},
+	testCaseVersion: {
+		id: 'id',
+		testCaseId: 'test_case_id',
+		title: 'title',
+		priority: 'priority',
+		versionNo: 'version_no'
+	},
+	testCase: { id: 'id', projectId: 'project_id', key: 'key' },
 	testFailureDetail: { testExecutionId: 'test_execution_id', errorMessage: 'error_message' },
 	user: { id: 'id', name: 'name' }
 }));
@@ -21,7 +35,8 @@ vi.mock('drizzle-orm', () => ({
 	inArray: vi.fn((a: unknown, b: unknown) => ['inArray', a, b])
 }));
 vi.mock('$lib/server/auth-utils', async () => {
-	const actual = await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
+	const actual =
+		await vi.importActual<typeof import('$lib/server/auth-utils')>('$lib/server/auth-utils');
 	return {
 		...actual,
 		requireProjectAccess: vi.fn().mockResolvedValue({ role: 'QA' })
@@ -61,11 +76,12 @@ describe('/api/projects/[projectId]/test-runs/[runId]/export', () => {
 			};
 
 			let selectCallCount = 0;
-			const makeSelectChain = (result: unknown[]) => ({
+			const executionWhere = vi.fn().mockReturnThis();
+			const makeSelectChain = (result: unknown[], where = vi.fn().mockReturnThis()) => ({
 				from: vi.fn().mockReturnThis(),
 				innerJoin: vi.fn().mockReturnThis(),
 				leftJoin: vi.fn().mockReturnThis(),
-				where: vi.fn().mockReturnThis(),
+				where,
 				orderBy: vi.fn().mockReturnThis(),
 				limit: vi.fn().mockReturnThis(),
 				then: (r: (v: unknown) => void) => Promise.resolve(result).then(r)
@@ -74,7 +90,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/export', () => {
 			mockDb.select.mockImplementation(() => {
 				selectCallCount++;
 				// First batch call returns one row, second (failures) returns empty, third (next batch) returns empty to stop the loop
-				if (selectCallCount === 1) return makeSelectChain([execRow]) as never;
+				if (selectCallCount === 1) return makeSelectChain([execRow], executionWhere) as never;
 				if (selectCallCount === 2) return makeSelectChain([]) as never;
 				return makeSelectChain([]) as never;
 			});
@@ -89,6 +105,13 @@ describe('/api/projects/[projectId]/test-runs/[runId]/export', () => {
 			const text = await response.text();
 			expect(text).toContain('Test Case Key');
 			expect(text).toContain('TC-0001');
+			expect(executionWhere).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_run_id', 50],
+					['project_id', 1],
+					['gt', 'id', 0]
+				])
+			);
 		});
 
 		it('should return 404 when test run not found', async () => {

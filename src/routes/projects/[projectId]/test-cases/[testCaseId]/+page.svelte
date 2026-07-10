@@ -16,7 +16,13 @@
 	import StepsEditor from '$lib/components/StepsEditor.svelte';
 	import GherkinEditor from '$lib/components/GherkinEditor.svelte';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
-	import { parseGherkin, stepsToGherkin, stepsToGherkinSteps, gherkinStepsToSteps, type GherkinStep } from '$lib/gherkin-parser';
+	import {
+		parseGherkin,
+		stepsToGherkin,
+		stepsToGherkinSteps,
+		gherkinStepsToSteps,
+		type GherkinStep
+	} from '$lib/gherkin-parser';
 	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
 	import TagBadge from '$lib/components/TagBadge.svelte';
 	import CommentSection from '$lib/components/CommentSection.svelte';
@@ -128,7 +134,9 @@
 				`/api/projects/${data.project.id}/issue-links/sync?testCaseId=${tc.id}`,
 				{}
 			);
-			toast.success(m.issue_link_sync_result({ synced: String(result.synced), total: String(result.total) }));
+			toast.success(
+				m.issue_link_sync_result({ synced: String(result.synced), total: String(result.total) })
+			);
 			// Reload the page data to get updated statuses
 			const { invalidateAll } = await import('$app/navigation');
 			await invalidateAll();
@@ -184,9 +192,7 @@
 		if (!deleteIssueLinkId) return;
 		const id = deleteIssueLinkId;
 		try {
-			await apiDelete(
-				`/api/projects/${data.project.id}/issue-links/${id}`
-			);
+			await apiDelete(`/api/projects/${data.project.id}/issue-links/${id}`);
 			issueLinks = issueLinks.filter((l) => l.id !== id);
 			toast.success(m.issue_link_removed());
 		} catch {
@@ -266,7 +272,13 @@
 
 	function formatIssueDate(dateStr: string): string {
 		const d = new Date(dateStr);
-		return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+		return d.toLocaleDateString(undefined, {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
 	}
 
 	// Inline tag creation
@@ -278,21 +290,23 @@
 	const validators = zodValidators(updateTestCaseSchema);
 	const { form, errors, enhance, submitting, reset, tainted } = superForm(
 		// svelte-ignore state_referenced_locally
-		data.form, {
-		validators,
-		dataType: 'json',
-		onUpdated({ form }) {
-			if (form.message) {
-				if (form.valid) {
-					toast.success(form.message);
-					editing = false;
-					releaseLock();
-				} else {
-					toast.error(form.message);
+		data.form,
+		{
+			validators,
+			dataType: 'json',
+			onUpdated({ form }) {
+				if (form.message) {
+					if (form.valid) {
+						toast.success(form.message);
+						editing = false;
+						releaseLock();
+					} else {
+						toast.error(form.message);
+					}
 				}
 			}
 		}
-	});
+	);
 
 	let gherkinText = $state('');
 
@@ -351,7 +365,10 @@
 
 	async function cloneTestCase() {
 		try {
-			const result = await apiPost<{ newTestCaseId: number }>(`/api/projects/${data.project.id}/test-cases/${tc.id}/clone`, {});
+			const result = await apiPost<{ newTestCaseId: number }>(
+				`/api/projects/${data.project.id}/test-cases/${tc.id}/clone`,
+				{}
+			);
 			toast.success(m.tc_cloned());
 			goto(`${basePath}/${result.newTestCaseId}`);
 		} catch {
@@ -359,9 +376,7 @@
 		}
 	}
 
-	const lockUrl = $derived(
-		`/api/projects/${data.project.id}/test-cases/${tc.id}/lock`
-	);
+	const lockUrl = $derived(`/api/projects/${data.project.id}/test-cases/${tc.id}/lock`);
 
 	// Check lock status on load
 	$effect(() => {
@@ -428,27 +443,32 @@
 <UnsavedChangesGuard dirty={editDirty && !$submitting} />
 
 <div class="space-y-4">
-	<div class="flex items-center justify-between">
-		<div>
-			<nav class="flex items-center gap-1 text-sm text-muted-foreground" aria-label={m.aria_breadcrumb()}>
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+		<div class="min-w-0">
+			<nav
+				class="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm text-muted-foreground"
+				aria-label={m.aria_breadcrumb()}
+			>
 				<a href="/projects" class="hover:text-foreground">{m.breadcrumb_home()}</a>
 				<span>/</span>
-				<a href={`/projects/${data.project.id}`} class="hover:text-foreground">{data.project.name}</a>
+				<a href={`/projects/${data.project.id}`} class="hover:text-foreground"
+					>{data.project.name}</a
+				>
 				<span>/</span>
 				<a href={basePath} class="hover:text-foreground">{m.tc_title()}</a>
 				<span>/</span>
 				<span class="text-foreground font-medium">{tc.key}</span>
 			</nav>
-			<div class="mt-1 flex items-center gap-3">
-				<h2 class="text-xl font-bold">{tc.key}</h2>
+			<div class="mt-1 flex flex-wrap items-center gap-3">
+				<h2 class="text-xl font-bold break-all">{tc.key}</h2>
 				{#if version}
 					<PriorityBadge name={version.priority} color={getPriorityColor(version.priority)} />
 				{/if}
 			</div>
 		</div>
-		<div class="flex items-center gap-2">
+		<div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
 			{#if lockHolder && !editing}
-				<span class="flex items-center gap-1 text-xs text-orange-600">
+				<span class="flex w-full flex-wrap items-center gap-1 text-xs text-orange-600 sm:w-auto">
 					{m.lock_editing_by({ name: lockHolder.userName })}
 					{#if canEdit}
 						<Button variant="ghost" size="sm" class="h-5 px-1 text-xs" onclick={startEdit}>
@@ -462,10 +482,30 @@
 			</Button>
 			{#if canEdit && !editing}
 				<Button variant="outline" size="sm" onclick={cloneTestCase}>
-					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="14"
+						height="14"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="mr-1"
+						><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path
+							d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
+						/></svg
+					>
 					{m.tc_clone()}
 				</Button>
-				<Button variant="outline" size="sm" onclick={() => { saveAsTemplateOpen = true; }}>
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={() => {
+						saveAsTemplateOpen = true;
+					}}
+				>
 					{m.template_save_as()}
 				</Button>
 				<Button size="sm" onclick={startEdit}>{m.common_edit()}</Button>
@@ -529,19 +569,28 @@
 				<div class="mb-4 flex flex-wrap items-center gap-2">
 					{#each data.assignedTags as t (t.id)}
 						{#if canEdit}
-							<form method="POST" action="?/removeTag" use:formEnhance={() => {
-								return async ({ result, update }) => {
-									if (result.type === 'success') {
-										toast.success(m.tag_removed());
-										await update();
-									}
-								};
-							}} class="inline-flex">
+							<form
+								method="POST"
+								action="?/removeTag"
+								use:formEnhance={() => {
+									return async ({ result, update }) => {
+										if (result.type === 'success') {
+											toast.success(m.tag_removed());
+											await update();
+										}
+									};
+								}}
+								class="inline-flex"
+							>
 								<input type="hidden" name="tagId" value={t.id} />
-								<span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium">
+								<span
+									class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium"
+								>
 									<span class="h-2 w-2 rounded-full" style="background-color: {t.color}"></span>
 									{t.name}
-									<button type="submit" class="text-muted-foreground hover:text-foreground ml-0.5">&times;</button>
+									<button type="submit" class="text-muted-foreground hover:text-foreground ml-0.5"
+										>&times;</button
+									>
 								</span>
 							</form>
 						{:else}
@@ -553,42 +602,65 @@
 							(pt) => !data.assignedTags.some((at) => at.id === pt.id)
 						)}
 						{@const filteredUnassigned = tagSearchInput
-							? unassignedTags.filter((t) => t.name.toLowerCase().includes(tagSearchInput.toLowerCase()))
+							? unassignedTags.filter((t) =>
+									t.name.toLowerCase().includes(tagSearchInput.toLowerCase())
+								)
 							: unassignedTags}
-						{@const exactMatch = tagSearchInput && data.projectTags.some((t) => t.name.toLowerCase() === tagSearchInput.toLowerCase().trim())}
+						{@const exactMatch =
+							tagSearchInput &&
+							data.projectTags.some(
+								(t) => t.name.toLowerCase() === tagSearchInput.toLowerCase().trim()
+							)}
 						{@const canCreateNew = tagSearchInput.trim().length > 0 && !exactMatch}
 
 						<!-- Assign existing tag form (hidden) -->
-						<form id="assignTagForm" method="POST" action="?/assignTag" use:formEnhance={() => {
-							return async ({ result, update }) => {
-								if (result.type === 'success') {
-									toast.success(m.tag_assigned());
-									tagSearchInput = '';
-									showTagCreator = false;
-									await update();
-								}
-							};
-						}} class="hidden">
+						<form
+							id="assignTagForm"
+							method="POST"
+							action="?/assignTag"
+							use:formEnhance={() => {
+								return async ({ result, update }) => {
+									if (result.type === 'success') {
+										toast.success(m.tag_assigned());
+										tagSearchInput = '';
+										showTagCreator = false;
+										await update();
+									}
+								};
+							}}
+							class="hidden"
+						>
 							<input type="hidden" name="tagId" value="" />
 						</form>
 
 						<!-- Create new tag form (hidden) -->
-						<form id="createTagForm" method="POST" action="?/createTag" use:formEnhance={() => {
-							return async ({ result, update }) => {
-								if (result.type === 'success') {
-									toast.success(m.tag_created());
-									tagSearchInput = '';
-									showTagCreator = false;
-									newTagColor = TAG_PALETTE[0];
-									await update();
-								}
-							};
-						}} class="hidden">
+						<form
+							id="createTagForm"
+							method="POST"
+							action="?/createTag"
+							use:formEnhance={() => {
+								return async ({ result, update }) => {
+									if (result.type === 'success') {
+										toast.success(m.tag_created());
+										tagSearchInput = '';
+										showTagCreator = false;
+										newTagColor = TAG_PALETTE[0];
+										await update();
+									}
+								};
+							}}
+							class="hidden"
+						>
 							<input type="hidden" name="name" value="" />
 							<input type="hidden" name="color" value="" />
 						</form>
 
-						<Popover.Root bind:open={showTagCreator} onOpenChange={(open) => { if (!open) tagSearchInput = ''; }}>
+						<Popover.Root
+							bind:open={showTagCreator}
+							onOpenChange={(open) => {
+								if (!open) tagSearchInput = '';
+							}}
+						>
 							<Popover.Trigger>
 								{#snippet child({ props })}
 									<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
@@ -615,7 +687,10 @@
 												form.requestSubmit();
 											}}
 										>
-											<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {t.color}"></span>
+											<span
+												class="h-2 w-2 rounded-full shrink-0"
+												style="background-color: {t.color}"
+											></span>
 											{t.name}
 										</button>
 									{/each}
@@ -626,7 +701,9 @@
 											{#each TAG_PALETTE as color (color)}
 												<button
 													type="button"
-													class="h-4 w-4 rounded-full border {newTagColor === color ? 'border-foreground scale-110' : 'border-transparent'}"
+													class="h-4 w-4 rounded-full border {newTagColor === color
+														? 'border-foreground scale-110'
+														: 'border-transparent'}"
 													style="background-color: {color}"
 													aria-label={m.aria_select_color({ color })}
 													onclick={() => (newTagColor = color)}
@@ -638,20 +715,27 @@
 											class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer font-medium"
 											onclick={() => {
 												const form = document.getElementById('createTagForm') as HTMLFormElement;
-												const nameInput = form.querySelector<HTMLInputElement>('input[name="name"]');
-												const colorInput = form.querySelector<HTMLInputElement>('input[name="color"]');
+												const nameInput =
+													form.querySelector<HTMLInputElement>('input[name="name"]');
+												const colorInput =
+													form.querySelector<HTMLInputElement>('input[name="color"]');
 												if (nameInput) nameInput.value = tagSearchInput.trim();
 												if (colorInput) colorInput.value = newTagColor;
 												form.requestSubmit();
 											}}
 										>
-											<span class="h-2 w-2 rounded-full shrink-0" style="background-color: {newTagColor}"></span>
+											<span
+												class="h-2 w-2 rounded-full shrink-0"
+												style="background-color: {newTagColor}"
+											></span>
 											{m.tag_create_inline({ name: tagSearchInput.trim() })}
 										</button>
 									</div>
 								{/if}
 								{#if filteredUnassigned.length === 0 && !canCreateNew}
-									<p class="text-xs text-muted-foreground text-center py-2">{m.common_no_results()}</p>
+									<p class="text-xs text-muted-foreground text-center py-2">
+										{m.common_no_results()}
+									</p>
 								{/if}
 							</Popover.Content>
 						</Popover.Root>
@@ -663,18 +747,27 @@
 					<span class="text-xs font-medium text-muted-foreground mr-1">{m.assignee_title()}:</span>
 					{#each data.assignedAssignees as a (a.userId)}
 						{#if canEdit}
-							<form method="POST" action="?/removeAssignee" use:formEnhance={() => {
-								return async ({ result, update }) => {
-									if (result.type === 'success') {
-										toast.success(m.assignee_removed());
-										await update();
-									}
-								};
-							}} class="inline-flex">
+							<form
+								method="POST"
+								action="?/removeAssignee"
+								use:formEnhance={() => {
+									return async ({ result, update }) => {
+										if (result.type === 'success') {
+											toast.success(m.assignee_removed());
+											await update();
+										}
+									};
+								}}
+								class="inline-flex"
+							>
 								<input type="hidden" name="userId" value={a.userId} />
-								<span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium">
+								<span
+									class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium"
+								>
 									{a.userName}
-									<button type="submit" class="text-muted-foreground hover:text-foreground ml-0.5">&times;</button>
+									<button type="submit" class="text-muted-foreground hover:text-foreground ml-0.5"
+										>&times;</button
+									>
 								</span>
 							</form>
 						{:else}
@@ -686,21 +779,28 @@
 							(pm) => !data.assignedAssignees.some((a) => a.userId === pm.userId)
 						)}
 						{#if unassignedMembers.length > 0}
-							<form method="POST" action="?/assignAssignee" use:formEnhance={() => {
-								return async ({ result, update }) => {
-									if (result.type === 'success') {
-										toast.success(m.assignee_assigned());
-										await update();
-									}
-								};
-							}} class="inline-flex">
+							<form
+								method="POST"
+								action="?/assignAssignee"
+								use:formEnhance={() => {
+									return async ({ result, update }) => {
+										if (result.type === 'success') {
+											toast.success(m.assignee_assigned());
+											await update();
+										}
+									};
+								}}
+								class="inline-flex"
+							>
 								<input type="hidden" name="userId" value="" />
 								<Select.Root
 									type="single"
 									value=""
 									onValueChange={(v: string) => {
 										if (!v) return;
-										const form = document.querySelector<HTMLFormElement>('form[action="?/assignAssignee"]');
+										const form = document.querySelector<HTMLFormElement>(
+											'form[action="?/assignAssignee"]'
+										);
 										if (form) {
 											const hidden = form.querySelector<HTMLInputElement>('input[name="userId"]');
 											if (hidden) hidden.value = v;
@@ -745,7 +845,9 @@
 								<Select.Root
 									type="single"
 									value={$form.priority as string}
-									onValueChange={(v: string) => { $form.priority = v; }}
+									onValueChange={(v: string) => {
+										$form.priority = v;
+									}}
 								>
 									<Select.Trigger class="w-full">
 										{$form.priority}
@@ -904,18 +1006,21 @@
 													</Select.Content>
 												</Select.Root>
 											{:else if cf.fieldType === 'MULTISELECT'}
-												{@const selected = ((getCustomFieldValue(fieldKey) ?? []) as string[])}
+												{@const selected = (getCustomFieldValue(fieldKey) ?? []) as string[]}
 												<div class="flex flex-wrap gap-2">
 													{#each cf.options ?? [] as opt (opt)}
 														<label class="inline-flex items-center gap-1.5 text-sm cursor-pointer">
 															<Checkbox
 																checked={selected.includes(opt)}
 																onCheckedChange={(checked) => {
-																	const cur = ((getCustomFieldValue(fieldKey) ?? []) as string[]);
+																	const cur = (getCustomFieldValue(fieldKey) ?? []) as string[];
 																	if (checked) {
 																		setCustomFieldValue(fieldKey, [...cur, opt]);
 																	} else {
-																		setCustomFieldValue(fieldKey, cur.filter((v) => v !== opt));
+																		setCustomFieldValue(
+																			fieldKey,
+																			cur.filter((v) => v !== opt)
+																		);
 																	}
 																}}
 															/>
@@ -933,7 +1038,9 @@
 								<Button type="submit" disabled={$submitting}>
 									{$submitting ? m.common_saving() : m.common_save_changes()}
 								</Button>
-								<Button type="button" variant="outline" onclick={cancelEdit}>{m.common_cancel()}</Button>
+								<Button type="button" variant="outline" onclick={cancelEdit}
+									>{m.common_cancel()}</Button
+								>
 							</div>
 						</form>
 					</Card.Content>
@@ -964,7 +1071,10 @@
 								<div class="flex items-center gap-2">
 									<h4 class="text-sm font-medium">{m.tc_detail_steps()}</h4>
 									{#if version.stepFormat === 'GHERKIN'}
-										<span class="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">BDD</span>
+										<span
+											class="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium"
+											>BDD</span
+										>
 									{/if}
 								</div>
 								{#if version.stepFormat === 'GHERKIN'}
@@ -976,7 +1086,15 @@
 											{@const isKeyword = ['Given', 'When', 'Then', 'And', 'But'].includes(keyword)}
 											<div class="text-sm">
 												{#if isKeyword}
-													<span class="font-bold {keyword === 'Given' ? 'text-blue-600 dark:text-blue-400' : keyword === 'When' ? 'text-amber-600 dark:text-amber-400' : keyword === 'Then' ? 'text-green-600 dark:text-green-400' : 'text-purple-600 dark:text-purple-400'}">{keyword}</span>
+													<span
+														class="font-bold {keyword === 'Given'
+															? 'text-blue-600 dark:text-blue-400'
+															: keyword === 'When'
+																? 'text-amber-600 dark:text-amber-400'
+																: keyword === 'Then'
+																	? 'text-green-600 dark:text-green-400'
+																	: 'text-purple-600 dark:text-purple-400'}">{keyword}</span
+													>
 													<span class="ml-1">{stepText}</span>
 												{:else}
 													<span>{step.action}</span>
@@ -996,12 +1114,16 @@
 												</div>
 												<div class="grid gap-2 sm:grid-cols-2">
 													<div>
-														<span class="text-muted-foreground text-xs">{m.tc_detail_action()}:</span>
+														<span class="text-muted-foreground text-xs"
+															>{m.tc_detail_action()}:</span
+														>
 														<p class="text-sm">{step.action}</p>
 													</div>
 													{#if step.expected}
 														<div>
-															<span class="text-muted-foreground text-xs">{m.tc_detail_expected()}:</span>
+															<span class="text-muted-foreground text-xs"
+																>{m.tc_detail_expected()}:</span
+															>
 															<p class="text-sm">{step.expected}</p>
 														</div>
 													{/if}
@@ -1046,7 +1168,12 @@
 												<span class="text-muted-foreground text-xs">{cf.name}</span>
 												{#if cf.fieldType === 'URL' && typeof val === 'string'}
 													<p class="text-sm mt-0.5">
-														<a href={val} target="_blank" rel="noopener noreferrer" class="text-primary underline">{val}</a>
+														<a
+															href={val}
+															target="_blank"
+															rel="noopener noreferrer"
+															class="text-primary underline">{val}</a
+														>
 													</p>
 												{:else if cf.fieldType === 'CHECKBOX'}
 													<p class="text-sm mt-0.5">{val ? 'Yes' : 'No'}</p>
@@ -1072,11 +1199,7 @@
 			<!-- Attachments -->
 			<Card.Root>
 				<Card.Content class="pt-6">
-					<AttachmentManager
-						referenceType="TESTCASE"
-						referenceId={tc.id}
-						editable={canEdit}
-					/>
+					<AttachmentManager referenceType="TESTCASE" referenceId={tc.id} editable={canEdit} />
 				</Card.Content>
 			</Card.Root>
 
@@ -1116,11 +1239,7 @@
 										{creatingIssue ? m.common_loading() : m.issue_link_create()}
 									</Button>
 								{/if}
-								<Button
-									variant="outline"
-									size="sm"
-									onclick={() => (showLinkForm = !showLinkForm)}
-								>
+								<Button variant="outline" size="sm" onclick={() => (showLinkForm = !showLinkForm)}>
 									{m.issue_link_add()}
 								</Button>
 							</div>
@@ -1166,7 +1285,11 @@
 						<div class="space-y-2">
 							{#each issueLinks as link (link.id)}
 								{@const isExpanded = expandedLinkId === link.id}
-								<div class="rounded-lg border {isExpanded ? 'border-primary/30' : ''} transition-colors">
+								<div
+									class="rounded-lg border {isExpanded
+										? 'border-primary/30'
+										: ''} transition-colors"
+								>
 									<!-- Issue row -->
 									<div class="flex items-center justify-between gap-3 px-3 py-2">
 										<button
@@ -1175,24 +1298,61 @@
 											onclick={() => toggleIssueDetail(link.id)}
 										>
 											<div class="flex items-center gap-2">
-												<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 transition-transform {isExpanded ? 'rotate-90' : ''}"><polyline points="9 18 15 12 9 6"/></svg>
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													width="12"
+													height="12"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													class="shrink-0 transition-transform {isExpanded ? 'rotate-90' : ''}"
+													><polyline points="9 18 15 12 9 6" /></svg
+												>
 												{#if link.externalKey}
 													<span class="text-xs font-mono font-medium">{link.externalKey}</span>
 												{/if}
 												{#if link.status}
-													<span class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium {issueStatusClass(link.status)}">
+													<span
+														class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium {issueStatusClass(
+															link.status
+														)}"
+													>
 														{link.status}
 													</span>
 												{/if}
-												<span class="text-[10px] text-muted-foreground uppercase">{link.provider}</span>
+												<span class="text-[10px] text-muted-foreground uppercase"
+													>{link.provider}</span
+												>
 											</div>
 											<span class="text-sm truncate block pl-5">
 												{link.title || link.externalUrl}
 											</span>
 										</button>
 										<div class="flex items-center gap-1 shrink-0">
-											<a href={link.externalUrl} target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-primary p-1" title={m.aria_open_new_tab()}>
-												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+											<a
+												href={link.externalUrl}
+												target="_blank"
+												rel="noopener noreferrer"
+												class="text-muted-foreground hover:text-primary p-1"
+												title={m.aria_open_new_tab()}
+											>
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													width="14"
+													height="14"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path
+														d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
+													/></svg
+												>
 											</a>
 											{#if canEdit && link.provider !== 'CUSTOM' && data.hasIssueTracker}
 												<Button
@@ -1231,23 +1391,40 @@
 												<div class="space-y-3">
 													<!-- Title & state -->
 													<div class="flex items-start justify-between gap-2">
-														<h5 class="text-sm font-semibold leading-tight">{issueDetailData.title}</h5>
-														<span class="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {issueDetailData.state === 'closed' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}">
+														<h5 class="text-sm font-semibold leading-tight">
+															{issueDetailData.title}
+														</h5>
+														<span
+															class="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {issueDetailData.state ===
+															'closed'
+																? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+																: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}"
+														>
 															{issueDetailData.state}
 														</span>
 													</div>
 
 													<!-- Meta -->
-													<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+													<div
+														class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
+													>
 														<span class="flex items-center gap-1">
 															{#if issueDetailData.authorAvatar}
-																<img src={issueDetailData.authorAvatar} alt="" class="h-4 w-4 rounded-full" />
+																<img
+																	src={issueDetailData.authorAvatar}
+																	alt=""
+																	class="h-4 w-4 rounded-full"
+																/>
 															{/if}
 															{issueDetailData.author}
 														</span>
 														<span>{formatIssueDate(issueDetailData.createdAt)}</span>
 														{#if issueDetailData.closedAt}
-															<span>{m.issue_closed({ date: formatIssueDate(issueDetailData.closedAt) })}</span>
+															<span
+																>{m.issue_closed({
+																	date: formatIssueDate(issueDetailData.closedAt)
+																})}</span
+															>
 														{/if}
 													</div>
 
@@ -1267,7 +1444,9 @@
 
 													<!-- Body -->
 													{#if issueDetailData.body}
-														<div class="rounded bg-muted/40 p-3 text-xs whitespace-pre-wrap break-words max-h-48 overflow-y-auto leading-relaxed">
+														<div
+															class="rounded bg-muted/40 p-3 text-xs whitespace-pre-wrap break-words max-h-48 overflow-y-auto leading-relaxed"
+														>
 															{issueDetailData.body}
 														</div>
 													{/if}
@@ -1275,33 +1454,50 @@
 													<!-- Comments -->
 													{#if issueDetailData.comments.length > 0}
 														<div class="space-y-2 pt-2">
-															<h6 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+															<h6
+																class="text-xs font-semibold text-muted-foreground uppercase tracking-wide"
+															>
 																{m.issue_comments({ count: issueDetailData.comments.length })}
 															</h6>
 															<div class="space-y-2 max-h-72 overflow-y-auto">
 																{#each issueDetailData.comments as comment (comment.id)}
 																	<div class="rounded border p-2.5 text-xs">
-																		<div class="flex items-center gap-2 mb-1.5 text-muted-foreground">
+																		<div
+																			class="flex items-center gap-2 mb-1.5 text-muted-foreground"
+																		>
 																			{#if comment.authorAvatar}
-																				<img src={comment.authorAvatar} alt="" class="h-4 w-4 rounded-full" />
+																				<img
+																					src={comment.authorAvatar}
+																					alt=""
+																					class="h-4 w-4 rounded-full"
+																				/>
 																			{/if}
-																			<span class="font-medium text-foreground">{comment.author}</span>
+																			<span class="font-medium text-foreground"
+																				>{comment.author}</span
+																			>
 																			<span>{formatIssueDate(comment.createdAt)}</span>
 																		</div>
-																		<div class="whitespace-pre-wrap break-words leading-relaxed">{comment.body}</div>
+																		<div class="whitespace-pre-wrap break-words leading-relaxed">
+																			{comment.body}
+																		</div>
 																	</div>
 																{/each}
 															</div>
 														</div>
 													{:else}
-														<p class="text-xs text-muted-foreground pt-1">{m.issue_no_comments()}</p>
+														<p class="text-xs text-muted-foreground pt-1">
+															{m.issue_no_comments()}
+														</p>
 													{/if}
 
 													<!-- Add comment & state toggle -->
 													{#if canEdit}
 														<div class="pt-3 border-t mt-3">
 															<form
-																onsubmit={(e) => { e.preventDefault(); postIssueComment(); }}
+																onsubmit={(e) => {
+																	e.preventDefault();
+																	postIssueComment();
+																}}
 																class="space-y-2"
 															>
 																<Textarea
@@ -1313,7 +1509,9 @@
 																<div class="flex items-center justify-between">
 																	<Button
 																		type="button"
-																		variant={issueDetailData.state === 'closed' ? 'outline' : 'destructive'}
+																		variant={issueDetailData.state === 'closed'
+																			? 'outline'
+																			: 'destructive'}
 																		size="sm"
 																		disabled={togglingState}
 																		onclick={toggleIssueState}
@@ -1326,7 +1524,11 @@
 																			{m.issue_close()}
 																		{/if}
 																	</Button>
-																	<Button type="submit" size="sm" disabled={postingComment || !newIssueComment.trim()}>
+																	<Button
+																		type="submit"
+																		size="sm"
+																		disabled={postingComment || !newIssueComment.trim()}
+																	>
 																		{postingComment ? m.common_loading() : m.comment_submit()}
 																	</Button>
 																</div>
@@ -1364,7 +1566,9 @@
 						</AlertDialog.Header>
 						<AlertDialog.Footer>
 							<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-							<Button variant="destructive" onclick={handleRemoveIssueLink}>{m.common_delete()}</Button>
+							<Button variant="destructive" onclick={handleRemoveIssueLink}
+								>{m.common_delete()}</Button
+							>
 						</AlertDialog.Footer>
 					</AlertDialog.Content>
 				</AlertDialog.Portal>
@@ -1377,8 +1581,7 @@
 				currentUserId={data.currentUserId}
 				userRole={data.userRole}
 			/>
-
-			</div>
+		</div>
 
 		<!-- Version History Sidebar -->
 		{#if showVersions}
@@ -1396,7 +1599,9 @@
 	projectId={data.project.id}
 	defaultName={version ? version.title + ' Template' : ''}
 	precondition={version?.precondition ?? ''}
-	steps={(version?.steps ?? []).map((s: { action: string; expected: string }) => ({ action: s.action, expected: s.expected }))}
+	steps={(version?.steps ?? []).map((s: { action: string; expected: string }) => ({
+		action: s.action,
+		expected: s.expected
+	}))}
 	priority={version?.priority ?? 'MEDIUM'}
 />
-

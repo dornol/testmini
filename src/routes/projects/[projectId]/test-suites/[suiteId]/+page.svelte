@@ -58,7 +58,10 @@
 	async function handleEdit() {
 		editSaving = true;
 		try {
-			await apiPatch(`/api/projects/${data.project.id}/test-suites/${data.suite.id}`, { name: editName, description: editDesc || null });
+			await apiPatch(`/api/projects/${data.project.id}/test-suites/${data.suite.id}`, {
+				name: editName,
+				description: editDesc || null
+			});
 			editDialogOpen = false;
 			toast.success(m.suite_updated());
 			await invalidateAll();
@@ -102,7 +105,9 @@
 		if (addCasesSelected.size === 0) return;
 		addCasesSaving = true;
 		try {
-			await apiPost(`/api/projects/${data.project.id}/test-suites/${data.suite.id}/items`, { testCaseIds: [...addCasesSelected] });
+			await apiPost(`/api/projects/${data.project.id}/test-suites/${data.suite.id}/items`, {
+				testCaseIds: [...addCasesSelected]
+			});
 			addCasesDialogOpen = false;
 			toast.success(m.suite_updated());
 			await invalidateAll();
@@ -134,20 +139,22 @@
 
 <div class="space-y-4">
 	<!-- Header -->
-	<div class="flex items-center justify-between">
-		<div>
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+		<div class="min-w-0">
 			<a href={basePath} class="text-muted-foreground hover:text-foreground text-sm">
 				&larr; {m.common_back_to({ target: m.suite_title() })}
 			</a>
-			<div class="mt-1 flex items-center gap-3">
-				<h2 class="text-xl font-bold">{data.suite.name}</h2>
-				<span class="text-muted-foreground text-sm">{m.suite_tc_count({ count: data.items.length })}</span>
+			<div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+				<h2 class="min-w-0 break-words text-xl font-bold">{data.suite.name}</h2>
+				<span class="shrink-0 text-sm text-muted-foreground"
+					>{m.suite_tc_count({ count: data.items.length })}</span
+				>
 			</div>
 			{#if data.suite.description}
-				<p class="text-muted-foreground mt-1 text-sm">{data.suite.description}</p>
+				<p class="text-muted-foreground mt-1 break-words text-sm">{data.suite.description}</p>
 			{/if}
 		</div>
-		<div class="flex gap-2">
+		<div class="flex flex-wrap gap-2 sm:justify-end">
 			{#if canManage}
 				<Button variant="outline" size="sm" onclick={openAddCases}>
 					{m.suite_add_cases()}
@@ -155,11 +162,19 @@
 				<Button variant="outline" size="sm" onclick={openEdit}>
 					{m.common_edit()}
 				</Button>
-				<Button variant="outline" size="sm" class="text-destructive hover:text-destructive" onclick={() => (deleteDialogOpen = true)}>
+				<Button
+					variant="outline"
+					size="sm"
+					class="text-destructive hover:text-destructive"
+					onclick={() => (deleteDialogOpen = true)}
+				>
 					{m.common_delete()}
 				</Button>
 			{/if}
-			<Button size="sm" href="/projects/{data.project.id}/test-runs/new?suiteId={data.suite.id}">
+			<Button
+				size="sm"
+				href={`/projects/${data.project.id}/test-runs/new?suiteId=${data.suite.id}`}
+			>
 				{m.suite_create_run()}
 			</Button>
 		</div>
@@ -167,14 +182,39 @@
 
 	<!-- Items Table -->
 	{#if data.items.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+		<div
+			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+		>
 			<h3 class="text-lg font-semibold">{m.suite_no_cases()}</h3>
 			{#if canManage}
 				<Button class="mt-4" onclick={openAddCases}>{m.suite_add_cases()}</Button>
 			{/if}
 		</div>
 	{:else}
-		<Card.Root>
+		<div class="grid gap-3 md:hidden">
+			{#each data.items as item (item.id)}
+				<div class="rounded-md border p-3">
+					<div class="flex items-start justify-between gap-3">
+						<div class="min-w-0">
+							<div class="font-mono text-xs text-muted-foreground">{item.key}</div>
+							<div class="mt-1 break-words font-medium">{item.title}</div>
+						</div>
+						<PriorityBadge name={item.priority} color={getPriorityColor(item.priority)} />
+					</div>
+					{#if canManage}
+						<Button
+							variant="ghost"
+							size="sm"
+							class="mt-2 h-8 px-2 text-xs text-destructive hover:text-destructive"
+							onclick={() => removeCase(item.testCaseId)}
+						>
+							{m.suite_remove_case()}
+						</Button>
+					{/if}
+				</div>
+			{/each}
+		</div>
+		<Card.Root class="hidden md:block">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -233,7 +273,9 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (editDialogOpen = false)}>{m.common_cancel()}</Button>
+				<Button variant="outline" onclick={() => (editDialogOpen = false)}
+					>{m.common_cancel()}</Button
+				>
 				<Button onclick={handleEdit} disabled={editSaving || !editName.trim()}>
 					{editSaving ? m.common_saving() : m.common_save_changes()}
 				</Button>
@@ -265,17 +307,14 @@
 <Dialog.Root bind:open={addCasesDialogOpen}>
 	<Dialog.Portal>
 		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-2xl max-h-[80vh] flex flex-col">
+		<Dialog.Content class="flex max-h-[85dvh] flex-col sm:max-w-2xl">
 			<Dialog.Header>
 				<Dialog.Title>{m.suite_add_cases()}</Dialog.Title>
 			</Dialog.Header>
 			<div class="py-4 space-y-3 flex-1 overflow-hidden flex flex-col">
-				<Input
-					placeholder={m.tr_filter_placeholder()}
-					bind:value={addCasesSearch}
-				/>
-				<div class="flex-1 border rounded-md">
-					<Table.Root>
+				<Input placeholder={m.tr_filter_placeholder()} bind:value={addCasesSearch} />
+				<div class="flex-1 rounded-md border">
+					<Table.Root class="hidden md:table">
 						<Table.Header>
 							<Table.Row>
 								<Table.Head class="w-10"></Table.Head>
@@ -287,8 +326,24 @@
 					</Table.Root>
 					<VirtualList items={availableCases} rowHeight={44} height="360px">
 						{#snippet children({ item })}
-							{@const tc = item as typeof availableCases[0]}
-							<Table.Root>
+							{@const tc = item as (typeof availableCases)[0]}
+							<button
+								type="button"
+								class="flex h-11 w-full items-center gap-2 px-3 text-left text-sm md:hidden"
+								onclick={() => toggleAddCase(tc.id)}
+							>
+								<input
+									type="checkbox"
+									checked={addCasesSelected.has(tc.id)}
+									onchange={() => toggleAddCase(tc.id)}
+									onclick={(e: MouseEvent) => e.stopPropagation()}
+									class="rounded"
+									aria-label={tc.key}
+								/>
+								<span class="w-16 shrink-0 font-mono text-xs text-muted-foreground">{tc.key}</span>
+								<span class="min-w-0 flex-1 truncate font-medium">{tc.title}</span>
+							</button>
+							<Table.Root class="hidden md:table">
 								<Table.Body>
 									<Table.Row class="cursor-pointer" onclick={() => toggleAddCase(tc.id)}>
 										<Table.Cell class="w-10">
@@ -313,7 +368,9 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (addCasesDialogOpen = false)}>{m.common_cancel()}</Button>
+				<Button variant="outline" onclick={() => (addCasesDialogOpen = false)}
+					>{m.common_cancel()}</Button
+				>
 				<Button onclick={handleAddCases} disabled={addCasesSaving || addCasesSelected.size === 0}>
 					{addCasesSaving ? m.common_saving() : m.suite_add_cases()} ({addCasesSelected.size})
 				</Button>

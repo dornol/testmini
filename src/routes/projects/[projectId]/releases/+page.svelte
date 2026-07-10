@@ -18,9 +18,7 @@
 	const canManage = $derived(
 		data.userRole === 'PROJECT_ADMIN' || data.userRole === 'QA' || data.userRole === 'ADMIN'
 	);
-	const canDelete = $derived(
-		data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN'
-	);
+	const canDelete = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
 
 	let statusFilter = $state('');
 
@@ -38,18 +36,21 @@
 
 	function statusVariant(s: string): 'default' | 'secondary' | 'outline' | 'destructive' {
 		switch (s) {
-			case 'PLANNING': return 'outline';
-			case 'IN_PROGRESS': return 'secondary';
-			case 'READY': return 'default';
-			case 'RELEASED': return 'default';
-			default: return 'outline';
+			case 'PLANNING':
+				return 'outline';
+			case 'IN_PROGRESS':
+				return 'secondary';
+			case 'READY':
+				return 'default';
+			case 'RELEASED':
+				return 'default';
+			default:
+				return 'outline';
 		}
 	}
 
 	const filteredReleases = $derived(
-		statusFilter
-			? data.releases.filter((r) => r.status === statusFilter)
-			: data.releases
+		statusFilter ? data.releases.filter((r) => r.status === statusFilter) : data.releases
 	);
 
 	// Create dialog
@@ -145,7 +146,9 @@
 	</div>
 
 	{#if filteredReleases.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+		<div
+			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+		>
 			<h3 class="text-lg font-semibold">{m.rel_empty_title()}</h3>
 			<p class="text-muted-foreground mt-1 text-sm">{m.rel_empty_create()}</p>
 			{#if canManage}
@@ -153,7 +156,90 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="border rounded-md overflow-hidden">
+		<div class="grid gap-3 md:hidden">
+			{#each filteredReleases as rel (rel.id)}
+				<div class="rounded-md border p-3 transition-colors hover:bg-muted/50">
+					<div class="flex items-start justify-between gap-3">
+						<button
+							type="button"
+							class="min-w-0 flex-1 text-left"
+							onclick={() => goto(`${basePath}/${rel.id}`)}
+						>
+							<div class="break-words font-medium">{rel.name}</div>
+							<div class="mt-1 flex flex-wrap items-center gap-2">
+								{#if rel.version}
+									<Badge variant="outline">{rel.version}</Badge>
+								{/if}
+								<Badge variant={statusVariant(rel.status)}>{statusLabel(rel.status)}</Badge>
+							</div>
+						</button>
+						{#if canDelete}
+							<DropdownMenu.Root>
+								<DropdownMenu.Trigger>
+									{#snippet child({ props })}
+										<Button
+											variant="ghost"
+											size="sm"
+											class="h-7 w-7 p-0"
+											{...props}
+											onclick={(e: MouseEvent) => e.stopPropagation()}
+											aria-label={m.common_actions()}
+										>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												width="14"
+												height="14"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												aria-hidden="true"
+												><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle
+													cx="12"
+													cy="19"
+													r="1"
+												/></svg
+											>
+										</Button>
+									{/snippet}
+								</DropdownMenu.Trigger>
+								<DropdownMenu.Content align="end">
+									<DropdownMenu.Item onclick={() => goto(`${basePath}/${rel.id}`)}>
+										{m.common_edit()}
+									</DropdownMenu.Item>
+									<DropdownMenu.Separator />
+									<DropdownMenu.Item
+										class="text-destructive"
+										onclick={() => {
+											openDelete(rel.id);
+										}}
+									>
+										{m.common_delete()}
+									</DropdownMenu.Item>
+								</DropdownMenu.Content>
+							</DropdownMenu.Root>
+						{/if}
+					</div>
+					<div class="mt-3 grid grid-cols-3 gap-2 text-xs">
+						<div>
+							<div class="text-muted-foreground">{m.rel_target_date()}</div>
+							<div>{formatDate(rel.targetDate)}</div>
+						</div>
+						<div>
+							<div class="text-muted-foreground">{m.nav_test_plans()}</div>
+							<div>{rel.planCount}</div>
+						</div>
+						<div>
+							<div class="text-muted-foreground">{m.nav_test_runs()}</div>
+							<div>{rel.runCount}</div>
+						</div>
+					</div>
+				</div>
+			{/each}
+		</div>
+		<div class="hidden overflow-hidden rounded-md border md:block">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -176,21 +262,50 @@
 							onclick={() => goto(`${basePath}/${rel.id}`)}
 						>
 							<Table.Cell class="py-1 px-2 text-xs font-medium">{rel.name}</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs">{rel.version ?? '-'}</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs"
+								>{rel.version ?? '-'}</Table.Cell
+							>
 							<Table.Cell class="py-1 px-2 text-xs">
 								<Badge variant={statusVariant(rel.status)}>{statusLabel(rel.status)}</Badge>
 							</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs">{formatDate(rel.targetDate)}</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs"
+								>{formatDate(rel.targetDate)}</Table.Cell
+							>
 							<Table.Cell class="py-1 px-2 text-xs">{rel.planCount}</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs">{rel.runCount}</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs">{rel.createdBy}</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs"
+								>{rel.createdBy}</Table.Cell
+							>
 							{#if canDelete}
 								<Table.Cell class="py-1 px-2">
 									<DropdownMenu.Root>
 										<DropdownMenu.Trigger>
 											{#snippet child({ props })}
-												<Button variant="ghost" size="sm" class="h-6 w-6 p-0" {...props} onclick={(e: MouseEvent) => e.stopPropagation()} aria-label={m.common_actions()}>
-													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+												<Button
+													variant="ghost"
+													size="sm"
+													class="h-6 w-6 p-0"
+													{...props}
+													onclick={(e: MouseEvent) => e.stopPropagation()}
+													aria-label={m.common_actions()}
+												>
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														width="14"
+														height="14"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														stroke-width="2"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														aria-hidden="true"
+														><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle
+															cx="12"
+															cy="19"
+															r="1"
+														/></svg
+													>
 												</Button>
 											{/snippet}
 										</DropdownMenu.Trigger>
@@ -199,7 +314,12 @@
 												{m.common_edit()}
 											</DropdownMenu.Item>
 											<DropdownMenu.Separator />
-											<DropdownMenu.Item class="text-destructive" onclick={() => { openDelete(rel.id); }}>
+											<DropdownMenu.Item
+												class="text-destructive"
+												onclick={() => {
+													openDelete(rel.id);
+												}}
+											>
 												{m.common_delete()}
 											</DropdownMenu.Item>
 										</DropdownMenu.Content>
@@ -229,7 +349,11 @@
 				</div>
 				<div class="space-y-2">
 					<Label for="relVersion">{m.rel_version()}</Label>
-					<Input id="relVersion" bind:value={createVersion} placeholder={m.rel_version_placeholder()} />
+					<Input
+						id="relVersion"
+						bind:value={createVersion}
+						placeholder={m.rel_version_placeholder()}
+					/>
 				</div>
 				<div class="space-y-2">
 					<Label for="relDesc">{m.common_description()}</Label>
@@ -237,7 +361,9 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (createDialogOpen = false)}>{m.common_cancel()}</Button>
+				<Button variant="outline" onclick={() => (createDialogOpen = false)}
+					>{m.common_cancel()}</Button
+				>
 				<Button onclick={handleCreate} disabled={createSaving || !createName.trim()}>
 					{createSaving ? m.common_creating() : m.rel_create()}
 				</Button>

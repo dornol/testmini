@@ -284,15 +284,15 @@
 
 <div class="space-y-6">
 	<!-- Header -->
-	<div class="flex items-start justify-between">
-		<div>
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+		<div class="min-w-0">
 			<a
 				href="/projects/{projectId}/exploratory"
 				class="text-muted-foreground hover:text-foreground text-sm"
 				>&larr; {m.common_back_to({ target: m.exploratory_title() })}</a
 			>
-			<h2 class="mt-1 text-lg font-semibold">{session.title}</h2>
-			<div class="mt-1 flex items-center gap-2">
+			<h2 class="mt-1 break-words text-lg font-semibold">{session.title}</h2>
+			<div class="mt-1 flex flex-wrap items-center gap-2">
 				<Badge variant={statusVariant(session.status)}>{statusLabel(session.status)}</Badge>
 				{#if session.environment}
 					<Badge variant="outline">{session.environment}</Badge>
@@ -304,10 +304,10 @@
 				{/if}
 			</div>
 			{#if session.charter}
-				<p class="text-muted-foreground mt-2 text-sm">{session.charter}</p>
+				<p class="text-muted-foreground mt-2 break-words text-sm">{session.charter}</p>
 			{/if}
 		</div>
-		<div class="flex items-center gap-2">
+		<div class="flex items-center gap-2 sm:justify-end">
 			<Button variant="outline" size="sm" onclick={() => (showDeleteDialog = true)}>
 				{m.common_delete()}
 			</Button>
@@ -315,7 +315,7 @@
 	</div>
 
 	<!-- Timer -->
-	<div class="flex items-center gap-4 border rounded-lg p-4">
+	<div class="flex flex-wrap items-center gap-3 rounded-lg border p-4">
 		<div class="text-3xl font-mono font-bold tracking-wider">{timerDisplay}</div>
 		{#if session.status === 'ACTIVE'}
 			<Button variant="secondary" size="sm" onclick={pauseSession}>{m.exploratory_pause()}</Button>
@@ -344,7 +344,7 @@
 			<h3 class="font-medium">{m.exploratory_add_note()}</h3>
 			<Textarea bind:value={noteContent} placeholder={m.exploratory_note_placeholder()} rows={2} />
 			<div class="flex items-center gap-3 flex-wrap">
-				<div class="flex gap-1">
+				<div class="flex flex-wrap gap-1">
 					{#each ['NOTE', 'BUG', 'QUESTION', 'IDEA'] as type (type)}
 						<Button
 							variant={noteType === type ? 'default' : 'outline'}
@@ -358,7 +358,7 @@
 					type="file"
 					accept="image/*"
 					onchange={handleFileChange}
-					class="text-sm"
+					class="max-w-full text-sm"
 				/>
 				<Button size="sm" onclick={addNote} disabled={submittingNote || !noteContent.trim()}
 					>{submittingNote ? m.common_saving() : m.exploratory_add_note_btn()}</Button
@@ -375,7 +375,7 @@
 		{:else}
 			<div class="space-y-2">
 				{#each notes as note (note.id)}
-					<div class="border rounded-md p-3 flex gap-3">
+					<div class="flex flex-col gap-3 rounded-md border p-3 sm:flex-row">
 						<div class="flex-shrink-0 flex flex-col items-center gap-1">
 							<Badge variant="outline" class="font-mono text-xs">{formatTime(note.timestamp)}</Badge
 							>

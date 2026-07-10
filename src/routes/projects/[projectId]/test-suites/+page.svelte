@@ -40,7 +40,10 @@
 	async function handleCreate() {
 		creating = true;
 		try {
-			await apiPost(`/api/projects/${data.project.id}/test-suites`, { name: newName, description: newDesc || undefined });
+			await apiPost(`/api/projects/${data.project.id}/test-suites`, {
+				name: newName,
+				description: newDesc || undefined
+			});
 			createDialogOpen = false;
 			newName = '';
 			newDesc = '';
@@ -53,7 +56,7 @@
 		}
 	}
 
-	function openEdit(suite: typeof data.suites[0]) {
+	function openEdit(suite: (typeof data.suites)[0]) {
 		editId = suite.id;
 		editName = suite.name;
 		editDesc = suite.description ?? '';
@@ -64,7 +67,10 @@
 		if (!editId) return;
 		editSaving = true;
 		try {
-			await apiPatch(`/api/projects/${data.project.id}/test-suites/${editId}`, { name: editName, description: editDesc || null });
+			await apiPatch(`/api/projects/${data.project.id}/test-suites/${editId}`, {
+				name: editName,
+				description: editDesc || null
+			});
 			editDialogOpen = false;
 			toast.success(m.suite_updated());
 			await invalidateAll();
@@ -105,7 +111,9 @@
 	</div>
 
 	{#if data.suites.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+		<div
+			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+		>
 			<h3 class="text-lg font-semibold">{m.suite_empty()}</h3>
 			<p class="text-muted-foreground mt-1 text-sm">{m.suite_empty_desc()}</p>
 			{#if canManage}
@@ -113,7 +121,84 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="border rounded-md overflow-hidden">
+		<div class="grid gap-3 md:hidden">
+			{#each data.suites as suite (suite.id)}
+				<div class="rounded-md border p-3 transition-colors hover:bg-muted/50">
+					<div class="flex items-start justify-between gap-3">
+						<button
+							type="button"
+							class="min-w-0 flex-1 text-left"
+							onclick={() => goto(`${basePath}/${suite.id}`)}
+						>
+							<div class="font-medium">{suite.name}</div>
+							<p class="text-muted-foreground mt-1 line-clamp-2 text-sm">
+								{suite.description ?? '-'}
+							</p>
+						</button>
+						<div class="w-20 shrink-0 text-right text-xs text-muted-foreground">
+							<div class="font-semibold text-foreground">{suite.itemCount}</div>
+							<div class="break-keep leading-tight">{m.nav_test_cases()}</div>
+						</div>
+					</div>
+					<div class="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+						<span>{m.tr_created_by()}: {suite.createdBy}</span>
+						{#if canManage}
+							<DropdownMenu.Root>
+								<DropdownMenu.Trigger>
+									{#snippet child({ props })}
+										<Button
+											variant="ghost"
+											size="sm"
+											class="h-7 w-7 p-0"
+											{...props}
+											onclick={(e: MouseEvent) => e.stopPropagation()}
+											aria-label={m.common_actions()}
+										>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												width="14"
+												height="14"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												aria-hidden="true"
+												><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle
+													cx="12"
+													cy="19"
+													r="1"
+												/></svg
+											>
+										</Button>
+									{/snippet}
+								</DropdownMenu.Trigger>
+								<DropdownMenu.Content align="end">
+									<DropdownMenu.Item
+										onclick={() => {
+											openEdit(suite);
+										}}
+									>
+										{m.common_edit()}
+									</DropdownMenu.Item>
+									<DropdownMenu.Separator />
+									<DropdownMenu.Item
+										class="text-destructive"
+										onclick={() => {
+											openDelete(suite.id);
+										}}
+									>
+										{m.common_delete()}
+									</DropdownMenu.Item>
+								</DropdownMenu.Content>
+							</DropdownMenu.Root>
+						{/if}
+					</div>
+				</div>
+			{/each}
+		</div>
+		<div class="hidden overflow-hidden rounded-md border md:block">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -137,23 +222,57 @@
 								{suite.description ?? '-'}
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs">{suite.itemCount}</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs">{suite.createdBy}</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs"
+								>{suite.createdBy}</Table.Cell
+							>
 							{#if canManage}
 								<Table.Cell class="py-1 px-2">
 									<DropdownMenu.Root>
 										<DropdownMenu.Trigger>
 											{#snippet child({ props })}
-												<Button variant="ghost" size="sm" class="h-6 w-6 p-0" {...props} onclick={(e: MouseEvent) => e.stopPropagation()} aria-label={m.common_actions()}>
-													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+												<Button
+													variant="ghost"
+													size="sm"
+													class="h-6 w-6 p-0"
+													{...props}
+													onclick={(e: MouseEvent) => e.stopPropagation()}
+													aria-label={m.common_actions()}
+												>
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														width="14"
+														height="14"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														stroke-width="2"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														aria-hidden="true"
+														><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle
+															cx="12"
+															cy="19"
+															r="1"
+														/></svg
+													>
 												</Button>
 											{/snippet}
 										</DropdownMenu.Trigger>
 										<DropdownMenu.Content align="end">
-											<DropdownMenu.Item onclick={() => { openEdit(suite); }}>
+											<DropdownMenu.Item
+												onclick={() => {
+													openEdit(suite);
+												}}
+											>
 												{m.common_edit()}
 											</DropdownMenu.Item>
 											<DropdownMenu.Separator />
-											<DropdownMenu.Item class="text-destructive" onclick={() => { openDelete(suite.id); }}>
+											<DropdownMenu.Item
+												class="text-destructive"
+												onclick={() => {
+													openDelete(suite.id);
+												}}
+											>
 												{m.common_delete()}
 											</DropdownMenu.Item>
 										</DropdownMenu.Content>
@@ -183,11 +302,18 @@
 				</div>
 				<div class="space-y-2">
 					<Label for="suiteDesc">{m.suite_desc_label()}</Label>
-					<Textarea id="suiteDesc" bind:value={newDesc} placeholder={m.suite_desc_placeholder()} rows={3} />
+					<Textarea
+						id="suiteDesc"
+						bind:value={newDesc}
+						placeholder={m.suite_desc_placeholder()}
+						rows={3}
+					/>
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (createDialogOpen = false)}>{m.common_cancel()}</Button>
+				<Button variant="outline" onclick={() => (createDialogOpen = false)}
+					>{m.common_cancel()}</Button
+				>
 				<Button onclick={handleCreate} disabled={creating || !newName.trim()}>
 					{creating ? m.common_creating() : m.suite_create()}
 				</Button>
@@ -215,7 +341,9 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (editDialogOpen = false)}>{m.common_cancel()}</Button>
+				<Button variant="outline" onclick={() => (editDialogOpen = false)}
+					>{m.common_cancel()}</Button
+				>
 				<Button onclick={handleEdit} disabled={editSaving || !editName.trim()}>
 					{editSaving ? m.common_saving() : m.common_save_changes()}
 				</Button>

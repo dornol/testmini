@@ -180,6 +180,7 @@
 		if (current.includes(id)) return;
 		const newIds = [...current, id];
 		params.set('runIds', newIds.join(','));
+		params.set('page', '1');
 		goto(`${basePath}?${params.toString()}`);
 	}
 
@@ -187,7 +188,15 @@
 		const params = new URLSearchParams(page.url.searchParams);
 		const newIds = data.selectedRunIds.filter((id) => id !== runId);
 		params.set('runIds', newIds.join(','));
+		params.set('page', '1');
 		goto(`${basePath}?${params.toString()}`);
+	}
+
+	function buildPageUrl(targetPage: number): string {
+		const params = new URLSearchParams(page.url.searchParams);
+		params.set('page', String(targetPage));
+		if (data.pagination.limit !== 100) params.set('limit', String(data.pagination.limit));
+		return `${basePath}?${params.toString()}`;
 	}
 
 	function getPriorityColor(name: string): string {
@@ -322,7 +331,8 @@
 
 	const VIRTUAL_SCROLL_THRESHOLD = 200;
 	const useVirtualScroll = $derived(data.testCases.length > VIRTUAL_SCROLL_THRESHOLD);
-	const dndDisabled = $derived(hasActiveFilters || !canEdit || useVirtualScroll);
+	const isPaginated = $derived(data.pagination.pageCount > 1);
+	const dndDisabled = $derived(hasActiveFilters || !canEdit || useVirtualScroll || isPaginated);
 
 	// --- Column visibility & order (project-wide, persisted in DB) ---
 	type ColId =
@@ -910,9 +920,9 @@
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2">
 			<h2 class="text-lg font-semibold">{m.tc_title()}</h2>
-			{#if data.testCases.length > 0}
+			{#if data.pagination.total > 0}
 				<span class="text-muted-foreground text-xs"
-					>{m.common_total_count({ count: data.testCases.length })}</span
+					>{m.common_total_count({ count: data.pagination.total })}</span
 				>
 			{/if}
 		</div>
@@ -973,6 +983,40 @@
 		customFieldFilters={data.customFieldFilters}
 		savedFilters={data.savedFilters}
 	/>
+
+	{#if data.pagination.pageCount > 1}
+		<div
+			class="flex items-center justify-between gap-3 rounded-md border bg-card px-3 py-2 text-sm"
+		>
+			<div class="text-muted-foreground">
+				{m.common_page_of({
+					page: data.pagination.page,
+					totalPages: data.pagination.pageCount
+				})}
+				<span class="ml-2 text-xs">
+					{data.testCases.length} / {data.pagination.total}
+				</span>
+			</div>
+			<div class="flex items-center gap-2">
+				<Button
+					variant="outline"
+					size="sm"
+					href={buildPageUrl(data.pagination.page - 1)}
+					disabled={!data.pagination.hasPrevious}
+				>
+					{m.common_previous()}
+				</Button>
+				<Button
+					variant="outline"
+					size="sm"
+					href={buildPageUrl(data.pagination.page + 1)}
+					disabled={!data.pagination.hasNext}
+				>
+					{m.common_next()}
+				</Button>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Column settings row -->
 	<div class="flex flex-wrap items-center gap-2">
@@ -1138,6 +1182,10 @@
 		<!-- ===== GROUPED VIEW ===== -->
 		{#if hasActiveFilters}
 			<p class="text-xs text-muted-foreground italic">{m.tc_dnd_disabled_filters()}</p>
+		{:else if isPaginated}
+			<p class="text-xs text-muted-foreground italic">
+				{m.tc_pagination_notice({ count: data.pagination.total })}
+			</p>
 		{/if}
 
 		{#snippet avatarStack(assignees: { userId: string; userName: string }[])}

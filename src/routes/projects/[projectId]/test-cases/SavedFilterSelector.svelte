@@ -34,6 +34,7 @@
 	function getCurrentFilters(): Record<string, unknown> {
 		const filters: Record<string, unknown> = {};
 		for (const [key, value] of page.url.searchParams.entries()) {
+			if (key === 'page') continue;
 			if (value) filters[key] = value;
 		}
 		return filters;
@@ -131,9 +132,19 @@
 						<Input
 							class="h-6 text-xs flex-1"
 							bind:value={renamingValue}
-							onkeydown={(e) => { if (e.key === 'Enter') renameFilter(filter); if (e.key === 'Escape') { renamingId = null; } }}
+							onkeydown={(e) => {
+								if (e.key === 'Enter') renameFilter(filter);
+								if (e.key === 'Escape') {
+									renamingId = null;
+								}
+							}}
 						/>
-						<Button variant="ghost" size="sm" class="h-6 px-1 text-xs" onclick={() => renameFilter(filter)}>
+						<Button
+							variant="ghost"
+							size="sm"
+							class="h-6 px-1 text-xs"
+							onclick={() => renameFilter(filter)}
+						>
 							{m.common_save_changes()}
 						</Button>
 					</div>
@@ -141,10 +152,22 @@
 					<div class="rounded border border-destructive/30 bg-destructive/5 p-2">
 						<p class="mb-1.5 text-xs">{m.saved_view_confirm_delete()}</p>
 						<div class="flex gap-1">
-							<Button variant="destructive" size="sm" class="h-6 px-2 text-xs" onclick={() => deleteFilter(filter.id)}>
+							<Button
+								variant="destructive"
+								size="sm"
+								class="h-6 px-2 text-xs"
+								onclick={() => deleteFilter(filter.id)}
+							>
 								{m.common_delete()}
 							</Button>
-							<Button variant="ghost" size="sm" class="h-6 px-2 text-xs" onclick={() => { confirmDeleteId = null; }}>
+							<Button
+								variant="ghost"
+								size="sm"
+								class="h-6 px-2 text-xs"
+								onclick={() => {
+									confirmDeleteId = null;
+								}}
+							>
 								{m.common_cancel()}
 							</Button>
 						</div>
@@ -164,26 +187,75 @@
 									type="button"
 									class="rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 cursor-pointer"
 									title={m.saved_view_overwrite()}
-									onclick={(e) => { e.stopPropagation(); updateFilters(filter); }}
+									onclick={(e) => {
+										e.stopPropagation();
+										updateFilters(filter);
+									}}
 								>
-									<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="12"
+										height="12"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path
+											d="M3 3v5h5"
+										/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path
+											d="M16 16h5v5"
+										/></svg
+									>
 								</button>
 							{/if}
 							<button
 								type="button"
 								class="rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 cursor-pointer"
 								title={m.saved_view_rename()}
-								onclick={(e) => { e.stopPropagation(); renamingId = filter.id; renamingValue = filter.name; }}
+								onclick={(e) => {
+									e.stopPropagation();
+									renamingId = filter.id;
+									renamingValue = filter.name;
+								}}
 							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="12"
+									height="12"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg
+								>
 							</button>
 							<button
 								type="button"
 								class="rounded p-0.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
 								title={m.common_delete()}
-								onclick={(e) => { e.stopPropagation(); confirmDeleteId = filter.id; }}
+								onclick={(e) => {
+									e.stopPropagation();
+									confirmDeleteId = filter.id;
+								}}
 							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="12"
+									height="12"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path
+										d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"
+									/></svg
+								>
 							</button>
 						</div>
 					</div>
@@ -198,15 +270,32 @@
 						class="h-7 text-xs flex-1"
 						placeholder={m.saved_view_name_placeholder()}
 						bind:value={newViewName}
-						onkeydown={(e) => { if (e.key === 'Enter') saveCurrentFilters(); if (e.key === 'Escape') { showSaveInput = false; } }}
+						onkeydown={(e) => {
+							if (e.key === 'Enter') saveCurrentFilters();
+							if (e.key === 'Escape') {
+								showSaveInput = false;
+							}
+						}}
 					/>
-					<Button size="sm" class="h-7 px-2 text-xs" disabled={!newViewName.trim() || saving} onclick={saveCurrentFilters}>
+					<Button
+						size="sm"
+						class="h-7 px-2 text-xs"
+						disabled={!newViewName.trim() || saving}
+						onclick={saveCurrentFilters}
+					>
 						{m.saved_view_save()}
 					</Button>
 				</div>
 			{:else}
 				<div class="mt-2 border-t pt-2">
-					<Button variant="ghost" size="sm" class="h-7 w-full px-2 text-xs" onclick={() => { showSaveInput = true; }}>
+					<Button
+						variant="ghost"
+						size="sm"
+						class="h-7 w-full px-2 text-xs"
+						onclick={() => {
+							showSaveInput = true;
+						}}
+					>
 						{m.saved_view_save_current()}
 					</Button>
 				</div>

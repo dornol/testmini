@@ -16,13 +16,14 @@ import {
 	issueLink,
 	issueTrackerConfig
 } from '$lib/server/db/schema';
-import { eq, and, desc, asc, sql, inArray } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, inArray, count } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { loadProjectTags, loadBatchTags, loadBatchAssignees } from '$lib/server/queries';
 import { buildTestCaseConditions } from '$lib/server/test-case-filters';
 import {
 	parseCanonicalPositiveInteger,
-	parseCanonicalPositiveIntegerList
+	parseCanonicalPositiveIntegerList,
+	parsePositiveIntegerSearchParam
 } from '$lib/server/search-param-validation';
 import { parseOptionalFormString, parseOptionalTrimmedFormString } from '$lib/server/form-utils';
 import { assertContentLengthUnderLimit } from '$lib/server/request-size';
@@ -104,6 +105,10 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 	const execStatus = url.searchParams.get('execStatus') ?? '';
 	const approvalStatus = url.searchParams.get('approvalStatus') ?? '';
 	const retestNeeded = url.searchParams.get('retestNeeded') ?? '';
+	const requestedPage = parsePositiveIntegerSearchParam(url.searchParams.get('page'), 1);
+	const limit = parsePositiveIntegerSearchParam(url.searchParams.get('limit'), 100, {
+		max: 200
+	});
 
 	// Parse selected run IDs: URL param takes priority, otherwise fall back to project setting
 	let selectedRunIds: number[];
@@ -175,25 +180,41 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		.where(eq(testCaseGroup.projectId, projectId))
 		.orderBy(asc(testCaseGroup.sortOrder));
 
-	const baseQuery = db
-		.select({
-			id: testCase.id,
-			key: testCase.key,
-			title: testCaseVersion.title,
-			priority: testCaseVersion.priority,
-			updatedBy: user.name,
-			groupId: testCase.groupId,
-			sortOrder: testCase.sortOrder,
-			approvalStatus: testCase.approvalStatus,
-			retestNeeded: testCase.retestNeeded,
-			customFields: testCaseVersion.customFields
-		})
+	const [countRow] = await db
+		.select({ total: count() })
 		.from(testCase)
 		.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
 		.innerJoin(user, eq(testCaseVersion.updatedBy, user.id))
 		.where(where);
+	const baseTotal = Number(countRow?.total ?? 0);
+	const basePageCount = Math.max(1, Math.ceil(baseTotal / limit));
+	const pageForBaseQuery = Math.min(requestedPage, basePageCount);
+	const baseOffset = (pageForBaseQuery - 1) * limit;
 
-	const testCases = await baseQuery.orderBy(asc(testCase.sortOrder));
+	const selectTestCases = () =>
+		db
+			.select({
+				id: testCase.id,
+				key: testCase.key,
+				title: testCaseVersion.title,
+				priority: testCaseVersion.priority,
+				updatedBy: user.name,
+				groupId: testCase.groupId,
+				sortOrder: testCase.sortOrder,
+				approvalStatus: testCase.approvalStatus,
+				retestNeeded: testCase.retestNeeded,
+				customFields: testCaseVersion.customFields
+			})
+			.from(testCase)
+			.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
+			.innerJoin(user, eq(testCaseVersion.updatedBy, user.id))
+			.where(where)
+			.orderBy(asc(testCase.sortOrder));
+
+	const needsPostFilterPagination = Boolean(execStatus && selectedRunIds.length > 0);
+	const testCases = needsPostFilterPagination
+		? await selectTestCases()
+		: await selectTestCases().limit(limit).offset(baseOffset);
 
 	const tcIdSet = new Set(testCases.map((tc) => tc.id));
 	const [tagsByTestCase, assigneesByTestCase] = await Promise.all([
@@ -280,12 +301,18 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		)
 		.orderBy(asc(savedFilter.sortOrder), asc(savedFilter.name));
 
-	const filteredTestCases = applyExecStatusFilter(
+	const allFilteredTestCases = applyExecStatusFilter(
 		testCases,
 		executionMap,
 		execStatus,
 		selectedRunIds
 	);
+	const total = needsPostFilterPagination ? allFilteredTestCases.length : baseTotal;
+	const pageCount = Math.max(1, Math.ceil(total / limit));
+	const page = Math.min(requestedPage, pageCount);
+	const filteredTestCases = needsPostFilterPagination
+		? allFilteredTestCases.slice((page - 1) * limit, page * limit)
+		: allFilteredTestCases;
 
 	return {
 		testCases: filteredTestCases.map((tc) => ({
@@ -294,6 +321,14 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 			assignees: assigneesByTestCase[tc.id] ?? [],
 			issueLinkCount: issueLinkMap[tc.id] ?? 0
 		})),
+		pagination: {
+			page,
+			limit,
+			total,
+			pageCount,
+			hasPrevious: page > 1,
+			hasNext: page < pageCount
+		},
 		search,
 		priority,
 		tagIds,

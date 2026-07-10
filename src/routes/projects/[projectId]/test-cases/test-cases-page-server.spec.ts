@@ -77,6 +77,7 @@ vi.mock('drizzle-orm', () => ({
 	desc: vi.fn((a: unknown) => a),
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	inArray: vi.fn((a: unknown, b: unknown) => [a, b]),
+	count: vi.fn(() => 'count'),
 	sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({
 		as: vi.fn().mockReturnValue({ strings, values }),
 		strings,

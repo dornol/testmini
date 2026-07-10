@@ -746,7 +746,7 @@
 				<div class="mt-4 flex flex-wrap items-center gap-2">
 					<a
 						href="/projects/{projectId}/test-cases/{tc.id}"
-						class="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md h-7 text-xs px-3"
+						class="inline-flex h-8 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium whitespace-nowrap shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none sm:h-7"
 					>
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
@@ -766,7 +766,7 @@
 						{m.tc_detail_open_full_page()}
 					</a>
 					{#if canEdit && !detailEditing}
-						<Button size="sm" class="h-7 text-xs" onclick={startDetailEdit}>
+						<Button size="sm" class="h-8 text-xs sm:h-7" onclick={startDetailEdit}>
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
 								width="12"
@@ -786,7 +786,7 @@
 						</Button>
 					{/if}
 					{#if canEdit && !detailEditing}
-						<Button variant="outline" size="sm" class="h-7 text-xs" onclick={cloneFromSheet}>
+						<Button variant="outline" size="sm" class="h-8 text-xs sm:h-7" onclick={cloneFromSheet}>
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
 								width="12"
@@ -808,7 +808,7 @@
 					<Button
 						variant="outline"
 						size="sm"
-						class="h-7 text-xs"
+						class="h-8 text-xs sm:h-7"
 						onclick={() => (showVersions = !showVersions)}
 					>
 						<svg
@@ -832,7 +832,7 @@
 									<Button
 										variant="ghost"
 										size="sm"
-										class="h-7 text-xs text-destructive hover:text-destructive"
+										class="h-8 text-xs text-destructive hover:text-destructive sm:h-7"
 										{...props}
 									>
 										<svg
@@ -1122,7 +1122,7 @@
 			</div>
 
 			<!-- Content area -->
-			<div class="px-6 py-3 flex flex-col flex-1 min-h-0">
+			<div class="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6">
 				{#if detailEditing}
 					<!-- Edit Mode -->
 					<div class="space-y-5">
@@ -1218,11 +1218,11 @@
 					</div>
 				{:else if version}
 					<!-- Content Tabs -->
-					<div class="border-b mb-4">
-						<div class="flex">
+					<div class="mb-4 border-b">
+						<div class="flex overflow-x-auto overscroll-x-contain">
 							<button
 								type="button"
-								class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab ===
+								class="shrink-0 px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab ===
 								'steps'
 									? 'border-primary text-foreground'
 									: 'border-transparent text-muted-foreground hover:text-foreground'}"
@@ -1232,7 +1232,7 @@
 							</button>
 							<button
 								type="button"
-								class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab ===
+								class="shrink-0 px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab ===
 								'comments'
 									? 'border-primary text-foreground'
 									: 'border-transparent text-muted-foreground hover:text-foreground'}"
@@ -1243,7 +1243,7 @@
 							{#if hasIssueTracker}
 								<button
 									type="button"
-									class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab ===
+									class="shrink-0 px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab ===
 									'issues'
 										? 'border-primary text-foreground'
 										: 'border-transparent text-muted-foreground hover:text-foreground'}"
@@ -1261,7 +1261,7 @@
 							{#if customFieldDefs.length > 0}
 								<button
 									type="button"
-									class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab ===
+									class="shrink-0 px-4 py-2 text-sm font-medium border-b-2 transition-colors {contentTab ===
 									'customFields'
 										? 'border-primary text-foreground'
 										: 'border-transparent text-muted-foreground hover:text-foreground'}"
@@ -1294,12 +1294,12 @@
 					{:else if contentTab === 'issues'}
 						<div>
 							<!-- Action buttons -->
-							<div class="flex gap-2 mb-4">
+							<div class="mb-4 flex flex-wrap gap-2">
 								{#if canEdit}
 									<Button
 										variant="outline"
 										size="sm"
-										class="h-7 text-xs"
+										class="h-8 text-xs sm:h-7"
 										disabled={creatingIssue || issueCreateCooldown > 0}
 										onclick={handleCreateIssue}
 									>
@@ -1329,7 +1329,7 @@
 									<Button
 										variant="outline"
 										size="sm"
-										class="h-7 text-xs"
+										class="h-8 text-xs sm:h-7"
 										onclick={() => (showLinkForm = !showLinkForm)}
 									>
 										<svg
@@ -1354,7 +1354,7 @@
 									<Button
 										variant="outline"
 										size="sm"
-										class="h-7 text-xs ml-auto"
+										class="h-8 text-xs sm:ml-auto sm:h-7"
 										disabled={syncingAll}
 										onclick={syncAllIssues}
 									>

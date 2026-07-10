@@ -158,8 +158,74 @@
 			{/if}
 		</td>
 	{/if}
-	<td class="bg-clip-padding p-2 align-middle whitespace-nowrap font-mono text-sm">
-		{exec.testCaseKey}
+	<td class="min-w-0 bg-clip-padding p-2 align-middle font-mono text-sm sm:whitespace-nowrap">
+		<div class="space-y-1.5">
+			<div class="flex items-center justify-between gap-2">
+				<span class="shrink-0">{exec.testCaseKey}</span>
+				<div class="flex shrink-0 items-center gap-1 sm:hidden">
+					<PriorityBadge name={exec.testCasePriority} color={priorityColor} />
+					{#if canExecute}
+						<button
+							type="button"
+							data-status-dropdown
+							class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium cursor-pointer hover:ring-1 hover:ring-ring/30 transition-all {statusColorBg(
+								exec.status
+							)}"
+							class:underline={exec.status === 'FAIL' && failures.length > 0}
+							class:opacity-50={isUpdating}
+							disabled={isUpdating}
+							onclick={(e) => onToggleStatusDropdown(exec, e)}
+						>
+							{exec.status}
+							{#if exec.status === 'FAIL' && failures.length > 0}
+								({failures.length})
+							{/if}
+						</button>
+					{:else}
+						<span
+							class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {statusColorBg(
+								exec.status
+							)}"
+						>
+							{exec.status}
+						</span>
+					{/if}
+				</div>
+			</div>
+			<div class="space-y-1 sm:hidden">
+				<p class="break-words font-sans text-sm leading-snug font-medium">
+					{exec.testCaseTitle}
+					<span class="text-muted-foreground text-xs">(v{exec.versionNo})</span>
+				</p>
+				<div
+					class="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 font-sans text-xs"
+				>
+					<span>{exec.executedBy ?? '-'}</span>
+					<span>{formatDurationFromDates(exec.startedAt, exec.completedAt) ?? '-'}</span>
+					<button
+						type="button"
+						class="inline-flex min-h-8 items-center gap-1 rounded text-muted-foreground hover:text-foreground"
+						class:text-primary={showComments}
+						onclick={() => onToggleComments(exec.id)}
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="14"
+							height="14"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+						</svg>
+						{m.comment_title()}
+					</button>
+				</div>
+			</div>
+		</div>
 	</td>
 	<td class="hidden min-w-0 bg-clip-padding p-2 align-middle font-medium sm:table-cell">
 		<span class="block truncate">

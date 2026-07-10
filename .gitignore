@@ -45,6 +45,9 @@ playwright-report/
 # Claude
 .claude/
 
+# Background task artifacts
+.bkit/
+
 # Coverage
 coverage/
 

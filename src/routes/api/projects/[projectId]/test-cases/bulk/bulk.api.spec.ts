@@ -599,5 +599,117 @@ describe('/api/projects/[projectId]/test-cases/bulk', () => {
 			await expect(POST(event)).rejects.toMatchObject({ status: 404 });
 			expect(txUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });
 		});
+
+		it('should scope copied clone tags and assignees to the current project', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValue({ role: 'QA' });
+			mockSelectResult(mockDb, [{ id: 10 }]);
+			mockFindTestCasesWithLatestVersions.mockResolvedValue([
+				{
+					id: 10,
+					groupId: null,
+					latestVersion: {
+						id: 100,
+						title: 'Login',
+						precondition: null,
+						steps: [],
+						expectedResult: null,
+						priority: 'LOW'
+					}
+				}
+			]);
+
+			const txMaxKeyChain = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([{ maxKey: 'TC-0001' }]).then(r)
+			};
+			const txMaxSortChain = {
+				from: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				then: (r: (v: unknown) => void) => Promise.resolve([{ maxOrder: 0 }]).then(r)
+			};
+			const txTagsChain = {
+				from: vi.fn().mockReturnThis(),
+				innerJoin: vi.fn().mockReturnThis(),
+				where: vi.fn().mockResolvedValue([{ tagId: 7 }])
+			};
+			const txAssigneesChain = {
+				from: vi.fn().mockReturnThis(),
+				innerJoin: vi.fn().mockReturnThis(),
+				where: vi.fn().mockResolvedValue([{ userId: 'user-2' }])
+			};
+			const txInsertCaseChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: 20, key: 'TC-0002' }])
+			};
+			const txInsertVersionChain = {
+				values: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: 200, testCaseId: 20 }])
+			};
+			const txInsertRelationChain = {
+				values: vi.fn().mockResolvedValue(undefined)
+			};
+			const txUpdateChain = {
+				set: vi.fn().mockReturnThis(),
+				where: vi.fn().mockReturnThis(),
+				returning: vi.fn().mockResolvedValue([{ id: 20 }])
+			};
+			let selectCallCount = 0;
+			let insertCallCount = 0;
+			const tx = {
+				select: vi.fn().mockImplementation(() => {
+					selectCallCount++;
+					if (selectCallCount === 1) return txMaxKeyChain;
+					if (selectCallCount === 2) return txMaxSortChain;
+					if (selectCallCount === 3) return txTagsChain;
+					return txAssigneesChain;
+				}),
+				insert: vi.fn().mockImplementation(() => {
+					insertCallCount++;
+					if (insertCallCount === 1) return txInsertCaseChain;
+					if (insertCallCount === 2) return txInsertVersionChain;
+					return txInsertRelationChain;
+				}),
+				update: vi.fn().mockReturnValue(txUpdateChain),
+				delete: vi.fn(),
+				query: {
+					tag: { findFirst: vi.fn() },
+					priorityConfig: { findFirst: vi.fn() },
+					projectMember: { findFirst: vi.fn() }
+				}
+			};
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'clone', testCaseIds: [10] },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data).toEqual({ success: true, affected: 1 });
+			expect(txTagsChain.innerJoin).toHaveBeenCalledWith(
+				expect.objectContaining({ projectId: 'project_id' }),
+				['tag_id', 'id']
+			);
+			expect(txTagsChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_case_id', 10],
+					['project_id', 1]
+				])
+			);
+			expect(txAssigneesChain.innerJoin).toHaveBeenCalledWith(
+				expect.objectContaining({ projectId: 'project_id' }),
+				expect.arrayContaining([
+					['user_id', 'user_id'],
+					['project_id', 1]
+				])
+			);
+			expect(txAssigneesChain.where).toHaveBeenCalledWith(['test_case_id', 10]);
+		});
 	});
 });

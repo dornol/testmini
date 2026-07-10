@@ -272,7 +272,8 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 					const tcTags = await tx
 						.select({ tagId: testCaseTag.tagId })
 						.from(testCaseTag)
-						.where(eq(testCaseTag.testCaseId, tc.id));
+						.innerJoin(tag, eq(testCaseTag.tagId, tag.id))
+						.where(and(eq(testCaseTag.testCaseId, tc.id), eq(tag.projectId, projectId)));
 					if (tcTags.length > 0) {
 						await tx
 							.insert(testCaseTag)
@@ -283,6 +284,13 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 					const tcAssignees = await tx
 						.select({ userId: testCaseAssignee.userId })
 						.from(testCaseAssignee)
+						.innerJoin(
+							projectMember,
+							and(
+								eq(testCaseAssignee.userId, projectMember.userId),
+								eq(projectMember.projectId, projectId)
+							)
+						)
 						.where(eq(testCaseAssignee.testCaseId, tc.id));
 					if (tcAssignees.length > 0) {
 						await tx

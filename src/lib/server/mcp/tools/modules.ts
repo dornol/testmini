@@ -102,10 +102,14 @@ export function registerModuleTools(server: McpServer, projectId: number) {
 				.select({
 					moduleId: module.id,
 					moduleName: module.name,
-					testCaseCount: sql<number>`count(${moduleTestCase.testCaseId})::int`
+					testCaseCount: sql<number>`count(${testCase.id})::int`
 				})
 				.from(module)
 				.leftJoin(moduleTestCase, eq(moduleTestCase.moduleId, module.id))
+				.leftJoin(
+					testCase,
+					and(eq(moduleTestCase.testCaseId, testCase.id), eq(testCase.projectId, projectId))
+				)
 				.where(eq(module.projectId, projectId))
 				.groupBy(module.id, module.name);
 

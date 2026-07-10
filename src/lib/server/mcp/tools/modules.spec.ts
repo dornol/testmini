@@ -41,6 +41,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
 const { registerModuleTools } = await import('./modules');
+const { testCase } = await import('$lib/server/db/schema');
 
 const PROJECT_ID = 1;
 
@@ -246,7 +247,7 @@ describe('MCP module tools', () => {
 				{ moduleId: 1, moduleName: 'Auth Module', testCaseCount: 5 },
 				{ moduleId: 2, moduleName: 'API Module', testCaseCount: 3 }
 			];
-			mockSelectResult(mockDb, coverageData);
+			const selectChain = mockSelectResult(mockDb, coverageData);
 
 			const result = await client.callTool({
 				name: 'get-module-coverage',
@@ -257,6 +258,10 @@ describe('MCP module tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed).toHaveLength(2);
 			expect(parsed[0].testCaseCount).toBe(5);
+			expect(selectChain.leftJoin).toHaveBeenCalledWith(testCase, [
+				['test_case_id', 'id'],
+				['project_id', PROJECT_ID]
+			]);
 		});
 	});
 

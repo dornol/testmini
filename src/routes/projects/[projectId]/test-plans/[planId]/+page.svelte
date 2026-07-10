@@ -247,19 +247,19 @@
 
 <div class="space-y-4">
 	<!-- Header -->
-	<div class="flex items-center justify-between">
-		<div>
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+		<div class="min-w-0">
 			<a href={basePath} class="text-muted-foreground hover:text-foreground text-sm">
 				&larr; {m.common_back_to({ target: m.tp_title() })}
 			</a>
-			<div class="mt-1 flex items-center gap-3">
-				<h2 class="text-xl font-bold">{data.plan.name}</h2>
+			<div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+				<h2 class="min-w-0 text-xl font-bold leading-tight break-words">{data.plan.name}</h2>
 				<Select.Root
 					type="single"
 					value={data.plan.status}
 					onValueChange={(v: string) => handleStatusChange(v)}
 				>
-					<Select.Trigger class="w-36 h-7 text-xs">
+					<Select.Trigger class="h-7 w-full text-xs sm:w-36">
 						<Badge variant={statusVariant(data.plan.status)}>{statusLabel(data.plan.status)}</Badge>
 					</Select.Trigger>
 					<Select.Content>
@@ -281,7 +281,7 @@
 				<p class="text-muted-foreground mt-1 text-sm">{data.plan.description}</p>
 			{/if}
 		</div>
-		<div class="flex gap-2">
+		<div class="flex shrink-0 gap-2">
 			{#if canDelete}
 				<Button
 					variant="outline"

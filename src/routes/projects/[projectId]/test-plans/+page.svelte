@@ -13,18 +13,17 @@
 
 	const basePath = $derived(`/projects/${data.project.id}/test-plans`);
 	const canManage = $derived(
-		data.userRole === 'PROJECT_ADMIN' || data.userRole === 'QA' || data.userRole === 'DEV' || data.userRole === 'ADMIN'
+		data.userRole === 'PROJECT_ADMIN' ||
+			data.userRole === 'QA' ||
+			data.userRole === 'DEV' ||
+			data.userRole === 'ADMIN'
 	);
-	const canDelete = $derived(
-		data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN'
-	);
+	const canDelete = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
 
 	let statusFilter = $state('');
 
 	const filteredPlans = $derived(
-		statusFilter
-			? data.plans.filter((p) => p.status === statusFilter)
-			: data.plans
+		statusFilter ? data.plans.filter((p) => p.status === statusFilter) : data.plans
 	);
 
 	const statuses = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'ACTIVE', 'COMPLETED', 'ARCHIVED'] as const;
@@ -43,13 +42,20 @@
 
 	function statusVariant(s: string): 'default' | 'secondary' | 'outline' | 'destructive' {
 		switch (s) {
-			case 'DRAFT': return 'outline';
-			case 'IN_REVIEW': return 'secondary';
-			case 'APPROVED': return 'default';
-			case 'ACTIVE': return 'default';
-			case 'COMPLETED': return 'default';
-			case 'ARCHIVED': return 'outline';
-			default: return 'outline';
+			case 'DRAFT':
+				return 'outline';
+			case 'IN_REVIEW':
+				return 'secondary';
+			case 'APPROVED':
+				return 'default';
+			case 'ACTIVE':
+				return 'default';
+			case 'COMPLETED':
+				return 'default';
+			case 'ARCHIVED':
+				return 'outline';
+			default:
+				return 'outline';
 		}
 	}
 
@@ -113,7 +119,9 @@
 	</div>
 
 	{#if filteredPlans.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+		<div
+			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+		>
 			<h3 class="text-lg font-semibold">{m.tp_empty_title()}</h3>
 			<p class="text-muted-foreground mt-1 text-sm">{m.tp_empty_create()}</p>
 			{#if canManage}
@@ -121,7 +129,102 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="border rounded-md overflow-hidden">
+		<div class="space-y-3 md:hidden">
+			{#each filteredPlans as plan (plan.id)}
+				<div
+					role="link"
+					tabindex="0"
+					class="w-full cursor-pointer rounded-lg border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					onclick={() => goto(`${basePath}/${plan.id}`)}
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault();
+							goto(`${basePath}/${plan.id}`);
+						}
+					}}
+				>
+					<div class="flex items-start justify-between gap-3">
+						<div class="min-w-0 space-y-2">
+							<div class="font-medium leading-snug break-words">{plan.name}</div>
+							<div class="flex flex-wrap items-center gap-2">
+								<Badge variant={statusVariant(plan.status)}>{statusLabel(plan.status)}</Badge>
+								{#if plan.milestone}
+									<span class="text-muted-foreground text-xs"
+										>{m.tp_milestone()}: {plan.milestone}</span
+									>
+								{/if}
+							</div>
+						</div>
+						{#if canDelete}
+							<DropdownMenu.Root>
+								<DropdownMenu.Trigger>
+									{#snippet child({ props })}
+										<Button
+											variant="ghost"
+											size="sm"
+											class="h-8 w-8 shrink-0 p-0"
+											{...props}
+											onclick={(e: MouseEvent) => e.stopPropagation()}
+											aria-label={m.common_actions()}
+										>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												width="16"
+												height="16"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												aria-hidden="true"
+												><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle
+													cx="12"
+													cy="19"
+													r="1"
+												/></svg
+											>
+										</Button>
+									{/snippet}
+								</DropdownMenu.Trigger>
+								<DropdownMenu.Content align="end">
+									<DropdownMenu.Item onclick={() => goto(`${basePath}/${plan.id}`)}>
+										{m.common_edit()}
+									</DropdownMenu.Item>
+									<DropdownMenu.Separator />
+									<DropdownMenu.Item
+										class="text-destructive"
+										onclick={(e) => {
+											e.stopPropagation();
+											openDelete(plan.id);
+										}}
+									>
+										{m.common_delete()}
+									</DropdownMenu.Item>
+								</DropdownMenu.Content>
+							</DropdownMenu.Root>
+						{/if}
+					</div>
+					<div class="mt-4 grid grid-cols-3 gap-3 text-sm">
+						<div>
+							<div class="text-muted-foreground text-xs">{m.nav_test_cases()}</div>
+							<div class="font-medium">{plan.itemCount}</div>
+						</div>
+						<div>
+							<div class="text-muted-foreground text-xs">{m.nav_test_runs()}</div>
+							<div class="font-medium">{plan.runCount}</div>
+						</div>
+						<div>
+							<div class="text-muted-foreground text-xs">{m.tr_created_by()}</div>
+							<div class="truncate font-medium">{plan.createdBy}</div>
+						</div>
+					</div>
+					<div class="text-muted-foreground mt-3 text-xs">{formatDate(plan.createdAt)}</div>
+				</div>
+			{/each}
+		</div>
+
+		<div class="hidden overflow-hidden rounded-md border md:block">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -147,18 +250,47 @@
 							<Table.Cell class="py-1 px-2 text-xs">
 								<Badge variant={statusVariant(plan.status)}>{statusLabel(plan.status)}</Badge>
 							</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs">{plan.milestone ?? '-'}</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs"
+								>{plan.milestone ?? '-'}</Table.Cell
+							>
 							<Table.Cell class="py-1 px-2 text-xs">{plan.itemCount}</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs">{plan.runCount}</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs">{plan.createdBy}</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs">{formatDate(plan.createdAt)}</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs"
+								>{plan.createdBy}</Table.Cell
+							>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs"
+								>{formatDate(plan.createdAt)}</Table.Cell
+							>
 							{#if canDelete}
 								<Table.Cell class="py-1 px-2">
 									<DropdownMenu.Root>
 										<DropdownMenu.Trigger>
 											{#snippet child({ props })}
-												<Button variant="ghost" size="sm" class="h-6 w-6 p-0" {...props} onclick={(e: MouseEvent) => e.stopPropagation()} aria-label={m.common_actions()}>
-													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+												<Button
+													variant="ghost"
+													size="sm"
+													class="h-6 w-6 p-0"
+													{...props}
+													onclick={(e: MouseEvent) => e.stopPropagation()}
+													aria-label={m.common_actions()}
+												>
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														width="14"
+														height="14"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														stroke-width="2"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														aria-hidden="true"
+														><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle
+															cx="12"
+															cy="19"
+															r="1"
+														/></svg
+													>
 												</Button>
 											{/snippet}
 										</DropdownMenu.Trigger>
@@ -167,7 +299,12 @@
 												{m.common_edit()}
 											</DropdownMenu.Item>
 											<DropdownMenu.Separator />
-											<DropdownMenu.Item class="text-destructive" onclick={() => { openDelete(plan.id); }}>
+											<DropdownMenu.Item
+												class="text-destructive"
+												onclick={() => {
+													openDelete(plan.id);
+												}}
+											>
 												{m.common_delete()}
 											</DropdownMenu.Item>
 										</DropdownMenu.Content>

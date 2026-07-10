@@ -147,32 +147,34 @@
 
 <div class="space-y-4">
 	<!-- Header -->
-	<div class="flex items-center justify-between">
-		<div>
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+		<div class="min-w-0">
 			<a href={basePath} class="text-muted-foreground hover:text-foreground text-sm">
 				&larr; {m.common_back_to({ target: m.rel_title() })}
 			</a>
-			<div class="mt-1 flex items-center gap-3">
-				<h2 class="text-xl font-bold">{data.release.name}</h2>
-				{#if data.release.version}
-					<Badge variant="outline">{data.release.version}</Badge>
-				{/if}
-				<Select.Root
-					type="single"
-					value={data.release.status}
-					onValueChange={(v: string) => handleStatusChange(v)}
-				>
-					<Select.Trigger class="w-36 h-7 text-xs">
-						<Badge variant={statusVariant(data.release.status)}
-							>{statusLabel(data.release.status)}</Badge
-						>
-					</Select.Trigger>
-					<Select.Content>
-						{#each statuses as s}
-							<Select.Item value={s} label={statusLabel(s)} />
-						{/each}
-					</Select.Content>
-				</Select.Root>
+			<div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+				<h2 class="min-w-0 text-xl font-bold leading-tight break-words">{data.release.name}</h2>
+				<div class="flex flex-wrap items-center gap-2">
+					{#if data.release.version}
+						<Badge variant="outline">{data.release.version}</Badge>
+					{/if}
+					<Select.Root
+						type="single"
+						value={data.release.status}
+						onValueChange={(v: string) => handleStatusChange(v)}
+					>
+						<Select.Trigger class="h-7 w-36 text-xs">
+							<Badge variant={statusVariant(data.release.status)}
+								>{statusLabel(data.release.status)}</Badge
+							>
+						</Select.Trigger>
+						<Select.Content>
+							{#each statuses as s}
+								<Select.Item value={s} label={statusLabel(s)} />
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
 			</div>
 			{#if data.release.targetDate || data.release.releaseDate}
 				<p class="text-muted-foreground mt-1 text-sm">
@@ -186,7 +188,7 @@
 				<p class="text-muted-foreground mt-1 text-sm">{data.release.description}</p>
 			{/if}
 		</div>
-		<div class="flex gap-2">
+		<div class="flex shrink-0 gap-2">
 			{#if canDelete}
 				<Button
 					variant="outline"

@@ -56,7 +56,8 @@ vi.mock('drizzle-orm', () => ({
 	count: vi.fn(() => 'count'),
 	sql: Object.assign(
 		(strings: TemplateStringsArray, ...values: unknown[]) => ({
-			as: () => ({ sql: strings, values })
+			as: () => ({ sql: strings, values }),
+			values
 		}),
 		{ raw: (s: string) => s }
 	)
@@ -589,7 +590,8 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 200],
-					['test_run_id', 50]
+					['test_run_id', 50],
+					expect.objectContaining({ values: [50, 1] })
 				])
 			);
 		});
@@ -831,7 +833,8 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			expect(txUpdateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 200],
-					['test_run_id', 50]
+					['test_run_id', 50],
+					expect.objectContaining({ values: [50, 1] })
 				])
 			);
 		});
@@ -1094,6 +1097,14 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			expect(updateData.startedAt).toBeInstanceOf(Date);
 			expect(updateData.completedAt).toBeInstanceOf(Date);
 			expect(updateData.executedBy).toBe(testUser.id);
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_run_id', 50],
+					['id', [200, 201, 202]],
+					['status', 'PENDING'],
+					expect.objectContaining({ values: [50, 1] })
+				])
+			);
 		});
 
 		it('should publish bulk_updated SSE event', async () => {
@@ -1317,7 +1328,8 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 5],
-					['test_execution_id', sampleExecution.id]
+					['test_execution_id', sampleExecution.id],
+					expect.objectContaining({ values: [sampleExecution.id, 50, 1] })
 				])
 			);
 		});
@@ -1400,7 +1412,8 @@ describe('/projects/[projectId]/test-runs/[runId]', () => {
 			expect(deleteChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 5],
-					['test_execution_id', sampleExecution.id]
+					['test_execution_id', sampleExecution.id],
+					expect.objectContaining({ values: [sampleExecution.id, 50, 1] })
 				])
 			);
 		});

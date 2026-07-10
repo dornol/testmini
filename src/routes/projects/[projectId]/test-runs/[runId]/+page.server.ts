@@ -283,9 +283,15 @@ export const actions: Actions = {
 				executedAt: now,
 				...durationUpdates
 			})
-			.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)));
+			.where(
+				and(
+					eq(testExecution.id, executionId),
+					eq(testExecution.testRunId, runId),
+					sql`exists (select 1 from test_run where id = ${runId} and project_id = ${projectId})`
+				)
+			);
 
-		await autoUpdateRunStatus(runId);
+		await autoUpdateRunStatus(runId, projectId);
 
 		const event: RunEvent = {
 			type: 'execution:updated',
@@ -347,7 +353,13 @@ export const actions: Actions = {
 					executedAt: now,
 					...durationUpdates
 				})
-				.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)));
+				.where(
+					and(
+						eq(testExecution.id, executionId),
+						eq(testExecution.testRunId, runId),
+						sql`exists (select 1 from test_run where id = ${runId} and project_id = ${projectId})`
+					)
+				);
 
 			// Create failure detail
 			const [created] = await tx
@@ -368,7 +380,7 @@ export const actions: Actions = {
 			return fail(500, { error: 'Failed to create failure detail' });
 		}
 
-		await autoUpdateRunStatus(runId);
+		await autoUpdateRunStatus(runId, projectId);
 
 		const event: RunEvent = {
 			type: 'execution:updated',
@@ -492,7 +504,15 @@ export const actions: Actions = {
 			.where(
 				and(
 					eq(testFailureDetail.id, failureId),
-					eq(testFailureDetail.testExecutionId, existing.testExecutionId)
+					eq(testFailureDetail.testExecutionId, existing.testExecutionId),
+					sql`exists (
+						select 1
+						from test_execution
+						join test_run on test_run.id = test_execution.test_run_id
+						where test_execution.id = ${existing.testExecutionId}
+						and test_execution.test_run_id = ${runId}
+						and test_run.project_id = ${projectId}
+					)`
 				)
 			)
 			.returning({ id: testFailureDetail.id });
@@ -538,7 +558,15 @@ export const actions: Actions = {
 			.where(
 				and(
 					eq(testFailureDetail.id, failureId),
-					eq(testFailureDetail.testExecutionId, existing.testExecutionId)
+					eq(testFailureDetail.testExecutionId, existing.testExecutionId),
+					sql`exists (
+						select 1
+						from test_execution
+						join test_run on test_run.id = test_execution.test_run_id
+						where test_execution.id = ${existing.testExecutionId}
+						and test_execution.test_run_id = ${runId}
+						and test_run.project_id = ${projectId}
+					)`
 				)
 			)
 			.returning({ id: testFailureDetail.id });
@@ -580,11 +608,12 @@ export const actions: Actions = {
 				and(
 					eq(testExecution.testRunId, runId),
 					inArray(testExecution.id, executionIds),
-					eq(testExecution.status, 'PENDING')
+					eq(testExecution.status, 'PENDING'),
+					sql`exists (select 1 from test_run where id = ${runId} and project_id = ${projectId})`
 				)
 			);
 
-		await autoUpdateRunStatus(runId);
+		await autoUpdateRunStatus(runId, projectId);
 
 		const event: RunEvent = {
 			type: 'executions:bulk_updated',
@@ -661,7 +690,7 @@ export const actions: Actions = {
 	}
 };
 
-async function autoUpdateRunStatus(runId: number) {
+async function autoUpdateRunStatus(runId: number, projectId: number) {
 	// Only transition CREATED → IN_PROGRESS on first execution
 	await db
 		.update(testRun)
@@ -669,6 +698,7 @@ async function autoUpdateRunStatus(runId: number) {
 		.where(
 			and(
 				eq(testRun.id, runId),
+				eq(testRun.projectId, projectId),
 				eq(testRun.status, 'CREATED'),
 				sql`exists (select 1 from test_execution where test_run_id = ${runId} and status != 'PENDING' limit 1)`
 			)

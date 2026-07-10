@@ -1207,12 +1207,20 @@
 							/>
 						</div>
 
-						<div class="flex gap-2 pt-2 border-t">
-							<Button size="sm" onclick={saveDetailEdit} disabled={editSaving}>
+						<div class="flex flex-col gap-2 pt-2 border-t sm:flex-row">
+							<Button
+								size="sm"
+								class="w-full sm:w-auto"
+								onclick={saveDetailEdit}
+								disabled={editSaving}
+							>
 								{editSaving ? m.common_saving() : m.common_save_changes()}
 							</Button>
-							<Button variant="outline" size="sm" onclick={cancelDetailEdit}
-								>{m.common_cancel()}</Button
+							<Button
+								variant="outline"
+								size="sm"
+								class="w-full sm:w-auto"
+								onclick={cancelDetailEdit}>{m.common_cancel()}</Button
 							>
 						</div>
 					</div>
@@ -1383,19 +1391,19 @@
 										e.preventDefault();
 										handleLinkIssue();
 									}}
-									class="mb-4 flex gap-2"
+									class="mb-4 flex flex-col gap-2 sm:flex-row"
 								>
 									<Input
 										placeholder={m.issue_link_url_placeholder()}
 										type="url"
 										bind:value={newIssueUrl}
 										required
-										class="flex-1 h-8 text-xs"
+										class="h-8 w-full text-xs sm:flex-1"
 									/>
 									<Button
 										type="submit"
 										size="sm"
-										class="h-8 text-xs"
+										class="h-8 w-full text-xs sm:w-auto"
 										disabled={linkingIssue || !newIssueUrl.trim()}
 									>
 										{linkingIssue ? m.common_loading() : m.issue_link_add()}

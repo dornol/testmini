@@ -1219,14 +1219,15 @@
 			<!-- Issue Links -->
 			<Card.Root>
 				<Card.Header>
-					<div class="flex items-center justify-between">
+					<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<Card.Title class="text-base">{m.issue_link_title()}</Card.Title>
 						{#if canEdit}
-							<div class="flex gap-2">
+							<div class="flex flex-col gap-2 sm:flex-row">
 								{#if data.hasIssueTracker && issueLinks.length > 0}
 									<Button
 										variant="outline"
 										size="sm"
+										class="w-full sm:w-auto"
 										disabled={syncingAll}
 										onclick={handleSyncAllIssueLinks}
 									>
@@ -1237,13 +1238,19 @@
 									<Button
 										variant="outline"
 										size="sm"
+										class="w-full sm:w-auto"
 										disabled={creatingIssue}
 										onclick={handleCreateIssue}
 									>
 										{creatingIssue ? m.common_loading() : m.issue_link_create()}
 									</Button>
 								{/if}
-								<Button variant="outline" size="sm" onclick={() => (showLinkForm = !showLinkForm)}>
+								<Button
+									variant="outline"
+									size="sm"
+									class="w-full sm:w-auto"
+									onclick={() => (showLinkForm = !showLinkForm)}
+								>
 									{m.issue_link_add()}
 								</Button>
 							</div>
@@ -1257,22 +1264,28 @@
 								e.preventDefault();
 								handleLinkIssue();
 							}}
-							class="mb-4 flex gap-2"
+							class="mb-4 flex flex-col gap-2 sm:flex-row"
 						>
 							<Input
 								placeholder={m.issue_link_url_placeholder()}
 								type="url"
 								bind:value={newIssueUrl}
 								required
-								class="flex-1"
+								class="w-full sm:flex-1"
 							/>
-							<Button type="submit" size="sm" disabled={linkingIssue || !newIssueUrl.trim()}>
+							<Button
+								type="submit"
+								size="sm"
+								class="w-full sm:w-auto"
+								disabled={linkingIssue || !newIssueUrl.trim()}
+							>
 								{linkingIssue ? m.common_loading() : m.issue_link_add()}
 							</Button>
 							<Button
 								type="button"
 								variant="outline"
 								size="sm"
+								class="w-full sm:w-auto"
 								onclick={() => {
 									showLinkForm = false;
 									newIssueUrl = '';

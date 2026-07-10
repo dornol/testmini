@@ -59,7 +59,9 @@
 		if (!newParamName.trim() || addingParam) return;
 		addingParam = true;
 		try {
-			const param = await apiPost<Parameter>(`${apiBase}/parameters`, { name: newParamName.trim() });
+			const param = await apiPost<Parameter>(`${apiBase}/parameters`, {
+				name: newParamName.trim()
+			});
 			parameters = [...parameters, param];
 			newParamName = '';
 			toast.success(m.param_added());
@@ -203,10 +205,10 @@
 
 <Card.Root>
 	<Card.Header>
-		<div class="flex items-center justify-between">
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 			<Card.Title class="text-base">{m.param_title()}</Card.Title>
 			{#if editable && parameters.length > 0}
-				<div class="flex gap-2">
+				<div class="flex flex-col gap-2 sm:flex-row">
 					<label class="cursor-pointer">
 						<input
 							type="file"
@@ -215,10 +217,15 @@
 							onchange={handleCsvImport}
 							disabled={importingCsv}
 						/>
-						<Button variant="outline" size="sm" onclick={(e: MouseEvent) => {
-							const label = (e.currentTarget as HTMLElement).closest('label');
-							label?.querySelector('input')?.click();
-						}}>
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={(e: MouseEvent) => {
+								const label = (e.currentTarget as HTMLElement).closest('label');
+								label?.querySelector('input')?.click();
+							}}
+							class="w-full sm:w-auto"
+						>
 							{importingCsv ? m.common_loading() : m.dataset_import_csv()}
 						</Button>
 					</label>
@@ -239,12 +246,22 @@
 								bind:value={editingParamName}
 								onkeydown={(e: KeyboardEvent) => {
 									if (e.key === 'Enter') saveEditParam();
-									if (e.key === 'Escape') { editingParamId = null; }
+									if (e.key === 'Escape') {
+										editingParamId = null;
+									}
 								}}
 								autofocus
 							/>
 							<Button variant="ghost" size="sm" class="h-7 px-1" onclick={saveEditParam}>
-								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="14"
+									height="14"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"><polyline points="20 6 9 17 4 12" /></svg
+								>
 							</Button>
 						</div>
 					{:else}
@@ -260,8 +277,8 @@
 								<button
 									type="button"
 									class="text-muted-foreground hover:text-foreground ml-0.5"
-									onclick={() => removeParameter(p.id)}
-								>&times;</button>
+									onclick={() => removeParameter(p.id)}>&times;</button
+								>
 							{/if}
 						</Badge>
 					{/if}
@@ -269,14 +286,23 @@
 				{#if editable}
 					<form
 						class="flex items-center gap-1"
-						onsubmit={(e) => { e.preventDefault(); addParameter(); }}
+						onsubmit={(e) => {
+							e.preventDefault();
+							addParameter();
+						}}
 					>
 						<Input
 							class="h-7 w-32 text-xs"
 							placeholder={m.param_name_placeholder()}
 							bind:value={newParamName}
 						/>
-						<Button variant="outline" size="sm" class="h-7 px-2 text-xs" type="submit" disabled={addingParam || !newParamName.trim()}>
+						<Button
+							variant="outline"
+							size="sm"
+							class="h-7 px-2 text-xs"
+							type="submit"
+							disabled={addingParam || !newParamName.trim()}
+						>
 							+
 						</Button>
 					</form>
@@ -287,10 +313,16 @@
 		<!-- Data Sets Table -->
 		{#if parameters.length > 0}
 			<div>
-				<div class="flex items-center justify-between mb-2">
+				<div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 					<h4 class="text-sm font-medium">{m.dataset_title()}</h4>
 					{#if editable}
-						<Button variant="outline" size="sm" onclick={addDataRow} disabled={addingRow}>
+						<Button
+							variant="outline"
+							size="sm"
+							class="w-full sm:w-auto"
+							onclick={addDataRow}
+							disabled={addingRow}
+						>
 							{m.dataset_add_row()}
 						</Button>
 					{/if}
@@ -303,7 +335,9 @@
 						<table class="w-full text-sm">
 							<thead>
 								<tr class="border-b bg-muted/50">
-									<th class="px-3 py-2 text-left text-xs font-medium text-muted-foreground w-24">{m.dataset_label()}</th>
+									<th class="px-3 py-2 text-left text-xs font-medium text-muted-foreground w-24"
+										>{m.dataset_label()}</th
+									>
 									{#each parameters as p (p.id)}
 										<th class="px-3 py-2 text-left text-xs font-medium font-mono">{p.name}</th>
 									{/each}
@@ -321,7 +355,8 @@
 													class="h-7 text-xs border-0 bg-transparent px-0"
 													value={ds.name ?? ''}
 													placeholder={`#${i + 1}`}
-													onblur={(e: FocusEvent) => updateDataSetName(ds.id, (e.target as HTMLInputElement).value)}
+													onblur={(e: FocusEvent) =>
+														updateDataSetName(ds.id, (e.target as HTMLInputElement).value)}
 												/>
 											{:else}
 												<span class="text-xs text-muted-foreground">{ds.name || `#${i + 1}`}</span>
@@ -333,7 +368,8 @@
 													<Input
 														class="h-7 text-xs border-0 bg-transparent px-0"
 														value={ds.values[p.name] ?? ''}
-														onblur={(e: FocusEvent) => updateDataCell(ds.id, p.name, (e.target as HTMLInputElement).value)}
+														onblur={(e: FocusEvent) =>
+															updateDataCell(ds.id, p.name, (e.target as HTMLInputElement).value)}
 													/>
 												{:else}
 													<span class="text-xs">{ds.values[p.name] ?? ''}</span>
@@ -345,8 +381,8 @@
 												<button
 													type="button"
 													class="text-muted-foreground hover:text-destructive text-xs"
-													onclick={() => removeDataRow(ds.id)}
-												>&times;</button>
+													onclick={() => removeDataRow(ds.id)}>&times;</button
+												>
 											</td>
 										{/if}
 									</tr>

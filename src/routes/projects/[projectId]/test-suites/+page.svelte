@@ -204,8 +204,8 @@
 				</div>
 			{/each}
 		</div>
-		<div class="hidden overflow-hidden rounded-md border md:block">
-			<Table.Root>
+		<div class="hidden overflow-x-auto rounded-md border md:block">
+			<Table.Root class="min-w-[640px] table-fixed">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head class="py-1 px-2 text-xs">{m.common_name()}</Table.Head>
@@ -223,14 +223,18 @@
 							class="cursor-pointer hover:bg-muted/50"
 							onclick={() => goto(`${basePath}/${suite.id}`)}
 						>
-							<Table.Cell class="py-1 px-2 text-xs font-medium">{suite.name}</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs">
-								{suite.description ?? '-'}
+							<Table.Cell class="min-w-0 py-1 px-2 text-xs font-medium">
+								<div class="truncate" title={suite.name}>{suite.name}</div>
+							</Table.Cell>
+							<Table.Cell class="min-w-0 py-1 px-2 text-xs text-muted-foreground">
+								<div class="truncate" title={suite.description ?? '-'}>
+									{suite.description ?? '-'}
+								</div>
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs">{suite.itemCount}</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs"
-								>{suite.createdBy}</Table.Cell
-							>
+							<Table.Cell class="min-w-0 py-1 px-2 text-xs text-muted-foreground">
+								<div class="truncate" title={suite.createdBy}>{suite.createdBy}</div>
+							</Table.Cell>
 							{#if canManage}
 								<Table.Cell class="py-1 px-2">
 									<DropdownMenu.Root>

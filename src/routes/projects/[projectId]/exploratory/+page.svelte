@@ -194,8 +194,8 @@
 				</button>
 			{/each}
 		</div>
-		<div class="hidden overflow-hidden rounded-md border md:block">
-			<Table.Root>
+		<div class="hidden overflow-x-auto rounded-md border md:block">
+			<Table.Root class="min-w-[720px] table-fixed">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head class="py-1 px-2 text-xs">{m.common_title()}</Table.Head>
@@ -223,8 +223,8 @@
 							class="cursor-pointer hover:bg-muted/50"
 							onclick={() => goto(`/projects/${projectId}/exploratory/${session.id}`)}
 						>
-							<Table.Cell class="py-1 px-2 text-xs font-medium">
-								{session.title}
+							<Table.Cell class="min-w-0 py-1 px-2 text-xs font-medium">
+								<div class="truncate" title={session.title}>{session.title}</div>
 								<div class="text-muted-foreground md:hidden text-[10px] truncate max-w-[200px]">
 									{session.charter ?? ''}
 								</div>
@@ -245,9 +245,9 @@
 							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden sm:table-cell"
 								>{session.noteCount}</Table.Cell
 							>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden lg:table-cell"
-								>{session.createdBy}</Table.Cell
-							>
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden lg:table-cell">
+								<div class="truncate" title={session.createdBy}>{session.createdBy}</div>
+							</Table.Cell>
 							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden lg:table-cell">
 								{new Date(session.startedAt).toLocaleDateString()}
 							</Table.Cell>

@@ -224,8 +224,8 @@
 			{/each}
 		</div>
 
-		<div class="hidden overflow-hidden rounded-md border md:block">
-			<Table.Root>
+		<div class="hidden overflow-x-auto rounded-md border md:block">
+			<Table.Root class="min-w-[760px] table-fixed">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head class="py-1 px-2 text-xs">{m.common_name()}</Table.Head>
@@ -246,18 +246,22 @@
 							class="cursor-pointer hover:bg-muted/50"
 							onclick={() => goto(`${basePath}/${plan.id}`)}
 						>
-							<Table.Cell class="py-1 px-2 text-xs font-medium">{plan.name}</Table.Cell>
+							<Table.Cell class="min-w-0 py-1 px-2 text-xs font-medium">
+								<div class="truncate" title={plan.name}>{plan.name}</div>
+							</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs">
 								<Badge variant={statusVariant(plan.status)}>{statusLabel(plan.status)}</Badge>
 							</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs"
-								>{plan.milestone ?? '-'}</Table.Cell
-							>
+							<Table.Cell class="min-w-0 py-1 px-2 text-xs text-muted-foreground">
+								<div class="truncate" title={plan.milestone ?? '-'}>
+									{plan.milestone ?? '-'}
+								</div>
+							</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs">{plan.itemCount}</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs">{plan.runCount}</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs"
-								>{plan.createdBy}</Table.Cell
-							>
+							<Table.Cell class="min-w-0 py-1 px-2 text-xs text-muted-foreground">
+								<div class="truncate" title={plan.createdBy}>{plan.createdBy}</div>
+							</Table.Cell>
 							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs"
 								>{formatDate(plan.createdAt)}</Table.Cell
 							>

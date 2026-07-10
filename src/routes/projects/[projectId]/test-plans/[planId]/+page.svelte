@@ -365,8 +365,8 @@
 	{#if data.signoffs.length > 0}
 		<div class="space-y-2">
 			<h3 class="font-semibold text-sm">{m.signoff_history()}</h3>
-			<div class="rounded-md border">
-				<Table.Root>
+			<div class="overflow-x-auto rounded-md border">
+				<Table.Root class="min-w-[560px] table-fixed">
 					<Table.Header>
 						<Table.Row>
 							<Table.Head class="w-28 py-1 px-2 text-xs">{m.common_date()}</Table.Head>
@@ -391,10 +391,14 @@
 											: m.signoff_decision_rejected()}
 									</Badge>
 								</Table.Cell>
-								<Table.Cell class="py-1 px-2 text-xs">{s.userName}</Table.Cell>
-								<Table.Cell class="py-1 px-2 text-xs text-muted-foreground"
-									>{s.comment ?? '-'}</Table.Cell
-								>
+								<Table.Cell class="min-w-0 py-1 px-2 text-xs">
+									<div class="truncate" title={s.userName}>{s.userName}</div>
+								</Table.Cell>
+								<Table.Cell class="min-w-0 py-1 px-2 text-xs text-muted-foreground">
+									<div class="truncate" title={s.comment ?? '-'}>
+										{s.comment ?? '-'}
+									</div>
+								</Table.Cell>
 							</Table.Row>
 						{/each}
 					</Table.Body>
@@ -453,8 +457,8 @@
 					</Card.Root>
 				{/each}
 			</div>
-			<Card.Root class="hidden md:flex">
-				<Table.Root>
+			<Card.Root class="hidden overflow-x-auto md:flex">
+				<Table.Root class="min-w-[560px] table-fixed">
 					<Table.Header>
 						<Table.Row>
 							<Table.Head class="w-28">{m.common_key()}</Table.Head>
@@ -469,7 +473,9 @@
 						{#each data.items as item (item.id)}
 							<Table.Row>
 								<Table.Cell class="font-mono text-sm">{item.key}</Table.Cell>
-								<Table.Cell class="font-medium">{item.title}</Table.Cell>
+								<Table.Cell class="min-w-0 font-medium">
+									<div class="truncate" title={item.title}>{item.title}</div>
+								</Table.Cell>
 								<Table.Cell>
 									<PriorityBadge name={item.priority} color={getPriorityColor(item.priority)} />
 								</Table.Cell>
@@ -532,8 +538,8 @@
 					</button>
 				{/each}
 			</div>
-			<Card.Root class="hidden md:flex">
-				<Table.Root>
+			<Card.Root class="hidden overflow-x-auto md:flex">
+				<Table.Root class="min-w-[560px] table-fixed">
 					<Table.Header>
 						<Table.Row>
 							<Table.Head>{m.common_name()}</Table.Head>
@@ -548,13 +554,17 @@
 								class="cursor-pointer hover:bg-muted/50"
 								onclick={() => goto(`/projects/${data.project.id}/test-runs/${run.id}`)}
 							>
-								<Table.Cell class="font-medium">{run.name}</Table.Cell>
+								<Table.Cell class="min-w-0 font-medium">
+									<div class="truncate" title={run.name}>{run.name}</div>
+								</Table.Cell>
 								<Table.Cell>
 									<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}
 										>{run.status}</Badge
 									>
 								</Table.Cell>
-								<Table.Cell class="text-muted-foreground text-sm">{run.environment}</Table.Cell>
+								<Table.Cell class="min-w-0 text-sm text-muted-foreground">
+									<div class="truncate" title={run.environment}>{run.environment}</div>
+								</Table.Cell>
 								<Table.Cell class="text-muted-foreground text-sm"
 									>{formatDate(run.createdAt)}</Table.Cell
 								>
@@ -602,7 +612,7 @@
 			<div class="flex flex-1 flex-col space-y-3 overflow-hidden py-4">
 				<Input placeholder={m.tr_filter_placeholder()} bind:value={addCasesSearch} />
 				<div class="flex-1 rounded-md border">
-					<Table.Root class="hidden md:table">
+					<Table.Root class="hidden table-fixed md:table">
 						<Table.Header>
 							<Table.Row>
 								<Table.Head class="w-10"></Table.Head>
@@ -631,7 +641,7 @@
 								<span class="w-16 shrink-0 font-mono text-xs text-muted-foreground">{tc.key}</span>
 								<span class="min-w-0 flex-1 break-words font-medium line-clamp-2">{tc.title}</span>
 							</button>
-							<Table.Root class="hidden md:table">
+							<Table.Root class="hidden table-fixed md:table">
 								<Table.Body>
 									<Table.Row class="cursor-pointer" onclick={() => toggleAddCase(tc.id)}>
 										<Table.Cell class="w-10">

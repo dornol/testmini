@@ -226,7 +226,7 @@
 							onchange={handleFileChange}
 							class="hidden"
 						/>
-						<Button variant="outline" onclick={() => fileInput?.click()}>
+						<Button variant="outline" class="w-full sm:w-auto" onclick={() => fileInput?.click()}>
 							{m.tc_import_select_file()}
 						</Button>
 						{#if selectedFile}

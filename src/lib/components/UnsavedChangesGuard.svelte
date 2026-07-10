@@ -56,8 +56,12 @@
 				<AlertDialog.Description>{m.unsaved_changes_desc()}</AlertDialog.Description>
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
-				<Button variant="outline" onclick={stay}>{m.unsaved_changes_stay()}</Button>
-				<Button variant="destructive" onclick={leave}>{m.unsaved_changes_leave()}</Button>
+				<Button variant="outline" class="w-full sm:w-auto" onclick={stay}
+					>{m.unsaved_changes_stay()}</Button
+				>
+				<Button variant="destructive" class="w-full sm:w-auto" onclick={leave}
+					>{m.unsaved_changes_leave()}</Button
+				>
 			</AlertDialog.Footer>
 		</AlertDialog.Content>
 	</AlertDialog.Portal>

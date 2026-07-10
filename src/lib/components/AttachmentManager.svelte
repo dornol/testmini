@@ -179,19 +179,14 @@
 </script>
 
 <div class="space-y-2">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 		<h4 class="text-sm font-medium">{m.attachments_title()} ({attachments.length})</h4>
 		{#if editable}
-			<input
-				bind:this={fileInputEl}
-				type="file"
-				multiple
-				class="hidden"
-				onchange={handleUpload}
-			/>
+			<input bind:this={fileInputEl} type="file" multiple class="hidden" onchange={handleUpload} />
 			<Button
 				variant="outline"
 				size="sm"
+				class="w-full sm:w-auto"
 				disabled={isUploading}
 				onclick={() => fileInputEl?.click()}
 			>
@@ -244,20 +239,22 @@
 						<!-- Existing attachments list -->
 						<ul class="bg-background divide-y rounded-md border text-sm">
 							{#each attachments as att (att.id)}
-								<li class="flex items-center justify-between px-3 py-2">
+								<li
+									class="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+								>
 									<a
 										href="/api/attachments/{att.id}"
-										class="text-primary hover:underline truncate max-w-[60%]"
+										class="min-w-0 break-all text-primary hover:underline sm:max-w-[60%] sm:truncate"
 										download
 									>
 										{att.fileName}
 									</a>
-									<div class="flex items-center gap-2">
+									<div class="flex flex-wrap items-center gap-2 sm:justify-end">
 										<span class="text-muted-foreground text-xs">{formatSize(att.fileSize)}</span>
 										<Button
 											variant="ghost"
 											size="sm"
-											class="text-destructive h-7 px-2 text-xs"
+											class="h-7 w-full px-2 text-xs text-destructive sm:w-auto"
 											onclick={() => {
 												deleteTarget = att;
 												deleteOpen = true;
@@ -300,10 +297,10 @@
 		{:else}
 			<ul class="divide-y rounded-md border text-sm">
 				{#each attachments as att (att.id)}
-					<li class="flex items-center justify-between px-3 py-2">
+					<li class="flex flex-col gap-1 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
 						<a
 							href="/api/attachments/{att.id}"
-							class="text-primary hover:underline truncate max-w-[60%]"
+							class="min-w-0 break-all text-primary hover:underline sm:max-w-[60%] sm:truncate"
 							download
 						>
 							{att.fileName}
@@ -325,8 +322,10 @@
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-			<AlertDialog.Action onclick={handleDelete}>{m.common_delete()}</AlertDialog.Action>
+			<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+			<AlertDialog.Action class="w-full sm:w-auto" onclick={handleDelete}
+				>{m.common_delete()}</AlertDialog.Action
+			>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>

@@ -107,7 +107,9 @@
 		if (!editContent.trim()) return;
 		editSubmitting = true;
 		try {
-			const updated = await apiPatch<Comment>(`${baseUrl}/${commentId}`, { content: editContent.trim() });
+			const updated = await apiPatch<Comment>(`${baseUrl}/${commentId}`, {
+				content: editContent.trim()
+			});
 			comments = comments.map((c) => (c.id === commentId ? { ...c, ...updated } : c));
 			editingId = null;
 			editContent = '';
@@ -154,15 +156,14 @@
 <Card.Root>
 	<Card.Header class="pb-3">
 		<div class="flex items-center justify-between">
-			<button
-				class="flex items-center gap-2 text-left"
-				onclick={() => (collapsed = !collapsed)}
-			>
+			<button class="flex items-center gap-2 text-left" onclick={() => (collapsed = !collapsed)}>
 				<Card.Title class="text-base">
 					{m.comment_title()}
 				</Card.Title>
 				{#if totalCount > 0}
-					<span class="bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+					<span
+						class="bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs font-medium"
+					>
 						{totalCount}
 					</span>
 				{/if}
@@ -203,10 +204,16 @@
 								canDelete={canModify(comment)}
 								canReply={canComment}
 								onedit={() => startEdit(comment)}
-								ondelete={() => { deleteTarget = comment; deleteOpen = true; }}
+								ondelete={() => {
+									deleteTarget = comment;
+									deleteOpen = true;
+								}}
 								onreply={() => startReply(comment.id)}
 								onsaveedit={() => saveEdit(comment.id)}
-								oncanceledit={() => { editingId = null; editContent = ''; }}
+								oncanceledit={() => {
+									editingId = null;
+									editContent = '';
+								}}
 							/>
 
 							{#each getReplies(comment.id) as reply (reply.id)}
@@ -220,9 +227,15 @@
 										canEdit={canEditComment(reply)}
 										canDelete={canModify(reply)}
 										onedit={() => startEdit(reply)}
-										ondelete={() => { deleteTarget = reply; deleteOpen = true; }}
+										ondelete={() => {
+											deleteTarget = reply;
+											deleteOpen = true;
+										}}
 										onsaveedit={() => saveEdit(reply.id)}
-										oncanceledit={() => { editingId = null; editContent = ''; }}
+										oncanceledit={() => {
+											editingId = null;
+											editContent = '';
+										}}
 									/>
 								</div>
 							{/each}
@@ -236,7 +249,10 @@
 										submitting={replySubmitting}
 										cancelLabel={m.comment_cancel_reply()}
 										onsubmit={() => submitReply(comment.id)}
-										oncancel={() => { replyToId = null; replyContent = ''; }}
+										oncancel={() => {
+											replyToId = null;
+											replyContent = '';
+										}}
 									/>
 								</div>
 							{/if}
@@ -268,8 +284,10 @@
 			<AlertDialog.Description>{m.comment_delete_confirm()}</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-			<AlertDialog.Action onclick={confirmDelete}>{m.common_delete()}</AlertDialog.Action>
+			<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+			<AlertDialog.Action class="w-full sm:w-auto" onclick={confirmDelete}
+				>{m.common_delete()}</AlertDialog.Action
+			>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>

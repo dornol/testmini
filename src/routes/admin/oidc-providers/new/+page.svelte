@@ -37,7 +37,11 @@
 		if (!issuerUrl) return;
 		discovering = true;
 		try {
-			const d = await apiPost<{ authorizationUrl?: string; tokenUrl?: string; userinfoUrl?: string }>('/api/admin/oidc-providers/discover', { issuerUrl });
+			const d = await apiPost<{
+				authorizationUrl?: string;
+				tokenUrl?: string;
+				userinfoUrl?: string;
+			}>('/api/admin/oidc-providers/discover', { issuerUrl });
 			authorizationUrl = d.authorizationUrl || '';
 			tokenUrl = d.tokenUrl || '';
 			userinfoUrl = d.userinfoUrl || '';
@@ -83,10 +87,16 @@
 		</Card.Header>
 		<Card.Content>
 			<form method="POST" action="?/create" use:enhance={handleResult} class="space-y-4">
-				<div class="grid grid-cols-2 gap-4">
+				<div class="grid gap-4 sm:grid-cols-2">
 					<div class="space-y-2">
 						<Label for="name">{m.oidc_provider_name()}</Label>
-						<Input id="name" name="name" bind:value={name} required placeholder="Corporate Keycloak" />
+						<Input
+							id="name"
+							name="name"
+							bind:value={name}
+							required
+							placeholder="Corporate Keycloak"
+						/>
 					</div>
 					<div class="space-y-2">
 						<Label for="slug">{m.oidc_provider_slug()}</Label>
@@ -96,44 +106,74 @@
 							value={slug}
 							required
 							placeholder="corp-keycloak"
-							oninput={(e) => { slugManual = true; slugOverride = (e.target as HTMLInputElement).value; }}
+							oninput={(e) => {
+								slugManual = true;
+								slugOverride = (e.target as HTMLInputElement).value;
+							}}
 						/>
 					</div>
 				</div>
 
 				<div class="space-y-2">
 					<Label for="providerType">{m.oidc_provider_type()}</Label>
-					<select id="providerType" name="providerType" bind:value={providerType} class="border-input bg-background ring-offset-background flex h-10 w-full rounded-md border px-3 py-2 text-sm">
+					<select
+						id="providerType"
+						name="providerType"
+						bind:value={providerType}
+						class="border-input bg-background ring-offset-background flex h-10 w-full rounded-md border px-3 py-2 text-sm"
+					>
 						<option value="OIDC">OIDC</option>
 						<option value="OAUTH2">OAuth2</option>
 					</select>
 				</div>
 
-				<div class="grid grid-cols-2 gap-4">
+				<div class="grid gap-4 sm:grid-cols-2">
 					<div class="space-y-2">
 						<Label for="clientId">{m.oidc_client_id()}</Label>
 						<Input id="clientId" name="clientId" bind:value={clientId} required />
 					</div>
 					<div class="space-y-2">
 						<Label for="clientSecret">{m.oidc_client_secret()}</Label>
-						<Input id="clientSecret" name="clientSecret" type="password" bind:value={clientSecret} required />
+						<Input
+							id="clientSecret"
+							name="clientSecret"
+							type="password"
+							bind:value={clientSecret}
+							required
+						/>
 					</div>
 				</div>
 
 				<div class="space-y-2">
 					<Label for="issuerUrl">{m.oidc_issuer_url()}</Label>
-					<div class="flex gap-2">
-						<Input id="issuerUrl" name="issuerUrl" bind:value={issuerUrl} placeholder="https://idp.example.com/realms/main" />
-						<Button type="button" variant="outline" onclick={discover} disabled={discovering || !issuerUrl}>
+					<div class="flex flex-col gap-2 sm:flex-row">
+						<Input
+							id="issuerUrl"
+							name="issuerUrl"
+							bind:value={issuerUrl}
+							placeholder="https://idp.example.com/realms/main"
+						/>
+						<Button
+							type="button"
+							variant="outline"
+							onclick={discover}
+							disabled={discovering || !issuerUrl}
+							class="sm:w-auto"
+						>
 							{m.oidc_discover()}
 						</Button>
 					</div>
 				</div>
 
-				<div class="grid grid-cols-2 gap-4">
+				<div class="grid gap-4 sm:grid-cols-2">
 					<div class="space-y-2">
 						<Label for="authorizationUrl">{m.oidc_authorization_url()}</Label>
-						<Input id="authorizationUrl" name="authorizationUrl" bind:value={authorizationUrl} required />
+						<Input
+							id="authorizationUrl"
+							name="authorizationUrl"
+							bind:value={authorizationUrl}
+							required
+						/>
 					</div>
 					<div class="space-y-2">
 						<Label for="tokenUrl">{m.oidc_token_url()}</Label>
@@ -151,7 +191,7 @@
 					<Input id="scopes" name="scopes" bind:value={scopes} />
 				</div>
 
-				<div class="grid grid-cols-2 gap-4">
+				<div class="grid gap-4 sm:grid-cols-2">
 					<div class="space-y-2">
 						<Label for="iconUrl">{m.oidc_icon_url()}</Label>
 						<Input id="iconUrl" name="iconUrl" bind:value={iconUrl} />
@@ -163,11 +203,17 @@
 				</div>
 
 				<div class="flex items-center gap-2">
-					<input id="autoRegister" name="autoRegister" type="checkbox" bind:checked={autoRegister} class="h-4 w-4 rounded border" />
+					<input
+						id="autoRegister"
+						name="autoRegister"
+						type="checkbox"
+						bind:checked={autoRegister}
+						class="h-4 w-4 rounded border"
+					/>
 					<Label for="autoRegister">{m.oidc_auto_register()}</Label>
 				</div>
 
-				<div class="flex justify-end gap-2">
+				<div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
 					<Button variant="outline" href="/admin/oidc-providers">{m.common_cancel()}</Button>
 					<Button type="submit">{m.oidc_add_provider()}</Button>
 				</div>

@@ -17,9 +17,7 @@
 	const canManage = $derived(
 		data.userRole === 'PROJECT_ADMIN' || data.userRole === 'QA' || data.userRole === 'ADMIN'
 	);
-	const canDelete = $derived(
-		data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN'
-	);
+	const canDelete = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
 
 	const statuses = ['PLANNING', 'IN_PROGRESS', 'READY', 'RELEASED'] as const;
 
@@ -35,34 +33,51 @@
 
 	function statusVariant(s: string): 'default' | 'secondary' | 'outline' | 'destructive' {
 		switch (s) {
-			case 'PLANNING': return 'outline';
-			case 'IN_PROGRESS': return 'secondary';
-			case 'READY': return 'default';
-			case 'RELEASED': return 'default';
-			default: return 'outline';
+			case 'PLANNING':
+				return 'outline';
+			case 'IN_PROGRESS':
+				return 'secondary';
+			case 'READY':
+				return 'default';
+			case 'RELEASED':
+				return 'default';
+			default:
+				return 'outline';
 		}
 	}
 
 	function verdictColor(v: string) {
 		switch (v) {
-			case 'GO': return 'bg-green-500/10 text-green-600 border-green-500/20';
-			case 'NO_GO': return 'bg-red-500/10 text-red-600 border-red-500/20';
-			case 'CAUTION': return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20';
-			default: return '';
+			case 'GO':
+				return 'bg-green-500/10 text-green-600 border-green-500/20';
+			case 'NO_GO':
+				return 'bg-red-500/10 text-red-600 border-red-500/20';
+			case 'CAUTION':
+				return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20';
+			default:
+				return '';
 		}
 	}
 
 	function verdictLabel(v: string) {
-		const map: Record<string, () => string> = { GO: m.rel_go, NO_GO: m.rel_no_go, CAUTION: m.rel_caution };
+		const map: Record<string, () => string> = {
+			GO: m.rel_go,
+			NO_GO: m.rel_no_go,
+			CAUTION: m.rel_caution
+		};
 		return map[v]?.() ?? v;
 	}
 
 	async function handleStatusChange(newStatus: string) {
 		try {
-			await apiPatch(`/api/projects/${data.project.id}/releases/${data.release.id}`, { status: newStatus });
+			await apiPatch(`/api/projects/${data.project.id}/releases/${data.release.id}`, {
+				status: newStatus
+			});
 			toast.success(m.rel_updated());
 			await invalidateAll();
-		} catch { /* handled */ }
+		} catch {
+			/* handled */
+		}
 	}
 
 	// Delete
@@ -75,8 +90,11 @@
 			await apiDelete(`/api/projects/${data.project.id}/releases/${data.release.id}`);
 			toast.success(m.rel_deleted());
 			goto(basePath);
-		} catch { /* handled */ }
-		finally { deleteSaving = false; }
+		} catch {
+			/* handled */
+		} finally {
+			deleteSaving = false;
+		}
 	}
 
 	// Link plan/run dialogs
@@ -89,12 +107,16 @@
 		if (!selectedLinkId) return;
 		linkSaving = true;
 		try {
-			await apiPatch(`/api/projects/${data.project.id}/test-plans/${selectedLinkId}`, { releaseId: data.release.id });
+			await apiPatch(`/api/projects/${data.project.id}/test-plans/${selectedLinkId}`, {
+				releaseId: data.release.id
+			});
 			linkPlanDialogOpen = false;
 			selectedLinkId = null;
 			toast.success(m.rel_updated());
 			await invalidateAll();
-		} catch { /* handled */ } finally {
+		} catch {
+			/* handled */
+		} finally {
 			linkSaving = false;
 		}
 	}
@@ -103,12 +125,16 @@
 		if (!selectedLinkId) return;
 		linkSaving = true;
 		try {
-			await apiPatch(`/api/projects/${data.project.id}/test-runs/${selectedLinkId}`, { releaseId: data.release.id });
+			await apiPatch(`/api/projects/${data.project.id}/test-runs/${selectedLinkId}`, {
+				releaseId: data.release.id
+			});
 			linkRunDialogOpen = false;
 			selectedLinkId = null;
 			toast.success(m.rel_updated());
 			await invalidateAll();
-		} catch { /* handled */ } finally {
+		} catch {
+			/* handled */
+		} finally {
 			linkSaving = false;
 		}
 	}
@@ -137,7 +163,9 @@
 					onValueChange={(v: string) => handleStatusChange(v)}
 				>
 					<Select.Trigger class="w-36 h-7 text-xs">
-						<Badge variant={statusVariant(data.release.status)}>{statusLabel(data.release.status)}</Badge>
+						<Badge variant={statusVariant(data.release.status)}
+							>{statusLabel(data.release.status)}</Badge
+						>
 					</Select.Trigger>
 					<Select.Content>
 						{#each statuses as s}
@@ -160,7 +188,12 @@
 		</div>
 		<div class="flex gap-2">
 			{#if canDelete}
-				<Button variant="outline" size="sm" class="text-destructive hover:text-destructive" onclick={() => (deleteDialogOpen = true)}>
+				<Button
+					variant="outline"
+					size="sm"
+					class="text-destructive hover:text-destructive"
+					onclick={() => (deleteDialogOpen = true)}
+				>
 					{m.common_delete()}
 				</Button>
 			{/if}
@@ -174,7 +207,9 @@
 				<div>
 					<h3 class="font-semibold text-sm">{m.rel_readiness()}</h3>
 					<div class="mt-2 flex items-center gap-4">
-						<span class={`rounded-md border px-3 py-1 text-lg font-bold ${verdictColor(data.verdict)}`}>
+						<span
+							class={`rounded-md border px-3 py-1 text-lg font-bold ${verdictColor(data.verdict)}`}
+						>
 							{verdictLabel(data.verdict)}
 						</span>
 						<span class="text-muted-foreground text-sm">
@@ -209,7 +244,14 @@
 		<div class="flex items-center justify-between">
 			<h3 class="font-semibold">{m.rel_linked_plans()} ({data.plans.length})</h3>
 			{#if canManage && data.availablePlans.length > 0}
-				<Button variant="outline" size="sm" onclick={() => { selectedLinkId = null; linkPlanDialogOpen = true; }}>
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={() => {
+						selectedLinkId = null;
+						linkPlanDialogOpen = true;
+					}}
+				>
 					{m.rel_link_plan()}
 				</Button>
 			{/if}
@@ -219,7 +261,24 @@
 				<p class="text-muted-foreground text-sm">{m.tp_no_runs()}</p>
 			</div>
 		{:else}
-			<Card.Root>
+			<div class="grid gap-3 md:hidden">
+				{#each data.plans as plan (plan.id)}
+					<button
+						type="button"
+						class="rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
+						onclick={() => goto(`/projects/${data.project.id}/test-plans/${plan.id}`)}
+					>
+						<div class="break-words font-medium">{plan.name}</div>
+						<div class="mt-2 flex flex-wrap items-center gap-2">
+							<Badge variant="secondary">{plan.status}</Badge>
+							<span class="text-xs text-muted-foreground"
+								>{m.tp_milestone()}: {plan.milestone ?? '-'}</span
+							>
+						</div>
+					</button>
+				{/each}
+			</div>
+			<Card.Root class="hidden md:block">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
@@ -236,7 +295,9 @@
 							>
 								<Table.Cell class="font-medium">{plan.name}</Table.Cell>
 								<Table.Cell><Badge variant="secondary">{plan.status}</Badge></Table.Cell>
-								<Table.Cell class="text-muted-foreground text-sm">{plan.milestone ?? '-'}</Table.Cell>
+								<Table.Cell class="text-muted-foreground text-sm"
+									>{plan.milestone ?? '-'}</Table.Cell
+								>
 							</Table.Row>
 						{/each}
 					</Table.Body>
@@ -250,7 +311,14 @@
 		<div class="flex items-center justify-between">
 			<h3 class="font-semibold">{m.rel_linked_runs()} ({data.runs.length})</h3>
 			{#if canManage && data.availableRuns.length > 0}
-				<Button variant="outline" size="sm" onclick={() => { selectedLinkId = null; linkRunDialogOpen = true; }}>
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={() => {
+						selectedLinkId = null;
+						linkRunDialogOpen = true;
+					}}
+				>
 					{m.rel_link_run()}
 				</Button>
 			{/if}
@@ -260,7 +328,41 @@
 				<p class="text-muted-foreground text-sm">{m.tp_no_runs()}</p>
 			</div>
 		{:else}
-			<Card.Root>
+			<div class="grid gap-3 md:hidden">
+				{#each data.runs as run (run.id)}
+					{@const total = Number(run.total)}
+					{@const pass = Number(run.pass)}
+					{@const rate = total > 0 ? Math.round((pass / total) * 100) : 0}
+					<button
+						type="button"
+						class="rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
+						onclick={() => goto(`/projects/${data.project.id}/test-runs/${run.id}`)}
+					>
+						<div class="break-words font-medium">{run.name}</div>
+						<div class="mt-2 flex flex-wrap items-center gap-2">
+							<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}
+								>{run.status}</Badge
+							>
+							<Badge variant="outline">{run.environment}</Badge>
+						</div>
+						<div class="mt-3 grid grid-cols-3 gap-2 text-xs">
+							<div>
+								<div class="text-muted-foreground">{m.dashboard_pass()}</div>
+								<div class="font-medium text-green-600">{pass}</div>
+							</div>
+							<div>
+								<div class="text-muted-foreground">{m.dashboard_fail()}</div>
+								<div class="font-medium text-red-600">{run.fail}</div>
+							</div>
+							<div>
+								<div class="text-muted-foreground">{m.rel_pass_rate()}</div>
+								<div class="font-medium">{rate}%</div>
+							</div>
+						</div>
+					</button>
+				{/each}
+			</div>
+			<Card.Root class="hidden md:block">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
@@ -283,7 +385,9 @@
 							>
 								<Table.Cell class="font-medium">{run.name}</Table.Cell>
 								<Table.Cell>
-									<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}>{run.status}</Badge>
+									<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}
+										>{run.status}</Badge
+									>
 								</Table.Cell>
 								<Table.Cell class="text-muted-foreground text-sm">{run.environment}</Table.Cell>
 								<Table.Cell class="text-green-600">{pass}</Table.Cell>
@@ -328,8 +432,13 @@
 			<div class="py-4 space-y-2 max-h-60 overflow-auto">
 				{#each data.availablePlans as plan (plan.id)}
 					<button
-						class="w-full text-left px-3 py-2 rounded-md hover:bg-muted/50 flex items-center justify-between {selectedLinkId === plan.id ? 'bg-muted' : ''}"
-						onclick={() => { selectedLinkId = plan.id; }}
+						class="w-full text-left px-3 py-2 rounded-md hover:bg-muted/50 flex items-center justify-between {selectedLinkId ===
+						plan.id
+							? 'bg-muted'
+							: ''}"
+						onclick={() => {
+							selectedLinkId = plan.id;
+						}}
 					>
 						<span class="text-sm font-medium">{plan.name}</span>
 						<Badge variant="secondary" class="text-xs">{plan.status}</Badge>
@@ -337,8 +446,12 @@
 				{/each}
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (linkPlanDialogOpen = false)}>{m.common_cancel()}</Button>
-				<Button onclick={handleLinkPlan} disabled={!selectedLinkId || linkSaving}>{linkSaving ? m.common_saving() : m.rel_link_plan()}</Button>
+				<Button variant="outline" onclick={() => (linkPlanDialogOpen = false)}
+					>{m.common_cancel()}</Button
+				>
+				<Button onclick={handleLinkPlan} disabled={!selectedLinkId || linkSaving}
+					>{linkSaving ? m.common_saving() : m.rel_link_plan()}</Button
+				>
 			</Dialog.Footer>
 		</Dialog.Content>
 	</Dialog.Portal>
@@ -355,8 +468,13 @@
 			<div class="py-4 space-y-2 max-h-60 overflow-auto">
 				{#each data.availableRuns as run (run.id)}
 					<button
-						class="w-full text-left px-3 py-2 rounded-md hover:bg-muted/50 flex items-center justify-between {selectedLinkId === run.id ? 'bg-muted' : ''}"
-						onclick={() => { selectedLinkId = run.id; }}
+						class="w-full text-left px-3 py-2 rounded-md hover:bg-muted/50 flex items-center justify-between {selectedLinkId ===
+						run.id
+							? 'bg-muted'
+							: ''}"
+						onclick={() => {
+							selectedLinkId = run.id;
+						}}
 					>
 						<span class="text-sm font-medium">{run.name}</span>
 						<div class="flex gap-1">
@@ -367,8 +485,12 @@
 				{/each}
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (linkRunDialogOpen = false)}>{m.common_cancel()}</Button>
-				<Button onclick={handleLinkRun} disabled={!selectedLinkId || linkSaving}>{linkSaving ? m.common_saving() : m.rel_link_run()}</Button>
+				<Button variant="outline" onclick={() => (linkRunDialogOpen = false)}
+					>{m.common_cancel()}</Button
+				>
+				<Button onclick={handleLinkRun} disabled={!selectedLinkId || linkSaving}
+					>{linkSaving ? m.common_saving() : m.rel_link_run()}</Button
+				>
 			</Dialog.Footer>
 		</Dialog.Content>
 	</Dialog.Portal>

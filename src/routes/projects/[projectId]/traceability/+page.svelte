@@ -110,10 +110,9 @@
 	async function loadRequirements() {
 		loading = true;
 		try {
-			requirements = await apiFetch<Requirement[]>(
-				`/api/projects/${projectId}/requirements`,
-				{ silent: true }
-			);
+			requirements = await apiFetch<Requirement[]>(`/api/projects/${projectId}/requirements`, {
+				silent: true
+			});
 		} catch {
 			// silenced
 		} finally {
@@ -239,10 +238,9 @@
 		if (!linkReqId) return;
 		linkLoading = true;
 		try {
-			await apiPost(
-				`/api/projects/${projectId}/requirements/${linkReqId}/test-cases`,
-				{ testCaseIds: [testCaseId] }
-			);
+			await apiPost(`/api/projects/${projectId}/requirements/${linkReqId}/test-cases`, {
+				testCaseIds: [testCaseId]
+			});
 			toast.success(m.req_linked());
 			// Refresh
 			if (expandedId === linkReqId) {
@@ -311,11 +309,24 @@
 
 	{#if loading}
 		<div class="flex items-center justify-center gap-2 p-8">
-			<svg class="h-4 w-4 animate-spin text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+			<svg
+				class="h-4 w-4 animate-spin text-muted-foreground"
+				xmlns="http://www.w3.org/2000/svg"
+				fill="none"
+				viewBox="0 0 24 24"
+				><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+				></circle><path
+					class="opacity-75"
+					fill="currentColor"
+					d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+				></path></svg
+			>
 			<p class="text-muted-foreground text-sm">{m.common_loading()}</p>
 		</div>
 	{:else if requirements.length === 0}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+		<div
+			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+		>
 			<h3 class="text-lg font-semibold">{m.req_title()}</h3>
 			<p class="text-muted-foreground mt-1 text-sm">{m.req_no_requirements()}</p>
 			{#if canManage}
@@ -325,7 +336,158 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="border rounded-md overflow-hidden">
+		<div class="space-y-2 md:hidden">
+			{#each requirements as req (req.id)}
+				<div
+					class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm {req.testCaseCount ===
+					0
+						? 'border-yellow-300 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/20'
+						: ''}"
+				>
+					<button type="button" class="w-full text-left" onclick={() => toggleExpand(req.id)}>
+						<div class="flex items-start justify-between gap-3">
+							<div class="min-w-0">
+								<p class="font-mono text-xs text-muted-foreground">{req.externalId ?? '-'}</p>
+								<p class="mt-1 font-medium leading-snug">{req.title}</p>
+								{#if req.source}
+									<p class="mt-1 text-xs text-muted-foreground">{req.source}</p>
+								{/if}
+							</div>
+							<span
+								class="mt-1 inline-block shrink-0 text-muted-foreground transition-transform {expandedId ===
+								req.id
+									? 'rotate-90'
+									: ''}"
+							>
+								&#9656;
+							</span>
+						</div>
+						<div class="mt-3 flex flex-wrap items-center gap-2">
+							{#if req.testCaseCount === 0}
+								<Badge variant="destructive" class="text-xs">
+									{m.req_no_coverage()}
+								</Badge>
+							{:else}
+								<Badge variant="outline" class="text-xs">
+									{m.req_linked_test_cases()}: {req.testCaseCount}
+								</Badge>
+							{/if}
+							{#if req.testCaseCount > 0}
+								{#if req.coverage.pass > 0}
+									<span
+										class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+									>
+										P:{req.coverage.pass}
+									</span>
+								{/if}
+								{#if req.coverage.fail > 0}
+									<span
+										class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+									>
+										F:{req.coverage.fail}
+									</span>
+								{/if}
+								{#if req.coverage.pending > 0}
+									<span
+										class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+									>
+										W:{req.coverage.pending}
+									</span>
+								{/if}
+								{#if req.coverage.blocked > 0}
+									<span
+										class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+									>
+										B:{req.coverage.blocked}
+									</span>
+								{/if}
+								{#if req.coverage.skipped > 0}
+									<span
+										class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+									>
+										S:{req.coverage.skipped}
+									</span>
+								{/if}
+								{#if req.coverage.notExecuted > 0}
+									<span
+										class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-muted text-muted-foreground"
+									>
+										N:{req.coverage.notExecuted}
+									</span>
+								{/if}
+							{:else}
+								<Badge variant="outline" class="text-[10px]">{m.req_coverage_gap()}</Badge>
+							{/if}
+						</div>
+					</button>
+
+					{#if canManage}
+						<div class="mt-3 flex flex-wrap gap-2 border-t pt-3">
+							<Button
+								variant="outline"
+								size="sm"
+								class="h-7 text-xs"
+								onclick={() => openLinkDialog(req.id)}
+							>
+								{m.req_link_test_case()}
+							</Button>
+							<Button variant="outline" size="sm" class="h-7 text-xs" onclick={() => openEdit(req)}>
+								{m.common_edit()}
+							</Button>
+							<Button
+								variant="ghost"
+								size="sm"
+								class="text-destructive hover:text-destructive h-7 text-xs"
+								onclick={() => openDelete(req.id)}
+							>
+								{m.common_delete()}
+							</Button>
+						</div>
+					{/if}
+
+					{#if expandedId === req.id}
+						<div class="mt-3 border-t pt-3">
+							{#if expandLoading}
+								<p class="text-muted-foreground text-xs">{m.common_loading()}</p>
+							{:else if expandedTestCases.length === 0}
+								<p class="text-muted-foreground text-xs">{m.req_no_coverage()}</p>
+							{:else}
+								<div class="space-y-2">
+									<p class="text-xs font-medium">{m.req_linked_test_cases()}</p>
+									{#each expandedTestCases as tc (tc.id)}
+										<div class="rounded-md bg-muted/50 p-2 text-xs">
+											<div class="flex items-start justify-between gap-2">
+												<div class="min-w-0">
+													<p class="font-mono text-muted-foreground">{tc.key}</p>
+													<p class="truncate">{tc.title}</p>
+												</div>
+												<Badge class="text-[10px] {statusColorBadge(tc.latestStatus)}">
+													{tc.latestStatus ?? 'N/A'}
+												</Badge>
+											</div>
+											{#if canManage}
+												<div class="mt-2 flex justify-end">
+													<Button
+														variant="ghost"
+														size="sm"
+														class="h-6 px-1 text-[10px] text-destructive"
+														onclick={() => openUnlink(req.id, tc)}
+													>
+														{m.req_unlink_test_case()}
+													</Button>
+												</div>
+											{/if}
+										</div>
+									{/each}
+								</div>
+							{/if}
+						</div>
+					{/if}
+				</div>
+			{/each}
+		</div>
+
+		<div class="hidden overflow-hidden rounded-md border md:block">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -343,11 +505,17 @@
 				<Table.Body>
 					{#each requirements as req (req.id)}
 						<Table.Row
-							class="cursor-pointer hover:bg-muted/50 {req.testCaseCount === 0 ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}"
+							class="cursor-pointer hover:bg-muted/50 {req.testCaseCount === 0
+								? 'bg-yellow-50 dark:bg-yellow-950/20'
+								: ''}"
 							onclick={() => toggleExpand(req.id)}
 						>
 							<Table.Cell class="py-1 px-2 text-xs">
-								<span class="inline-block transition-transform {expandedId === req.id ? 'rotate-90' : ''}">
+								<span
+									class="inline-block transition-transform {expandedId === req.id
+										? 'rotate-90'
+										: ''}"
+								>
 									&#9656;
 								</span>
 							</Table.Cell>
@@ -373,32 +541,44 @@
 								{#if req.testCaseCount > 0}
 									<div class="flex gap-1 flex-wrap">
 										{#if req.coverage.pass > 0}
-											<span class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+											<span
+												class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+											>
 												P:{req.coverage.pass}
 											</span>
 										{/if}
 										{#if req.coverage.fail > 0}
-											<span class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+											<span
+												class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+											>
 												F:{req.coverage.fail}
 											</span>
 										{/if}
 										{#if req.coverage.pending > 0}
-											<span class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+											<span
+												class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+											>
 												W:{req.coverage.pending}
 											</span>
 										{/if}
 										{#if req.coverage.blocked > 0}
-											<span class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
+											<span
+												class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+											>
 												B:{req.coverage.blocked}
 											</span>
 										{/if}
 										{#if req.coverage.skipped > 0}
-											<span class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+											<span
+												class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+											>
 												S:{req.coverage.skipped}
 											</span>
 										{/if}
 										{#if req.coverage.notExecuted > 0}
-											<span class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-muted text-muted-foreground">
+											<span
+												class="inline-flex items-center rounded px-1 text-[10px] font-medium bg-muted text-muted-foreground"
+											>
 												N:{req.coverage.notExecuted}
 											</span>
 										{/if}
@@ -412,8 +592,31 @@
 									<DropdownMenu.Root>
 										<DropdownMenu.Trigger>
 											{#snippet child({ props })}
-												<Button variant="ghost" size="sm" class="h-6 w-6 p-0" {...props} onclick={(e: MouseEvent) => e.stopPropagation()} aria-label={m.common_actions()}>
-													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+												<Button
+													variant="ghost"
+													size="sm"
+													class="h-6 w-6 p-0"
+													{...props}
+													onclick={(e: MouseEvent) => e.stopPropagation()}
+													aria-label={m.common_actions()}
+												>
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														width="14"
+														height="14"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														stroke-width="2"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														aria-hidden="true"
+														><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle
+															cx="12"
+															cy="19"
+															r="1"
+														/></svg
+													>
 												</Button>
 											{/snippet}
 										</DropdownMenu.Trigger>
@@ -425,7 +628,10 @@
 												{m.common_edit()}
 											</DropdownMenu.Item>
 											<DropdownMenu.Separator />
-											<DropdownMenu.Item class="text-destructive" onclick={() => openDelete(req.id)}>
+											<DropdownMenu.Item
+												class="text-destructive"
+												onclick={() => openDelete(req.id)}
+											>
 												{m.common_delete()}
 											</DropdownMenu.Item>
 										</DropdownMenu.Content>
@@ -478,165 +684,161 @@
 <!-- Create Requirement Dialog -->
 <Dialog.Root bind:open={createDialogOpen}>
 	<Dialog.Content class="sm:max-w-md">
-			<Dialog.Header>
-				<Dialog.Title>{m.req_new()}</Dialog.Title>
-			</Dialog.Header>
-			<div class="space-y-4 py-4">
-				<div class="space-y-2">
-					<Label for="reqTitle">{m.common_title()}</Label>
-					<Input id="reqTitle" bind:value={newTitle} placeholder={m.common_title()} />
-				</div>
-				<div class="space-y-2">
-					<Label for="reqExternalId">{m.req_external_id()}</Label>
-					<Input
-						id="reqExternalId"
-						bind:value={newExternalId}
-						placeholder={m.req_external_id_placeholder()}
-					/>
-				</div>
-				<div class="space-y-2">
-					<Label for="reqSource">{m.req_source()}</Label>
-					<Input
-						id="reqSource"
-						bind:value={newSource}
-						placeholder={m.req_source_placeholder()}
-					/>
-				</div>
-				<div class="space-y-2">
-					<Label for="reqDescription">{m.req_description()}</Label>
-					<Textarea id="reqDescription" bind:value={newDescription} rows={3} />
-				</div>
+		<Dialog.Header>
+			<Dialog.Title>{m.req_new()}</Dialog.Title>
+		</Dialog.Header>
+		<div class="space-y-4 py-4">
+			<div class="space-y-2">
+				<Label for="reqTitle">{m.common_title()}</Label>
+				<Input id="reqTitle" bind:value={newTitle} placeholder={m.common_title()} />
 			</div>
-			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (createDialogOpen = false)}>
-					{m.common_cancel()}
-				</Button>
-				<Button onclick={handleCreate} disabled={creating || !newTitle.trim()}>
-					{creating ? m.common_creating() : m.common_save_changes()}
-				</Button>
-			</Dialog.Footer>
-		</Dialog.Content>
+			<div class="space-y-2">
+				<Label for="reqExternalId">{m.req_external_id()}</Label>
+				<Input
+					id="reqExternalId"
+					bind:value={newExternalId}
+					placeholder={m.req_external_id_placeholder()}
+				/>
+			</div>
+			<div class="space-y-2">
+				<Label for="reqSource">{m.req_source()}</Label>
+				<Input id="reqSource" bind:value={newSource} placeholder={m.req_source_placeholder()} />
+			</div>
+			<div class="space-y-2">
+				<Label for="reqDescription">{m.req_description()}</Label>
+				<Textarea id="reqDescription" bind:value={newDescription} rows={3} />
+			</div>
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (createDialogOpen = false)}>
+				{m.common_cancel()}
+			</Button>
+			<Button onclick={handleCreate} disabled={creating || !newTitle.trim()}>
+				{creating ? m.common_creating() : m.common_save_changes()}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
 </Dialog.Root>
 
 <!-- Edit Requirement Dialog -->
 <Dialog.Root bind:open={editDialogOpen}>
 	<Dialog.Content class="sm:max-w-md">
-			<Dialog.Header>
-				<Dialog.Title>{m.req_edit()}</Dialog.Title>
-			</Dialog.Header>
-			<div class="space-y-4 py-4">
-				<div class="space-y-2">
-					<Label for="editReqTitle">{m.common_title()}</Label>
-					<Input id="editReqTitle" bind:value={editTitle} />
-				</div>
-				<div class="space-y-2">
-					<Label for="editReqExternalId">{m.req_external_id()}</Label>
-					<Input
-						id="editReqExternalId"
-						bind:value={editExternalId}
-						placeholder={m.req_external_id_placeholder()}
-					/>
-				</div>
-				<div class="space-y-2">
-					<Label for="editReqSource">{m.req_source()}</Label>
-					<Input
-						id="editReqSource"
-						bind:value={editSource}
-						placeholder={m.req_source_placeholder()}
-					/>
-				</div>
-				<div class="space-y-2">
-					<Label for="editReqDescription">{m.req_description()}</Label>
-					<Textarea id="editReqDescription" bind:value={editDescription} rows={3} />
-				</div>
+		<Dialog.Header>
+			<Dialog.Title>{m.req_edit()}</Dialog.Title>
+		</Dialog.Header>
+		<div class="space-y-4 py-4">
+			<div class="space-y-2">
+				<Label for="editReqTitle">{m.common_title()}</Label>
+				<Input id="editReqTitle" bind:value={editTitle} />
 			</div>
-			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (editDialogOpen = false)}>
-					{m.common_cancel()}
-				</Button>
-				<Button onclick={handleEdit} disabled={editSaving || !editTitle.trim()}>
-					{editSaving ? m.common_saving() : m.common_save_changes()}
-				</Button>
-			</Dialog.Footer>
-		</Dialog.Content>
+			<div class="space-y-2">
+				<Label for="editReqExternalId">{m.req_external_id()}</Label>
+				<Input
+					id="editReqExternalId"
+					bind:value={editExternalId}
+					placeholder={m.req_external_id_placeholder()}
+				/>
+			</div>
+			<div class="space-y-2">
+				<Label for="editReqSource">{m.req_source()}</Label>
+				<Input
+					id="editReqSource"
+					bind:value={editSource}
+					placeholder={m.req_source_placeholder()}
+				/>
+			</div>
+			<div class="space-y-2">
+				<Label for="editReqDescription">{m.req_description()}</Label>
+				<Textarea id="editReqDescription" bind:value={editDescription} rows={3} />
+			</div>
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (editDialogOpen = false)}>
+				{m.common_cancel()}
+			</Button>
+			<Button onclick={handleEdit} disabled={editSaving || !editTitle.trim()}>
+				{editSaving ? m.common_saving() : m.common_save_changes()}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
 </Dialog.Root>
 
 <!-- Delete Requirement Dialog -->
 <AlertDialog.Root bind:open={deleteDialogOpen}>
 	<AlertDialog.Content>
-			<AlertDialog.Header>
-				<AlertDialog.Title>{m.req_delete()}</AlertDialog.Title>
-				<AlertDialog.Description>{m.req_delete_confirm()}</AlertDialog.Description>
-			</AlertDialog.Header>
-			<AlertDialog.Footer>
-				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-				<Button variant="destructive" onclick={handleDelete} disabled={deleteSaving}>
-					{deleteSaving ? m.common_saving() : m.common_delete()}
-				</Button>
-			</AlertDialog.Footer>
-		</AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>{m.req_delete()}</AlertDialog.Title>
+			<AlertDialog.Description>{m.req_delete_confirm()}</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+			<Button variant="destructive" onclick={handleDelete} disabled={deleteSaving}>
+				{deleteSaving ? m.common_saving() : m.common_delete()}
+			</Button>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
 </AlertDialog.Root>
 
 <!-- Unlink Confirmation Dialog -->
 <AlertDialog.Root bind:open={unlinkDialogOpen}>
 	<AlertDialog.Content>
-			<AlertDialog.Header>
-				<AlertDialog.Title>{m.req_unlink_test_case()}</AlertDialog.Title>
-				<AlertDialog.Description>
-					{m.req_unlink_confirm({ key: unlinkTestCaseKey })}
-				</AlertDialog.Description>
-			</AlertDialog.Header>
-			<AlertDialog.Footer>
-				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-				<Button variant="destructive" onclick={handleUnlink} disabled={unlinkSaving}>
-					{unlinkSaving ? m.common_saving() : m.req_unlink_test_case()}
-				</Button>
-			</AlertDialog.Footer>
-		</AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>{m.req_unlink_test_case()}</AlertDialog.Title>
+			<AlertDialog.Description>
+				{m.req_unlink_confirm({ key: unlinkTestCaseKey })}
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+			<Button variant="destructive" onclick={handleUnlink} disabled={unlinkSaving}>
+				{unlinkSaving ? m.common_saving() : m.req_unlink_test_case()}
+			</Button>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
 </AlertDialog.Root>
 
 <!-- Link Test Case Dialog -->
 <Dialog.Root bind:open={linkDialogOpen}>
 	<Dialog.Content class="sm:max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-			<Dialog.Header>
-				<Dialog.Title>{m.req_link_test_case()}</Dialog.Title>
-			</Dialog.Header>
-			<div class="space-y-4 py-4 flex-1 overflow-hidden flex flex-col">
-				<Input
-					bind:value={linkSearch}
-					oninput={() => (linkDisplayCount = 50)}
-					placeholder={m.req_search_test_cases()}
-					class="shrink-0"
-				/>
-				<div class="flex-1 overflow-y-auto space-y-1" onscroll={handleLinkListScroll}>
-					{#each filteredTestCases.slice(0, linkDisplayCount) as tc (tc.id)}
-						<div class="flex items-center justify-between rounded px-2 py-1 hover:bg-muted text-sm">
-							<div class="flex gap-2 items-center min-w-0">
-								<span class="font-mono text-xs text-muted-foreground shrink-0">{tc.key}</span>
-								<span class="truncate">{tc.title}</span>
-							</div>
-							<Button
-								variant="outline"
-								size="sm"
-								class="h-6 text-xs shrink-0 ml-2"
-								disabled={linkLoading}
-								onclick={() => linkTestCase(tc.id)}
-							>
-								+
-							</Button>
+		<Dialog.Header>
+			<Dialog.Title>{m.req_link_test_case()}</Dialog.Title>
+		</Dialog.Header>
+		<div class="space-y-4 py-4 flex-1 overflow-hidden flex flex-col">
+			<Input
+				bind:value={linkSearch}
+				oninput={() => (linkDisplayCount = 50)}
+				placeholder={m.req_search_test_cases()}
+				class="shrink-0"
+			/>
+			<div class="flex-1 overflow-y-auto space-y-1" onscroll={handleLinkListScroll}>
+				{#each filteredTestCases.slice(0, linkDisplayCount) as tc (tc.id)}
+					<div class="flex items-center justify-between rounded px-2 py-1 hover:bg-muted text-sm">
+						<div class="flex gap-2 items-center min-w-0">
+							<span class="font-mono text-xs text-muted-foreground shrink-0">{tc.key}</span>
+							<span class="truncate">{tc.title}</span>
 						</div>
-					{/each}
-					{#if filteredTestCases.length === 0}
-						<p class="text-muted-foreground text-sm text-center py-4">
-							{m.common_no_results()}
-						</p>
-					{/if}
-				</div>
+						<Button
+							variant="outline"
+							size="sm"
+							class="h-6 text-xs shrink-0 ml-2"
+							disabled={linkLoading}
+							onclick={() => linkTestCase(tc.id)}
+						>
+							+
+						</Button>
+					</div>
+				{/each}
+				{#if filteredTestCases.length === 0}
+					<p class="text-muted-foreground text-sm text-center py-4">
+						{m.common_no_results()}
+					</p>
+				{/if}
 			</div>
-			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (linkDialogOpen = false)}>
-					{m.common_close()}
-				</Button>
-			</Dialog.Footer>
-		</Dialog.Content>
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (linkDialogOpen = false)}>
+				{m.common_close()}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
 </Dialog.Root>

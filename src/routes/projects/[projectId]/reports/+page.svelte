@@ -237,11 +237,11 @@
 			{:else if sharedLinks.length === 0}
 				<p class="text-muted-foreground text-sm">{m.report_share_empty()}</p>
 			{:else}
-				<div class="divide-y">
+				<div class="min-w-0 divide-y">
 					{#each sharedLinks as link (link.id)}
 						<div class="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between">
 							<div class="min-w-0">
-								<p class="text-sm font-medium">{link.name}</p>
+								<p class="break-words text-sm font-medium">{link.name}</p>
 								<p class="text-muted-foreground text-xs">
 									{link.expiresAt
 										? m.common_expires({ date: new Date(link.expiresAt).toLocaleDateString() })
@@ -332,10 +332,12 @@
 				{:else}
 					<div class="divide-y">
 						{#each schedules as sched (sched.id)}
-							<div class="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between">
+							<div
+								class="flex min-w-0 flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between"
+							>
 								<div class="min-w-0">
-									<p class="text-sm font-medium">{sched.name}</p>
-									<p class="text-muted-foreground text-xs">
+									<p class="break-words text-sm font-medium">{sched.name}</p>
+									<p class="break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
 										{sched.cronExpression} &middot; {m.common_recipients({
 											count: sched.recipientEmails.length
 										})}

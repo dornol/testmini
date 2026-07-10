@@ -353,11 +353,13 @@
 									{:else if deliveryLogs.length === 0}
 										<p class="text-muted-foreground text-xs">{m.webhook_logs_empty()}</p>
 									{:else}
-										<div class="space-y-2 md:hidden">
+										<div class="min-w-0 space-y-2 md:hidden">
 											{#each deliveryLogs as log (log.id)}
 												<div class="rounded-md border p-2 text-xs">
-													<div class="flex flex-wrap items-center gap-2">
-														<span class="font-medium">{eventLabel(log.event)}</span>
+													<div class="flex min-w-0 flex-wrap items-center gap-2">
+														<span class="min-w-0 break-words font-medium">
+															{eventLabel(log.event)}
+														</span>
 														{#if log.success}
 															<Badge variant="default" class="bg-green-600 text-xs"
 																>{log.statusCode ?? m.webhook_logs_success()}</Badge
@@ -379,14 +381,15 @@
 											{/each}
 										</div>
 										<div class="hidden overflow-x-auto md:block">
-											<table class="w-full text-xs">
+											<table class="min-w-[720px] table-fixed text-xs">
 												<thead>
 													<tr class="text-muted-foreground border-b text-left">
-														<th class="pb-1.5 pr-3 font-medium">{m.webhook_logs_time()}</th>
+														<th class="w-44 pb-1.5 pr-3 font-medium">{m.webhook_logs_time()}</th>
 														<th class="pb-1.5 pr-3 font-medium">{m.webhook_logs_event()}</th>
-														<th class="pb-1.5 pr-3 font-medium">{m.webhook_logs_status()}</th>
-														<th class="pb-1.5 pr-3 font-medium">{m.webhook_logs_attempt()}</th>
-														<th class="pb-1.5 pr-3 font-medium">{m.webhook_logs_duration()}</th>
+														<th class="w-24 pb-1.5 pr-3 font-medium">{m.webhook_logs_status()}</th>
+														<th class="w-20 pb-1.5 pr-3 font-medium">{m.webhook_logs_attempt()}</th>
+														<th class="w-24 pb-1.5 pr-3 font-medium">{m.webhook_logs_duration()}</th
+														>
 														<th class="pb-1.5 font-medium">{m.webhook_logs_error()}</th>
 													</tr>
 												</thead>
@@ -396,7 +399,11 @@
 															<td class="whitespace-nowrap py-1.5 pr-3"
 																>{formatTime(log.createdAt)}</td
 															>
-															<td class="py-1.5 pr-3">{eventLabel(log.event)}</td>
+															<td class="py-1.5 pr-3">
+																<div class="truncate" title={eventLabel(log.event)}>
+																	{eventLabel(log.event)}
+																</div>
+															</td>
 															<td class="py-1.5 pr-3">
 																{#if log.success}
 																	<Badge variant="default" class="bg-green-600 text-xs"
@@ -410,9 +417,11 @@
 															</td>
 															<td class="py-1.5 pr-3">{log.attempt}/3</td>
 															<td class="py-1.5 pr-3">{formatDuration(log.duration)}</td>
-															<td class="text-destructive max-w-[200px] truncate py-1.5"
-																>{log.errorMessage ?? '-'}</td
-															>
+															<td class="py-1.5 text-destructive">
+																<div class="truncate" title={log.errorMessage ?? '-'}>
+																	{log.errorMessage ?? '-'}
+																</div>
+															</td>
 														</tr>
 													{/each}
 												</tbody>

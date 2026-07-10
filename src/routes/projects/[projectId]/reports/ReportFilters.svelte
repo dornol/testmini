@@ -121,7 +121,7 @@
 							pendingFrom = (e.currentTarget as HTMLInputElement).value;
 						}}
 						max={pendingTo || toInput || undefined}
-						class="h-8 w-full px-2 text-xs sm:w-36"
+						class="report-date-input h-8 w-full px-2 text-xs sm:w-36"
 					/>
 				</div>
 				<div class="flex min-w-0 flex-col gap-1">
@@ -134,7 +134,7 @@
 							pendingTo = (e.currentTarget as HTMLInputElement).value;
 						}}
 						min={pendingFrom || fromInput || undefined}
-						class="h-8 w-full px-2 text-xs sm:w-36"
+						class="report-date-input h-8 w-full px-2 text-xs sm:w-36"
 					/>
 				</div>
 				<Button
@@ -185,3 +185,36 @@
 		</div>
 	</Card.Content>
 </Card.Root>
+
+<style>
+	:global(.report-date-input) {
+		font-variant-numeric: tabular-nums;
+		line-height: 1;
+	}
+
+	:global(.report-date-input)::-webkit-date-and-time-value {
+		min-width: 0;
+		text-align: left;
+	}
+
+	:global(.report-date-input)::-webkit-datetime-edit {
+		display: flex;
+		min-width: 0;
+		flex: 1;
+		align-items: center;
+		padding: 0;
+	}
+
+	:global(.report-date-input)::-webkit-datetime-edit-fields-wrapper {
+		display: flex;
+		align-items: center;
+		padding: 0;
+	}
+
+	:global(.report-date-input)::-webkit-calendar-picker-indicator {
+		width: 1rem;
+		height: 1rem;
+		margin: 0 0 0 auto;
+		padding: 0;
+	}
+</style>

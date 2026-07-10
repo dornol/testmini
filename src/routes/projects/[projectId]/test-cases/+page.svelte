@@ -207,6 +207,14 @@
 		return `${basePath}?${params.toString()}`;
 	}
 
+	function buildExportUrl(format: 'csv' | 'json'): string {
+		const params = new URLSearchParams(page.url.searchParams);
+		params.delete('page');
+		params.delete('limit');
+		params.set('format', format);
+		return `/api/projects/${data.project.id}/test-cases/export?${params.toString()}`;
+	}
+
 	function getPriorityColor(name: string): string {
 		return data.projectPriorities.find((p) => p.name === name)?.color ?? '#6b7280';
 	}
@@ -944,14 +952,14 @@
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item
 						onclick={() => {
-							window.location.href = `/api/projects/${data.project.id}/test-cases/export?format=csv`;
+							window.location.href = buildExportUrl('csv');
 						}}
 					>
 						{m.tc_export_csv()}
 					</DropdownMenu.Item>
 					<DropdownMenu.Item
 						onclick={() => {
-							window.location.href = `/api/projects/${data.project.id}/test-cases/export?format=json`;
+							window.location.href = buildExportUrl('json');
 						}}
 					>
 						{m.tc_export_json()}

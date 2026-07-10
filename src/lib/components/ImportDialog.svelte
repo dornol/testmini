@@ -241,7 +241,24 @@
 					{#if preview}
 						<div class="min-w-0">
 							<h4 class="mb-2 text-sm font-medium">{m.tc_import_preview()}</h4>
-							<div class="max-h-48 overflow-auto rounded border">
+							<div class="max-h-48 space-y-2 overflow-y-auto rounded border p-2 sm:hidden">
+								{#each preview.rows as row, i (i)}
+									<div class="rounded-md border bg-card p-2">
+										<div class="mb-1 text-xs font-medium text-muted-foreground">#{i + 1}</div>
+										<div class="space-y-1.5">
+											{#each preview.headers as h, j (h)}
+												<div class="min-w-0">
+													<div class="break-words text-[11px] font-medium text-muted-foreground">
+														{h}
+													</div>
+													<div class="break-words text-xs">{row[j] ?? ''}</div>
+												</div>
+											{/each}
+										</div>
+									</div>
+								{/each}
+							</div>
+							<div class="hidden max-h-48 overflow-auto rounded border sm:block">
 								<Table.Root>
 									<Table.Header>
 										<Table.Row>

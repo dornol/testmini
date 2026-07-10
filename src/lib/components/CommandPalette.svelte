@@ -68,6 +68,23 @@
 		goto(result.url);
 	}
 
+	function resultTypeLabel(type: string): string {
+		switch (type) {
+			case 'test_case':
+				return m.nav_test_cases();
+			case 'test_run':
+				return m.nav_test_runs();
+			case 'requirement':
+				return m.req_title();
+			case 'test_plan':
+				return m.nav_test_plans();
+			case 'release':
+				return m.nav_releases();
+			default:
+				return type.replace('_', ' ');
+		}
+	}
+
 	function handleKeydown(event: KeyboardEvent) {
 		if (!open) return;
 		if (event.key === 'Escape') {
@@ -150,8 +167,10 @@
 								<span class="block truncate text-xs text-muted-foreground">{result.subtitle}</span>
 							{/if}
 						</span>
-						<span class="ml-3 shrink-0 text-[11px] uppercase text-muted-foreground">
-							{result.type.replace('_', ' ')}
+						<span
+							class="ml-3 shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
+						>
+							{resultTypeLabel(result.type)}
 						</span>
 					</button>
 				{/each}

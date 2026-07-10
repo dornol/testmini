@@ -86,6 +86,8 @@
 	// Virtual scroll constants & state
 	const DESKTOP_ROW_HEIGHT = 44;
 	const MOBILE_ROW_HEIGHT = 68;
+	const STATUS_DROPDOWN_WIDTH = 120;
+	const STATUS_DROPDOWN_MARGIN = 8;
 	const OVERSCAN = 10;
 
 	let isMobile = $state(false);
@@ -209,10 +211,14 @@
 		} else {
 			const el = event.currentTarget as HTMLElement;
 			const rect = el.getBoundingClientRect();
+			const halfWidth = STATUS_DROPDOWN_WIDTH / 2;
+			const minX = halfWidth + STATUS_DROPDOWN_MARGIN;
+			const maxX = window.innerWidth - halfWidth - STATUS_DROPDOWN_MARGIN;
+			const x = Math.min(Math.max(rect.left + rect.width / 2, minX), maxX);
 			statusDropdown = {
 				execId: exec.id,
 				currentStatus: exec.status,
-				x: rect.left + rect.width / 2,
+				x,
 				y: rect.bottom + 4,
 				tcKey: exec.testCaseKey
 			};
@@ -489,7 +495,7 @@
 		role="menu"
 		aria-label={m.aria_status_options()}
 		tabindex="-1"
-		class="fixed z-[9999] bg-popover border rounded-md shadow-lg py-1 min-w-[120px]"
+		class="fixed z-[9999] w-[120px] bg-popover border rounded-md shadow-lg py-1"
 		style="left: {statusDropdown.x}px; top: {statusDropdown.y}px; transform: translateX(-50%);"
 		onkeydown={handleDropdownKeydown}
 	>

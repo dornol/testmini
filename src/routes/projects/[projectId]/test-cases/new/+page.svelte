@@ -12,7 +12,12 @@
 	import GherkinEditor from '$lib/components/GherkinEditor.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
-	import { parseGherkin, stepsToGherkin, stepsToGherkinSteps, gherkinStepsToSteps } from '$lib/gherkin-parser';
+	import {
+		parseGherkin,
+		stepsToGherkin,
+		stepsToGherkinSteps,
+		gherkinStepsToSteps
+	} from '$lib/gherkin-parser';
 	import TemplateSelector from '../TemplateSelector.svelte';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
@@ -24,13 +29,15 @@
 	const validators = zodValidators(createTestCaseSchema);
 	const { form, errors, enhance, submitting, tainted } = superForm(
 		// svelte-ignore state_referenced_locally
-		data.form, {
-		validators,
-		dataType: 'json',
-		onUpdated() {
-			formDirty = false;
+		data.form,
+		{
+			validators,
+			dataType: 'json',
+			onUpdated() {
+				formDirty = false;
+			}
 		}
-	});
+	);
 
 	$effect(() => {
 		formDirty = !!$tainted;
@@ -91,14 +98,15 @@
 	<div class="mb-4">
 		<a
 			href="/projects/{data.project.id}/test-cases"
-			class="text-muted-foreground hover:text-foreground text-sm">&larr; {m.common_back_to({ target: m.tc_title() })}</a
+			class="text-muted-foreground hover:text-foreground text-sm"
+			>&larr; {m.common_back_to({ target: m.tc_title() })}</a
 		>
 	</div>
 
 	<Card.Root>
 		<Card.Header>
-			<div class="flex items-start justify-between">
-				<div>
+			<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+				<div class="min-w-0">
 					<Card.Title class="text-xl">{m.tc_new_title()}</Card.Title>
 					<Card.Description>{m.tc_new_desc()}</Card.Description>
 				</div>
@@ -109,7 +117,12 @@
 			<form method="POST" use:enhance class="space-y-4">
 				<div class="space-y-2">
 					<Label for="title">{m.tc_title_label()}</Label>
-					<Input id="title" name="title" bind:value={$form.title} placeholder={m.tc_title_placeholder()} />
+					<Input
+						id="title"
+						name="title"
+						bind:value={$form.title}
+						placeholder={m.tc_title_placeholder()}
+					/>
 					{#if $errors.title}
 						<p class="text-destructive text-sm">{$errors.title}</p>
 					{/if}
@@ -121,7 +134,9 @@
 					<Select.Root
 						type="single"
 						value={$form.priority as string}
-						onValueChange={(v: string) => { $form.priority = v; }}
+						onValueChange={(v: string) => {
+							$form.priority = v;
+						}}
 					>
 						<Select.Trigger class="w-full">
 							{$form.priority}
@@ -259,18 +274,21 @@
 										</Select.Content>
 									</Select.Root>
 								{:else if cf.fieldType === 'MULTISELECT'}
-									{@const selected = ((getCustomFieldValue(fieldKey) ?? []) as string[])}
+									{@const selected = (getCustomFieldValue(fieldKey) ?? []) as string[]}
 									<div class="flex flex-wrap gap-2">
 										{#each cf.options ?? [] as opt (opt)}
 											<label class="inline-flex items-center gap-1.5 text-sm cursor-pointer">
 												<Checkbox
 													checked={selected.includes(opt)}
 													onCheckedChange={(checked) => {
-														const cur = ((getCustomFieldValue(fieldKey) ?? []) as string[]);
+														const cur = (getCustomFieldValue(fieldKey) ?? []) as string[];
 														if (checked) {
 															setCustomFieldValue(fieldKey, [...cur, opt]);
 														} else {
-															setCustomFieldValue(fieldKey, cur.filter((v) => v !== opt));
+															setCustomFieldValue(
+																fieldKey,
+																cur.filter((v) => v !== opt)
+															);
 														}
 													}}
 												/>
@@ -301,7 +319,9 @@
 					<Button type="submit" disabled={$submitting}>
 						{$submitting ? m.common_creating() : m.tc_create()}
 					</Button>
-					<Button variant="outline" href="/projects/{data.project.id}/test-cases">{m.common_cancel()}</Button>
+					<Button variant="outline" href="/projects/{data.project.id}/test-cases"
+						>{m.common_cancel()}</Button
+					>
 				</div>
 			</form>
 		</Card.Content>

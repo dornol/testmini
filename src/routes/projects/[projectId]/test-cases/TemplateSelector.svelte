@@ -47,16 +47,21 @@
 	}
 </script>
 
-<div class="flex items-center gap-2">
+<div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
 	<Select.Root
 		type="single"
 		value={selectedId}
-		onValueChange={(v: string) => { selectedId = v; }}
-		onOpenChange={(open) => { if (open) loadTemplates(); }}
+		onValueChange={(v: string) => {
+			selectedId = v;
+		}}
+		onOpenChange={(open) => {
+			if (open) loadTemplates();
+		}}
 	>
-		<Select.Trigger class="w-56">
+		<Select.Trigger class="w-full sm:w-56">
 			{selectedId
-				? (templates.find((t) => String(t.id) === selectedId)?.name ?? m.template_select_placeholder())
+				? (templates.find((t) => String(t.id) === selectedId)?.name ??
+					m.template_select_placeholder())
 				: m.template_create_from()}
 		</Select.Trigger>
 		<Select.Content>

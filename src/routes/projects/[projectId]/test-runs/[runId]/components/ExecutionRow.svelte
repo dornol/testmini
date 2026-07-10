@@ -159,7 +159,7 @@
 			{/if}
 		</td>
 	{/if}
-	<td class="min-w-0 bg-clip-padding p-2 align-middle font-mono text-sm sm:whitespace-nowrap">
+	<td class="min-w-0 bg-clip-padding p-2 align-middle font-mono text-sm">
 		<div class="space-y-1.5">
 			<div class="flex items-center justify-between gap-2">
 				<span class="shrink-0">{exec.testCaseKey}</span>
@@ -307,9 +307,11 @@
 		{/if}
 	</td>
 	<td
-		class="text-muted-foreground hidden bg-clip-padding p-2 align-middle whitespace-nowrap text-sm sm:table-cell"
+		class="text-muted-foreground hidden min-w-0 bg-clip-padding p-2 align-middle text-sm sm:table-cell"
 	>
-		{exec.executedBy ?? '-'}
+		<div class="truncate" title={exec.executedBy ?? '-'}>
+			{exec.executedBy ?? '-'}
+		</div>
 	</td>
 	<td
 		class="text-muted-foreground hidden bg-clip-padding p-2 align-middle whitespace-nowrap text-xs tabular-nums sm:table-cell"

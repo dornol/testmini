@@ -290,7 +290,7 @@
 					</Button>
 				{/snippet}
 			</Popover.Trigger>
-			<Popover.Content class="w-48 p-2" align="start">
+			<Popover.Content class="w-[min(16rem,calc(100vw-2rem))] p-2" align="start">
 				{#each projectSuites as s (s.id)}
 					<label
 						class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
@@ -299,7 +299,7 @@
 							checked={selectedSuiteIds.includes(String(s.id))}
 							onCheckedChange={() => toggleFilter('suiteId', String(s.id))}
 						/>
-						{s.name}
+						<span class="min-w-0 flex-1 truncate" title={s.name}>{s.name}</span>
 					</label>
 				{/each}
 			</Popover.Content>
@@ -379,7 +379,7 @@
 					</Button>
 				{/snippet}
 			</Popover.Trigger>
-			<Popover.Content class="w-48 p-1" align="start">
+			<Popover.Content class="w-[min(16rem,calc(100vw-2rem))] p-1" align="start">
 				<button
 					type="button"
 					class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer {selectedGroupId ===
@@ -405,7 +405,7 @@
 								style="background-color: {g.color}"
 							></span>
 						{/if}
-						{g.name}
+						<span class="min-w-0 flex-1 truncate" title={g.name}>{g.name}</span>
 					</button>
 				{/each}
 			</Popover.Content>
@@ -422,7 +422,7 @@
 					</Button>
 				{/snippet}
 			</Popover.Trigger>
-			<Popover.Content class="w-48 p-2" align="start">
+			<Popover.Content class="w-[min(16rem,calc(100vw-2rem))] p-2" align="start">
 				{#each projectTags as t (t.id)}
 					<label
 						class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
@@ -433,7 +433,7 @@
 						/>
 						<span class="inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"
 						></span>
-						{t.name}
+						<span class="min-w-0 flex-1 truncate" title={t.name}>{t.name}</span>
 					</label>
 				{/each}
 			</Popover.Content>
@@ -452,7 +452,7 @@
 					</Button>
 				{/snippet}
 			</Popover.Trigger>
-			<Popover.Content class="w-48 p-2" align="start">
+			<Popover.Content class="w-[min(16rem,calc(100vw-2rem))] p-2" align="start">
 				{#each projectMembers as member}
 					<label
 						class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
@@ -461,7 +461,7 @@
 							checked={selectedCreatedByIds.includes(member.userId)}
 							onCheckedChange={() => toggleFilter('createdBy', member.userId)}
 						/>
-						{member.userName}
+						<span class="min-w-0 flex-1 truncate" title={member.userName}>{member.userName}</span>
 					</label>
 				{/each}
 			</Popover.Content>
@@ -478,7 +478,7 @@
 					</Button>
 				{/snippet}
 			</Popover.Trigger>
-			<Popover.Content class="w-48 p-2" align="start">
+			<Popover.Content class="w-[min(16rem,calc(100vw-2rem))] p-2" align="start">
 				{#each projectMembers as member}
 					<label
 						class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
@@ -487,7 +487,7 @@
 							checked={selectedAssigneeIds.includes(member.userId)}
 							onCheckedChange={() => toggleFilter('assigneeId', member.userId)}
 						/>
-						{member.userName}
+						<span class="min-w-0 flex-1 truncate" title={member.userName}>{member.userName}</span>
 					</label>
 				{/each}
 			</Popover.Content>
@@ -504,11 +504,13 @@
 					</Button>
 				{/snippet}
 			</Popover.Trigger>
-			<Popover.Content class="w-64 p-3 space-y-3" align="start">
+			<Popover.Content class="w-[min(18rem,calc(100vw-2rem))] p-3 space-y-3" align="start">
 				{#each projectCustomFields as cf (cf.id)}
 					<div class="space-y-1">
-						<label class="text-xs font-medium text-muted-foreground" for="cf-filter-{cf.id}"
-							>{cf.name}</label
+						<label
+							class="block truncate text-xs font-medium text-muted-foreground"
+							for="cf-filter-{cf.id}"
+							title={cf.name}>{cf.name}</label
 						>
 						{#if cf.fieldType === 'TEXT' || cf.fieldType === 'URL'}
 							<Input
@@ -556,7 +558,7 @@
 										checked={selectedValues.includes(opt)}
 										onCheckedChange={() => toggleCfMultiValue(cf.id, opt)}
 									/>
-									{opt}
+									<span class="min-w-0 flex-1 truncate" title={opt}>{opt}</span>
 								</label>
 							{/each}
 						{/if}

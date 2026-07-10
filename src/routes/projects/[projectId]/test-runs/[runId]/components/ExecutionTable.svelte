@@ -327,11 +327,11 @@
 <Card.Root class="hidden md:flex">
 	<div
 		use:setupScrollContainer
-		class="overflow-y-auto"
+		class="overflow-auto"
 		style="max-height: calc(100vh - 340px);"
 		onscroll={handleScroll}
 	>
-		<table class="w-full table-fixed caption-bottom text-sm sm:table-auto">
+		<table class="min-w-[760px] w-full table-fixed caption-bottom text-sm">
 			<thead class="sticky top-0 z-10 bg-background [&_tr]:border-b">
 				<tr>
 					{#if canExecute && pendingExecutions.length > 0}

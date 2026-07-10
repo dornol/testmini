@@ -842,9 +842,9 @@
 					<div
 						class="flex flex-col gap-2 rounded px-2 py-1 text-sm hover:bg-muted sm:flex-row sm:items-center sm:justify-between"
 					>
-						<div class="flex min-w-0 items-center gap-2">
-							<span class="font-mono text-xs text-muted-foreground shrink-0">{tc.key}</span>
-							<span class="truncate">{tc.title}</span>
+						<div class="flex min-w-0 items-start gap-2 sm:items-center">
+							<span class="shrink-0 font-mono text-xs text-muted-foreground">{tc.key}</span>
+							<span class="min-w-0 break-words sm:truncate">{tc.title}</span>
 						</div>
 						<Button
 							variant="outline"

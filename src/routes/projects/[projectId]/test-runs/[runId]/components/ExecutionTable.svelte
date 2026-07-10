@@ -90,6 +90,7 @@
 	const DESKTOP_ROW_HEIGHT = 44;
 	const COMPACT_ROW_HEIGHT = 68;
 	const STATUS_DROPDOWN_WIDTH = 120;
+	const STATUS_DROPDOWN_HEIGHT = 196;
 	const STATUS_DROPDOWN_MARGIN = 8;
 	const OVERSCAN = 10;
 
@@ -218,11 +219,18 @@
 			const minX = halfWidth + STATUS_DROPDOWN_MARGIN;
 			const maxX = window.innerWidth - halfWidth - STATUS_DROPDOWN_MARGIN;
 			const x = Math.min(Math.max(rect.left + rect.width / 2, minX), maxX);
+			const below = rect.bottom + 4;
+			const above = rect.top - STATUS_DROPDOWN_HEIGHT - 4;
+			const y =
+				below + STATUS_DROPDOWN_HEIGHT > window.innerHeight - STATUS_DROPDOWN_MARGIN &&
+				above >= STATUS_DROPDOWN_MARGIN
+					? above
+					: Math.max(STATUS_DROPDOWN_MARGIN, below);
 			statusDropdown = {
 				execId: exec.id,
 				currentStatus: exec.status,
 				x,
-				y: rect.bottom + 4,
+				y,
 				tcKey: exec.testCaseKey
 			};
 		}
@@ -555,7 +563,7 @@
 														{m.fail_stack_trace()}
 													</summary>
 													<pre
-														class="mt-1 overflow-x-auto rounded bg-muted p-2 text-xs">{f.stackTrace}</pre>
+														class="mt-1 max-h-60 overflow-auto rounded bg-muted p-2 text-xs whitespace-pre-wrap break-all">{f.stackTrace}</pre>
 												</details>
 											{/if}
 											{#if f.comment}
@@ -622,7 +630,7 @@
 		role="menu"
 		aria-label={m.aria_status_options()}
 		tabindex="-1"
-		class="fixed z-[9999] w-[120px] bg-popover border rounded-md shadow-lg py-1"
+		class="fixed z-[9999] max-h-[calc(100dvh-1rem)] w-[120px] overflow-y-auto rounded-md border bg-popover py-1 shadow-lg"
 		style="left: {statusDropdown.x}px; top: {statusDropdown.y}px; transform: translateX(-50%);"
 		onkeydown={handleDropdownKeydown}
 	>

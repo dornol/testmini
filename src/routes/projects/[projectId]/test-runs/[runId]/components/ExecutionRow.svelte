@@ -435,20 +435,22 @@
 							<div
 								class="flex flex-col gap-2 py-1 text-xs sm:flex-row sm:items-center sm:justify-between"
 							>
-								<div class="flex min-w-0 items-center gap-2">
+								<div class="flex min-w-0 flex-wrap items-center gap-2">
 									{#if link.issueKey}
-										<span class="font-mono font-medium">{link.issueKey}</span>
+										<span class="shrink-0 font-mono font-medium">{link.issueKey}</span>
 									{/if}
 									<a
 										href={link.externalUrl}
 										target="_blank"
 										rel="noopener noreferrer"
-										class="text-primary hover:underline truncate"
+										class="min-w-0 break-all text-primary hover:underline sm:truncate"
 									>
 										{link.title || link.externalUrl}
 									</a>
 									{#if link.status}
-										<span class="rounded-full border px-1.5 py-0.5 text-[10px]">{link.status}</span>
+										<span class="shrink-0 rounded-full border px-1.5 py-0.5 text-[10px]"
+											>{link.status}</span
+										>
 									{/if}
 								</div>
 								{#if canExecute}
@@ -476,19 +478,19 @@
 							<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 								<div class="min-w-0 space-y-1 text-sm">
 									{#if f.errorMessage}
-										<div>
+										<div class="break-words [overflow-wrap:anywhere]">
 											<span class="font-medium">{m.fail_error()}:</span>
 											{f.errorMessage}
 										</div>
 									{/if}
 									{#if f.testMethod}
-										<div>
+										<div class="break-words [overflow-wrap:anywhere]">
 											<span class="font-medium">{m.fail_method()}:</span>
 											{f.testMethod}
 										</div>
 									{/if}
 									{#if f.failureEnvironment}
-										<div>
+										<div class="break-words [overflow-wrap:anywhere]">
 											<span class="font-medium">{m.common_environment()}:</span>
 											{f.failureEnvironment}
 										</div>
@@ -499,11 +501,11 @@
 												>{m.fail_stack_trace()}</summary
 											>
 											<pre
-												class="bg-muted mt-1 overflow-x-auto rounded p-2 text-xs">{f.stackTrace}</pre>
+												class="mt-1 max-h-60 overflow-auto rounded bg-muted p-2 text-xs whitespace-pre-wrap break-all">{f.stackTrace}</pre>
 										</details>
 									{/if}
 									{#if f.comment}
-										<div class="text-muted-foreground mt-1">
+										<div class="mt-1 break-words text-muted-foreground [overflow-wrap:anywhere]">
 											{f.comment}
 										</div>
 									{/if}

@@ -629,7 +629,7 @@
 									aria-label={tc.key}
 								/>
 								<span class="w-16 shrink-0 font-mono text-xs text-muted-foreground">{tc.key}</span>
-								<span class="min-w-0 flex-1 truncate font-medium">{tc.title}</span>
+								<span class="min-w-0 flex-1 break-words font-medium line-clamp-2">{tc.title}</span>
 							</button>
 							<Table.Root class="hidden md:table">
 								<Table.Body>
@@ -644,7 +644,9 @@
 											/>
 										</Table.Cell>
 										<Table.Cell class="w-28 font-mono text-sm">{tc.key}</Table.Cell>
-										<Table.Cell class="font-medium">{tc.title}</Table.Cell>
+										<Table.Cell class="min-w-0 font-medium">
+											<span class="block truncate">{tc.title}</span>
+										</Table.Cell>
 										<Table.Cell class="w-28">
 											<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
 										</Table.Cell>

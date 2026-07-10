@@ -144,8 +144,10 @@
 							<div class="break-keep leading-tight">{m.nav_test_cases()}</div>
 						</div>
 					</div>
-					<div class="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-						<span>{m.tr_created_by()}: {suite.createdBy}</span>
+					<div
+						class="mt-3 flex flex-col gap-2 text-xs text-muted-foreground min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between"
+					>
+						<span class="min-w-0 break-words">{m.tr_created_by()}: {suite.createdBy}</span>
 						{#if canManage}
 							<DropdownMenu.Root>
 								<DropdownMenu.Trigger>

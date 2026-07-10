@@ -315,12 +315,14 @@
 					{/if}
 				</div>
 
-				<div class="flex gap-3 pt-2">
-					<Button type="submit" disabled={$submitting}>
+				<div class="flex flex-col gap-2 pt-2 sm:flex-row sm:gap-3">
+					<Button type="submit" class="w-full sm:w-auto" disabled={$submitting}>
 						{$submitting ? m.common_creating() : m.tc_create()}
 					</Button>
-					<Button variant="outline" href="/projects/{data.project.id}/test-cases"
-						>{m.common_cancel()}</Button
+					<Button
+						variant="outline"
+						class="w-full sm:w-auto"
+						href="/projects/{data.project.id}/test-cases">{m.common_cancel()}</Button
 					>
 				</div>
 			</form>

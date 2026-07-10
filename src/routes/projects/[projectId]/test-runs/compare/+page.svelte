@@ -106,7 +106,7 @@
 	</div>
 
 	<!-- Summary stats -->
-	<div class="grid grid-cols-3 gap-2 sm:grid-cols-6">
+	<div class="grid grid-cols-2 gap-2 min-[420px]:grid-cols-3 sm:grid-cols-6">
 		<Card.Root>
 			<Card.Content class="p-3 text-center">
 				<div class="text-xl font-bold">{data.summary.same}</div>

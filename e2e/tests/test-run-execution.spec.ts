@@ -68,7 +68,7 @@ test.describe.serial('Test Run Execution', () => {
 		await page.fill('#name', runName);
 
 		// Select the first test case checkbox
-		const checkbox = page.locator('input[type="checkbox"]').first();
+		const checkbox = page.locator('input[type="checkbox"]:visible').first();
 		if (await checkbox.isVisible({ timeout: 5000 }).catch(() => false)) {
 			await checkbox.check();
 		}
@@ -122,13 +122,13 @@ test.describe.serial('Test Run Execution', () => {
 		await page.waitForURL(`**/projects/${projectId}/test-runs/**`, { timeout: 10000 });
 
 		// Click on the status badge (PENDING) to open the status dropdown
-		const statusBadge = page.locator('[data-status-dropdown]').first();
+		const statusBadge = page.locator('[data-status-dropdown]:visible').first();
 		await expect(statusBadge).toBeVisible({ timeout: 10000 });
 		await statusBadge.click();
 
 		// The floating dropdown should show status options.
 		// Clicking FAIL should open the failure detail dialog.
-		const failOption = page.locator('button:has-text("FAIL"), [data-status="FAIL"]').last();
+		const failOption = page.getByRole('menuitem', { name: 'FAIL', exact: true });
 		await expect(failOption).toBeVisible({ timeout: 5000 });
 		await failOption.click();
 
@@ -164,19 +164,23 @@ test.describe.serial('Test Run Execution', () => {
 		await page.waitForURL(`**/projects/${projectId}/test-runs/**`, { timeout: 10000 });
 
 		// Click on the status badge to open the dropdown
-		const statusBadge = page.locator('[data-status-dropdown]').first();
+		const statusBadge = page.locator('[data-status-dropdown]:visible').first();
 		await expect(statusBadge).toBeVisible({ timeout: 10000 });
 		await statusBadge.click();
 
 		// Select PASS from the dropdown
-		const passOption = page.locator('button:has-text("PASS"), [data-status="PASS"]').last();
+		const passOption = page.getByRole('menuitem', { name: 'PASS', exact: true });
 		await expect(passOption).toBeVisible({ timeout: 5000 });
 		await passOption.evaluate((element) => (element as HTMLElement).click());
 
 		await page.waitForTimeout(2000);
 
 		// Verify PASS status is shown
-		await expect(page.locator('text=PASS').first()).toBeVisible({ timeout: 10000 });
+		await expect(
+			page.locator('[data-status-dropdown]:visible').filter({ hasText: 'PASS' }).first()
+		).toBeVisible({
+			timeout: 10000
+		});
 	});
 
 	// -------------------------------------------------------------------------

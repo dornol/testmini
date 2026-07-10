@@ -53,7 +53,7 @@ test.describe.serial('Full Workflow: Project → TC → Run → Execute', () => 
 		await page.goto(`/projects/${projectId}/test-runs/new`);
 		await page.waitForLoadState('networkidle');
 		await page.fill('#name', 'Sprint 1 E2E Run');
-		await page.locator('input[type="checkbox"]').first().check();
+		await page.locator('input[type="checkbox"]:visible').first().check();
 		await page.click('button[type="submit"]');
 		await page.waitForURL(/\/test-runs\/\d+$/, { timeout: 15000 });
 		runUrl = page.url();
@@ -76,11 +76,11 @@ test.describe.serial('Full Workflow: Project → TC → Run → Execute', () => 
 			}
 		}
 
-		const statusButton = page.locator('button:has-text("PENDING"), [data-status-dropdown]').first();
+		const statusButton = page.locator('[data-status-dropdown]:visible').first();
 		await expect(statusButton).toBeVisible({ timeout: 10000 });
 		await statusButton.click();
 
-		const passBtn = page.locator('button:has-text("PASS"), [data-status="PASS"]').last();
+		const passBtn = page.getByRole('menuitem', { name: 'PASS', exact: true });
 		await expect(passBtn).toBeVisible({ timeout: 10000 });
 		await passBtn.evaluate((element) => (element as HTMLElement).click());
 
@@ -93,6 +93,10 @@ test.describe.serial('Full Workflow: Project → TC → Run → Execute', () => 
 		await page.waitForLoadState('domcontentloaded');
 
 		// Verify PASS status is shown somewhere in the execution table
-		await expect(page.locator('text=PASS').first()).toBeVisible({ timeout: 10000 });
+		await expect(
+			page.locator('[data-status-dropdown]:visible').filter({ hasText: 'PASS' }).first()
+		).toBeVisible({
+			timeout: 10000
+		});
 	});
 });

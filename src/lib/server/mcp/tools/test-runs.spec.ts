@@ -467,7 +467,8 @@ describe('MCP test-run tools', () => {
 			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 200],
-					['test_run_id', 50]
+					['test_run_id', 50],
+					expect.objectContaining({ values: [50, PROJECT_ID] })
 				])
 			);
 		});
@@ -505,6 +506,40 @@ describe('MCP test-run tools', () => {
 	// ── bulk-update-execution-status ─────────────────────
 
 	describe('bulk-update-execution-status', () => {
+		it('should scope bulk execution validation and updates to the project run', async () => {
+			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
+			const selectChain = mockSelectResult(mockDb, [{ id: 200 }, { id: 201 }]);
+
+			const result = await client.callTool({
+				name: 'bulk-update-execution-status',
+				arguments: {
+					runId: 50,
+					updates: [
+						{ executionId: 200, status: 'PASS' },
+						{ executionId: 201, status: 'PASS' }
+					]
+				}
+			});
+
+			expect(result.isError).toBeFalsy();
+			const parsed = parseResult(result);
+			expect(parsed.updatedCount).toBe(2);
+			expect(selectChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_run_id', 50],
+					['id', [200, 201]],
+					expect.objectContaining({ values: [50, PROJECT_ID] })
+				])
+			);
+			expect(mockDb._chains.update.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_run_id', 50],
+					['id', [200, 201]],
+					expect.objectContaining({ values: [50, PROJECT_ID] })
+				])
+			);
+		});
+
 		it('should reject unknown update fields before run lookup', async () => {
 			const result = await client.callTool({
 				name: 'bulk-update-execution-status',

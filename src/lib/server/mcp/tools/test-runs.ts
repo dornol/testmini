@@ -16,7 +16,7 @@ import {
 	mcpIdListSchema,
 	mcpLimitSchema
 } from '../helpers';
-import { eq, and, inArray, desc } from 'drizzle-orm';
+import { eq, and, inArray, desc, sql } from 'drizzle-orm';
 import { createTestRunSchema, updateTestRunSchema } from '$lib/schemas/test-run.schema';
 
 const DEFAULT_TEST_RUN_LIMIT = 50;
@@ -362,7 +362,13 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			await db
 				.update(testExecution)
 				.set({ status, executedAt: new Date() })
-				.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)));
+				.where(
+					and(
+						eq(testExecution.id, executionId),
+						eq(testExecution.testRunId, runId),
+						sql`exists (select 1 from test_run where id = ${runId} and project_id = ${projectId})`
+					)
+				);
 
 			return ok({ success: true, executionId, status });
 		}
@@ -409,7 +415,13 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 			const validExecs = await db
 				.select({ id: testExecution.id })
 				.from(testExecution)
-				.where(and(eq(testExecution.testRunId, runId), inArray(testExecution.id, execIds)));
+				.where(
+					and(
+						eq(testExecution.testRunId, runId),
+						inArray(testExecution.id, execIds),
+						sql`exists (select 1 from test_run where id = ${runId} and project_id = ${projectId})`
+					)
+				);
 			const validIds = new Set(validExecs.map((e) => e.id));
 			const invalidIds = execIds.filter((id) => !validIds.has(id));
 			if (invalidIds.length > 0)
@@ -430,7 +442,13 @@ export function registerTestRunTools(server: McpServer, projectId: number) {
 						status: status as (typeof testExecution.status.enumValues)[number],
 						executedAt: now
 					})
-					.where(and(eq(testExecution.testRunId, runId), inArray(testExecution.id, ids)));
+					.where(
+						and(
+							eq(testExecution.testRunId, runId),
+							inArray(testExecution.id, ids),
+							sql`exists (select 1 from test_run where id = ${runId} and project_id = ${projectId})`
+						)
+					);
 			}
 
 			return ok({ success: true, runId, updatedCount: updates.length });

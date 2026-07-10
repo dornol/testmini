@@ -6,6 +6,7 @@
 	import { toast } from 'svelte-sonner';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { statusColorBg } from '$lib/execution-status';
+	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import ExecutionRow from './ExecutionRow.svelte';
 
 	interface FailureRecord {
@@ -36,7 +37,13 @@
 		executions: Execution[];
 		failures: FailureRecord[];
 		canExecute: boolean;
-		projectPriorities: { id: number; name: string; color: string; position: number; isDefault: boolean }[];
+		projectPriorities: {
+			id: number;
+			name: string;
+			color: string;
+			position: number;
+			isDefault: boolean;
+		}[];
 		selectedPending: Set<number>;
 		allPendingSelected: boolean;
 		pendingExecutions: Execution[];
@@ -77,13 +84,26 @@
 	}
 
 	// Virtual scroll constants & state
-	const ROW_HEIGHT = 44;
+	const DESKTOP_ROW_HEIGHT = 44;
+	const MOBILE_ROW_HEIGHT = 68;
 	const OVERSCAN = 10;
 
+	let isMobile = $state(false);
 	let scrollContainer = $state<HTMLDivElement | undefined>(undefined);
 	let scrollTop = $state(0);
 	let viewportHeight = $state(0);
 	let expandedHeights = new SvelteMap<number, number>();
+	const rowHeight = $derived(isMobile ? MOBILE_ROW_HEIGHT : DESKTOP_ROW_HEIGHT);
+
+	$effect(() => {
+		const mq = window.matchMedia('(max-width: 639px)');
+		isMobile = mq.matches;
+		const update = () => {
+			isMobile = mq.matches;
+		};
+		mq.addEventListener('change', update);
+		return () => mq.removeEventListener('change', update);
+	});
 
 	// Status dropdown state
 	let statusDropdown = $state<{
@@ -122,7 +142,7 @@
 		const offsets = [0];
 		for (let i = 0; i < executions.length; i++) {
 			const exec = executions[i];
-			let h = ROW_HEIGHT;
+			let h = rowHeight;
 			if (exec.status === 'FAIL' && viewFailuresExecId === exec.id) {
 				h += expandedHeights.get(exec.id) ?? 300;
 			}
@@ -286,15 +306,15 @@
 	}
 </script>
 
-<!-- Executions Table with Virtual Scroll -->
-<Card.Root>
+<!-- Desktop executions table with virtual scroll -->
+<Card.Root class="hidden sm:flex">
 	<div
 		use:setupScrollContainer
 		class="overflow-y-auto"
 		style="max-height: calc(100vh - 340px);"
 		onscroll={handleScroll}
 	>
-		<table class="w-full caption-bottom text-sm">
+		<table class="w-full table-fixed caption-bottom text-sm sm:table-auto">
 			<thead class="sticky top-0 z-10 bg-background [&_tr]:border-b">
 				<tr>
 					{#if canExecute && pendingExecutions.length > 0}
@@ -313,35 +333,37 @@
 					{/if}
 					<th
 						scope="col"
-						class="text-foreground h-10 w-28 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
-						>{m.common_key()}</th
+						class="text-foreground h-10 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap sm:w-28"
+						><span class="sm:hidden">{m.reports_test_case()}</span><span class="hidden sm:inline"
+							>{m.common_key()}</span
+						></th
 					>
 					<th
 						scope="col"
-						class="text-foreground h-10 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
+						class="text-foreground hidden h-10 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap sm:table-cell"
 						>{m.common_title()}</th
 					>
 					<th
 						scope="col"
-						class="text-foreground h-10 w-24 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
+						class="text-foreground hidden h-10 w-24 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap sm:table-cell"
 						>{m.common_priority()}</th
 					>
 					<th
 						scope="col"
-						class="text-foreground h-10 w-28 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
+						class="text-foreground hidden h-10 w-28 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap sm:table-cell"
 						>{m.common_status()}</th
 					>
 					<th
 						scope="col"
-						class="text-foreground h-10 w-32 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
+						class="text-foreground hidden h-10 w-32 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap sm:table-cell"
 						>{m.run_executed_by()}</th
 					>
 					<th
 						scope="col"
-						class="text-foreground h-10 w-20 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
+						class="text-foreground hidden h-10 w-20 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap sm:table-cell"
 						>{m.exec_duration()}</th
 					>
-					<th scope="col" class="h-10 w-10 bg-clip-padding px-1"></th>
+					<th scope="col" class="hidden h-10 w-10 bg-clip-padding px-1 sm:table-cell"></th>
 				</tr>
 			</thead>
 			<tbody class="[&_tr:last-child]:border-0">
@@ -377,6 +399,89 @@
 	</div>
 </Card.Root>
 
+<!-- Mobile execution list -->
+{#if isMobile}
+	<div class="space-y-2 sm:hidden">
+		{#each executions as exec (exec.id)}
+			{@const failuresForExec = getFailures(exec.id)}
+			<Card.Root class="gap-2 rounded-lg py-3">
+				<Card.Content class="space-y-3">
+					<div class="flex items-start justify-between gap-3">
+						<div class="min-w-0">
+							<div class="flex items-center gap-2">
+								{#if canExecute && pendingExecutions.length > 0 && exec.status === 'PENDING'}
+									<input
+										type="checkbox"
+										checked={selectedPending.has(exec.id)}
+										onchange={() => onTogglePending(exec.id)}
+										class="rounded"
+										aria-label={m.aria_select_item({ item: exec.testCaseKey })}
+									/>
+								{/if}
+								<p class="font-mono text-xs text-muted-foreground">{exec.testCaseKey}</p>
+							</div>
+							<p class="mt-1 line-clamp-2 font-medium leading-snug">{exec.testCaseTitle}</p>
+							<p class="mt-1 text-xs text-muted-foreground">v{exec.versionNo}</p>
+						</div>
+						{#if canExecute}
+							<button
+								type="button"
+								data-status-dropdown
+								class="inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:ring-1 hover:ring-ring/30 transition-all {statusColorBg(
+									exec.status
+								)}"
+								class:underline={exec.status === 'FAIL' && failuresForExec.length > 0}
+								class:opacity-50={updatingExecId === exec.id}
+								disabled={updatingExecId === exec.id}
+								onclick={(e) => toggleStatusDropdown(exec, e)}
+							>
+								{exec.status}
+								{#if exec.status === 'FAIL' && failuresForExec.length > 0}
+									({failuresForExec.length})
+								{/if}
+							</button>
+						{:else}
+							<button
+								type="button"
+								class="inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium {statusColorBg(
+									exec.status
+								)}"
+								onclick={() => {
+									if (exec.status === 'FAIL') {
+										handleToggleViewFailures(exec.id);
+									}
+								}}
+								class:cursor-pointer={exec.status === 'FAIL'}
+								class:underline={exec.status === 'FAIL' && failuresForExec.length > 0}
+							>
+								{exec.status}
+								{#if exec.status === 'FAIL' && failuresForExec.length > 0}
+									({failuresForExec.length})
+								{/if}
+							</button>
+						{/if}
+					</div>
+					<div class="flex items-center justify-between gap-3">
+						<PriorityBadge
+							name={exec.testCasePriority}
+							color={getPriorityColor(exec.testCasePriority)}
+						/>
+						<button
+							type="button"
+							class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+							class:text-primary={commentOpenExecId === exec.id}
+							aria-label={m.exec_comment_title()}
+							onclick={() => handleToggleComments(exec.id)}
+						>
+							{m.exec_comment_title()}
+						</button>
+					</div>
+				</Card.Content>
+			</Card.Root>
+		{/each}
+	</div>
+{/if}
+
 <!-- Fixed-position status dropdown -->
 {#if statusDropdown}
 	<div
@@ -392,7 +497,10 @@
 			<button
 				type="button"
 				role="menuitem"
-				class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted {statusColorBg(s)} {s === statusDropdown.currentStatus ? 'font-bold bg-muted/50' : ''}"
+				class="block w-full px-3 py-1.5 text-left text-xs hover:bg-muted {statusColorBg(s)} {s ===
+				statusDropdown.currentStatus
+					? 'font-bold bg-muted/50'
+					: ''}"
 				onclick={() => changeExecutionStatus(statusDropdown!.execId, s, statusDropdown!.tcKey)}
 			>
 				{s}
@@ -407,8 +515,7 @@
 						stroke-width="2.5"
 						stroke-linecap="round"
 						stroke-linejoin="round"
-						class="inline ml-1"
-						><polyline points="20 6 9 17 4 12" /></svg
+						class="inline ml-1"><polyline points="20 6 9 17 4 12" /></svg
 					>
 				{/if}
 			</button>

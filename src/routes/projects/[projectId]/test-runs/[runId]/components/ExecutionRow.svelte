@@ -142,7 +142,6 @@
 	const commentUrl = $derived(
 		`/api/projects/${projectId}/test-runs/${runId}/executions/${exec.id}/comments`
 	);
-
 </script>
 
 <tr class="hover:bg-muted/50 border-b transition-colors">
@@ -159,29 +158,50 @@
 			{/if}
 		</td>
 	{/if}
-	<td class="bg-clip-padding p-2 align-middle whitespace-nowrap font-mono text-sm"
-		>{exec.testCaseKey}</td
-	>
-	<td class="bg-clip-padding p-2 align-middle whitespace-nowrap font-medium">
-		{exec.testCaseTitle}
-		<span class="text-muted-foreground text-xs"> (v{exec.versionNo})</span>
+	<td class="bg-clip-padding p-2 align-middle whitespace-nowrap font-mono text-sm">
+		{exec.testCaseKey}
 	</td>
-	<td class="bg-clip-padding p-2 align-middle whitespace-nowrap">
+	<td class="hidden min-w-0 bg-clip-padding p-2 align-middle font-medium sm:table-cell">
+		<span class="block truncate">
+			{exec.testCaseTitle}
+			<span class="text-muted-foreground text-xs"> (v{exec.versionNo})</span>
+		</span>
+	</td>
+	<td class="hidden bg-clip-padding p-2 align-middle whitespace-nowrap sm:table-cell">
 		<PriorityBadge name={exec.testCasePriority} color={priorityColor} />
 	</td>
-	<td class="bg-clip-padding p-2 align-middle whitespace-nowrap">
+	<td class="hidden bg-clip-padding p-2 align-middle whitespace-nowrap sm:table-cell">
 		{#if canExecute}
 			<button
 				type="button"
 				data-status-dropdown
-				class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:ring-1 hover:ring-ring/30 transition-all {statusColorBg(exec.status)}"
+				class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:ring-1 hover:ring-ring/30 transition-all {statusColorBg(
+					exec.status
+				)}"
 				class:underline={exec.status === 'FAIL' && failures.length > 0}
 				class:opacity-50={isUpdating}
 				disabled={isUpdating}
 				onclick={(e) => onToggleStatusDropdown(exec, e)}
 			>
 				{#if isUpdating}
-					<svg class="h-3 w-3 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+					<svg
+						class="h-3 w-3 animate-spin"
+						xmlns="http://www.w3.org/2000/svg"
+						fill="none"
+						viewBox="0 0 24 24"
+						><circle
+							class="opacity-25"
+							cx="12"
+							cy="12"
+							r="10"
+							stroke="currentColor"
+							stroke-width="4"
+						></circle><path
+							class="opacity-75"
+							fill="currentColor"
+							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+						></path></svg
+					>
 				{/if}
 				{exec.status}
 				{#if exec.status === 'FAIL' && failures.length > 0}
@@ -191,7 +211,9 @@
 		{:else}
 			<button
 				type="button"
-				class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium {statusColorBg(exec.status)}"
+				class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium {statusColorBg(
+					exec.status
+				)}"
 				onclick={() => {
 					if (exec.status === 'FAIL') {
 						onToggleViewFailures(exec.id);
@@ -207,13 +229,17 @@
 			</button>
 		{/if}
 	</td>
-	<td class="text-muted-foreground bg-clip-padding p-2 align-middle whitespace-nowrap text-sm">
+	<td
+		class="text-muted-foreground hidden bg-clip-padding p-2 align-middle whitespace-nowrap text-sm sm:table-cell"
+	>
 		{exec.executedBy ?? '-'}
 	</td>
-	<td class="text-muted-foreground bg-clip-padding p-2 align-middle whitespace-nowrap text-xs tabular-nums">
+	<td
+		class="text-muted-foreground hidden bg-clip-padding p-2 align-middle whitespace-nowrap text-xs tabular-nums sm:table-cell"
+	>
 		{formatDurationFromDates(exec.startedAt, exec.completedAt) ?? '-'}
 	</td>
-	<td class="bg-clip-padding p-1 align-middle whitespace-nowrap">
+	<td class="hidden bg-clip-padding p-1 align-middle whitespace-nowrap sm:table-cell">
 		<button
 			type="button"
 			class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -273,7 +299,9 @@
 				{#if issueLinks.length > 0 || canExecute}
 					<div class="border-t pt-3 mt-3">
 						<div class="flex items-center justify-between mb-2">
-							<h5 class="text-xs font-medium text-red-800 dark:text-red-300">{m.issue_link_title()}</h5>
+							<h5 class="text-xs font-medium text-red-800 dark:text-red-300">
+								{m.issue_link_title()}
+							</h5>
 							{#if canExecute}
 								<Button
 									type="button"
@@ -301,7 +329,12 @@
 									required
 									class="h-7 text-xs flex-1"
 								/>
-								<Button type="submit" size="sm" class="h-7 text-xs" disabled={linkingIssue || !newIssueLinkUrl.trim()}>
+								<Button
+									type="submit"
+									size="sm"
+									class="h-7 text-xs"
+									disabled={linkingIssue || !newIssueLinkUrl.trim()}
+								>
 									{linkingIssue ? m.common_loading() : m.issue_link_add()}
 								</Button>
 							</form>
@@ -426,15 +459,8 @@
 {#if showComments}
 	<tr>
 		<td colspan="99">
-			<div
-				use:measureHeight={{ execId: -exec.id }}
-				class="p-4"
-			>
-				<CommentSection
-					{currentUserId}
-					{userRole}
-					{commentUrl}
-				/>
+			<div use:measureHeight={{ execId: -exec.id }} class="p-4">
+				<CommentSection {currentUserId} {userRole} {commentUrl} />
 			</div>
 		</td>
 	</tr>

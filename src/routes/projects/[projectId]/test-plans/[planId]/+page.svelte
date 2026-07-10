@@ -20,11 +20,12 @@
 
 	const basePath = $derived(`/projects/${data.project.id}/test-plans`);
 	const canManage = $derived(
-		data.userRole === 'PROJECT_ADMIN' || data.userRole === 'QA' || data.userRole === 'DEV' || data.userRole === 'ADMIN'
+		data.userRole === 'PROJECT_ADMIN' ||
+			data.userRole === 'QA' ||
+			data.userRole === 'DEV' ||
+			data.userRole === 'ADMIN'
 	);
-	const canDelete = $derived(
-		data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN'
-	);
+	const canDelete = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
 
 	const statuses = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'ACTIVE', 'COMPLETED', 'ARCHIVED'] as const;
 
@@ -42,13 +43,20 @@
 
 	function statusVariant(s: string): 'default' | 'secondary' | 'outline' | 'destructive' {
 		switch (s) {
-			case 'DRAFT': return 'outline';
-			case 'IN_REVIEW': return 'secondary';
-			case 'APPROVED': return 'default';
-			case 'ACTIVE': return 'default';
-			case 'COMPLETED': return 'default';
-			case 'ARCHIVED': return 'outline';
-			default: return 'outline';
+			case 'DRAFT':
+				return 'outline';
+			case 'IN_REVIEW':
+				return 'secondary';
+			case 'APPROVED':
+				return 'default';
+			case 'ACTIVE':
+				return 'default';
+			case 'COMPLETED':
+				return 'default';
+			case 'ARCHIVED':
+				return 'outline';
+			default:
+				return 'outline';
 		}
 	}
 
@@ -81,7 +89,9 @@
 
 	async function handleStatusChange(newStatus: string) {
 		try {
-			await apiPatch(`/api/projects/${data.project.id}/test-plans/${data.plan.id}`, { status: newStatus });
+			await apiPatch(`/api/projects/${data.project.id}/test-plans/${data.plan.id}`, {
+				status: newStatus
+			});
 			toast.success(m.tp_updated());
 			await invalidateAll();
 		} catch {
@@ -122,7 +132,9 @@
 		if (addCasesSelected.size === 0) return;
 		addCasesSaving = true;
 		try {
-			await apiPost(`/api/projects/${data.project.id}/test-plans/${data.plan.id}/items`, { testCaseIds: [...addCasesSelected] });
+			await apiPost(`/api/projects/${data.project.id}/test-plans/${data.plan.id}/items`, {
+				testCaseIds: [...addCasesSelected]
+			});
 			addCasesDialogOpen = false;
 			toast.success(m.tp_updated());
 			await invalidateAll();
@@ -149,7 +161,10 @@
 
 	function openCreateRun() {
 		runName = '';
-		const defaultEnv = data.projectEnvironments.find((e) => e.isDefault)?.name ?? data.projectEnvironments[0]?.name ?? 'DEV';
+		const defaultEnv =
+			data.projectEnvironments.find((e) => e.isDefault)?.name ??
+			data.projectEnvironments[0]?.name ??
+			'DEV';
 		runEnvironment = defaultEnv;
 		createRunDialogOpen = true;
 	}
@@ -158,10 +173,13 @@
 		if (!runName.trim() || !runEnvironment.trim()) return;
 		creatingSaving = true;
 		try {
-			const result = await apiPost<{ runId: number }>(`/api/projects/${data.project.id}/test-plans/${data.plan.id}/create-run`, {
-				name: runName,
-				environment: runEnvironment
-			});
+			const result = await apiPost<{ runId: number }>(
+				`/api/projects/${data.project.id}/test-plans/${data.plan.id}/create-run`,
+				{
+					name: runName,
+					environment: runEnvironment
+				}
+			);
 			createRunDialogOpen = false;
 			toast.success(m.tp_created());
 			goto(`/projects/${data.project.id}/test-runs/${result.runId}`);
@@ -206,8 +224,11 @@
 			signoffDialogOpen = false;
 			toast.success(m.signoff_submitted());
 			await invalidateAll();
-		} catch { /* handled */ }
-		finally { signoffSaving = false; }
+		} catch {
+			/* handled */
+		} finally {
+			signoffSaving = false;
+		}
 	}
 
 	// Release linking
@@ -218,7 +239,9 @@
 			});
 			toast.success(m.tp_updated());
 			await invalidateAll();
-		} catch { /* handled */ }
+		} catch {
+			/* handled */
+		}
 	}
 </script>
 
@@ -260,7 +283,12 @@
 		</div>
 		<div class="flex gap-2">
 			{#if canDelete}
-				<Button variant="outline" size="sm" class="text-destructive hover:text-destructive" onclick={() => (deleteDialogOpen = true)}>
+				<Button
+					variant="outline"
+					size="sm"
+					class="text-destructive hover:text-destructive"
+					onclick={() => (deleteDialogOpen = true)}
+				>
 					{m.common_delete()}
 				</Button>
 			{/if}
@@ -285,7 +313,10 @@
 					<Select.Content>
 						<Select.Item value="" label="-" />
 						{#each data.releases as rel (rel.id)}
-							<Select.Item value={rel.id.toString()} label={`${rel.name}${rel.version ? ` (${rel.version})` : ''}`} />
+							<Select.Item
+								value={rel.id.toString()}
+								label={`${rel.name}${rel.version ? ` (${rel.version})` : ''}`}
+							/>
 						{/each}
 					</Select.Content>
 				</Select.Root>
@@ -300,7 +331,9 @@
 					{#if data.signoffs.length > 0}
 						{@const latest = data.signoffs[data.signoffs.length - 1]}
 						<Badge variant={latest.decision === 'APPROVED' ? 'default' : 'destructive'}>
-							{latest.decision === 'APPROVED' ? m.signoff_decision_approved() : m.signoff_decision_rejected()}
+							{latest.decision === 'APPROVED'
+								? m.signoff_decision_approved()
+								: m.signoff_decision_rejected()}
 						</Badge>
 						<span class="text-xs text-muted-foreground">{latest.userName}</span>
 					{:else}
@@ -333,14 +366,23 @@
 					<Table.Body>
 						{#each data.signoffs as s (s.id)}
 							<Table.Row>
-								<Table.Cell class="py-1 px-2 text-xs text-muted-foreground">{formatDate(s.createdAt)}</Table.Cell>
+								<Table.Cell class="py-1 px-2 text-xs text-muted-foreground"
+									>{formatDate(s.createdAt)}</Table.Cell
+								>
 								<Table.Cell class="py-1 px-2 text-xs">
-									<Badge variant={s.decision === 'APPROVED' ? 'default' : 'destructive'} class="text-xs">
-										{s.decision === 'APPROVED' ? m.signoff_decision_approved() : m.signoff_decision_rejected()}
+									<Badge
+										variant={s.decision === 'APPROVED' ? 'default' : 'destructive'}
+										class="text-xs"
+									>
+										{s.decision === 'APPROVED'
+											? m.signoff_decision_approved()
+											: m.signoff_decision_rejected()}
 									</Badge>
 								</Table.Cell>
 								<Table.Cell class="py-1 px-2 text-xs">{s.userName}</Table.Cell>
-								<Table.Cell class="py-1 px-2 text-xs text-muted-foreground">{s.comment ?? '-'}</Table.Cell>
+								<Table.Cell class="py-1 px-2 text-xs text-muted-foreground"
+									>{s.comment ?? '-'}</Table.Cell
+								>
 							</Table.Row>
 						{/each}
 					</Table.Body>
@@ -363,14 +405,43 @@
 		</div>
 
 		{#if data.items.length === 0}
-			<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+			<div
+				class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+			>
 				<p class="text-muted-foreground text-sm">{m.tp_no_cases()}</p>
 				{#if canManage}
 					<Button class="mt-4" onclick={openAddCases}>{m.tp_add_cases()}</Button>
 				{/if}
 			</div>
 		{:else}
-			<Card.Root>
+			<div class="space-y-2 md:hidden">
+				{#each data.items as item (item.id)}
+					<Card.Root class="gap-2 rounded-lg py-3">
+						<Card.Content class="space-y-2">
+							<div class="flex items-start justify-between gap-3">
+								<div class="min-w-0">
+									<p class="font-mono text-xs text-muted-foreground">{item.key}</p>
+									<p class="font-medium leading-snug">{item.title}</p>
+								</div>
+								<PriorityBadge name={item.priority} color={getPriorityColor(item.priority)} />
+							</div>
+							{#if canManage}
+								<div class="flex justify-end">
+									<Button
+										variant="ghost"
+										size="sm"
+										class="text-destructive hover:text-destructive h-7 px-2 text-xs"
+										onclick={() => removeCase(item.testCaseId)}
+									>
+										{m.tp_remove_case()}
+									</Button>
+								</div>
+							{/if}
+						</Card.Content>
+					</Card.Root>
+				{/each}
+			</div>
+			<Card.Root class="hidden md:flex">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
@@ -420,11 +491,34 @@
 		</div>
 
 		{#if data.runs.length === 0}
-			<div class="flex flex-col items-center justify-center rounded-lg border border-dashed p-6 text-center">
+			<div
+				class="flex flex-col items-center justify-center rounded-lg border border-dashed p-6 text-center"
+			>
 				<p class="text-muted-foreground text-sm">{m.tp_no_runs()}</p>
 			</div>
 		{:else}
-			<Card.Root>
+			<div class="space-y-2 md:hidden">
+				{#each data.runs as run (run.id)}
+					<button
+						type="button"
+						class="block w-full rounded-lg border bg-card p-4 text-left text-card-foreground shadow-sm transition-colors hover:bg-muted/50"
+						onclick={() => goto(`/projects/${data.project.id}/test-runs/${run.id}`)}
+					>
+						<div class="flex items-start justify-between gap-3">
+							<div class="min-w-0">
+								<p class="font-medium leading-snug">{run.name}</p>
+								<p class="mt-1 text-sm text-muted-foreground">
+									{run.environment} · {formatDate(run.createdAt)}
+								</p>
+							</div>
+							<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}
+								>{run.status}</Badge
+							>
+						</div>
+					</button>
+				{/each}
+			</div>
+			<Card.Root class="hidden md:flex">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
@@ -442,10 +536,14 @@
 							>
 								<Table.Cell class="font-medium">{run.name}</Table.Cell>
 								<Table.Cell>
-									<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}>{run.status}</Badge>
+									<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}
+										>{run.status}</Badge
+									>
 								</Table.Cell>
 								<Table.Cell class="text-muted-foreground text-sm">{run.environment}</Table.Cell>
-								<Table.Cell class="text-muted-foreground text-sm">{formatDate(run.createdAt)}</Table.Cell>
+								<Table.Cell class="text-muted-foreground text-sm"
+									>{formatDate(run.createdAt)}</Table.Cell
+								>
 							</Table.Row>
 						{/each}
 					</Table.Body>
@@ -483,10 +581,7 @@
 				<Dialog.Title>{m.tp_add_cases()}</Dialog.Title>
 			</Dialog.Header>
 			<div class="py-4 space-y-3 flex-1 overflow-hidden flex flex-col">
-				<Input
-					placeholder={m.tr_filter_placeholder()}
-					bind:value={addCasesSearch}
-				/>
+				<Input placeholder={m.tr_filter_placeholder()} bind:value={addCasesSearch} />
 				<div class="flex-1 border rounded-md">
 					<Table.Root>
 						<Table.Header>
@@ -500,7 +595,7 @@
 					</Table.Root>
 					<VirtualList items={availableCases} rowHeight={44} height="360px">
 						{#snippet children({ item })}
-							{@const tc = item as typeof availableCases[0]}
+							{@const tc = item as (typeof availableCases)[0]}
 							<Table.Root>
 								<Table.Body>
 									<Table.Row class="cursor-pointer" onclick={() => toggleAddCase(tc.id)}>
@@ -526,7 +621,9 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (addCasesDialogOpen = false)}>{m.common_cancel()}</Button>
+				<Button variant="outline" onclick={() => (addCasesDialogOpen = false)}
+					>{m.common_cancel()}</Button
+				>
 				<Button onclick={handleAddCases} disabled={addCasesSaving || addCasesSelected.size === 0}>
 					{addCasesSaving ? m.common_saving() : m.tp_add_cases()} ({addCasesSelected.size})
 				</Button>
@@ -548,14 +645,18 @@
 					<Button
 						variant={signoffDecision === 'APPROVED' ? 'default' : 'outline'}
 						size="sm"
-						onclick={() => { signoffDecision = 'APPROVED'; }}
+						onclick={() => {
+							signoffDecision = 'APPROVED';
+						}}
 					>
 						{m.signoff_approve()}
 					</Button>
 					<Button
 						variant={signoffDecision === 'REJECTED' ? 'destructive' : 'outline'}
 						size="sm"
-						onclick={() => { signoffDecision = 'REJECTED'; }}
+						onclick={() => {
+							signoffDecision = 'REJECTED';
+						}}
 					>
 						{m.signoff_reject()}
 					</Button>
@@ -571,7 +672,9 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (signoffDialogOpen = false)}>{m.common_cancel()}</Button>
+				<Button variant="outline" onclick={() => (signoffDialogOpen = false)}
+					>{m.common_cancel()}</Button
+				>
 				<Button onclick={handleSignoff} disabled={signoffSaving}>
 					{signoffSaving ? m.common_saving() : m.signoff_submit()}
 				</Button>
@@ -598,7 +701,9 @@
 					<Select.Root
 						type="single"
 						value={runEnvironment}
-						onValueChange={(v: string) => { runEnvironment = v; }}
+						onValueChange={(v: string) => {
+							runEnvironment = v;
+						}}
 					>
 						<Select.Trigger class="w-full">
 							{runEnvironment}
@@ -612,7 +717,9 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (createRunDialogOpen = false)}>{m.common_cancel()}</Button>
+				<Button variant="outline" onclick={() => (createRunDialogOpen = false)}
+					>{m.common_cancel()}</Button
+				>
 				<Button onclick={handleCreateRun} disabled={creatingSaving || !runName.trim()}>
 					{creatingSaving ? m.common_creating() : m.tp_create_run()}
 				</Button>

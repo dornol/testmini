@@ -37,7 +37,14 @@
 		isAdmin: boolean;
 		sseConnected: boolean;
 		completedPct: number;
-		projectEnvironments: Array<{ id: number; name: string; color: string; baseUrl?: string | null; credentials?: string | null; memo?: string | null }>;
+		projectEnvironments: Array<{
+			id: number;
+			name: string;
+			color: string;
+			baseUrl?: string | null;
+			credentials?: string | null;
+			memo?: string | null;
+		}>;
 		onresult: (result: { type: string; data?: Record<string, unknown> }) => void;
 	}
 
@@ -54,9 +61,15 @@
 		onresult
 	}: Props = $props();
 
-	const environments = $derived(projectEnvironments.length > 0 ? projectEnvironments : [{ id: 0, name: run.environment, color: '#6b7280' }]);
-	const currentEnv = $derived(projectEnvironments.find(e => e.name === run.environment));
-	const hasEnvDetails = $derived(currentEnv?.baseUrl || currentEnv?.credentials || currentEnv?.memo);
+	const environments = $derived(
+		projectEnvironments.length > 0
+			? projectEnvironments
+			: [{ id: 0, name: run.environment, color: '#6b7280' }]
+	);
+	const currentEnv = $derived(projectEnvironments.find((e) => e.name === run.environment));
+	const hasEnvDetails = $derived(
+		currentEnv?.baseUrl || currentEnv?.credentials || currentEnv?.memo
+	);
 
 	// Edit run dialog state
 	let editRunDialogOpen = $state(false);
@@ -98,7 +111,10 @@
 	async function handleEditRun() {
 		editRunSaving = true;
 		try {
-			await apiPatch(`/api/projects/${projectId}/test-runs/${run.id}`, { name: editRunName, environment: editRunEnv });
+			await apiPatch(`/api/projects/${projectId}/test-runs/${run.id}`, {
+				name: editRunName,
+				environment: editRunEnv
+			});
 			editRunDialogOpen = false;
 			toast.success(m.tr_updated());
 			await invalidateAll();
@@ -117,7 +133,10 @@
 	async function handleCloneRun() {
 		cloneRunSaving = true;
 		try {
-			const { id } = await apiPost<{ id: number }>(`/api/projects/${projectId}/test-runs/${run.id}/clone`, { name: cloneRunName });
+			const { id } = await apiPost<{ id: number }>(
+				`/api/projects/${projectId}/test-runs/${run.id}/clone`,
+				{ name: cloneRunName }
+			);
 			cloneDialogOpen = false;
 			toast.success(m.tr_cloned());
 			goto(`${basePath}/${id}`);
@@ -138,7 +157,10 @@
 	async function handleRetestRun() {
 		retestRunSaving = true;
 		try {
-			const { id } = await apiPost<{ id: number }>(`/api/projects/${projectId}/test-runs/${run.id}/retest`, { name: retestRunName });
+			const { id } = await apiPost<{ id: number }>(
+				`/api/projects/${projectId}/test-runs/${run.id}/retest`,
+				{ name: retestRunName }
+			);
 			retestDialogOpen = false;
 			toast.success(m.tr_retested());
 			goto(`${basePath}/${id}`);
@@ -183,19 +205,34 @@
 </script>
 
 <!-- Header -->
-<div class="flex items-center justify-between">
-	<div>
+<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+	<div class="min-w-0">
 		<a href={basePath} class="text-muted-foreground hover:text-foreground text-sm"
 			>&larr; {m.common_back_to({ target: m.tr_title() })}</a
 		>
-		<div class="mt-1 flex items-center gap-3">
-			<h2 class="text-xl font-bold">{run.name}</h2>
+		<div class="mt-1 flex flex-wrap items-center gap-2 sm:gap-3">
+			<h2 class="min-w-0 text-xl font-bold break-words">{run.name}</h2>
 			{#if hasEnvDetails}
 				<Popover.Root>
 					<Popover.Trigger>
 						<Badge variant="outline" class="cursor-pointer hover:bg-accent">
 							{run.environment}
-							<svg class="ml-1 inline h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+							<svg
+								class="ml-1 inline h-3 w-3"
+								xmlns="http://www.w3.org/2000/svg"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line
+									x1="12"
+									y1="8"
+									x2="12.01"
+									y2="8"
+								/></svg
+							>
 						</Badge>
 					</Popover.Trigger>
 					<Popover.Content class="w-80">
@@ -237,19 +274,17 @@
 					{m.sse_connected()}
 				</span>
 			{:else}
-				<span class="flex items-center gap-1 rounded-md bg-orange-50 px-2 py-0.5 text-xs text-orange-600 dark:bg-orange-950">
+				<span
+					class="flex items-center gap-1 rounded-md bg-orange-50 px-2 py-0.5 text-xs text-orange-600 dark:bg-orange-950"
+				>
 					<span class="inline-block h-2 w-2 rounded-full bg-orange-500"></span>
 					{m.sse_disconnected()}
 				</span>
 			{/if}
 		</div>
 	</div>
-	<div class="flex gap-2">
-		<Button
-			variant="outline"
-			size="sm"
-			href="/api/projects/{projectId}/test-runs/{run.id}/export"
-		>
+	<div class="flex flex-wrap gap-2 sm:justify-end">
+		<Button variant="outline" size="sm" href="/api/projects/{projectId}/test-runs/{run.id}/export">
 			{m.run_export_csv()}
 		</Button>
 		{#if canExecute && run.status === 'CREATED'}

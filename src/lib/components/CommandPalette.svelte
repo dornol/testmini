@@ -51,7 +51,6 @@
 	});
 
 	function openPalette() {
-		if (!canSearch) return;
 		open = true;
 		query = '';
 		results = [];
@@ -138,7 +137,10 @@
 				{#each results as result, i (`${result.type}-${result.id}`)}
 					<button
 						type="button"
-						class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-accent {i === selectedIndex ? 'bg-accent' : ''}"
+						class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-accent {i ===
+						selectedIndex
+							? 'bg-accent'
+							: ''}"
 						onmouseenter={() => (selectedIndex = i)}
 						onclick={() => selectResult(result)}
 					>

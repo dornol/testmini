@@ -7,6 +7,7 @@ import { testCase, testCaseVersion, customField } from '$lib/server/db/schema';
 import { eq, and, sql, asc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 const MAX_TEST_CASE_CREATE_FORM_BODY_SIZE = 256 * 1024;
 
@@ -142,6 +143,7 @@ export const actions: Actions = {
 			return created;
 		});
 
+		cacheDeleteProjectAnalytics(projectId);
 		redirect(303, `/projects/${projectId}/test-cases/${newTestCase.id}`);
 	}
 };

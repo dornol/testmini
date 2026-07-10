@@ -6,6 +6,7 @@ import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
 import { validateRequestBody, validateTestCaseReorderItems } from '$lib/server/reorder-validation';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 export const PUT = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
@@ -42,6 +43,7 @@ export const PUT = withProjectRole(
 			}
 		});
 
+		cacheDeleteProjectAnalytics(projectId);
 		return json({ success: true });
 	}
 );

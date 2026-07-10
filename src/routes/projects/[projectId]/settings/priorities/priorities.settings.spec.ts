@@ -47,7 +47,10 @@ vi.mock('$lib/server/auth-utils', async () => {
 		requireProjectRole: vi.fn().mockResolvedValue({ role: 'PROJECT_ADMIN' })
 	};
 });
-vi.mock('$lib/server/cache', () => ({ cacheDelete: vi.fn() }));
+vi.mock('$lib/server/cache', () => ({
+	cacheDelete: vi.fn(),
+	cacheDeleteProjectAnalytics: vi.fn()
+}));
 vi.mock('$lib/server/queries', () => ({ getNextPosition: vi.fn().mockResolvedValue(0) }));
 
 const { actions } = await import('./+page.server');

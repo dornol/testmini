@@ -48,7 +48,10 @@ vi.mock('$lib/server/auth-utils', async () => {
 	};
 });
 vi.mock('$lib/server/queries', () => ({ loadTestCaseMetadata: vi.fn() }));
-vi.mock('$lib/server/cache', () => ({ cacheDelete: vi.fn() }));
+vi.mock('$lib/server/cache', () => ({
+	cacheDelete: vi.fn(),
+	cacheDeleteProjectAnalytics: vi.fn()
+}));
 
 const { actions } = await import('./+page.server');
 const authUtils = await import('$lib/server/auth-utils');

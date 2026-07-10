@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { parseId } from '$lib/server/auth-utils';
 import { validateTestRunCopyName } from '$lib/server/test-run-copy-validation';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
@@ -70,6 +71,7 @@ export const POST = withProjectRole(
 			return created;
 		});
 
+		cacheDeleteProjectAnalytics(projectId);
 		return json({ id: newRun.id });
 	}
 );

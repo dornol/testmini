@@ -16,6 +16,7 @@ import { withProjectAccess } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
 import { createNotification } from '$lib/server/notifications';
 import { validateBulkTestCasePayload } from '$lib/server/test-case-bulk-validation';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 	const body = await parseJsonBody(request);
@@ -319,5 +320,6 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 	});
 	if (transactionResult instanceof Response) return transactionResult;
 
+	cacheDeleteProjectAnalytics(projectId);
 	return json({ success: true, affected });
 });

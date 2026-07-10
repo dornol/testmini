@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { cacheGet, cacheSet, cacheDelete, cacheDeleteByPrefix, cacheClear, cacheStats } from './cache';
+import {
+	cacheGet,
+	cacheSet,
+	cacheDelete,
+	cacheDeleteByPrefix,
+	cacheDeleteProjectAnalytics,
+	cacheClear,
+	cacheStats
+} from './cache';
 
 describe('cache', () => {
 	beforeEach(() => {
@@ -40,6 +48,24 @@ describe('cache', () => {
 		expect(cacheGet('project:1:priorities')).toBeUndefined();
 		expect(cacheGet('project:1:environments')).toBeUndefined();
 		expect(cacheGet('project:2:priorities')).toBe('p2');
+	});
+
+	it('deletes dashboard and report analytics for one project', () => {
+		cacheSet('project:1:dashboard', 'dashboard-1', 60_000);
+		cacheSet('report:1:all', 'report-1-all', 60_000);
+		cacheSet('report:1:range', 'report-1-range', 60_000);
+		cacheSet('project:1:tags', 'tags-1', 60_000);
+		cacheSet('project:2:dashboard', 'dashboard-2', 60_000);
+		cacheSet('report:2:all', 'report-2-all', 60_000);
+
+		cacheDeleteProjectAnalytics(1);
+
+		expect(cacheGet('project:1:dashboard')).toBeUndefined();
+		expect(cacheGet('report:1:all')).toBeUndefined();
+		expect(cacheGet('report:1:range')).toBeUndefined();
+		expect(cacheGet('project:1:tags')).toBe('tags-1');
+		expect(cacheGet('project:2:dashboard')).toBe('dashboard-2');
+		expect(cacheGet('report:2:all')).toBe('report-2-all');
 	});
 
 	it('clears all entries', () => {

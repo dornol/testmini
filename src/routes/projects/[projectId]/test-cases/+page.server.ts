@@ -26,6 +26,7 @@ import {
 } from '$lib/server/search-param-validation';
 import { parseOptionalFormString, parseOptionalTrimmedFormString } from '$lib/server/form-utils';
 import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 const MAX_TEST_CASE_QUICK_CREATE_FORM_BODY_SIZE = 16 * 1024;
 
@@ -417,6 +418,7 @@ export const actions: Actions = {
 				.where(eq(testCase.id, created.id));
 		});
 
+		cacheDeleteProjectAnalytics(projectId);
 		return { quickCreateSuccess: true };
 	}
 };

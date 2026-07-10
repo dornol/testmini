@@ -5,6 +5,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { withProjectRole } from '$lib/server/api-handler';
 import { requireEditableRun } from '$lib/server/crud-helpers';
 import { parseId } from '$lib/server/auth-utils';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 export const DELETE = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
@@ -45,6 +46,7 @@ export const DELETE = withProjectRole(
 			}
 		});
 
+		cacheDeleteProjectAnalytics(projectId);
 		return json({ success: true });
 	}
 );

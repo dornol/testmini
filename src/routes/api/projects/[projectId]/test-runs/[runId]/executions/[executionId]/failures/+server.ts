@@ -18,6 +18,7 @@ import { requireEditableRun } from '$lib/server/crud-helpers';
 import { addIssueComment } from '$lib/server/issue-tracker';
 import { childLogger } from '$lib/server/logger';
 import { redactSecrets } from '$lib/server/secret-redaction';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 const log = childLogger('failure-issue-sync');
 
@@ -150,6 +151,7 @@ export const POST = withProjectRole(
 			});
 		}
 
+		cacheDeleteProjectAnalytics(projectId);
 		return json({ success: true });
 	}
 );

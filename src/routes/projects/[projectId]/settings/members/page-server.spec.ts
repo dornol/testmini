@@ -41,7 +41,10 @@ vi.mock('$lib/server/auth-utils', () => ({
 }));
 vi.mock('$lib/server/audit', () => ({ logAudit: vi.fn() }));
 vi.mock('$lib/server/notifications', () => ({ createNotification: vi.fn() }));
-vi.mock('$lib/server/cache', () => ({ cacheDelete: vi.fn() }));
+vi.mock('$lib/server/cache', () => ({
+	cacheDelete: vi.fn(),
+	cacheDeleteProjectAnalytics: vi.fn()
+}));
 
 const { actions } = await import('./+page.server');
 const { logAudit } = await import('$lib/server/audit');

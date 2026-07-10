@@ -6,6 +6,7 @@ import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { conflict, forbidden } from '$lib/server/errors';
 import { validatePositiveInteger, validateRequestBody } from '$lib/server/id-list-validation';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
@@ -61,6 +62,7 @@ export const POST = withProjectRole(
 			error(500, 'Failed to create test execution');
 		}
 
+		cacheDeleteProjectAnalytics(projectId);
 		return json({ executionId: execution.id, status: 'PENDING' });
 	}
 );

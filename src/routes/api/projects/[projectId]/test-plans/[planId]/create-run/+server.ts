@@ -13,6 +13,7 @@ import { eq, and, inArray } from 'drizzle-orm';
 import { parseJsonObjectBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { z } from 'zod';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 const createRunFromPlanSchema = z
 	.object({
@@ -146,6 +147,7 @@ export const POST = withProjectRole(
 			return run;
 		});
 
+		cacheDeleteProjectAnalytics(projectId);
 		return json({ runId: newRun.id }, { status: 201 });
 	}
 );

@@ -6,6 +6,7 @@ import { parseJsonBody } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { badRequest } from '$lib/server/errors';
 import { validateRetestRunPayload } from '$lib/server/retest-run-validation';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
@@ -82,6 +83,7 @@ export const POST = withProjectRole(
 			return run;
 		});
 
+		cacheDeleteProjectAnalytics(projectId);
 		return json({ runId: result.id, executionCount: validCases.length }, { status: 201 });
 	}
 );

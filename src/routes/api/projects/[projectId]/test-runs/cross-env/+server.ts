@@ -11,6 +11,7 @@ import {
 	validateOptionalTestCycleId,
 	validateOptionalTestPlanId
 } from '$lib/server/project-reference-validation';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 /** Create multiple test runs — one per environment — with the same test cases */
 export const POST = withProjectRole(
@@ -79,6 +80,7 @@ export const POST = withProjectRole(
 			}
 		});
 
+		cacheDeleteProjectAnalytics(projectId);
 		return json({ runs: createdRuns }, { status: 201 });
 	}
 );

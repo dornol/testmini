@@ -7,6 +7,7 @@ import { withProjectRole } from '$lib/server/api-handler';
 import { updateTestRunSchema } from '$lib/schemas/test-run.schema';
 import { badRequest, conflict, validationError } from '$lib/server/errors';
 import { validateOptionalReleaseId } from '$lib/server/project-reference-validation';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 export const PATCH = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
@@ -53,6 +54,7 @@ export const PATCH = withProjectRole(
 
 		if (!updated) error(404, 'Test run not found');
 
+		cacheDeleteProjectAnalytics(projectId);
 		return json({ success: true });
 	}
 );
@@ -76,5 +78,6 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projec
 
 	if (!deleted) error(404, 'Test run not found');
 
+	cacheDeleteProjectAnalytics(projectId);
 	return json({ success: true });
 });

@@ -13,6 +13,7 @@ import { withProjectRole } from '$lib/server/api-handler';
 import { parseCSV } from '$lib/server/csv-utils';
 import { assertMultipartContentLength } from '$lib/server/multipart-limits';
 import { isPlainRecord } from '$lib/server/object-validation';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_TITLE_LENGTH = 200;
@@ -375,6 +376,7 @@ export const POST = withProjectRole(
 		// Sort rowResults by row number for consistent display
 		rowResults.sort((a, b) => a.row - b.row);
 
+		if (imported > 0) cacheDeleteProjectAnalytics(projectId);
 		return json({ imported, errors, rows: rowResults });
 	}
 );

@@ -21,7 +21,8 @@ vi.mock('$lib/server/storage', () => ({
 	deleteFile: vi.fn()
 }));
 vi.mock('$lib/server/cache', () => ({
-	cacheDelete: vi.fn()
+	cacheDelete: vi.fn(),
+	cacheDeleteProjectAnalytics: vi.fn()
 }));
 vi.mock('node:crypto', () => ({
 	randomUUID: () => 'test-uuid-1234'

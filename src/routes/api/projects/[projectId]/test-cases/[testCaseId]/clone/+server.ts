@@ -4,6 +4,7 @@ import { tag, testCase, testCaseVersion, testCaseTag } from '$lib/server/db/sche
 import { eq, and, sql } from 'drizzle-orm';
 import { parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 export const POST = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV'],
@@ -103,6 +104,7 @@ export const POST = withProjectRole(
 			return { newTestCaseId: created.id, newKey };
 		});
 
+		cacheDeleteProjectAnalytics(projectId);
 		return json({ success: true, ...cloned });
 	}
 );

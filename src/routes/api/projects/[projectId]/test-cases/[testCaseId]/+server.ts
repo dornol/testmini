@@ -10,6 +10,7 @@ import {
 	validateTestCasePatchPayload,
 	validateTestCasePutPayload
 } from '$lib/server/test-case-update-validation';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 export const GET = withProjectAccess(async ({ params, projectId }) => {
 	const testCaseId = parseId(params.testCaseId, 'test case ID');
@@ -170,6 +171,7 @@ export const PATCH = withProjectRole(
 			}
 		}
 
+		cacheDeleteProjectAnalytics(projectId);
 		return json({ success: true });
 	}
 );
@@ -229,6 +231,7 @@ export const PUT = withProjectRole(
 			}
 		});
 
+		cacheDeleteProjectAnalytics(projectId);
 		return json({ success: true });
 	}
 );
@@ -245,5 +248,6 @@ export const DELETE = withProjectRole(['PROJECT_ADMIN'], async ({ params, projec
 		error(404, 'Test case not found');
 	}
 
+	cacheDeleteProjectAnalytics(projectId);
 	return json({ success: true });
 });

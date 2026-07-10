@@ -18,6 +18,7 @@ import { loadProjectTags } from '$lib/server/queries';
 import { createTestRunSchema, type CreateTestRunInput } from '$lib/schemas/test-run.schema';
 import { parsePositiveFormId } from '$lib/server/form-utils';
 import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 const MAX_TEST_RUN_CREATE_FORM_BODY_SIZE = 256 * 1024;
 
@@ -241,6 +242,7 @@ export const actions: Actions = {
 			return run;
 		});
 
+		cacheDeleteProjectAnalytics(projectId);
 		redirect(303, `/projects/${projectId}/test-runs/${newRun.id}`);
 	}
 };

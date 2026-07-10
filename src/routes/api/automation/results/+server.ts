@@ -15,6 +15,7 @@ import { authenticateApiKey } from '$lib/server/api-key-auth';
 import { createNotification } from '$lib/server/notifications';
 import { parseJsonObjectBody } from '$lib/server/auth-utils';
 import { isPlainRecord } from '$lib/server/object-validation';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 interface AutomationResult {
 	automationKey: string;
@@ -285,6 +286,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 	}
 
+	cacheDeleteProjectAnalytics(projectId);
 	return json({
 		runId,
 		matched,

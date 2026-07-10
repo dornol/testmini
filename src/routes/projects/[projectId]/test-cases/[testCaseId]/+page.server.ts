@@ -22,7 +22,7 @@ import { createTagSchema } from '$lib/schemas/tag.schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { loadTestCaseMetadata } from '$lib/server/queries';
-import { cacheDelete } from '$lib/server/cache';
+import { cacheDelete, cacheDeleteProjectAnalytics } from '$lib/server/cache';
 import { parseOptionalFormString, parseOptionalTrimmedFormString } from '$lib/server/form-utils';
 import { assertContentLengthUnderLimit } from '$lib/server/request-size';
 
@@ -275,6 +275,7 @@ export const actions: Actions = {
 				.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
 		});
 
+		cacheDeleteProjectAnalytics(projectId);
 		return message(form, 'Test case updated successfully');
 	},
 
@@ -479,6 +480,7 @@ export const actions: Actions = {
 			.delete(testCase)
 			.where(and(eq(testCase.id, testCaseId), eq(testCase.projectId, projectId)));
 
+		cacheDeleteProjectAnalytics(projectId);
 		return { deleted: true };
 	}
 };

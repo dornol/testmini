@@ -15,6 +15,7 @@ import { publishRunEvent } from '$lib/server/run-events';
 import { createNotification } from '$lib/server/notifications';
 import type { RunEvent } from '$lib/types/events';
 import { validateRequestBody } from '$lib/server/id-list-validation';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 const EXECUTION_STATUSES = ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING'] as const;
 type ExecutionStatus = (typeof EXECUTION_STATUSES)[number];
@@ -105,6 +106,7 @@ export const PUT = withProjectRole(
 			executedBy: user.name
 		};
 		await publishRunEvent(runId, event);
+		cacheDeleteProjectAnalytics(projectId);
 
 		return json({ success: true, status: executionStatus });
 	}

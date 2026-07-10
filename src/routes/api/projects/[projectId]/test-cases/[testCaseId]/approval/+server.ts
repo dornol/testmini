@@ -9,6 +9,7 @@ import { requireTestCase } from '$lib/server/queries';
 import { badRequest, forbidden } from '$lib/server/errors';
 import { createNotification } from '$lib/server/notifications';
 import { validateRequestBody } from '$lib/server/id-list-validation';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 const VALID_TRANSITIONS: Record<string, { from: string[]; to: string }> = {
 	submit_review: { from: ['DRAFT'], to: 'IN_REVIEW' },
@@ -129,6 +130,7 @@ export const POST = withProjectRole(
 			});
 		}
 
+		cacheDeleteProjectAnalytics(projectId);
 		return json({
 			approvalStatus: transition.to,
 			fromStatus

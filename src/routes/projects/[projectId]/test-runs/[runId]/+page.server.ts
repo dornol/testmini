@@ -18,6 +18,7 @@ import { createNotification } from '$lib/server/notifications';
 import type { RunEvent } from '$lib/types/events';
 import { parsePositiveFormId } from '$lib/server/form-utils';
 import { assertContentLengthUnderLimit } from '$lib/server/request-size';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 // ── Local helpers ──────────────────────────────────────────────────
 
@@ -301,6 +302,7 @@ export const actions: Actions = {
 		};
 		await publishRunEvent(runId, event);
 
+		cacheDeleteProjectAnalytics(projectId);
 		return { success: true };
 	},
 
@@ -394,6 +396,7 @@ export const actions: Actions = {
 			executionId
 		} satisfies RunEvent);
 
+		cacheDeleteProjectAnalytics(projectId);
 		return { success: true };
 	},
 
@@ -449,6 +452,7 @@ export const actions: Actions = {
 			return fail(500, { error: 'Failed to create failure detail' });
 		}
 
+		cacheDeleteProjectAnalytics(projectId);
 		return { success: true };
 	},
 
@@ -520,6 +524,7 @@ export const actions: Actions = {
 			return fail(404, { error: 'Failure detail not found' });
 		}
 
+		cacheDeleteProjectAnalytics(projectId);
 		return { success: true };
 	},
 
@@ -574,6 +579,7 @@ export const actions: Actions = {
 			return fail(404, { error: 'Failure detail not found' });
 		}
 
+		cacheDeleteProjectAnalytics(projectId);
 		return { success: true };
 	},
 
@@ -622,6 +628,7 @@ export const actions: Actions = {
 		};
 		await publishRunEvent(runId, event);
 
+		cacheDeleteProjectAnalytics(projectId);
 		return { success: true };
 	},
 
@@ -686,6 +693,7 @@ export const actions: Actions = {
 			}
 		}
 
+		cacheDeleteProjectAnalytics(projectId);
 		return { success: true };
 	}
 };

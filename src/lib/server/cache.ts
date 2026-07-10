@@ -47,6 +47,11 @@ export function cacheDeleteByPrefix(prefix: string): void {
 	}
 }
 
+export function cacheDeleteProjectAnalytics(projectId: number): void {
+	cacheDelete(`project:${projectId}:dashboard`);
+	cacheDeleteByPrefix(`report:${projectId}:`);
+}
+
 export function cacheClear(): void {
 	store.clear();
 }

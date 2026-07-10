@@ -7,6 +7,7 @@ import { parseJsonObjectBody, parseId } from '$lib/server/auth-utils';
 import { updateRiskSchema } from '$lib/schemas/risk.schema';
 import { computeRiskLevel } from '$lib/server/risk-matrix';
 import { badRequest, notFound } from '$lib/server/errors';
+import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 export const GET = withProjectRole(
 	['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'],
@@ -47,6 +48,7 @@ export const PATCH = withProjectRole(
 			});
 
 		if (!updated) return notFound('Test case not found');
+		cacheDeleteProjectAnalytics(projectId);
 		return json(updated);
 	}
 );

@@ -35,7 +35,8 @@ vi.mock('$lib/server/auth-utils', async () => {
 });
 
 vi.mock('$lib/server/cache', () => ({
-	cacheDelete: vi.fn()
+	cacheDelete: vi.fn(),
+	cacheDeleteProjectAnalytics: vi.fn()
 }));
 vi.mock('$lib/server/queries', () => ({
 	requireTestCase: mockRequireTestCase

@@ -256,11 +256,15 @@
 						</div>
 					</div>
 
-					<div class="flex gap-2">
-						<Button type="submit" disabled={creating || !newName.trim() || !newUrl.trim()}>
+					<div class="flex flex-col gap-2 sm:flex-row">
+						<Button
+							type="submit"
+							disabled={creating || !newName.trim() || !newUrl.trim()}
+							class="w-full sm:w-auto"
+						>
 							{m.webhook_new()}
 						</Button>
-						<Button type="button" variant="outline" onclick={resetForm}>
+						<Button type="button" variant="outline" onclick={resetForm} class="w-full sm:w-auto">
 							{m.common_cancel()}
 						</Button>
 					</div>

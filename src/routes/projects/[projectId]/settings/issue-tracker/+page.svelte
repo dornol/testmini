@@ -76,9 +76,10 @@
 		giteaUrl = c?.provider === 'GITEA' ? c.baseUrl : '';
 		giteaRepo = c?.provider === 'GITEA' ? (c.projectKey ?? '') : '';
 		customEndpoint = c?.provider === 'CUSTOM' ? c.baseUrl : '';
-		customHeaders = c?.provider === 'CUSTOM' && c.customTemplate
-			? JSON.stringify((c.customTemplate as Record<string, unknown>).headers ?? {}, null, 2)
-			: '';
+		customHeaders =
+			c?.provider === 'CUSTOM' && c.customTemplate
+				? JSON.stringify((c.customTemplate as Record<string, unknown>).headers ?? {}, null, 2)
+				: '';
 		webhookSecret = '';
 	});
 
@@ -153,9 +154,7 @@
 			apiToken = '';
 			webhookSecret = '';
 			toast.success(
-				tokenIncluded
-					? m.issue_tracker_saved()
-					: `${m.issue_tracker_saved()} (API token unchanged)`
+				tokenIncluded ? m.issue_tracker_saved() : `${m.issue_tracker_saved()} (API token unchanged)`
 			);
 		} catch {
 			// handled by api client
@@ -310,12 +309,7 @@
 						</div>
 						<div class="space-y-2">
 							<Label for="it-gitlab-pid">{m.issue_tracker_gitlab_project_id()}</Label>
-							<Input
-								id="it-gitlab-pid"
-								placeholder="12345"
-								bind:value={gitlabProjectId}
-								required
-							/>
+							<Input id="it-gitlab-pid" placeholder="12345" bind:value={gitlabProjectId} required />
 						</div>
 					</div>
 					<div class="space-y-2">
@@ -417,7 +411,9 @@
 								<Input
 									id="it-webhook-secret"
 									type="password"
-									placeholder={config?.hasWebhookSecret ? '********' : m.issue_tracker_webhook_secret_placeholder()}
+									placeholder={config?.hasWebhookSecret
+										? '********'
+										: m.issue_tracker_webhook_secret_placeholder()}
 									bind:value={webhookSecret}
 								/>
 							</div>
@@ -426,18 +422,25 @@
 					</div>
 				{/if}
 
-				<div class="flex gap-2">
-					<Button type="submit" disabled={saving}>
+				<div class="flex flex-col gap-2 sm:flex-row">
+					<Button type="submit" disabled={saving} class="w-full sm:w-auto">
 						{saving ? m.common_saving() : m.issue_tracker_save()}
 					</Button>
 					{#if config}
-						<Button type="button" variant="outline" disabled={testing} onclick={handleTest}>
+						<Button
+							type="button"
+							variant="outline"
+							disabled={testing}
+							onclick={handleTest}
+							class="w-full sm:w-auto"
+						>
 							{testing ? m.common_loading() : m.issue_tracker_test()}
 						</Button>
 						<Button
 							type="button"
 							variant="destructive"
 							onclick={() => (deleteDialogOpen = true)}
+							class="w-full sm:w-auto"
 						>
 							{m.common_delete()}
 						</Button>

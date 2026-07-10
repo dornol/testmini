@@ -6,15 +6,18 @@ import {
 	testCaseGroup,
 	tag,
 	testCaseTag,
-	testExecution,
 	project
 } from '$lib/server/db/schema';
 import { and, eq, asc, inArray } from 'drizzle-orm';
 import { csvResponse } from '$lib/server/csv-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
-import { buildTestCaseConditions } from '$lib/server/test-case-filters';
 import {
-	parseCanonicalPositiveInteger,
+	applyExecutionStatusFilter,
+	buildTestCaseConditions,
+	loadTestCaseExecutionMap,
+	parseTestCaseFilterParams
+} from '$lib/server/test-case-filters';
+import {
 	parseCanonicalPositiveIntegerList,
 	parseRequiredCanonicalPositiveIntegerList
 } from '$lib/server/search-param-validation';
@@ -25,23 +28,8 @@ export const GET = withProjectAccess(async ({ url, projectId }) => {
 		error(400, 'Invalid format. Use csv or json.');
 	}
 
-	const search = url.searchParams.get('search') ?? '';
-	const priority = url.searchParams.get('priority') ?? '';
-	const tagIds = url.searchParams.get('tagIds') ?? '';
-	const groupId = url.searchParams.get('groupId') ?? '';
-	const createdBy = url.searchParams.get('createdBy') ?? '';
-	const assigneeId = url.searchParams.get('assigneeId') ?? '';
-	const suiteId = url.searchParams.get('suiteId') ?? '';
-	const execStatus = url.searchParams.get('execStatus') ?? '';
-	const approvalStatus = url.searchParams.get('approvalStatus') ?? '';
-	const retestNeeded = url.searchParams.get('retestNeeded') ?? '';
-	const customFieldFilters: { fieldId: number; value: string }[] = [];
-	for (const [key, value] of url.searchParams.entries()) {
-		if (key.startsWith('cf_') && value) {
-			const fieldId = parseCanonicalPositiveInteger(key.slice(3));
-			if (fieldId !== null) customFieldFilters.push({ fieldId, value });
-		}
-	}
+	const filterParams = parseTestCaseFilterParams(projectId, url.searchParams);
+	const execStatus = filterParams.execStatus ?? '';
 
 	const selectedIdsParam = url.searchParams.get('ids');
 	let selectedTestCaseIds: number[] = [];
@@ -53,19 +41,7 @@ export const GET = withProjectAccess(async ({ url, projectId }) => {
 		}
 	}
 
-	let where = buildTestCaseConditions({
-		projectId,
-		search,
-		priority,
-		tagIds,
-		groupId,
-		createdBy,
-		assigneeId,
-		suiteId,
-		approvalStatus,
-		retestNeeded,
-		customFieldFilters
-	});
+	let where = buildTestCaseConditions(filterParams);
 	if (selectedTestCaseIds.length > 0) {
 		where = and(where, inArray(testCase.id, selectedTestCaseIds))!;
 	}
@@ -101,44 +77,12 @@ export const GET = withProjectAccess(async ({ url, projectId }) => {
 
 	let testCases = testCasesBase;
 	if (execStatus && selectedRunIds.length > 0 && testCasesBase.length > 0) {
-		const execStatuses = execStatus.split(',').filter(Boolean);
-		const hasNotExecuted = execStatuses.includes('NOT_EXECUTED');
-		const otherStatuses = execStatuses.filter((status) => status !== 'NOT_EXECUTED');
-		const baseTestCaseIds = testCasesBase.map((tc) => tc.id);
-		const executions = await db
-			.select({
-				testRunId: testExecution.testRunId,
-				testCaseId: testCase.id,
-				status: testExecution.status
-			})
-			.from(testExecution)
-			.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
-			.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
-			.where(
-				and(inArray(testExecution.testRunId, selectedRunIds), inArray(testCase.id, baseTestCaseIds))
-			);
-
-		const executionMap = new Map<number, Map<number, string>>();
-		for (const execution of executions) {
-			if (!executionMap.has(execution.testCaseId)) {
-				executionMap.set(execution.testCaseId, new Map());
-			}
-			executionMap.get(execution.testCaseId)!.set(execution.testRunId, execution.status);
-		}
-
-		testCases = testCasesBase.filter((tc) => {
-			const tcExecutions = executionMap.get(tc.id);
-			const isNotExecuted =
-				!tcExecutions || selectedRunIds.every((runId) => !tcExecutions.has(runId));
-			if (hasNotExecuted && isNotExecuted) return true;
-			if (otherStatuses.length > 0 && tcExecutions) {
-				return selectedRunIds.some((runId) => {
-					const status = tcExecutions.get(runId);
-					return status ? otherStatuses.includes(status) : false;
-				});
-			}
-			return false;
-		});
+		const executionMap = await loadTestCaseExecutionMap(
+			selectedRunIds,
+			projectId,
+			new Set(testCasesBase.map((tc) => tc.id))
+		);
+		testCases = applyExecutionStatusFilter(testCasesBase, executionMap, execStatus, selectedRunIds);
 	}
 
 	// Load groups for name mapping

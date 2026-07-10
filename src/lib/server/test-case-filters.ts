@@ -4,7 +4,8 @@ import {
 	testCaseVersion,
 	testCaseTag,
 	testCaseAssignee,
-	testSuiteItem
+	testSuiteItem,
+	testExecution
 } from '$lib/server/db/schema';
 import { eq, and, ilike, or, exists, sql, inArray, isNull } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
@@ -13,7 +14,7 @@ import {
 	parseCanonicalPositiveIntegerList
 } from '$lib/server/search-param-validation';
 
-interface TestCaseFilterParams {
+export interface TestCaseFilterParams {
 	projectId: number;
 	search?: string;
 	priority?: string;
@@ -24,7 +25,41 @@ interface TestCaseFilterParams {
 	suiteId?: string;
 	approvalStatus?: string;
 	retestNeeded?: string;
+	execStatus?: string;
 	customFieldFilters?: { fieldId: number; value: string }[];
+}
+
+export type TestCaseExecutionMap = Record<
+	number,
+	Record<number, { executionId: number; status: string }>
+>;
+
+export function parseTestCaseFilterParams(
+	projectId: number,
+	searchParams: URLSearchParams
+): TestCaseFilterParams {
+	const customFieldFilters: { fieldId: number; value: string }[] = [];
+	for (const [key, value] of searchParams.entries()) {
+		if (key.startsWith('cf_') && value) {
+			const fieldId = parseCanonicalPositiveInteger(key.slice(3));
+			if (fieldId !== null) customFieldFilters.push({ fieldId, value });
+		}
+	}
+
+	return {
+		projectId,
+		search: searchParams.get('search') ?? '',
+		priority: searchParams.get('priority') ?? '',
+		tagIds: searchParams.get('tagIds') ?? '',
+		groupId: searchParams.get('groupId') ?? '',
+		createdBy: searchParams.get('createdBy') ?? '',
+		assigneeId: searchParams.get('assigneeId') ?? '',
+		suiteId: searchParams.get('suiteId') ?? '',
+		execStatus: searchParams.get('execStatus') ?? '',
+		approvalStatus: searchParams.get('approvalStatus') ?? '',
+		retestNeeded: searchParams.get('retestNeeded') ?? '',
+		customFieldFilters
+	};
 }
 
 export function buildTestCaseConditions(params: TestCaseFilterParams): SQL {
@@ -153,4 +188,69 @@ export function buildTestCaseConditions(params: TestCaseFilterParams): SQL {
 	}
 
 	return and(...conditions)!;
+}
+
+export async function loadTestCaseExecutionMap(
+	selectedRunIds: number[],
+	projectId: number,
+	tcIds: Set<number>
+): Promise<TestCaseExecutionMap> {
+	const executionMap: TestCaseExecutionMap = {};
+	if (selectedRunIds.length === 0 || tcIds.size === 0) return executionMap;
+
+	const executions = await db
+		.select({
+			executionId: testExecution.id,
+			testRunId: testExecution.testRunId,
+			testCaseId: testCase.id,
+			status: testExecution.status
+		})
+		.from(testExecution)
+		.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
+		.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
+		.where(
+			and(
+				inArray(testExecution.testRunId, selectedRunIds),
+				eq(testCase.projectId, projectId),
+				inArray(testCase.id, [...tcIds])
+			)
+		);
+
+	for (const exec of executions) {
+		if (!executionMap[exec.testCaseId]) {
+			executionMap[exec.testCaseId] = {};
+		}
+		executionMap[exec.testCaseId][exec.testRunId] = {
+			executionId: exec.executionId,
+			status: exec.status
+		};
+	}
+	return executionMap;
+}
+
+export function applyExecutionStatusFilter<T extends { id: number }>(
+	testCases: T[],
+	executionMap: TestCaseExecutionMap,
+	execStatus: string,
+	selectedRunIds: number[]
+): T[] {
+	if (!execStatus || selectedRunIds.length === 0) return testCases;
+
+	const execStatuses = execStatus.split(',').filter(Boolean);
+	if (execStatuses.length === 0) return testCases;
+
+	const hasNotExecuted = execStatuses.includes('NOT_EXECUTED');
+	const otherStatuses = execStatuses.filter((status) => status !== 'NOT_EXECUTED');
+	return testCases.filter((tc) => {
+		const tcExecutions = executionMap[tc.id];
+		const isNotExecuted = !tcExecutions || selectedRunIds.every((runId) => !tcExecutions[runId]);
+		if (hasNotExecuted && isNotExecuted) return true;
+		if (otherStatuses.length > 0 && tcExecutions) {
+			return selectedRunIds.some((runId) => {
+				const execution = tcExecutions[runId];
+				return execution ? otherStatuses.includes(execution.status) : false;
+			});
+		}
+		return false;
+	});
 }

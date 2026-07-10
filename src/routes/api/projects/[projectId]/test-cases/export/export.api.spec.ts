@@ -48,7 +48,34 @@ vi.mock('$lib/server/auth-utils', async () => {
 	};
 });
 vi.mock('$lib/server/test-case-filters', () => ({
-	buildTestCaseConditions: vi.fn(() => 'test-case-where')
+	applyExecutionStatusFilter: vi.fn((testCases: unknown[]) => testCases),
+	buildTestCaseConditions: vi.fn(() => 'test-case-where'),
+	loadTestCaseExecutionMap: vi.fn().mockResolvedValue({}),
+	parseTestCaseFilterParams: vi.fn((projectId: number, searchParams: URLSearchParams) => {
+		const customFieldFilters: { fieldId: number; value: string }[] = [];
+		for (const [key, value] of searchParams.entries()) {
+			if (key.startsWith('cf_') && value) {
+				const fieldId = Number(key.slice(3));
+				if (Number.isSafeInteger(fieldId) && fieldId > 0) {
+					customFieldFilters.push({ fieldId, value });
+				}
+			}
+		}
+		return {
+			projectId,
+			search: searchParams.get('search') ?? '',
+			priority: searchParams.get('priority') ?? '',
+			tagIds: searchParams.get('tagIds') ?? '',
+			groupId: searchParams.get('groupId') ?? '',
+			createdBy: searchParams.get('createdBy') ?? '',
+			assigneeId: searchParams.get('assigneeId') ?? '',
+			suiteId: searchParams.get('suiteId') ?? '',
+			execStatus: searchParams.get('execStatus') ?? '',
+			approvalStatus: searchParams.get('approvalStatus') ?? '',
+			retestNeeded: searchParams.get('retestNeeded') ?? '',
+			customFieldFilters
+		};
+	})
 }));
 
 const { GET } = await import('./+server');
@@ -248,6 +275,7 @@ describe('/api/projects/[projectId]/test-cases/export', () => {
 				createdBy: 'user-1',
 				assigneeId: 'user-2',
 				suiteId: '3',
+				execStatus: '',
 				approvalStatus: 'APPROVED',
 				retestNeeded: 'true',
 				customFieldFilters: [{ fieldId: 9, value: 'mobile' }]

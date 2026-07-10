@@ -98,7 +98,23 @@ vi.mock('$lib/server/queries', () => ({
 	loadBatchAssignees: vi.fn().mockResolvedValue({})
 }));
 vi.mock('$lib/server/test-case-filters', () => ({
-	buildTestCaseConditions: vi.fn(() => [])
+	applyExecutionStatusFilter: vi.fn((testCases: unknown[]) => testCases),
+	buildTestCaseConditions: vi.fn(() => []),
+	loadTestCaseExecutionMap: vi.fn().mockResolvedValue({}),
+	parseTestCaseFilterParams: vi.fn((projectId: number, searchParams: URLSearchParams) => ({
+		projectId,
+		search: searchParams.get('search') ?? '',
+		priority: searchParams.get('priority') ?? '',
+		tagIds: searchParams.get('tagIds') ?? '',
+		groupId: searchParams.get('groupId') ?? '',
+		createdBy: searchParams.get('createdBy') ?? '',
+		assigneeId: searchParams.get('assigneeId') ?? '',
+		suiteId: searchParams.get('suiteId') ?? '',
+		execStatus: searchParams.get('execStatus') ?? '',
+		approvalStatus: searchParams.get('approvalStatus') ?? '',
+		retestNeeded: searchParams.get('retestNeeded') ?? '',
+		customFieldFilters: []
+	}))
 }));
 
 const { actions, load } = await import('./+page.server');

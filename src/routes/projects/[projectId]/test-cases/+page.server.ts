@@ -7,7 +7,6 @@ import {
 	testCaseGroup,
 	user,
 	testRun,
-	testExecution,
 	projectMember,
 	testSuite,
 	customField,
@@ -19,7 +18,12 @@ import {
 import { eq, and, desc, asc, sql, inArray, count } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 import { loadProjectTags, loadBatchTags, loadBatchAssignees } from '$lib/server/queries';
-import { buildTestCaseConditions } from '$lib/server/test-case-filters';
+import {
+	applyExecutionStatusFilter,
+	buildTestCaseConditions,
+	loadTestCaseExecutionMap,
+	parseTestCaseFilterParams
+} from '$lib/server/test-case-filters';
 import {
 	parseCanonicalPositiveInteger,
 	parseCanonicalPositiveIntegerList,
@@ -31,80 +35,23 @@ import { cacheDeleteProjectAnalytics } from '$lib/server/cache';
 
 const MAX_TEST_CASE_QUICK_CREATE_FORM_BODY_SIZE = 16 * 1024;
 
-async function loadExecutionMap(
-	selectedRunIds: number[],
-	projectId: number,
-	tcIds: Set<number>
-): Promise<Record<number, Record<number, { executionId: number; status: string }>>> {
-	const executionMap: Record<number, Record<number, { executionId: number; status: string }>> = {};
-	if (selectedRunIds.length === 0 || tcIds.size === 0) return executionMap;
-
-	const executions = await db
-		.select({
-			executionId: testExecution.id,
-			testRunId: testExecution.testRunId,
-			testCaseId: testCase.id,
-			status: testExecution.status
-		})
-		.from(testExecution)
-		.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
-		.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
-		.where(
-			and(inArray(testExecution.testRunId, selectedRunIds), eq(testCase.projectId, projectId))
-		);
-
-	for (const exec of executions) {
-		if (!executionMap[exec.testCaseId]) {
-			executionMap[exec.testCaseId] = {};
-		}
-		executionMap[exec.testCaseId][exec.testRunId] = {
-			executionId: exec.executionId,
-			status: exec.status
-		};
-	}
-	return executionMap;
-}
-
-function applyExecStatusFilter<T extends { id: number }>(
-	testCases: T[],
-	executionMap: Record<number, Record<number, { executionId: number; status: string }>>,
-	execStatus: string,
-	selectedRunIds: number[]
-): T[] {
-	if (!execStatus || selectedRunIds.length === 0) return testCases;
-
-	const execStatuses = execStatus.split(',').filter(Boolean);
-	if (execStatuses.length === 0) return testCases;
-
-	const hasNotExecuted = execStatuses.includes('NOT_EXECUTED');
-	const otherStatuses = execStatuses.filter((s) => s !== 'NOT_EXECUTED');
-	return testCases.filter((tc) => {
-		const tcExecs = executionMap[tc.id];
-		const isNotExecuted = !tcExecs || selectedRunIds.every((rid) => !tcExecs[rid]);
-		if (hasNotExecuted && isNotExecuted) return true;
-		if (otherStatuses.length > 0 && tcExecs) {
-			return selectedRunIds.some(
-				(rid) => tcExecs[rid] && otherStatuses.includes(tcExecs[rid].status)
-			);
-		}
-		return false;
-	});
-}
-
 export const load: PageServerLoad = async ({ params, url, parent, cookies, locals }) => {
 	await parent();
 	const projectId = parseId(params.projectId, 'project ID');
 
-	const search = url.searchParams.get('search') ?? '';
-	const priority = url.searchParams.get('priority') ?? '';
-	const tagIds = url.searchParams.get('tagIds') ?? '';
-	const groupId = url.searchParams.get('groupId') ?? '';
-	const createdBy = url.searchParams.get('createdBy') ?? '';
-	const assigneeId = url.searchParams.get('assigneeId') ?? '';
-	const suiteId = url.searchParams.get('suiteId') ?? '';
-	const execStatus = url.searchParams.get('execStatus') ?? '';
-	const approvalStatus = url.searchParams.get('approvalStatus') ?? '';
-	const retestNeeded = url.searchParams.get('retestNeeded') ?? '';
+	const filterParams = parseTestCaseFilterParams(projectId, url.searchParams);
+	const {
+		search = '',
+		priority = '',
+		tagIds = '',
+		groupId = '',
+		createdBy = '',
+		assigneeId = '',
+		suiteId = '',
+		execStatus = '',
+		approvalStatus = '',
+		customFieldFilters = []
+	} = filterParams;
 	const requestedPage = parsePositiveIntegerSearchParam(url.searchParams.get('page'), 1);
 	const limit = parsePositiveIntegerSearchParam(url.searchParams.get('limit'), 100, {
 		max: 200
@@ -122,30 +69,7 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		selectedRunIds = (proj?.selectedRunIds ?? []) as number[];
 	}
 
-	// Parse custom field filters from URL params (cf_<fieldId>=value)
-	const customFieldFilters: { fieldId: number; value: string }[] = [];
-	for (const [key, value] of url.searchParams.entries()) {
-		if (key.startsWith('cf_') && value) {
-			const fieldId = parseCanonicalPositiveInteger(key.slice(3));
-			if (fieldId !== null) {
-				customFieldFilters.push({ fieldId, value });
-			}
-		}
-	}
-
-	const where = buildTestCaseConditions({
-		projectId,
-		search,
-		priority,
-		tagIds,
-		groupId,
-		createdBy,
-		assigneeId,
-		suiteId,
-		approvalStatus,
-		retestNeeded,
-		customFieldFilters
-	});
+	const where = buildTestCaseConditions(filterParams);
 
 	// Load custom field definitions and column settings for this project
 	const [projectCustomFields, projectRow] = await Promise.all([
@@ -276,7 +200,7 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		.where(eq(testRun.projectId, projectId))
 		.orderBy(desc(testRun.createdAt));
 
-	const executionMap = await loadExecutionMap(selectedRunIds, projectId, tcIdSet);
+	const executionMap = await loadTestCaseExecutionMap(selectedRunIds, projectId, tcIdSet);
 
 	// Persist selected run IDs to project setting
 	if (url.searchParams.has('runIds')) {
@@ -301,7 +225,7 @@ export const load: PageServerLoad = async ({ params, url, parent, cookies, local
 		)
 		.orderBy(asc(savedFilter.sortOrder), asc(savedFilter.name));
 
-	const allFilteredTestCases = applyExecStatusFilter(
+	const allFilteredTestCases = applyExecutionStatusFilter(
 		testCases,
 		executionMap,
 		execStatus,

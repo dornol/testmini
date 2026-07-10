@@ -103,10 +103,12 @@
 </script>
 
 <div class="space-y-4">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 		<h2 class="text-lg font-semibold">{m.suite_title()}</h2>
 		{#if canManage}
-			<Button size="sm" onclick={() => (createDialogOpen = true)}>{m.suite_new()}</Button>
+			<Button class="w-full sm:w-auto" size="sm" onclick={() => (createDialogOpen = true)}
+				>{m.suite_new()}</Button
+			>
 		{/if}
 	</div>
 
@@ -117,7 +119,9 @@
 			<h3 class="text-lg font-semibold">{m.suite_empty()}</h3>
 			<p class="text-muted-foreground mt-1 text-sm">{m.suite_empty_desc()}</p>
 			{#if canManage}
-				<Button class="mt-4" onclick={() => (createDialogOpen = true)}>{m.suite_create()}</Button>
+				<Button class="mt-4 w-full sm:w-auto" onclick={() => (createDialogOpen = true)}
+					>{m.suite_create()}</Button
+				>
 			{/if}
 		</div>
 	{:else}
@@ -311,10 +315,16 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (createDialogOpen = false)}
-					>{m.common_cancel()}</Button
+				<Button
+					variant="outline"
+					class="w-full sm:w-auto"
+					onclick={() => (createDialogOpen = false)}>{m.common_cancel()}</Button
 				>
-				<Button onclick={handleCreate} disabled={creating || !newName.trim()}>
+				<Button
+					class="w-full sm:w-auto"
+					onclick={handleCreate}
+					disabled={creating || !newName.trim()}
+				>
 					{creating ? m.common_creating() : m.suite_create()}
 				</Button>
 			</Dialog.Footer>
@@ -341,10 +351,14 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (editDialogOpen = false)}
+				<Button variant="outline" class="w-full sm:w-auto" onclick={() => (editDialogOpen = false)}
 					>{m.common_cancel()}</Button
 				>
-				<Button onclick={handleEdit} disabled={editSaving || !editName.trim()}>
+				<Button
+					class="w-full sm:w-auto"
+					onclick={handleEdit}
+					disabled={editSaving || !editName.trim()}
+				>
 					{editSaving ? m.common_saving() : m.common_save_changes()}
 				</Button>
 			</Dialog.Footer>
@@ -362,8 +376,13 @@
 				<AlertDialog.Description>{m.suite_delete_confirm()}</AlertDialog.Description>
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-				<Button variant="destructive" onclick={handleDelete} disabled={deleteSaving}>
+				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+				<Button
+					variant="destructive"
+					class="w-full sm:w-auto"
+					onclick={handleDelete}
+					disabled={deleteSaving}
+				>
 					{deleteSaving ? m.common_saving() : m.common_delete()}
 				</Button>
 			</AlertDialog.Footer>

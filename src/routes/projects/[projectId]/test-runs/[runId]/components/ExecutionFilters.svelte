@@ -31,19 +31,21 @@
 	}
 </script>
 
-<div class="flex flex-wrap items-center gap-1">
-	{#each statusTabs as tab (tab.key)}
-		<Button
-			variant={statusFilter === tab.key ? 'default' : 'outline'}
-			size="sm"
-			class="h-7 px-3 text-xs"
-			onclick={() => setStatusFilter(tab.key)}
-		>
-			{tab.label}
-			<span class="ml-1 opacity-70">({tab.count})</span>
-		</Button>
-	{/each}
-	<span class="text-muted-foreground ml-auto text-sm">
+<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+	<div class="grid grid-cols-2 gap-1 min-[420px]:flex min-[420px]:flex-wrap">
+		{#each statusTabs as tab (tab.key)}
+			<Button
+				variant={statusFilter === tab.key ? 'default' : 'outline'}
+				size="sm"
+				class="h-8 w-full px-3 text-xs min-[420px]:h-7 min-[420px]:w-auto"
+				onclick={() => setStatusFilter(tab.key)}
+			>
+				{tab.label}
+				<span class="ml-1 opacity-70">({tab.count})</span>
+			</Button>
+		{/each}
+	</div>
+	<span class="text-muted-foreground text-sm sm:ml-auto">
 		{m.run_showing_count({ count: executionCount })}
 	</span>
 </div>

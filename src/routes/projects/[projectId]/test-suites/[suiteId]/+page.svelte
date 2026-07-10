@@ -158,18 +158,20 @@
 				<p class="text-muted-foreground mt-1 break-words text-sm">{data.suite.description}</p>
 			{/if}
 		</div>
-		<div class="flex flex-wrap gap-2 sm:justify-end">
+		<div
+			class="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end"
+		>
 			{#if canManage}
-				<Button variant="outline" size="sm" onclick={openAddCases}>
+				<Button class="w-full sm:w-auto" variant="outline" size="sm" onclick={openAddCases}>
 					{m.suite_add_cases()}
 				</Button>
-				<Button variant="outline" size="sm" onclick={openEdit}>
+				<Button class="w-full sm:w-auto" variant="outline" size="sm" onclick={openEdit}>
 					{m.common_edit()}
 				</Button>
 				<Button
 					variant="outline"
 					size="sm"
-					class="text-destructive hover:text-destructive"
+					class="w-full text-destructive hover:text-destructive sm:w-auto"
 					onclick={() => (deleteDialogOpen = true)}
 				>
 					{m.common_delete()}
@@ -177,6 +179,7 @@
 			{/if}
 			<Button
 				size="sm"
+				class="w-full sm:w-auto"
 				href={`/projects/${data.project.id}/test-runs/new?suiteId=${data.suite.id}`}
 			>
 				{m.suite_create_run()}
@@ -191,7 +194,7 @@
 		>
 			<h3 class="text-lg font-semibold">{m.suite_no_cases()}</h3>
 			{#if canManage}
-				<Button class="mt-4" onclick={openAddCases}>{m.suite_add_cases()}</Button>
+				<Button class="mt-4 w-full sm:w-auto" onclick={openAddCases}>{m.suite_add_cases()}</Button>
 			{/if}
 		</div>
 	{:else}
@@ -209,7 +212,7 @@
 						<Button
 							variant="ghost"
 							size="sm"
-							class="mt-2 h-8 px-2 text-xs text-destructive hover:text-destructive"
+							class="mt-2 h-8 w-full px-2 text-xs text-destructive hover:text-destructive sm:w-auto"
 							onclick={() => removeCase(item.testCaseId)}
 						>
 							{m.suite_remove_case()}
@@ -277,10 +280,14 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (editDialogOpen = false)}
+				<Button variant="outline" class="w-full sm:w-auto" onclick={() => (editDialogOpen = false)}
 					>{m.common_cancel()}</Button
 				>
-				<Button onclick={handleEdit} disabled={editSaving || !editName.trim()}>
+				<Button
+					class="w-full sm:w-auto"
+					onclick={handleEdit}
+					disabled={editSaving || !editName.trim()}
+				>
 					{editSaving ? m.common_saving() : m.common_save_changes()}
 				</Button>
 			</Dialog.Footer>
@@ -298,8 +305,13 @@
 				<AlertDialog.Description>{m.suite_delete_confirm()}</AlertDialog.Description>
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-				<Button variant="destructive" onclick={handleDelete} disabled={deleteSaving}>
+				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+				<Button
+					variant="destructive"
+					class="w-full sm:w-auto"
+					onclick={handleDelete}
+					disabled={deleteSaving}
+				>
 					{deleteSaving ? m.common_saving() : m.common_delete()}
 				</Button>
 			</AlertDialog.Footer>
@@ -315,7 +327,7 @@
 			<Dialog.Header>
 				<Dialog.Title>{m.suite_add_cases()}</Dialog.Title>
 			</Dialog.Header>
-			<div class="py-4 space-y-3 flex-1 overflow-hidden flex flex-col">
+			<div class="flex flex-1 flex-col space-y-3 overflow-hidden py-4">
 				<Input placeholder={m.tr_filter_placeholder()} bind:value={addCasesSearch} />
 				<div class="flex-1 rounded-md border">
 					<Table.Root class="hidden md:table">
@@ -372,10 +384,16 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (addCasesDialogOpen = false)}
-					>{m.common_cancel()}</Button
+				<Button
+					variant="outline"
+					class="w-full sm:w-auto"
+					onclick={() => (addCasesDialogOpen = false)}>{m.common_cancel()}</Button
 				>
-				<Button onclick={handleAddCases} disabled={addCasesSaving || addCasesSelected.size === 0}>
+				<Button
+					class="w-full sm:w-auto"
+					onclick={handleAddCases}
+					disabled={addCasesSaving || addCasesSelected.size === 0}
+				>
 					{addCasesSaving ? m.common_saving() : m.suite_add_cases()} ({addCasesSelected.size})
 				</Button>
 			</Dialog.Footer>

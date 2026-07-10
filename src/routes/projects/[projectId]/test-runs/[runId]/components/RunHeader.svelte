@@ -430,10 +430,18 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (editRunDialogOpen = false)}>
+				<Button
+					variant="outline"
+					class="w-full sm:w-auto"
+					onclick={() => (editRunDialogOpen = false)}
+				>
 					{m.common_cancel()}
 				</Button>
-				<Button onclick={handleEditRun} disabled={editRunSaving || !editRunName.trim()}>
+				<Button
+					class="w-full sm:w-auto"
+					onclick={handleEditRun}
+					disabled={editRunSaving || !editRunName.trim()}
+				>
 					{editRunSaving ? m.common_saving() : m.common_save_changes()}
 				</Button>
 			</Dialog.Footer>
@@ -456,10 +464,18 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (cloneDialogOpen = false)}>
+				<Button
+					variant="outline"
+					class="w-full sm:w-auto"
+					onclick={() => (cloneDialogOpen = false)}
+				>
 					{m.common_cancel()}
 				</Button>
-				<Button onclick={handleCloneRun} disabled={cloneRunSaving || !cloneRunName.trim()}>
+				<Button
+					class="w-full sm:w-auto"
+					onclick={handleCloneRun}
+					disabled={cloneRunSaving || !cloneRunName.trim()}
+				>
 					{cloneRunSaving ? m.common_creating() : m.tr_clone()}
 				</Button>
 			</Dialog.Footer>
@@ -486,10 +502,18 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (retestDialogOpen = false)}>
+				<Button
+					variant="outline"
+					class="w-full sm:w-auto"
+					onclick={() => (retestDialogOpen = false)}
+				>
 					{m.common_cancel()}
 				</Button>
-				<Button onclick={handleRetestRun} disabled={retestRunSaving || !retestRunName.trim()}>
+				<Button
+					class="w-full sm:w-auto"
+					onclick={handleRetestRun}
+					disabled={retestRunSaving || !retestRunName.trim()}
+				>
 					{retestRunSaving ? m.common_creating() : m.tr_retest()}
 				</Button>
 			</Dialog.Footer>
@@ -509,8 +533,13 @@
 				</AlertDialog.Description>
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-				<Button variant="destructive" onclick={handleDeleteRun} disabled={deleteRunSaving}>
+				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+				<Button
+					variant="destructive"
+					class="w-full sm:w-auto"
+					onclick={handleDeleteRun}
+					disabled={deleteRunSaving}
+				>
 					{deleteRunSaving ? m.common_saving() : m.common_delete()}
 				</Button>
 			</AlertDialog.Footer>

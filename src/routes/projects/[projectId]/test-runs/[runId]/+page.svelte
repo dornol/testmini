@@ -178,9 +178,9 @@
 
 	<!-- Duration Summary & Comparison -->
 	{#if durationSummary.completedCount > 0 || run.retestOfRunId}
-		<div class="flex flex-wrap gap-4">
+		<div class="grid gap-4 lg:flex lg:flex-wrap">
 			{#if durationSummary.completedCount > 0}
-				<Card.Root class="flex-1">
+				<Card.Root class="min-w-0 lg:flex-1">
 					<Card.Header class="pb-2">
 						<Card.Title class="text-sm font-medium">{m.duration_summary()}</Card.Title>
 					</Card.Header>
@@ -211,9 +211,9 @@
 				</Card.Root>
 			{/if}
 			{#if run.retestOfRunId}
-				<Card.Root class="flex-shrink-0">
+				<Card.Root class="lg:flex-shrink-0">
 					<Card.Content class="flex h-full items-center pt-6">
-						<Button variant="outline" size="sm" onclick={openComparison}>
+						<Button class="w-full lg:w-auto" variant="outline" size="sm" onclick={openComparison}>
 							{m.comparison_title()}
 						</Button>
 					</Card.Content>
@@ -263,7 +263,7 @@
 				<p class="text-muted-foreground py-4 text-sm">{m.common_loading()}</p>
 			{:else if comparisonData}
 				<div class="min-w-0 space-y-4 py-2">
-					<div class="flex flex-wrap gap-2 text-sm">
+					<div class="grid grid-cols-1 gap-2 text-sm min-[420px]:grid-cols-3">
 						<Badge variant="default" class="bg-green-600"
 							>{m.comparison_improved()}: {comparisonData.summary.improved}</Badge
 						>

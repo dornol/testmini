@@ -31,7 +31,8 @@ vi.mock('$lib/server/db/schema', () => ({
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
-	and: vi.fn((...args: unknown[]) => args)
+	and: vi.fn((...args: unknown[]) => args),
+	sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }))
 }));
 vi.mock('$lib/server/auth-utils', async () => {
 	const actual =
@@ -232,7 +233,8 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 1],
-					['test_execution_id', 200]
+					['test_execution_id', 200],
+					expect.objectContaining({ values: [200, 50, 1] })
 				])
 			);
 		});
@@ -338,13 +340,15 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/c
 			expect(replyDeleteChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['parent_id', 1],
-					['test_execution_id', 200]
+					['test_execution_id', 200],
+					expect.objectContaining({ values: [200, 50, 1] })
 				])
 			);
 			expect(commentDeleteChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 1],
-					['test_execution_id', 200]
+					['test_execution_id', 200],
+					expect.objectContaining({ values: [200, 50, 1] })
 				])
 			);
 		});

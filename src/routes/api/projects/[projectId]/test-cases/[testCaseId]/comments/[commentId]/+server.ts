@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCase, testCaseComment } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { isGlobalAdmin, parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectAccess } from '$lib/server/api-handler';
 import {
@@ -60,7 +60,13 @@ export const PATCH = withProjectAccess(async ({ params, request, user, projectId
 	const [updated] = await db
 		.update(testCaseComment)
 		.set({ content })
-		.where(and(eq(testCaseComment.id, commentId), eq(testCaseComment.testCaseId, testCaseId)))
+		.where(
+			and(
+				eq(testCaseComment.id, commentId),
+				eq(testCaseComment.testCaseId, testCaseId),
+				sql`exists (select 1 from test_case where id = ${testCaseId} and project_id = ${projectId})`
+			)
+		)
 		.returning();
 
 	if (!updated) {
@@ -89,7 +95,13 @@ export const DELETE = withProjectAccess(async ({ params, user, projectId }) => {
 
 	const [deleted] = await db
 		.delete(testCaseComment)
-		.where(and(eq(testCaseComment.id, commentId), eq(testCaseComment.testCaseId, testCaseId)))
+		.where(
+			and(
+				eq(testCaseComment.id, commentId),
+				eq(testCaseComment.testCaseId, testCaseId),
+				sql`exists (select 1 from test_case where id = ${testCaseId} and project_id = ${projectId})`
+			)
+		)
 		.returning();
 
 	if (!deleted) {

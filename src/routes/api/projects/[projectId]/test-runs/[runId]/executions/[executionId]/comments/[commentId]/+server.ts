@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { executionComment, testExecution, testRun } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import {
 	COMMENT_UPDATE_FIELDS,
@@ -71,7 +71,11 @@ export const PATCH = withProjectAccess(async ({ params, request, user, projectId
 		.update(executionComment)
 		.set({ content })
 		.where(
-			and(eq(executionComment.id, commentId), eq(executionComment.testExecutionId, executionId))
+			and(
+				eq(executionComment.id, commentId),
+				eq(executionComment.testExecutionId, executionId),
+				sql`exists (select 1 from test_execution te join test_run tr on tr.id = te.test_run_id where te.id = ${executionId} and te.test_run_id = ${runId} and tr.project_id = ${projectId})`
+			)
 		)
 		.returning();
 
@@ -98,13 +102,18 @@ export const DELETE = withProjectAccess(async ({ params, user, projectId }) => {
 		.where(
 			and(
 				eq(executionComment.parentId, commentId),
-				eq(executionComment.testExecutionId, executionId)
+				eq(executionComment.testExecutionId, executionId),
+				sql`exists (select 1 from test_execution te join test_run tr on tr.id = te.test_run_id where te.id = ${executionId} and te.test_run_id = ${runId} and tr.project_id = ${projectId})`
 			)
 		);
 	const [deleted] = await db
 		.delete(executionComment)
 		.where(
-			and(eq(executionComment.id, commentId), eq(executionComment.testExecutionId, executionId))
+			and(
+				eq(executionComment.id, commentId),
+				eq(executionComment.testExecutionId, executionId),
+				sql`exists (select 1 from test_execution te join test_run tr on tr.id = te.test_run_id where te.id = ${executionId} and te.test_run_id = ${runId} and tr.project_id = ${projectId})`
+			)
 		)
 		.returning();
 

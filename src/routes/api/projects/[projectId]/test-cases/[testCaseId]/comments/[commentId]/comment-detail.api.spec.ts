@@ -25,7 +25,8 @@ vi.mock('$lib/server/db/schema', () => ({
 }));
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
-	and: vi.fn((...args: unknown[]) => args)
+	and: vi.fn((...args: unknown[]) => args),
+	sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }))
 }));
 vi.mock('$lib/server/auth-utils', async () => {
 	const actual =
@@ -85,7 +86,8 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments/[commentId]
 			expect(updateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 1],
-					['test_case_id', 10]
+					['test_case_id', 10],
+					expect.objectContaining({ values: [10, 1] })
 				])
 			);
 		});
@@ -234,7 +236,8 @@ describe('/api/projects/[projectId]/test-cases/[testCaseId]/comments/[commentId]
 			expect(deleteChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 1],
-					['test_case_id', 10]
+					['test_case_id', 10],
+					expect.objectContaining({ values: [10, 1] })
 				])
 			);
 		});

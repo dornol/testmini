@@ -61,7 +61,8 @@ vi.mock('$lib/server/db/auth.schema', () => ({
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
-	eq: vi.fn((a: unknown, b: unknown) => [a, b])
+	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
+	sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }))
 }));
 vi.mock('$lib/server/auth-utils', async () => {
 	const actual =
@@ -178,7 +179,8 @@ describe('/api/projects/[projectId]/test-runs/[runId]/executions/[executionId]/f
 			expect(txUpdateChain.where).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					['id', 200],
-					['test_run_id', 50]
+					['test_run_id', 50],
+					expect.objectContaining({ values: [50, 1] })
 				])
 			);
 			expect(txUpdateChain.returning).toHaveBeenCalledWith({ id: 'id' });

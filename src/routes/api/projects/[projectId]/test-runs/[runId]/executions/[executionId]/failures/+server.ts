@@ -9,7 +9,7 @@ import {
 	issueTrackerConfig
 } from '$lib/server/db/schema';
 import { user } from '$lib/server/db/auth.schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { parseJsonObjectBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { createFailureSchema } from '$lib/schemas/failure.schema';
@@ -97,6 +97,7 @@ export const POST = withProjectRole(
 		}
 
 		const createdFailure = await db.transaction(async (tx) => {
+			const executionProjectScope = sql`exists (select 1 from test_run where id = ${runId} and project_id = ${projectId})`;
 			const updatedExecutions = await tx
 				.update(testExecution)
 				.set({
@@ -104,7 +105,13 @@ export const POST = withProjectRole(
 					executedBy: user.id,
 					executedAt: new Date()
 				})
-				.where(and(eq(testExecution.id, executionId), eq(testExecution.testRunId, runId)))
+				.where(
+					and(
+						eq(testExecution.id, executionId),
+						eq(testExecution.testRunId, runId),
+						executionProjectScope
+					)
+				)
 				.returning({ id: testExecution.id });
 
 			if (updatedExecutions.length === 0) {

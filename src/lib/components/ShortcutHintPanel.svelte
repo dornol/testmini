@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { SHORTCUTS_CONTEXT_KEY, formatShortcut, type ShortcutsContext, type RegisteredShortcut } from '$lib/shortcuts';
+	import {
+		SHORTCUTS_CONTEXT_KEY,
+		formatShortcut,
+		type ShortcutsContext,
+		type RegisteredShortcut
+	} from '$lib/shortcuts';
 
 	interface Props {
 		open: boolean;
@@ -18,7 +23,7 @@
 		const result: Record<Category, RegisteredShortcut[]> = {
 			Navigation: [],
 			Actions: [],
-			General: [],
+			General: []
 		};
 		for (const s of all) {
 			result[s.definition.category].push(s);
@@ -48,7 +53,7 @@
 
 {#if open}
 	<div
-		class="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
+		class="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4"
 		data-backdrop="1"
 		onclick={handleBackdropClick}
 		onkeydown={handleBackdropKeydown}
@@ -63,7 +68,7 @@
 		<!-- Panel -->
 		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<div
-			class="relative z-10 w-full max-w-md rounded-xl border border-border bg-background/95 shadow-2xl backdrop-blur-md"
+			class="relative z-10 flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-background/95 shadow-2xl backdrop-blur-md sm:max-h-[calc(100dvh-2rem)]"
 			role="document"
 			onkeydown={handlePanelKeydown}
 		>
@@ -75,14 +80,24 @@
 					aria-label="Close shortcuts panel"
 					class="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 				>
-					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="16"
+						height="16"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
 						<path d="M18 6 6 18" /><path d="m6 6 12 12" />
 					</svg>
 				</button>
 			</div>
 
 			<!-- Shortcut groups -->
-			<div class="divide-y divide-border">
+			<div class="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
 				{#each categories as category (category)}
 					{#if byCategory[category].length > 0}
 						<div class="px-5 py-3">
@@ -91,11 +106,15 @@
 							</p>
 							<ul class="space-y-1.5">
 								{#each byCategory[category] as shortcut (shortcut.combo)}
-									<li class="flex items-center justify-between gap-4">
-										<span class="text-sm text-foreground">{shortcut.definition.label}</span>
-										<span class="flex shrink-0 items-center gap-1">
+									<li class="flex items-start justify-between gap-3">
+										<span class="min-w-0 break-words text-sm text-foreground"
+											>{shortcut.definition.label}</span
+										>
+										<span class="flex shrink-0 flex-wrap justify-end gap-1">
 											{#each formatShortcut(shortcut.combo).split(' ') as key (key)}
-												<kbd class="inline-flex min-w-[1.5rem] items-center justify-center rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground shadow-sm">
+												<kbd
+													class="inline-flex min-w-[1.5rem] items-center justify-center rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground shadow-sm"
+												>
 													{key}
 												</kbd>
 											{/each}
@@ -111,7 +130,10 @@
 			<!-- Footer hint -->
 			<div class="border-t border-border px-5 py-2">
 				<p class="text-center text-xs text-muted-foreground">
-					Press <kbd class="inline-flex min-w-[1.5rem] items-center justify-center rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs shadow-sm">Esc</kbd> or click outside to close
+					Press <kbd
+						class="inline-flex min-w-[1.5rem] items-center justify-center rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs shadow-sm"
+						>Esc</kbd
+					> or click outside to close
 				</p>
 			</div>
 		</div>

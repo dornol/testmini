@@ -85,6 +85,25 @@
 		node.focus();
 	}
 
+	function popoverPosition(
+		trigger: HTMLElement,
+		width: number,
+		height = 240,
+		gap = 4
+	): { x: number; y: number } {
+		const rect = trigger.getBoundingClientRect();
+		const margin = 8;
+		const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+		const x = Math.min(Math.max(rect.left + rect.width / 2 - width / 2, margin), maxLeft);
+		const below = rect.bottom + gap;
+		const above = rect.top - height - gap;
+		const y =
+			below + height > window.innerHeight - margin && above >= margin
+				? above
+				: Math.max(margin, below);
+		return { x, y };
+	}
+
 	// --- Group view state (persisted in localStorage) ---
 	const collapsedStorageKey = $derived(`tc-collapsed-${data.project.id}`);
 	function loadCollapsedGroups(): Set<number> {
@@ -302,8 +321,7 @@
 	async function addExecution(tcId: number, runId: number, event: MouseEvent) {
 		// Capture position before async operations (element may unmount after invalidateAll)
 		const btn = event.currentTarget as HTMLElement;
-		const rect = btn.getBoundingClientRect();
-		const pos = { x: rect.left + rect.width / 2, y: rect.bottom + 2 };
+		const pos = popoverPosition(btn, 128, 240, 2);
 
 		try {
 			await apiPost(`/api/projects/${data.project.id}/test-runs/${runId}/executions`, {
@@ -322,8 +340,8 @@
 			openDropdown = null;
 		} else {
 			const btn = event.currentTarget as HTMLElement;
-			const rect = btn.getBoundingClientRect();
-			openDropdown = { tcId, runId, x: rect.left + rect.width / 2, y: rect.bottom + 2 };
+			const pos = popoverPosition(btn, 128, 240, 2);
+			openDropdown = { tcId, runId, x: pos.x, y: pos.y };
 		}
 	}
 
@@ -612,8 +630,8 @@
 			priorityPopover = null;
 		} else {
 			const el = event.currentTarget as HTMLElement;
-			const rect = el.getBoundingClientRect();
-			priorityPopover = { tcId, currentValue, x: rect.left + rect.width / 2, y: rect.bottom + 4 };
+			const pos = popoverPosition(el, 176);
+			priorityPopover = { tcId, currentValue, x: pos.x, y: pos.y };
 		}
 	}
 
@@ -647,14 +665,14 @@
 			cfPopover = null;
 		} else {
 			const el = event.currentTarget as HTMLElement;
-			const rect = el.getBoundingClientRect();
+			const pos = popoverPosition(el, 240);
 			cfPopover = {
 				tcId,
 				cfId: cf.id,
 				fieldType: cf.fieldType,
 				options: cf.options,
-				x: rect.left + rect.width / 2,
-				y: rect.bottom + 4,
+				x: pos.x,
+				y: pos.y,
 				value: currentValue ?? null
 			};
 		}
@@ -684,8 +702,8 @@
 			assigneePopover = null;
 		} else {
 			const el = event.currentTarget as HTMLElement;
-			const rect = el.getBoundingClientRect();
-			assigneePopover = { tcId, x: rect.left + rect.width / 2, y: rect.bottom + 4 };
+			const pos = popoverPosition(el, 220);
+			assigneePopover = { tcId, x: pos.x, y: pos.y };
 		}
 	}
 
@@ -721,8 +739,8 @@
 			tagSearchInput = '';
 		} else {
 			const el = event.currentTarget as HTMLElement;
-			const rect = el.getBoundingClientRect();
-			tagPopover = { tcId, x: rect.left + rect.width / 2, y: rect.bottom + 4 };
+			const pos = popoverPosition(el, 240, 300);
+			tagPopover = { tcId, x: pos.x, y: pos.y };
 			tagSearchInput = '';
 			newTagColor = TAG_PALETTE[0];
 		}
@@ -1751,8 +1769,8 @@
 		{#if exec}
 			<div
 				data-status-dropdown
-				class="fixed z-[9999] bg-popover border rounded-md shadow-lg py-1 min-w-[100px]"
-				style="left: {openDropdown.x}px; top: {openDropdown.y}px; transform: translateX(-50%);"
+				class="fixed z-[9999] max-w-[calc(100vw-1rem)] min-w-[100px] rounded-md border bg-popover py-1 shadow-lg"
+				style="left: {openDropdown.x}px; top: {openDropdown.y}px;"
 			>
 				{#each allStatuses as s}
 					<button
@@ -1811,8 +1829,8 @@
 		{@const tcForPopover = data.testCases.find((tc) => tc.id === assigneePopover!.tcId)}
 		<div
 			data-assignee-popover
-			class="fixed z-[9999] bg-popover border rounded-md shadow-lg py-1 min-w-[150px] max-h-[240px] overflow-y-auto"
-			style="left: {assigneePopover.x}px; top: {assigneePopover.y}px; transform: translateX(-50%);"
+			class="fixed z-[9999] max-h-[240px] w-[min(220px,calc(100vw-1rem))] overflow-y-auto rounded-md border bg-popover py-1 shadow-lg"
+			style="left: {assigneePopover.x}px; top: {assigneePopover.y}px;"
 			role="listbox"
 			tabindex="-1"
 			aria-label={m.aria_assign_members()}
@@ -1868,8 +1886,8 @@
 		{@const canCreateNew = tagSearchInput.trim().length > 0 && !exactMatch}
 		<div
 			data-tag-popover
-			class="fixed z-[9999] bg-popover border rounded-md shadow-lg p-2 min-w-[200px] max-w-[240px]"
-			style="left: {tagPopover.x}px; top: {tagPopover.y}px; transform: translateX(-50%);"
+			class="fixed z-[9999] w-[min(240px,calc(100vw-1rem))] rounded-md border bg-popover p-2 shadow-lg"
+			style="left: {tagPopover.x}px; top: {tagPopover.y}px;"
 			role="listbox"
 			tabindex="-1"
 			aria-label={m.aria_manage_tags()}
@@ -1947,8 +1965,8 @@
 	{#if priorityPopover}
 		<div
 			data-priority-popover
-			class="fixed z-[9999] bg-popover border rounded-md shadow-lg py-1 min-w-[110px]"
-			style="left: {priorityPopover.x}px; top: {priorityPopover.y}px; transform: translateX(-50%);"
+			class="fixed z-[9999] w-[min(176px,calc(100vw-1rem))] rounded-md border bg-popover py-1 shadow-lg"
+			style="left: {priorityPopover.x}px; top: {priorityPopover.y}px;"
 		>
 			{#each priorityOptions as p (p.id)}
 				<button
@@ -1982,8 +2000,8 @@
 	{#if cfPopover}
 		<div
 			data-cf-popover
-			class="fixed z-[9999] bg-popover border rounded-md shadow-lg p-2 min-w-[160px]"
-			style="left: {cfPopover.x}px; top: {cfPopover.y}px; transform: translateX(-50%);"
+			class="fixed z-[9999] w-[min(240px,calc(100vw-1rem))] rounded-md border bg-popover p-2 shadow-lg"
+			style="left: {cfPopover.x}px; top: {cfPopover.y}px;"
 		>
 			{#if cfPopover.fieldType === 'TEXT' || cfPopover.fieldType === 'URL'}
 				<input

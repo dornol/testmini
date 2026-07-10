@@ -33,7 +33,11 @@ export const POST = withProjectRole(
 			.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 			.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
 			.where(
-				and(eq(testExecution.testRunId, runId), inArray(testExecution.status, ['FAIL', 'BLOCKED']))
+				and(
+					eq(testExecution.testRunId, runId),
+					eq(testCase.projectId, projectId),
+					inArray(testExecution.status, ['FAIL', 'BLOCKED'])
+				)
 			);
 
 		if (executions.length === 0) {

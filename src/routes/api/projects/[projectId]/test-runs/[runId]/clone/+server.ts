@@ -32,7 +32,7 @@ export const POST = withProjectRole(
 			.from(testExecution)
 			.innerJoin(testCaseVersion, eq(testExecution.testCaseVersionId, testCaseVersion.id))
 			.innerJoin(testCase, eq(testCaseVersion.testCaseId, testCase.id))
-			.where(eq(testExecution.testRunId, runId));
+			.where(and(eq(testExecution.testRunId, runId), eq(testCase.projectId, projectId)));
 
 		const newRun = await db.transaction(async (tx) => {
 			const [created] = await tx

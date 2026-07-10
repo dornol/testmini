@@ -16,7 +16,7 @@ vi.mock('$lib/server/db/schema', () => ({
 	},
 	testExecution: { id: 'id', testRunId: 'test_run_id', testCaseVersionId: 'test_case_version_id' },
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id' },
-	testCase: { id: 'id', latestVersionId: 'latest_version_id' }
+	testCase: { id: 'id', projectId: 'project_id', latestVersionId: 'latest_version_id' }
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
@@ -105,6 +105,12 @@ describe('/api/projects/[projectId]/test-runs/[runId]/clone', () => {
 
 			expect(response.status).toBe(200);
 			expect(body.id).toBe(newRun.id);
+			expect(selectChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_run_id', 50],
+					['project_id', 1]
+				])
+			);
 		});
 
 		it('should return 500 when cloned run insert affects no row', async () => {

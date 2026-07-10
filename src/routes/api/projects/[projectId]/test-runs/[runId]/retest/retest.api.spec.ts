@@ -20,7 +20,7 @@ vi.mock('$lib/server/db/schema', () => ({
 		status: 'status'
 	},
 	testCaseVersion: { id: 'id', testCaseId: 'test_case_id' },
-	testCase: { id: 'id', latestVersionId: 'latest_version_id' }
+	testCase: { id: 'id', projectId: 'project_id', latestVersionId: 'latest_version_id' }
 }));
 vi.mock('drizzle-orm', () => ({
 	and: vi.fn((...args: unknown[]) => args),
@@ -186,7 +186,7 @@ describe('/api/projects/[projectId]/test-runs/[runId]/retest', () => {
 
 		it('should create retest run with FAIL/BLOCKED executions', async () => {
 			mockDb.query.testRun.findFirst.mockResolvedValue(sampleTestRun);
-			setupSelectChain([
+			const selectChain = setupSelectChain([
 				{ testCaseId: 1, latestVersionId: 10 },
 				{ testCaseId: 2, latestVersionId: 20 }
 			]);
@@ -203,6 +203,13 @@ describe('/api/projects/[projectId]/test-runs/[runId]/retest', () => {
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.id).toBe(99);
+			expect(selectChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_run_id', 50],
+					['project_id', 1],
+					['status', ['FAIL', 'BLOCKED']]
+				])
+			);
 		});
 
 		it('should use default name "Retest of <original>" when name not provided', async () => {

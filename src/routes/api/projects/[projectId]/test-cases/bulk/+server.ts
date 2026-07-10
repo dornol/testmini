@@ -78,7 +78,13 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 
 				await tx
 					.delete(testCaseTag)
-					.where(and(inArray(testCaseTag.testCaseId, validIds), eq(testCaseTag.tagId, tagId)));
+					.where(
+						and(
+							inArray(testCaseTag.testCaseId, validIds),
+							eq(testCaseTag.tagId, tagId),
+							sql`exists (select 1 from test_case where id = ${testCaseTag.testCaseId} and project_id = ${projectId})`
+						)
+					);
 				affected = validIds.length;
 				break;
 			}
@@ -188,7 +194,11 @@ export const POST = withProjectAccess(async ({ request, user, projectId }) => {
 				await tx
 					.delete(testCaseAssignee)
 					.where(
-						and(inArray(testCaseAssignee.testCaseId, validIds), eq(testCaseAssignee.userId, userId))
+						and(
+							inArray(testCaseAssignee.testCaseId, validIds),
+							eq(testCaseAssignee.userId, userId),
+							sql`exists (select 1 from test_case where id = ${testCaseAssignee.testCaseId} and project_id = ${projectId})`
+						)
 					);
 				affected = validIds.length;
 				break;

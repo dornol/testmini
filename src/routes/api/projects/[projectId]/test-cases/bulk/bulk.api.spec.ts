@@ -49,6 +49,8 @@ vi.mock('drizzle-orm', () => ({
 	inArray: vi.fn((a: unknown, b: unknown) => ['inArray', a, b]),
 	sql: Object.assign(
 		(strings: TemplateStringsArray, ...values: unknown[]) => ({
+			sql: strings,
+			values,
 			as: () => ({ sql: strings, values })
 		}),
 		{ raw: (s: string) => s }
@@ -468,6 +470,61 @@ describe('/api/projects/[projectId]/test-cases/bulk', () => {
 					['project_id', 1]
 				])
 			});
+		});
+
+		it('should scope removeTag relation deletes to test cases in the current project', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValue({ role: 'QA' });
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
+			const { tx, deleteChain } = createTxWriteChains();
+			tx.query.tag.findFirst.mockResolvedValue({ id: 7, projectId: 1 });
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'removeTag', testCaseIds: [10, 11], tagId: 7 },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data).toEqual({ success: true, affected: 2 });
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['inArray', 'test_case_id', [10, 11]],
+					['tag_id', 7],
+					expect.objectContaining({ values: ['test_case_id', 1] })
+				])
+			);
+		});
+
+		it('should scope removeAssignee relation deletes to test cases in the current project', async () => {
+			mockDb.query.projectMember.findFirst.mockResolvedValue({ role: 'QA' });
+			mockSelectResult(mockDb, [{ id: 10 }, { id: 11 }]);
+			const { tx, deleteChain } = createTxWriteChains();
+			mockDb.transaction.mockImplementationOnce(async (fn) => fn(tx));
+
+			const event = createMockEvent({
+				method: 'POST',
+				params: { projectId: '1' },
+				body: { action: 'removeAssignee', testCaseIds: [10, 11], userId: 'user-2' },
+				user: testUser
+			});
+
+			const response = await POST(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data).toEqual({ success: true, affected: 2 });
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['inArray', 'test_case_id', [10, 11]],
+					['user_id', 'user-2'],
+					expect.objectContaining({ values: ['test_case_id', 1] })
+				])
+			);
 		});
 
 		it('should return 404 when setPriority latest-version update finds no row', async () => {

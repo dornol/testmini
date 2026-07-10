@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCaseDataSet } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { requireTestCase } from '$lib/server/queries';
@@ -32,7 +32,13 @@ export const PATCH = withProjectRole(
 			const [updated] = await db
 				.update(testCaseDataSet)
 				.set(updates)
-				.where(and(eq(testCaseDataSet.id, datasetId), eq(testCaseDataSet.testCaseId, testCaseId)))
+				.where(
+					and(
+						eq(testCaseDataSet.id, datasetId),
+						eq(testCaseDataSet.testCaseId, testCaseId),
+						sql`exists (select 1 from test_case where id = ${testCaseId} and project_id = ${projectId})`
+					)
+				)
 				.returning({ id: testCaseDataSet.id });
 			if (!updated) return notFound('Data set not found');
 		}
@@ -55,7 +61,13 @@ export const DELETE = withProjectRole(
 
 		const [deleted] = await db
 			.delete(testCaseDataSet)
-			.where(and(eq(testCaseDataSet.id, datasetId), eq(testCaseDataSet.testCaseId, testCaseId)))
+			.where(
+				and(
+					eq(testCaseDataSet.id, datasetId),
+					eq(testCaseDataSet.testCaseId, testCaseId),
+					sql`exists (select 1 from test_case where id = ${testCaseId} and project_id = ${projectId})`
+				)
+			)
 			.returning({ id: testCaseDataSet.id });
 		if (!deleted) return notFound('Data set not found');
 

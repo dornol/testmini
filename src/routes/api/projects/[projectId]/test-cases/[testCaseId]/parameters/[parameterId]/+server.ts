@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { testCaseParameter } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { withProjectRole } from '$lib/server/api-handler';
 import { requireTestCase } from '$lib/server/queries';
@@ -46,7 +46,11 @@ export const PATCH = withProjectRole(
 				.update(testCaseParameter)
 				.set(updates)
 				.where(
-					and(eq(testCaseParameter.id, parameterId), eq(testCaseParameter.testCaseId, testCaseId))
+					and(
+						eq(testCaseParameter.id, parameterId),
+						eq(testCaseParameter.testCaseId, testCaseId),
+						sql`exists (select 1 from test_case where id = ${testCaseId} and project_id = ${projectId})`
+					)
 				)
 				.returning({ id: testCaseParameter.id });
 			if (!updated) return notFound('Parameter not found');
@@ -74,7 +78,11 @@ export const DELETE = withProjectRole(
 		const [deleted] = await db
 			.delete(testCaseParameter)
 			.where(
-				and(eq(testCaseParameter.id, parameterId), eq(testCaseParameter.testCaseId, testCaseId))
+				and(
+					eq(testCaseParameter.id, parameterId),
+					eq(testCaseParameter.testCaseId, testCaseId),
+					sql`exists (select 1 from test_case where id = ${testCaseId} and project_id = ${projectId})`
+				)
 			)
 			.returning({ id: testCaseParameter.id });
 		if (!deleted) return notFound('Parameter not found');

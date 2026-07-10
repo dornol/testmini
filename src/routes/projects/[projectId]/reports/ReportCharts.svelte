@@ -459,7 +459,7 @@
 					>
 						<p class="font-mono text-xs text-muted-foreground">{tc.testCaseKey}</p>
 						<p class="mt-1 line-clamp-2 text-sm font-medium">{tc.title}</p>
-						<dl class="mt-3 grid grid-cols-4 gap-2 text-xs">
+						<dl class="mt-3 grid grid-cols-2 gap-2 text-xs min-[420px]:grid-cols-4">
 							<div>
 								<dt class="text-muted-foreground">{m.reports_total()}</dt>
 								<dd class="font-medium">{total}</dd>
@@ -569,7 +569,7 @@
 								<p class="mt-1 line-clamp-2 text-sm font-medium">{tc.title}</p>
 							</div>
 						</div>
-						<dl class="mt-3 grid grid-cols-4 gap-2 text-xs">
+						<dl class="mt-3 grid grid-cols-2 gap-2 text-xs min-[420px]:grid-cols-4">
 							<div>
 								<dt class="text-muted-foreground">{m.reports_total()}</dt>
 								<dd class="font-medium">{total}</dd>
@@ -775,7 +775,7 @@
 								<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
 							</span>
 						</div>
-						<dl class="mt-3 grid grid-cols-3 gap-2 text-xs">
+						<dl class="mt-3 grid grid-cols-1 gap-2 text-xs min-[360px]:grid-cols-3">
 							<div>
 								<dt class="text-muted-foreground">{m.slowest_avg()}</dt>
 								<dd class="font-medium">{formatDuration(tc.avgDuration)}</dd>
@@ -845,7 +845,7 @@
 					{@const density = dd.caseCount > 0 ? (dd.defectCount / dd.caseCount).toFixed(2) : '0'}
 					<div class="rounded-md border p-3">
 						<p class="text-sm font-medium">{dd.groupName ?? m.defect_ungrouped()}</p>
-						<dl class="mt-3 grid grid-cols-3 gap-2 text-xs">
+						<dl class="mt-3 grid grid-cols-1 gap-2 text-xs min-[360px]:grid-cols-3">
 							<div>
 								<dt class="text-muted-foreground">{m.defect_cases()}</dt>
 								<dd class="font-medium">{dd.caseCount}</dd>
@@ -904,10 +904,10 @@
 <!-- Recent Completed Runs Table -->
 {#if recentRuns.length > 0}
 	<Card.Root data-testid="recent-completed-runs">
-		<Card.Header class="flex flex-row items-center justify-between">
+		<Card.Header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<Card.Title class="text-sm font-medium">{m.reports_recent_completed()}</Card.Title>
 			{#if selectedRunIds.size > 0}
-				<Button size="sm" class="h-7 text-xs" onclick={exportSelected}>
+				<Button size="sm" class="h-8 w-full text-xs sm:h-7 sm:w-auto" onclick={exportSelected}>
 					{m.reports_export_selected({ count: selectedRunIds.size })}
 				</Button>
 			{/if}
@@ -940,7 +940,7 @@
 										{run.finishedAt ? new Date(run.finishedAt).toLocaleDateString() : '-'}
 									</span>
 								</div>
-								<dl class="mt-3 grid grid-cols-4 gap-2 text-xs">
+								<dl class="mt-3 grid grid-cols-2 gap-2 text-xs min-[420px]:grid-cols-4">
 									<div>
 										<dt class="text-muted-foreground">{m.reports_pass()}</dt>
 										<dd class="font-medium text-green-600">{run.passCount}</dd>

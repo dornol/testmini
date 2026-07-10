@@ -80,7 +80,12 @@
 					</div>
 					<form method="POST" action="?/toggle" use:enhance={handleResult}>
 						<input type="hidden" name="providerId" value={provider.id} />
-						<Button type="submit" variant="outline" size="sm" class="h-8 px-2 text-xs">
+						<Button
+							type="submit"
+							variant="outline"
+							size="sm"
+							class="h-8 w-full px-2 text-xs sm:w-auto"
+						>
 							{provider.enabled ? m.common_inactive() : m.common_active()}
 						</Button>
 					</form>
@@ -89,11 +94,11 @@
 					<div class="break-all">{m.oidc_slug()}: {provider.slug}</div>
 					<div>{m.common_status()}: {m.oidc_accounts_count({ count: provider.accountCount })}</div>
 				</div>
-				<div class="mt-3 flex flex-wrap gap-2">
+				<div class="mt-3 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap">
 					<Button
 						variant="outline"
 						size="sm"
-						class="h-8 px-2 text-xs"
+						class="h-8 w-full px-2 text-xs sm:w-auto"
 						href="/admin/oidc-providers/{provider.id}"
 					>
 						{m.common_edit()}
@@ -101,7 +106,7 @@
 					<Button
 						variant="ghost"
 						size="sm"
-						class="h-8 px-2 text-xs text-destructive"
+						class="h-8 w-full px-2 text-xs text-destructive sm:w-auto"
 						onclick={() =>
 							openDeleteDialog({
 								id: provider.id,
@@ -118,7 +123,7 @@
 			<div class="rounded-md border border-dashed p-6 text-center">
 				<p class="text-muted-foreground font-medium">{m.oidc_no_providers()}</p>
 				<p class="text-muted-foreground mt-1 text-sm">{m.oidc_no_providers_hint()}</p>
-				<Button href="/admin/oidc-providers/new" size="sm" class="mt-3"
+				<Button href="/admin/oidc-providers/new" size="sm" class="mt-3 w-full sm:w-auto"
 					>{m.oidc_add_provider()}</Button
 				>
 			</div>
@@ -212,7 +217,7 @@
 								</svg>
 								<p class="text-muted-foreground font-medium">{m.oidc_no_providers()}</p>
 								<p class="text-muted-foreground text-sm">{m.oidc_no_providers_hint()}</p>
-								<Button href="/admin/oidc-providers/new" size="sm" class="mt-2"
+								<Button href="/admin/oidc-providers/new" size="sm" class="mt-2 w-full sm:w-auto"
 									>{m.oidc_add_provider()}</Button
 								>
 							</div>

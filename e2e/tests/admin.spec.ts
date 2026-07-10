@@ -10,6 +10,10 @@ import { test, expect } from '@playwright/test';
 const ADMIN_STORAGE = './e2e/.auth-storage.json';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@admin.local';
 
+function adminEmailRow(page: import('@playwright/test').Page) {
+	return page.locator('tbody tr').filter({ hasText: ADMIN_EMAIL }).first();
+}
+
 // ---------------------------------------------------------------------------
 // Helper: create a test that uses the admin storage state
 // ---------------------------------------------------------------------------
@@ -56,7 +60,7 @@ test.describe('Admin Panel', () => {
 		await page.goto('/admin/users');
 		await page.waitForLoadState('networkidle');
 
-		await expect(page.locator(`text=${ADMIN_EMAIL}`).first()).toBeVisible({ timeout: 10000 });
+		await expect(adminEmailRow(page)).toBeVisible({ timeout: 10000 });
 	});
 
 	adminTest('should search for a user by name', async ({ page }) => {
@@ -69,7 +73,7 @@ test.describe('Admin Panel', () => {
 		await page.locator('button[type="submit"]').first().click();
 
 		await page.waitForLoadState('networkidle');
-		await expect(page.locator(`text=${ADMIN_EMAIL}`).first()).toBeVisible({ timeout: 10000 });
+		await expect(adminEmailRow(page)).toBeVisible({ timeout: 10000 });
 	});
 
 	adminTest('should navigate to projects list in admin panel', async ({ page }) => {

@@ -76,13 +76,26 @@
 		};
 	}
 
-	const currentUserId = $derived((page.data as Record<string, unknown>).user as { id: string } | null);
+	const currentUserId = $derived(
+		(page.data as Record<string, unknown>).user as { id: string } | null
+	);
 </script>
 
 <div class="space-y-4">
 	<!-- Search -->
-	<form onsubmit={(e) => { e.preventDefault(); doSearch(); }} class="flex gap-2">
-		<Input placeholder={m.admin_search_placeholder()} class="max-w-sm" bind:value={searchInput} aria-label={m.admin_search_placeholder()} />
+	<form
+		onsubmit={(e) => {
+			e.preventDefault();
+			doSearch();
+		}}
+		class="flex gap-2"
+	>
+		<Input
+			placeholder={m.admin_search_placeholder()}
+			class="max-w-sm"
+			bind:value={searchInput}
+			aria-label={m.admin_search_placeholder()}
+		/>
 		<Button type="submit" variant="outline">{m.common_search()}</Button>
 		<Button
 			variant={data.pendingOnly ? 'default' : 'outline'}
@@ -98,18 +111,23 @@
 			<Table.Header>
 				<Table.Row>
 					<Table.Head>{m.common_name()}</Table.Head>
-					<Table.Head>{m.common_email()}</Table.Head>
-					<Table.Head class="w-28">{m.common_role()}</Table.Head>
+					<Table.Head class="hidden sm:table-cell">{m.common_email()}</Table.Head>
+					<Table.Head class="w-24">{m.common_role()}</Table.Head>
 					<Table.Head class="w-24">{m.common_status()}</Table.Head>
-					<Table.Head class="w-32">{m.common_created()}</Table.Head>
-					<Table.Head class="w-40">{m.common_actions()}</Table.Head>
+					<Table.Head class="hidden w-32 md:table-cell">{m.common_created()}</Table.Head>
+					<Table.Head class="w-28">{m.common_actions()}</Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
 				{#each data.users as u (u.id)}
 					<Table.Row>
-						<Table.Cell class="font-medium">{u.name}</Table.Cell>
-						<Table.Cell class="text-muted-foreground">{u.email}</Table.Cell>
+						<Table.Cell class="font-medium">
+							<div>{u.name}</div>
+							<div class="text-muted-foreground mt-0.5 max-w-36 truncate text-xs sm:hidden">
+								{u.email}
+							</div>
+						</Table.Cell>
+						<Table.Cell class="text-muted-foreground hidden sm:table-cell">{u.email}</Table.Cell>
 						<Table.Cell>
 							<Badge variant={u.role === 'admin' ? 'default' : 'secondary'}>
 								{u.role ?? 'user'}
@@ -119,12 +137,15 @@
 							{#if u.banned}
 								<Badge variant="destructive">{m.admin_banned()}</Badge>
 							{:else if !u.approved}
-								<Badge class="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-amber-200 dark:border-amber-800">{m.admin_pending()}</Badge>
+								<Badge
+									class="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-amber-200 dark:border-amber-800"
+									>{m.admin_pending()}</Badge
+								>
 							{:else}
 								<Badge variant="outline">{m.common_active()}</Badge>
 							{/if}
 						</Table.Cell>
-						<Table.Cell class="text-muted-foreground text-xs">
+						<Table.Cell class="text-muted-foreground hidden text-xs md:table-cell">
 							{new Date(u.createdAt).toLocaleDateString()}
 						</Table.Cell>
 						<Table.Cell>
@@ -136,7 +157,10 @@
 											variant="ghost"
 											size="sm"
 											class="h-7 px-2 text-xs text-green-600"
-											onclick={() => { approveTarget = { id: u.id, name: u.name }; approveDialogOpen = true; }}
+											onclick={() => {
+												approveTarget = { id: u.id, name: u.name };
+												approveDialogOpen = true;
+											}}
 										>
 											{m.admin_approve()}
 										</Button>
@@ -145,7 +169,10 @@
 											variant="ghost"
 											size="sm"
 											class="text-destructive h-7 px-2 text-xs"
-											onclick={() => { rejectTarget = { id: u.id, name: u.name }; rejectDialogOpen = true; }}
+											onclick={() => {
+												rejectTarget = { id: u.id, name: u.name };
+												rejectDialogOpen = true;
+											}}
 										>
 											{m.admin_reject()}
 										</Button>
@@ -169,7 +196,12 @@
 									{#if u.banned}
 										<form method="POST" action="?/unban" use:enhance={handleResult}>
 											<input type="hidden" name="userId" value={u.id} />
-											<Button type="submit" variant="ghost" size="sm" class="h-7 px-2 text-xs text-green-600">
+											<Button
+												type="submit"
+												variant="ghost"
+												size="sm"
+												class="h-7 px-2 text-xs text-green-600"
+											>
 												{m.admin_unban()}
 											</Button>
 										</form>
@@ -195,7 +227,18 @@
 					<Table.Row>
 						<Table.Cell colspan={6} class="py-12 text-center">
 							<div class="flex flex-col items-center gap-2">
-								<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground">
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="40"
+									height="40"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.5"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="text-muted-foreground"
+								>
 									<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
 									<circle cx="9" cy="7" r="4" />
 									<path d="M22 21v-2a4 4 0 0 0-3-3.87" />
@@ -222,7 +265,9 @@
 					<Button
 						variant="outline"
 						size="sm"
-						href="/admin/users?page={data.pagination.page - 1}{data.search ? `&search=${data.search}` : ''}"
+						href="/admin/users?page={data.pagination.page - 1}{data.search
+							? `&search=${data.search}`
+							: ''}"
 					>
 						{m.common_previous()}
 					</Button>
@@ -234,7 +279,9 @@
 					<Button
 						variant="outline"
 						size="sm"
-						href="/admin/users?page={data.pagination.page + 1}{data.search ? `&search=${data.search}` : ''}"
+						href="/admin/users?page={data.pagination.page + 1}{data.search
+							? `&search=${data.search}`
+							: ''}"
 					>
 						{m.common_next()}
 					</Button>
@@ -255,18 +302,22 @@
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-			<form method="POST" action="?/approve" use:enhance={() => {
-				return async ({ result, update }) => {
-					if (result.type === 'success') {
-						approveDialogOpen = false;
-						toast.success(m.admin_user_approved());
-						await invalidateAll();
-					} else if (result.type === 'failure') {
-						toast.error((result.data?.error as string) ?? m.error_operation_failed());
-						await update();
-					}
-				};
-			}}>
+			<form
+				method="POST"
+				action="?/approve"
+				use:enhance={() => {
+					return async ({ result, update }) => {
+						if (result.type === 'success') {
+							approveDialogOpen = false;
+							toast.success(m.admin_user_approved());
+							await invalidateAll();
+						} else if (result.type === 'failure') {
+							toast.error((result.data?.error as string) ?? m.error_operation_failed());
+							await update();
+						}
+					};
+				}}
+			>
 				<input type="hidden" name="userId" value={approveTarget?.id ?? ''} />
 				<Button type="submit">{m.admin_approve()}</Button>
 			</form>
@@ -285,18 +336,22 @@
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
-			<form method="POST" action="?/reject" use:enhance={() => {
-				return async ({ result, update }) => {
-					if (result.type === 'success') {
-						rejectDialogOpen = false;
-						toast.success(m.admin_user_rejected());
-						await invalidateAll();
-					} else if (result.type === 'failure') {
-						toast.error((result.data?.error as string) ?? m.error_operation_failed());
-						await update();
-					}
-				};
-			}}>
+			<form
+				method="POST"
+				action="?/reject"
+				use:enhance={() => {
+					return async ({ result, update }) => {
+						if (result.type === 'success') {
+							rejectDialogOpen = false;
+							toast.success(m.admin_user_rejected());
+							await invalidateAll();
+						} else if (result.type === 'failure') {
+							toast.error((result.data?.error as string) ?? m.error_operation_failed());
+							await update();
+						}
+					};
+				}}
+			>
 				<input type="hidden" name="userId" value={rejectTarget?.id ?? ''} />
 				<Button type="submit" variant="destructive">{m.admin_reject()}</Button>
 			</form>
@@ -314,7 +369,11 @@
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<div class="py-3">
-			<Input placeholder={m.admin_ban_reason_placeholder()} bind:value={banReason} aria-label={m.admin_ban_reason_placeholder()} />
+			<Input
+				placeholder={m.admin_ban_reason_placeholder()}
+				bind:value={banReason}
+				aria-label={m.admin_ban_reason_placeholder()}
+			/>
 		</div>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>

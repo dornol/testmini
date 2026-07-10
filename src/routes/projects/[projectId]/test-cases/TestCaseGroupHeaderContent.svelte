@@ -44,7 +44,7 @@
 
 <button
 	type="button"
-	class="text-muted-foreground hover:text-foreground transition-colors"
+	class="text-muted-foreground hover:text-foreground flex min-h-8 min-w-8 items-center justify-center rounded transition-colors sm:min-h-0 sm:min-w-0"
 	onclick={onToggle}
 >
 	{#if collapsed}
@@ -102,7 +102,7 @@
 	{#if canEdit}
 		<button
 			type="button"
-			class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"
+			class="text-muted-foreground hover:text-foreground flex min-h-8 min-w-8 items-center justify-center rounded hover:bg-muted transition-colors sm:min-h-0 sm:min-w-0 sm:p-0.5"
 			title={m.aria_edit_name()}
 			aria-label={m.aria_edit_name()}
 			onclick={onStartEdit}
@@ -117,16 +117,14 @@
 				stroke-width="2"
 				stroke-linecap="round"
 				stroke-linejoin="round"
-				><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path
-					d="m15 5 4 4"
-				/></svg
+				><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg
 			>
 		</button>
 	{/if}
 	{#if canDelete}
 		<button
 			type="button"
-			class="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted transition-colors"
+			class="text-muted-foreground hover:text-destructive flex min-h-8 min-w-8 items-center justify-center rounded hover:bg-muted transition-colors sm:min-h-0 sm:min-w-0 sm:p-0.5"
 			title={m.aria_delete_group()}
 			aria-label={m.aria_delete_group()}
 			onclick={onDelete}
@@ -141,9 +139,9 @@
 				stroke-width="2"
 				stroke-linecap="round"
 				stroke-linejoin="round"
-				><path d="M3 6h18" /><path
-					d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"
-				/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg
+				><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path
+					d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"
+				/></svg
 			>
 		</button>
 	{/if}

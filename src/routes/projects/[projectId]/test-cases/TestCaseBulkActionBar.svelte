@@ -89,15 +89,21 @@
 	}
 </script>
 
-<div class="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 px-4 py-2">
+<div
+	class="sticky top-0 z-20 flex flex-wrap items-center gap-2 rounded-lg border bg-background/95 px-3 py-2 shadow-sm backdrop-blur sm:px-4"
+>
 	<span class="text-sm font-medium">{m.tc_bulk_selected({ count: selectedTcIds.size })}</span>
 	<div class="h-4 w-px bg-border"></div>
 
 	<DropdownMenu.Root>
 		<DropdownMenu.Trigger>
 			{#snippet child({ props })}
-				<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}
-					>{m.tc_export()}</Button
+				<Button
+					variant="outline"
+					size="sm"
+					class="h-8 text-xs sm:h-7"
+					disabled={bulkLoading}
+					{...props}>{m.tc_export()}</Button
 				>
 			{/snippet}
 		</DropdownMenu.Trigger>
@@ -116,8 +122,12 @@
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}
-						>{m.tc_bulk_add_tag()}</Button
+					<Button
+						variant="outline"
+						size="sm"
+						class="h-8 text-xs sm:h-7"
+						disabled={bulkLoading}
+						{...props}>{m.tc_bulk_add_tag()}</Button
 					>
 				{/snippet}
 			</DropdownMenu.Trigger>
@@ -138,8 +148,12 @@
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}
-						>{m.tc_bulk_remove_tag()}</Button
+					<Button
+						variant="outline"
+						size="sm"
+						class="h-8 text-xs sm:h-7"
+						disabled={bulkLoading}
+						{...props}>{m.tc_bulk_remove_tag()}</Button
 					>
 				{/snippet}
 			</DropdownMenu.Trigger>
@@ -165,8 +179,12 @@
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}
-						>{m.tc_bulk_add_assignee()}</Button
+					<Button
+						variant="outline"
+						size="sm"
+						class="h-8 text-xs sm:h-7"
+						disabled={bulkLoading}
+						{...props}>{m.tc_bulk_add_assignee()}</Button
 					>
 				{/snippet}
 			</DropdownMenu.Trigger>
@@ -186,8 +204,12 @@
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}
-						>{m.tc_bulk_remove_assignee()}</Button
+					<Button
+						variant="outline"
+						size="sm"
+						class="h-8 text-xs sm:h-7"
+						disabled={bulkLoading}
+						{...props}>{m.tc_bulk_remove_assignee()}</Button
 					>
 				{/snippet}
 			</DropdownMenu.Trigger>
@@ -208,8 +230,12 @@
 	<DropdownMenu.Root>
 		<DropdownMenu.Trigger>
 			{#snippet child({ props })}
-				<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}
-					>{m.tc_bulk_set_priority()}</Button
+				<Button
+					variant="outline"
+					size="sm"
+					class="h-8 text-xs sm:h-7"
+					disabled={bulkLoading}
+					{...props}>{m.tc_bulk_set_priority()}</Button
 				>
 			{/snippet}
 		</DropdownMenu.Trigger>
@@ -230,8 +256,12 @@
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}
-						>{m.tc_bulk_move_group()}</Button
+					<Button
+						variant="outline"
+						size="sm"
+						class="h-8 text-xs sm:h-7"
+						disabled={bulkLoading}
+						{...props}>{m.tc_bulk_move_group()}</Button
 					>
 				{/snippet}
 			</DropdownMenu.Trigger>
@@ -259,8 +289,12 @@
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-7 text-xs" disabled={bulkLoading} {...props}
-						>{m.suite_add_cases()}</Button
+					<Button
+						variant="outline"
+						size="sm"
+						class="h-8 text-xs sm:h-7"
+						disabled={bulkLoading}
+						{...props}>{m.suite_add_cases()}</Button
 					>
 				{/snippet}
 			</DropdownMenu.Trigger>
@@ -278,7 +312,7 @@
 	<Button
 		variant="outline"
 		size="sm"
-		class="h-7 text-xs"
+		class="h-8 text-xs sm:h-7"
 		disabled={bulkLoading}
 		onclick={() => bulkAction('clone')}
 	>
@@ -293,7 +327,7 @@
 					<Button
 						variant="destructive"
 						size="sm"
-						class="h-7 text-xs"
+						class="h-8 text-xs sm:h-7"
 						disabled={bulkLoading}
 						{...props}>{m.tc_bulk_delete()}</Button
 					>
@@ -321,7 +355,7 @@
 		</AlertDialog.Root>
 	{/if}
 
-	<Button variant="ghost" size="sm" class="h-7 text-xs ml-auto" onclick={onclear}>
+	<Button variant="ghost" size="sm" class="h-8 text-xs sm:ml-auto sm:h-7" onclick={onclear}>
 		{m.common_cancel()}
 	</Button>
 </div>

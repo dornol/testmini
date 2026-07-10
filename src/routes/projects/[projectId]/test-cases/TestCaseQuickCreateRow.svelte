@@ -39,7 +39,7 @@
 <form
 	method="POST"
 	action="?/quickCreate"
-	class="flex items-center gap-2 px-3 py-1.5"
+	class="flex flex-wrap items-center gap-2 px-3 py-2 sm:flex-nowrap sm:py-1.5"
 	use:enhance={() => {
 		onSubmittingChange(true);
 		return async ({ result }) => {
@@ -54,13 +54,13 @@
 	{#if groupKey !== -1}
 		<input type="hidden" name="groupId" value={String(groupKey)} />
 	{/if}
-	{#if canEdit}<span class="w-3.5 shrink-0"></span>{/if}
+	{#if canEdit}<span class="hidden w-3.5 shrink-0 sm:block"></span>{/if}
 	{#if !dndDisabled}<span class="hidden w-6 shrink-0 sm:block"></span>{/if}
 	<span class="hidden w-20 shrink-0 sm:block"></span>
 	<Input
 		name="title"
 		placeholder={m.tc_quick_create_placeholder()}
-		class="h-6 min-w-0 flex-1 text-xs"
+		class="h-9 min-w-0 flex-[1_0_100%] text-xs sm:h-6 sm:flex-1"
 		value={title}
 		oninput={(event) => {
 			onTitleChange((event.currentTarget as HTMLInputElement).value);
@@ -70,7 +70,12 @@
 	<DropdownMenu.Root>
 		<DropdownMenu.Trigger>
 			{#snippet child({ props })}
-				<Button variant="outline" size="sm" class="h-6 shrink-0 px-1.5 text-xs" {...props}>
+				<Button
+					variant="outline"
+					size="sm"
+					class="h-8 shrink-0 px-2 text-xs sm:h-6 sm:px-1.5"
+					{...props}
+				>
 					{priority}
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
@@ -98,7 +103,7 @@
 	<Button
 		type="submit"
 		size="sm"
-		class="h-6 shrink-0 px-2 text-xs"
+		class="h-8 min-w-8 shrink-0 px-2 text-xs sm:h-6 sm:min-w-0"
 		disabled={!title.trim() || submitting}
 	>
 		{submitting ? '...' : '+'}

@@ -14,7 +14,7 @@
 
 <button
 	type="button"
-	class="text-muted-foreground hover:text-foreground transition-colors"
+	class="text-muted-foreground hover:text-foreground flex min-h-8 min-w-8 items-center justify-center rounded transition-colors sm:min-h-0 sm:min-w-0"
 	onclick={onToggle}
 >
 	{#if collapsed}

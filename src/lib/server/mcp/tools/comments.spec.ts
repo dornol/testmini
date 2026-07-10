@@ -41,7 +41,8 @@ vi.mock('$lib/server/db/schema', () => ({
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args),
-	desc: vi.fn((a: unknown) => a)
+	desc: vi.fn((a: unknown) => a),
+	sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }))
 }));
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -243,6 +244,13 @@ describe('MCP comment tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.content).toBe('Updated content');
 			expect(updateChain.set).toHaveBeenCalledWith({ content: 'Updated content' });
+			expect(updateChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['test_case_id', 10],
+					expect.objectContaining({ values: [10, 1] })
+				])
+			);
 		});
 
 		it('should reject blank update content before looking up the test case', async () => {
@@ -280,7 +288,7 @@ describe('MCP comment tools', () => {
 	describe('delete-test-case-comment', () => {
 		it('should delete a comment', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
-			mockDeleteReturning(mockDb, [{ id: 1 }]);
+			const deleteChain = mockDeleteReturning(mockDb, [{ id: 1 }]);
 
 			const result = await client.callTool({
 				name: 'delete-test-case-comment',
@@ -291,6 +299,13 @@ describe('MCP comment tools', () => {
 			const parsed = parseResult(result);
 			expect(parsed.success).toBe(true);
 			expect(parsed.deletedId).toBe(1);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['test_case_id', 10],
+					expect.objectContaining({ values: [10, 1] })
+				])
+			);
 		});
 
 		it('should return error when delete does not remove a comment', async () => {

@@ -534,7 +534,11 @@ export function registerTestCaseTools(server: McpServer, projectId: number) {
 			const [deleted] = await db
 				.delete(testCaseAssignee)
 				.where(
-					and(eq(testCaseAssignee.testCaseId, testCaseId), eq(testCaseAssignee.userId, userId))
+					and(
+						eq(testCaseAssignee.testCaseId, testCaseId),
+						eq(testCaseAssignee.userId, userId),
+						sql`exists (select 1 from test_case where id = ${testCaseId} and project_id = ${projectId})`
+					)
 				)
 				.returning({ testCaseId: testCaseAssignee.testCaseId });
 

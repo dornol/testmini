@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '$lib/server/db';
 import { exploratorySession, sessionNote } from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import {
 	validateCreateExploratorySessionPayload,
 	validateUpdateExploratorySessionPayload
@@ -236,7 +236,14 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 			if (!s) return err('Session not found');
 
 			const deleted = await db.transaction(async (tx) => {
-				await tx.delete(sessionNote).where(eq(sessionNote.sessionId, sessionId));
+				await tx
+					.delete(sessionNote)
+					.where(
+						and(
+							eq(sessionNote.sessionId, sessionId),
+							sql`exists (select 1 from exploratory_session where id = ${sessionId} and project_id = ${projectId})`
+						)
+					);
 				const [deletedSession] = await tx
 					.delete(exploratorySession)
 					.where(

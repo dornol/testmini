@@ -1090,7 +1090,7 @@ describe('MCP test-case tools', () => {
 	describe('unassign-test-case', () => {
 		it('should remove a user assignment from a test case', async () => {
 			mockDb.query.testCase.findFirst.mockResolvedValue(sampleTestCase);
-			mockDeleteReturning(mockDb, [{ testCaseId: 10 }]);
+			const deleteChain = mockDeleteReturning(mockDb, [{ testCaseId: 10 }]);
 
 			const result = await client.callTool({
 				name: 'unassign-test-case',
@@ -1104,6 +1104,13 @@ describe('MCP test-case tools', () => {
 			expect(parsed.userId).toBe('user-1');
 			expect(parsed.removed).toBe(true);
 			expect(mockDb.delete).toHaveBeenCalled();
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['test_case_id', 10],
+					['user_id', 'user-1'],
+					expect.objectContaining({ values: [10, 1] })
+				])
+			);
 		});
 
 		it('should report when no assignment was removed', async () => {

@@ -9,7 +9,7 @@ import {
 	executionComment
 } from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { validateCommentContent } from '$lib/server/crud-helpers';
 
 async function mcpValidationError(
@@ -153,7 +153,13 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 			const [updated] = await db
 				.update(testCaseComment)
 				.set({ content: contentOrError })
-				.where(and(eq(testCaseComment.id, commentId), eq(testCaseComment.testCaseId, testCaseId)))
+				.where(
+					and(
+						eq(testCaseComment.id, commentId),
+						eq(testCaseComment.testCaseId, testCaseId),
+						sql`exists (select 1 from test_case where id = ${testCaseId} and project_id = ${projectId})`
+					)
+				)
 				.returning();
 			if (!updated) return err('Comment not found');
 			return ok(updated);
@@ -173,7 +179,13 @@ export function registerCommentTools(server: McpServer, projectId: number) {
 
 			const [deleted] = await db
 				.delete(testCaseComment)
-				.where(and(eq(testCaseComment.id, commentId), eq(testCaseComment.testCaseId, testCaseId)))
+				.where(
+					and(
+						eq(testCaseComment.id, commentId),
+						eq(testCaseComment.testCaseId, testCaseId),
+						sql`exists (select 1 from test_case where id = ${testCaseId} and project_id = ${projectId})`
+					)
+				)
 				.returning({ id: testCaseComment.id });
 			if (!deleted) return err('Comment not found');
 			return ok({ success: true, deletedId: commentId });

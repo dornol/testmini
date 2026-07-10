@@ -38,7 +38,8 @@ vi.mock('$lib/server/db/schema', () => ({
 vi.mock('drizzle-orm', () => ({
 	eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 	and: vi.fn((...args: unknown[]) => args),
-	desc: vi.fn((a: unknown) => a)
+	desc: vi.fn((a: unknown) => a),
+	sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }))
 }));
 vi.mock('../helpers', async () => {
 	const actual = (await vi.importActual('../helpers')) as Record<string, unknown>;
@@ -411,6 +412,15 @@ describe('MCP exploratory tools', () => {
 			expect(parsed.deletedId).toBe(1);
 			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 			expect(mockDb.delete).not.toHaveBeenCalled();
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					['id', 1],
+					['project_id', 1]
+				])
+			);
+			expect(deleteChain.where).toHaveBeenCalledWith(
+				expect.arrayContaining([['session_id', 1], expect.objectContaining({ values: [1, 1] })])
+			);
 			expect(deleteChain.returning).toHaveBeenCalledTimes(1);
 		});
 

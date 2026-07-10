@@ -216,7 +216,8 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 				.where(
 					and(
 						eq(testPlanTestCase.testPlanId, planId),
-						inArray(testPlanTestCase.testCaseId, testCaseIds)
+						inArray(testPlanTestCase.testCaseId, testCaseIds),
+						sql`exists (select 1 from test_plan where id = ${planId} and project_id = ${projectId})`
 					)
 				)
 				.returning({ id: testPlanTestCase.id });
@@ -331,7 +332,14 @@ export function registerTestPlanTools(server: McpServer, projectId: number) {
 			if (!plan) return err('Test plan not found');
 
 			const deleted = await db.transaction(async (tx) => {
-				await tx.delete(testPlanTestCase).where(eq(testPlanTestCase.testPlanId, planId));
+				await tx
+					.delete(testPlanTestCase)
+					.where(
+						and(
+							eq(testPlanTestCase.testPlanId, planId),
+							sql`exists (select 1 from test_plan where id = ${planId} and project_id = ${projectId})`
+						)
+					);
 				const [deletedPlan] = await tx
 					.delete(testPlan)
 					.where(and(eq(testPlan.id, planId), eq(testPlan.projectId, projectId)))

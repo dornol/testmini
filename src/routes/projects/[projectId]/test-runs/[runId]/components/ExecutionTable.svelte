@@ -5,8 +5,11 @@
 	import { SvelteMap } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { statusColorBg } from '$lib/execution-status';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
+	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
+	import CommentSection from '$lib/components/CommentSection.svelte';
 	import ExecutionRow from './ExecutionRow.svelte';
 
 	interface FailureRecord {
@@ -482,6 +485,118 @@
 							{m.exec_comment_title()}
 						</button>
 					</div>
+
+					{#if exec.status === 'FAIL' && viewFailuresExecId === exec.id}
+						<div class="space-y-3 rounded-md bg-red-50 p-3 dark:bg-red-950/30">
+							<div class="flex items-center justify-between gap-3">
+								<h4 class="text-sm font-medium text-red-800 dark:text-red-300">
+									{m.fail_details()}
+								</h4>
+								{#if canExecute}
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										class="h-8 shrink-0 text-xs"
+										onclick={() => onOpenFailDialog(exec.id, exec.testCaseKey)}
+									>
+										{m.fail_add_detail()}
+									</Button>
+								{/if}
+							</div>
+
+							<div class="border-b pb-3">
+								<AttachmentManager
+									referenceType="EXECUTION"
+									referenceId={exec.id}
+									editable={canExecute}
+								/>
+							</div>
+
+							{#if failuresForExec.length === 0}
+								<p class="text-sm text-muted-foreground">{m.fail_no_details()}</p>
+							{:else}
+								{#each failuresForExec as f (f.id)}
+									<div class="rounded border bg-white p-3 dark:bg-gray-900">
+										<div class="space-y-2 text-sm">
+											{#if f.errorMessage}
+												<div class="break-words">
+													<span class="font-medium">{m.fail_error()}:</span>
+													{f.errorMessage}
+												</div>
+											{/if}
+											{#if f.testMethod}
+												<div class="break-words">
+													<span class="font-medium">{m.fail_method()}:</span>
+													{f.testMethod}
+												</div>
+											{/if}
+											{#if f.failureEnvironment}
+												<div class="break-words">
+													<span class="font-medium">{m.common_environment()}:</span>
+													{f.failureEnvironment}
+												</div>
+											{/if}
+											{#if f.stackTrace}
+												<details>
+													<summary class="cursor-pointer text-xs text-muted-foreground">
+														{m.fail_stack_trace()}
+													</summary>
+													<pre
+														class="mt-1 overflow-x-auto rounded bg-muted p-2 text-xs">{f.stackTrace}</pre>
+												</details>
+											{/if}
+											{#if f.comment}
+												<div class="break-words text-muted-foreground">{f.comment}</div>
+											{/if}
+										</div>
+										{#if canExecute}
+											<div class="mt-3 flex flex-wrap justify-end gap-2">
+												<Button
+													type="button"
+													variant="ghost"
+													size="sm"
+													class="h-8 text-xs"
+													onclick={() => onOpenEditFailure(f)}
+												>
+													{m.common_edit()}
+												</Button>
+												<Button
+													type="button"
+													variant="ghost"
+													size="sm"
+													class="h-8 text-xs text-destructive hover:text-destructive"
+													onclick={() => onOpenDeleteFailure(f.id)}
+												>
+													{m.common_delete()}
+												</Button>
+											</div>
+										{/if}
+										<div class="mt-2 text-xs text-muted-foreground">
+											{f.createdBy} &middot; {new Date(f.createdAt).toLocaleString()}
+										</div>
+										<div class="mt-3 border-t pt-3">
+											<AttachmentManager
+												referenceType="FAILURE"
+												referenceId={f.id}
+												editable={canExecute}
+											/>
+										</div>
+									</div>
+								{/each}
+							{/if}
+						</div>
+					{/if}
+
+					{#if commentOpenExecId === exec.id}
+						<div class="rounded-md border p-3">
+							<CommentSection
+								{currentUserId}
+								{userRole}
+								commentUrl={`/api/projects/${projectId}/test-runs/${runId}/executions/${exec.id}/comments`}
+							/>
+						</div>
+					{/if}
 				</Card.Content>
 			</Card.Root>
 		{/each}

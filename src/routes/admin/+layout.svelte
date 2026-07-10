@@ -21,12 +21,12 @@
 	</div>
 
 	<div class="border-b">
-		<nav class="flex gap-2">
+		<nav class="-mb-px flex gap-2 overflow-x-auto overscroll-x-contain pb-px pr-4 snap-x">
 			{#each tabs as tab (tab.href)}
 				<a
 					href={tab.href}
 					class={cn(
-						'-mb-px border-b-2 px-1 pb-2 text-sm font-medium transition-colors',
+						'shrink-0 snap-start border-b-2 px-1 py-1.5 text-xs font-medium whitespace-nowrap transition-colors sm:text-sm',
 						page.url.pathname.startsWith(tab.href)
 							? 'border-primary text-foreground'
 							: 'border-transparent text-muted-foreground hover:text-foreground'

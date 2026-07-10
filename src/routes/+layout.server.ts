@@ -1,16 +1,38 @@
 import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { project, projectMember, testCaseGroup, userPreference, notification, appConfig } from '$lib/server/db/schema';
+import {
+	project,
+	projectMember,
+	testCaseGroup,
+	userPreference,
+	notification,
+	appConfig
+} from '$lib/server/db/schema';
 import { and, eq, count } from 'drizzle-orm';
 import { loadUserTeams } from '$lib/server/queries';
 import { cacheGet, cacheSet } from '$lib/server/cache';
 
+function localBrandingUrl(url: string | null): string | null {
+	return url?.startsWith('/api/branding/') ? url : null;
+}
+
 export const load: LayoutServerLoad = async ({ locals }) => {
 	let preferences: { locale: string | null; theme: string | null } | null = null;
-	let sidebarProjects: { id: number; name: string; groups: { id: number; name: string; color: string | null }[] }[] = [];
-	let sidebarTeams: { id: number; name: string; description: string | null; role: string; createdAt: Date }[] = [];
+	let sidebarProjects: {
+		id: number;
+		name: string;
+		groups: { id: number; name: string; color: string | null }[];
+	}[] = [];
+	let sidebarTeams: {
+		id: number;
+		name: string;
+		description: string | null;
+		role: string;
+		createdAt: Date;
+	}[] = [];
 	let unreadNotificationCount = 0;
-	let branding: { appName: string; logoUrl: string | null; faviconUrl: string | null } | null = null;
+	let branding: { appName: string; logoUrl: string | null; faviconUrl: string | null } | null =
+		null;
 
 	const BRANDING_CACHE_KEY = 'global:branding';
 	const cached = cacheGet<typeof branding>(BRANDING_CACHE_KEY);
@@ -20,7 +42,11 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		try {
 			const config = await db.query.appConfig.findFirst();
 			if (config) {
-				branding = { appName: config.appName, logoUrl: config.logoUrl, faviconUrl: config.faviconUrl };
+				branding = {
+					appName: config.appName,
+					logoUrl: localBrandingUrl(config.logoUrl),
+					faviconUrl: localBrandingUrl(config.faviconUrl)
+				};
 			}
 			cacheSet(BRANDING_CACHE_KEY, branding, 5 * 60 * 1000);
 		} catch {
@@ -56,7 +82,10 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 				.where(eq(projectMember.userId, locals.user.id));
 
 			// Assemble into the expected nested structure
-			const projectMap = new Map<number, { id: number; name: string; groups: { id: number; name: string; color: string | null }[] }>();
+			const projectMap = new Map<
+				number,
+				{ id: number; name: string; groups: { id: number; name: string; color: string | null }[] }
+			>();
 
 			for (const row of rows) {
 				let entry = projectMap.get(row.projectId);

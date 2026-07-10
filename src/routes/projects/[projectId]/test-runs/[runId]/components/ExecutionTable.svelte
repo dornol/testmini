@@ -475,15 +475,27 @@
 							name={exec.testCasePriority}
 							color={getPriorityColor(exec.testCasePriority)}
 						/>
-						<button
-							type="button"
-							class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-							class:text-primary={commentOpenExecId === exec.id}
-							aria-label={m.exec_comment_title()}
-							onclick={() => handleToggleComments(exec.id)}
-						>
-							{m.exec_comment_title()}
-						</button>
+						<div class="flex flex-wrap justify-end gap-1">
+							{#if exec.status === 'FAIL' && failuresForExec.length > 0}
+								<button
+									type="button"
+									class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+									class:text-primary={viewFailuresExecId === exec.id}
+									onclick={() => handleToggleViewFailures(exec.id)}
+								>
+									{m.fail_details()}
+								</button>
+							{/if}
+							<button
+								type="button"
+								class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+								class:text-primary={commentOpenExecId === exec.id}
+								aria-label={m.exec_comment_title()}
+								onclick={() => handleToggleComments(exec.id)}
+							>
+								{m.exec_comment_title()}
+							</button>
+						</div>
 					</div>
 
 					{#if exec.status === 'FAIL' && viewFailuresExecId === exec.id}

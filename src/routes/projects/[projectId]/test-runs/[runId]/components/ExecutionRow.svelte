@@ -6,6 +6,7 @@
 	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
 	import CommentSection from '$lib/components/CommentSection.svelte';
 	import { toast } from 'svelte-sonner';
+	import { CircleAlert } from 'lucide-svelte';
 	import { apiPost, apiDelete } from '$lib/api-client';
 	import { formatDurationFromDates } from '$lib/format-utils';
 	import { statusColorBg } from '$lib/execution-status';
@@ -202,6 +203,16 @@
 				>
 					<span>{exec.executedBy ?? '-'}</span>
 					<span>{formatDurationFromDates(exec.startedAt, exec.completedAt) ?? '-'}</span>
+					{#if exec.status === 'FAIL' && failures.length > 0}
+						<button
+							type="button"
+							class="inline-flex min-h-8 items-center gap-1 rounded text-muted-foreground hover:text-foreground"
+							class:text-primary={showFailureDetails}
+							onclick={() => onToggleViewFailures(exec.id)}
+						>
+							{m.fail_details()}
+						</button>
+					{/if}
 					<button
 						type="button"
 						class="inline-flex min-h-8 items-center gap-1 rounded text-muted-foreground hover:text-foreground"
@@ -306,28 +317,42 @@
 		{formatDurationFromDates(exec.startedAt, exec.completedAt) ?? '-'}
 	</td>
 	<td class="hidden bg-clip-padding p-1 align-middle whitespace-nowrap sm:table-cell">
-		<button
-			type="button"
-			class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-			class:text-primary={showComments}
-			title={m.exec_comment_title()}
-			aria-label={m.exec_comment_title()}
-			onclick={() => onToggleComments(exec.id)}
-		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				width="16"
-				height="16"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
+		<div class="flex items-center gap-1">
+			{#if exec.status === 'FAIL' && failures.length > 0}
+				<button
+					type="button"
+					class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+					class:text-primary={showFailureDetails}
+					title={m.fail_details()}
+					aria-label={m.fail_details()}
+					onclick={() => onToggleViewFailures(exec.id)}
+				>
+					<CircleAlert class="size-4" aria-hidden="true" />
+				</button>
+			{/if}
+			<button
+				type="button"
+				class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+				class:text-primary={showComments}
+				title={m.exec_comment_title()}
+				aria-label={m.exec_comment_title()}
+				onclick={() => onToggleComments(exec.id)}
 			>
-				<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-			</svg>
-		</button>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="16"
+					height="16"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+				</svg>
+			</button>
+		</div>
 	</td>
 </tr>
 

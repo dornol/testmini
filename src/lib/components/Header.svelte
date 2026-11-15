@@ -28,11 +28,31 @@
 		await invalidateAll();
 		goto('/auth/login');
 	}
+
+	function openCommandPalette() {
+		window.dispatchEvent(new CustomEvent('testmini:open-command-palette'));
+	}
 </script>
 
 <header class="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-background px-3">
-	<Button variant="ghost" size="icon" onclick={onToggleSidebar} aria-label="Toggle sidebar" class="lg:hidden">
-		<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+	<Button
+		variant="ghost"
+		size="icon"
+		onclick={onToggleSidebar}
+		aria-label={m.aria_toggle_sidebar()}
+		class="lg:hidden"
+	>
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			width="20"
+			height="20"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		>
 			<line x1="4" x2="20" y1="12" y2="12" />
 			<line x1="4" x2="20" y1="6" y2="6" />
 			<line x1="4" x2="20" y1="18" y2="18" />
@@ -49,6 +69,21 @@
 	</a>
 
 	<div class="ml-auto flex items-center gap-1">
+		{#if user}
+			<Button
+				variant="outline"
+				size="sm"
+				class="hidden h-8 min-w-36 justify-between gap-3 text-muted-foreground md:inline-flex"
+				onclick={openCommandPalette}
+				aria-haspopup="dialog"
+			>
+				<span>{m.command_palette_open()}</span>
+				<kbd class="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-foreground"
+					>⌘K</kbd
+				>
+			</Button>
+		{/if}
+
 		<!-- Notification bell (only for authenticated users) -->
 		{#if user}
 			<NotificationBell initialUnreadCount={unreadNotificationCount} />
@@ -58,7 +93,7 @@
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
-					<Button variant="ghost" size="icon" {...props} aria-label="Change language">
+					<Button variant="ghost" size="icon" {...props} aria-label={m.aria_change_language()}>
 						<span class="text-sm font-medium uppercase">{getLocale()}</span>
 					</Button>
 				{/snippet}

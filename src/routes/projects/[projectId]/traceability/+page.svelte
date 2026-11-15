@@ -505,7 +505,7 @@
 						<Table.Head class="py-1 px-2 text-xs">{m.common_title()}</Table.Head>
 						<Table.Head class="py-1 px-2 text-xs">{m.req_source()}</Table.Head>
 						<Table.Head class="py-1 px-2 text-xs">{m.req_linked_test_cases()}</Table.Head>
-						<Table.Head class="py-1 px-2 text-xs">Coverage</Table.Head>
+						<Table.Head class="py-1 px-2 text-xs">{m.req_coverage()}</Table.Head>
 						{#if canManage}
 							<Table.Head class="py-1 px-2 text-xs w-24">{m.common_actions()}</Table.Head>
 						{/if}

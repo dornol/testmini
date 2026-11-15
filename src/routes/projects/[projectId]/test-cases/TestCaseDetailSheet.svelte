@@ -1791,7 +1791,7 @@
 												>
 												{#if v.id === version?.id}
 													<span class="text-[10px] bg-primary/10 text-primary rounded px-1.5 py-0.5"
-														>latest</span
+														>{m.common_latest()}</span
 													>
 												{/if}
 											</div>

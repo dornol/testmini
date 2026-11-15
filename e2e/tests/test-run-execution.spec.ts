@@ -28,7 +28,7 @@ test.describe.serial('Test Run Execution', () => {
 		await page.fill('#description', 'E2E test run execution project');
 		await page.click('button[type="submit"]');
 
-		await page.waitForURL('**/projects/**', { timeout: 15000 });
+		await page.waitForURL(/\/projects\/\d+$/, { timeout: 15000 });
 		const url = page.url().replace(/\/$/, '');
 
 		const match = url.match(/\/projects\/(\d+)/);

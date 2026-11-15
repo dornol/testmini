@@ -4,6 +4,8 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { apiFetch, apiPost } from '$lib/api-client';
 	import { toast } from 'svelte-sonner';
+	import * as m from '$lib/paraglide/messages.js';
+	import { getLocale } from '$lib/paraglide/runtime';
 
 	interface Notification {
 		id: number;
@@ -41,11 +43,11 @@
 		const diffHour = Math.floor(diffMin / 60);
 		const diffDay = Math.floor(diffHour / 24);
 
-		if (diffSec < 60) return 'just now';
-		if (diffMin < 60) return `${diffMin}m ago`;
-		if (diffHour < 24) return `${diffHour}h ago`;
-		if (diffDay < 7) return `${diffDay}d ago`;
-		return date.toLocaleDateString();
+		if (diffSec < 60) return m.time_just_now();
+		if (diffMin < 60) return m.time_minutes_ago({ count: diffMin });
+		if (diffHour < 24) return m.time_hours_ago({ count: diffHour });
+		if (diffDay < 7) return m.time_days_ago({ count: diffDay });
+		return date.toLocaleDateString(getLocale());
 	}
 
 	function typeIcon(type: string): string {
@@ -89,7 +91,7 @@
 			hasMore = data.hasMore;
 			unreadCount = data.items.filter((n) => !n.isRead).length;
 		} catch {
-			toast.error('Failed to load notifications');
+			toast.error(m.notification_load_failed());
 		} finally {
 			loading = false;
 		}
@@ -113,7 +115,7 @@
 			notifications = notifications.map((n) => (ids.includes(n.id) ? { ...n, isRead: true } : n));
 			unreadCount = Math.max(0, unreadCount - ids.length);
 		} catch {
-			toast.error('Failed to mark notifications as read');
+			toast.error(m.notification_mark_read_failed());
 		}
 	}
 
@@ -123,7 +125,7 @@
 			notifications = notifications.map((n) => ({ ...n, isRead: true }));
 			unreadCount = 0;
 		} catch {
-			toast.error('Failed to mark all notifications as read');
+			toast.error(m.notification_mark_all_read_failed());
 		}
 	}
 
@@ -208,7 +210,7 @@
 		variant="ghost"
 		size="icon"
 		onclick={toggleOpen}
-		aria-label="Notifications"
+		aria-label={m.aria_notifications()}
 		aria-haspopup="true"
 		aria-expanded={open}
 		class="relative"
@@ -233,7 +235,7 @@
 		{#if unreadCount > 0}
 			<span
 				class="bg-destructive text-destructive-foreground ring-background absolute -right-0.5 -top-0.5 flex h-2.5 min-w-2.5 items-center justify-center rounded-full px-px text-[7px] font-bold leading-none ring-1"
-				aria-label="{unreadCount} unread notifications"
+				aria-label={m.aria_unread_notifications({ count: unreadCount })}
 			>
 				{unreadCount > 99 ? '99+' : unreadCount}
 			</span>
@@ -248,13 +250,13 @@
 			class="border-border bg-popover text-popover-foreground fixed left-2 right-2 top-12 z-50 flex max-h-[calc(100dvh-3.5rem)] flex-col overflow-hidden rounded-md border shadow-lg sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-1 sm:w-96"
 			role="dialog"
 			aria-modal="true"
-			aria-label="Notifications panel"
+			aria-label={m.aria_notifications_panel()}
 			tabindex="-1"
 			onkeydown={handleKeydown}
 		>
 			<!-- Header -->
 			<div class="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3">
-				<h2 class="min-w-0 break-words text-sm font-semibold">Notifications</h2>
+				<h2 class="min-w-0 break-words text-sm font-semibold">{m.notification_title()}</h2>
 				{#if unreadInList > 0}
 					<Button
 						variant="ghost"
@@ -262,7 +264,7 @@
 						class="h-auto shrink-0 px-2 py-0.5 text-xs"
 						onclick={markAllAsRead}
 					>
-						Mark all as read
+						{m.notification_mark_all_read()}
 					</Button>
 				{/if}
 			</div>
@@ -292,7 +294,7 @@
 							<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
 							<path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
 						</svg>
-						<span>No notifications yet</span>
+						<span>{m.notification_empty()}</span>
 					</div>
 				{:else}
 					{#each notifications as n (n.id)}
@@ -302,7 +304,7 @@
 								? 'opacity-60'
 								: ''}"
 							onclick={() => handleNotificationClick(n)}
-							aria-label="{n.title}{n.isRead ? '' : ' (unread)'}"
+							aria-label="{n.title}{n.isRead ? '' : ` (${m.aria_unread()})`}"
 						>
 							<span class="mt-0.5 shrink-0 text-base" aria-hidden="true">{typeIcon(n.type)}</span>
 
@@ -335,7 +337,7 @@
 								onclick={() => loadNotifications(false)}
 								disabled={loading}
 							>
-								{loading ? 'Loading…' : 'Load more'}
+								{loading ? m.common_loading() : m.notification_load_more()}
 							</Button>
 						</div>
 					{/if}

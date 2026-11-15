@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { toggleMode } from 'mode-watcher';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import * as m from '$lib/paraglide/messages.js';
 </script>
 
-<Button onclick={toggleMode} variant="ghost" size="icon" aria-label="Toggle theme">
+<Button onclick={toggleMode} variant="ghost" size="icon" aria-label={m.aria_toggle_theme()}>
 	<svg
 		xmlns="http://www.w3.org/2000/svg"
 		width="20"

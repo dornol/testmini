@@ -17,7 +17,7 @@ test.describe.serial('Bulk Operations', () => {
 		await page.fill('#name', projectName);
 		await page.fill('#description', 'E2E bulk operations test');
 		await page.click('button[type="submit"]');
-		await page.waitForURL('**/projects/**', { timeout: 15000 });
+		await page.waitForURL(/\/projects\/\d+$/, { timeout: 15000 });
 
 		const match = page.url().match(/\/projects\/(\d+)/);
 		expect(match).not.toBeNull();

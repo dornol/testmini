@@ -2,6 +2,7 @@ import { page } from 'vitest/browser';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import NotificationBell from './NotificationBell.svelte';
+import { setLocale } from '$lib/paraglide/runtime';
 
 function mockFetch(data: unknown = { items: [], nextCursor: null, hasMore: false }) {
 	return vi.fn().mockResolvedValue({
@@ -16,6 +17,7 @@ describe('NotificationBell', () => {
 	let originalFetch: typeof globalThis.fetch;
 
 	beforeEach(() => {
+		setLocale('en', { reload: false });
 		originalFetch = globalThis.fetch;
 		// Default: empty notification list (for polling and load calls)
 		globalThis.fetch = mockFetch();

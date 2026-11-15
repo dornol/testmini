@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { Pagination as PaginationPrimitive } from "bits-ui";
+	import { Pagination as PaginationPrimitive } from 'bits-ui';
 
-	import { cn } from "$lib/utils.js";
+	import { cn } from '$lib/utils.js';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let {
 		ref = $bindable(null),
@@ -18,9 +19,9 @@
 	bind:ref
 	bind:page
 	role="navigation"
-	aria-label="pagination"
+	aria-label={m.pagination_label()}
 	data-slot="pagination"
-	class={cn("mx-auto flex w-full justify-center", className)}
+	class={cn('mx-auto flex w-full justify-center', className)}
 	{count}
 	{perPage}
 	{siblingCount}

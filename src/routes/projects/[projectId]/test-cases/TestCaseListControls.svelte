@@ -133,7 +133,7 @@
 					type="button"
 					class="text-muted-foreground hover:text-foreground ml-0.5"
 					onclick={() => removeRunColumn(run.id)}
-					aria-label="Remove run column"
+					aria-label={m.aria_remove_run_column()}
 				>
 					x
 				</button>

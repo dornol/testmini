@@ -424,7 +424,7 @@
 								<button
 									type="button"
 									class="mt-2 cursor-pointer border-none bg-transparent p-0"
-									aria-label="Open screenshot in new tab"
+									aria-label={m.aria_open_screenshot_new_tab()}
 									onclick={() => window.open(`/api/uploads/${note.screenshotPath}`, '_blank')}
 								>
 									<img

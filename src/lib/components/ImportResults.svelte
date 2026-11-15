@@ -118,9 +118,13 @@
 								<div class="mb-1 flex items-center justify-between gap-2">
 									<span class="shrink-0 font-medium text-muted-foreground">#{r.row}</span>
 									{#if r.status === 'skipped'}
-										<Badge variant="secondary" class="shrink-0 text-xs">Skipped</Badge>
+										<Badge variant="secondary" class="shrink-0 text-xs"
+											>{m.tc_import_status_skipped()}</Badge
+										>
 									{:else}
-										<Badge variant="destructive" class="shrink-0 text-xs">Error</Badge>
+										<Badge variant="destructive" class="shrink-0 text-xs"
+											>{m.tc_import_status_error()}</Badge
+										>
 									{/if}
 								</div>
 								<p
@@ -145,9 +149,13 @@
 									<Table.Cell class="text-xs text-muted-foreground">{r.row}</Table.Cell>
 									<Table.Cell>
 										{#if r.status === 'skipped'}
-											<Badge variant="secondary" class="text-xs">Skipped</Badge>
+											<Badge variant="secondary" class="text-xs"
+												>{m.tc_import_status_skipped()}</Badge
+											>
 										{:else}
-											<Badge variant="destructive" class="text-xs">Error</Badge>
+											<Badge variant="destructive" class="text-xs"
+												>{m.tc_import_status_error()}</Badge
+											>
 										{/if}
 									</Table.Cell>
 									<Table.Cell class="max-w-48 text-xs">
@@ -165,7 +173,7 @@
 	{/if}
 
 	{#if allSucceeded}
-		<p class="text-center text-xs text-muted-foreground">Closing automatically in 3 seconds...</p>
+		<p class="text-center text-xs text-muted-foreground">{m.tc_import_auto_close()}</p>
 	{/if}
 </div>
 

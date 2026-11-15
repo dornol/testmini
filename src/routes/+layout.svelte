@@ -11,6 +11,7 @@
 	import CommandPalette from '$lib/components/CommandPalette.svelte';
 	import { setLocale } from '$lib/paraglide/runtime';
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let { children, data } = $props();
 
@@ -116,7 +117,7 @@
 		href="#main-content"
 		class="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[100] focus:rounded focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg focus:ring-2 focus:ring-ring"
 	>
-		Skip to main content
+		{m.common_skip_to_content()}
 	</a>
 	<div class="flex h-dvh flex-col">
 		<Header

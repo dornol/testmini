@@ -28,6 +28,7 @@ vi.mock('drizzle-orm', () => {
 		eq: vi.fn((a: unknown, b: unknown) => [a, b]),
 		ilike: vi.fn((a: unknown, b: unknown) => ['ilike', a, b]),
 		count: vi.fn(() => 'count'),
+		desc: vi.fn((column: unknown) => ['desc', column]),
 		inArray: vi.fn((a: unknown, b: unknown) => ['inArray', a, b]),
 		sql: sqlTag
 	};
@@ -79,6 +80,8 @@ describe('projects list page server', () => {
 
 		expect(result.projects).toHaveLength(1);
 		expect(result.meta).toMatchObject({ page: 1, limit: 12, total: 1, totalPages: 1 });
+		const { desc } = await import('drizzle-orm');
+		expect(desc).toHaveBeenCalledWith('created_at');
 	});
 
 	it('should clamp limit to 50', async () => {

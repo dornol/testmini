@@ -11,8 +11,10 @@ test.describe.serial('UI layout regression', () => {
 	test('create an isolated project', async ({ page }) => {
 		await page.goto('/projects/new');
 		await page.fill('#name', `Layout Project ${Date.now()}`);
-		await page.click('button[type="submit"]');
-		await page.waitForURL('**/projects/**', { timeout: 15_000 });
+		await Promise.all([
+			page.waitForURL(/\/projects\/\d+$/, { timeout: 15_000 }),
+			page.click('button[type="submit"]')
+		]);
 
 		const match = page.url().match(/\/projects\/(\d+)/);
 		expect(match).not.toBeNull();

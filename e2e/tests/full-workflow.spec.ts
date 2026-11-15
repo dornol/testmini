@@ -14,7 +14,7 @@ test.describe.serial('Full Workflow: Project → TC → Run → Execute', () => 
 		await page.click('button[type="submit"]');
 
 		// Should redirect to the project page
-		await page.waitForURL('**/projects/**', { timeout: 15000 });
+		await page.waitForURL(/\/projects\/\d+$/, { timeout: 15000 });
 		projectUrl = page.url();
 		const match = projectUrl.match(/\/projects\/(\d+)/);
 		expect(match).not.toBeNull();

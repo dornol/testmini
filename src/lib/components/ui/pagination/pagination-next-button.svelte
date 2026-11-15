@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { Pagination as PaginationPrimitive } from "bits-ui";
-	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
-	import { buttonVariants } from "$lib/components/ui/button/index.js";
-	import { cn } from "$lib/utils.js";
+	import { Pagination as PaginationPrimitive } from 'bits-ui';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import { buttonVariants } from '$lib/components/ui/button/index.js';
+	import { cn } from '$lib/utils.js';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let {
 		ref = $bindable(null),
@@ -13,18 +14,18 @@
 </script>
 
 {#snippet Fallback()}
-	<span>Next</span>
+	<span>{m.common_next()}</span>
 	<ChevronRightIcon class="size-4" />
 {/snippet}
 
 <PaginationPrimitive.NextButton
 	bind:ref
-	aria-label="Go to next page"
+	aria-label={m.pagination_next_aria()}
 	class={cn(
 		buttonVariants({
-			size: "default",
-			variant: "ghost",
-			class: "gap-1 px-2.5 sm:pe-2.5",
+			size: 'default',
+			variant: 'ghost',
+			class: 'gap-1 px-2.5 sm:pe-2.5'
 		}),
 		className
 	)}

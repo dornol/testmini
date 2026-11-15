@@ -1,7 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/svelte';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ShortcutHintPanelTest from './helpers/ShortcutHintPanelTest.svelte';
 import { ShortcutManager } from '$lib/shortcuts';
+import { setLocale } from '$lib/paraglide/runtime';
 
 function createManagerWithShortcuts() {
 	const manager = new ShortcutManager();
@@ -24,6 +25,7 @@ function createManagerWithShortcuts() {
 }
 
 describe('ShortcutHintPanel', () => {
+	beforeEach(() => setLocale('en', { reload: false }));
 	it('does not render when open=false', () => {
 		const { container } = render(ShortcutHintPanelTest, {
 			props: { open: false, manager: createManagerWithShortcuts() }

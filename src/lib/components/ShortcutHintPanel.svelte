@@ -6,6 +6,7 @@
 		type ShortcutsContext,
 		type RegisteredShortcut
 	} from '$lib/shortcuts';
+	import * as m from '$lib/paraglide/messages.js';
 
 	interface Props {
 		open: boolean;
@@ -18,6 +19,13 @@
 	type Category = 'Navigation' | 'Actions' | 'General';
 
 	const categories: Category[] = ['Navigation', 'Actions', 'General'];
+	function categoryLabel(category: Category) {
+		return category === 'Navigation'
+			? m.shortcuts_navigation()
+			: category === 'Actions'
+				? m.shortcuts_actions()
+				: m.shortcuts_general();
+	}
 
 	function grouped(all: RegisteredShortcut[]): Record<Category, RegisteredShortcut[]> {
 		const result: Record<Category, RegisteredShortcut[]> = {
@@ -59,7 +67,7 @@
 		onkeydown={handleBackdropKeydown}
 		role="dialog"
 		aria-modal="true"
-		aria-label="Keyboard shortcuts"
+		aria-label={m.aria_keyboard_shortcuts()}
 		tabindex="-1"
 	>
 		<!-- Backdrop -->
@@ -74,10 +82,10 @@
 		>
 			<!-- Header -->
 			<div class="flex items-center justify-between border-b border-border px-5 py-3">
-				<h2 class="text-sm font-semibold text-foreground">Keyboard Shortcuts</h2>
+				<h2 class="text-sm font-semibold text-foreground">{m.shortcuts_title()}</h2>
 				<button
 					onclick={close}
-					aria-label="Close shortcuts panel"
+					aria-label={m.aria_close_shortcuts()}
 					class="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 				>
 					<svg
@@ -102,7 +110,7 @@
 					{#if byCategory[category].length > 0}
 						<div class="px-5 py-3">
 							<p class="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-								{category}
+								{categoryLabel(category)}
 							</p>
 							<ul class="space-y-1.5">
 								{#each byCategory[category] as shortcut (shortcut.combo)}
@@ -130,10 +138,12 @@
 			<!-- Footer hint -->
 			<div class="border-t border-border px-5 py-2">
 				<p class="text-center text-xs text-muted-foreground">
-					Press <kbd
+					{m.shortcuts_close_prefix()}
+					<kbd
 						class="inline-flex min-w-[1.5rem] items-center justify-center rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs shadow-sm"
 						>Esc</kbd
-					> or click outside to close
+					>
+					{m.shortcuts_close_suffix()}
 				</p>
 			</div>
 		</div>

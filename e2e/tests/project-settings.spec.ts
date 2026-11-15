@@ -37,7 +37,7 @@ test.describe.serial('Project Settings', () => {
 		await page.fill('#description', 'Project for settings E2E tests');
 		await page.click('button[type="submit"]');
 
-		await page.waitForURL('**/projects/**', { timeout: 15000 });
+		await page.waitForURL(/\/projects\/\d+$/, { timeout: 15000 });
 		projectUrl = page.url().replace(/\/$/, '');
 
 		// Extract numeric project ID from the URL path

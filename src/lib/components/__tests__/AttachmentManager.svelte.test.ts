@@ -118,7 +118,13 @@ describe('AttachmentManager', () => {
 	describe('formatSize display', () => {
 		it('displays bytes for small files', async () => {
 			mockFetchWith([
-				{ id: 1, fileName: 'tiny.txt', contentType: 'text/plain', fileSize: 512, uploadedAt: '2026-03-01T00:00:00Z' }
+				{
+					id: 1,
+					fileName: 'tiny.txt',
+					contentType: 'text/plain',
+					fileSize: 512,
+					uploadedAt: '2026-03-01T00:00:00Z'
+				}
 			]);
 
 			render(AttachmentManagerTest, {
@@ -132,7 +138,13 @@ describe('AttachmentManager', () => {
 
 		it('displays KB for kilobyte-sized files', async () => {
 			mockFetchWith([
-				{ id: 1, fileName: 'doc.txt', contentType: 'text/plain', fileSize: 204800, uploadedAt: '2026-03-01T00:00:00Z' }
+				{
+					id: 1,
+					fileName: 'doc.txt',
+					contentType: 'text/plain',
+					fileSize: 204800,
+					uploadedAt: '2026-03-01T00:00:00Z'
+				}
 			]);
 
 			render(AttachmentManagerTest, {
@@ -146,7 +158,13 @@ describe('AttachmentManager', () => {
 
 		it('displays MB for megabyte-sized files', async () => {
 			mockFetchWith([
-				{ id: 1, fileName: 'big.zip', contentType: 'application/zip', fileSize: 1048576, uploadedAt: '2026-03-01T00:00:00Z' }
+				{
+					id: 1,
+					fileName: 'big.zip',
+					contentType: 'application/zip',
+					fileSize: 1048576,
+					uploadedAt: '2026-03-01T00:00:00Z'
+				}
 			]);
 
 			render(AttachmentManagerTest, {
@@ -160,7 +178,13 @@ describe('AttachmentManager', () => {
 
 		it('displays dash for null file size', async () => {
 			mockFetchWith([
-				{ id: 1, fileName: 'unknown.bin', contentType: null, fileSize: null, uploadedAt: '2026-03-01T00:00:00Z' }
+				{
+					id: 1,
+					fileName: 'unknown.bin',
+					contentType: null,
+					fileSize: null,
+					uploadedAt: '2026-03-01T00:00:00Z'
+				}
 			]);
 
 			render(AttachmentManagerTest, {
@@ -293,7 +317,7 @@ describe('AttachmentManager', () => {
 		});
 
 		await vi.waitFor(() => {
-			const dropZone = container.querySelector('[aria-label="File drop zone"]');
+			const dropZone = container.querySelector('[aria-label="파일 놓기 영역"]');
 			expect(dropZone).toBeTruthy();
 		});
 	});

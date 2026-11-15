@@ -1,19 +1,17 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages.js';
-	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
-	import { apiPut } from '$lib/api-client';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import Chart from '$lib/components/Chart.svelte';
 	import LazyChart from '$lib/components/LazyChart.svelte';
 	import type { ChartConfiguration } from 'chart.js';
-	import { flip } from 'svelte/animate';
 	import { untrack } from 'svelte';
-	import { WIDGET_DEFINITIONS, DEFAULT_LAYOUT, SIZE_COLS } from '$lib/dashboard-widgets';
+	import { DEFAULT_LAYOUT, SIZE_COLS } from '$lib/dashboard-widgets';
 	import { statusColorText } from '$lib/execution-status';
 	import type { WidgetConfig } from '$lib/server/db/schema';
+	import DashboardCustomizer from './DashboardCustomizer.svelte';
 
 	let { data } = $props();
 	const proj = $derived(data.project);
@@ -34,7 +32,6 @@
 	let layout = $state<WidgetConfig[]>(
 		untrack(() => (data.initialLayout ?? DEFAULT_LAYOUT).slice().sort((a, b) => a.order - b.order))
 	);
-	let customizeOpen = $state(false);
 
 	// Sorted visible widgets for the main grid
 	const visibleWidgets = $derived(
@@ -43,81 +40,6 @@
 			.sort((a, b) => a.order - b.order)
 			.filter((w) => w.visible)
 	);
-
-	// ── Debounced auto-save ───────────────────────────────
-	let saveTimer: ReturnType<typeof setTimeout> | null = null;
-
-	function scheduleSave() {
-		if (saveTimer) clearTimeout(saveTimer);
-		saveTimer = setTimeout(() => saveLayout(), 600);
-	}
-
-	async function saveLayout() {
-		try {
-			await apiPut(`/api/projects/${proj.id}/dashboard-layout`, {
-				layout: $state.snapshot(layout)
-			});
-			toast.success(m.dashboard_layout_saved());
-		} catch {
-			// error toast handled by apiPut
-		}
-	}
-
-	function toggleWidget(id: string) {
-		const w = layout.find((x) => x.id === id);
-		if (w) {
-			w.visible = !w.visible;
-			scheduleSave();
-		}
-	}
-
-	function setSize(id: string, size: WidgetConfig['size']) {
-		const w = layout.find((x) => x.id === id);
-		if (w) {
-			w.size = size;
-			scheduleSave();
-		}
-	}
-
-	function resetLayout() {
-		layout = DEFAULT_LAYOUT.map((w) => ({ ...w }));
-		scheduleSave();
-	}
-
-	// ── Drag-to-reorder ───────────────────────────────────
-	let draggedId = $state<string | null>(null);
-	let dragOverId = $state<string | null>(null);
-
-	function onDragStart(id: string) {
-		draggedId = id;
-	}
-
-	function onDragOver(id: string) {
-		if (!draggedId || draggedId === id) return;
-		dragOverId = id;
-
-		// Recompute order by swapping the two items
-		const sorted = layout.slice().sort((a, b) => a.order - b.order);
-		const fromIdx = sorted.findIndex((w) => w.id === draggedId);
-		const toIdx = sorted.findIndex((w) => w.id === id);
-		if (fromIdx === -1 || toIdx === -1) return;
-
-		// Shift items between the two positions
-		const moved = sorted.splice(fromIdx, 1)[0];
-		sorted.splice(toIdx, 0, moved);
-
-		// Reassign order values
-		sorted.forEach((w, i) => {
-			const entry = layout.find((x) => x.id === w.id);
-			if (entry) entry.order = i;
-		});
-	}
-
-	function onDragEnd() {
-		draggedId = null;
-		dragOverId = null;
-		scheduleSave();
-	}
 
 	// ── Chart configs ─────────────────────────────────────
 	const passRate = $derived(
@@ -209,184 +131,9 @@
 		const diffDay = Math.floor(diffHr / 24);
 		return m.dashboard_time_days_ago({ count: diffDay });
 	}
-
-	function widgetLabel(id: string): string {
-		return WIDGET_DEFINITIONS.find((w) => w.id === id)?.label ?? id;
-	}
-
-	function widgetDescription(id: string): string {
-		return WIDGET_DEFINITIONS.find((w) => w.id === id)?.description ?? '';
-	}
 </script>
 
-<!-- ── Header Row ──────────────────────────────────────── -->
-<div class="mb-4 flex items-center justify-between">
-	<div></div>
-	<button
-		type="button"
-		onclick={() => (customizeOpen = !customizeOpen)}
-		class="text-muted-foreground hover:text-foreground hover:bg-accent flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors"
-		aria-expanded={customizeOpen}
-		aria-label={m.dashboard_customize_layout()}
-	>
-		<!-- Gear icon -->
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			width="15"
-			height="15"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-			aria-hidden="true"
-		>
-			<path
-				d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
-			/>
-			<circle cx="12" cy="12" r="3" />
-		</svg>
-		{m.dashboard_customize()}
-	</button>
-</div>
-
-<!-- ── Customize Panel ────────────────────────────────── -->
-{#if customizeOpen}
-	<div
-		class="bg-card border-border mb-6 rounded-lg border p-4 shadow-sm"
-		role="region"
-		aria-label={m.dashboard_widgets()}
-	>
-		<div class="mb-3 flex items-center justify-between">
-			<h2 class="text-sm font-semibold">{m.dashboard_widgets()}</h2>
-			<div class="flex items-center gap-2">
-				<button
-					type="button"
-					onclick={resetLayout}
-					class="text-muted-foreground hover:text-foreground rounded px-2 py-1 text-xs transition-colors hover:underline"
-				>
-					{m.dashboard_reset_default()}
-				</button>
-				<button
-					type="button"
-					onclick={() => (customizeOpen = false)}
-					class="text-muted-foreground hover:text-foreground rounded p-1 transition-colors"
-					aria-label={m.dashboard_close_panel()}
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						aria-hidden="true"
-					>
-						<path d="M18 6 6 18" /><path d="m6 6 12 12" />
-					</svg>
-				</button>
-			</div>
-		</div>
-
-		<p class="text-muted-foreground mb-3 text-xs">
-			{m.dashboard_customize_hint()}
-		</p>
-
-		<ul class="space-y-1" role="list" aria-label="Widget list">
-			{#each layout.slice().sort((a, b) => a.order - b.order) as widget (widget.id)}
-				<li
-					animate:flip={{ duration: 200 }}
-					class="bg-background border-border flex items-center gap-3 rounded-md border px-3 py-2 text-sm transition-colors
-						{draggedId === widget.id ? 'opacity-50' : ''}
-						{dragOverId === widget.id ? 'border-primary' : ''}"
-					draggable="true"
-					ondragstart={() => onDragStart(widget.id)}
-					ondragover={(e) => {
-						e.preventDefault();
-						onDragOver(widget.id);
-					}}
-					ondragend={onDragEnd}
-					role="listitem"
-				>
-					<!-- Drag handle -->
-					<span class="text-muted-foreground cursor-grab active:cursor-grabbing" aria-hidden="true">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="14"
-							height="14"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<circle cx="9" cy="5" r="1" /><circle cx="9" cy="12" r="1" /><circle
-								cx="9"
-								cy="19"
-								r="1"
-							/><circle cx="15" cy="5" r="1" /><circle cx="15" cy="12" r="1" /><circle
-								cx="15"
-								cy="19"
-								r="1"
-							/>
-						</svg>
-					</span>
-
-					<!-- Toggle visibility -->
-					<button
-						type="button"
-						role="switch"
-						aria-checked={widget.visible}
-						aria-label="Toggle {widgetLabel(widget.id)} visibility"
-						onclick={() => toggleWidget(widget.id)}
-						class="flex h-5 w-9 shrink-0 items-center rounded-full border-2 transition-colors
-							{widget.visible ? 'bg-primary border-primary' : 'bg-muted border-muted'}"
-					>
-						<span
-							class="bg-background block h-3.5 w-3.5 rounded-full shadow transition-transform
-								{widget.visible ? 'translate-x-[18px]' : 'translate-x-0.5'}"
-						></span>
-					</button>
-
-					<!-- Label & description -->
-					<div class="min-w-0 flex-1">
-						<span class="font-medium {!widget.visible ? 'text-muted-foreground line-through' : ''}">
-							{widgetLabel(widget.id)}
-						</span>
-						<p class="text-muted-foreground truncate text-xs">{widgetDescription(widget.id)}</p>
-					</div>
-
-					<!-- Size selector -->
-					<div
-						class="flex items-center gap-1 rounded-md border p-0.5"
-						role="group"
-						aria-label="Size for {widgetLabel(widget.id)}"
-					>
-						{#each ['sm', 'md', 'lg'] as const as size (size)}
-							<button
-								type="button"
-								onclick={() => setSize(widget.id, size)}
-								class="rounded px-2 py-0.5 text-xs transition-colors
-									{widget.size === size
-									? 'bg-primary text-primary-foreground'
-									: 'text-muted-foreground hover:bg-accent'}"
-								aria-pressed={widget.size === size}
-								aria-label="{size} size"
-							>
-								{size}
-							</button>
-						{/each}
-					</div>
-				</li>
-			{/each}
-		</ul>
-	</div>
-{/if}
+<DashboardCustomizer projectId={proj.id} bind:layout />
 
 <!-- ── Widget Grid ─────────────────────────────────────── -->
 <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -541,7 +288,7 @@
 					</Card.Header>
 					<Card.Content>
 						{#if trendRuns.length > 0}
-							<Chart config={trendConfig} aria-label="Pass rate trend chart" />
+							<Chart config={trendConfig} aria-label={m.dashboard_pass_rate_chart_aria()} />
 						{:else}
 							<p class="text-muted-foreground text-sm text-center py-8">
 								{m.dashboard_no_chart_data()}
@@ -561,7 +308,7 @@
 							<div class="w-64">
 								<LazyChart
 									config={doughnutConfig}
-									aria-label="Execution status distribution chart"
+									aria-label={m.dashboard_status_chart_aria()}
 									height="h-64"
 								/>
 							</div>

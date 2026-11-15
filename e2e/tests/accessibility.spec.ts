@@ -40,7 +40,7 @@ test.describe('Accessibility', () => {
 		await page.goto('/projects');
 		await page.waitForLoadState('networkidle');
 
-		const nav = page.locator('nav[aria-label="Main navigation"]');
+		const nav = page.getByRole('navigation', { name: /Main navigation|주요 탐색/ });
 		await expect(nav).toBeVisible();
 	});
 
@@ -59,25 +59,27 @@ test.describe('Accessibility', () => {
 
 		if (criticalViolations.length > 0) {
 			const summary = criticalViolations.map(
-				(v) => `[${v.impact}] ${v.id}: ${v.description} (${v.nodes.length} elements)`
+				(v) =>
+					`[${v.impact}] ${v.id}: ${v.description} (${v.nodes.length} elements: ${v.nodes
+						.map((node) => node.target.join(' '))
+						.join(', ')})`
 			);
 			console.warn('A11y violations:', summary);
 		}
 
-		// No critical violations
-		expect(criticalViolations.filter((v) => v.impact === 'critical')).toHaveLength(0);
+		expect(criticalViolations).toHaveLength(0);
 	});
 
 	test('5. Login page passes axe-core checks', async ({ page }) => {
 		await page.goto('/auth/login');
 		await page.waitForLoadState('networkidle');
 
-		const results = await new AxeBuilder({ page })
-			.withTags(['wcag2a', 'wcag2aa'])
-			.analyze();
+		const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
 
-		const critical = results.violations.filter((v) => v.impact === 'critical');
-		expect(critical).toHaveLength(0);
+		const seriousOrCritical = results.violations.filter(
+			(v) => v.impact === 'critical' || v.impact === 'serious'
+		);
+		expect(seriousOrCritical).toHaveLength(0);
 	});
 
 	test('6. Dashboard page passes axe-core checks', async ({ page }) => {
@@ -85,7 +87,7 @@ test.describe('Accessibility', () => {
 		await page.goto('/projects/new');
 		await page.fill('#name', `A11y Dashboard ${Date.now()}`);
 		await page.click('button[type="submit"]');
-		await page.waitForURL('**/projects/**', { timeout: 15000 });
+		await page.waitForURL(/\/projects\/\d+$/, { timeout: 15000 });
 
 		const results = await new AxeBuilder({ page })
 			.withTags(['wcag2a', 'wcag2aa'])
@@ -93,8 +95,10 @@ test.describe('Accessibility', () => {
 			.exclude('canvas') // Chart.js canvas
 			.analyze();
 
-		const critical = results.violations.filter((v) => v.impact === 'critical');
-		expect(critical).toHaveLength(0);
+		const seriousOrCritical = results.violations.filter(
+			(v) => v.impact === 'critical' || v.impact === 'serious'
+		);
+		expect(seriousOrCritical).toHaveLength(0);
 	});
 
 	test('7. All interactive elements are keyboard accessible', async ({ page }) => {
@@ -108,7 +112,9 @@ test.describe('Accessibility', () => {
 			await page.keyboard.press('Tab');
 			const tag = await page.evaluate(() => {
 				const el = document.activeElement;
-				return el ? `${el.tagName.toLowerCase()}${el.getAttribute('role') ? `[role=${el.getAttribute('role')}]` : ''}` : 'none';
+				return el
+					? `${el.tagName.toLowerCase()}${el.getAttribute('role') ? `[role=${el.getAttribute('role')}]` : ''}`
+					: 'none';
 			});
 			focusedElements.push(tag);
 		}
@@ -133,5 +139,27 @@ test.describe('Accessibility', () => {
 			// alt should be present (can be empty for decorative images)
 			expect(alt).not.toBeNull();
 		}
+	});
+
+	test('9. Command palette traps and restores focus', async ({ page }) => {
+		await page.goto('/projects');
+		await page.waitForLoadState('networkidle');
+
+		const trigger = page.getByRole('button', { name: /Search|검색/ }).first();
+		await trigger.click();
+
+		const dialog = page.getByRole('dialog', { name: /Project search|프로젝트 검색/ });
+		const combobox = dialog.getByRole('combobox');
+		await expect(dialog).toBeVisible();
+		await expect(combobox).toBeFocused();
+
+		await page.keyboard.press('Shift+Tab');
+		await expect(combobox).not.toBeFocused();
+		await page.keyboard.press('Tab');
+		await expect(combobox).toBeFocused();
+
+		await page.keyboard.press('Escape');
+		await expect(dialog).toBeHidden();
+		await expect(trigger).toBeFocused();
 	});
 });

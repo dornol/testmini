@@ -94,7 +94,7 @@
 			uploadingFiles = uploadingFiles.map((f) => (f.id === uploadId ? { ...f, done: true } : f));
 		} else {
 			uploadingFiles = uploadingFiles.map((f) => (f.id === uploadId ? { ...f, error: true } : f));
-			toast.error(`Failed to upload "${file.name}"`);
+			toast.error(m.attachments_upload_failed({ name: file.name }));
 		}
 
 		setTimeout(() => {
@@ -108,7 +108,7 @@
 
 		for (const file of fileArray) {
 			if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-				toast.error(`"${file.name}" has an unsupported file type.`);
+				toast.error(m.attachments_unsupported_type({ name: file.name }));
 			} else {
 				valid.push(file);
 			}
@@ -205,7 +205,7 @@
 		<!-- Drop zone wrapper -->
 		<div
 			role="region"
-			aria-label="File drop zone"
+			aria-label={m.attachments_drop_zone()}
 			class="relative rounded-md border-2 border-dashed transition-colors duration-150 {isDragging
 				? 'border-primary bg-primary/5'
 				: 'border-border hover:border-muted-foreground/50'}"
@@ -218,7 +218,7 @@
 				<!-- Drag-active overlay -->
 				<div class="flex flex-col items-center justify-center gap-1 py-6">
 					<UploadCloudIcon class="text-primary size-8" />
-					<p class="text-primary text-sm font-medium">Drop files here</p>
+					<p class="text-primary text-sm font-medium">{m.attachments_drop_here()}</p>
 				</div>
 			{:else}
 				<div class="space-y-1 p-2">
@@ -233,7 +233,7 @@
 						>
 							<UploadCloudIcon class="text-muted-foreground size-6" />
 							<p class="text-muted-foreground text-xs">{m.attachments_none()}</p>
-							<p class="text-muted-foreground/70 text-xs">Click or drag files to upload</p>
+							<p class="text-muted-foreground/70 text-xs">{m.attachments_click_or_drag()}</p>
 						</div>
 					{:else}
 						<!-- Existing attachments list -->
@@ -275,7 +275,7 @@
 								<li class="flex items-center gap-2 px-3 py-2">
 									{#if f.error}
 										<span class="text-destructive flex-1 truncate text-xs"
-											>{f.name} — upload failed</span
+											>{m.attachments_file_upload_failed({ name: f.name })}</span
 										>
 									{:else if f.done}
 										<span class="text-muted-foreground flex-1 truncate text-xs">{f.name}</span>

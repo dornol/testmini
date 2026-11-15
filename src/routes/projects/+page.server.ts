@@ -2,7 +2,7 @@ import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { db, col } from '$lib/server/db';
 import { project, projectMember } from '$lib/server/db/schema';
-import { and, eq, ilike, count, inArray, sql } from 'drizzle-orm';
+import { and, eq, ilike, count, desc, inArray, sql } from 'drizzle-orm';
 import { isGlobalAdmin } from '$lib/server/auth-utils';
 import { parsePositiveIntegerSearchParam } from '$lib/server/search-param-validation';
 
@@ -49,7 +49,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			})
 			.from(project)
 			.where(where)
-			.orderBy(project.createdAt)
+			.orderBy(desc(project.createdAt))
 			.limit(limit)
 			.offset(offset),
 		db.select({ total: count() }).from(project).where(where)

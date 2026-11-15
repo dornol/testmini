@@ -2,10 +2,18 @@ import { render, screen } from '@testing-library/svelte';
 import { describe, it, expect, vi } from 'vitest';
 import ImportResults from '../ImportResults.svelte';
 
-function makeResult(overrides: Partial<{
-	imported: number;
-	rows: { row: number; status: 'success' | 'skipped' | 'error'; title?: string; key?: string; error?: string }[];
-}> = {}) {
+function makeResult(
+	overrides: Partial<{
+		imported: number;
+		rows: {
+			row: number;
+			status: 'success' | 'skipped' | 'error';
+			title?: string;
+			key?: string;
+			error?: string;
+		}[];
+	}> = {}
+) {
 	return {
 		imported: 3,
 		rows: [
@@ -50,7 +58,7 @@ describe('ImportResults', () => {
 				onclose: vi.fn()
 			}
 		});
-		expect(screen.getByText('Closing automatically in 3 seconds...')).toBeTruthy();
+		expect(screen.getByText('3초 후 자동으로 닫힙니다...')).toBeTruthy();
 	});
 
 	it('renders error rows when some fail', () => {
@@ -97,9 +105,7 @@ describe('ImportResults', () => {
 			props: {
 				importResult: makeResult({
 					imported: 0,
-					rows: [
-						{ row: 1, status: 'error', error: 'Missing field' }
-					]
+					rows: [{ row: 1, status: 'error', error: 'Missing field' }]
 				}),
 				onreset: vi.fn(),
 				onclose: vi.fn()

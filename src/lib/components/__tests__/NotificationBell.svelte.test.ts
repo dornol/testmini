@@ -2,12 +2,14 @@ import { render, screen } from '@testing-library/svelte';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { apiFetch, apiPost } from '$lib/api-client';
 import NotificationBell from '../NotificationBell.svelte';
+import { setLocale } from '$lib/paraglide/runtime';
 
 const mockApiFetch = vi.mocked(apiFetch);
 const mockApiPost = vi.mocked(apiPost);
 
 describe('NotificationBell', () => {
 	beforeEach(() => {
+		setLocale('en', { reload: false });
 		vi.clearAllMocks();
 		mockApiFetch.mockResolvedValue({ items: [], nextCursor: null, hasMore: false });
 	});
@@ -45,7 +47,12 @@ describe('NotificationBell', () => {
 
 	it('shows loading state when opening with no cached notifications', async () => {
 		let resolveApiFetch: (value: unknown) => void;
-		mockApiFetch.mockImplementation(() => new Promise((resolve) => { resolveApiFetch = resolve; }));
+		mockApiFetch.mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					resolveApiFetch = resolve;
+				})
+		);
 
 		render(NotificationBell, { props: { initialUnreadCount: 1 } });
 		screen.getByRole('button', { name: 'Notifications' }).click();
@@ -99,8 +106,28 @@ describe('NotificationBell', () => {
 
 	it('renders correct type icons', async () => {
 		const notifications = [
-			{ id: 1, type: 'TEST_RUN_COMPLETED', title: 'Run Done', message: '', link: null, projectId: null, userId: 'u1', isRead: false, createdAt: new Date().toISOString() },
-			{ id: 2, type: 'TEST_FAILED', title: 'Test Failed', message: '', link: null, projectId: null, userId: 'u1', isRead: false, createdAt: new Date().toISOString() }
+			{
+				id: 1,
+				type: 'TEST_RUN_COMPLETED',
+				title: 'Run Done',
+				message: '',
+				link: null,
+				projectId: null,
+				userId: 'u1',
+				isRead: false,
+				createdAt: new Date().toISOString()
+			},
+			{
+				id: 2,
+				type: 'TEST_FAILED',
+				title: 'Test Failed',
+				message: '',
+				link: null,
+				projectId: null,
+				userId: 'u1',
+				isRead: false,
+				createdAt: new Date().toISOString()
+			}
 		];
 
 		mockApiFetch.mockResolvedValue({ items: notifications, nextCursor: null, hasMore: false });
@@ -117,7 +144,17 @@ describe('NotificationBell', () => {
 	it('shows "Mark all as read" button when there are unread notifications', async () => {
 		mockApiFetch.mockResolvedValue({
 			items: [
-				{ id: 1, type: 'COMMENT_ADDED', title: 'New Comment', message: 'Someone commented', link: null, projectId: null, userId: 'u1', isRead: false, createdAt: new Date().toISOString() }
+				{
+					id: 1,
+					type: 'COMMENT_ADDED',
+					title: 'New Comment',
+					message: 'Someone commented',
+					link: null,
+					projectId: null,
+					userId: 'u1',
+					isRead: false,
+					createdAt: new Date().toISOString()
+				}
 			],
 			nextCursor: null,
 			hasMore: false
@@ -134,7 +171,17 @@ describe('NotificationBell', () => {
 	it('marks all as read when button clicked', async () => {
 		mockApiFetch.mockResolvedValue({
 			items: [
-				{ id: 1, type: 'ASSIGNED', title: 'Assigned', message: 'You were assigned', link: null, projectId: null, userId: 'u1', isRead: false, createdAt: new Date().toISOString() }
+				{
+					id: 1,
+					type: 'ASSIGNED',
+					title: 'Assigned',
+					message: 'You were assigned',
+					link: null,
+					projectId: null,
+					userId: 'u1',
+					isRead: false,
+					createdAt: new Date().toISOString()
+				}
 			],
 			nextCursor: null,
 			hasMore: false
@@ -154,7 +201,17 @@ describe('NotificationBell', () => {
 	it('shows "Load more" button when hasMore is true', async () => {
 		mockApiFetch.mockResolvedValue({
 			items: [
-				{ id: 1, type: 'COMMENT_ADDED', title: 'Comment', message: 'msg', link: null, projectId: null, userId: 'u1', isRead: true, createdAt: new Date().toISOString() }
+				{
+					id: 1,
+					type: 'COMMENT_ADDED',
+					title: 'Comment',
+					message: 'msg',
+					link: null,
+					projectId: null,
+					userId: 'u1',
+					isRead: true,
+					createdAt: new Date().toISOString()
+				}
 			],
 			nextCursor: 'abc',
 			hasMore: true
@@ -171,7 +228,17 @@ describe('NotificationBell', () => {
 	it('applies opacity to read notifications', async () => {
 		mockApiFetch.mockResolvedValue({
 			items: [
-				{ id: 1, type: 'ASSIGNED', title: 'Read notification', message: 'msg', link: null, projectId: null, userId: 'u1', isRead: true, createdAt: new Date().toISOString() }
+				{
+					id: 1,
+					type: 'ASSIGNED',
+					title: 'Read notification',
+					message: 'msg',
+					link: null,
+					projectId: null,
+					userId: 'u1',
+					isRead: true,
+					createdAt: new Date().toISOString()
+				}
 			],
 			nextCursor: null,
 			hasMore: false

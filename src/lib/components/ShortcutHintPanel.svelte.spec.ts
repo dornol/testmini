@@ -1,12 +1,9 @@
 import { page } from 'vitest/browser';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import ShortcutHintPanel from './ShortcutHintPanel.svelte';
-import {
-	ShortcutManager,
-	SHORTCUTS_CONTEXT_KEY,
-	type ShortcutsContext,
-} from '$lib/shortcuts';
+import { ShortcutManager, SHORTCUTS_CONTEXT_KEY, type ShortcutsContext } from '$lib/shortcuts';
+import { setLocale } from '$lib/paraglide/runtime';
 
 /**
  * Build a minimal ShortcutsContext backed by a fresh ShortcutManager.
@@ -15,7 +12,7 @@ import {
 function makeContext(manager = new ShortcutManager()): ShortcutsContext {
 	return {
 		register: (combo, def) => manager.register(combo, def),
-		manager,
+		manager
 	};
 }
 
@@ -25,11 +22,12 @@ function makeContext(manager = new ShortcutManager()): ShortcutsContext {
 function renderPanel(props: { open: boolean }, ctx: ShortcutsContext = makeContext()) {
 	return render(ShortcutHintPanel, {
 		props,
-		context: new Map([[SHORTCUTS_CONTEXT_KEY, ctx]]),
+		context: new Map([[SHORTCUTS_CONTEXT_KEY, ctx]])
 	});
 }
 
 describe('ShortcutHintPanel', () => {
+	beforeEach(() => setLocale('en', { reload: false }));
 	it('should not render panel content when open is false', async () => {
 		renderPanel({ open: false });
 
@@ -62,7 +60,11 @@ describe('ShortcutHintPanel', () => {
 	it('should render shortcuts list when open and shortcuts are registered', async () => {
 		const manager = new ShortcutManager();
 		manager.register('Mod+S', { label: 'Save', category: 'Actions', handler: () => {} });
-		manager.register('Mod+K', { label: 'Command Palette', category: 'Navigation', handler: () => {} });
+		manager.register('Mod+K', {
+			label: 'Command Palette',
+			category: 'Navigation',
+			handler: () => {}
+		});
 		manager.register('?', { label: 'Show Shortcuts', category: 'General', handler: () => {} });
 
 		renderPanel({ open: true }, makeContext(manager));

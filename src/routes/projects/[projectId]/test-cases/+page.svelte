@@ -19,12 +19,9 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Popover from '$lib/components/ui/popover/index.js';
-	import ImportDialog from '$lib/components/ImportDialog.svelte';
 	import VirtualList from '$lib/components/VirtualList.svelte';
 	import AddCircleButton from '$lib/components/AddCircleButton.svelte';
-	import TestCaseDetailSheet from './TestCaseDetailSheet.svelte';
-	import FailureDetailsSheet from './FailureDetailsSheet.svelte';
-	import FailWithDetailDialog from './FailWithDetailDialog.svelte';
+	import TestCaseOverlays from './TestCaseOverlays.svelte';
 	import TestCaseFilterBar from './TestCaseFilterBar.svelte';
 	import TestCaseBulkActionBar from './TestCaseBulkActionBar.svelte';
 	import TestCaseListControls from './TestCaseListControls.svelte';
@@ -41,8 +38,6 @@
 	type ProjectPriority = { name: string; color: string };
 
 	let { data } = $props();
-
-	let importDialogOpen = $state(false);
 
 	let quickTitles: Record<number, string> = $state({});
 	let quickPriorities: Record<number, string> = $state({});
@@ -76,10 +71,7 @@
 	let tagPopover: { tcId: number; x: number; y: number } | null = $state(null);
 	let tagSearchInput = $state('');
 	let newTagColor = $state('#ef4444');
-	// Component references
-	let detailSheet: TestCaseDetailSheet;
-	let failureSheet: FailureDetailsSheet;
-	let failDialog: FailWithDetailDialog;
+	let overlays = $state<TestCaseOverlays>();
 
 	function focusOnMount(node: HTMLInputElement) {
 		node.focus();
@@ -281,7 +273,7 @@
 	) {
 		if (newStatus === 'FAIL') {
 			openDropdown = null;
-			failDialog.open(runId, executionId, tcKey ?? '');
+			await overlays?.openFail(runId, executionId, tcKey ?? '');
 			return;
 		}
 		openDropdown = null;
@@ -975,7 +967,7 @@
 			window.location.href = buildExportUrl(format);
 		}}
 		onImport={() => {
-			importDialogOpen = true;
+			overlays?.openImport();
 		}}
 	/>
 
@@ -1200,7 +1192,7 @@
 								data-tip={tc.title}
 								onclick={(e) => {
 									e.stopPropagation();
-									detailSheet.open(tc.id);
+									overlays?.openDetail(tc.id);
 								}}>{tc.title}</button
 							>
 							{#if canEdit}
@@ -1793,7 +1785,7 @@
 								e = exec.executionId,
 								k = tcKey;
 							openDropdown = null;
-							failureSheet.open(r, e, k);
+							overlays?.openFailure(r, e, k);
 						}}
 					>
 						{m.fail_details()}
@@ -1806,7 +1798,7 @@
 								e = exec.executionId,
 								k = tcKey;
 							openDropdown = null;
-							failDialog.open(r, e, k);
+							overlays?.openFail(r, e, k);
 						}}
 					>
 						{m.fail_add_detail()}
@@ -2139,8 +2131,8 @@
 	</AlertDialog.Portal>
 </AlertDialog.Root>
 
-<TestCaseDetailSheet
-	bind:this={detailSheet}
+<TestCaseOverlays
+	bind:this={overlays}
 	projectId={data.project.id}
 	{canEdit}
 	{canDelete}
@@ -2150,25 +2142,4 @@
 	userRole={data.userRole}
 	hasIssueTracker={data.hasIssueTracker}
 	onchange={() => invalidateAll()}
-/>
-
-<FailureDetailsSheet
-	bind:this={failureSheet}
-	projectId={data.project.id}
-	onaddfailure={(runId, executionId, tcKey) => failDialog.open(runId, executionId, tcKey)}
-/>
-
-<FailWithDetailDialog
-	bind:this={failDialog}
-	projectId={data.project.id}
-	onsubmitted={(runId, executionId) => {
-		invalidateAll();
-		failureSheet.refreshIfMatch(runId, executionId);
-	}}
-/>
-
-<ImportDialog
-	bind:open={importDialogOpen}
-	projectId={data.project.id}
-	onimported={() => invalidateAll()}
 />

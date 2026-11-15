@@ -17,7 +17,7 @@ test.describe.serial('Dashboard & Navigation', () => {
 		await page.fill('#name', projectName);
 		await page.fill('#description', 'E2E dashboard test project');
 		await page.click('button[type="submit"]');
-		await page.waitForURL('**/projects/**', { timeout: 15000 });
+		await page.waitForURL(/\/projects\/\d+$/, { timeout: 15000 });
 
 		const match = page.url().match(/\/projects\/(\d+)/);
 		expect(match).not.toBeNull();
@@ -46,7 +46,7 @@ test.describe.serial('Dashboard & Navigation', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Sidebar nav should be visible on desktop
-		const nav = page.locator('nav[aria-label="Main navigation"]');
+		const nav = page.getByRole('navigation', { name: /Main navigation|주요 탐색/ });
 		await expect(nav).toBeVisible({ timeout: 5000 });
 
 		// Should have links to test cases, test runs, reports
@@ -64,7 +64,7 @@ test.describe.serial('Dashboard & Navigation', () => {
 		await page.goto(`/projects/${projectId}`);
 		await page.waitForLoadState('networkidle');
 
-		const nav = page.locator('nav[aria-label="Main navigation"]');
+		const nav = page.getByRole('navigation', { name: /Main navigation|주요 탐색/ });
 		const tcLink = nav.locator(`a[href*="/projects/${projectId}/test-cases"]`);
 		await tcLink.click();
 		await page.waitForURL(`**/projects/${projectId}/test-cases`, { timeout: 10000 });
@@ -74,7 +74,7 @@ test.describe.serial('Dashboard & Navigation', () => {
 		await page.goto(`/projects/${projectId}`);
 		await page.waitForLoadState('networkidle');
 
-		const nav = page.locator('nav[aria-label="Main navigation"]');
+		const nav = page.getByRole('navigation', { name: /Main navigation|주요 탐색/ });
 		const trLink = nav.locator(`a[href*="/projects/${projectId}/test-runs"]`);
 		await trLink.click();
 		await page.waitForURL(`**/projects/${projectId}/test-runs`, { timeout: 10000 });
@@ -84,7 +84,7 @@ test.describe.serial('Dashboard & Navigation', () => {
 		await page.goto(`/projects/${projectId}`);
 		await page.waitForLoadState('networkidle');
 
-		const nav = page.locator('nav[aria-label="Main navigation"]');
+		const nav = page.getByRole('navigation', { name: /Main navigation|주요 탐색/ });
 		const repLink = nav.locator(`a[href*="/projects/${projectId}/reports"]`);
 		await repLink.click();
 		await page.waitForURL(`**/projects/${projectId}/reports`, { timeout: 10000 });

@@ -82,7 +82,7 @@
 	<button
 		class="fixed inset-0 z-30 bg-black/50 lg:hidden"
 		onclick={() => (open = false)}
-		aria-label="Close sidebar"
+		aria-label={m.aria_close_sidebar()}
 	></button>
 {/if}
 
@@ -92,7 +92,32 @@
 		open ? 'translate-x-0' : '-translate-x-full'
 	)}
 >
-	<nav class="flex-1 overflow-y-auto p-2" aria-label="Main navigation">
+	<nav class="flex-1 overflow-y-auto p-2" aria-label={m.aria_main_navigation()}>
+		<a
+			href="/my-work"
+			class={cn(
+				'flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors',
+				isActive('/my-work')
+					? 'bg-sidebar-accent text-sidebar-accent-foreground'
+					: 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+			)}
+		>
+			<svg
+				width="18"
+				height="18"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				aria-hidden="true"
+			>
+				<path d="M9 11l3 3L22 4" /><path
+					d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+				/>
+			</svg>
+			{m.my_work_title()}
+		</a>
+
 		<!-- Teams link -->
 		<a
 			href="/teams"

@@ -1419,5 +1419,13 @@
 	"aria_open_screenshot_new_tab": "Open screenshot in new tab",
 	"aria_remove_run_column": "Remove run column",
 	"common_latest": "Latest",
-	"req_coverage": "Coverage"
+	"req_coverage": "Coverage",
+	"ui_form_errors_title": "Check the following fields",
+	"ui_step_move_up": "Move step {n} up",
+	"ui_step_move_down": "Move step {n} down",
+	"ui_step_remove": "Remove step {n}",
+	"ui_filters": "Search and filters",
+	"ui_required": "Required",
+	"ui_test_case_saved": "Test case updated",
+	"ui_test_case_details": "Review test case details, steps and activity."
 }

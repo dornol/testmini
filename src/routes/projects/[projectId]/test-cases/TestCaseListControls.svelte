@@ -35,7 +35,7 @@
 	<Popover.Root>
 		<Popover.Trigger>
 			{#snippet child({ props })}
-				<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+				<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
 					{m.tc_columns()}
 				</Button>
 			{/snippet}
@@ -44,12 +44,16 @@
 			{#each colConfig as col (col.id)}
 				{@const visIdx = orderedColIds.indexOf(col.id)}
 				<div class="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-muted">
-					<Checkbox checked={col.visible} onCheckedChange={() => toggleColVisible(col.id)} />
-					<span class="ml-1 flex-1 truncate">{getColLabel(col.id)}</span>
+					<Checkbox
+						aria-label={getColLabel(col.id)}
+						checked={col.visible}
+						onCheckedChange={() => toggleColVisible(col.id)}
+					/>
+					<span class="ml-1 min-w-0 flex-1 break-words">{getColLabel(col.id)}</span>
 					{#if col.visible}
 						<button
 							type="button"
-							class="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
+							class="flex size-6 items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
 							disabled={visIdx === 0}
 							onclick={() => moveCol(visIdx, -1)}
 							aria-label={m.aria_move_column_up()}
@@ -69,7 +73,7 @@
 						</button>
 						<button
 							type="button"
-							class="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
+							class="flex size-6 items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
 							disabled={visIdx === orderedColIds.length - 1}
 							onclick={() => moveCol(visIdx, 1)}
 							aria-label={m.aria_move_column_down()}
@@ -100,7 +104,7 @@
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger>
 					{#snippet child({ props })}
-						<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+						<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
 							{m.tc_add_run_column()}
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
@@ -131,7 +135,7 @@
 				{run.name}
 				<button
 					type="button"
-					class="text-muted-foreground hover:text-foreground ml-0.5"
+					class="text-muted-foreground hover:text-foreground ml-0.5 inline-flex size-6 items-center justify-center rounded"
 					onclick={() => removeRunColumn(run.id)}
 					aria-label={m.aria_remove_run_column()}
 				>

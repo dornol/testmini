@@ -101,7 +101,7 @@ describe('StepsEditor', () => {
 			}
 		});
 		// First button in the step controls should be the up button (disabled)
-		const buttons = container.querySelectorAll('.h-7.w-7');
+		const buttons = container.querySelectorAll('button[aria-label]');
 		const upButton = buttons[0] as HTMLButtonElement;
 		expect(upButton.disabled).toBe(true);
 	});
@@ -113,7 +113,7 @@ describe('StepsEditor', () => {
 				onchange: vi.fn()
 			}
 		});
-		const buttons = container.querySelectorAll('.h-7.w-7');
+		const buttons = container.querySelectorAll('button[aria-label]');
 		const downButton = buttons[1] as HTMLButtonElement;
 		expect(downButton.disabled).toBe(true);
 	});
@@ -131,7 +131,7 @@ describe('StepsEditor', () => {
 		});
 		// Second step's up button
 		const steps = container.querySelectorAll('.rounded-md.border.p-3');
-		const secondStepButtons = steps[1].querySelectorAll('.h-7.w-7');
+		const secondStepButtons = steps[1].querySelectorAll('button[aria-label]');
 		(secondStepButtons[0] as HTMLElement).click(); // up button
 
 		expect(onchange).toHaveBeenCalledOnce();
@@ -148,7 +148,7 @@ describe('StepsEditor', () => {
 				disabled: true
 			}
 		});
-		const buttons = container.querySelectorAll('.h-7.w-7');
+		const buttons = container.querySelectorAll('button[aria-label]');
 		expect(buttons.length).toBe(0);
 	});
 

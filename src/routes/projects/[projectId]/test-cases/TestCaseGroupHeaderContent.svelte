@@ -44,7 +44,10 @@
 
 <button
 	type="button"
-	class="text-muted-foreground hover:text-foreground flex min-h-8 min-w-8 items-center justify-center rounded transition-colors sm:min-h-0 sm:min-w-0"
+	class="text-muted-foreground hover:text-foreground flex min-h-8 min-w-8 items-center justify-center rounded transition-colors sm:min-h-6 sm:min-w-6"
+	aria-label={group.name}
+	aria-expanded={!collapsed}
+	data-slot="test-case-group-toggle"
 	onclick={onToggle}
 >
 	{#if collapsed}
@@ -102,7 +105,7 @@
 	{#if canEdit}
 		<button
 			type="button"
-			class="text-muted-foreground hover:text-foreground flex min-h-8 min-w-8 items-center justify-center rounded hover:bg-muted transition-colors sm:min-h-0 sm:min-w-0 sm:p-0.5"
+			class="text-muted-foreground hover:text-foreground flex min-h-8 min-w-8 items-center justify-center rounded hover:bg-muted transition-colors sm:min-h-6 sm:min-w-6 sm:p-0.5"
 			title={m.aria_edit_name()}
 			aria-label={m.aria_edit_name()}
 			onclick={onStartEdit}
@@ -124,7 +127,7 @@
 	{#if canDelete}
 		<button
 			type="button"
-			class="text-muted-foreground hover:text-destructive flex min-h-8 min-w-8 items-center justify-center rounded hover:bg-muted transition-colors sm:min-h-0 sm:min-w-0 sm:p-0.5"
+			class="text-muted-foreground hover:text-destructive flex min-h-8 min-w-8 items-center justify-center rounded hover:bg-muted transition-colors sm:min-h-6 sm:min-w-6 sm:p-0.5"
 			title={m.aria_delete_group()}
 			aria-label={m.aria_delete_group()}
 			onclick={onDelete}

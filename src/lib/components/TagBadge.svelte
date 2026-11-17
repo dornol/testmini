@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages.js';
 	let { name, color, onremove }: { name: string; color: string; onremove?: () => void } = $props();
 </script>
 
@@ -10,7 +11,8 @@
 	{#if onremove}
 		<button
 			type="button"
-			class="text-muted-foreground hover:text-foreground ml-0.5 shrink-0"
+			aria-label={`${m.aria_remove()} ${name}`}
+			class="text-muted-foreground hover:text-foreground ml-0.5 inline-flex min-h-6 min-w-6 items-center justify-center shrink-0"
 			onclick={onremove}
 		>
 			&times;

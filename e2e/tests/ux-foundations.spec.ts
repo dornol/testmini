@@ -1,0 +1,128 @@
+import { expect, test } from '../fixtures/auth.fixture';
+import AxeBuilder from '@axe-core/playwright';
+
+test.describe.serial('Test-case UX foundations', () => {
+	let projectId: string;
+
+	test('create a project for the UX scenarios', async ({ page }) => {
+		await page.goto('/projects/new');
+		await page.fill('#name', `UX Foundations ${Date.now()}`);
+		await page.locator('button[type="submit"]').click();
+		await page.waitForURL(/\/projects\/\d+$/);
+		projectId = page.url().match(/\/projects\/(\d+)$/)![1];
+	});
+
+	test('invalid submit keeps input and offers a focused, linked error summary', async ({
+		page
+	}) => {
+		await page.goto(`/projects/${projectId}/test-cases/new`);
+		await page.waitForLoadState('networkidle');
+		await page.locator('#precondition').fill('Keep this input after validation');
+		await page.locator('form button[type="submit"]').click();
+		const summary = page.locator('[data-slot="form-error-summary"]');
+		await expect(summary).toBeVisible();
+		await expect(summary).toBeFocused();
+		await expect(page.locator('#title')).toHaveAttribute('aria-invalid', 'true');
+		await expect(page.locator('#title-error')).toBeVisible();
+		await summary.getByRole('link').first().click();
+		await expect(page.locator('#title')).toBeFocused();
+		await expect(page.locator('#precondition')).toHaveValue('Keep this input after validation');
+		await page.locator('#title').fill('Nested step validation');
+		await page.getByRole('button', { name: /단계 추가|Add Step/ }).click();
+		await page.locator('form button[type="submit"]').click();
+		await expect(summary).toBeFocused();
+		await expect(page.locator('#step-action-0')).toHaveAttribute('aria-invalid', 'true');
+		await summary.getByRole('link').first().click();
+		await expect(page.locator('#step-action-0')).toBeFocused();
+	});
+
+	test('step buttons are named and keyboard reordering preserves the content', async ({ page }) => {
+		await page.goto(`/projects/${projectId}/test-cases/new`);
+		await page.waitForLoadState('networkidle');
+		await page.getByRole('button', { name: /단계 추가|Add Step/ }).click();
+		await page.locator('#step-action-0').fill('First action');
+		await page.getByRole('button', { name: /단계 추가|Add Step/ }).click();
+		await page.locator('#step-action-1').fill('Second action');
+		const move = page.getByRole('button', { name: /2단계 위로 이동|Move step 2 up/ });
+		await move.focus();
+		await page.keyboard.press('Enter');
+		await expect(page.locator('#step-action-0')).toHaveValue('Second action');
+		await expect(page.locator('#step-action-1')).toHaveValue('First action');
+	});
+
+	test('detail sheet validates before saving and restores focus when closed', async ({ page }) => {
+		await page.goto(`/projects/${projectId}/test-cases/new`);
+		await page.waitForLoadState('networkidle');
+		await page.locator('#title').fill('UX sheet validation');
+		await page.locator('form button[type="submit"]').click();
+		await page.waitForURL(/\/test-cases\/\d+$/);
+		await page.goto(`/projects/${projectId}/test-cases`);
+		await page.waitForLoadState('networkidle');
+		const trigger = page.getByRole('button', { name: 'UX sheet validation', exact: true });
+		await trigger.click();
+		const sheet = page.getByRole('dialog', { name: /테스트 케이스|Test Cases/ });
+		await expect(sheet).toBeVisible();
+		await sheet
+			.getByRole('button', { name: /수정|Edit/, exact: true })
+			.first()
+			.click();
+		await page.locator('#detail-title').fill('');
+		await sheet.getByRole('button', { name: /변경사항 저장|변경 사항 저장|Save Changes/ }).click();
+		await expect(sheet.locator('[data-slot="form-error-summary"]')).toBeFocused();
+		await expect(page.locator('#detail-title')).toHaveAttribute('aria-invalid', 'true');
+		await sheet
+			.getByRole('link')
+			.filter({ hasText: /Title is required/ })
+			.click();
+		await expect(page.locator('#detail-title')).toBeFocused();
+		await page.keyboard.press('Escape');
+		await expect(sheet).not.toBeVisible();
+		await expect(trigger).toBeFocused();
+	});
+
+	test('English controls work in landscape with reduced motion', async ({ page }) => {
+		await page.setViewportSize({ width: 812, height: 375 });
+		await page.emulateMedia({ reducedMotion: 'reduce' });
+		await page.goto(`/projects/${projectId}/test-cases/new`);
+		await page.waitForLoadState('networkidle');
+		await page.getByRole('button', { name: '언어 변경' }).click();
+		await page.getByRole('menuitem', { name: 'English' }).click();
+		await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByLabel('Priority', { exact: true })).toBeVisible();
+		await page.locator('form button[type="submit"]').click();
+		await expect(page.getByRole('heading', { name: 'Check the following fields' })).toBeVisible();
+		await expect(page.locator('[data-slot="form-error-summary"]')).toBeFocused();
+		expect(await page.locator('main').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+			false
+		);
+	});
+
+	for (const width of [375, 768, 1440]) {
+		test(`${width}px: creation and list remain usable in both themes`, async ({ page }) => {
+			await page.setViewportSize({ width, height: 1000 });
+			for (const route of ['test-cases/new', 'test-cases']) {
+				await page.goto(`/projects/${projectId}/${route}`);
+				await page.waitForLoadState('networkidle');
+				for (const dark of [false, true]) {
+					const isDark = await page.locator('html').evaluate((el) => el.classList.contains('dark'));
+					if (isDark !== dark)
+						await page.getByRole('button', { name: /테마 변경|Toggle theme/ }).click();
+					await expect(page.locator('html')).toHaveClass(dark ? /dark/ : /^$/);
+					const overflow = await page
+						.locator('main')
+						.evaluate((el) => el.scrollWidth > el.clientWidth);
+					expect(overflow, `${route}, dark=${dark}`).toBe(false);
+					if (route.endsWith('/new') && dark) {
+						await page.locator('form button[type="submit"]').click();
+						await expect(page.locator('[data-slot="form-error-summary"]')).toBeVisible();
+					}
+					const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+					expect(
+						result.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? ''))
+					).toEqual([]);
+				}
+			}
+		});
+	}
+});

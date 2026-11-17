@@ -1,4 +1,19 @@
 <script lang="ts">
+	import { tick } from 'svelte';
+	import { updateTestCaseSchema } from '$lib/schemas/test-case.schema';
+	import FormErrorSummary from '$lib/components/patterns/FormErrorSummary.svelte';
+	import { testCaseFieldTarget } from '$lib/test-case-form';
+	import { getLocale } from '$lib/paraglide/runtime';
+	let editErrors = $state<{ path: string; messages: string[] }[]>([]);
+	let editErrorSummary = $state<HTMLDivElement | null>(null);
+	function editFieldTarget(path: string) {
+		if (path === 'expectedResult') return 'detail-expected';
+		if (['title', 'priority', 'precondition'].includes(path)) return `detail-${path}`;
+		return testCaseFieldTarget(path);
+	}
+	function editFieldErrors(path: string) {
+		return editErrors.find((error) => error.path === path)?.messages ?? [];
+	}
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
@@ -240,6 +255,7 @@
 		}));
 		editExpectedResult = v.expectedResult ?? '';
 		editRevision = v.revision ?? 1;
+		editErrors = [];
 		detailEditing = true;
 	}
 
@@ -259,19 +275,35 @@
 	}
 
 	async function saveDetailEdit() {
-		if (!selectedTcId) return;
+		if (!selectedTcId || editSaving) return;
+		const payload = {
+			title: editTitle,
+			precondition: editPrecondition,
+			steps: editSteps,
+			expectedResult: editExpectedResult,
+			priority: editPriority,
+			revision: editRevision
+		};
+		const validation = updateTestCaseSchema.safeParse(payload);
+		if (!validation.success) {
+			editErrors = validation.error.issues.map((issue) => ({
+				path: issue.path.reduce<string>(
+					(path, key) =>
+						typeof key === 'number' ? `${path}[${key}]` : `${path ? `${path}.` : ''}${String(key)}`,
+					''
+				),
+				messages: [issue.message]
+			}));
+			await tick();
+			editErrorSummary?.focus();
+			return;
+		}
+		editErrors = [];
 		editSaving = true;
 
 		try {
-			await apiPut(`/api/projects/${projectId}/test-cases/${selectedTcId}`, {
-				title: editTitle,
-				precondition: editPrecondition,
-				steps: editSteps,
-				expectedResult: editExpectedResult,
-				priority: editPriority,
-				revision: editRevision
-			});
-			toast.success('Test case updated');
+			await apiPut(`/api/projects/${projectId}/test-cases/${selectedTcId}`, payload);
+			toast.success(m.ui_test_case_saved());
 			detailEditing = false;
 			releaseSheetLock();
 			await refresh(selectedTcId);
@@ -683,6 +715,8 @@
 			: ''}"
 		style="width: min({sheetWidth}px, 100vw) !important"
 	>
+		<Sheet.Title class="sr-only">{m.tc_title()}</Sheet.Title>
+		<Sheet.Description class="sr-only">{m.ui_test_case_details()}</Sheet.Description>
 		<!-- Resize handle -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
@@ -690,7 +724,7 @@
 			onmousedown={startResize}
 		></div>
 		{#if detailLoading}
-			<div class="p-6 space-y-6">
+			<div class="p-6 space-y-6" aria-busy="true" aria-label={m.common_loading()}>
 				<div class="space-y-2">
 					<div class="h-5 w-24 bg-muted animate-pulse rounded"></div>
 					<div class="h-4 w-48 bg-muted animate-pulse rounded"></div>
@@ -733,7 +767,8 @@
 						</div>
 						<h3 class="break-words text-lg font-semibold leading-tight">{version?.title ?? ''}</h3>
 						<p class="text-muted-foreground text-xs">
-							Created {new Date(tc.createdAt).toLocaleDateString()}
+							{m.common_created()}
+							{new Date(tc.createdAt).toLocaleDateString(getLocale())}
 						</p>
 					</div>
 				</div>
@@ -1126,21 +1161,43 @@
 				{#if detailEditing}
 					<!-- Edit Mode -->
 					<div class="space-y-5">
+						<FormErrorSummary
+							errors={editErrors}
+							fieldTarget={editFieldTarget}
+							bind:ref={editErrorSummary}
+						/>
 						<div class="space-y-1.5">
 							<Label for="detail-title" class="text-xs font-medium text-muted-foreground"
 								>{m.tc_title_label()}</Label
 							>
-							<Input id="detail-title" bind:value={editTitle} class="h-9" />
+							<Input
+								id="detail-title"
+								aria-invalid={editFieldErrors('title').length > 0}
+								aria-describedby={editFieldErrors('title').length
+									? 'detail-title-error'
+									: undefined}
+								bind:value={editTitle}
+								class="h-10"
+							/>
+							{#if editFieldErrors('title').length}<p
+									id="detail-title-error"
+									class="text-destructive text-sm"
+								>
+									{editFieldErrors('title').join(' ')}
+								</p>{/if}
 						</div>
 
 						<div class="space-y-1.5">
-							<Label class="text-xs font-medium text-muted-foreground">{m.common_priority()}</Label>
+							<Label for="detail-priority" class="text-xs font-medium text-muted-foreground"
+								>{m.common_priority()}</Label
+							>
 							<DropdownMenu.Root>
 								<DropdownMenu.Trigger>
 									{#snippet child({ props })}
 										<Button
 											variant="outline"
-											class="h-9 w-full justify-between text-sm font-normal"
+											id="detail-priority"
+											class="h-10 w-full justify-between text-sm font-normal"
 											{...props}
 										>
 											<span class="flex items-center gap-2">
@@ -1182,13 +1239,24 @@
 							>
 							<Textarea
 								id="detail-precondition"
+								aria-invalid={editFieldErrors('precondition').length > 0}
+								aria-describedby={editFieldErrors('precondition').length
+									? 'detail-precondition-error'
+									: undefined}
 								bind:value={editPrecondition}
 								rows={3}
 								class="text-sm"
 							/>
+							{#if editFieldErrors('precondition').length}<p
+									id="detail-precondition-error"
+									class="text-destructive text-sm"
+								>
+									{editFieldErrors('precondition').join(' ')}
+								</p>{/if}
 						</div>
 
 						<StepsEditor
+							errors={editErrors}
 							value={editSteps}
 							onchange={(s) => {
 								editSteps = s;
@@ -1201,10 +1269,20 @@
 							>
 							<Textarea
 								id="detail-expected"
+								aria-invalid={editFieldErrors('expectedResult').length > 0}
+								aria-describedby={editFieldErrors('expectedResult').length
+									? 'detail-expected-error'
+									: undefined}
 								bind:value={editExpectedResult}
 								rows={3}
 								class="text-sm"
 							/>
+							{#if editFieldErrors('expectedResult').length}<p
+									id="detail-expected-error"
+									class="text-destructive text-sm"
+								>
+									{editFieldErrors('expectedResult').join(' ')}
+								</p>{/if}
 						</div>
 
 						<div class="flex flex-col gap-2 pt-2 border-t sm:flex-row">
@@ -1220,6 +1298,7 @@
 								variant="outline"
 								size="sm"
 								class="w-full sm:w-auto"
+								disabled={editSaving}
 								onclick={cancelDetailEdit}>{m.common_cancel()}</Button
 							>
 						</div>

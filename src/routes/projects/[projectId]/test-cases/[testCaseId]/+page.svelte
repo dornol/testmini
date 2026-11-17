@@ -1,4 +1,8 @@
 <script lang="ts">
+	import FormErrorSummary from '$lib/components/patterns/FormErrorSummary.svelte';
+	import { testCaseFieldTarget } from '$lib/test-case-form';
+	import { tick } from 'svelte';
+	let errorSummary = $state<HTMLDivElement | null>(null);
 	import { goto } from '$app/navigation';
 	import { enhance as formEnhance } from '$app/forms';
 	import { superForm } from 'sveltekit-superforms';
@@ -290,13 +294,20 @@
 	let newTagColor = $state(TAG_PALETTE[0]);
 
 	const validators = zodValidators(updateTestCaseSchema);
-	const { form, errors, enhance, submitting, reset, tainted } = superForm(
+	const { form, errors, allErrors, enhance, submitting, reset, tainted } = superForm(
 		// svelte-ignore state_referenced_locally
 		data.form,
 		{
 			validators,
 			dataType: 'json',
-			onUpdated({ form }) {
+			// The linked summary owns post-submit focus; avoid competing field autofocus.
+			autoFocusOnError: false,
+			scrollToError: 'off',
+			async onUpdated({ form }) {
+				if (!form.valid) {
+					await tick();
+					errorSummary?.focus();
+				}
 				if (form.message) {
 					if (form.valid) {
 						toast.success(form.message);
@@ -464,7 +475,7 @@
 				<span class="text-foreground font-medium">{tc.key}</span>
 			</nav>
 			<div class="mt-1 flex flex-wrap items-center gap-3">
-				<h2 class="text-xl font-bold break-all">{tc.key}</h2>
+				<h2 class="text-xl font-bold [overflow-wrap:anywhere]">{tc.key}</h2>
 				{#if version}
 					<PriorityBadge name={version.priority} color={getPriorityColor(version.priority)} />
 				{/if}
@@ -854,16 +865,33 @@
 					</Card.Header>
 					<Card.Content>
 						<form method="POST" action="?/update" use:enhance class="space-y-4">
+							<FormErrorSummary
+								errors={$allErrors}
+								fieldTarget={(path) =>
+									$form.stepFormat === 'GHERKIN' && path.startsWith('steps[')
+										? 'gherkin-input'
+										: testCaseFieldTarget(path)}
+								bind:ref={errorSummary}
+							/>
 							<div class="space-y-2">
-								<Label for="title">{m.tc_title_label()}</Label>
-								<Input id="title" name="title" bind:value={$form.title} />
+								<Label for="title"
+									>{m.tc_title_label()}
+									<span class="text-muted-foreground text-xs">({m.ui_required()})</span></Label
+								>
+								<Input
+									id="title"
+									name="title"
+									bind:value={$form.title}
+									aria-invalid={!!$errors.title}
+									aria-describedby={$errors.title ? 'title-error' : undefined}
+								/>
 								{#if $errors.title}
-									<p class="text-destructive text-sm">{$errors.title}</p>
+									<p id="title-error" class="text-destructive text-sm">{$errors.title}</p>
 								{/if}
 							</div>
 
 							<div class="space-y-2">
-								<Label>{m.common_priority()}</Label>
+								<Label for="priority">{m.common_priority()}</Label>
 								<input type="hidden" name="priority" value={$form.priority} />
 								<Select.Root
 									type="single"
@@ -872,7 +900,12 @@
 										$form.priority = v;
 									}}
 								>
-									<Select.Trigger class="w-full">
+									<Select.Trigger
+										id="priority"
+										class="w-full"
+										aria-invalid={!!$errors.priority}
+										aria-describedby={$errors.priority ? 'priority-error' : undefined}
+									>
 										{$form.priority}
 									</Select.Trigger>
 									<Select.Content>
@@ -883,12 +916,17 @@
 										{/each}
 									</Select.Content>
 								</Select.Root>
+								{#if $errors.priority}<p id="priority-error" class="text-destructive text-sm">
+										{$errors.priority}
+									</p>{/if}
 							</div>
 
 							<div class="space-y-2">
 								<Label for="precondition">{m.tc_precondition()}</Label>
 								<Textarea
 									id="precondition"
+									aria-invalid={!!$errors.precondition}
+									aria-describedby={$errors.precondition ? 'precondition-error' : undefined}
 									name="precondition"
 									value={$form.precondition as string}
 									oninput={(e) => {
@@ -896,6 +934,12 @@
 									}}
 									rows={3}
 								/>
+								{#if $errors.precondition}<p
+										id="precondition-error"
+										class="text-destructive text-sm"
+									>
+										{$errors.precondition}
+									</p>{/if}
 							</div>
 
 							<div class="space-y-3">
@@ -911,6 +955,7 @@
 
 								{#if $form.stepFormat === 'GHERKIN'}
 									<GherkinEditor
+										id="gherkin-input"
 										value={gherkinText}
 										onchange={(text) => {
 											gherkinText = text;
@@ -920,6 +965,7 @@
 									/>
 								{:else}
 									<StepsEditor
+										errors={$allErrors}
 										value={($form.steps ?? []) as { action: string; expected: string }[]}
 										onchange={(s) => {
 											$form.steps = s;
@@ -932,6 +978,8 @@
 								<Label for="expectedResult">{m.tc_expected_result()}</Label>
 								<Textarea
 									id="expectedResult"
+									aria-invalid={!!$errors.expectedResult}
+									aria-describedby={$errors.expectedResult ? 'expectedResult-error' : undefined}
 									name="expectedResult"
 									value={$form.expectedResult as string}
 									oninput={(e) => {
@@ -939,6 +987,12 @@
 									}}
 									rows={3}
 								/>
+								{#if $errors.expectedResult}<p
+										id="expectedResult-error"
+										class="text-destructive text-sm"
+									>
+										{$errors.expectedResult}
+									</p>{/if}
 							</div>
 
 							<div class="space-y-2">
@@ -948,9 +1002,13 @@
 									name="automationKey"
 									bind:value={$form.automationKey}
 									placeholder={m.tc_automation_key_placeholder()}
+									aria-invalid={!!$errors.automationKey}
+									aria-describedby={$errors.automationKey ? 'automationKey-error' : undefined}
 								/>
 								{#if $errors.automationKey}
-									<p class="text-destructive text-sm">{$errors.automationKey}</p>
+									<p id="automationKey-error" class="text-destructive text-sm">
+										{$errors.automationKey}
+									</p>
 								{/if}
 							</div>
 
@@ -1019,7 +1077,7 @@
 														setCustomFieldValue(fieldKey, v || null);
 													}}
 												>
-													<Select.Trigger class="w-full">
+													<Select.Trigger id="cf-{cf.id}" class="w-full">
 														{(getCustomFieldValue(fieldKey) as string) || '-'}
 													</Select.Trigger>
 													<Select.Content>

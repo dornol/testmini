@@ -9,12 +9,18 @@
 	let {
 		value = [],
 		onchange,
-		disabled = false
+		disabled = false,
+		errors = []
 	}: {
 		value: Step[];
 		onchange: (steps: Step[]) => void;
 		disabled?: boolean;
+		errors?: { path: string; messages: string[] }[];
 	} = $props();
+
+	function fieldErrors(index: number, field: string) {
+		return errors.find((error) => error.path === `steps[${index}].${field}`)?.messages ?? [];
+	}
 
 	function addStep() {
 		onchange([...value, { action: '', expected: '' }]);
@@ -65,11 +71,13 @@
 									variant="ghost"
 									size="sm"
 									disabled={i === 0}
+									aria-label={m.ui_step_move_up({ n: i + 1 })}
 									onclick={() => moveStep(i, -1)}
-									class="h-7 w-7 p-0"
+									class="h-8 w-8 p-0"
 								>
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
+										aria-hidden="true"
 										width="14"
 										height="14"
 										viewBox="0 0 24 24"
@@ -87,11 +95,13 @@
 									variant="ghost"
 									size="sm"
 									disabled={i === value.length - 1}
+									aria-label={m.ui_step_move_down({ n: i + 1 })}
 									onclick={() => moveStep(i, 1)}
-									class="h-7 w-7 p-0"
+									class="h-8 w-8 p-0"
 								>
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
+										aria-hidden="true"
 										width="14"
 										height="14"
 										viewBox="0 0 24 24"
@@ -108,11 +118,13 @@
 									type="button"
 									variant="ghost"
 									size="sm"
+									aria-label={m.ui_step_remove({ n: i + 1 })}
 									onclick={() => removeStep(i)}
-									class="text-destructive hover:text-destructive h-7 w-7 p-0"
+									class="text-destructive hover:text-destructive h-8 w-8 p-0"
 								>
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
+										aria-hidden="true"
 										width="14"
 										height="14"
 										viewBox="0 0 24 24"
@@ -136,11 +148,21 @@
 							>
 							<Input
 								id="step-action-{i}"
+								aria-invalid={fieldErrors(i, 'action').length > 0}
+								aria-describedby={fieldErrors(i, 'action').length
+									? `step-action-${i}-error`
+									: undefined}
 								placeholder={m.steps_editor_action_placeholder()}
 								value={step.action}
 								oninput={(e) => updateStep(i, 'action', e.currentTarget.value)}
 								{disabled}
 							/>
+							{#if fieldErrors(i, 'action').length}<p
+									id="step-action-{i}-error"
+									class="text-destructive text-sm"
+								>
+									{fieldErrors(i, 'action').join(' ')}
+								</p>{/if}
 						</div>
 						<div class="space-y-1">
 							<label for="step-expected-{i}" class="text-muted-foreground text-xs"
@@ -148,11 +170,21 @@
 							>
 							<Input
 								id="step-expected-{i}"
+								aria-invalid={fieldErrors(i, 'expected').length > 0}
+								aria-describedby={fieldErrors(i, 'expected').length
+									? `step-expected-${i}-error`
+									: undefined}
 								placeholder={m.steps_editor_expected_placeholder()}
 								value={step.expected}
 								oninput={(e) => updateStep(i, 'expected', e.currentTarget.value)}
 								{disabled}
 							/>
+							{#if fieldErrors(i, 'expected').length}<p
+									id="step-expected-{i}-error"
+									class="text-destructive text-sm"
+								>
+									{fieldErrors(i, 'expected').join(' ')}
+								</p>{/if}
 						</div>
 					</div>
 				</div>

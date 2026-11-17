@@ -1,4 +1,6 @@
 <script lang="ts">
+	import FilterToolbar from '$lib/components/patterns/FilterToolbar.svelte';
+	import { onDestroy } from 'svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -84,6 +86,7 @@
 
 	let searchInput = $state('');
 	let searchTimeout: ReturnType<typeof setTimeout>;
+	onDestroy(() => clearTimeout(searchTimeout));
 	let newGroupName = $state('');
 	let creatingGroup = $state(false);
 
@@ -189,12 +192,12 @@
 	}
 </script>
 
-<div class="flex flex-wrap items-center gap-2">
+<FilterToolbar label={m.ui_filters()}>
 	<SavedFilterSelector {projectId} {savedFilters} {hasActiveFilters} {basePath} />
 
 	<Input
 		placeholder={m.tc_search_placeholder()}
-		class="h-7 max-w-xs text-xs"
+		class="h-8 w-full sm:max-w-xs"
 		bind:value={searchInput}
 		oninput={handleSearch}
 		aria-label={m.tc_search_placeholder()}
@@ -204,7 +207,7 @@
 	<Popover.Root>
 		<Popover.Trigger>
 			{#snippet child({ props })}
-				<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+				<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
 					{m.common_priority()}{selectedPriorities.length > 0
 						? ` (${selectedPriorities.length})`
 						: ''}
@@ -230,7 +233,7 @@
 	<Popover.Root>
 		<Popover.Trigger>
 			{#snippet child({ props })}
-				<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+				<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
 					{m.approval_filter()}{selectedApprovalStatuses.length > 0
 						? ` (${selectedApprovalStatuses.length})`
 						: ''}
@@ -262,9 +265,10 @@
 
 	<!-- Retest needed filter -->
 	<Button
+		aria-pressed={page.url.searchParams.get('retestNeeded') === 'true'}
 		variant={page.url.searchParams.get('retestNeeded') === 'true' ? 'default' : 'outline'}
 		size="sm"
-		class="h-7 px-2 text-xs"
+		class="h-8 px-2 text-xs"
 		onclick={() => {
 			const params = new URLSearchParams(page.url.searchParams);
 			if (params.get('retestNeeded') === 'true') {
@@ -283,7 +287,7 @@
 		<Popover.Root>
 			<Popover.Trigger>
 				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+					<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
 						{m.tc_filter_suite()}{selectedSuiteIds.length > 0
 							? ` (${selectedSuiteIds.length})`
 							: ''}
@@ -311,7 +315,7 @@
 		<Popover.Root>
 			<Popover.Trigger>
 				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+					<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
 						{m.tc_filter_exec_status()}{selectedExecStatuses.length > 0
 							? ` (${selectedExecStatuses.length})`
 							: ''}
@@ -343,7 +347,7 @@
 		<Popover.Root>
 			<Popover.Trigger>
 				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-7 px-2 text-xs gap-1" {...props}>
+					<Button variant="outline" size="sm" class="h-8 px-2 text-xs gap-1" {...props}>
 						{selectedGroupName ?? m.tc_filter_group()}
 						{#if selectedGroupId}
 							<span
@@ -417,7 +421,7 @@
 		<Popover.Root>
 			<Popover.Trigger>
 				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+					<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
 						{m.nav_tags()}{selectedTagIds.length > 0 ? ` (${selectedTagIds.length})` : ''}
 					</Button>
 				{/snippet}
@@ -445,7 +449,7 @@
 		<Popover.Root>
 			<Popover.Trigger>
 				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+					<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
 						{m.tc_filter_created_by()}{selectedCreatedByIds.length > 0
 							? ` (${selectedCreatedByIds.length})`
 							: ''}
@@ -471,7 +475,7 @@
 		<Popover.Root>
 			<Popover.Trigger>
 				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+					<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
 						{m.tc_filter_assignee()}{selectedAssigneeIds.length > 0
 							? ` (${selectedAssigneeIds.length})`
 							: ''}
@@ -499,7 +503,7 @@
 		<Popover.Root>
 			<Popover.Trigger>
 				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+					<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
 						{m.tc_custom_field_filter()}{activeCfFilterCount > 0 ? ` (${activeCfFilterCount})` : ''}
 					</Button>
 				{/snippet}
@@ -515,7 +519,7 @@
 						{#if cf.fieldType === 'TEXT' || cf.fieldType === 'URL'}
 							<Input
 								id="cf-filter-{cf.id}"
-								class="h-7 text-xs"
+								class="h-8 text-xs"
 								placeholder={cf.name}
 								value={getCfFilterValue(cf.id)}
 								onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLInputElement).value)}
@@ -524,7 +528,7 @@
 							<Input
 								id="cf-filter-{cf.id}"
 								type="number"
-								class="h-7 text-xs"
+								class="h-8 text-xs"
 								placeholder={cf.name}
 								value={getCfFilterValue(cf.id)}
 								onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLInputElement).value)}
@@ -533,14 +537,14 @@
 							<Input
 								id="cf-filter-{cf.id}"
 								type="date"
-								class="h-7 text-xs"
+								class="h-8 text-xs"
 								value={getCfFilterValue(cf.id)}
 								onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLInputElement).value)}
 							/>
 						{:else if cf.fieldType === 'CHECKBOX'}
 							<select
 								id="cf-filter-{cf.id}"
-								class="h-7 w-full rounded-md border border-input bg-background px-2 text-xs"
+								class="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
 								value={getCfFilterValue(cf.id)}
 								onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLSelectElement).value)}
 							>
@@ -573,7 +577,7 @@
 		<Button
 			variant="ghost"
 			size="sm"
-			class="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+			class="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
 			onclick={clearAllFilters}
 		>
 			{m.tc_filter_clear()}
@@ -582,10 +586,11 @@
 
 	<!-- New group input -->
 	{#if canEdit}
-		<div class="flex items-center gap-1 ml-auto">
+		<div class="flex min-w-0 w-full items-center gap-2 sm:ml-auto sm:w-auto">
 			<Input
 				placeholder={m.group_name_placeholder()}
-				class="h-7 w-40 text-xs"
+				class="h-8 min-w-0 flex-1 sm:w-40"
+				aria-label={m.group_name_placeholder()}
 				bind:value={newGroupName}
 				onkeydown={(e) => {
 					if (e.key === 'Enter') createGroup();
@@ -593,7 +598,7 @@
 			/>
 			<Button
 				size="sm"
-				class="h-7 px-2 text-xs"
+				class="h-8 px-2 text-xs"
 				disabled={!newGroupName.trim() || creatingGroup}
 				onclick={createGroup}
 			>
@@ -601,4 +606,4 @@
 			</Button>
 		</div>
 	{/if}
-</div>
+</FilterToolbar>

@@ -8,12 +8,12 @@ describe('PriorityBadge', () => {
 		expect(screen.getByText('High')).toBeTruthy();
 	});
 
-	it('applies color to the text', () => {
+	it('keeps the label independent of arbitrary configured colors', () => {
 		const { container } = render(PriorityBadge, {
 			props: { name: 'Critical', color: '#dc2626' }
 		});
 		const span = container.querySelector('span');
-		expect(span?.getAttribute('style')).toContain('color');
+		expect(span?.getAttribute('style')).toBeNull();
 	});
 
 	it('renders a colored dot indicator', () => {

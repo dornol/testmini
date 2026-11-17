@@ -20,7 +20,7 @@
 
 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 	<div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-		<h2 class="text-lg font-semibold">{m.tc_title()}</h2>
+		<h2 class="text-xl font-semibold tracking-tight">{m.tc_title()}</h2>
 		{#if total > 0}
 			<span class="text-muted-foreground text-xs">{m.common_total_count({ count: total })}</span>
 		{/if}
@@ -31,7 +31,7 @@
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
-					<Button class="w-full sm:w-auto" variant="outline" size="sm" {...props}>
+					<Button class="w-full sm:w-auto" variant="outline" {...props}>
 						{m.tc_export()}
 					</Button>
 				{/snippet}
@@ -46,10 +46,10 @@
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
 		{#if canEdit}
-			<Button class="w-full sm:w-auto" variant="outline" size="sm" onclick={onImport}>
+			<Button class="w-full sm:w-auto" variant="outline" onclick={onImport}>
 				{m.tc_import()}
 			</Button>
-			<Button class="w-full sm:w-auto" href={newHref} size="sm">{m.tc_new()}</Button>
+			<Button class="w-full sm:w-auto" href={newHref}>{m.tc_new()}</Button>
 		{/if}
 	</div>
 </div>

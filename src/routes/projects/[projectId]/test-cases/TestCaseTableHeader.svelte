@@ -44,6 +44,8 @@
 	{#if canEdit}
 		<input
 			type="checkbox"
+			aria-label={m.aria_select_all()}
+			indeterminate={selectedCount > 0 && selectedCount < testCaseCount}
 			class="h-3.5 w-3.5 shrink-0 rounded border-gray-300"
 			checked={selectedCount === testCaseCount && testCaseCount > 0}
 			onchange={onToggleSelectAll}

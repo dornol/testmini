@@ -4,14 +4,17 @@
 	import { parseGherkin, stepsToGherkin, type GherkinStep } from '$lib/gherkin-parser';
 	import * as m from '$lib/paraglide/messages.js';
 
+	const generatedId = $props.id();
 	let {
 		value = '',
 		onchange,
-		disabled = false
+		disabled = false,
+		id = generatedId
 	}: {
 		value: string;
 		onchange: (text: string) => void;
 		disabled?: boolean;
+		id?: string;
 	} = $props();
 
 	const parsedSteps = $derived(parseGherkin(value));
@@ -39,11 +42,12 @@
 
 <div class="space-y-3">
 	<div>
-		<Label>{m.gherkin_editor_title()}</Label>
+		<Label for={id}>{m.gherkin_editor_title()}</Label>
 		<p class="text-muted-foreground text-xs mt-1">{m.gherkin_editor_hint()}</p>
 	</div>
 
 	<Textarea
+		{id}
 		class="font-mono text-sm min-h-[160px]"
 		placeholder={m.gherkin_editor_placeholder()}
 		{value}
@@ -54,7 +58,9 @@
 
 	{#if parsedSteps.length > 0}
 		<div>
-			<Label class="text-xs text-muted-foreground">{m.gherkin_preview_title()} ({parsedSteps.length})</Label>
+			<Label class="text-xs text-muted-foreground"
+				>{m.gherkin_preview_title()} ({parsedSteps.length})</Label
+			>
 			<div class="mt-1 space-y-1 rounded-md border p-3 bg-muted/30">
 				{#each parsedSteps as step, i (i)}
 					<div class="text-sm">

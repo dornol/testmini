@@ -20,9 +20,9 @@
 	--accent: oklch(0.97 0 0);
 	--accent-foreground: oklch(0.205 0 0);
 	--destructive: oklch(0.577 0.245 27.325);
-	--destructive-foreground: oklch(0.577 0.245 27.325);
+	--destructive-foreground: #ffffff;
 	--border: oklch(0.922 0 0);
-	--input: oklch(0.922 0 0);
+	--input: #8794a5;
 	--ring: #2563eb;
 	--radius: 0.625rem;
 	--sidebar: #ffffff;
@@ -50,10 +50,10 @@
 	--muted-foreground: oklch(0.708 0 0);
 	--accent: oklch(0.269 0 0);
 	--accent-foreground: oklch(0.985 0 0);
-	--destructive: oklch(0.396 0.141 25.723);
-	--destructive-foreground: oklch(0.985 0 0);
+	--destructive: #f87171;
+	--destructive-foreground: #450a0a;
 	--border: oklch(0.269 0 0);
-	--input: oklch(0.269 0 0);
+	--input: #64748b;
 	--ring: #93b4ff;
 	--sidebar: #141d29;
 	--sidebar-foreground: oklch(0.985 0 0);
@@ -172,9 +172,12 @@
 @media (pointer: coarse) {
 	[data-slot='button'],
 	[data-slot='input'],
+	[data-slot='select-trigger'],
+	[data-dialog-close],
 	select {
 		min-height: 44px;
 	}
+	[data-dialog-close],
 	[data-slot='button']:has(> svg:only-child) {
 		min-width: 44px;
 	}

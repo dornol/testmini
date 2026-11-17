@@ -10,12 +10,15 @@
 	}: WithElementRef<HTMLTableAttributes> = $props();
 </script>
 
-<div data-slot="table-container" class="relative w-full overflow-x-auto">
+<div
+	data-slot="table-container"
+	class="relative min-w-0 w-full overflow-x-auto rounded-lg border bg-card"
+>
 	<table
 		bind:this={ref}
 		data-slot="table"
 		class={cn(
-			'w-full caption-bottom text-sm [&_th:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:first-child]:pl-4 [&_td:last-child]:pr-4',
+			'w-full caption-bottom text-sm tabular-nums [&_th:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:first-child]:pl-4 [&_td:last-child]:pr-4',
 			className
 		)}
 		{...restProps}

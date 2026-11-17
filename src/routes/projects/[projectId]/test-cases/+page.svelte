@@ -1083,6 +1083,7 @@
 			{#if canEdit}
 				<input
 					type="checkbox"
+					aria-label={m.aria_select_item({ item: tc.key })}
 					class="h-3.5 w-3.5 shrink-0 rounded border-gray-300"
 					checked={selectedTcIds.has(tc.id)}
 					onclick={(e) => {
@@ -1288,6 +1289,7 @@
 							<button
 								type="button"
 								data-tag-popover
+								aria-label={m.aria_manage_tags()}
 								class="w-28 shrink-0 gap-0.5 items-center overflow-hidden hidden lg:flex cursor-pointer rounded hover:bg-muted/50 transition-colors px-0.5 -mx-0.5"
 								onclick={(e) => {
 									e.stopPropagation();
@@ -1335,6 +1337,7 @@
 						<button
 							type="button"
 							data-assignee-popover
+							aria-label={m.aria_assign_members()}
 							class="w-16 shrink-0 items-center cursor-pointer rounded hover:bg-muted/50 transition-colors px-0.5 -mx-0.5 hidden lg:flex"
 							onclick={(e) => {
 								e.stopPropagation();

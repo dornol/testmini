@@ -1419,5 +1419,13 @@
 	"aria_open_screenshot_new_tab": "스크린샷을 새 탭에서 열기",
 	"aria_remove_run_column": "실행 열 제거",
 	"common_latest": "최신",
-	"req_coverage": "커버리지"
+	"req_coverage": "커버리지",
+	"ui_form_errors_title": "아래 입력 항목을 확인해 주세요",
+	"ui_step_move_up": "{n}단계 위로 이동",
+	"ui_step_move_down": "{n}단계 아래로 이동",
+	"ui_step_remove": "{n}단계 삭제",
+	"ui_filters": "검색 및 필터",
+	"ui_required": "필수",
+	"ui_test_case_saved": "테스트 케이스를 수정했습니다",
+	"ui_test_case_details": "테스트 케이스의 상세 정보, 단계 및 활동을 확인하세요."
 }

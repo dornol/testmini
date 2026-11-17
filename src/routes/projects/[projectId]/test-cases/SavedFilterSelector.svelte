@@ -116,7 +116,7 @@
 <Popover.Root>
 	<Popover.Trigger>
 		{#snippet child({ props })}
-			<Button variant="outline" size="sm" class="h-7 px-2 text-xs" {...props}>
+			<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
 				{m.saved_view_title()}{savedFilters.length > 0 ? ` (${savedFilters.length})` : ''}
 			</Button>
 		{/snippet}
@@ -236,7 +236,7 @@
 			{#if showSaveInput}
 				<div class="mt-2 flex items-center gap-1 border-t pt-2">
 					<Input
-						class="h-7 text-xs flex-1"
+						class="h-8 text-xs flex-1"
 						placeholder={m.saved_view_name_placeholder()}
 						bind:value={newViewName}
 						onkeydown={(e) => {
@@ -248,7 +248,7 @@
 					/>
 					<Button
 						size="sm"
-						class="h-7 px-2 text-xs"
+						class="h-8 px-2 text-xs"
 						disabled={!newViewName.trim() || saving}
 						onclick={saveCurrentFilters}
 					>
@@ -260,7 +260,7 @@
 					<Button
 						variant="ghost"
 						size="sm"
-						class="h-7 w-full px-2 text-xs"
+						class="h-8 w-full px-2 text-xs"
 						onclick={() => {
 							showSaveInput = true;
 						}}

@@ -2,7 +2,7 @@
 	import { tick } from 'svelte';
 	import { updateTestCaseSchema } from '$lib/schemas/test-case.schema';
 	import FormErrorSummary from '$lib/components/patterns/FormErrorSummary.svelte';
-	import { testCaseFieldTarget } from '$lib/test-case-form';
+	import { testCaseFieldTarget, localizeTestCaseErrors } from '$lib/test-case-form';
 	import { getLocale } from '$lib/paraglide/runtime';
 	let editErrors = $state<{ path: string; messages: string[] }[]>([]);
 	let editErrorSummary = $state<HTMLDivElement | null>(null);
@@ -96,6 +96,7 @@
 		projectMembers: { userId: string; userName: string; userImage: string | null }[];
 	} | null = $state(null);
 	let detailLoading = $state(false);
+	let detailError = $state(false);
 	let detailEditing = $state(false);
 	let detailDeleteOpen = $state(false);
 	let showVersions = $state(false);
@@ -193,6 +194,8 @@
 
 	export async function open(tcId: number) {
 		selectedTcId = tcId;
+		detailData = null;
+		detailError = false;
 		detailLoading = true;
 		detailEditing = false;
 		showVersions = false;
@@ -213,7 +216,7 @@
 			]);
 			if (lockData.locked && lockData.holder) sheetLockHolder = lockData.holder;
 		} catch {
-			sheetOpen = false;
+			detailError = true;
 		} finally {
 			detailLoading = false;
 		}
@@ -223,7 +226,7 @@
 		try {
 			detailData = await apiFetch(`/api/projects/${projectId}/test-cases/${tcId}`);
 		} catch {
-			toast.error('Failed to refresh detail data');
+			toast.error(m.ui_load_failed());
 		}
 	}
 
@@ -286,14 +289,18 @@
 		};
 		const validation = updateTestCaseSchema.safeParse(payload);
 		if (!validation.success) {
-			editErrors = validation.error.issues.map((issue) => ({
-				path: issue.path.reduce<string>(
-					(path, key) =>
-						typeof key === 'number' ? `${path}[${key}]` : `${path ? `${path}.` : ''}${String(key)}`,
-					''
-				),
-				messages: [issue.message]
-			}));
+			editErrors = localizeTestCaseErrors(
+				validation.error.issues.map((issue) => ({
+					path: issue.path.reduce<string>(
+						(path, key) =>
+							typeof key === 'number'
+								? `${path}[${key}]`
+								: `${path ? `${path}.` : ''}${String(key)}`,
+						''
+					),
+					messages: [issue.message]
+				}))
+			);
 			await tick();
 			editErrorSummary?.focus();
 			return;
@@ -738,6 +745,17 @@
 					<div class="h-4 w-32 bg-muted animate-pulse rounded"></div>
 					<div class="h-20 w-full bg-muted animate-pulse rounded"></div>
 				</div>
+			</div>
+		{:else if detailError}
+			<div role="alert" class="space-y-3 px-6 py-12 text-center">
+				<h3 class="font-semibold">{m.ui_load_failed()}</h3>
+				<p class="text-sm text-muted-foreground">{m.ui_load_failed_description()}</p>
+				<Button
+					variant="outline"
+					onclick={() => {
+						if (selectedTcId !== null) open(selectedTcId);
+					}}>{m.ui_try_again()}</Button
+				>
 			</div>
 		{:else if detailData}
 			{@const tc = detailData.testCase}

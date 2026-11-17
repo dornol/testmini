@@ -1427,5 +1427,17 @@
 	"ui_filters": "Search and filters",
 	"ui_required": "Required",
 	"ui_test_case_saved": "Test case updated",
-	"ui_test_case_details": "Review test case details, steps and activity."
+	"ui_test_case_details": "Review test case details, steps and activity.",
+	"ui_status_filter": "Filter by status",
+	"ui_no_filtered_results": "No matching results",
+	"ui_no_filtered_description": "Try a different status or clear the filters to see all items.",
+	"ui_clear_filters": "Clear filters",
+	"ui_load_failed": "Unable to load this page",
+	"ui_load_failed_description": "Try again. If the problem continues, contact your administrator.",
+	"ui_try_again": "Try again",
+	"ui_title_required": "Enter a title.",
+	"ui_action_required": "Enter the action for this step.",
+	"ui_max_characters": "Use {count} characters or fewer.",
+	"ui_automation_key_exists": "This automation key is already in use. Choose another key.",
+	"ui_scroll_table": "Scroll table horizontally"
 }

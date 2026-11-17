@@ -1427,5 +1427,17 @@
 	"ui_filters": "검색 및 필터",
 	"ui_required": "필수",
 	"ui_test_case_saved": "테스트 케이스를 수정했습니다",
-	"ui_test_case_details": "테스트 케이스의 상세 정보, 단계 및 활동을 확인하세요."
+	"ui_test_case_details": "테스트 케이스의 상세 정보, 단계 및 활동을 확인하세요.",
+	"ui_status_filter": "상태별 필터",
+	"ui_no_filtered_results": "조건에 맞는 결과가 없습니다",
+	"ui_no_filtered_description": "다른 상태를 선택하거나 필터를 초기화해 전체 항목을 확인하세요.",
+	"ui_clear_filters": "필터 초기화",
+	"ui_load_failed": "화면을 불러오지 못했습니다",
+	"ui_load_failed_description": "다시 시도해 주세요. 문제가 계속되면 관리자에게 문의하세요.",
+	"ui_try_again": "다시 시도",
+	"ui_title_required": "제목을 입력해 주세요.",
+	"ui_action_required": "이 단계의 동작을 입력해 주세요.",
+	"ui_max_characters": "{count}자 이내로 입력해 주세요.",
+	"ui_automation_key_exists": "이미 사용 중인 자동화 키입니다. 다른 키를 입력해 주세요.",
+	"ui_scroll_table": "표를 좌우로 스크롤"
 }

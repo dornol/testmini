@@ -1,4 +1,9 @@
 <script lang="ts">
+	import { isInteractiveTarget } from '$lib/utils';
+	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
+	import StatusFilter from '$lib/components/patterns/StatusFilter.svelte';
+	import EmptyState from '$lib/components/patterns/EmptyState.svelte';
+	import { page } from '$app/state';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import * as Table from '$lib/components/ui/table/index.js';
@@ -20,7 +25,16 @@
 	);
 	const canDelete = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
 
-	let statusFilter = $state('');
+	const statusFilter = $derived(page.url.searchParams.get('status') ?? '');
+	function setStatusFilter(status: string) {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (status) params.set('status', status);
+		else params.delete('status');
+		goto(`${page.url.pathname}${params.size ? `?${params}` : ''}`, {
+			keepFocus: true,
+			noScroll: true
+		});
+	}
 
 	const filteredPlans = $derived(
 		statusFilter ? data.plans.filter((p) => p.status === statusFilter) : data.plans
@@ -90,44 +104,36 @@
 	}
 </script>
 
-<div class="space-y-4">
-	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-		<h2 class="text-lg font-semibold">{m.tp_title()}</h2>
-		{#if canManage}
-			<Button size="sm" class="w-full sm:w-auto" href="{basePath}/new">{m.tp_new()}</Button>
-		{/if}
-	</div>
+<div class="space-y-6">
+	<PageHeader title={m.tp_title()}>
+		{#snippet actions()}{#if canManage}<Button href="{basePath}/new" class="w-full sm:w-auto"
+					>{m.tp_new()}</Button
+				>{/if}{/snippet}
+	</PageHeader>
 
-	<!-- Status filter tabs -->
-	<div class="flex gap-1 flex-wrap">
-		<Button
-			variant={statusFilter === '' ? 'default' : 'outline'}
-			size="sm"
-			onclick={() => (statusFilter = '')}
-		>
-			{m.common_all()}
-		</Button>
-		{#each statuses as s}
-			<Button
-				variant={statusFilter === s ? 'default' : 'outline'}
-				size="sm"
-				onclick={() => (statusFilter = s)}
-			>
-				{statusLabel(s)}
-			</Button>
-		{/each}
-	</div>
+	<StatusFilter
+		value={statusFilter}
+		onchange={setStatusFilter}
+		options={['', ...statuses].map((value) => ({
+			value,
+			label: value ? statusLabel(value) : m.common_all()
+		}))}
+	/>
 
 	{#if filteredPlans.length === 0}
-		<div
-			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+		<EmptyState
+			title={statusFilter ? m.ui_no_filtered_results() : m.tp_empty_title()}
+			description={statusFilter ? m.ui_no_filtered_description() : m.tp_empty_create()}
 		>
-			<h3 class="text-lg font-semibold">{m.tp_empty_title()}</h3>
-			<p class="text-muted-foreground mt-1 text-sm">{m.tp_empty_create()}</p>
-			{#if canManage}
-				<Button class="mt-4" href="{basePath}/new">{m.tp_create()}</Button>
-			{/if}
-		</div>
+			{#snippet actions()}
+				{#if statusFilter}<Button variant="outline" onclick={() => setStatusFilter('')}
+						>{m.ui_clear_filters()}</Button
+					>
+				{:else if canManage}<Button class="w-full sm:w-auto" href="{basePath}/new"
+						>{m.tp_create()}</Button
+					>{/if}
+			{/snippet}
+		</EmptyState>
 	{:else}
 		<div class="space-y-3 md:hidden">
 			{#each filteredPlans as plan (plan.id)}
@@ -137,7 +143,7 @@
 					class="w-full cursor-pointer rounded-lg border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					onclick={() => goto(`${basePath}/${plan.id}`)}
 					onkeydown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') {
+						if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
 							e.preventDefault();
 							goto(`${basePath}/${plan.id}`);
 						}
@@ -244,10 +250,16 @@
 					{#each filteredPlans as plan (plan.id)}
 						<Table.Row
 							class="cursor-pointer hover:bg-muted/50"
-							onclick={() => goto(`${basePath}/${plan.id}`)}
+							onclick={(event) => {
+								if (!isInteractiveTarget(event.target)) goto(`${basePath}/${plan.id}`);
+							}}
 						>
 							<Table.Cell class="min-w-0 py-1 px-2 text-xs font-medium">
-								<div class="truncate" title={plan.name}>{plan.name}</div>
+								<a
+									href={`${basePath}/${plan.id}`}
+									class="block truncate underline-offset-4 hover:underline"
+									title={plan.name}>{plan.name}</a
+								>
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs">
 								<Badge variant={statusVariant(plan.status)}>{statusLabel(plan.status)}</Badge>

@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
-import { superValidate, message } from 'sveltekit-superforms';
+import { superValidate, message, setError } from 'sveltekit-superforms';
 import { updateTestCaseSchema, type UpdateTestCaseInput } from '$lib/schemas/test-case.schema';
 import { zodAdapter, validateForm, parsePositiveFormId } from '$lib/server/form-utils';
 import { db, findTestCaseWithLatestVersion } from '$lib/server/db';
@@ -236,7 +236,9 @@ export const actions: Actions = {
 					where: and(eq(testCase.projectId, projectId), eq(testCase.automationKey, trimmedAk))
 				});
 				if (existingAk && existingAk.id !== testCaseId) {
-					return message(form, 'Automation key already exists in this project', { status: 409 });
+					return setError(form, 'automationKey', 'Automation key is already in use', {
+						status: 409
+					});
 				}
 			}
 			await db

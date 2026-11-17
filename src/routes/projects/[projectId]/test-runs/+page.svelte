@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { isInteractiveTarget } from '$lib/utils';
+	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
+	import StatusFilter from '$lib/components/patterns/StatusFilter.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
@@ -172,7 +175,7 @@
 			params.delete('status');
 		}
 		params.set('page', '1');
-		goto(`${basePath}?${params.toString()}`);
+		goto(`${basePath}?${params.toString()}`, { keepFocus: true, noScroll: true });
 	}
 
 	function goToPage(p: number) {
@@ -200,36 +203,41 @@
 	const statuses = ['', 'CREATED', 'IN_PROGRESS', 'COMPLETED'];
 </script>
 
-<div class="space-y-4">
-	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-		<h2 class="text-lg font-semibold">{m.tr_title()}</h2>
-		<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-			{#if compareSelectedIds.size === 2}
-				<Button variant="outline" size="sm" class="w-full sm:w-auto" onclick={goToCompare}
-					>{m.tr_compare()}</Button
-				>
-			{:else if compareSelectedIds.size > 0}
-				<span class="text-muted-foreground text-xs sm:text-right">{m.tr_compare_select_hint()}</span
-				>
-			{/if}
-			{#if data.userRole !== 'VIEWER'}
-				<Button href="{basePath}/new" size="sm" class="w-full sm:w-auto">{m.tr_new()}</Button>
-			{/if}
-		</div>
-	</div>
+<div class="space-y-6">
+	<PageHeader title={m.tr_title()}>
+		{#snippet actions()}
+			<div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+				{#if compareSelectedIds.size === 2}
+					<Button variant="outline" class="w-full sm:w-auto" onclick={goToCompare}
+						>{m.tr_compare()}</Button
+					>
+				{:else if compareSelectedIds.size > 0}
+					<span class="text-muted-foreground text-xs sm:text-right"
+						>{m.tr_compare_select_hint()}</span
+					>
+				{/if}
+				{#if data.userRole !== 'VIEWER'}
+					<Button href="{basePath}/new" class="w-full sm:w-auto">{m.tr_new()}</Button>
+				{/if}
+			</div>
+		{/snippet}
+	</PageHeader>
 
-	<div class="grid grid-cols-2 gap-1 min-[420px]:flex min-[420px]:flex-wrap">
-		{#each statuses as s (s)}
-			<Button
-				variant={data.statusFilter === s ? 'default' : 'outline'}
-				size="sm"
-				class="h-8 w-full px-2 text-xs min-[420px]:h-7 min-[420px]:w-auto"
-				onclick={() => setStatus(s)}
-			>
-				{s || m.common_all()}
-			</Button>
-		{/each}
-	</div>
+	<StatusFilter
+		value={data.statusFilter}
+		onchange={setStatus}
+		options={statuses.map((value) => ({
+			value,
+			label:
+				value === 'CREATED'
+					? m.common_created()
+					: value === 'IN_PROGRESS'
+						? m.cycle_in_progress()
+						: value === 'COMPLETED'
+							? m.cycle_completed()
+							: m.common_all()
+		}))}
+	/>
 
 	{#if data.runs.length === 0}
 		<div
@@ -252,7 +260,9 @@
 				<path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
 				<path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
 			</svg>
-			<h3 class="text-lg font-semibold">{m.tr_empty_title()}</h3>
+			<h3 class="text-lg font-semibold">
+				{data.statusFilter ? m.ui_no_filtered_results() : m.tr_empty_title()}
+			</h3>
 			<p class="text-muted-foreground mt-1 text-sm">
 				{#if data.statusFilter}
 					{m.tr_empty_filter()}
@@ -262,7 +272,7 @@
 			</p>
 			{#if data.statusFilter}
 				<Button variant="outline" size="sm" class="mt-4" onclick={() => setStatus('')}
-					>{m.tr_clear_filter()}</Button
+					>{m.ui_clear_filters()}</Button
 				>
 			{:else if data.userRole !== 'VIEWER'}
 				<Button href="{basePath}/new" class="mt-4">{m.tr_create()}</Button>
@@ -298,7 +308,9 @@
 						{@const pct = progressPercent(run.passedCount, run.totalCount)}
 						<Table.Row
 							class="cursor-pointer hover:bg-muted/50"
-							onclick={() => goto(`${basePath}/${run.id}`)}
+							onclick={(event) => {
+								if (!isInteractiveTarget(event.target)) goto(`${basePath}/${run.id}`);
+							}}
 						>
 							<Table.Cell
 								class="py-1 px-2 hidden sm:table-cell"
@@ -306,6 +318,7 @@
 							>
 								<input
 									type="checkbox"
+									aria-label={`${m.tr_compare()}: ${run.name}`}
 									checked={compareSelectedIds.has(run.id)}
 									onchange={() => toggleCompareRun(run.id)}
 									class="h-3.5 w-3.5 rounded border-gray-300"
@@ -313,7 +326,9 @@
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs font-medium">
 								<div class="flex items-center gap-1.5">
-									{run.name}
+									<a href={`${basePath}/${run.id}`} class="underline-offset-4 hover:underline"
+										>{run.name}</a
+									>
 									{#if run.retestOfRunId}
 										<Badge variant="secondary" class="text-[9px] px-1 py-0"
 											>{m.tr_retest_badge()}</Badge
@@ -482,7 +497,7 @@
 							editRunEnv = v;
 						}}
 					>
-						<Select.Trigger class="w-full">
+						<Select.Trigger id="editEnv" class="w-full">
 							{editRunEnv}
 						</Select.Trigger>
 						<Select.Content>

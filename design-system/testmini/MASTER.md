@@ -23,3 +23,12 @@ Svelte 5 / Tailwind 4 / bits-ui 기반 업무용 QA 제품. ui-ux-pro-max의 Dat
 ## 검증과 적용 추적
 
 `docs/UI_UX_ROLLOUT.md`에서 전체 페이지와 검증 증거를 관리한다. UI 변경과 관계없는 기능 확장은 별도로 다룬다.
+
+## 재사용 패턴
+
+- `patterns/PageHeader.svelte`: 프로젝트 내부는 기본 h2, 독립 페이지는 level=1. 제목과 주요 작업은 동일 패턴으로 배치한다.
+- `patterns/StatusFilter.svelte`: 선택은 aria-pressed로 알린다. URL·히스토리와 데이터는 호출 페이지가 관리한다.
+- `patterns/EmptyState.svelte`: 최초 빈 상태와 조건에 맞는 결과 없음을 구별한다. 생성 권한/필터 유무에 맞는 작업을 제공한다.
+- `patterns/FormErrorSummary.svelte`: 제출 실패 시 요약에 포커스하며, 오류 링크는 실제 입력으로 이동한다. 중첩 필드도 연결한다.
+- 공통 Table은 실제 가로 넘침이 있을 때만 명명된 키보드 스크롤 영역을 제공한다.
+- 행 안의 상세 링크는 네이티브 a를 사용한다. 링크에서 stopPropagation으로 SvelteKit 라우터를 막지 않는다. 행 클릭은 `isInteractiveTarget`으로 링크·버튼·입력을 제외한다.

@@ -49,11 +49,11 @@
 	function verdictColor(v: string) {
 		switch (v) {
 			case 'GO':
-				return 'bg-green-500/10 text-green-600 border-green-500/20';
+				return 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20';
 			case 'NO_GO':
-				return 'bg-red-500/10 text-red-600 border-red-500/20';
+				return 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20';
 			case 'CAUTION':
-				return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20';
+				return 'bg-yellow-500/10 text-yellow-800 dark:text-yellow-300 border-yellow-500/20';
 			default:
 				return '';
 		}
@@ -223,15 +223,19 @@
 					class="grid w-full grid-cols-2 gap-3 text-center text-sm sm:w-auto sm:grid-cols-4 sm:gap-4"
 				>
 					<div>
-						<div class="text-lg font-bold text-green-600">{data.stats.pass}</div>
+						<div class="text-lg font-bold text-green-700 dark:text-green-400">
+							{data.stats.pass}
+						</div>
 						<div class="text-muted-foreground text-xs">{m.dashboard_pass()}</div>
 					</div>
 					<div>
-						<div class="text-lg font-bold text-red-600">{data.stats.fail}</div>
+						<div class="text-lg font-bold text-red-700 dark:text-red-400">{data.stats.fail}</div>
 						<div class="text-muted-foreground text-xs">{m.dashboard_fail()}</div>
 					</div>
 					<div>
-						<div class="text-lg font-bold text-yellow-600">{data.stats.blocked}</div>
+						<div class="text-lg font-bold text-yellow-800 dark:text-yellow-300">
+							{data.stats.blocked}
+						</div>
 						<div class="text-muted-foreground text-xs">{m.dashboard_blocked()}</div>
 					</div>
 					<div>
@@ -354,11 +358,11 @@
 						<div class="mt-3 grid grid-cols-1 gap-2 text-xs min-[360px]:grid-cols-3">
 							<div>
 								<div class="text-muted-foreground">{m.dashboard_pass()}</div>
-								<div class="font-medium text-green-600">{pass}</div>
+								<div class="font-medium text-green-700 dark:text-green-400">{pass}</div>
 							</div>
 							<div>
 								<div class="text-muted-foreground">{m.dashboard_fail()}</div>
-								<div class="font-medium text-red-600">{run.fail}</div>
+								<div class="font-medium text-red-700 dark:text-red-400">{run.fail}</div>
 							</div>
 							<div>
 								<div class="text-muted-foreground">{m.rel_pass_rate()}</div>
@@ -396,8 +400,8 @@
 									>
 								</Table.Cell>
 								<Table.Cell class="text-muted-foreground text-sm">{run.environment}</Table.Cell>
-								<Table.Cell class="text-green-600">{pass}</Table.Cell>
-								<Table.Cell class="text-red-600">{run.fail}</Table.Cell>
+								<Table.Cell class="text-green-700 dark:text-green-400">{pass}</Table.Cell>
+								<Table.Cell class="text-red-700 dark:text-red-400">{run.fail}</Table.Cell>
 								<Table.Cell>{rate}%</Table.Cell>
 							</Table.Row>
 						{/each}

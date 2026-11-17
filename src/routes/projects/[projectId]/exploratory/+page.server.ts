@@ -31,7 +31,10 @@ export const load: PageServerLoad = async ({ params, url, parent }) => {
 					environment: exploratorySession.environment,
 					tags: exploratorySession.tags,
 					createdBy: user.name,
-					noteCount: sql<number>`(select count(*)::int from session_note where session_id = ${col(exploratorySession.id)})`.as('note_count')
+					noteCount:
+						sql<number>`(select count(*)::int from session_note where session_id = ${col(exploratorySession.id)})`.as(
+							'note_count'
+						)
 				})
 				.from(exploratorySession)
 				.innerJoin(user, eq(exploratorySession.createdBy, user.id))
@@ -42,12 +45,14 @@ export const load: PageServerLoad = async ({ params, url, parent }) => {
 
 		return {
 			sessions,
+			loadFailed: false,
 			total: totalResult[0]?.total ?? 0,
 			statusFilter
 		};
 	} catch {
 		return {
 			sessions: [],
+			loadFailed: true,
 			total: 0,
 			statusFilter
 		};

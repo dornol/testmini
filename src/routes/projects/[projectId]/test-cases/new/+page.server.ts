@@ -1,5 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
+import { setError } from 'sveltekit-superforms';
 import { createTestCaseSchema, type CreateTestCaseInput } from '$lib/schemas/test-case.schema';
 import { emptyForm, validateForm } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
@@ -69,7 +70,7 @@ export const actions: Actions = {
 				where: and(eq(testCase.projectId, projectId), eq(testCase.automationKey, automationKey))
 			});
 			if (existingAk) {
-				return fail(409, { form });
+				return setError(form, 'automationKey', 'Automation key is already in use', { status: 409 });
 			}
 		}
 

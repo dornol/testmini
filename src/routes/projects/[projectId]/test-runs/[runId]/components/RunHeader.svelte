@@ -268,19 +268,21 @@
 					<Badge variant="secondary" class="text-xs">{m.tr_retest_badge()}</Badge>
 				</a>
 			{/if}
-			{#if sseConnected}
-				<span class="flex items-center gap-1 text-xs text-green-600">
-					<span class="inline-block h-2 w-2 animate-pulse rounded-full bg-green-500"></span>
-					{m.sse_connected()}
-				</span>
-			{:else}
-				<span
-					class="flex items-center gap-1 rounded-md bg-orange-50 px-2 py-0.5 text-xs text-orange-600 dark:bg-orange-950"
-				>
-					<span class="inline-block h-2 w-2 rounded-full bg-orange-500"></span>
-					{m.sse_disconnected()}
-				</span>
-			{/if}
+			<span role="status" aria-atomic="true">
+				{#if sseConnected}
+					<span class="flex items-center gap-1 text-xs text-green-700 dark:text-green-400">
+						<span class="inline-block h-2 w-2 animate-pulse rounded-full bg-green-500"></span>
+						{m.sse_connected()}
+					</span>
+				{:else}
+					<span
+						class="flex items-center gap-1 rounded-md bg-orange-50 px-2 py-0.5 text-xs text-orange-700 dark:bg-orange-950 dark:text-orange-400"
+					>
+						<span class="inline-block h-2 w-2 rounded-full bg-orange-500"></span>
+						{m.sse_disconnected()}
+					</span>
+				{/if}
+			</span>
 		</div>
 	</div>
 	<div class="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap sm:justify-end">

@@ -7,13 +7,13 @@
 export function statusColorText(status: string | null): string {
 	switch (status) {
 		case 'PASS':
-			return 'text-green-600 dark:text-green-400';
+			return 'text-green-700 dark:text-green-400';
 		case 'FAIL':
-			return 'text-red-600 dark:text-red-400';
+			return 'text-red-700 dark:text-red-400';
 		case 'BLOCKED':
-			return 'text-orange-600 dark:text-orange-400';
+			return 'text-orange-700 dark:text-orange-400';
 		case 'SKIPPED':
-			return 'text-gray-500';
+			return 'text-gray-600 dark:text-gray-400';
 		case 'PENDING':
 			return 'text-muted-foreground';
 		default:
@@ -25,11 +25,11 @@ export function statusColorText(status: string | null): string {
 export function statusColorBg(status: string): string {
 	switch (status) {
 		case 'PASS':
-			return 'text-green-600 bg-green-50 dark:bg-green-950 dark:text-green-400';
+			return 'text-green-700 bg-green-50 dark:bg-green-950 dark:text-green-400';
 		case 'FAIL':
-			return 'text-red-600 bg-red-50 dark:bg-red-950 dark:text-red-400';
+			return 'text-red-700 bg-red-50 dark:bg-red-950 dark:text-red-400';
 		case 'BLOCKED':
-			return 'text-orange-600 bg-orange-50 dark:bg-orange-950 dark:text-orange-400';
+			return 'text-orange-700 bg-orange-50 dark:bg-orange-950 dark:text-orange-400';
 		case 'SKIPPED':
 			return 'text-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-gray-400';
 		default:

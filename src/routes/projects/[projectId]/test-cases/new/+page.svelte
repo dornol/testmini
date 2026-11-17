@@ -1,6 +1,10 @@
 <script lang="ts">
 	import FormErrorSummary from '$lib/components/patterns/FormErrorSummary.svelte';
-	import { testCaseFieldTarget } from '$lib/test-case-form';
+	import {
+		testCaseFieldTarget,
+		localizeTestCaseErrors,
+		testCaseErrorMessage
+	} from '$lib/test-case-form';
 	import { tick } from 'svelte';
 	let errorSummary = $state<HTMLDivElement | null>(null);
 	import { superForm } from 'sveltekit-superforms';
@@ -127,7 +131,7 @@
 		<Card.Content>
 			<form method="POST" use:enhance class="space-y-4">
 				<FormErrorSummary
-					errors={$allErrors}
+					errors={localizeTestCaseErrors($allErrors)}
 					fieldTarget={(path) =>
 						$form.stepFormat === 'GHERKIN' && path.startsWith('steps[')
 							? 'gherkin-input'
@@ -148,7 +152,9 @@
 						aria-describedby={$errors.title ? 'title-error' : undefined}
 					/>
 					{#if $errors.title}
-						<p id="title-error" class="text-destructive text-sm">{$errors.title}</p>
+						<p id="title-error" class="text-destructive text-sm">
+							{testCaseErrorMessage('title', $errors.title)}
+						</p>
 					{/if}
 				</div>
 
@@ -179,7 +185,7 @@
 						</Select.Content>
 					</Select.Root>
 					{#if $errors.priority}<p id="priority-error" class="text-destructive text-sm">
-							{$errors.priority}
+							{testCaseErrorMessage('priority', $errors.priority)}
 						</p>{/if}
 				</div>
 
@@ -198,7 +204,7 @@
 						rows={3}
 					/>
 					{#if $errors.precondition}<p id="precondition-error" class="text-destructive text-sm">
-							{$errors.precondition}
+							{testCaseErrorMessage('precondition', $errors.precondition)}
 						</p>{/if}
 				</div>
 
@@ -225,7 +231,7 @@
 						/>
 					{:else}
 						<StepsEditor
-							errors={$allErrors}
+							errors={localizeTestCaseErrors($allErrors)}
 							value={($form.steps ?? []) as { action: string; expected: string }[]}
 							onchange={(s) => {
 								$form.steps = s;
@@ -249,7 +255,7 @@
 						rows={3}
 					/>
 					{#if $errors.expectedResult}<p id="expectedResult-error" class="text-destructive text-sm">
-							{$errors.expectedResult}
+							{testCaseErrorMessage('expectedResult', $errors.expectedResult)}
 						</p>{/if}
 				</div>
 
@@ -357,7 +363,9 @@
 						aria-describedby={$errors.automationKey ? 'automationKey-error' : undefined}
 					/>
 					{#if $errors.automationKey}
-						<p id="automationKey-error" class="text-destructive text-sm">{$errors.automationKey}</p>
+						<p id="automationKey-error" class="text-destructive text-sm">
+							{testCaseErrorMessage('automationKey', $errors.automationKey)}
+						</p>
 					{/if}
 				</div>
 

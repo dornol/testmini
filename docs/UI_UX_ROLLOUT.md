@@ -44,11 +44,11 @@
 | `/my-work`                                      | 대기         | 대기           |                                                                                                                                                   |
 | `/projects`                                     | 대기         | 대기           |                                                                                                                                                   |
 | `/projects/[projectId]`                         | 대기         | 대기           |                                                                                                                                                   |
-| `/projects/[projectId]/exploratory`             | 대기         | 대기           |                                                                                                                                                   |
-| `/projects/[projectId]/exploratory/[sessionId]` | 대기         | 대기           |                                                                                                                                                   |
+| `/projects/[projectId]/exploratory`             | 코드 적용    | 부분 검증      | 목록·생성 모달 ko/en·양 테마·3너비. URL 상태·빈 결과·VIEWER 생성 숨김·실패/재시도 UI. 서버 실패·권한 실증 추가 필요                               |
+| `/projects/[projectId]/exploratory/[sessionId]` | 기초 점검    | 부분 검증      | 375/1440px 한국어 라이트 상세 axe·넘침 확인. 노트/이슈 폼·타이머·다른 조합·권한 추가 필요                                                         |
 | `/projects/[projectId]/quality`                 | 대기         | 대기           |                                                                                                                                                   |
-| `/projects/[projectId]/releases`                | 대기         | 대기           |                                                                                                                                                   |
-| `/projects/[projectId]/releases/[releaseId]`    | 대기         | 대기           |                                                                                                                                                   |
+| `/projects/[projectId]/releases`                | 코드 적용    | 부분 검증      | 목록·생성 모달의 ko/en·양 테마·3너비 axe/넘침/닫기 포커스. 상태 URL·빈 결과 구분. 입력 오류·권한 추가 점검 필요                                   |
+| `/projects/[projectId]/releases/[releaseId]`    | 코드 적용    | 부분 검증      | 375/1440px 한국어 라이트 상세 axe·넘침 점검, 준비도 색상 대비 수정. 나머지 조합·상태·권한·상세 UX 추가 필요                                       |
 | `/projects/[projectId]/reports`                 | 대기         | 대기           |                                                                                                                                                   |
 | `/projects/[projectId]/settings`                | 대기         | 대기           |                                                                                                                                                   |
 | `/projects/[projectId]/settings/api-keys`       | 대기         | 대기           |                                                                                                                                                   |
@@ -62,16 +62,16 @@
 | `/projects/[projectId]/test-cases`              | 코드 적용    | 부분 검증      | 빈 목록·데이터 있는 목록, 375/768/1440px 양 테마 axe, 선택·그룹 조작 이름. 권한별/오류/가상 스크롤 별도 확인 필요                                 |
 | `/projects/[projectId]/test-cases/[testCaseId]` | 코드 적용    | 부분 검증      | CRUD, 연결 상세 시트의 검증·포커스 복귀. 상세 전체의 양 테마·언어·권한·로딩/오류 추가 확인 필요                                                   |
 | `/projects/[projectId]/test-cases/new`          | 코드 적용    | 부분 검증      | 양 테마·3너비, 영어/가로/reduced-motion, 제출 실패·중첩 단계 오류·입력 보존·오류 링크·단계 키보드 이동. 200%·권한·사용자 정의 필드 추가 확인 필요 |
-| `/projects/[projectId]/test-cycles`             | 대기         | 대기           |                                                                                                                                                   |
-| `/projects/[projectId]/test-plans`              | 대기         | 대기           |                                                                                                                                                   |
-| `/projects/[projectId]/test-plans/[planId]`     | 대기         | 대기           |                                                                                                                                                   |
+| `/projects/[projectId]/test-cycles`             | 코드 적용    | 부분 검증      | 목록·생성 모달의 ko/en·양 테마·3너비 axe/넘침/닫기 포커스. 상태 URL·빈 결과 구분. 날짜 오류·권한 추가 점검 필요                                   |
+| `/projects/[projectId]/test-plans`              | 코드 적용    | 부분 검증      | 공통 제목/상태/빈 상태, URL·새로고침·뒤로 가기, ko/en·양 테마·3너비의 데이터 목록. 생성 폼·권한·200% 추가 점검 필요                               |
+| `/projects/[projectId]/test-plans/[planId]`     | 기초 점검    | 부분 검증      | 375/1440px 한국어 라이트 상세 axe·넘침 확인. 상세 UX·폼·다른 조합·권한 추가 필요                                                                  |
 | `/projects/[projectId]/test-plans/new`          | 대기         | 대기           |                                                                                                                                                   |
-| `/projects/[projectId]/test-runs`               | 대기         | 대기           |                                                                                                                                                   |
-| `/projects/[projectId]/test-runs/[runId]`       | 대기         | 대기           |                                                                                                                                                   |
+| `/projects/[projectId]/test-runs`               | 코드 적용    | 부분 검증      | 목록 ko/en·양 테마·3너비, 비교 체크박스 이름, URL 필터·빈 결과·SPA 상세 링크. 생성/편집/복제/재검증 폼 추가 점검 필요                             |
+| `/projects/[projectId]/test-runs/[runId]`       | 코드 적용    | 부분 검증      | 실행 FAIL/PASS/완료 회귀, 375/1440px 라이트 상세 axe, 상태/연결/필터 수치 대비. 기타 상태·언어·테마·200% 추가 필요                                |
 | `/projects/[projectId]/test-runs/compare`       | 대기         | 대기           |                                                                                                                                                   |
 | `/projects/[projectId]/test-runs/new`           | 대기         | 대기           |                                                                                                                                                   |
-| `/projects/[projectId]/test-suites`             | 대기         | 대기           |                                                                                                                                                   |
-| `/projects/[projectId]/test-suites/[suiteId]`   | 대기         | 대기           |                                                                                                                                                   |
+| `/projects/[projectId]/test-suites`             | 코드 적용    | 부분 검증      | 목록·생성 모달의 ko/en·양 테마·3너비 axe/넘침/닫기 포커스. 최초 빈 상태와 네이티브 상세 링크. 입력 오류·권한 추가 점검 필요                       |
+| `/projects/[projectId]/test-suites/[suiteId]`   | 기초 점검    | 부분 검증      | 375/1440px 한국어 라이트 상세 axe·넘침 확인. 상세 UX·추가/검색 폼·다른 조합·권한 추가 필요                                                        |
 | `/projects/[projectId]/traceability`            | 대기         | 대기           |                                                                                                                                                   |
 | `/projects/new`                                 | 대기         | 대기           |                                                                                                                                                   |
 | `/shared/[token]`                               | 대기         | 대기           |                                                                                                                                                   |
@@ -106,3 +106,31 @@
 2. 테스트 실행·스위트·계획·사이클·릴리스·탐색 테스트에 목록/폼/상태 패턴을 확산한다. 상태 필터 버튼의 선택 의미와 필터 결과 없음/최초 빈 상태를 구별한다.
 3. 분석 화면, 관리/인증/공유 화면을 순서대로 실제 렌더링해서 점검표를 갱신한다.
 4. 51개 페이지와 연결 상태를 모두 대조한 다음에만 전체 완료로 표시한다.
+
+## 2차 구현 기록 — 핵심 목록과 복구 피드백
+
+- `PageHeader`, `StatusFilter`, `EmptyState` 패턴을 실행·스위트·계획·사이클·릴리스·탐색 목록에 적용했다.
+- 계획/릴리스/사이클의 상태 필터를 URL에 보존하고 기존 실행/탐색 필터도 선택 상태를 알리도록 통일했다. 최초 빈 상태와 필터 결과 없음을 구별하고 초기화 경로를 제공했다.
+- 탐색 목록의 DB 실패를 빈 목록으로 표시하지 않도록 바꾸고, 상세 시트 로딩 실패에서도 시트를 유지해 재시도할 수 있게 했다. 공통 서버 오류 화면에도 재시도 동작을 추가했다.
+- 가로로 넘치는 공통 표만 키보드 포커스를 받을 수 있게 했다. 실행 비교 체크박스 이름과 상세 링크를 보완했다.
+- 상세 링크에서 `stopPropagation`으로 SvelteKit 라우팅이 막히지 않게, 행 클릭은 네이티브 컨트롤을 제외하고 처리한다. 전체 검사 중 드러난 실행 메뉴 클릭 실패는 이 변경 뒤 관련 7개 회귀 테스트로 재검증했다. 문서 재로딩 없이 이동하는 별도 테스트도 추가했다.
+- 테스트 케이스 오류 문구는 UI에서 지역화하고 서버/API schema의 메시지 계약은 유지했다. 중복 자동화 키도 오류 요약/해당 필드에 연결한다.
+- 릴리스 준비도, 공통 실행 상태, 실행 연결 상태, 필터 수치의 대비를 실제 axe 결과에 따라 개선했다.
+- 코드 변경이 필요한 페이지와 기초 화면 점검만 한 페이지를 표에서 구별했다. 이 기록은 전체 적용 완료를 뜻하지 않는다.
+
+### 2차 검증 증거
+
+- `e2e/tests/workflow-ux.spec.ts`: 독립 fixture로 최초 빈 목록/데이터 목록, 상태 URL·새로고침·뒤로 가기·초기화, SPA 상세 링크, ko/en × light/dark × 375/768/1440의 목록 6곳과 생성 모달 4곳, 닫기/포커스 복귀를 검증한다.
+- `e2e/tests/ux-foundations.spec.ts`: 한국어/영어 오류 문구, 상세 시트 503→재시도, 중복 자동화 키 오류/입력 보존도 추가 검증한다.
+- 상세 5종(계획·스위트·릴리스·탐색·실행)은 별도 브라우저 fixture에서 375/1440px 라이트 모드 axe/가로 넘침을 확인했다. 발견된 릴리스/실행 대비 문제를 수정하고 재검증했다. 전체 언어·테마 검증을 대신하지 않는다.
+- 생성 사이클 모바일 모달, 핵심 목록 6종의 모바일/데스크톱, 상세 5종의 실제 스크린샷을 검토했다.
+- 단위 테스트 289개 파일 / 4,952개 통과. 타입 검사 오류/경고 0, 린트·포맷 통과.
+- 최종 빌드·번들 예산 통과: 전체 1911.83 KiB / 1933.59 KiB, 최대 route node 134.20 KiB / 136.72 KiB.
+- 최종 전체 E2E: 126개 통과, 기존 1개 skip (127개). 최초 검사에서 실행 메뉴 클릭 1개가 실패했으며, 네이티브 링크/행 클릭 수정 후 실행 7개와 최종 전체 검사를 모두 통과했다.
+
+### 이어서 진행할 범위
+
+1. 기준 테스트 케이스의 사용자 정의 필드·가상 스크롤·권한·확대 검증과, 핵심 업무의 생성/상세/편집/실행 중 상태를 마무리한다.
+2. 목록과 상세의 긴 사용자 입력, 읽기 전용 빈 상태 안내, 날짜 표기와 중복 표 컨테이너 테두리도 추가 점검한다.
+3. 분석/공유 화면과 관리/계정/인증 화면을 실제 fixture로 순서대로 적용·검증한다.
+4. 51개 페이지의 남은 상태 및 언어/테마/너비/키보드/확대 조건을 모두 대조하고 최종 통합 검증한다.

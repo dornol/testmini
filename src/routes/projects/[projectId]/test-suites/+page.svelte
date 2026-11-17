@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { isInteractiveTarget } from '$lib/utils';
+	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
+	import EmptyState from '$lib/components/patterns/EmptyState.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import * as Table from '$lib/components/ui/table/index.js';
@@ -102,43 +105,32 @@
 	}
 </script>
 
-<div class="space-y-4">
-	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-		<h2 class="text-lg font-semibold">{m.suite_title()}</h2>
-		{#if canManage}
-			<Button class="w-full sm:w-auto" size="sm" onclick={() => (createDialogOpen = true)}
-				>{m.suite_new()}</Button
-			>
-		{/if}
-	</div>
+<div class="space-y-6">
+	<PageHeader title={m.suite_title()}>
+		{#snippet actions()}{#if canManage}<Button
+					class="w-full sm:w-auto"
+					onclick={() => (createDialogOpen = true)}>{m.suite_new()}</Button
+				>{/if}{/snippet}
+	</PageHeader>
 
 	{#if data.suites.length === 0}
-		<div
-			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
-		>
-			<h3 class="text-lg font-semibold">{m.suite_empty()}</h3>
-			<p class="text-muted-foreground mt-1 text-sm">{m.suite_empty_desc()}</p>
-			{#if canManage}
-				<Button class="mt-4 w-full sm:w-auto" onclick={() => (createDialogOpen = true)}
-					>{m.suite_create()}</Button
-				>
-			{/if}
-		</div>
+		<EmptyState title={m.suite_empty()} description={m.suite_empty_desc()}>
+			{#snippet actions()}{#if canManage}<Button
+						class="w-full sm:w-auto"
+						onclick={() => (createDialogOpen = true)}>{m.suite_create()}</Button
+					>{/if}{/snippet}
+		</EmptyState>
 	{:else}
 		<div class="grid gap-3 md:hidden">
 			{#each data.suites as suite (suite.id)}
 				<div class="rounded-md border p-3 transition-colors hover:bg-muted/50">
 					<div class="flex items-start justify-between gap-3">
-						<button
-							type="button"
-							class="min-w-0 flex-1 text-left"
-							onclick={() => goto(`${basePath}/${suite.id}`)}
-						>
+						<a class="min-w-0 flex-1 text-left" href={`${basePath}/${suite.id}`}>
 							<div class="font-medium">{suite.name}</div>
 							<p class="text-muted-foreground mt-1 line-clamp-2 text-sm">
 								{suite.description ?? '-'}
 							</p>
-						</button>
+						</a>
 						<div class="w-20 shrink-0 text-right text-xs text-muted-foreground">
 							<div class="font-semibold text-foreground">{suite.itemCount}</div>
 							<div class="break-keep leading-tight">{m.nav_test_cases()}</div>
@@ -155,7 +147,7 @@
 										<Button
 											variant="ghost"
 											size="sm"
-											class="h-7 w-7 p-0"
+											class="h-8 w-8 p-0"
 											{...props}
 											onclick={(e: MouseEvent) => e.stopPropagation()}
 											aria-label={m.common_actions()}
@@ -221,10 +213,16 @@
 					{#each data.suites as suite (suite.id)}
 						<Table.Row
 							class="cursor-pointer hover:bg-muted/50"
-							onclick={() => goto(`${basePath}/${suite.id}`)}
+							onclick={(event) => {
+								if (!isInteractiveTarget(event.target)) goto(`${basePath}/${suite.id}`);
+							}}
 						>
 							<Table.Cell class="min-w-0 py-1 px-2 text-xs font-medium">
-								<div class="truncate" title={suite.name}>{suite.name}</div>
+								<a
+									href={`${basePath}/${suite.id}`}
+									class="block truncate underline-offset-4 hover:underline"
+									title={suite.name}>{suite.name}</a
+								>
 							</Table.Cell>
 							<Table.Cell class="min-w-0 py-1 px-2 text-xs text-muted-foreground">
 								<div class="truncate" title={suite.description ?? '-'}>

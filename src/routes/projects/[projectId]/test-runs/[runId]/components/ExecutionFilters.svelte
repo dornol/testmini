@@ -41,7 +41,7 @@
 				onclick={() => setStatusFilter(tab.key)}
 			>
 				{tab.label}
-				<span class="ml-1 opacity-70">({tab.count})</span>
+				<span class="ml-1 tabular-nums">({tab.count})</span>
 			</Button>
 		{/each}
 	</div>

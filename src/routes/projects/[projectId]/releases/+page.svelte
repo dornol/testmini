@@ -1,4 +1,9 @@
 <script lang="ts">
+	import { isInteractiveTarget } from '$lib/utils';
+	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
+	import StatusFilter from '$lib/components/patterns/StatusFilter.svelte';
+	import EmptyState from '$lib/components/patterns/EmptyState.svelte';
+	import { page } from '$app/state';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import * as Table from '$lib/components/ui/table/index.js';
@@ -20,7 +25,16 @@
 	);
 	const canDelete = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
 
-	let statusFilter = $state('');
+	const statusFilter = $derived(page.url.searchParams.get('status') ?? '');
+	function setStatusFilter(status: string) {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (status) params.set('status', status);
+		else params.delete('status');
+		goto(`${page.url.pathname}${params.size ? `?${params}` : ''}`, {
+			keepFocus: true,
+			noScroll: true
+		});
+	}
 
 	const statuses = ['PLANNING', 'IN_PROGRESS', 'READY', 'RELEASED'] as const;
 
@@ -117,56 +131,42 @@
 	}
 </script>
 
-<div class="space-y-4">
-	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-		<h2 class="text-lg font-semibold">{m.rel_title()}</h2>
-		{#if canManage}
-			<Button size="sm" class="w-full sm:w-auto" onclick={openCreate}>{m.rel_new()}</Button>
-		{/if}
-	</div>
+<div class="space-y-6">
+	<PageHeader title={m.rel_title()}>
+		{#snippet actions()}{#if canManage}<Button class="w-full sm:w-auto" onclick={openCreate}
+					>{m.rel_new()}</Button
+				>{/if}{/snippet}
+	</PageHeader>
 
-	<!-- Status filter tabs -->
-	<div class="grid grid-cols-2 gap-2 min-[420px]:flex min-[420px]:flex-wrap">
-		<Button
-			variant={statusFilter === '' ? 'default' : 'outline'}
-			size="sm"
-			class="w-full min-[420px]:w-auto"
-			onclick={() => (statusFilter = '')}
-		>
-			{m.common_all()}
-		</Button>
-		{#each statuses as s}
-			<Button
-				variant={statusFilter === s ? 'default' : 'outline'}
-				size="sm"
-				class="w-full min-[420px]:w-auto"
-				onclick={() => (statusFilter = s)}
-			>
-				{statusLabel(s)}
-			</Button>
-		{/each}
-	</div>
+	<StatusFilter
+		value={statusFilter}
+		onchange={setStatusFilter}
+		options={['', ...statuses].map((value) => ({
+			value,
+			label: value ? statusLabel(value) : m.common_all()
+		}))}
+	/>
 
 	{#if filteredReleases.length === 0}
-		<div
-			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+		<EmptyState
+			title={statusFilter ? m.ui_no_filtered_results() : m.rel_empty_title()}
+			description={statusFilter ? m.ui_no_filtered_description() : m.rel_empty_create()}
 		>
-			<h3 class="text-lg font-semibold">{m.rel_empty_title()}</h3>
-			<p class="text-muted-foreground mt-1 text-sm">{m.rel_empty_create()}</p>
-			{#if canManage}
-				<Button class="mt-4 w-full sm:w-auto" onclick={openCreate}>{m.rel_create()}</Button>
-			{/if}
-		</div>
+			{#snippet actions()}
+				{#if statusFilter}<Button variant="outline" onclick={() => setStatusFilter('')}
+						>{m.ui_clear_filters()}</Button
+					>
+				{:else if canManage}<Button class="w-full sm:w-auto" onclick={openCreate}
+						>{m.rel_create()}</Button
+					>{/if}
+			{/snippet}
+		</EmptyState>
 	{:else}
 		<div class="grid gap-3 md:hidden">
 			{#each filteredReleases as rel (rel.id)}
 				<div class="rounded-md border p-3 transition-colors hover:bg-muted/50">
 					<div class="flex items-start justify-between gap-3">
-						<button
-							type="button"
-							class="min-w-0 flex-1 text-left"
-							onclick={() => goto(`${basePath}/${rel.id}`)}
-						>
+						<a class="min-w-0 flex-1 text-left" href={`${basePath}/${rel.id}`}>
 							<div class="break-words font-medium">{rel.name}</div>
 							<div class="mt-1 flex flex-wrap items-center gap-2">
 								{#if rel.version}
@@ -174,7 +174,7 @@
 								{/if}
 								<Badge variant={statusVariant(rel.status)}>{statusLabel(rel.status)}</Badge>
 							</div>
-						</button>
+						</a>
 						{#if canDelete}
 							<DropdownMenu.Root>
 								<DropdownMenu.Trigger>
@@ -182,7 +182,7 @@
 										<Button
 											variant="ghost"
 											size="sm"
-											class="h-7 w-7 p-0"
+											class="h-8 w-8 p-0"
 											{...props}
 											onclick={(e: MouseEvent) => e.stopPropagation()}
 											aria-label={m.common_actions()}
@@ -261,10 +261,16 @@
 					{#each filteredReleases as rel (rel.id)}
 						<Table.Row
 							class="cursor-pointer hover:bg-muted/50"
-							onclick={() => goto(`${basePath}/${rel.id}`)}
+							onclick={(event) => {
+								if (!isInteractiveTarget(event.target)) goto(`${basePath}/${rel.id}`);
+							}}
 						>
 							<Table.Cell class="py-1 px-2 text-xs font-medium">
-								<span class="block truncate" title={rel.name}>{rel.name}</span>
+								<a
+									href={`${basePath}/${rel.id}`}
+									class="block truncate underline-offset-4 hover:underline"
+									title={rel.name}>{rel.name}</a
+								>
 							</Table.Cell>
 							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs">
 								<span class="block truncate" title={rel.version ?? '-'}>{rel.version ?? '-'}</span>

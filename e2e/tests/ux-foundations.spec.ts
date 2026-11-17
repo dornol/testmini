@@ -21,6 +21,7 @@ test.describe.serial('Test-case UX foundations', () => {
 		await page.locator('form button[type="submit"]').click();
 		const summary = page.locator('[data-slot="form-error-summary"]');
 		await expect(summary).toBeVisible();
+		await expect(summary).toContainText('제목을 입력해 주세요.');
 		await expect(summary).toBeFocused();
 		await expect(page.locator('#title')).toHaveAttribute('aria-invalid', 'true');
 		await expect(page.locator('#title-error')).toBeVisible();
@@ -32,6 +33,7 @@ test.describe.serial('Test-case UX foundations', () => {
 		await page.locator('form button[type="submit"]').click();
 		await expect(summary).toBeFocused();
 		await expect(page.locator('#step-action-0')).toHaveAttribute('aria-invalid', 'true');
+		await expect(summary).toContainText('이 단계의 동작을 입력해 주세요.');
 		await summary.getByRole('link').first().click();
 		await expect(page.locator('#step-action-0')).toBeFocused();
 	});
@@ -70,14 +72,49 @@ test.describe.serial('Test-case UX foundations', () => {
 		await sheet.getByRole('button', { name: /변경사항 저장|변경 사항 저장|Save Changes/ }).click();
 		await expect(sheet.locator('[data-slot="form-error-summary"]')).toBeFocused();
 		await expect(page.locator('#detail-title')).toHaveAttribute('aria-invalid', 'true');
-		await sheet
-			.getByRole('link')
-			.filter({ hasText: /Title is required/ })
-			.click();
+		await sheet.locator('a[href="#detail-title"]').click();
 		await expect(page.locator('#detail-title')).toBeFocused();
 		await page.keyboard.press('Escape');
 		await expect(sheet).not.toBeVisible();
 		await expect(trigger).toBeFocused();
+	});
+
+	test('failed detail loading stays open and can be retried', async ({ page }) => {
+		await page.goto(`/projects/${projectId}/test-cases`);
+		await page.waitForLoadState('networkidle');
+		await page.route(
+			`**/api/projects/${projectId}/test-cases/*`,
+			(route) => route.fulfill({ status: 503, json: { error: 'Temporarily unavailable' } }),
+			{ times: 1 }
+		);
+		await page.getByRole('button', { name: 'UX sheet validation', exact: true }).click();
+		const sheet = page.getByRole('dialog', { name: /테스트 케이스|Test Cases/ });
+		await expect(
+			sheet.getByRole('heading', { name: /화면을 불러오지 못했습니다|Unable to load this page/ })
+		).toBeVisible();
+		await sheet.getByRole('button', { name: /다시 시도|Try again/ }).click();
+		await expect(sheet.getByRole('heading', { name: 'UX sheet validation' })).toBeVisible();
+		await page.keyboard.press('Escape');
+	});
+
+	test('duplicate automation keys show a linked error and retain the form', async ({ page }) => {
+		await page.goto(`/projects/${projectId}/test-cases/new`);
+		await page.waitForLoadState('networkidle');
+		await page.locator('#title').fill('Automation key original');
+		await page.locator('#automationKey').fill('UX-AUTO-KEY');
+		await page.locator('form button[type="submit"]').click();
+		await page.waitForURL(/\/test-cases\/\d+$/);
+		await page.goto(`/projects/${projectId}/test-cases/new`);
+		await page.waitForLoadState('networkidle');
+		await page.locator('#title').fill('Keep this duplicate draft');
+		await page.locator('#automationKey').fill('UX-AUTO-KEY');
+		await page.locator('form button[type="submit"]').click();
+		const summary = page.locator('[data-slot="form-error-summary"]');
+		await expect(summary).toContainText('이미 사용 중인 자동화 키입니다.');
+		await expect(page.locator('#automationKey')).toHaveAttribute('aria-invalid', 'true');
+		await expect(page.locator('#title')).toHaveValue('Keep this duplicate draft');
+		await summary.locator('a[href="#automationKey"]').click();
+		await expect(page.locator('#automationKey')).toBeFocused();
 	});
 
 	test('English controls work in landscape with reduced motion', async ({ page }) => {
@@ -92,6 +129,7 @@ test.describe.serial('Test-case UX foundations', () => {
 		await expect(page.getByLabel('Priority', { exact: true })).toBeVisible();
 		await page.locator('form button[type="submit"]').click();
 		await expect(page.getByRole('heading', { name: 'Check the following fields' })).toBeVisible();
+		await expect(page.locator('[data-slot="form-error-summary"]')).toContainText('Enter a title.');
 		await expect(page.locator('[data-slot="form-error-summary"]')).toBeFocused();
 		expect(await page.locator('main').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
 			false

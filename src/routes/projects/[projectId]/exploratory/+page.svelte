@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { isInteractiveTarget } from '$lib/utils';
+	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
+	import StatusFilter from '$lib/components/patterns/StatusFilter.svelte';
+	import EmptyState from '$lib/components/patterns/EmptyState.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -22,6 +26,16 @@
 	let creating = $state(false);
 
 	const projectId = $derived(data.project.id);
+	const canManage = $derived(data.userRole !== 'VIEWER');
+	let retrying = $state(false);
+	async function retryLoad() {
+		retrying = true;
+		try {
+			await invalidateAll();
+		} finally {
+			retrying = false;
+		}
+	}
 	const apiBase = $derived(`/api/projects/${projectId}/exploratory-sessions`);
 
 	let statusFilter = $derived(data.statusFilter);
@@ -33,7 +47,7 @@
 		} else {
 			url.searchParams.delete('status');
 		}
-		goto(url.toString(), { replaceState: true });
+		goto(url.toString(), { keepFocus: true, noScroll: true });
 	}
 
 	function statusVariant(status: string): 'default' | 'secondary' | 'outline' | 'destructive' {
@@ -95,74 +109,49 @@
 	}
 </script>
 
-<div class="space-y-4">
-	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-		<h2 class="text-lg font-semibold">{m.exploratory_title()}</h2>
-		<Button size="sm" class="w-full sm:w-auto" onclick={() => (showNewDialog = true)}>
-			{m.exploratory_new()}
-		</Button>
-	</div>
+<div class="space-y-6">
+	<PageHeader title={m.exploratory_title()}>
+		{#snippet actions()}{#if canManage}<Button
+					class="w-full sm:w-auto"
+					onclick={() => (showNewDialog = true)}>{m.exploratory_new()}</Button
+				>{/if}{/snippet}
+	</PageHeader>
+	<StatusFilter
+		value={statusFilter}
+		onchange={setStatusFilter}
+		options={['', 'ACTIVE', 'PAUSED', 'COMPLETED'].map((value) => ({
+			value,
+			label: value ? statusLabel(value) : m.common_all()
+		}))}
+	/>
 
-	<div class="grid grid-cols-2 gap-2 min-[420px]:flex min-[420px]:flex-wrap">
-		<Button
-			variant={statusFilter === '' ? 'default' : 'outline'}
-			size="sm"
-			class="w-full min-[420px]:w-auto"
-			onclick={() => setStatusFilter('')}>{m.common_all()}</Button
-		>
-		<Button
-			variant={statusFilter === 'ACTIVE' ? 'default' : 'outline'}
-			size="sm"
-			class="w-full min-[420px]:w-auto"
-			onclick={() => setStatusFilter('ACTIVE')}>{m.exploratory_status_active()}</Button
-		>
-		<Button
-			variant={statusFilter === 'PAUSED' ? 'default' : 'outline'}
-			size="sm"
-			class="w-full min-[420px]:w-auto"
-			onclick={() => setStatusFilter('PAUSED')}>{m.exploratory_status_paused()}</Button
-		>
-		<Button
-			variant={statusFilter === 'COMPLETED' ? 'default' : 'outline'}
-			size="sm"
-			class="w-full min-[420px]:w-auto"
-			onclick={() => setStatusFilter('COMPLETED')}>{m.exploratory_status_completed()}</Button
-		>
-	</div>
-
-	{#if data.sessions.length === 0}
-		<div
-			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
-		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				width="48"
-				height="48"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				class="text-muted-foreground mb-4"
-			>
-				<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path
-					d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"
-				/>
-			</svg>
-			<h3 class="text-lg font-semibold">{m.exploratory_empty()}</h3>
-			<p class="text-muted-foreground mt-1 text-sm">{m.exploratory_empty_hint()}</p>
-			<Button class="mt-4 w-full sm:w-auto" size="sm" onclick={() => (showNewDialog = true)}
-				>{m.exploratory_new()}</Button
+	{#if data.loadFailed}
+		<div role="alert" class="rounded-xl border bg-card p-6 text-center">
+			<h3 class="font-semibold">{m.ui_load_failed()}</h3>
+			<p class="mt-2 text-sm text-muted-foreground">{m.ui_load_failed_description()}</p>
+			<Button class="mt-4" variant="outline" disabled={retrying} onclick={retryLoad}
+				>{retrying ? m.common_loading() : m.ui_try_again()}</Button
 			>
 		</div>
+	{:else if data.sessions.length === 0}
+		<EmptyState
+			title={statusFilter ? m.ui_no_filtered_results() : m.exploratory_empty()}
+			description={statusFilter ? m.ui_no_filtered_description() : m.exploratory_empty_hint()}
+		>
+			{#snippet actions()}{#if statusFilter}<Button
+						variant="outline"
+						onclick={() => setStatusFilter('')}>{m.ui_clear_filters()}</Button
+					>{:else if canManage}<Button
+						class="w-full sm:w-auto"
+						onclick={() => (showNewDialog = true)}>{m.exploratory_new()}</Button
+					>{/if}{/snippet}
+		</EmptyState>
 	{:else}
 		<div class="grid gap-3 md:hidden">
 			{#each data.sessions as session (session.id)}
-				<button
-					type="button"
-					class="w-full rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
-					onclick={() => goto(`/projects/${projectId}/exploratory/${session.id}`)}
+				<a
+					class="block w-full rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
+					href={`/projects/${projectId}/exploratory/${session.id}`}
 				>
 					<div
 						class="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between"
@@ -191,7 +180,7 @@
 							<dd class="font-medium">{new Date(session.startedAt).toLocaleDateString()}</dd>
 						</div>
 					</dl>
-				</button>
+				</a>
 			{/each}
 		</div>
 		<div class="hidden overflow-x-auto rounded-md border md:block">
@@ -221,10 +210,17 @@
 					{#each data.sessions as session (session.id)}
 						<Table.Row
 							class="cursor-pointer hover:bg-muted/50"
-							onclick={() => goto(`/projects/${projectId}/exploratory/${session.id}`)}
+							onclick={(event) => {
+								if (!isInteractiveTarget(event.target))
+									goto(`/projects/${projectId}/exploratory/${session.id}`);
+							}}
 						>
 							<Table.Cell class="min-w-0 py-1 px-2 text-xs font-medium">
-								<div class="truncate" title={session.title}>{session.title}</div>
+								<a
+									href={`/projects/${projectId}/exploratory/${session.id}`}
+									class="block truncate underline-offset-4 hover:underline"
+									title={session.title}>{session.title}</a
+								>
 								<div class="text-muted-foreground md:hidden text-[10px] truncate max-w-[200px]">
 									{session.charter ?? ''}
 								</div>
@@ -268,24 +264,37 @@
 		</Dialog.Header>
 		<div class="space-y-3">
 			<div>
-				<Label>{m.common_title()}</Label>
-				<Input bind:value={newTitle} placeholder={m.exploratory_title_placeholder()} />
+				<Label for="session-title">{m.common_title()}</Label>
+				<Input
+					id="session-title"
+					bind:value={newTitle}
+					placeholder={m.exploratory_title_placeholder()}
+				/>
 			</div>
 			<div>
-				<Label>{m.exploratory_charter()}</Label>
+				<Label for="session-charter">{m.exploratory_charter()}</Label>
 				<Textarea
+					id="session-charter"
 					bind:value={newCharter}
 					placeholder={m.exploratory_charter_placeholder()}
 					rows={3}
 				/>
 			</div>
 			<div>
-				<Label>{m.common_environment()}</Label>
-				<Input bind:value={newEnvironment} placeholder={m.exploratory_env_placeholder()} />
+				<Label for="session-environment">{m.common_environment()}</Label>
+				<Input
+					id="session-environment"
+					bind:value={newEnvironment}
+					placeholder={m.exploratory_env_placeholder()}
+				/>
 			</div>
 			<div>
-				<Label>{m.exploratory_tags_label()}</Label>
-				<Input bind:value={newTags} placeholder={m.exploratory_tags_placeholder()} />
+				<Label for="session-tags">{m.exploratory_tags_label()}</Label>
+				<Input
+					id="session-tags"
+					bind:value={newTags}
+					placeholder={m.exploratory_tags_placeholder()}
+				/>
 			</div>
 		</div>
 		<Dialog.Footer>

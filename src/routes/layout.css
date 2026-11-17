@@ -5,45 +5,45 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-	--background: oklch(1 0 0);
-	--foreground: oklch(0.145 0 0);
+	--background: #f8fafc;
+	--foreground: #1e293b;
 	--card: oklch(1 0 0);
 	--card-foreground: oklch(0.145 0 0);
 	--popover: oklch(1 0 0);
 	--popover-foreground: oklch(0.145 0 0);
-	--primary: oklch(0.205 0 0);
+	--primary: #1d4ed8;
 	--primary-foreground: oklch(0.985 0 0);
 	--secondary: oklch(0.97 0 0);
 	--secondary-foreground: oklch(0.205 0 0);
 	--muted: oklch(0.97 0 0);
-	--muted-foreground: oklch(0.556 0 0);
+	--muted-foreground: #475569;
 	--accent: oklch(0.97 0 0);
 	--accent-foreground: oklch(0.205 0 0);
 	--destructive: oklch(0.577 0.245 27.325);
 	--destructive-foreground: oklch(0.577 0.245 27.325);
 	--border: oklch(0.922 0 0);
 	--input: oklch(0.922 0 0);
-	--ring: oklch(0.708 0 0);
+	--ring: #2563eb;
 	--radius: 0.625rem;
-	--sidebar: oklch(0.985 0 0);
+	--sidebar: #ffffff;
 	--sidebar-foreground: oklch(0.145 0 0);
 	--sidebar-primary: oklch(0.205 0 0);
 	--sidebar-primary-foreground: oklch(0.985 0 0);
-	--sidebar-accent: oklch(0.97 0 0);
-	--sidebar-accent-foreground: oklch(0.205 0 0);
+	--sidebar-accent: #e8eefc;
+	--sidebar-accent-foreground: #1e40af;
 	--sidebar-border: oklch(0.922 0 0);
 	--sidebar-ring: oklch(0.708 0 0);
 }
 
 .dark {
-	--background: oklch(0.145 0 0);
+	--background: #101722;
 	--foreground: oklch(0.985 0 0);
-	--card: oklch(0.145 0 0);
+	--card: #182230;
 	--card-foreground: oklch(0.985 0 0);
-	--popover: oklch(0.145 0 0);
+	--popover: #182230;
 	--popover-foreground: oklch(0.985 0 0);
-	--primary: oklch(0.985 0 0);
-	--primary-foreground: oklch(0.205 0 0);
+	--primary: #93b4ff;
+	--primary-foreground: #101c38;
 	--secondary: oklch(0.269 0 0);
 	--secondary-foreground: oklch(0.985 0 0);
 	--muted: oklch(0.269 0 0);
@@ -54,13 +54,13 @@
 	--destructive-foreground: oklch(0.985 0 0);
 	--border: oklch(0.269 0 0);
 	--input: oklch(0.269 0 0);
-	--ring: oklch(0.439 0 0);
-	--sidebar: oklch(0.205 0 0);
+	--ring: #93b4ff;
+	--sidebar: #141d29;
 	--sidebar-foreground: oklch(0.985 0 0);
 	--sidebar-primary: oklch(0.985 0 0);
 	--sidebar-primary-foreground: oklch(0.205 0 0);
-	--sidebar-accent: oklch(0.269 0 0);
-	--sidebar-accent-foreground: oklch(0.985 0 0);
+	--sidebar-accent: #223454;
+	--sidebar-accent-foreground: #c7d8ff;
 	--sidebar-border: oklch(0.269 0 0);
 	--sidebar-ring: oklch(0.439 0 0);
 }
@@ -104,7 +104,14 @@
 		@apply border-border;
 	}
 	body {
-		@apply bg-background text-foreground;
+		@apply bg-background text-foreground antialiased;
+		font-family:
+			ui-sans-serif,
+			system-ui,
+			-apple-system,
+			BlinkMacSystemFont,
+			'Segoe UI',
+			sans-serif;
 	}
 }
 
@@ -118,8 +125,12 @@
 }
 
 @keyframes shimmer {
-	0% { transform: translateX(-100%); }
-	100% { transform: translateX(400%); }
+	0% {
+		transform: translateX(-100%);
+	}
+	100% {
+		transform: translateX(400%);
+	}
 }
 
 /* data-tip tooltip element (managed by JS in +layout.svelte) */
@@ -136,9 +147,46 @@
 	background: var(--popover);
 	color: var(--popover-foreground);
 	border: 1px solid var(--border);
-	box-shadow: 0 2px 8px rgb(0 0 0 / .08);
+	box-shadow: 0 2px 8px rgb(0 0 0 / 0.08);
 	pointer-events: none;
 	z-index: 9999;
 	opacity: 0;
 	transition: opacity 0.15s;
+}
+
+/* Shared keyboard feedback also covers plain links and native form controls. */
+@layer base {
+	:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 3px;
+	}
+	:where(button, a, input, select, textarea) {
+		touch-action: manipulation;
+	}
+	button:not(:disabled),
+	[role='button']:not([aria-disabled='true']) {
+		cursor: pointer;
+	}
+}
+
+@media (pointer: coarse) {
+	[data-slot='button'],
+	[data-slot='input'],
+	select {
+		min-height: 44px;
+	}
+	[data-slot='button']:has(> svg:only-child) {
+		min-width: 44px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
 }

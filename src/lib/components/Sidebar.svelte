@@ -1,11 +1,24 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { SvelteSet } from 'svelte/reactivity';
+	import { MediaQuery, SvelteSet } from 'svelte/reactivity';
+	import { afterNavigate } from '$app/navigation';
 	import { cn } from '$lib/utils';
 	import * as m from '$lib/paraglide/messages.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 
 	let { open = $bindable(true) }: { open: boolean } = $props();
+	const desktop = new MediaQuery('(min-width: 1024px)');
+
+	afterNavigate(() => {
+		open = false;
+	});
+
+	function handleEscape(event: KeyboardEvent) {
+		if (event.key === 'Escape' && open && !desktop.current) {
+			open = false;
+			document.querySelector<HTMLButtonElement>('[aria-controls="app-sidebar"]')?.focus();
+		}
+	}
 
 	type SidebarProject = {
 		id: number;
@@ -73,9 +86,11 @@
 	}
 
 	function isProjectActive(projectId: number): boolean {
-		return page.url.pathname.startsWith(`/projects/${projectId}`);
+		return isActive(`/projects/${projectId}`);
 	}
 </script>
+
+<svelte:window onkeydown={handleEscape} />
 
 {#if open}
 	<!-- Overlay for mobile -->
@@ -87,16 +102,19 @@
 {/if}
 
 <aside
+	id="app-sidebar"
+	inert={!desktop.current && !open}
 	class={cn(
-		'fixed left-0 top-11 z-40 flex h-[calc(100dvh-2.75rem)] w-52 flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0',
+		'fixed left-0 top-14 z-40 flex h-[calc(100dvh-3.5rem)] w-60 flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0',
 		open ? 'translate-x-0' : '-translate-x-full'
 	)}
 >
-	<nav class="flex-1 overflow-y-auto p-2" aria-label={m.aria_main_navigation()}>
+	<nav class="flex-1 overflow-y-auto space-y-1 p-3" aria-label={m.aria_main_navigation()}>
 		<a
 			href="/my-work"
+			aria-current={isActive('/my-work') ? 'page' : undefined}
 			class={cn(
-				'flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors',
+				'flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
 				isActive('/my-work')
 					? 'bg-sidebar-accent text-sidebar-accent-foreground'
 					: 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -121,8 +139,9 @@
 		<!-- Teams link -->
 		<a
 			href="/teams"
+			aria-current={isActive('/teams') ? 'page' : undefined}
 			class={cn(
-				'flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors',
+				'flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
 				page.url.pathname.startsWith('/teams')
 					? 'bg-sidebar-accent text-sidebar-accent-foreground'
 					: 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -150,8 +169,9 @@
 		<!-- Projects header -->
 		<a
 			href="/projects"
+			aria-current={page.url.pathname === '/projects' ? 'page' : undefined}
 			class={cn(
-				'flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors',
+				'flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
 				page.url.pathname === '/projects'
 					? 'bg-sidebar-accent text-sidebar-accent-foreground'
 					: 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -191,8 +211,9 @@
 			<!-- Project row -->
 			<button
 				onclick={() => toggleProject(proj.id)}
+				aria-expanded={expandedProjects.has(proj.id)}
 				class={cn(
-					'mt-0.5 flex w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors text-left',
+					'mt-0.5 flex w-full items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors text-left',
 					isProjectActive(proj.id)
 						? 'bg-sidebar-accent text-sidebar-accent-foreground'
 						: 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -223,7 +244,7 @@
 					<a
 						href={`/projects/${proj.id}/test-cases`}
 						class={cn(
-							'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors',
+							'flex items-center gap-1.5 rounded-md px-2.5 py-2 text-sm transition-colors',
 							isActive(`/projects/${proj.id}/test-cases`)
 								? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
 								: 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -253,7 +274,7 @@
 						<a
 							href={`/projects/${proj.id}/test-cases?groupId=${group.id}`}
 							class={cn(
-								'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors',
+								'flex items-center gap-1.5 rounded-md px-2.5 py-2 text-sm transition-colors',
 								isActiveWithQuery(`/projects/${proj.id}/test-cases`, `?groupId=${group.id}`)
 									? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
 									: 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -288,7 +309,7 @@
 					<a
 						href={`/projects/${proj.id}/test-runs`}
 						class={cn(
-							'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors',
+							'flex items-center gap-1.5 rounded-md px-2.5 py-2 text-sm transition-colors',
 							isActive(`/projects/${proj.id}/test-runs`)
 								? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
 								: 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -316,7 +337,7 @@
 					<a
 						href={`/projects/${proj.id}/reports`}
 						class={cn(
-							'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors',
+							'flex items-center gap-1.5 rounded-md px-2.5 py-2 text-sm transition-colors',
 							isActive(`/projects/${proj.id}/reports`)
 								? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
 								: 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -359,7 +380,7 @@
 			<a
 				href="/admin"
 				class={cn(
-					'flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors',
+					'flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
 					isActive('/admin')
 						? 'bg-sidebar-accent text-sidebar-accent-foreground'
 						: 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'

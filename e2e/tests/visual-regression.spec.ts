@@ -52,7 +52,11 @@ test.describe.serial('Visual regression', () => {
 		await page.waitForLoadState('networkidle');
 		await page.getByRole('button', { name: '언어 변경' }).click();
 		await page.getByRole('menuitem', { name: 'English' }).click();
-		await page.evaluate(() => document.documentElement.classList.add('dark'));
+		await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+		await page.waitForLoadState('networkidle');
+		// Use the theme control so ModeWatcher and its persisted state stay in sync.
+		await page.getByRole('button', { name: 'Toggle theme' }).click();
+		await expect(page.locator('html')).toHaveClass(/dark/);
 
 		const main = page.locator('main#main-content');
 		await expect(main).toHaveScreenshot('dashboard-en-dark.png', {

@@ -55,13 +55,13 @@
 	}
 </script>
 
-<div class="space-y-4">
+<div class="space-y-6">
 	<div class="flex flex-wrap items-center justify-between gap-2">
-		<h1 class="text-xl font-bold">{m.projects_title()}</h1>
+		<h1 class="text-2xl font-bold tracking-tight">{m.projects_title()}</h1>
 		<Button href="/projects/new">{m.projects_new()}</Button>
 	</div>
 
-	<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+	<div class="flex flex-col gap-3 rounded-xl border bg-card p-3 sm:flex-row sm:items-center">
 		<Input
 			placeholder={m.projects_search_placeholder()}
 			class="w-full sm:max-w-sm"
@@ -128,8 +128,10 @@
 	{:else}
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			{#each data.projects as proj (proj.id)}
-				<a href="/projects/{proj.id}" class="block">
-					<Card.Root class="transition-shadow hover:shadow-md">
+				<a href="/projects/{proj.id}" class="group block min-w-0 rounded-xl">
+					<Card.Root
+						class="h-full transition-[border-color,box-shadow] group-hover:border-primary/40 group-hover:shadow-md"
+					>
 						<Card.Header>
 							<div class="flex min-w-0 items-start justify-between gap-2">
 								<Card.Title class="min-w-0 break-words text-lg leading-snug">{proj.name}</Card.Title
@@ -144,7 +146,7 @@
 								>
 							{/if}
 						</Card.Header>
-						<Card.Footer class="text-muted-foreground text-sm">
+						<Card.Footer class="text-muted-foreground mt-auto border-t pt-4 text-sm">
 							<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
 								<span class="flex items-center gap-1">
 									<svg
@@ -186,7 +188,7 @@
 				>
 					{m.common_previous()}
 				</Button>
-				<span class="text-muted-foreground text-sm">
+				<span class="text-muted-foreground mt-auto border-t pt-4 text-sm">
 					Page {data.meta.page} of {data.meta.totalPages}
 				</span>
 				<Button

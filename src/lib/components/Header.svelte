@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import { locales, getLocale, setLocale } from '$lib/paraglide/runtime';
 	import * as m from '$lib/paraglide/messages.js';
 	import ThemeToggle from './ThemeToggle.svelte';
@@ -14,11 +13,13 @@
 	let {
 		user,
 		onToggleSidebar,
+		sidebarOpen = false,
 		unreadNotificationCount = 0,
 		branding = null
 	}: {
 		user: { name: string; email: string; image?: string | null } | null;
 		onToggleSidebar: () => void;
+		sidebarOpen?: boolean;
 		unreadNotificationCount?: number;
 		branding?: { appName: string; logoUrl: string | null } | null;
 	} = $props();
@@ -34,12 +35,14 @@
 	}
 </script>
 
-<header class="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-background px-3">
+<header class="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-card px-3 sm:px-5">
 	<Button
 		variant="ghost"
 		size="icon"
 		onclick={onToggleSidebar}
 		aria-label={m.aria_toggle_sidebar()}
+		aria-expanded={sidebarOpen}
+		aria-controls="app-sidebar"
 		class="lg:hidden"
 	>
 		<svg
@@ -59,13 +62,13 @@
 		</svg>
 	</Button>
 
-	<a href="/" class="flex items-center gap-1.5 font-semibold">
+	<a href="/" class="flex min-w-0 items-center gap-2 font-semibold">
 		{#if branding?.logoUrl}
 			<img src={branding.logoUrl} alt="" class="h-5 w-5 object-contain" />
 		{:else}
 			<img src={logo} alt="" class="h-5 w-5" />
 		{/if}
-		<span class="text-base">{branding?.appName || m.app_name()}</span>
+		<span class="truncate text-base tracking-tight">{branding?.appName || m.app_name()}</span>
 	</a>
 
 	<div class="ml-auto flex items-center gap-1">
@@ -73,7 +76,7 @@
 			<Button
 				variant="outline"
 				size="sm"
-				class="hidden h-8 min-w-36 justify-between gap-3 text-muted-foreground md:inline-flex"
+				class="hidden h-9 min-w-48 justify-between gap-6 text-muted-foreground md:inline-flex"
 				onclick={openCommandPalette}
 				aria-haspopup="dialog"
 			>
@@ -115,7 +118,7 @@
 				<DropdownMenu.Trigger>
 					{#snippet child({ props })}
 						<Button variant="ghost" size="sm" {...props}>
-							<span class="hidden sm:inline">{user.name}</span>
+							<span class="hidden max-w-32 truncate sm:inline">{user.name}</span>
 							<span class="sm:hidden">{user.name.charAt(0)}</span>
 						</Button>
 					{/snippet}

@@ -122,14 +122,19 @@
 	<div class="flex h-dvh flex-col">
 		<Header
 			user={data.user}
+			{sidebarOpen}
 			onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
 			unreadNotificationCount={data.unreadNotificationCount}
 			branding={data.branding}
 		/>
 		<div class="flex flex-1 overflow-hidden">
 			<Sidebar bind:open={sidebarOpen} />
-			<main id="main-content" class="flex-1 overflow-y-auto px-2 pb-4 sm:px-4">
-				<div class="pt-3 sm:pt-4">
+			<main
+				id="main-content"
+				tabindex="-1"
+				class="min-w-0 flex-1 overflow-y-auto px-3 pb-6 sm:px-6"
+			>
+				<div class="pt-4 sm:pt-6">
 					{@render children()}
 				</div>
 			</main>

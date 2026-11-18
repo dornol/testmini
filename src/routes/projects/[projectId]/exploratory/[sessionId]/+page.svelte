@@ -1,10 +1,19 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
-	import { untrack } from 'svelte';
+	import FormErrorSummary from '$lib/components/patterns/FormErrorSummary.svelte';
+	import WorkflowField from '$lib/components/patterns/WorkflowField.svelte';
+	import { feedbackFor, type FormFeedback } from '$lib/form-feedback';
+	import {
+		MAX_NOTE_CONTENT_LENGTH,
+		MAX_TEXT_LENGTH,
+		MAX_SCREENSHOT_SIZE,
+		SCREENSHOT_TYPES,
+		isSupportedScreenshot
+	} from '$lib/exploratory-session-limits';
+	import { tick, untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as m from '$lib/paraglide/messages.js';
@@ -14,6 +23,7 @@
 	let { data } = $props();
 
 	const projectId = $derived(data.project.id);
+	const canManage = $derived(['PROJECT_ADMIN', 'ADMIN', 'QA', 'DEV'].includes(data.userRole));
 	const sessionId = $derived(data.session.id);
 	const apiBase = $derived(`/api/projects/${projectId}/exploratory-sessions/${sessionId}`);
 
@@ -47,11 +57,21 @@
 	let noteType = $state('NOTE');
 	let screenshotFile: File | null = $state(null);
 	let submittingNote = $state(false);
+	let noteErrors = $state<FormFeedback[]>([]);
+	let noteErrorSummary = $state<HTMLDivElement | null>(null);
+	let screenshotInput = $state<HTMLInputElement>();
+	const noteFields: Record<string, string> = {
+		content: 'note-content',
+		screenshot: 'screenshot-input'
+	};
 
 	// Complete dialog
 	let showCompleteDialog = $state(false);
 	let completeSummary = $state('');
 	let completing = $state(false);
+	let completeErrors = $state<FormFeedback[]>([]);
+	let completeErrorSummary = $state<HTMLDivElement | null>(null);
+	let completedHeading = $state<HTMLHeadingElement>();
 
 	// Delete dialog
 	let showDeleteDialog = $state(false);
@@ -62,12 +82,8 @@
 
 	function getElapsedSeconds(): number {
 		const start = new Date(session.startedAt).getTime();
-		const now = Date.now();
-		let totalPause = accumulatedPause;
-		if (pausedAt !== null) {
-			totalPause += Math.floor((now - pausedAt) / 1000);
-		}
-		return Math.max(0, Math.floor((now - start) / 1000) - totalPause);
+		const end = pausedAt ?? Date.now();
+		return Math.max(0, Math.floor((end - start) / 1000) - accumulatedPause);
 	}
 
 	function formatTime(secs: number): string {
@@ -105,7 +121,7 @@
 				pausedAt = null;
 				startTimer();
 			} else if (status === 'PAUSED') {
-				pausedAt = Date.now();
+				pausedAt ??= Date.now();
 				startTimer();
 			} else {
 				// COMPLETED -- show final time
@@ -169,16 +185,15 @@
 	async function resumeSession() {
 		if (actionSaving) return;
 		actionSaving = true;
-		if (pausedAt !== null) {
-			accumulatedPause += Math.floor((Date.now() - pausedAt) / 1000);
-			pausedAt = null;
-		}
+		const totalPause = totalPausedSeconds();
 		try {
 			await apiPatch(apiBase, {
 				action: 'resume',
-				pausedDuration: accumulatedPause
+				pausedDuration: totalPause
 			});
-			session = { ...session, status: 'ACTIVE', pausedDuration: accumulatedPause };
+			accumulatedPause = totalPause;
+			pausedAt = null;
+			session = { ...session, status: 'ACTIVE', pausedDuration: totalPause };
 			toast.success(m.exploratory_resumed());
 		} catch {
 			// revert
@@ -187,42 +202,89 @@
 		}
 	}
 
-	async function completeSession() {
-		completing = true;
-		try {
-			const totalPause =
-				pausedAt !== null
-					? accumulatedPause + Math.floor((Date.now() - pausedAt) / 1000)
-					: accumulatedPause;
-			await apiPatch(apiBase, {
-				action: 'complete',
-				summary: completeSummary.trim() || undefined,
-				pausedDuration: totalPause
-			});
-			session = {
-				...session,
-				status: 'COMPLETED',
-				completedAt: new Date(),
-				summary: completeSummary.trim() || null,
-				pausedDuration: totalPause
-			};
-			showCompleteDialog = false;
-			stopTimer();
-			toast.success(m.exploratory_completed());
-			await invalidateAll();
-		} catch {
-			// error handled
-		} finally {
-			completing = false;
-		}
+	function totalPausedSeconds() {
+		return accumulatedPause + (pausedAt === null ? 0 : Math.floor((Date.now() - pausedAt) / 1000));
 	}
 
-	async function addNote() {
-		if (!noteContent.trim()) return;
+	function openComplete() {
+		completeErrors = [];
+		showCompleteDialog = true;
+	}
+
+	async function completeSession(event: SubmitEvent) {
+		event.preventDefault();
+		if (completing || submittingNote || actionSaving) return;
+		const summary = completeSummary.trim();
+		if (summary.length > MAX_TEXT_LENGTH) {
+			completeErrors = [
+				{ path: 'summary', messages: [m.ui_max_characters({ count: MAX_TEXT_LENGTH })] }
+			];
+			await tick();
+			completeErrorSummary?.focus();
+			return;
+		}
+		completeErrors = [];
+		completing = true;
+		const totalPause = totalPausedSeconds();
+		try {
+			await apiFetch(apiBase, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					action: 'complete',
+					summary: summary || undefined,
+					pausedDuration: totalPause
+				}),
+				silent: true
+			});
+		} catch {
+			completeErrors = [{ path: '_form', messages: [m.ui_save_failed()] }];
+			completing = false;
+			await tick();
+			completeErrorSummary?.focus();
+			return;
+		}
+		completing = false;
+		session = {
+			...session,
+			status: 'COMPLETED',
+			completedAt: new Date(),
+			summary: summary || null,
+			pausedDuration: totalPause
+		};
+		showCompleteDialog = false;
+		stopTimer();
+		toast.success(m.exploratory_completed());
+		await invalidateAll();
+	}
+
+	async function addNote(event: SubmitEvent) {
+		event.preventDefault();
+		if (submittingNote || completing) return;
+		const content = noteContent.trim();
+		noteErrors = [];
+		if (!content)
+			noteErrors.push({ path: 'content', messages: [m.ui_exploratory_note_required()] });
+		else if (content.length > MAX_NOTE_CONTENT_LENGTH) {
+			noteErrors.push({
+				path: 'content',
+				messages: [m.ui_max_characters({ count: MAX_NOTE_CONTENT_LENGTH })]
+			});
+		}
+		if (screenshotFile && !isSupportedScreenshot(screenshotFile)) {
+			noteErrors.push({ path: 'screenshot', messages: [m.ui_exploratory_screenshot_format()] });
+		} else if (screenshotFile && screenshotFile.size > MAX_SCREENSHOT_SIZE) {
+			noteErrors.push({ path: 'screenshot', messages: [m.ui_exploratory_screenshot_size()] });
+		}
+		if (noteErrors.length) {
+			await tick();
+			noteErrorSummary?.focus();
+			return;
+		}
 		submittingNote = true;
 		try {
 			const formData = new FormData();
-			formData.set('content', noteContent.trim());
+			formData.set('content', content);
 			formData.set('noteType', noteType);
 			formData.set('timestamp', String(getElapsedSeconds()));
 			if (screenshotFile) {
@@ -237,20 +299,26 @@
 				timestamp: number;
 				screenshotPath: string | null;
 				createdAt: string;
-			}>(`${apiBase}/notes`, { method: 'POST', body: formData });
+			}>(`${apiBase}/notes`, { method: 'POST', body: formData, silent: true });
 
 			notes = [...notes, { ...created, createdAt: new Date(created.createdAt) }] as typeof notes;
 			noteContent = '';
-			screenshotFile = null;
-			// Reset file input
-			const fileInput = document.getElementById('screenshot-input') as HTMLInputElement;
-			if (fileInput) fileInput.value = '';
+			clearScreenshot();
 			toast.success(m.exploratory_note_added());
 		} catch {
-			// error handled
+			noteErrors = [{ path: '_form', messages: [m.ui_save_failed()] }];
 		} finally {
 			submittingNote = false;
 		}
+		await tick();
+		if (noteErrors.length) noteErrorSummary?.focus();
+		else document.getElementById('note-content')?.focus();
+	}
+
+	function clearScreenshot() {
+		screenshotFile = null;
+		if (screenshotInput) screenshotInput.value = '';
+		noteErrors = noteErrors.filter((item) => item.path !== 'screenshot');
 	}
 
 	async function deleteNote(noteId: number) {
@@ -279,6 +347,7 @@
 	function handleFileChange(event: Event) {
 		const input = event.target as HTMLInputElement;
 		screenshotFile = input.files?.[0] ?? null;
+		noteErrors = noteErrors.filter((item) => item.path !== 'screenshot');
 	}
 </script>
 
@@ -291,15 +360,25 @@
 				class="text-muted-foreground hover:text-foreground text-sm"
 				>&larr; {m.common_back_to({ target: m.exploratory_title() })}</a
 			>
-			<h2 class="mt-1 break-words text-lg font-semibold">{session.title}</h2>
+			<h2
+				bind:this={completedHeading}
+				tabindex="-1"
+				class="mt-1 text-2xl font-semibold [overflow-wrap:anywhere]"
+			>
+				{session.title}
+			</h2>
 			<div class="mt-1 flex flex-wrap items-center gap-2">
 				<Badge variant={statusVariant(session.status)}>{statusLabel(session.status)}</Badge>
 				{#if session.environment}
-					<Badge variant="outline">{session.environment}</Badge>
+					<Badge variant="outline" class="max-w-full whitespace-normal [overflow-wrap:anywhere]"
+						>{session.environment}</Badge
+					>
 				{/if}
 				{#if session.tags && session.tags.length > 0}
-					{#each session.tags as tag (tag)}
-						<Badge variant="secondary">{tag}</Badge>
+					{#each session.tags as tag}
+						<Badge variant="secondary" class="max-w-full whitespace-normal [overflow-wrap:anywhere]"
+							>{tag}</Badge
+						>
 					{/each}
 				{/if}
 			</div>
@@ -307,42 +386,58 @@
 				<p class="text-muted-foreground mt-2 break-words text-sm">{session.charter}</p>
 			{/if}
 		</div>
-		<div class="flex items-center gap-2 sm:justify-end">
-			<Button
-				variant="outline"
-				size="sm"
-				class="w-full sm:w-auto"
-				onclick={() => (showDeleteDialog = true)}
-			>
-				{m.common_delete()}
-			</Button>
-		</div>
+		{#if canManage}<div class="flex items-center gap-2 sm:justify-end">
+				<Button
+					variant="outline"
+					size="sm"
+					class="w-full sm:w-auto"
+					onclick={() => (showDeleteDialog = true)}
+				>
+					{m.common_delete()}
+				</Button>
+			</div>{/if}
 	</div>
 
 	<!-- Timer -->
 	<div
 		class="grid gap-3 rounded-lg border p-4 min-[420px]:flex min-[420px]:flex-wrap min-[420px]:items-center"
 	>
-		<div class="text-3xl font-mono font-bold tracking-wider">{timerDisplay}</div>
-		{#if session.status === 'ACTIVE'}
-			<Button class="w-full min-[420px]:w-auto" variant="secondary" size="sm" onclick={pauseSession}
-				>{m.exploratory_pause()}</Button
+		<div
+			role="timer"
+			aria-label={m.exploratory_duration()}
+			class="text-3xl font-mono font-bold tracking-wider"
+		>
+			{timerDisplay}
+		</div>
+		{#if canManage && session.status === 'ACTIVE'}
+			<Button
+				class="w-full min-[420px]:w-auto"
+				variant="secondary"
+				size="sm"
+				onclick={pauseSession}
+				disabled={actionSaving}>{m.exploratory_pause()}</Button
 			>
 			<Button
 				class="w-full min-[420px]:w-auto"
 				variant="default"
 				size="sm"
-				onclick={() => (showCompleteDialog = true)}>{m.exploratory_complete()}</Button
+				onclick={openComplete}
+				disabled={actionSaving || submittingNote}>{m.exploratory_complete()}</Button
 			>
-		{:else if session.status === 'PAUSED'}
-			<Button class="w-full min-[420px]:w-auto" variant="default" size="sm" onclick={resumeSession}
-				>{m.exploratory_resume()}</Button
+		{:else if canManage && session.status === 'PAUSED'}
+			<Button
+				class="w-full min-[420px]:w-auto"
+				variant="default"
+				size="sm"
+				onclick={resumeSession}
+				disabled={actionSaving}>{m.exploratory_resume()}</Button
 			>
 			<Button
 				class="w-full min-[420px]:w-auto"
 				variant="outline"
 				size="sm"
-				onclick={() => (showCompleteDialog = true)}>{m.exploratory_complete()}</Button
+				onclick={openComplete}
+				disabled={actionSaving || submittingNote}>{m.exploratory_complete()}</Button
 			>
 		{/if}
 	</div>
@@ -351,55 +446,91 @@
 	{#if session.status === 'COMPLETED' && session.summary}
 		<div class="border rounded-lg p-4">
 			<h3 class="font-medium mb-1">{m.exploratory_summary()}</h3>
-			<p class="text-sm whitespace-pre-wrap">{session.summary}</p>
+			<p class="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{session.summary}</p>
 		</div>
 	{/if}
 
 	<!-- Add Note (active/paused sessions) -->
-	{#if session.status !== 'COMPLETED'}
-		<div class="border rounded-lg p-4 space-y-3">
-			<h3 class="font-medium">{m.exploratory_add_note()}</h3>
-			<Textarea bind:value={noteContent} placeholder={m.exploratory_note_placeholder()} rows={2} />
-			<div class="grid gap-3 sm:flex sm:flex-wrap sm:items-center">
-				<div class="grid grid-cols-2 gap-1 min-[420px]:flex min-[420px]:flex-wrap">
+	{#if canManage && session.status !== 'COMPLETED'}
+		<form
+			novalidate
+			class="space-y-4 rounded-lg border bg-card p-4"
+			aria-labelledby="add-note-heading"
+			aria-busy={submittingNote}
+			onsubmit={addNote}
+		>
+			<h3 id="add-note-heading" class="font-semibold">{m.exploratory_add_note()}</h3>
+			<FormErrorSummary
+				errors={noteErrors}
+				bind:ref={noteErrorSummary}
+				fieldTarget={(path) => noteFields[path]}
+			/>
+			<fieldset disabled={submittingNote} class="min-w-0 space-y-4">
+				<WorkflowField
+					id="note-content"
+					label={m.ui_exploratory_note_content()}
+					error={feedbackFor(noteErrors, 'content')}
+					required
+				>
+					{#snippet children(props)}
+						<Textarea
+							{...props}
+							bind:value={noteContent}
+							placeholder={m.exploratory_note_placeholder()}
+							rows={3}
+						/>
+					{/snippet}
+				</WorkflowField>
+				<div
+					role="group"
+					aria-label={m.ui_exploratory_note_type()}
+					class="grid grid-cols-2 gap-2 min-[420px]:flex min-[420px]:flex-wrap"
+				>
 					{#each ['NOTE', 'BUG', 'QUESTION', 'IDEA'] as type (type)}
 						<Button
+							type="button"
+							aria-pressed={noteType === type}
 							variant={noteType === type ? 'default' : 'outline'}
-							size="sm"
-							class="w-full min-[420px]:w-auto"
 							onclick={() => (noteType = type)}>{noteTypeLabel(type)}</Button
 						>
 					{/each}
 				</div>
-				<div class="flex min-w-0 flex-wrap items-center gap-2">
-					<input
-						id="screenshot-input"
-						type="file"
-						accept="image/*"
-						onchange={handleFileChange}
-						class="sr-only"
-					/>
-					<label
-						for="screenshot-input"
-						class="inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground sm:w-auto"
-					>
-						{m.tc_import_select_file()}
-					</label>
-					{#if screenshotFile}
-						<span class="max-w-48 truncate text-sm text-muted-foreground"
+				<WorkflowField
+					id="screenshot-input"
+					label={m.ui_exploratory_screenshot()}
+					error={feedbackFor(noteErrors, 'screenshot')}
+				>
+					{#snippet children(props)}
+						<input
+							{...props}
+							bind:this={screenshotInput}
+							type="file"
+							accept={SCREENSHOT_TYPES.join(',')}
+							onchange={handleFileChange}
+							class="block min-h-11 w-full min-w-0 rounded-md border border-input p-1 text-sm file:me-2 file:min-h-9 file:rounded file:bg-muted file:px-2 file:text-foreground"
+						/>
+					{/snippet}
+				</WorkflowField>
+				{#if screenshotFile}
+					<div class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+						<span class="min-w-0 text-muted-foreground [overflow-wrap:anywhere]"
 							>{screenshotFile.name}</span
 						>
-					{/if}
-				</div>
-				<Button
-					size="sm"
-					class="w-full sm:w-auto"
-					onclick={addNote}
-					disabled={submittingNote || !noteContent.trim()}
-					>{submittingNote ? m.common_saving() : m.exploratory_add_note_btn()}</Button
-				>
-			</div>
-		</div>
+						<Button
+							variant="outline"
+							type="button"
+							onclick={() => {
+								clearScreenshot();
+								screenshotInput?.focus();
+							}}>{m.ui_exploratory_remove_screenshot()}</Button
+						>
+					</div>
+				{/if}
+			</fieldset>
+			<Button type="submit" class="w-full sm:w-auto" disabled={submittingNote}>
+				{submittingNote ? m.common_saving() : m.exploratory_add_note_btn()}
+			</Button>
+		</form>
 	{/if}
 
 	<!-- Notes Timeline -->
@@ -419,27 +550,30 @@
 							>
 						</div>
 						<div class="flex-1 min-w-0">
-							<p class="text-sm whitespace-pre-wrap">{note.content}</p>
+							<p class="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{note.content}</p>
 							{#if note.screenshotPath}
-								<button
-									type="button"
-									class="mt-2 cursor-pointer border-none bg-transparent p-0"
+								<a
+									href="/api/uploads/{note.screenshotPath}"
+									target="_blank"
+									rel="noopener"
+									class="mt-2 inline-block max-w-full rounded"
 									aria-label={m.aria_open_screenshot_new_tab()}
-									onclick={() => window.open(`/api/uploads/${note.screenshotPath}`, '_blank')}
 								>
 									<img
 										src="/api/uploads/{note.screenshotPath}"
-										alt="Screenshot"
+										alt=""
 										class="max-w-full rounded border"
+										loading="lazy"
 									/>
-								</button>
+								</a>
 							{/if}
 						</div>
-						{#if session.status !== 'COMPLETED'}
+						{#if canManage && session.status !== 'COMPLETED'}
 							<Button
 								variant="ghost"
 								size="sm"
 								class="flex-shrink-0 text-muted-foreground hover:text-destructive"
+								aria-label={m.ui_exploratory_delete_note()}
 								onclick={() => deleteNote(note.id)}>&times;</Button
 							>
 						{/if}
@@ -452,29 +586,56 @@
 
 <!-- Complete Session Dialog -->
 <Dialog.Root bind:open={showCompleteDialog}>
-	<Dialog.Content class="sm:max-w-md">
+	<Dialog.Content
+		class="sm:max-w-md"
+		showCloseButton={!completing}
+		interactOutsideBehavior="ignore"
+		escapeKeydownBehavior={completing ? 'ignore' : 'close'}
+		onCloseAutoFocus={(event) => {
+			if (session.status === 'COMPLETED') {
+				event.preventDefault();
+				completedHeading?.focus();
+			}
+		}}
+	>
 		<Dialog.Header>
 			<Dialog.Title>{m.exploratory_complete()}</Dialog.Title>
 			<Dialog.Description>{m.exploratory_complete_desc()}</Dialog.Description>
 		</Dialog.Header>
-		<div>
-			<Label>{m.exploratory_summary()}</Label>
-			<Textarea
-				bind:value={completeSummary}
-				placeholder={m.exploratory_summary_placeholder()}
-				rows={4}
+		<form novalidate class="space-y-4" aria-busy={completing} onsubmit={completeSession}>
+			<FormErrorSummary
+				errors={completeErrors}
+				bind:ref={completeErrorSummary}
+				fieldTarget={(path) => (path === 'summary' ? 'complete-summary' : undefined)}
 			/>
-		</div>
-		<Dialog.Footer>
-			<Button
-				variant="outline"
-				class="w-full sm:w-auto"
-				onclick={() => (showCompleteDialog = false)}>{m.common_cancel()}</Button
-			>
-			<Button class="w-full sm:w-auto" onclick={completeSession} disabled={completing}>
-				{completing ? m.common_saving() : m.exploratory_complete()}
-			</Button>
-		</Dialog.Footer>
+			<fieldset disabled={completing} class="min-w-0">
+				<WorkflowField
+					id="complete-summary"
+					label={m.exploratory_summary()}
+					error={feedbackFor(completeErrors, 'summary')}
+				>
+					{#snippet children(props)}
+						<Textarea
+							{...props}
+							bind:value={completeSummary}
+							placeholder={m.exploratory_summary_placeholder()}
+							rows={4}
+						/>
+					{/snippet}
+				</WorkflowField>
+			</fieldset>
+			<Dialog.Footer>
+				<Button
+					type="button"
+					variant="outline"
+					disabled={completing}
+					onclick={() => (showCompleteDialog = false)}>{m.common_cancel()}</Button
+				>
+				<Button type="submit" disabled={completing}
+					>{completing ? m.common_saving() : m.exploratory_complete()}</Button
+				>
+			</Dialog.Footer>
+		</form>
 	</Dialog.Content>
 </Dialog.Root>
 

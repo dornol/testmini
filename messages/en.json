@@ -1464,5 +1464,13 @@
 	"rel_no_available_runs": "There are no unlinked test runs in this project.",
 	"rel_no_linked_plans": "No plans are linked to this release yet.",
 	"rel_no_linked_runs": "No test runs are linked to this release yet.",
-	"rel_link_selected": "Selected: {name}"
+	"rel_link_selected": "Selected: {name}",
+	"ui_exploratory_note_content": "Note content",
+	"ui_exploratory_note_type": "Note type",
+	"ui_exploratory_note_required": "Enter a note.",
+	"ui_exploratory_screenshot": "Screenshot (optional)",
+	"ui_exploratory_remove_screenshot": "Remove screenshot",
+	"ui_exploratory_screenshot_format": "Choose a PNG, JPEG, GIF, or WebP image.",
+	"ui_exploratory_screenshot_size": "Choose an image up to 10 MB.",
+	"ui_exploratory_delete_note": "Delete note"
 }

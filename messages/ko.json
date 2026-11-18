@@ -1464,5 +1464,13 @@
 	"rel_no_available_runs": "이 프로젝트에 연결 가능한 실행이 없습니다.",
 	"rel_no_linked_plans": "이 릴리스에 연결된 계획이 없습니다.",
 	"rel_no_linked_runs": "이 릴리스에 연결된 실행이 없습니다.",
-	"rel_link_selected": "선택한 항목: {name}"
+	"rel_link_selected": "선택한 항목: {name}",
+	"ui_exploratory_note_content": "노트 내용",
+	"ui_exploratory_note_type": "노트 유형",
+	"ui_exploratory_note_required": "노트 내용을 입력해 주세요.",
+	"ui_exploratory_screenshot": "스크린샷 (선택)",
+	"ui_exploratory_remove_screenshot": "스크린샷 제거",
+	"ui_exploratory_screenshot_format": "PNG, JPEG, GIF 또는 WebP 이미지를 선택해 주세요.",
+	"ui_exploratory_screenshot_size": "10MB 이하의 이미지를 선택해 주세요.",
+	"ui_exploratory_delete_note": "노트 삭제"
 }

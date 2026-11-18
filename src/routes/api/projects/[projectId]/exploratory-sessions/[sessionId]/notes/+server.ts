@@ -11,10 +11,12 @@ import { assertMultipartContentLength } from '$lib/server/multipart-limits';
 import { parseCanonicalNonNegativeInteger } from '$lib/server/search-param-validation';
 import { parseOptionalTrimmedFormString } from '$lib/server/form-utils';
 
-const MAX_NOTE_CONTENT_LENGTH = 10_000;
-const MAX_SCREENSHOT_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_SCREENSHOT_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
-const ALLOWED_SCREENSHOT_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp']);
+import {
+	MAX_NOTE_CONTENT_LENGTH,
+	MAX_SCREENSHOT_SIZE,
+	isSupportedScreenshot
+} from '$lib/exploratory-session-limits';
+
 const NOTE_TYPES = ['NOTE', 'BUG', 'QUESTION', 'IDEA'] as const;
 
 type NoteType = (typeof NOTE_TYPES)[number];
@@ -32,8 +34,7 @@ function parseTimestamp(value: FormDataEntryValue | null): number | null {
 }
 
 function validateScreenshotFile(file: File): Response | null {
-	const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
-	if (!ALLOWED_SCREENSHOT_TYPES.has(file.type) || !ALLOWED_SCREENSHOT_EXTENSIONS.has(extension)) {
+	if (!isSupportedScreenshot(file)) {
 		return badRequest('Screenshot must be a PNG, JPEG, GIF, or WebP image');
 	}
 	return null;

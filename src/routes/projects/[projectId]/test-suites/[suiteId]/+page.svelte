@@ -6,14 +6,12 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
-	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
+	import TestSuiteFormDialog from '$lib/components/TestSuiteFormDialog.svelte';
 	import TestCasePicker from '$lib/components/patterns/TestCasePicker.svelte';
 	import * as m from '$lib/paraglide/messages.js';
-	import { apiPatch, apiDelete, apiPost, apiFetch } from '$lib/api-client';
+	import { apiDelete, apiPost, apiFetch } from '$lib/api-client';
 
 	type ProjectPriority = { name: string; color: string };
 
@@ -26,9 +24,6 @@
 
 	// Edit suite
 	let editDialogOpen = $state(false);
-	let editName = $state('');
-	let editDesc = $state('');
-	let editSaving = $state(false);
 
 	// Delete suite
 	let deleteDialogOpen = $state(false);
@@ -43,26 +38,7 @@
 
 	const availableCases = $derived(data.allTestCases.filter((tc) => !suiteItemTcIds.has(tc.id)));
 	function openEdit() {
-		editName = data.suite.name;
-		editDesc = data.suite.description ?? '';
 		editDialogOpen = true;
-	}
-
-	async function handleEdit() {
-		editSaving = true;
-		try {
-			await apiPatch(`/api/projects/${data.project.id}/test-suites/${data.suite.id}`, {
-				name: editName,
-				description: editDesc || null
-			});
-			editDialogOpen = false;
-			toast.success(m.suite_updated());
-			await invalidateAll();
-		} catch {
-			// error toast handled by apiPatch
-		} finally {
-			editSaving = false;
-		}
 	}
 
 	async function handleDelete() {
@@ -246,38 +222,12 @@
 </div>
 
 <!-- Edit Suite Dialog -->
-<Dialog.Root bind:open={editDialogOpen}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-md">
-			<Dialog.Header>
-				<Dialog.Title>{m.common_edit()}</Dialog.Title>
-			</Dialog.Header>
-			<div class="space-y-4 py-4">
-				<div class="space-y-2">
-					<Label for="editSuiteName">{m.suite_name_label()}</Label>
-					<Input id="editSuiteName" bind:value={editName} />
-				</div>
-				<div class="space-y-2">
-					<Label for="editSuiteDesc">{m.suite_desc_label()}</Label>
-					<Textarea id="editSuiteDesc" bind:value={editDesc} rows={3} />
-				</div>
-			</div>
-			<Dialog.Footer>
-				<Button variant="outline" class="w-full sm:w-auto" onclick={() => (editDialogOpen = false)}
-					>{m.common_cancel()}</Button
-				>
-				<Button
-					class="w-full sm:w-auto"
-					onclick={handleEdit}
-					disabled={editSaving || !editName.trim()}
-				>
-					{editSaving ? m.common_saving() : m.common_save_changes()}
-				</Button>
-			</Dialog.Footer>
-		</Dialog.Content>
-	</Dialog.Portal>
-</Dialog.Root>
+<TestSuiteFormDialog
+	bind:open={editDialogOpen}
+	projectId={data.project.id}
+	suite={data.suite}
+	onSaved={invalidateAll}
+/>
 
 <!-- Delete Suite Dialog -->
 <AlertDialog.Root bind:open={deleteDialogOpen}>

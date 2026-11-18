@@ -91,6 +91,23 @@ test.describe.serial('Workflow form recovery and case selection', () => {
 		await expect(page.locator('#run-cases')).toBeFocused();
 		const picker = page.locator('#run-cases');
 		const bulk = picker.getByRole('checkbox').first();
+		const info = picker.getByRole('button', { name: /TC-0001 제목 전체 보기/ });
+		await info.click();
+		await expect(page.locator('[data-slot=popover-content]')).toContainText(
+			'긴제목LongTitle'.repeat(12)
+		);
+		const popupAxe = await new AxeBuilder({ page })
+			.include('[data-slot=popover-content]')
+			.withTags(['wcag2a', 'wcag2aa'])
+			.analyze();
+		expect(
+			popupAxe.violations.filter((v) => ['critical', 'serious'].includes(v.impact ?? ''))
+		).toEqual([]);
+
+		await page.keyboard.press('Escape');
+		await expect(info).toBeFocused();
+		await expect(picker.getByRole('checkbox').nth(1)).not.toBeChecked();
+
 		await bulk.check();
 		await expect(picker).toContainText('500');
 		await page.locator('#name').fill('Selection draft');
@@ -179,7 +196,14 @@ test.describe.serial('Workflow form recovery and case selection', () => {
 			await page.waitForLoadState('networkidle');
 			const opener = page.getByRole('button', { name: '케이스 추가', exact: true }).first();
 			await opener.click();
-			const dialog = page.getByRole('dialog');
+			const dialog = page.getByRole('dialog', { name: '케이스 추가', exact: true });
+			const info = dialog.getByRole('button', { name: /제목 전체 보기/ }).first();
+			await info.click();
+			await expect(page.locator('[data-slot=popover-content]')).toBeVisible();
+			await page.keyboard.press('Escape');
+			await expect(page.locator('[data-slot=popover-content]')).toHaveCount(0);
+			await expect(dialog).toBeVisible();
+			await expect(info).toBeFocused();
 			await dialog.getByRole('checkbox').nth(1).check();
 			await dialog.getByRole('button', { name: /케이스 추가/ }).click();
 			await expect(dialog).toHaveCount(0);

@@ -20,11 +20,11 @@ export interface ShortcutDefinition {
  * A parsed shortcut descriptor, e.g. "Mod+S" → { mod: true, key: 's' }
  */
 interface ParsedShortcut {
-	mod: boolean;   // Cmd on Mac, Ctrl elsewhere
+	mod: boolean; // Cmd on Mac, Ctrl elsewhere
 	ctrl: boolean;
 	shift: boolean;
 	alt: boolean;
-	key: string;    // lowercase key name
+	key: string; // lowercase key name
 }
 
 /** Returns true when the runtime is macOS. Safe to call in the browser only. */
@@ -45,11 +45,16 @@ export function formatShortcut(combo: string): string {
 		.split('+')
 		.map((part) => {
 			switch (part.trim()) {
-				case 'Mod':   return mac ? '⌘' : 'Ctrl';
-				case 'Shift': return '⇧';
-				case 'Alt':   return mac ? '⌥' : 'Alt';
-				case 'Ctrl':  return 'Ctrl';
-				default:      return part.toUpperCase();
+				case 'Mod':
+					return mac ? '⌘' : 'Ctrl';
+				case 'Shift':
+					return '⇧';
+				case 'Alt':
+					return mac ? '⌥' : 'Alt';
+				case 'Ctrl':
+					return 'Ctrl';
+				default:
+					return part.toUpperCase();
 			}
 		})
 		.join(' ');
@@ -59,11 +64,11 @@ function parseCombo(combo: string): ParsedShortcut {
 	const parts = combo.split('+').map((p) => p.trim());
 	const key = parts[parts.length - 1].toLowerCase();
 	return {
-		mod:   parts.includes('Mod'),
-		ctrl:  parts.includes('Ctrl'),
+		mod: parts.includes('Mod'),
+		ctrl: parts.includes('Ctrl'),
 		shift: parts.includes('Shift'),
-		alt:   parts.includes('Alt'),
-		key,
+		alt: parts.includes('Alt'),
+		key
 	};
 }
 
@@ -71,14 +76,14 @@ function matchesEvent(parsed: ParsedShortcut, event: KeyboardEvent): boolean {
 	const mac = isMac();
 
 	const modPressed = mac ? event.metaKey : event.ctrlKey;
-	if (parsed.mod   && !modPressed)      return false;
-	if (!parsed.mod  && modPressed)       return false;
-	if (parsed.ctrl  && !event.ctrlKey)   return false;
+	if (parsed.mod && !modPressed) return false;
+	if (!parsed.mod && modPressed) return false;
+	if (parsed.ctrl && !event.ctrlKey) return false;
 	if (!parsed.ctrl && !parsed.mod && event.ctrlKey) return false;
-	if (parsed.shift && !event.shiftKey)  return false;
-	if (!parsed.shift && event.shiftKey)  return false;
-	if (parsed.alt   && !event.altKey)    return false;
-	if (!parsed.alt  && event.altKey)     return false;
+	if (parsed.shift && !event.shiftKey) return false;
+	if (!parsed.shift && event.shiftKey) return false;
+	if (parsed.alt && !event.altKey) return false;
+	if (!parsed.alt && event.altKey) return false;
 
 	return event.key.toLowerCase() === parsed.key;
 }
@@ -107,7 +112,7 @@ export class ShortcutManager {
 		const entry: RegisteredShortcut = {
 			combo,
 			parsed: parseCombo(combo),
-			definition,
+			definition
 		};
 		this.shortcuts.push(entry);
 		return () => {
@@ -122,6 +127,8 @@ export class ShortcutManager {
 
 	/** Processes a KeyboardEvent and fires the matching handler (if any). */
 	handleKeydown(event: KeyboardEvent): void {
+		// Respect keys already consumed by a dialog, popover, or local form handler.
+		if (event.defaultPrevented) return;
 		// Only block input-field shortcuts that have no modifiers.
 		// Modifier combos (Mod+S etc.) are allowed even inside inputs.
 		const hasModifier = event.ctrlKey || event.metaKey || event.altKey;
@@ -142,11 +149,11 @@ export const shortcutManager = new ShortcutManager();
 
 // ─── Built-in shortcut combo strings (exported for use in the hint panel) ───
 export const SHORTCUT_COMBOS = {
-	SAVE:          'Mod+S',
+	SAVE: 'Mod+S',
 	COMMAND_PALETTE: 'Mod+K',
-	HINT_PANEL:    '?',
+	HINT_PANEL: '?',
 	HINT_PANEL_ALT: 'Mod+/',
-	ESCAPE:        'Escape',
+	ESCAPE: 'Escape'
 } as const;
 
 // ─── Svelte context key ──────────────────────────────────────────────────────

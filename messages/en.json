@@ -1454,5 +1454,6 @@
 	"ui_invalid_value": "Check this value and try again.",
 	"ui_save_failed": "Unable to save. Your input has been kept. Please try again.",
 	"ui_suite_loaded": "Added {count} cases from the suite. Your earlier selection has been kept.",
-	"ui_environment_selection_limit": "Choose no more than {count} environments."
+	"ui_environment_selection_limit": "Choose no more than {count} environments.",
+	"ui_case_title_details": "Show full title for {key}"
 }

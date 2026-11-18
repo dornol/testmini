@@ -1,10 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-	ShortcutManager,
-	formatShortcut,
-	isMac,
-	modSymbol,
-} from './shortcuts';
+import { ShortcutManager, formatShortcut, isMac, modSymbol } from './shortcuts';
 
 // ─── formatShortcut ───────────────────────────────────────────────────────────
 
@@ -101,7 +96,11 @@ describe('ShortcutManager', () => {
 
 	it('supports registering multiple shortcuts', () => {
 		manager.register('Mod+S', { label: 'Save', category: 'Actions', handler: vi.fn() });
-		manager.register('Mod+K', { label: 'Command Palette', category: 'Navigation', handler: vi.fn() });
+		manager.register('Mod+K', {
+			label: 'Command Palette',
+			category: 'Navigation',
+			handler: vi.fn()
+		});
 		manager.register('?', { label: 'Help', category: 'General', handler: vi.fn() });
 
 		expect(manager.getAll()).toHaveLength(3);
@@ -110,7 +109,11 @@ describe('ShortcutManager', () => {
 	it('only unregisters the specific entry when the same combo is registered twice', () => {
 		const handler1 = vi.fn();
 		const handler2 = vi.fn();
-		const unregister1 = manager.register('Mod+S', { label: 'Save 1', category: 'Actions', handler: handler1 });
+		const unregister1 = manager.register('Mod+S', {
+			label: 'Save 1',
+			category: 'Actions',
+			handler: handler1
+		});
 		manager.register('Mod+S', { label: 'Save 2', category: 'Actions', handler: handler2 });
 
 		unregister1();
@@ -130,7 +133,7 @@ describe('ShortcutManager', () => {
 	function makeEvent(
 		key: string,
 		modifiers: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean; altKey?: boolean } = {},
-		target: Partial<{ tagName: string; isContentEditable: boolean }> | null = null,
+		target: Partial<{ tagName: string; isContentEditable: boolean }> | null = null
 	): KeyboardEvent {
 		return {
 			key,
@@ -139,9 +142,19 @@ describe('ShortcutManager', () => {
 			shiftKey: modifiers.shiftKey ?? false,
 			altKey: modifiers.altKey ?? false,
 			target,
-			preventDefault: vi.fn(),
+			preventDefault: vi.fn()
 		} as unknown as KeyboardEvent;
 	}
+
+	it('does not dispatch a key already handled by a nested control', () => {
+		const manager = new ShortcutManager();
+		const handler = vi.fn();
+		manager.register('Escape', { label: 'Close', category: 'General', handler });
+		const event = makeEvent('Escape');
+		Object.defineProperty(event, 'defaultPrevented', { value: true });
+		manager.handleKeydown(event);
+		expect(handler).not.toHaveBeenCalled();
+	});
 
 	it('parses Mod+S and fires handler on matching keydown (non-Mac)', () => {
 		vi.spyOn(navigator, 'platform', 'get').mockReturnValue('Win32');
@@ -193,9 +206,7 @@ describe('ShortcutManager', () => {
 			const handler = vi.fn();
 			manager.register('?', { label: 'Help', category: 'General', handler });
 
-			manager.handleKeydown(
-				makeEvent('?', {}, { tagName: 'INPUT', isContentEditable: false }),
-			);
+			manager.handleKeydown(makeEvent('?', {}, { tagName: 'INPUT', isContentEditable: false }));
 
 			expect(handler).not.toHaveBeenCalled();
 		});
@@ -204,9 +215,7 @@ describe('ShortcutManager', () => {
 			const handler = vi.fn();
 			manager.register('?', { label: 'Help', category: 'General', handler });
 
-			manager.handleKeydown(
-				makeEvent('?', {}, { tagName: 'TEXTAREA', isContentEditable: false }),
-			);
+			manager.handleKeydown(makeEvent('?', {}, { tagName: 'TEXTAREA', isContentEditable: false }));
 
 			expect(handler).not.toHaveBeenCalled();
 		});
@@ -215,9 +224,7 @@ describe('ShortcutManager', () => {
 			const handler = vi.fn();
 			manager.register('?', { label: 'Help', category: 'General', handler });
 
-			manager.handleKeydown(
-				makeEvent('?', {}, { tagName: 'DIV', isContentEditable: true }),
-			);
+			manager.handleKeydown(makeEvent('?', {}, { tagName: 'DIV', isContentEditable: true }));
 
 			expect(handler).not.toHaveBeenCalled();
 		});
@@ -228,7 +235,7 @@ describe('ShortcutManager', () => {
 			manager.register('Mod+S', { label: 'Save', category: 'Actions', handler });
 
 			manager.handleKeydown(
-				makeEvent('s', { ctrlKey: true }, { tagName: 'INPUT', isContentEditable: false }),
+				makeEvent('s', { ctrlKey: true }, { tagName: 'INPUT', isContentEditable: false })
 			);
 
 			expect(handler).toHaveBeenCalledOnce();

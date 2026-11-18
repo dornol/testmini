@@ -5,15 +5,12 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import * as Table from '$lib/components/ui/table/index.js';
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import TestSuiteFormDialog from '$lib/components/TestSuiteFormDialog.svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
-	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import * as m from '$lib/paraglide/messages.js';
-	import { apiPost, apiPatch, apiDelete } from '$lib/api-client';
+	import { apiDelete } from '$lib/api-client';
 
 	let { data } = $props();
 
@@ -24,64 +21,20 @@
 
 	// Create dialog
 	let createDialogOpen = $state(false);
-	let newName = $state('');
-	let newDesc = $state('');
-	let creating = $state(false);
+
+	let editSuite = $state<(typeof data.suites)[number] | null>(null);
 
 	// Edit dialog
 	let editDialogOpen = $state(false);
-	let editId = $state<number | null>(null);
-	let editName = $state('');
-	let editDesc = $state('');
-	let editSaving = $state(false);
 
 	// Delete dialog
 	let deleteDialogOpen = $state(false);
 	let deleteId = $state<number | null>(null);
 	let deleteSaving = $state(false);
 
-	async function handleCreate() {
-		creating = true;
-		try {
-			await apiPost(`/api/projects/${data.project.id}/test-suites`, {
-				name: newName,
-				description: newDesc || undefined
-			});
-			createDialogOpen = false;
-			newName = '';
-			newDesc = '';
-			toast.success(m.suite_created());
-			await invalidateAll();
-		} catch {
-			// error toast handled by apiPost
-		} finally {
-			creating = false;
-		}
-	}
-
 	function openEdit(suite: (typeof data.suites)[0]) {
-		editId = suite.id;
-		editName = suite.name;
-		editDesc = suite.description ?? '';
+		editSuite = suite;
 		editDialogOpen = true;
-	}
-
-	async function handleEdit() {
-		if (!editId) return;
-		editSaving = true;
-		try {
-			await apiPatch(`/api/projects/${data.project.id}/test-suites/${editId}`, {
-				name: editName,
-				description: editDesc || null
-			});
-			editDialogOpen = false;
-			toast.success(m.suite_updated());
-			await invalidateAll();
-		} catch {
-			// error toast handled by apiPatch
-		} finally {
-			editSaving = false;
-		}
 	}
 
 	function openDelete(id: number) {
@@ -296,79 +249,17 @@
 </div>
 
 <!-- Create Suite Dialog -->
-<Dialog.Root bind:open={createDialogOpen}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-md">
-			<Dialog.Header>
-				<Dialog.Title>{m.suite_new()}</Dialog.Title>
-			</Dialog.Header>
-			<div class="space-y-4 py-4">
-				<div class="space-y-2">
-					<Label for="suiteName">{m.suite_name_label()}</Label>
-					<Input id="suiteName" bind:value={newName} placeholder={m.suite_name_placeholder()} />
-				</div>
-				<div class="space-y-2">
-					<Label for="suiteDesc">{m.suite_desc_label()}</Label>
-					<Textarea
-						id="suiteDesc"
-						bind:value={newDesc}
-						placeholder={m.suite_desc_placeholder()}
-						rows={3}
-					/>
-				</div>
-			</div>
-			<Dialog.Footer>
-				<Button
-					variant="outline"
-					class="w-full sm:w-auto"
-					onclick={() => (createDialogOpen = false)}>{m.common_cancel()}</Button
-				>
-				<Button
-					class="w-full sm:w-auto"
-					onclick={handleCreate}
-					disabled={creating || !newName.trim()}
-				>
-					{creating ? m.common_creating() : m.suite_create()}
-				</Button>
-			</Dialog.Footer>
-		</Dialog.Content>
-	</Dialog.Portal>
-</Dialog.Root>
-
-<!-- Edit Suite Dialog -->
-<Dialog.Root bind:open={editDialogOpen}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-md">
-			<Dialog.Header>
-				<Dialog.Title>{m.common_edit()}</Dialog.Title>
-			</Dialog.Header>
-			<div class="space-y-4 py-4">
-				<div class="space-y-2">
-					<Label for="editSuiteName">{m.suite_name_label()}</Label>
-					<Input id="editSuiteName" bind:value={editName} />
-				</div>
-				<div class="space-y-2">
-					<Label for="editSuiteDesc">{m.suite_desc_label()}</Label>
-					<Textarea id="editSuiteDesc" bind:value={editDesc} rows={3} />
-				</div>
-			</div>
-			<Dialog.Footer>
-				<Button variant="outline" class="w-full sm:w-auto" onclick={() => (editDialogOpen = false)}
-					>{m.common_cancel()}</Button
-				>
-				<Button
-					class="w-full sm:w-auto"
-					onclick={handleEdit}
-					disabled={editSaving || !editName.trim()}
-				>
-					{editSaving ? m.common_saving() : m.common_save_changes()}
-				</Button>
-			</Dialog.Footer>
-		</Dialog.Content>
-	</Dialog.Portal>
-</Dialog.Root>
+<TestSuiteFormDialog
+	bind:open={createDialogOpen}
+	projectId={data.project.id}
+	onSaved={invalidateAll}
+/>
+<TestSuiteFormDialog
+	bind:open={editDialogOpen}
+	projectId={data.project.id}
+	suite={editSuite}
+	onSaved={invalidateAll}
+/>
 
 <!-- Delete Suite Dialog -->
 <AlertDialog.Root bind:open={deleteDialogOpen}>

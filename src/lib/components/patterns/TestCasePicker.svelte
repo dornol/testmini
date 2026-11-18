@@ -2,6 +2,8 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import * as Select from '$lib/components/ui/select';
+	import * as Popover from '$lib/components/ui/popover';
+	import { Info } from '@lucide/svelte';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import VirtualList from '$lib/components/VirtualList.svelte';
 	import * as m from '$lib/paraglide/messages.js';
@@ -174,32 +176,53 @@
 			<VirtualList items={filtered} rowHeight={72} height="360px" label={m.ui_case_list()}>
 				{#snippet children({ item })}
 					{@const entry = item as PickerCase}
-					<label
-						class="flex h-[72px] min-w-0 cursor-pointer items-center gap-3 border-b px-3 hover:bg-muted/40 focus-within:bg-accent"
+					<div
+						class="flex h-[72px] min-w-0 items-center gap-1 border-b px-3 hover:bg-muted/40 focus-within:bg-accent"
 					>
-						<input
-							type="checkbox"
-							class="size-4 shrink-0 rounded border-input"
-							aria-label={m.aria_select_item({ item: `${entry.key} ${entry.title}` })}
-							checked={selected.has(entry.id)}
-							onchange={() => toggle(entry.id)}
-							{disabled}
-						/>
-						<span class="min-w-0 flex-1">
-							<span class="flex min-w-0 items-center gap-2"
-								><span class="shrink-0 font-mono text-xs text-muted-foreground">{entry.key}</span
-								><PriorityBadge
-									name={entry.priority}
-									color={priorities.find((value) => value.name === entry.priority)?.color ??
-										'#64748b'}
-								/></span
+						<label class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 self-stretch">
+							<input
+								type="checkbox"
+								class="size-4 shrink-0 rounded border-input"
+								aria-label={m.aria_select_item({ item: `${entry.key} ${entry.title}` })}
+								checked={selected.has(entry.id)}
+								onchange={() => toggle(entry.id)}
+								{disabled}
+							/>
+							<span class="min-w-0 flex-1">
+								<span class="flex min-w-0 items-center gap-2"
+									><span class="shrink-0 font-mono text-xs text-muted-foreground">{entry.key}</span
+									><PriorityBadge
+										name={entry.priority}
+										color={priorities.find((value) => value.name === entry.priority)?.color ??
+											'#64748b'}
+									/></span
+								>
+								<span
+									class="mt-1 line-clamp-2 text-sm font-medium leading-snug [overflow-wrap:anywhere]"
+									title={entry.title}>{entry.title}</span
+								>
+							</span>
+						</label>
+						<Popover.Root>
+							<Popover.Trigger
+								type="button"
+								{disabled}
+								aria-label={m.ui_case_title_details({ key: entry.key })}
+								class="flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
 							>
-							<span
-								class="mt-1 line-clamp-2 text-sm font-medium leading-snug [overflow-wrap:anywhere]"
-								title={entry.title}>{entry.title}</span
+								<Info class="size-4" aria-hidden="true" />
+							</Popover.Trigger>
+							<Popover.Content
+								role="dialog"
+								collisionPadding={16}
+								aria-label={m.ui_case_title_details({ key: entry.key })}
+								class="max-w-[calc(100vw-2rem)] [overflow-wrap:anywhere]"
 							>
-						</span>
-					</label>
+								<p class="mb-2 font-mono text-xs text-muted-foreground">{entry.key}</p>
+								<p class="text-sm">{entry.title}</p>
+							</Popover.Content>
+						</Popover.Root>
+					</div>
 				{/snippet}
 			</VirtualList>
 		</div>

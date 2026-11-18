@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { exploratoryElapsedSeconds } from '$lib/exploratory-time';
 	import WorkflowCreateDialog from '$lib/components/patterns/WorkflowCreateDialog.svelte';
 	import WorkflowField from '$lib/components/patterns/WorkflowField.svelte';
 	import { feedbackFor, type FormFeedback } from '$lib/form-feedback';
@@ -71,13 +72,12 @@
 	function formatDuration(session: {
 		startedAt: string | Date;
 		pausedDuration: number;
+		pausedAt: Date | string | null;
 		completedAt: string | Date | null;
 		status: string;
 	}): string {
-		const start = new Date(session.startedAt).getTime();
-		const end = session.completedAt ? new Date(session.completedAt).getTime() : Date.now();
-		const elapsed = Math.floor((end - start) / 1000) - session.pausedDuration;
-		const secs = Math.max(0, elapsed);
+		const secs = exploratoryElapsedSeconds(session);
+		if (secs === null) return '—';
 		const h = Math.floor(secs / 3600);
 		const min = Math.floor((secs % 3600) / 60);
 		const s = secs % 60;

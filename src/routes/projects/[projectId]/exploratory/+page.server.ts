@@ -26,6 +26,7 @@ export const load: PageServerLoad = async ({ params, url, parent }) => {
 					charter: exploratorySession.charter,
 					status: exploratorySession.status,
 					startedAt: exploratorySession.startedAt,
+					pausedAt: exploratorySession.pausedAt,
 					pausedDuration: exploratorySession.pausedDuration,
 					completedAt: exploratorySession.completedAt,
 					environment: exploratorySession.environment,

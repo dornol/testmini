@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { db } from '$lib/server/db';
+import { exploratoryTimingUpdate } from '$lib/server/exploratory-timing';
 import { exploratorySession, sessionNote } from '$lib/server/db/schema';
 import { ok, err, requireProjectCreator, mcpPositiveIdSchema } from '../helpers';
 import { eq, and, desc, sql } from 'drizzle-orm';
@@ -122,7 +123,10 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 			if (!session) return err('Session not found');
 
 			const updates: Record<string, unknown> = {};
-			if (status !== undefined) updates.status = status;
+			if (status !== undefined) {
+				updates.status = status;
+				Object.assign(updates, exploratoryTimingUpdate(session, status, new Date()));
+			}
 			if (summary !== undefined) {
 				const payload = validateUpdateExploratorySessionPayload({ summary });
 				if (payload instanceof Response) {
@@ -130,7 +134,6 @@ export function registerExploratoryTools(server: McpServer, projectId: number) {
 				}
 				updates.summary = payload.summary;
 			}
-			if (status === 'COMPLETED') updates.completedAt = new Date();
 			if (Object.keys(updates).length === 0) return err('No fields to update');
 
 			await db

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { exploratoryElapsedSeconds } from '$lib/exploratory-time';
 	import { goto, invalidateAll } from '$app/navigation';
 	import FormErrorSummary from '$lib/components/patterns/FormErrorSummary.svelte';
 	import WorkflowField from '$lib/components/patterns/WorkflowField.svelte';
@@ -35,8 +36,6 @@
 
 	// Timer state
 	let timerDisplay = $state('00:00');
-	let pausedAt: number | null = $state(null);
-	let accumulatedPause = $state(0);
 
 	// Non-reactive timer handle (no need to track in $effect)
 	let _timerInterval: ReturnType<typeof setInterval> | null = null;
@@ -48,7 +47,6 @@
 		untrack(() => {
 			session = s;
 			notes = n;
-			accumulatedPause = s.pausedDuration;
 		});
 	});
 
@@ -80,12 +78,6 @@
 	// Pause/resume
 	let actionSaving = $state(false);
 
-	function getElapsedSeconds(): number {
-		const start = new Date(session.startedAt).getTime();
-		const end = pausedAt ?? Date.now();
-		return Math.max(0, Math.floor((end - start) / 1000) - accumulatedPause);
-	}
-
 	function formatTime(secs: number): string {
 		const h = Math.floor(secs / 3600);
 		const min = Math.floor((secs % 3600) / 60);
@@ -96,7 +88,8 @@
 	}
 
 	function updateTimer() {
-		timerDisplay = formatTime(getElapsedSeconds());
+		const elapsed = exploratoryElapsedSeconds(session);
+		timerDisplay = elapsed === null ? '—' : formatTime(elapsed);
 	}
 
 	function startTimer() {
@@ -112,29 +105,14 @@
 		}
 	}
 
-	// Initialize timer based on session status -- only react to status changes
 	$effect(() => {
 		const status = session.status;
-
+		// Track clock values even when navigating to another session in the same state.
+		const elapsed = exploratoryElapsedSeconds(session);
 		untrack(() => {
-			if (status === 'ACTIVE') {
-				pausedAt = null;
-				startTimer();
-			} else if (status === 'PAUSED') {
-				pausedAt ??= Date.now();
-				startTimer();
-			} else {
-				// COMPLETED -- show final time
-				stopTimer();
-				if (session.completedAt) {
-					const start = new Date(session.startedAt).getTime();
-					const end = new Date(session.completedAt).getTime();
-					const elapsed = Math.max(0, Math.floor((end - start) / 1000) - session.pausedDuration);
-					timerDisplay = formatTime(elapsed);
-				}
-			}
+			if (status === 'ACTIVE') startTimer();
+			else timerDisplay = elapsed === null ? '—' : formatTime(elapsed);
 		});
-
 		return () => stopTimer();
 	});
 
@@ -164,46 +142,17 @@
 		return 'default';
 	}
 
-	async function pauseSession() {
+	async function changeSessionState(action: 'pause' | 'resume') {
 		if (actionSaving) return;
 		actionSaving = true;
-		pausedAt = Date.now();
 		try {
-			await apiPatch(apiBase, {
-				action: 'pause',
-				pausedDuration: accumulatedPause
-			});
-			session = { ...session, status: 'PAUSED' };
-			toast.success(m.exploratory_paused());
+			session = await apiPatch<typeof session>(apiBase, { action });
+			toast.success(action === 'pause' ? m.exploratory_paused() : m.exploratory_resumed());
 		} catch {
-			pausedAt = null;
+			// The API client reports the failure. Keep the last confirmed state.
 		} finally {
 			actionSaving = false;
 		}
-	}
-
-	async function resumeSession() {
-		if (actionSaving) return;
-		actionSaving = true;
-		const totalPause = totalPausedSeconds();
-		try {
-			await apiPatch(apiBase, {
-				action: 'resume',
-				pausedDuration: totalPause
-			});
-			accumulatedPause = totalPause;
-			pausedAt = null;
-			session = { ...session, status: 'ACTIVE', pausedDuration: totalPause };
-			toast.success(m.exploratory_resumed());
-		} catch {
-			// revert
-		} finally {
-			actionSaving = false;
-		}
-	}
-
-	function totalPausedSeconds() {
-		return accumulatedPause + (pausedAt === null ? 0 : Math.floor((Date.now() - pausedAt) / 1000));
 	}
 
 	function openComplete() {
@@ -225,15 +174,13 @@
 		}
 		completeErrors = [];
 		completing = true;
-		const totalPause = totalPausedSeconds();
 		try {
-			await apiFetch(apiBase, {
+			session = await apiFetch<typeof session>(apiBase, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					action: 'complete',
-					summary: summary || undefined,
-					pausedDuration: totalPause
+					summary: summary || undefined
 				}),
 				silent: true
 			});
@@ -245,13 +192,6 @@
 			return;
 		}
 		completing = false;
-		session = {
-			...session,
-			status: 'COMPLETED',
-			completedAt: new Date(),
-			summary: summary || null,
-			pausedDuration: totalPause
-		};
 		showCompleteDialog = false;
 		stopTimer();
 		toast.success(m.exploratory_completed());
@@ -286,7 +226,7 @@
 			const formData = new FormData();
 			formData.set('content', content);
 			formData.set('noteType', noteType);
-			formData.set('timestamp', String(getElapsedSeconds()));
+			formData.set('timestamp', String(exploratoryElapsedSeconds(session) ?? 0));
 			if (screenshotFile) {
 				formData.set('screenshot', screenshotFile);
 			}
@@ -414,7 +354,7 @@
 				class="w-full min-[420px]:w-auto"
 				variant="secondary"
 				size="sm"
-				onclick={pauseSession}
+				onclick={() => changeSessionState('pause')}
 				disabled={actionSaving}>{m.exploratory_pause()}</Button
 			>
 			<Button
@@ -429,7 +369,7 @@
 				class="w-full min-[420px]:w-auto"
 				variant="default"
 				size="sm"
-				onclick={resumeSession}
+				onclick={() => changeSessionState('resume')}
 				disabled={actionSaving}>{m.exploratory_resume()}</Button
 			>
 			<Button

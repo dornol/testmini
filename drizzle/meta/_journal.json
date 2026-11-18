@@ -337,6 +337,13 @@
       "when": 1775600000000,
       "tag": "0048_schema_optimization",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1794967674135,
+      "tag": "0049_exploratory_pause_time",
+      "breakpoints": true
     }
   ]
 }

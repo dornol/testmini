@@ -20,12 +20,7 @@ export * from './auth.schema';
 
 export const globalRoleEnum = pgEnum('global_role', ['ADMIN', 'USER']);
 
-export const projectRoleEnum = pgEnum('project_role', [
-	'PROJECT_ADMIN',
-	'QA',
-	'DEV',
-	'VIEWER'
-]);
+export const projectRoleEnum = pgEnum('project_role', ['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER']);
 
 // priorityEnum kept for reference; columns now use text with priority_config table
 export const priorityEnum = pgEnum('priority', ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
@@ -43,11 +38,7 @@ export const executionStatusEnum = pgEnum('execution_status', [
 	'SKIPPED'
 ]);
 
-export const referenceTypeEnum = pgEnum('reference_type', [
-	'TESTCASE',
-	'EXECUTION',
-	'FAILURE'
-]);
+export const referenceTypeEnum = pgEnum('reference_type', ['TESTCASE', 'EXECUTION', 'FAILURE']);
 
 export const releaseStatusEnum = pgEnum('release_status', [
 	'PLANNING',
@@ -396,7 +387,9 @@ export const testExecution = pgTable(
 			.references(() => testCaseVersion.id, { onDelete: 'cascade' }),
 		status: executionStatusEnum('status').default('PENDING').notNull(),
 		comment: text('comment'),
-		dataSetId: integer('data_set_id').references(() => testCaseDataSet.id, { onDelete: 'set null' }),
+		dataSetId: integer('data_set_id').references(() => testCaseDataSet.id, {
+			onDelete: 'set null'
+		}),
 		parameterValues: jsonb('parameter_values').$type<Record<string, string>>(),
 		executedBy: text('executed_by').references(() => user.id),
 		executedAt: timestamp('executed_at'),
@@ -825,9 +818,7 @@ export const testCaseTemplate = pgTable(
 			.$onUpdate(() => new Date())
 			.notNull()
 	},
-	(table) => [
-		index('test_case_template_project_idx').on(table.projectId)
-	]
+	(table) => [index('test_case_template_project_idx').on(table.projectId)]
 );
 
 export const testCaseTemplateRelations = relations(testCaseTemplate, ({ one }) => ({
@@ -1047,9 +1038,7 @@ export const projectWebhook = pgTable(
 			.references(() => user.id),
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
-	(table) => [
-		index('project_webhook_project_idx').on(table.projectId)
-	]
+	(table) => [index('project_webhook_project_idx').on(table.projectId)]
 );
 
 export const projectWebhookRelations = relations(projectWebhook, ({ one, many }) => ({
@@ -1275,9 +1264,7 @@ export const requirement = pgTable(
 			.references(() => user.id),
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
-	(table) => [
-		index('requirement_project_idx').on(table.projectId)
-	]
+	(table) => [index('requirement_project_idx').on(table.projectId)]
 );
 
 export const requirementRelations = relations(requirement, ({ one, many }) => ({
@@ -1426,9 +1413,7 @@ export const testCaseDataSet = pgTable(
 		values: jsonb('values').$type<Record<string, string>>().notNull(),
 		orderIndex: integer('order_index').notNull().default(0)
 	},
-	(table) => [
-		index('test_case_data_set_case_idx').on(table.testCaseId)
-	]
+	(table) => [index('test_case_data_set_case_idx').on(table.testCaseId)]
 );
 
 export const testCaseDataSetRelations = relations(testCaseDataSet, ({ one }) => ({
@@ -1488,9 +1473,7 @@ export const reportSchedule = pgTable(
 			.references(() => user.id),
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
-	(table) => [
-		index('report_schedule_project_idx').on(table.projectId)
-	]
+	(table) => [index('report_schedule_project_idx').on(table.projectId)]
 );
 
 export const reportScheduleRelations = relations(reportSchedule, ({ one }) => ({
@@ -1513,6 +1496,7 @@ export const exploratorySession = pgTable(
 		charter: text('charter'),
 		status: text('status').notNull().default('ACTIVE'),
 		startedAt: timestamp('started_at').defaultNow().notNull(),
+		pausedAt: timestamp('paused_at'),
 		pausedDuration: integer('paused_duration').notNull().default(0),
 		completedAt: timestamp('completed_at'),
 		summary: text('summary'),
@@ -1555,9 +1539,7 @@ export const sessionNote = pgTable(
 		screenshotPath: text('screenshot_path'),
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
-	(table) => [
-		index('session_note_session_idx').on(table.sessionId)
-	]
+	(table) => [index('session_note_session_idx').on(table.sessionId)]
 );
 
 export const sessionNoteRelations = relations(sessionNote, ({ one }) => ({
@@ -1570,7 +1552,12 @@ export const sessionNoteRelations = relations(sessionNote, ({ one }) => ({
 // ── TestPlan ──────────────────────────────────────────
 
 export const testPlanStatusEnum = pgEnum('test_plan_status', [
-	'DRAFT', 'IN_REVIEW', 'APPROVED', 'ACTIVE', 'COMPLETED', 'ARCHIVED'
+	'DRAFT',
+	'IN_REVIEW',
+	'APPROVED',
+	'ACTIVE',
+	'COMPLETED',
+	'ARCHIVED'
 ]);
 
 export const testPlan = pgTable(
@@ -1773,7 +1760,9 @@ export const module = pgTable(
 			.notNull()
 			.references(() => project.id, { onDelete: 'cascade' }),
 		name: text('name').notNull(),
-		parentModuleId: integer('parent_module_id').references((): AnyPgColumn => module.id, { onDelete: 'set null' }),
+		parentModuleId: integer('parent_module_id').references((): AnyPgColumn => module.id, {
+			onDelete: 'set null'
+		}),
 		description: text('description'),
 		sortOrder: integer('sort_order').notNull().default(0),
 		createdBy: text('created_by')

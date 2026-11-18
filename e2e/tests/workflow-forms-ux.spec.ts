@@ -499,6 +499,59 @@ test.describe.serial('Workflow form recovery and case selection', () => {
 		);
 	});
 
+	test('exploratory elapsed time survives reload and stays consistent through resume and completion', async ({
+		page
+	}) => {
+		const endpoint = `/api/projects/${projectId}/exploratory-sessions`;
+		const created = await page.request.post(endpoint, {
+			data: { title: 'Persistent exploratory clock' }
+		});
+		expect(created.ok()).toBe(true);
+		const { id } = await created.json();
+		const sessionEndpoint = `${endpoint}/${id}`;
+		const detail = `/projects/${projectId}/exploratory/${id}`;
+		await page.goto(detail);
+		await page.waitForLoadState('networkidle');
+
+		const pauseButton = page.getByRole('button', { name: '일시 중지', exact: true });
+		const resumeButton = page.getByRole('button', { name: '재개', exact: true });
+		const timer = page.getByRole('timer');
+		await pauseButton.click();
+		await expect(resumeButton).toBeVisible();
+		const frozen = await timer.innerText();
+		const paused = await (await page.request.get(sessionEndpoint)).json();
+		expect(paused.pausedAt).toBeTruthy();
+		await expect.poll(() => Date.now() - new Date(paused.pausedAt).getTime()).toBeGreaterThan(2100);
+		await page.reload();
+		await expect(resumeButton).toBeVisible();
+		await expect(timer).toHaveText(frozen);
+
+		await page.goto(`/projects/${projectId}/exploratory`);
+		const seconds = frozen.split(':').reduce((elapsed, part) => elapsed * 60 + Number(part), 0);
+		await expect(
+			page.getByRole('row').filter({ hasText: 'Persistent exploratory clock' })
+		).toContainText(`${Math.floor(seconds / 60)}m ${seconds % 60}s`);
+		await page.goto(detail);
+		await page.waitForLoadState('networkidle');
+		await expect(timer).toHaveText(frozen);
+		await resumeButton.click();
+		await expect(pauseButton).toBeVisible();
+		const resumed = await (await page.request.get(sessionEndpoint)).json();
+		expect(resumed.pausedAt).toBeNull();
+		expect(resumed.pausedDuration).toBeGreaterThanOrEqual(2);
+
+		await pauseButton.click();
+		await expect(resumeButton).toBeVisible();
+		const secondFreeze = await timer.innerText();
+		await page.getByRole('button', { name: '완료', exact: true }).click();
+		const dialog = page.getByRole('dialog');
+		await dialog.locator('button[type=submit]').click();
+		await expect(dialog).toHaveCount(0);
+		await expect(timer).toHaveText(secondFreeze);
+		await page.reload();
+		await expect(timer).toHaveText(secondFreeze);
+	});
+
 	for (const locale of ['ko', 'en'])
 		for (const theme of ['light', 'dark'])
 			for (const width of [375, 768, 1440]) {

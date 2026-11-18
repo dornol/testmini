@@ -4,6 +4,7 @@ import { exploratorySession, sessionNote, user } from '$lib/server/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
 import { withProjectAccess, withProjectRole } from '$lib/server/api-handler';
 import { badRequest, notFound } from '$lib/server/errors';
+import { exploratoryTimingUpdate } from '$lib/server/exploratory-timing';
 import { parseJsonBody, parseId } from '$lib/server/auth-utils';
 import { validateUpdateExploratorySessionPayload } from '$lib/server/exploratory-session-validation';
 
@@ -61,16 +62,9 @@ export const PATCH = withProjectRole(
 		} else if (body.action === 'complete') {
 			if (session.status === 'COMPLETED') return badRequest('Session is already completed');
 			updates.status = 'COMPLETED';
-			updates.completedAt = new Date();
 			if (body.summary !== undefined) {
 				updates.summary = body.summary;
 			}
-		}
-
-		if (body.action === 'pause' || body.action === 'resume') {
-			// Calculate pausedDuration update on pause/resume
-			// On pause: snapshot current time (client tracks elapsed)
-			// On resume: no-op on server (client tracks elapsed)
 		}
 
 		if (body.summary !== undefined && body.action !== 'complete') {
@@ -88,11 +82,13 @@ export const PATCH = withProjectRole(
 		if (body.tags !== undefined) {
 			updates.tags = body.tags;
 		}
-		if (body.action === 'pause' || body.action === 'resume' || body.action === 'complete') {
-			// Accept pausedDuration from client to keep server in sync
-			if (body.pausedDuration !== undefined) {
-				updates.pausedDuration = body.pausedDuration;
-			}
+		if (body.action) {
+			const status =
+				body.action === 'pause' ? 'PAUSED' : body.action === 'resume' ? 'ACTIVE' : 'COMPLETED';
+			Object.assign(
+				updates,
+				exploratoryTimingUpdate(session, status, new Date(), body.pausedDuration)
+			);
 		}
 
 		if (Object.keys(updates).length === 0) {
@@ -102,7 +98,13 @@ export const PATCH = withProjectRole(
 		const [updated] = await db
 			.update(exploratorySession)
 			.set(updates)
-			.where(and(eq(exploratorySession.id, sessionId), eq(exploratorySession.projectId, projectId)))
+			.where(
+				and(
+					eq(exploratorySession.id, sessionId),
+					eq(exploratorySession.projectId, projectId),
+					body.action ? eq(exploratorySession.status, session.status) : undefined
+				)
+			)
 			.returning();
 		if (!updated) return notFound('Session not found');
 

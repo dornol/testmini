@@ -5,3 +5,5 @@ node_modules
 playwright-report
 test-results
 src/lib/paraglide
+# Drizzle generates and owns migration metadata formatting.
+drizzle/meta/

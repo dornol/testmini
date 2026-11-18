@@ -224,6 +224,80 @@ test.describe.serial('Workflow form recovery and case selection', () => {
 		await page.getByRole('link', { name: '취소', exact: true }).click();
 		await expect(page.getByRole('alertdialog')).toBeVisible();
 	});
+	test('cycle creation links date and number errors and preserves the draft on failure', async ({
+		page
+	}) => {
+		for (const theme of ['light', 'dark']) {
+			await page.setViewportSize({ width: 375, height: 800 });
+			await page.goto(`/projects/${projectId}/test-cycles`);
+			await page.waitForLoadState('networkidle');
+			const isDark = await page.locator('html').evaluate((el) => el.classList.contains('dark'));
+			if (isDark !== (theme === 'dark')) {
+				await page.getByRole('button', { name: /테마 변경|Toggle theme/ }).click();
+			}
+			const opener = page.locator('[data-slot=page-header]').getByRole('button').first();
+			await opener.click();
+			const dialog = page.getByRole('dialog');
+			const submit = dialog.getByRole('button', { name: '새 사이클', exact: true });
+			const summary = dialog.locator('[data-slot=form-error-summary]');
+			const name = dialog.locator('#cycle-name');
+			const number = dialog.locator('#cycle-number');
+			const start = dialog.locator('#cycle-start');
+			const end = dialog.locator('#cycle-end');
+			const cycleName = `Recovery cycle ${theme}`;
+			await name.fill(cycleName);
+			await number.fill('1.5');
+			await start.fill('2026-11-20');
+			await end.fill('2026-11-19');
+			await submit.click();
+			await expect(summary).toBeFocused();
+			await expect(number).toHaveAttribute('aria-invalid', 'true');
+			await number.fill(theme === 'light' ? '1' : '2');
+			await submit.click();
+			await summary.locator('a[href="#cycle-end"]').click();
+			await expect(end).toBeFocused();
+			expect(await dialog.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(false);
+			const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+			expect(
+				result.violations
+					.filter((v) => ['critical', 'serious'].includes(v.impact ?? ''))
+					.map((v) => v.id)
+			).toEqual([]);
+			await page.screenshot({ path: `/tmp/testmini-cycle-error-${theme}.png` });
+			await end.fill('2026-11-21');
+
+			const endpoint = `**/api/projects/${projectId}/test-cycles`;
+			let releaseResponse!: () => void;
+			const pending = new Promise<void>((resolve) => {
+				releaseResponse = resolve;
+			});
+			await page.route(endpoint, async (route) => {
+				await pending;
+				await route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+			});
+			await submit.click();
+			try {
+				await expect(dialog.locator('button[type=submit]')).toBeDisabled();
+				await page.keyboard.press('Escape');
+				await expect(dialog).toBeVisible();
+			} finally {
+				releaseResponse();
+			}
+			await expect(summary).toBeFocused();
+			await expect(summary).toContainText('저장하지 못했습니다');
+			await expect(name).toHaveValue(cycleName);
+			await expect(end).toHaveValue('2026-11-21');
+			await page.unroute(endpoint);
+
+			await name.press('Enter');
+			await expect(dialog).toHaveCount(0);
+			await expect(opener).toBeFocused();
+			await expect(
+				page.getByText(`#${theme === 'light' ? 1 : 2} ${cycleName}`, { exact: true })
+			).toBeVisible();
+		}
+	});
+
 	for (const locale of ['ko', 'en'])
 		for (const theme of ['light', 'dark'])
 			for (const width of [375, 768, 1440]) {

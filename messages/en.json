@@ -1455,5 +1455,6 @@
 	"ui_save_failed": "Unable to save. Your input has been kept. Please try again.",
 	"ui_suite_loaded": "Added {count} cases from the suite. Your earlier selection has been kept.",
 	"ui_environment_selection_limit": "Choose no more than {count} environments.",
-	"ui_case_title_details": "Show full title for {key}"
+	"ui_case_title_details": "Show full title for {key}",
+	"ui_cycle_number_positive": "Enter a whole number greater than zero."
 }

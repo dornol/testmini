@@ -9,7 +9,9 @@ export function workflowFormFeedback(issues: ZodIssue[]): FormFeedback[] {
 	for (const issue of issues) {
 		const path = String(issue.path[0] ?? '_form');
 		let text = m.ui_invalid_value();
-		if (issue.code === 'too_big') {
+		if (path === 'cycleNumber') {
+			text = m.ui_cycle_number_positive();
+		} else if (issue.code === 'too_big') {
 			text =
 				path === 'environments' && issue.origin === 'array'
 					? m.ui_environment_selection_limit({ count: Number(issue.maximum) })

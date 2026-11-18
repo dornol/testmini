@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { tick } from 'svelte';
+	import FormErrorSummary from '$lib/components/patterns/FormErrorSummary.svelte';
+	import { createTestCycleSchema } from '$lib/schemas/test-cycle.schema';
+	import { feedbackFor, workflowFormFeedback, type FormFeedback } from '$lib/form-feedback';
 	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
 	import StatusFilter from '$lib/components/patterns/StatusFilter.svelte';
 	import EmptyState from '$lib/components/patterns/EmptyState.svelte';
@@ -13,7 +17,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
-	import { apiDelete, apiPost, apiPut } from '$lib/api-client';
+	import { apiDelete, apiFetch, apiPut } from '$lib/api-client';
 	import { toast } from 'svelte-sonner';
 
 	let { data } = $props();
@@ -36,7 +40,26 @@
 	let createOpen = $state(false);
 	let createSaving = $state(false);
 	let createName = $state('');
-	let createNumber = $state(1);
+	let createNumber = $state<number | undefined>(1);
+	let createErrors = $state<FormFeedback[]>([]);
+	let createSummary = $state<HTMLDivElement | null>(null);
+	const createFields: Record<string, string> = {
+		name: 'cycle-name',
+		cycleNumber: 'cycle-number',
+		releaseId: 'cycle-release',
+		startDate: 'cycle-start',
+		endDate: 'cycle-end'
+	};
+	function fieldFeedback(path: string) {
+		return feedbackFor(createErrors, path);
+	}
+	function errorAttributes(path: string) {
+		const hasError = !!fieldFeedback(path);
+		return {
+			'aria-invalid': hasError,
+			'aria-describedby': hasError ? createFields[path] + '-error' : undefined
+		};
+	}
 	let createReleaseId = $state('');
 	let createStartDate = $state('');
 	let createEndDate = $state('');
@@ -64,6 +87,7 @@
 	}
 
 	function openCreate() {
+		createErrors = [];
 		createName = '';
 		createNumber = data.nextCycleNumber;
 		createReleaseId = '';
@@ -73,24 +97,41 @@
 	}
 
 	async function createCycle() {
-		if (!createName.trim() || createNumber < 1) return;
+		if (createSaving) return;
+		const parsed = createTestCycleSchema.safeParse({
+			name: createName,
+			cycleNumber: createNumber,
+			releaseId: createReleaseId ? Number(createReleaseId) : undefined,
+			startDate: createStartDate || undefined,
+			endDate: createEndDate || undefined
+		});
+		createErrors = parsed.success ? [] : workflowFormFeedback(parsed.error.issues);
+		if (!parsed.success) {
+			await tick();
+			createSummary?.focus();
+			return;
+		}
 		createSaving = true;
 		try {
-			await apiPost(basePath, {
-				name: createName.trim(),
-				cycleNumber: createNumber,
-				releaseId: createReleaseId ? Number(createReleaseId) : undefined,
-				startDate: createStartDate || undefined,
-				endDate: createEndDate || undefined
+			await apiFetch(basePath, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(parsed.data),
+				silent: true
 			});
-			toast.success(m.cycle_created());
-			createOpen = false;
-			await invalidateAll();
 		} catch {
-			// error toast handled by apiPost
+			createErrors = [{ path: '_form', messages: [m.ui_save_failed()] }];
 		} finally {
 			createSaving = false;
 		}
+		if (createErrors.length) {
+			await tick();
+			createSummary?.focus();
+			return;
+		}
+		toast.success(m.cycle_created());
+		createOpen = false;
+		await invalidateAll();
 	}
 
 	async function updateStatus(id: number, status: string) {
@@ -218,77 +259,118 @@
 	{/if}
 </div>
 
+{#snippet fieldError(path: string)}
+	{#if fieldFeedback(path)}
+		<p id={createFields[path] + '-error'} class="text-sm text-destructive">{fieldFeedback(path)}</p>
+	{/if}
+{/snippet}
+
 <Dialog.Root bind:open={createOpen}>
 	<Dialog.Portal>
 		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-lg">
+		<Dialog.Content
+			class="sm:max-w-lg"
+			showCloseButton={!createSaving}
+			interactOutsideBehavior="ignore"
+			escapeKeydownBehavior={createSaving ? 'ignore' : 'close'}
+		>
 			<Dialog.Header><Dialog.Title>{m.cycle_create()}</Dialog.Title></Dialog.Header>
-			<div class="grid gap-4 py-2 sm:grid-cols-2">
-				<div class="space-y-2 sm:col-span-2">
-					<Label for="cycle-name">{m.cycle_name()}</Label><Input
-						id="cycle-name"
-						bind:value={createName}
-					/>
-				</div>
-				<div class="space-y-2">
-					<Label for="cycle-number">{m.cycle_number()}</Label><Input
-						id="cycle-number"
-						type="number"
-						min="1"
-						bind:value={createNumber}
-					/>
-				</div>
-				<div class="space-y-2">
-					<Label for="cycle-release">{m.nav_releases()}</Label>
-					<Select.Root
-						type="single"
-						value={createReleaseId}
-						onValueChange={(value: string) => (createReleaseId = value)}
+			<form
+				novalidate
+				class="space-y-4"
+				aria-busy={createSaving}
+				onsubmit={(event) => {
+					event.preventDefault();
+					createCycle();
+				}}
+			>
+				<FormErrorSummary
+					errors={createErrors}
+					bind:ref={createSummary}
+					fieldTarget={(path) => createFields[path]}
+				/>
+				<fieldset disabled={createSaving} class="grid min-w-0 gap-4 sm:grid-cols-2">
+					<div class="space-y-2 sm:col-span-2">
+						<Label for="cycle-name"
+							>{m.cycle_name()}
+							<span class="text-xs text-muted-foreground">({m.ui_required()})</span></Label
+						><Input id="cycle-name" bind:value={createName} required {...errorAttributes('name')} />
+						{@render fieldError('name')}
+					</div>
+					<div class="space-y-2">
+						<Label for="cycle-number"
+							>{m.cycle_number()}
+							<span class="text-xs text-muted-foreground">({m.ui_required()})</span></Label
+						><Input
+							id="cycle-number"
+							type="number"
+							min="1"
+							bind:value={createNumber}
+							required
+							{...errorAttributes('cycleNumber')}
+						/>
+						{@render fieldError('cycleNumber')}
+					</div>
+					<div class="space-y-2">
+						<Label for="cycle-release">{m.nav_releases()}</Label>
+						<Select.Root
+							type="single"
+							value={createReleaseId}
+							disabled={createSaving}
+							onValueChange={(value: string) => (createReleaseId = value)}
+						>
+							<Select.Trigger id="cycle-release" class="w-full" {...errorAttributes('releaseId')}
+								><span class="truncate"
+									>{createReleaseId
+										? data.releases.find((item) => String(item.id) === createReleaseId)?.name
+										: '-'}</span
+								></Select.Trigger
+							>
+							<Select.Content
+								><Select.Item
+									value=""
+									label="-"
+								/>{#each data.releases as item (item.id)}<Select.Item
+										value={String(item.id)}
+										label={`${item.name}${item.version ? ` (${item.version})` : ''}`}
+									/>{/each}</Select.Content
+							>
+						</Select.Root>
+						{@render fieldError('releaseId')}
+					</div>
+					<div class="space-y-2">
+						<Label for="cycle-start">{m.cycle_start_date()}</Label><Input
+							id="cycle-start"
+							type="date"
+							bind:value={createStartDate}
+							{...errorAttributes('startDate')}
+						/>
+						{@render fieldError('startDate')}
+					</div>
+					<div class="space-y-2">
+						<Label for="cycle-end">{m.cycle_end_date()}</Label><Input
+							id="cycle-end"
+							type="date"
+							min={createStartDate || undefined}
+							bind:value={createEndDate}
+							{...errorAttributes('endDate')}
+						/>
+						{@render fieldError('endDate')}
+					</div>
+				</fieldset>
+				<Dialog.Footer>
+					<Button
+						type="button"
+						disabled={createSaving}
+						variant="outline"
+						class="w-full sm:w-auto"
+						onclick={() => (createOpen = false)}>{m.common_cancel()}</Button
 					>
-						<Select.Trigger id="cycle-release" class="w-full"
-							><span class="truncate"
-								>{createReleaseId
-									? data.releases.find((item) => String(item.id) === createReleaseId)?.name
-									: '-'}</span
-							></Select.Trigger
-						>
-						<Select.Content
-							><Select.Item value="" label="-" />{#each data.releases as item (item.id)}<Select.Item
-									value={String(item.id)}
-									label={`${item.name}${item.version ? ` (${item.version})` : ''}`}
-								/>{/each}</Select.Content
-						>
-					</Select.Root>
-				</div>
-				<div class="space-y-2">
-					<Label for="cycle-start">{m.cycle_start_date()}</Label><Input
-						id="cycle-start"
-						type="date"
-						bind:value={createStartDate}
-					/>
-				</div>
-				<div class="space-y-2">
-					<Label for="cycle-end">{m.cycle_end_date()}</Label><Input
-						id="cycle-end"
-						type="date"
-						min={createStartDate || undefined}
-						bind:value={createEndDate}
-					/>
-				</div>
-			</div>
-			<Dialog.Footer>
-				<Button variant="outline" class="w-full sm:w-auto" onclick={() => (createOpen = false)}
-					>{m.common_cancel()}</Button
-				>
-				<Button
-					class="w-full sm:w-auto"
-					disabled={createSaving ||
-						!createName.trim() ||
-						createNumber < 1 ||
-						(!!createStartDate && !!createEndDate && createEndDate < createStartDate)}
-					onclick={createCycle}>{createSaving ? m.common_creating() : m.cycle_create()}</Button
-				>
-			</Dialog.Footer>
+					<Button class="w-full sm:w-auto" type="submit" disabled={createSaving}
+						>{createSaving ? m.common_creating() : m.cycle_create()}</Button
+					>
+				</Dialog.Footer>
+			</form>
 		</Dialog.Content>
 	</Dialog.Portal>
 </Dialog.Root>

@@ -166,8 +166,115 @@ test.describe.serial('Workflow UI consistency', () => {
 						body: await page.screenshot(),
 						contentType: 'image/png'
 					});
+
+					await page.goto(`/projects/${projectId}/releases/${resourceIds.releases}`);
+					await page.waitForLoadState('networkidle');
+					expect(await page.locator('main').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+						false
+					);
+					for (const label of [/^(계획 연결|Link Plan)$/, /^(실행 연결|Link Run)$/]) {
+						const trigger = page.getByRole('button', { name: label });
+						await trigger.click();
+						const dialog = page.getByRole('dialog', { name: label });
+						await expect(dialog.getByRole('radio')).toBeVisible();
+						expect(await dialog.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(false);
+						const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+						expect
+							.soft(
+								result.violations
+									.filter((v) => ['serious', 'critical'].includes(v.impact ?? ''))
+									.map((v) => ({ id: v.id, targets: v.nodes.map((n) => n.target) })),
+								String(label)
+							)
+							.toEqual([]);
+						await page.keyboard.press('Escape');
+						await expect(dialog).toHaveCount(0);
+						await expect(trigger).toBeFocused();
+					}
 				});
 			}
 		}
 	}
+
+	test('release links support keyboard selection, retry, and an empty candidate state', async ({
+		page
+	}, testInfo) => {
+		await page.setViewportSize({ width: 375, height: 800 });
+		await page.goto(`/projects/${projectId}/releases/${resourceIds.releases}`);
+		await page.waitForLoadState('networkidle');
+		for (const [resource, title, label, empty] of [
+			['test-plans', 'UX Plan', '계획 연결', '이 프로젝트에 연결 가능한 계획이 없습니다.'],
+			['test-runs', 'UX Run', '실행 연결', '이 프로젝트에 연결 가능한 실행이 없습니다.']
+		] as const) {
+			const opener = page.getByRole('button', { name: label, exact: true });
+			await opener.click();
+			const dialog = page.getByRole('dialog', { name: label, exact: true });
+			const search = dialog.getByRole('searchbox');
+			const submit = dialog.getByRole('button', { name: label, exact: true });
+			await expect(submit).toBeDisabled();
+			await search.fill('no matching result');
+			await expect(dialog.getByRole('status')).toContainText('조건에 맞는 결과가 없습니다');
+			await search.fill(title);
+			const radio = dialog.getByRole('radio', { name: new RegExp(title) });
+			await radio.press('Space');
+			await expect(radio).toBeChecked();
+			await search.fill('no matching result');
+			await expect(dialog.getByText(`선택한 항목: ${title}`, { exact: true })).toBeVisible();
+			await search.press('Enter');
+			await expect(dialog).toBeVisible();
+			await search.fill(title);
+			await expect(radio).toBeChecked();
+			const endpoint = `**/api/projects/${projectId}/${resource}/${resourceIds[resource]}`;
+			let respond!: () => void;
+			const pending = new Promise<void>((resolve) => {
+				respond = resolve;
+			});
+			await page.route(endpoint, async (route) => {
+				await pending;
+				await route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+			});
+			await submit.click();
+			try {
+				await expect(dialog.locator('button[type=submit]')).toBeDisabled();
+				await expect(radio).toBeDisabled();
+				await page.keyboard.press('Escape');
+				await expect(dialog).toBeVisible();
+			} finally {
+				respond();
+			}
+			const error = dialog.locator('[data-slot=form-error-summary]');
+			await expect(error).toBeFocused();
+			await expect(error).toContainText('저장하지 못했습니다');
+			await expect(radio).toBeChecked();
+			await expect(search).toHaveValue(title);
+			expect(await dialog.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(false);
+			const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+			expect(
+				axe.violations
+					.filter((v) => ['critical', 'serious'].includes(v.impact ?? ''))
+					.map((v) => v.id)
+			).toEqual([]);
+			await testInfo.attach(`${resource}-link-error`, {
+				body: await page.screenshot({ path: `/tmp/testmini-release-link-${resource}.png` }),
+				contentType: 'image/png'
+			});
+			await page.unroute(endpoint);
+			await submit.click();
+			await expect(dialog).toHaveCount(0);
+			await expect(opener).toBeFocused();
+			await expect(page.getByRole('link', { name: new RegExp(title) })).toHaveAttribute(
+				'href',
+				`/projects/${projectId}/${resource}/${resourceIds[resource]}`
+			);
+			await opener.click();
+			await expect(dialog.getByText(empty)).toBeVisible();
+			await expect(dialog.getByRole('link')).toHaveAttribute(
+				'href',
+				`/projects/${projectId}/${resource}`
+			);
+			await expect(dialog.locator('button[type=submit]')).toHaveCount(0);
+			await page.keyboard.press('Escape');
+			await expect(dialog).toHaveCount(0);
+		}
+	});
 });

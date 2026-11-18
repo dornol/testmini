@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { tick } from 'svelte';
+	import { Input } from '$lib/components/ui/input';
+	import FormErrorSummary from '$lib/components/patterns/FormErrorSummary.svelte';
+	import { isInteractiveTarget } from '$lib/utils';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -9,7 +13,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as m from '$lib/paraglide/messages.js';
-	import { apiPatch, apiDelete } from '$lib/api-client';
+	import { apiPatch, apiDelete, apiFetch } from '$lib/api-client';
 
 	let { data } = $props();
 
@@ -97,46 +101,54 @@
 		}
 	}
 
-	// Link plan/run dialogs
-	let linkPlanDialogOpen = $state(false);
-	let linkRunDialogOpen = $state(false);
+	let linkOpen = $state(false);
+	let linkKind = $state<'test-plans' | 'test-runs'>('test-plans');
 	let selectedLinkId = $state<number | null>(null);
+	let linkQuery = $state('');
 	let linkSaving = $state(false);
+	let linkFailed = $state(false);
+	let linkSummary = $state<HTMLDivElement | null>(null);
+	const linkTitle = $derived(linkKind === 'test-plans' ? m.rel_link_plan() : m.rel_link_run());
+	const candidates = $derived(linkKind === 'test-plans' ? data.availablePlans : data.availableRuns);
+	const selectedCandidate = $derived(candidates.find((item) => item.id === selectedLinkId));
+	const filteredCandidates = $derived(
+		candidates.filter((item) =>
+			item.name.toLocaleLowerCase().includes(linkQuery.trim().toLocaleLowerCase())
+		)
+	);
 
-	async function handleLinkPlan() {
-		if (!selectedLinkId) return;
-		linkSaving = true;
-		try {
-			await apiPatch(`/api/projects/${data.project.id}/test-plans/${selectedLinkId}`, {
-				releaseId: data.release.id
-			});
-			linkPlanDialogOpen = false;
-			selectedLinkId = null;
-			toast.success(m.rel_updated());
-			await invalidateAll();
-		} catch {
-			/* handled */
-		} finally {
-			linkSaving = false;
-		}
+	function openLink(kind: typeof linkKind) {
+		linkKind = kind;
+		selectedLinkId = null;
+		linkQuery = '';
+		linkFailed = false;
+		linkOpen = true;
 	}
 
-	async function handleLinkRun() {
-		if (!selectedLinkId) return;
+	async function linkResource(event: SubmitEvent) {
+		event.preventDefault();
+		if (!selectedCandidate || linkSaving) return;
+
 		linkSaving = true;
+		linkFailed = false;
 		try {
-			await apiPatch(`/api/projects/${data.project.id}/test-runs/${selectedLinkId}`, {
-				releaseId: data.release.id
+			await apiFetch(`/api/projects/${data.project.id}/${linkKind}/${selectedCandidate.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ releaseId: data.release.id }),
+				silent: true
 			});
-			linkRunDialogOpen = false;
-			selectedLinkId = null;
-			toast.success(m.rel_updated());
-			await invalidateAll();
 		} catch {
-			/* handled */
-		} finally {
+			linkFailed = true;
 			linkSaving = false;
+			await tick();
+			linkSummary?.focus();
+			return;
 		}
+		linkSaving = false;
+		linkOpen = false;
+		toast.success(m.rel_updated());
+		await invalidateAll();
 	}
 
 	function formatDate(date: string | Date | null) {
@@ -251,15 +263,12 @@
 	<div class="space-y-2">
 		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<h3 class="font-semibold">{m.rel_linked_plans()} ({data.plans.length})</h3>
-			{#if canManage && data.availablePlans.length > 0}
+			{#if canManage}
 				<Button
 					variant="outline"
 					size="sm"
 					class="w-full sm:w-auto"
-					onclick={() => {
-						selectedLinkId = null;
-						linkPlanDialogOpen = true;
-					}}
+					onclick={() => openLink('test-plans')}
 				>
 					{m.rel_link_plan()}
 				</Button>
@@ -267,24 +276,23 @@
 		</div>
 		{#if data.plans.length === 0}
 			<div class="rounded-lg border border-dashed p-4 text-center">
-				<p class="text-muted-foreground text-sm">{m.tp_no_runs()}</p>
+				<p class="text-muted-foreground text-sm">{m.rel_no_linked_plans()}</p>
 			</div>
 		{:else}
 			<div class="grid gap-3 md:hidden">
 				{#each data.plans as plan (plan.id)}
-					<button
-						type="button"
-						class="rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
-						onclick={() => goto(`/projects/${data.project.id}/test-plans/${plan.id}`)}
+					<a
+						href={`/projects/${data.project.id}/test-plans/${plan.id}`}
+						class="block min-w-0 rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
 					>
-						<div class="break-words font-medium">{plan.name}</div>
+						<div class="font-medium [overflow-wrap:anywhere]">{plan.name}</div>
 						<div class="mt-2 flex flex-wrap items-center gap-2">
 							<Badge variant="secondary">{plan.status}</Badge>
 							<span class="text-xs text-muted-foreground"
 								>{m.tp_milestone()}: {plan.milestone ?? '-'}</span
 							>
 						</div>
-					</button>
+					</a>
 				{/each}
 			</div>
 			<Card.Root class="hidden md:block">
@@ -300,9 +308,17 @@
 						{#each data.plans as plan (plan.id)}
 							<Table.Row
 								class="cursor-pointer hover:bg-muted/50"
-								onclick={() => goto(`/projects/${data.project.id}/test-plans/${plan.id}`)}
+								onclick={(event) => {
+									if (!isInteractiveTarget(event.target))
+										void goto(`/projects/${data.project.id}/test-plans/${plan.id}`);
+								}}
 							>
-								<Table.Cell class="font-medium">{plan.name}</Table.Cell>
+								<Table.Cell class="font-medium"
+									><a
+										href={`/projects/${data.project.id}/test-plans/${plan.id}`}
+										class="underline-offset-4 hover:underline">{plan.name}</a
+									></Table.Cell
+								>
 								<Table.Cell><Badge variant="secondary">{plan.status}</Badge></Table.Cell>
 								<Table.Cell class="text-muted-foreground text-sm"
 									>{plan.milestone ?? '-'}</Table.Cell
@@ -319,15 +335,12 @@
 	<div class="space-y-2">
 		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<h3 class="font-semibold">{m.rel_linked_runs()} ({data.runs.length})</h3>
-			{#if canManage && data.availableRuns.length > 0}
+			{#if canManage}
 				<Button
 					variant="outline"
 					size="sm"
 					class="w-full sm:w-auto"
-					onclick={() => {
-						selectedLinkId = null;
-						linkRunDialogOpen = true;
-					}}
+					onclick={() => openLink('test-runs')}
 				>
 					{m.rel_link_run()}
 				</Button>
@@ -335,7 +348,7 @@
 		</div>
 		{#if data.runs.length === 0}
 			<div class="rounded-lg border border-dashed p-4 text-center">
-				<p class="text-muted-foreground text-sm">{m.tp_no_runs()}</p>
+				<p class="text-muted-foreground text-sm">{m.rel_no_linked_runs()}</p>
 			</div>
 		{:else}
 			<div class="grid gap-3 md:hidden">
@@ -343,12 +356,11 @@
 					{@const total = Number(run.total)}
 					{@const pass = Number(run.pass)}
 					{@const rate = total > 0 ? Math.round((pass / total) * 100) : 0}
-					<button
-						type="button"
-						class="rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
-						onclick={() => goto(`/projects/${data.project.id}/test-runs/${run.id}`)}
+					<a
+						href={`/projects/${data.project.id}/test-runs/${run.id}`}
+						class="block min-w-0 rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
 					>
-						<div class="break-words font-medium">{run.name}</div>
+						<div class="font-medium [overflow-wrap:anywhere]">{run.name}</div>
 						<div class="mt-2 flex flex-wrap items-center gap-2">
 							<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}
 								>{run.status}</Badge
@@ -369,7 +381,7 @@
 								<div class="font-medium">{rate}%</div>
 							</div>
 						</div>
-					</button>
+					</a>
 				{/each}
 			</div>
 			<Card.Root class="hidden md:block">
@@ -391,9 +403,17 @@
 							{@const rate = total > 0 ? Math.round((pass / total) * 100) : 0}
 							<Table.Row
 								class="cursor-pointer hover:bg-muted/50"
-								onclick={() => goto(`/projects/${data.project.id}/test-runs/${run.id}`)}
+								onclick={(event) => {
+									if (!isInteractiveTarget(event.target))
+										void goto(`/projects/${data.project.id}/test-runs/${run.id}`);
+								}}
 							>
-								<Table.Cell class="font-medium">{run.name}</Table.Cell>
+								<Table.Cell class="font-medium"
+									><a
+										href={`/projects/${data.project.id}/test-runs/${run.id}`}
+										class="underline-offset-4 hover:underline">{run.name}</a
+									></Table.Cell
+								>
 								<Table.Cell>
 									<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}
 										>{run.status}</Badge
@@ -436,89 +456,103 @@
 	</AlertDialog.Portal>
 </AlertDialog.Root>
 
-<!-- Link Plan Dialog -->
-<Dialog.Root bind:open={linkPlanDialogOpen}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-md">
-			<Dialog.Header>
-				<Dialog.Title>{m.rel_link_plan()}</Dialog.Title>
-			</Dialog.Header>
-			<div class="py-4 space-y-2 max-h-60 overflow-auto">
-				{#each data.availablePlans as plan (plan.id)}
-					<button
-						class="flex w-full flex-col gap-2 rounded-md px-3 py-2 text-left hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between {selectedLinkId ===
-						plan.id
-							? 'bg-muted'
-							: ''}"
-						onclick={() => {
-							selectedLinkId = plan.id;
+<Dialog.Root bind:open={linkOpen}>
+	<Dialog.Content
+		class="sm:max-w-md"
+		showCloseButton={!linkSaving}
+		interactOutsideBehavior="ignore"
+		escapeKeydownBehavior={linkSaving ? 'ignore' : 'close'}
+	>
+		<Dialog.Header>
+			<Dialog.Title>{linkTitle}</Dialog.Title>
+			<Dialog.Description>{m.rel_choose_unlinked()}</Dialog.Description>
+		</Dialog.Header>
+		<form class="min-w-0 space-y-4" aria-busy={linkSaving} onsubmit={linkResource}>
+			<FormErrorSummary
+				errors={linkFailed ? [{ path: '_form', messages: [m.ui_save_failed()] }] : []}
+				bind:ref={linkSummary}
+				fieldTarget={() => undefined}
+			/>
+			{#if candidates.length === 0}
+				<p class="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+					{linkKind === 'test-plans' ? m.rel_no_available_plans() : m.rel_no_available_runs()}
+				</p>
+			{:else}
+				<div class="space-y-2">
+					<label for="release-link-search" class="text-sm font-medium">{m.common_search()}</label>
+					<Input
+						id="release-link-search"
+						type="search"
+						bind:value={linkQuery}
+						disabled={linkSaving}
+						onkeydown={(event) => {
+							if (event.key === 'Enter') event.preventDefault();
 						}}
+					/>
+				</div>
+				{#if filteredCandidates.length === 0}
+					<p
+						role="status"
+						class="rounded-md border border-dashed p-4 text-sm text-muted-foreground"
 					>
-						<span class="min-w-0 break-words text-sm font-medium">{plan.name}</span>
-						<Badge variant="secondary" class="w-fit text-xs">{plan.status}</Badge>
-					</button>
-				{/each}
-			</div>
-			<Dialog.Footer>
-				<Button
-					variant="outline"
-					class="w-full sm:w-auto"
-					onclick={() => (linkPlanDialogOpen = false)}>{m.common_cancel()}</Button
-				>
-				<Button
-					class="w-full sm:w-auto"
-					onclick={handleLinkPlan}
-					disabled={!selectedLinkId || linkSaving}
-					>{linkSaving ? m.common_saving() : m.rel_link_plan()}</Button
-				>
-			</Dialog.Footer>
-		</Dialog.Content>
-	</Dialog.Portal>
-</Dialog.Root>
-
-<!-- Link Run Dialog -->
-<Dialog.Root bind:open={linkRunDialogOpen}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-md">
-			<Dialog.Header>
-				<Dialog.Title>{m.rel_link_run()}</Dialog.Title>
-			</Dialog.Header>
-			<div class="py-4 space-y-2 max-h-60 overflow-auto">
-				{#each data.availableRuns as run (run.id)}
-					<button
-						class="flex w-full flex-col gap-2 rounded-md px-3 py-2 text-left hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between {selectedLinkId ===
-						run.id
-							? 'bg-muted'
-							: ''}"
-						onclick={() => {
-							selectedLinkId = run.id;
-						}}
-					>
-						<span class="min-w-0 break-words text-sm font-medium">{run.name}</span>
-						<div class="flex min-w-0 flex-wrap gap-1 sm:justify-end">
-							<Badge variant="secondary" class="text-xs">{run.status}</Badge>
-							<Badge variant="outline" class="max-w-full truncate text-xs" title={run.environment}>
-								{run.environment}
-							</Badge>
+						{m.ui_no_filtered_results()}
+					</p>
+				{:else}
+					<fieldset disabled={linkSaving} class="min-w-0">
+						<legend class="sr-only">{linkTitle}</legend>
+						<div class="max-h-60 space-y-1 overflow-y-auto p-1">
+							{#each filteredCandidates as item (item.id)}
+								<label
+									class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 hover:bg-muted/50 has-checked:border-primary has-checked:bg-accent"
+								>
+									<input
+										type="radio"
+										name="release-link-candidate"
+										bind:group={selectedLinkId}
+										value={item.id}
+										class="size-4 shrink-0"
+									/>
+									<span class="min-w-0 flex-1">
+										<span class="block text-sm font-medium [overflow-wrap:anywhere]"
+											>{item.name}</span
+										>
+										<span
+											class="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
+										>
+											<Badge variant="secondary">{item.status}</Badge>
+											{#if 'environment' in item}
+												<span class="min-w-0 [overflow-wrap:anywhere]">{item.environment}</span>
+											{/if}
+										</span>
+									</span>
+								</label>
+							{/each}
 						</div>
-					</button>
-				{/each}
-			</div>
+					</fieldset>
+				{/if}
+				{#if selectedCandidate && !filteredCandidates.includes(selectedCandidate)}
+					<p role="status" class="text-sm text-muted-foreground [overflow-wrap:anywhere]">
+						{m.rel_link_selected({ name: selectedCandidate.name })}
+					</p>
+				{/if}
+			{/if}
 			<Dialog.Footer>
 				<Button
+					type="button"
 					variant="outline"
-					class="w-full sm:w-auto"
-					onclick={() => (linkRunDialogOpen = false)}>{m.common_cancel()}</Button
+					disabled={linkSaving}
+					onclick={() => (linkOpen = false)}>{m.common_cancel()}</Button
 				>
-				<Button
-					class="w-full sm:w-auto"
-					onclick={handleLinkRun}
-					disabled={!selectedLinkId || linkSaving}
-					>{linkSaving ? m.common_saving() : m.rel_link_run()}</Button
-				>
+				{#if candidates.length}
+					<Button type="submit" disabled={!selectedCandidate || linkSaving}
+						>{linkSaving ? m.common_saving() : linkTitle}</Button
+					>
+				{:else}
+					<Button href={`/projects/${data.project.id}/${linkKind}`}
+						>{linkKind === 'test-plans' ? m.nav_test_plans() : m.nav_test_runs()}</Button
+					>
+				{/if}
 			</Dialog.Footer>
-		</Dialog.Content>
-	</Dialog.Portal>
+		</form>
+	</Dialog.Content>
 </Dialog.Root>

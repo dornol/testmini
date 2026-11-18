@@ -1458,5 +1458,11 @@
 	"ui_case_title_details": "{key} 제목 전체 보기",
 	"ui_cycle_number_positive": "1 이상의 정수를 입력해 주세요.",
 	"ui_exploratory_tag_limit": "태그는 최대 {count}개까지 입력할 수 있습니다.",
-	"ui_exploratory_tag_length": "태그 하나는 최대 {count}자까지 입력할 수 있습니다."
+	"ui_exploratory_tag_length": "태그 하나는 최대 {count}자까지 입력할 수 있습니다.",
+	"rel_choose_unlinked": "릴리스에 연결되지 않은 항목을 선택하세요.",
+	"rel_no_available_plans": "이 프로젝트에 연결 가능한 계획이 없습니다.",
+	"rel_no_available_runs": "이 프로젝트에 연결 가능한 실행이 없습니다.",
+	"rel_no_linked_plans": "이 릴리스에 연결된 계획이 없습니다.",
+	"rel_no_linked_runs": "이 릴리스에 연결된 실행이 없습니다.",
+	"rel_link_selected": "선택한 항목: {name}"
 }

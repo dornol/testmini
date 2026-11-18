@@ -1,205 +1,237 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { navigating } from '$app/stores';
-	import { page } from '$app/state';
+	import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
+	import { navigating, page } from '$app/state';
+	import { onDestroy, untrack } from 'svelte';
 	import * as m from '$lib/paraglide/messages.js';
+	import { getLocale } from '$lib/paraglide/runtime.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
-	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
+	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
+	import FilterToolbar from '$lib/components/patterns/FilterToolbar.svelte';
+	import EmptyState from '$lib/components/patterns/EmptyState.svelte';
+	import type { PageData } from './$types';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
+	let searchInput = $state(untrack(() => data.search));
+	let searchField = $state<HTMLInputElement | null>(null);
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	let focusAfterClear = false;
+	const loading = $derived(navigating.to?.url.pathname === '/projects');
 
-	let searchInput = $state('');
-	let searchTimeout: ReturnType<typeof setTimeout>;
+	function cancelSearch() {
+		clearTimeout(timer);
+		timer = undefined;
+	}
 
-	// Show loading skeleton when navigating due to search/filter changes on this page
-	const isSearching = $derived(
-		$navigating !== null && $navigating.to?.url.pathname === '/projects'
-	);
-
-	$effect(() => {
-		searchInput = data.search;
+	beforeNavigate(cancelSearch);
+	onDestroy(cancelSearch);
+	afterNavigate(() => {
+		if (!timer) searchInput = data.search;
+		if (focusAfterClear) {
+			focusAfterClear = false;
+			searchField?.focus();
+		}
 	});
 
-	function handleSearch() {
-		clearTimeout(searchTimeout);
-		searchTimeout = setTimeout(() => {
-			const params = new URLSearchParams(page.url.searchParams);
-			if (searchInput) {
-				params.set('search', searchInput);
-			} else {
-				params.delete('search');
-			}
-			params.set('page', '1');
-			goto(`/projects?${params.toString()}`, { keepFocus: true });
-		}, 300);
+	function listUrl(search: string, active: boolean, targetPage = 1) {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (search.trim()) params.set('search', search.trim());
+		else params.delete('search');
+		if (active) params.delete('active');
+		else params.set('active', 'false');
+		if (targetPage === 1) params.delete('page');
+		else params.set('page', String(targetPage));
+		return `/projects${params.size ? `?${params}` : ''}`;
 	}
 
-	function toggleActive() {
-		const params = new URLSearchParams(page.url.searchParams);
-		if (data.active) {
-			params.set('active', 'false');
-		} else {
-			params.delete('active');
+	const passthrough = $derived(
+		[...page.url.searchParams].filter(([key]) => !['search', 'page', 'active'].includes(key))
+	);
+
+	function applySearch() {
+		cancelSearch();
+		if (searchInput.trim() === data.search) return;
+		void goto(listUrl(searchInput, data.active), { keepFocus: true, noScroll: true });
+	}
+
+	function queueSearch() {
+		cancelSearch();
+		if (!navigating.to || navigating.to.url.pathname === '/projects') {
+			timer = setTimeout(applySearch, 300);
 		}
-		params.set('page', '1');
-		goto(`/projects?${params.toString()}`);
 	}
 
-	function goToPage(p: number) {
-		const params = new URLSearchParams(page.url.searchParams);
-		params.set('page', String(p));
-		goto(`/projects?${params.toString()}`);
+	function submitSearch(event: SubmitEvent) {
+		event.preventDefault();
+		applySearch();
+	}
+
+	function formatDate(date: Date | string) {
+		return new Date(date).toLocaleDateString(getLocale(), { dateStyle: 'medium' });
 	}
 </script>
 
-<div class="space-y-6">
-	<div class="flex flex-wrap items-center justify-between gap-2">
-		<h1 class="text-2xl font-bold tracking-tight">{m.projects_title()}</h1>
-		<Button href="/projects/new">{m.projects_new()}</Button>
-	</div>
-
-	<div class="flex flex-col gap-3 rounded-xl border bg-card p-3 sm:flex-row sm:items-center">
-		<Input
-			placeholder={m.projects_search_placeholder()}
-			class="w-full sm:max-w-sm"
-			bind:value={searchInput}
-			oninput={handleSearch}
-			aria-label={m.projects_search_placeholder()}
-		/>
-		<Button
-			variant={data.active ? 'outline' : 'secondary'}
-			size="sm"
-			onclick={toggleActive}
-			class="w-full sm:w-auto"
+{#snippet card(project: PageData['projects'][number])}
+	<Card.Root class="h-full transition-colors group-hover:border-primary/40">
+		<Card.Header>
+			<div class="flex flex-wrap items-start justify-between gap-2">
+				<h3
+					id={`project-list-title-${project.id}`}
+					class="min-w-0 text-lg font-semibold leading-snug [overflow-wrap:anywhere]"
+				>
+					{project.name}
+				</h3>
+				{#if !project.active}<Badge variant="secondary">{m.common_inactive()}</Badge>{/if}
+			</div>
+			{#if project.description}
+				<Card.Description class="line-clamp-2 [overflow-wrap:anywhere]"
+					>{project.description}</Card.Description
+				>
+			{/if}
+		</Card.Header>
+		<Card.Footer
+			class="mt-auto flex flex-wrap gap-x-4 gap-y-1 border-t pt-4 text-sm text-muted-foreground"
 		>
-			{data.active ? m.projects_show_inactive() : m.projects_show_active()}
-		</Button>
-	</div>
-
-	{#if isSearching}
-		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-			{#each Array(6) as _}
-				<Card.Root>
-					<Card.Header>
-						<Skeleton class="h-5 w-3/4" />
-						<Skeleton class="mt-2 h-4 w-full" />
-					</Card.Header>
-					<Card.Footer>
-						<Skeleton class="h-4 w-1/2" />
-					</Card.Footer>
-				</Card.Root>
-			{/each}
-		</div>
-	{:else if data.projects.length === 0}
-		<div
-			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
-		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				width="48"
-				height="48"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				class="text-muted-foreground mb-4"
+			<span>{m.projects_members_count({ count: project.memberCount })}</span>
+			<time datetime={new Date(project.createdAt).toISOString()}
+				>{formatDate(project.createdAt)}</time
 			>
-				<path
-					d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
-				/>
-			</svg>
-			<h3 class="text-lg font-semibold">{m.projects_empty_title()}</h3>
-			<p class="text-muted-foreground mt-1 text-sm">
-				{#if data.search}
-					{m.projects_empty_search()}
-				{:else}
-					{m.projects_empty_create()}
-				{/if}
+		</Card.Footer>
+	</Card.Root>
+{/snippet}
+
+<div class="space-y-4">
+	<PageHeader title={m.projects_title()} level={1}>
+		{#snippet actions()}<Button href="/projects/new">{m.projects_new()}</Button>{/snippet}
+	</PageHeader>
+
+	<FilterToolbar label={m.ui_filters()}>
+		<form
+			method="GET"
+			action="/projects"
+			onsubmit={submitSearch}
+			class="flex min-w-0 flex-1 basis-full flex-wrap items-center gap-2 sm:basis-auto"
+		>
+			{#if !data.active}<input type="hidden" name="active" value="false" />{/if}
+			{#each passthrough as [name, value]}<input type="hidden" {name} {value} />{/each}
+			<Input
+				name="search"
+				type="search"
+				placeholder={m.projects_search_placeholder()}
+				bind:value={searchInput}
+				bind:ref={searchField}
+				oninput={queueSearch}
+				aria-label={m.projects_search_placeholder()}
+				class="min-w-0 flex-1 basis-36"
+			/>
+			{#if data.search}
+				<Button
+					href={listUrl('', data.active)}
+					variant="ghost"
+					data-sveltekit-noscroll
+					onclick={(event) => {
+						if (
+							event.button === 0 &&
+							!event.metaKey &&
+							!event.ctrlKey &&
+							!event.shiftKey &&
+							!event.altKey
+						)
+							focusAfterClear = true;
+					}}>{m.projects_clear_search()}</Button
+				>
+			{/if}
+		</form>
+		<nav aria-label={m.projects_status_filter()} class="flex flex-wrap gap-1">
+			{#each [true, false] as active (active)}
+				<Button
+					href={listUrl(searchInput, active)}
+					variant={data.active === active ? 'secondary' : 'outline'}
+					aria-current={data.active === active ? 'page' : undefined}
+					data-sveltekit-noscroll
+					data-sveltekit-keepfocus
+				>
+					{active ? m.projects_active_tab() : m.projects_inactive_tab()}
+				</Button>
+			{/each}
+		</nav>
+	</FilterToolbar>
+
+	<section aria-labelledby="projects-results" class="space-y-3">
+		<div class="flex flex-wrap items-baseline justify-between gap-2">
+			<h2 id="projects-results" class="text-lg font-semibold">{m.projects_results()}</h2>
+			<p role="status" class="text-sm text-muted-foreground">
+				{loading ? m.common_loading() : m.projects_result_count({ count: data.meta.total })}
 			</p>
-			{#if !data.search}
-				<Button href="/projects/new" class="mt-4">{m.projects_create()}</Button>
+		</div>
+		{#if !data.active && data.canManageInactive}
+			<Button
+				variant="outline"
+				href={`/admin/projects?${new URLSearchParams({ inactive: 'true', ...(data.search ? { search: data.search } : {}) })}`}
+			>
+				{m.projects_manage_inactive()}
+			</Button>
+		{/if}
+
+		<div aria-busy={loading} class="space-y-3">
+			{#if !data.projects.length}
+				<EmptyState
+					title={data.search
+						? m.ui_no_filtered_results()
+						: data.active
+							? m.projects_empty_title()
+							: m.projects_empty_inactive()}
+					description={data.search
+						? m.projects_empty_search()
+						: data.active
+							? m.projects_empty_create()
+							: m.projects_empty_inactive_description()}
+				/>
+			{:else}
+				<ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					{#each data.projects as project (project.id)}
+						<li class="min-w-0">
+							{#if project.active}
+								<a
+									href={`/projects/${project.id}`}
+									aria-labelledby={`project-list-title-${project.id}`}
+									class="group block h-full min-w-0 rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+								>
+									{@render card(project)}
+								</a>
+							{:else}
+								{@render card(project)}
+							{/if}
+						</li>
+					{/each}
+				</ul>
+				{#if data.meta.totalPages > 1}
+					<nav
+						aria-label={m.projects_pagination()}
+						class="flex flex-wrap items-center justify-center gap-2"
+					>
+						<Button
+							variant="outline"
+							href={listUrl(data.search, data.active, data.meta.page - 1)}
+							disabled={data.meta.page <= 1}
+						>
+							{m.common_previous()}
+						</Button>
+						<span class="px-2 text-sm tabular-nums text-muted-foreground">
+							{m.common_page_of({ page: data.meta.page, totalPages: data.meta.totalPages })}
+						</span>
+						<Button
+							variant="outline"
+							href={listUrl(data.search, data.active, data.meta.page + 1)}
+							disabled={data.meta.page >= data.meta.totalPages}
+						>
+							{m.common_next()}
+						</Button>
+					</nav>
+				{/if}
 			{/if}
 		</div>
-	{:else}
-		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-			{#each data.projects as proj (proj.id)}
-				<a href="/projects/{proj.id}" class="group block min-w-0 rounded-xl">
-					<Card.Root
-						class="h-full transition-[border-color,box-shadow] group-hover:border-primary/40 group-hover:shadow-md"
-					>
-						<Card.Header>
-							<div class="flex min-w-0 items-start justify-between gap-2">
-								<Card.Title class="min-w-0 break-words text-lg leading-snug">{proj.name}</Card.Title
-								>
-								{#if !proj.active}
-									<Badge variant="secondary" class="shrink-0">{m.common_inactive()}</Badge>
-								{/if}
-							</div>
-							{#if proj.description}
-								<Card.Description class="line-clamp-2 break-words"
-									>{proj.description}</Card.Description
-								>
-							{/if}
-						</Card.Header>
-						<Card.Footer class="text-muted-foreground mt-auto border-t pt-4 text-sm">
-							<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-								<span class="flex items-center gap-1">
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										width="14"
-										height="14"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									>
-										<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-										<circle cx="9" cy="7" r="4" />
-										<path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-										<path d="M16 3.13a4 4 0 0 1 0 7.75" />
-									</svg>
-									{m.projects_members_count({ count: proj.memberCount })}
-								</span>
-								<span>
-									{new Date(proj.createdAt).toLocaleDateString()}
-								</span>
-							</div>
-						</Card.Footer>
-					</Card.Root>
-				</a>
-			{/each}
-		</div>
-
-		<!-- Pagination -->
-		{#if data.meta.totalPages > 1}
-			<div class="flex items-center justify-center gap-2">
-				<Button
-					variant="outline"
-					size="sm"
-					disabled={data.meta.page <= 1}
-					onclick={() => goToPage(data.meta.page - 1)}
-				>
-					{m.common_previous()}
-				</Button>
-				<span class="text-muted-foreground mt-auto border-t pt-4 text-sm">
-					Page {data.meta.page} of {data.meta.totalPages}
-				</span>
-				<Button
-					variant="outline"
-					size="sm"
-					disabled={data.meta.page >= data.meta.totalPages}
-					onclick={() => goToPage(data.meta.page + 1)}
-				>
-					{m.common_next()}
-				</Button>
-			</div>
-		{/if}
-	{/if}
+	</section>
 </div>

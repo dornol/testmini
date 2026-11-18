@@ -14,7 +14,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const user = locals.user as App.Locals['user'] & { role?: string };
 	const page = parsePositiveIntegerSearchParam(url.searchParams.get('page'), 1);
 	const limit = parsePositiveIntegerSearchParam(url.searchParams.get('limit'), 12, { max: 50 });
-	const search = url.searchParams.get('search') ?? '';
+	const search = url.searchParams.get('search')?.trim() ?? '';
 	const active = url.searchParams.get('active') !== 'false';
 	const offset = (page - 1) * limit;
 
@@ -24,7 +24,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		conditions.push(ilike(project.name, `%${search}%`));
 	}
 
-	if (!isGlobalAdmin(user!)) {
+	const canManageInactive = isGlobalAdmin(user!);
+	if (!canManageInactive) {
 		const memberProjects = db
 			.select({ projectId: projectMember.projectId })
 			.from(projectMember)
@@ -49,13 +50,21 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			})
 			.from(project)
 			.where(where)
-			.orderBy(desc(project.createdAt))
+			.orderBy(desc(project.createdAt), desc(project.id))
 			.limit(limit)
 			.offset(offset),
 		db.select({ total: count() }).from(project).where(where)
 	]);
 
 	const total = totalResult[0]?.total ?? 0;
+	const totalPages = Math.ceil(total / limit);
+	const lastPage = Math.max(totalPages, 1);
+	if (page > lastPage) {
+		const params = new URLSearchParams(url.searchParams);
+		if (lastPage === 1) params.delete('page');
+		else params.set('page', String(lastPage));
+		redirect(302, `/projects${params.size ? `?${params}` : ''}`);
+	}
 
 	return {
 		projects,
@@ -63,9 +72,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			page,
 			limit,
 			total,
-			totalPages: Math.ceil(total / limit)
+			totalPages
 		},
 		search,
-		active
+		active,
+		canManageInactive
 	};
 };

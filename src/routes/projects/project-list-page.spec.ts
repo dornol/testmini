@@ -115,6 +115,26 @@ describe('projects list page server', () => {
 		}
 	);
 
+	it('returns a valid last page without dropping the search or status', async () => {
+		setupSelectMock([], 3);
+
+		await expect(
+			load(createLoadEvent({ page: '8', search: 'Alpha', active: 'false', limit: '2' }))
+		).rejects.toMatchObject({
+			status: 302,
+			location: '/projects?page=2&search=Alpha&active=false&limit=2'
+		});
+	});
+
+	it('returns to the first page when an old filter has no results', async () => {
+		setupSelectMock([], 0);
+
+		await expect(load(createLoadEvent({ page: '8', search: 'missing' }))).rejects.toMatchObject({
+			status: 302,
+			location: '/projects?search=missing'
+		});
+	});
+
 	it('should scope non-admin users to their member projects', async () => {
 		setupSelectMock([], 0);
 

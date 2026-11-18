@@ -3,6 +3,16 @@ import { z } from 'zod';
 const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 const noControlCharacters = (message: string) =>
 	z.string().refine((value) => !CONTROL_CHAR_PATTERN.test(value), message);
+const environmentMemo = z
+	.string()
+	.transform((value) => value.replace(/\r\n?/g, '\n'))
+	.pipe(z.string().max(2000))
+	.refine(
+		(value) => !CONTROL_CHAR_PATTERN.test(value.replace(/\n/g, '')),
+		'Memo must not contain control characters'
+	)
+	.optional()
+	.default('');
 
 export const createEnvironmentSchema = z
 	.object({
@@ -27,12 +37,7 @@ export const createEnvironmentSchema = z
 			.pipe(noControlCharacters('Credentials must not contain control characters'))
 			.optional()
 			.default(''),
-		memo: z
-			.string()
-			.max(2000)
-			.pipe(noControlCharacters('Memo must not contain control characters'))
-			.optional()
-			.default('')
+		memo: environmentMemo
 	})
 	.strict();
 
@@ -60,12 +65,7 @@ export const updateEnvironmentSchema = z
 			.pipe(noControlCharacters('Credentials must not contain control characters'))
 			.optional()
 			.default(''),
-		memo: z
-			.string()
-			.max(2000)
-			.pipe(noControlCharacters('Memo must not contain control characters'))
-			.optional()
-			.default('')
+		memo: environmentMemo
 	})
 	.strict();
 

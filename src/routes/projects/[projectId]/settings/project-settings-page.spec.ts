@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, mockSelectResult, mockUpdateReturning } from '$lib/server/test-helpers/mock-db';
+import {
+	createMockDb,
+	mockSelectResult,
+	mockUpdateReturning
+} from '$lib/server/test-helpers/mock-db';
 import { createMockEvent } from '$lib/server/test-helpers/mock-event';
+import { superValidate, message } from 'sveltekit-superforms';
 import { testUser } from '$lib/server/test-helpers/fixtures';
 
 const mockDb = createMockDb();
@@ -28,7 +33,7 @@ vi.mock('$lib/server/auth-utils', async () => {
 		parseId: vi.fn((raw: string) => Number(raw))
 	};
 });
-vi.mock('$lib/schemas/project.schema', () => ({ updateProjectSchema: {} }));
+vi.mock('$lib/schemas/project.schema', () => ({ createProjectSchema: {} }));
 vi.mock('$lib/server/form-utils', () => ({ zodAdapter: vi.fn(() => ({})) }));
 vi.mock('sveltekit-superforms', () => ({
 	superValidate: vi.fn(),
@@ -52,6 +57,20 @@ describe('project settings page server', () => {
 		vi.clearAllMocks();
 	});
 
+	it('returns the submitted project details when the update fails', async () => {
+		const form = { valid: true, data: { name: 'Draft name', description: 'Draft description' } };
+		vi.mocked(superValidate).mockResolvedValueOnce(form as never);
+		mockDb.update.mockReturnValueOnce({
+			set: () => ({
+				where: () => ({ returning: vi.fn().mockRejectedValue(new Error('Unreachable database')) })
+			})
+		});
+
+		await actions.update(createActionEvent());
+
+		expect(message).toHaveBeenCalledWith(form, 'save_failed', { status: 500 });
+	});
+
 	describe('actions.toggleSignoff', () => {
 		it('toggles requireSignoff for an existing project', async () => {
 			mockSelectResult(mockDb, [{ requireSignoff: false }]);
@@ -59,7 +78,7 @@ describe('project settings page server', () => {
 
 			const result = await actions.toggleSignoff(createActionEvent());
 
-			expect(result).toEqual({ success: true });
+			expect(result).toEqual({ success: true, requireSignoff: true });
 			expect(updateChain.set).toHaveBeenCalledWith({ requireSignoff: true });
 			expect(updateChain.where).toHaveBeenCalledWith(['id', 1]);
 		});

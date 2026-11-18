@@ -131,6 +131,8 @@
 	"dashboard_result": "결과",
 	"dashboard_env": "환경",
 	"settings_general": "일반 설정",
+	"settings_general_readonly": "프로젝트 정보와 사인오프 설정을 볼 수 있습니다. 변경은 프로젝트 관리자가 할 수 있습니다.",
+	"settings_deactivate_failed": "프로젝트를 비활성화하지 못했습니다. 상태를 확인하고 다시 시도하세요.",
 	"settings_general_desc": "프로젝트 정보를 수정하세요",
 	"settings_danger_zone": "위험 구역",
 	"settings_deactivate_desc": "프로젝트를 비활성화하면 프로젝트 목록에서 숨겨집니다. 관리자가 되돌릴 수 있습니다.",

@@ -443,22 +443,19 @@
 			if (!open) deleteWebhook = null;
 		}}
 	>
-		<AlertDialog.Portal>
-			<AlertDialog.Overlay />
-			<AlertDialog.Content>
-				<AlertDialog.Header>
-					<AlertDialog.Title>{m.webhook_delete_title()}</AlertDialog.Title>
-					<AlertDialog.Description>
-						{m.webhook_delete_confirm({ name: deleteWebhook?.name ?? '' })}
-					</AlertDialog.Description>
-				</AlertDialog.Header>
-				<AlertDialog.Footer>
-					<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
-					<Button variant="destructive" class="w-full sm:w-auto" onclick={handleDelete}>
-						{m.common_delete()}
-					</Button>
-				</AlertDialog.Footer>
-			</AlertDialog.Content>
-		</AlertDialog.Portal>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>{m.webhook_delete_title()}</AlertDialog.Title>
+				<AlertDialog.Description>
+					{m.webhook_delete_confirm({ name: deleteWebhook?.name ?? '' })}
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+				<Button variant="destructive" class="w-full sm:w-auto" onclick={handleDelete}>
+					{m.common_delete()}
+				</Button>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
 	</AlertDialog.Root>
 </div>

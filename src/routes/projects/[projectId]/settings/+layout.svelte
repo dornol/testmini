@@ -4,7 +4,6 @@
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data, children } = $props();
-	let subNavList: HTMLUListElement;
 
 	const projectId = $derived(data.project.id);
 
@@ -30,29 +29,17 @@
 		if (exact) return page.url.pathname === href;
 		return page.url.pathname.startsWith(href);
 	}
-
-	$effect(() => {
-		page.url.pathname;
-		requestAnimationFrame(() => {
-			subNavList
-				?.querySelector<HTMLElement>('[aria-current="page"]')
-				?.scrollIntoView({ block: 'nearest', inline: 'center' });
-		});
-	});
 </script>
 
 <div class="flex flex-col gap-4 md:flex-row md:gap-6">
-	<nav class="shrink-0 md:w-44">
-		<ul
-			bind:this={subNavList}
-			class="flex gap-1 overflow-x-auto scrollbar-none md:flex-col md:space-y-1 md:overflow-visible"
-		>
+	<nav class="min-w-0 shrink-0 md:w-44" aria-label={m.nav_settings()}>
+		<ul class="flex flex-wrap gap-1 md:flex-col">
 			{#each subNav as item (item.href)}
 				<li class="shrink-0 md:shrink">
 					<a
 						href={item.href}
 						class={cn(
-							'block rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors md:py-2 md:text-sm',
+							'block rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [overflow-wrap:anywhere]',
 							isActive(item.href, item.exact)
 								? 'bg-accent text-accent-foreground'
 								: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
@@ -67,6 +54,6 @@
 	</nav>
 
 	<div class="min-w-0 flex-1">
-		{@render children()}
+		{#key projectId}{@render children()}{/key}
 	</div>
 </div>

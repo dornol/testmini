@@ -228,38 +228,35 @@
 			if (!open) deletePriority = null;
 		}}
 	>
-		<AlertDialog.Portal>
-			<AlertDialog.Overlay />
-			<AlertDialog.Content>
-				<AlertDialog.Header>
-					<AlertDialog.Title>{m.priority_delete_title()}</AlertDialog.Title>
-					<AlertDialog.Description>
-						{m.priority_delete_confirm({ name: deletePriority?.name ?? '' })}
-					</AlertDialog.Description>
-				</AlertDialog.Header>
-				<AlertDialog.Footer>
-					<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
-					<form
-						class="w-full sm:w-auto"
-						method="POST"
-						action="?/delete"
-						use:enhance={() => {
-							return async ({ result, update }) => {
-								if (result.type === 'success') {
-									toast.success(m.priority_deleted());
-									deletePriority = null;
-									await update();
-								}
-							};
-						}}
-					>
-						<input type="hidden" name="priorityId" value={deletePriority?.id ?? ''} />
-						<Button type="submit" variant="destructive" class="w-full sm:w-auto">
-							{m.common_delete()}
-						</Button>
-					</form>
-				</AlertDialog.Footer>
-			</AlertDialog.Content>
-		</AlertDialog.Portal>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>{m.priority_delete_title()}</AlertDialog.Title>
+				<AlertDialog.Description>
+					{m.priority_delete_confirm({ name: deletePriority?.name ?? '' })}
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+				<form
+					class="w-full sm:w-auto"
+					method="POST"
+					action="?/delete"
+					use:enhance={() => {
+						return async ({ result, update }) => {
+							if (result.type === 'success') {
+								toast.success(m.priority_deleted());
+								deletePriority = null;
+								await update();
+							}
+						};
+					}}
+				>
+					<input type="hidden" name="priorityId" value={deletePriority?.id ?? ''} />
+					<Button type="submit" variant="destructive" class="w-full sm:w-auto">
+						{m.common_delete()}
+					</Button>
+				</form>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
 	</AlertDialog.Root>
 </div>

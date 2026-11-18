@@ -1,14 +1,16 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
-import { updateProjectSchema, type UpdateProjectInput } from '$lib/schemas/project.schema';
+import { createProjectSchema, type CreateProjectInput } from '$lib/schemas/project.schema';
+import { childLogger } from '$lib/server/logger';
 import { zodAdapter } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { project } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { requireAuth, requireProjectRole, parseId } from '$lib/server/auth-utils';
 
-const adapter = zodAdapter(updateProjectSchema);
+const log = childLogger('project-settings');
+const adapter = zodAdapter(createProjectSchema);
 
 export const load: PageServerLoad = async ({ parent, params }) => {
 	const { project: proj } = await parent();
@@ -38,16 +40,22 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		const { name, description } = form.data as UpdateProjectInput;
-		const [updated] = await db
+		const { name, description } = form.data as CreateProjectInput;
+		const changes = await db
 			.update(project)
 			.set({
 				name,
 				description: description || null
 			})
 			.where(eq(project.id, projectId))
-			.returning();
+			.returning()
+			.catch(() => {
+				log.error({ requestId: locals.requestId }, 'Project settings update failed');
+				return null;
+			});
 
+		if (!changes) return message(form, 'save_failed', { status: 500 });
+		const [updated] = changes;
 		if (!updated) {
 			error(404, 'Project not found');
 		}
@@ -79,7 +87,7 @@ export const actions: Actions = {
 			error(404, 'Project not found');
 		}
 
-		return { success: true };
+		return { success: true, requireSignoff: !proj.requireSignoff };
 	},
 
 	deactivate: async ({ locals, params }) => {

@@ -131,6 +131,8 @@
 	"dashboard_result": "Result",
 	"dashboard_env": "Env",
 	"settings_general": "General Settings",
+	"settings_general_readonly": "View the project information and its sign-off setting. Project administrators can make changes.",
+	"settings_deactivate_failed": "Unable to deactivate the project. Verify its status and try again.",
 	"settings_general_desc": "Update your project details",
 	"settings_danger_zone": "Danger Zone",
 	"settings_deactivate_desc": "Deactivating a project will hide it from the project list. This action can be reversed by an administrator.",

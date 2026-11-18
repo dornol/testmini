@@ -47,22 +47,24 @@
 	}
 </script>
 
-<AlertDialog.Root bind:open={dialogOpen}>
-	<AlertDialog.Portal>
-		<AlertDialog.Overlay />
-		<AlertDialog.Content>
-			<AlertDialog.Header>
-				<AlertDialog.Title>{m.unsaved_changes_title()}</AlertDialog.Title>
-				<AlertDialog.Description>{m.unsaved_changes_desc()}</AlertDialog.Description>
-			</AlertDialog.Header>
-			<AlertDialog.Footer>
-				<Button variant="outline" class="w-full sm:w-auto" onclick={stay}
-					>{m.unsaved_changes_stay()}</Button
-				>
-				<Button variant="destructive" class="w-full sm:w-auto" onclick={leave}
-					>{m.unsaved_changes_leave()}</Button
-				>
-			</AlertDialog.Footer>
-		</AlertDialog.Content>
-	</AlertDialog.Portal>
+<AlertDialog.Root
+	bind:open={dialogOpen}
+	onOpenChange={(open) => {
+		if (!open) pendingNavigation = null;
+	}}
+>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>{m.unsaved_changes_title()}</AlertDialog.Title>
+			<AlertDialog.Description>{m.unsaved_changes_desc()}</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<Button variant="outline" class="w-full sm:w-auto" onclick={stay}
+				>{m.unsaved_changes_stay()}</Button
+			>
+			<Button variant="destructive" class="w-full sm:w-auto" onclick={leave}
+				>{m.unsaved_changes_leave()}</Button
+			>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
 </AlertDialog.Root>

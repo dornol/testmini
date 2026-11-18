@@ -240,30 +240,27 @@
 										</Button>
 									{/snippet}
 								</AlertDialog.Trigger>
-								<AlertDialog.Portal>
-									<AlertDialog.Overlay />
-									<AlertDialog.Content>
-										<AlertDialog.Header>
-											<AlertDialog.Title>{m.api_key_revoke_title()}</AlertDialog.Title>
-											<AlertDialog.Description>
-												{m.api_key_revoke_confirm({ name: key.name })}
-											</AlertDialog.Description>
-										</AlertDialog.Header>
-										<AlertDialog.Footer>
-											<AlertDialog.Cancel class="w-full sm:w-auto">
-												{m.common_cancel()}
-											</AlertDialog.Cancel>
-											<Button
-												variant="destructive"
-												class="w-full sm:w-auto"
-												disabled={revoking}
-												onclick={() => revokeKey(key)}
-											>
-												{m.api_key_revoke()}
-											</Button>
-										</AlertDialog.Footer>
-									</AlertDialog.Content>
-								</AlertDialog.Portal>
+								<AlertDialog.Content>
+									<AlertDialog.Header>
+										<AlertDialog.Title>{m.api_key_revoke_title()}</AlertDialog.Title>
+										<AlertDialog.Description>
+											{m.api_key_revoke_confirm({ name: key.name })}
+										</AlertDialog.Description>
+									</AlertDialog.Header>
+									<AlertDialog.Footer>
+										<AlertDialog.Cancel class="w-full sm:w-auto">
+											{m.common_cancel()}
+										</AlertDialog.Cancel>
+										<Button
+											variant="destructive"
+											class="w-full sm:w-auto"
+											disabled={revoking}
+											onclick={() => revokeKey(key)}
+										>
+											{m.api_key_revoke()}
+										</Button>
+									</AlertDialog.Footer>
+								</AlertDialog.Content>
 							</AlertDialog.Root>
 						</div>
 					{/each}
@@ -275,140 +272,134 @@
 
 <!-- Generate API Key Dialog -->
 <Dialog.Root bind:open={generateOpen}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content>
-			<Dialog.Header>
-				<Dialog.Title>{m.api_key_generate_title()}</Dialog.Title>
-				<Dialog.Description>{m.api_key_generate_desc()}</Dialog.Description>
-			</Dialog.Header>
-			<div class="space-y-4 py-2">
-				<div class="space-y-2">
-					<Label for="keyName">{m.api_key_name_label()}</Label>
-					<Input id="keyName" bind:value={newKeyName} placeholder={m.api_key_name_placeholder()} />
-				</div>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>{m.api_key_generate_title()}</Dialog.Title>
+			<Dialog.Description>{m.api_key_generate_desc()}</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-4 py-2">
+			<div class="space-y-2">
+				<Label for="keyName">{m.api_key_name_label()}</Label>
+				<Input id="keyName" bind:value={newKeyName} placeholder={m.api_key_name_placeholder()} />
 			</div>
-			<Dialog.Footer>
-				<Button
-					variant="outline"
-					class="w-full sm:w-auto"
-					onclick={() => {
-						generateOpen = false;
-						newKeyName = '';
-					}}
-				>
-					{m.common_cancel()}
-				</Button>
-				<Button
-					class="w-full sm:w-auto"
-					disabled={!newKeyName.trim() || generating}
-					onclick={generateKey}
-				>
-					{generating ? m.api_key_generating() : m.api_key_generate()}
-				</Button>
-			</Dialog.Footer>
-		</Dialog.Content>
-	</Dialog.Portal>
+		</div>
+		<Dialog.Footer>
+			<Button
+				variant="outline"
+				class="w-full sm:w-auto"
+				onclick={() => {
+					generateOpen = false;
+					newKeyName = '';
+				}}
+			>
+				{m.common_cancel()}
+			</Button>
+			<Button
+				class="w-full sm:w-auto"
+				disabled={!newKeyName.trim() || generating}
+				onclick={generateKey}
+			>
+				{generating ? m.api_key_generating() : m.api_key_generate()}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
 </Dialog.Root>
 
 <!-- Show Generated Key Dialog (one-time display) -->
 <Dialog.Root open={!!generatedKey} onOpenChange={tryCloseGeneratedKey}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content>
-			<Dialog.Header>
-				<Dialog.Title>{m.api_key_created_title()}</Dialog.Title>
-				<Dialog.Description>{m.api_key_created_desc()}</Dialog.Description>
-			</Dialog.Header>
-			<div class="space-y-4 py-2">
-				<div class="rounded-md border border-amber-500/50 bg-amber-50 p-3 dark:bg-amber-950/30">
-					<p class="text-sm font-medium text-amber-800 dark:text-amber-200">
-						{m.api_key_copy_warning()}
-					</p>
-				</div>
-				<div class="space-y-2">
-					<Label class="break-words">{m.api_key_name_label()}: {generatedKeyName}</Label>
-					<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-						<code class="bg-muted flex-1 overflow-x-auto rounded p-2 font-mono text-sm break-all">
-							{generatedKey}
-						</code>
-						<Button
-							variant={keyCopied ? 'outline' : 'default'}
-							size="sm"
-							class="w-full sm:w-auto"
-							onclick={() => copyKey(generatedKey!)}
-						>
-							{#if keyCopied}
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="14"
-									height="14"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									class="mr-1"><path d="M20 6 9 17l-5-5" /></svg
-								>
-							{/if}
-							{m.api_key_copy()}
-						</Button>
-					</div>
-				</div>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>{m.api_key_created_title()}</Dialog.Title>
+			<Dialog.Description>{m.api_key_created_desc()}</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-4 py-2">
+			<div class="rounded-md border border-amber-500/50 bg-amber-50 p-3 dark:bg-amber-950/30">
+				<p class="text-sm font-medium text-amber-800 dark:text-amber-200">
+					{m.api_key_copy_warning()}
+				</p>
 			</div>
-			<!-- MCP Connection Guide -->
-			<div class="space-y-3 border-t pt-4">
-				<div>
-					<h4 class="text-sm font-semibold">{m.mcp_connect_title()}</h4>
-					<p class="text-muted-foreground text-xs mt-0.5">{m.mcp_connect_desc()}</p>
-				</div>
-				<div class="flex flex-wrap gap-1">
-					{#each mcpAgents as agent, i (agent.name)}
-						<button
-							type="button"
-							class="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors
-								{selectedAgent === i
-								? 'bg-primary text-primary-foreground border-primary'
-								: 'bg-background hover:bg-accent border-input'}"
-							onclick={() => {
-								selectedAgent = i;
-							}}
-						>
-							{agent.name}
-						</button>
-					{/each}
-				</div>
-				<div class="relative">
-					<pre
-						class="bg-muted max-h-36 overflow-x-auto rounded-md p-3 pr-16 font-mono text-xs whitespace-pre-wrap break-all">{generatedKey
-							? mcpAgents[selectedAgent].command(generatedKey)
-							: ''}</pre>
+			<div class="space-y-2">
+				<Label class="break-words">{m.api_key_name_label()}: {generatedKeyName}</Label>
+				<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+					<code class="bg-muted flex-1 overflow-x-auto rounded p-2 font-mono text-sm break-all">
+						{generatedKey}
+					</code>
 					<Button
-						variant="outline"
+						variant={keyCopied ? 'outline' : 'default'}
 						size="sm"
-						class="absolute top-1.5 right-1.5 h-6 px-2 text-[10px]"
-						onclick={copyMcpCommand}
+						class="w-full sm:w-auto"
+						onclick={() => copyKey(generatedKey!)}
 					>
+						{#if keyCopied}
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="14"
+								height="14"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="mr-1"><path d="M20 6 9 17l-5-5" /></svg
+							>
+						{/if}
 						{m.api_key_copy()}
 					</Button>
 				</div>
-				{#if selectedAgent === 0}
-					<p class="text-muted-foreground text-[11px]">{m.mcp_hint_terminal()}</p>
-				{:else}
-					<p class="text-muted-foreground text-[11px]">
-						{m.mcp_hint_config({
-							file: selectedAgent === 1 ? '.cursor/mcp.json' : '.windsurf/mcp.json'
-						})}
-					</p>
-				{/if}
 			</div>
-
-			<Dialog.Footer>
-				<Button class="w-full sm:w-auto" onclick={() => tryCloseGeneratedKey(false)}>
-					{m.common_close()}
+		</div>
+		<!-- MCP Connection Guide -->
+		<div class="space-y-3 border-t pt-4">
+			<div>
+				<h4 class="text-sm font-semibold">{m.mcp_connect_title()}</h4>
+				<p class="text-muted-foreground text-xs mt-0.5">{m.mcp_connect_desc()}</p>
+			</div>
+			<div class="flex flex-wrap gap-1">
+				{#each mcpAgents as agent, i (agent.name)}
+					<button
+						type="button"
+						class="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors
+								{selectedAgent === i
+							? 'bg-primary text-primary-foreground border-primary'
+							: 'bg-background hover:bg-accent border-input'}"
+						onclick={() => {
+							selectedAgent = i;
+						}}
+					>
+						{agent.name}
+					</button>
+				{/each}
+			</div>
+			<div class="relative">
+				<pre
+					class="bg-muted max-h-36 overflow-x-auto rounded-md p-3 pr-16 font-mono text-xs whitespace-pre-wrap break-all">{generatedKey
+						? mcpAgents[selectedAgent].command(generatedKey)
+						: ''}</pre>
+				<Button
+					variant="outline"
+					size="sm"
+					class="absolute top-1.5 right-1.5 h-6 px-2 text-[10px]"
+					onclick={copyMcpCommand}
+				>
+					{m.api_key_copy()}
 				</Button>
-			</Dialog.Footer>
-		</Dialog.Content>
-	</Dialog.Portal>
+			</div>
+			{#if selectedAgent === 0}
+				<p class="text-muted-foreground text-[11px]">{m.mcp_hint_terminal()}</p>
+			{:else}
+				<p class="text-muted-foreground text-[11px]">
+					{m.mcp_hint_config({
+						file: selectedAgent === 1 ? '.cursor/mcp.json' : '.windsurf/mcp.json'
+					})}
+				</p>
+			{/if}
+		</div>
+
+		<Dialog.Footer>
+			<Button class="w-full sm:w-auto" onclick={() => tryCloseGeneratedKey(false)}>
+				{m.common_close()}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
 </Dialog.Root>

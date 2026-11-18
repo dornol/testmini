@@ -1,139 +1,168 @@
 <script lang="ts">
-	import { superForm } from 'sveltekit-superforms';
-	import { updateProjectSchema } from '$lib/schemas/project.schema';
-	import { zodValidators } from '$lib/form-utils';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
-	import { Textarea } from '$lib/components/ui/textarea/index.js';
-	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
-	import { toast } from 'svelte-sonner';
-	import { invalidateAll } from '$app/navigation';
-	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
+	import { tick, untrack } from 'svelte';
+	import { enhance } from '$app/forms';
+	import type { SubmitFunction } from '@sveltejs/kit';
+	import ProjectDetailsForm from '$lib/components/ProjectDetailsForm.svelte';
+	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import { Button } from '$lib/components/ui/button';
 	import * as m from '$lib/paraglide/messages.js';
 
-	let { data } = $props();
-
-	const validators = zodValidators(updateProjectSchema);
-	const { form, errors, enhance, submitting, tainted } = superForm(
-		// svelte-ignore state_referenced_locally
-		data.form,
-		{
-			validators,
-			onUpdated({ form }) {
-				if (form.message) {
-					toast.success(form.message);
-				}
-			}
-		}
-	);
-
+	let { data, form } = $props();
+	const canManage = $derived(data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN');
 	let deactivateOpen = $state(false);
+	let signoff = $state(untrack(() => data.requireSignoff));
+	let pending = $state<'signoff' | 'deactivate' | null>(null);
+	let failed = $state<typeof pending>(null);
+	let deactivateFeedback = $state<HTMLElement | null>(null);
+
+	function submitAction(kind: 'signoff' | 'deactivate'): SubmitFunction {
+		return ({ cancel }) => {
+			if (pending) {
+				cancel();
+				return;
+			}
+			pending = kind;
+			failed = null;
+			return async ({ result, update }) => {
+				try {
+					if (result.type === 'success' && typeof result.data?.requireSignoff === 'boolean') {
+						signoff = result.data.requireSignoff;
+					} else if (result.type === 'redirect') {
+						await update();
+					} else {
+						failed = kind;
+						if (kind === 'deactivate') {
+							await tick();
+							deactivateFeedback?.focus();
+						}
+					}
+				} finally {
+					pending = null;
+				}
+			};
+		};
+	}
 </script>
 
-<UnsavedChangesGuard dirty={!!$tainted && !$submitting} />
-
 <div class="space-y-4">
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>{m.settings_general()}</Card.Title>
-			<Card.Description>{m.settings_general_desc()}</Card.Description>
-		</Card.Header>
-		<Card.Content>
-			<form method="POST" action="?/update" use:enhance class="space-y-4">
-				<div class="space-y-2">
-					<Label for="name">{m.project_name_label()}</Label>
-					<Input id="name" name="name" bind:value={$form.name} />
-					{#if $errors.name}
-						<p class="text-destructive text-sm">{$errors.name}</p>
-					{/if}
-				</div>
-
-				<div class="space-y-2">
-					<Label for="description">{m.common_description()}</Label>
-					<Textarea
-						id="description"
-						name="description"
-						value={$form.description as string}
-						oninput={(e) => {
-							$form.description = e.currentTarget.value;
-						}}
-						rows={4}
-					/>
-					{#if $errors.description}
-						<p class="text-destructive text-sm">{$errors.description}</p>
-					{/if}
-				</div>
-
-				<Button type="submit" class="w-full sm:w-auto" disabled={$submitting}>
-					{$submitting ? m.common_saving() : m.common_save_changes()}
-				</Button>
-			</form>
-		</Card.Content>
-	</Card.Root>
-
-	<!-- Sign-off requirement -->
-	<Card.Root>
-		<Card.Content class="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-			<div class="min-w-0">
-				<p class="text-sm font-medium">{m.settings_require_signoff()}</p>
-				<p class="text-muted-foreground text-xs">{m.signoff_required()}</p>
+	<PageHeader
+		title={m.settings_general()}
+		description={canManage ? m.settings_general_desc() : m.settings_general_readonly()}
+	/>
+	{#if canManage}
+		<ProjectDetailsForm
+			initial={form?.form ?? data.form}
+			action="?/update"
+			editing
+			guard={pending !== 'deactivate'}
+		/>
+	{:else}
+		<dl class="space-y-3 rounded-xl border bg-card p-4 [overflow-wrap:anywhere]">
+			<div>
+				<dt class="text-sm text-muted-foreground">{m.project_name_label()}</dt>
+				<dd class="font-medium">{data.project.name}</dd>
 			</div>
-			<form method="POST" action="?/toggleSignoff">
-				<Button
-					type="submit"
-					variant={data.requireSignoff ? 'default' : 'outline'}
-					size="sm"
-					class="w-full sm:w-auto"
-				>
-					{data.requireSignoff ? m.common_active() : m.common_inactive()}
-				</Button>
-			</form>
-		</Card.Content>
-	</Card.Root>
+			<div>
+				<dt class="text-sm text-muted-foreground">{m.common_description()}</dt>
+				<dd class="whitespace-pre-wrap">{data.project.description || '—'}</dd>
+			</div>
+		</dl>
+	{/if}
 
-	{#if data.project.active}
-		<Card.Root class="border-destructive">
-			<Card.Header>
-				<Card.Title class="text-destructive">{m.settings_danger_zone()}</Card.Title>
-				<Card.Description>
-					{m.settings_deactivate_desc()}
-				</Card.Description>
-			</Card.Header>
-			<Card.Content>
-				<AlertDialog.Root bind:open={deactivateOpen}>
-					<AlertDialog.Trigger>
-						{#snippet child({ props })}
-							<Button variant="destructive" class="w-full sm:w-auto" {...props}>
-								{m.settings_deactivate()}
+	<section aria-labelledby="project-signoff" class="space-y-2 rounded-xl border bg-card p-4">
+		<div class="flex flex-wrap items-center justify-between gap-3">
+			<h3 id="project-signoff" class="min-w-0 text-sm font-medium">
+				{m.settings_require_signoff()}
+			</h3>
+			{#if canManage}
+				<form method="POST" action="?/toggleSignoff" use:enhance={submitAction('signoff')}>
+					<Button
+						type="submit"
+						role="switch"
+						aria-checked={signoff}
+						aria-labelledby="project-signoff"
+						aria-disabled={pending !== null}
+						variant={signoff ? 'default' : 'outline'}
+					>
+						<span aria-hidden="true">{signoff ? m.common_active() : m.common_inactive()}</span>
+					</Button>
+				</form>
+			{:else}
+				<p class="text-sm text-muted-foreground">
+					{signoff ? m.common_active() : m.common_inactive()}
+				</p>
+			{/if}
+		</div>
+		{#if pending === 'signoff'}<p role="status" class="text-sm text-muted-foreground">
+				{m.common_saving()}
+			</p>{/if}
+		{#if failed === 'signoff'}<p role="alert" class="text-sm text-destructive">
+				{m.ui_save_failed()}
+			</p>{/if}
+	</section>
+
+	{#if canManage && data.project.active}
+		<section
+			aria-labelledby="project-deactivation"
+			class="space-y-3 rounded-xl border border-destructive/40 bg-card p-4"
+		>
+			<h3 id="project-deactivation" class="font-semibold text-destructive">
+				{m.settings_danger_zone()}
+			</h3>
+			<p class="text-sm text-muted-foreground">{m.settings_deactivate_desc()}</p>
+			<AlertDialog.Root
+				bind:open={deactivateOpen}
+				onOpenChange={(open) => {
+					if (open) failed = null;
+				}}
+			>
+				<AlertDialog.Trigger>
+					{#snippet child({ props })}
+						<Button variant="destructive" class="w-full sm:w-auto" {...props}>
+							{m.settings_deactivate()}
+						</Button>
+					{/snippet}
+				</AlertDialog.Trigger>
+				<AlertDialog.Content escapeKeydownBehavior={pending === 'deactivate' ? 'ignore' : 'close'}>
+					<AlertDialog.Header>
+						<AlertDialog.Title>{m.settings_deactivate_title()}</AlertDialog.Title>
+						<AlertDialog.Description class="[overflow-wrap:anywhere]">
+							{m.settings_deactivate_confirm({ name: data.project.name })}
+						</AlertDialog.Description>
+					</AlertDialog.Header>
+					{#if failed === 'deactivate'}
+						<p
+							role="alert"
+							tabindex="-1"
+							bind:this={deactivateFeedback}
+							class="text-sm text-destructive"
+						>
+							{m.settings_deactivate_failed()}
+						</p>
+					{/if}
+					<AlertDialog.Footer>
+						<AlertDialog.Cancel class="w-full sm:w-auto" disabled={pending === 'deactivate'}>
+							{m.common_cancel()}
+						</AlertDialog.Cancel>
+						<form
+							class="w-full sm:w-auto"
+							method="POST"
+							action="?/deactivate"
+							use:enhance={submitAction('deactivate')}
+						>
+							<Button
+								type="submit"
+								variant="destructive"
+								class="w-full sm:w-auto"
+								disabled={pending !== null}
+							>
+								{pending === 'deactivate' ? m.common_saving() : m.settings_deactivate()}
 							</Button>
-						{/snippet}
-					</AlertDialog.Trigger>
-					<AlertDialog.Portal>
-						<AlertDialog.Overlay />
-						<AlertDialog.Content>
-							<AlertDialog.Header>
-								<AlertDialog.Title>{m.settings_deactivate_title()}</AlertDialog.Title>
-								<AlertDialog.Description>
-									{m.settings_deactivate_confirm({ name: data.project.name })}
-								</AlertDialog.Description>
-							</AlertDialog.Header>
-							<AlertDialog.Footer>
-								<AlertDialog.Cancel class="w-full sm:w-auto">
-									{m.common_cancel()}
-								</AlertDialog.Cancel>
-								<form class="w-full sm:w-auto" method="POST" action="?/deactivate">
-									<Button type="submit" variant="destructive" class="w-full sm:w-auto">
-										{m.settings_deactivate()}
-									</Button>
-								</form>
-							</AlertDialog.Footer>
-						</AlertDialog.Content>
-					</AlertDialog.Portal>
-				</AlertDialog.Root>
-			</Card.Content>
-		</Card.Root>
+						</form>
+					</AlertDialog.Footer>
+				</AlertDialog.Content>
+			</AlertDialog.Root>
+		</section>
 	{/if}
 </div>

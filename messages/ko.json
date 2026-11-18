@@ -1472,5 +1472,16 @@
 	"ui_exploratory_remove_screenshot": "스크린샷 제거",
 	"ui_exploratory_screenshot_format": "PNG, JPEG, GIF 또는 WebP 이미지를 선택해 주세요.",
 	"ui_exploratory_screenshot_size": "10MB 이하의 이미지를 선택해 주세요.",
-	"ui_exploratory_delete_note": "노트 삭제"
+	"ui_exploratory_delete_note": "노트 삭제",
+	"quality_no_cases": "아직 테스트 케이스가 없습니다.",
+	"quality_linked_module_count": "모듈 {total}개 중 {count}개 연결됨",
+	"quality_assessed_case_count": "케이스 {total}개 중 {count}개 평가됨",
+	"quality_automated_case_count": "케이스 {total}개 중 {count}개 자동화에 연결됨",
+	"quality_uncovered_modules": "케이스 없는 모듈",
+	"quality_unassessed_cases": "미평가 케이스",
+	"quality_high_risk_cases": "높은 위험 케이스",
+	"quality_critical_risk_cases": "치명적 위험 케이스",
+	"quality_no_review_data": "모듈이나 테스트 케이스를 추가하면 검토할 항목이 표시됩니다.",
+	"quality_module_results_hint": "합격·실패는 각 케이스의 현재 버전에서 가장 최근 실행 결과를 기준으로 집계합니다.",
+	"quality_run_pass_count": "{total}개 중 {count}개 합격"
 }

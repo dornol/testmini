@@ -1472,5 +1472,16 @@
 	"ui_exploratory_remove_screenshot": "Remove screenshot",
 	"ui_exploratory_screenshot_format": "Choose a PNG, JPEG, GIF, or WebP image.",
 	"ui_exploratory_screenshot_size": "Choose an image up to 10 MB.",
-	"ui_exploratory_delete_note": "Delete note"
+	"ui_exploratory_delete_note": "Delete note",
+	"quality_no_cases": "No test cases yet.",
+	"quality_linked_module_count": "{count} of {total} modules linked",
+	"quality_assessed_case_count": "{count} of {total} cases assessed",
+	"quality_automated_case_count": "{count} of {total} cases linked",
+	"quality_uncovered_modules": "Modules without cases",
+	"quality_unassessed_cases": "Unassessed cases",
+	"quality_high_risk_cases": "High-risk cases",
+	"quality_critical_risk_cases": "Critical-risk cases",
+	"quality_no_review_data": "Add modules or test cases to see what needs review.",
+	"quality_module_results_hint": "Pass and fail counts use the latest result for each case’s current version.",
+	"quality_run_pass_count": "Passed {count} of {total}"
 }

@@ -933,6 +933,9 @@
 	"report_schedule_empty": "예약된 리포트가 없습니다",
 	"report_shared_title": "공유 리포트",
 	"report_shared_expired": "이 리포트 링크가 만료되었습니다",
+	"report_shared_unavailable": "보고서 링크를 열 수 없습니다",
+	"report_shared_unavailable_hint": "주소를 확인하거나 보고서를 공유한 사람에게 새 링크를 요청하세요.",
+	"report_shared_expired_hint": "보고서를 공유한 사람에게 새 링크를 요청하세요.",
 
 	"param_title": "매개변수 & 데이터",
 	"param_variables": "매개변수",

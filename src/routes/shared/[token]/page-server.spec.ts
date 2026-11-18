@@ -117,12 +117,15 @@ describe('/shared/[token] page server', () => {
 		expect(mockProjectFindFirst).toHaveBeenCalled();
 		expect(mockParseDateRange).toHaveBeenCalledWith(report.config);
 		expect(mockLoadReportData).toHaveBeenCalledWith(7, expect.objectContaining({ allTime: false }));
-		expect(result).toEqual(
-			expect.objectContaining({
-				reportName: 'Weekly Report',
-				projectName: 'Project Phoenix',
-				dateRange: { from: '2025-01-01', to: '2025-01-31', allTime: false }
-			})
-		);
+		expect(result).toEqual({
+			reportName: 'Weekly Report',
+			projectName: 'Project Phoenix',
+			dateRange: { from: '2025-01-01', to: '2025-01-31', allTime: false },
+			envStats: [],
+			recentRuns: [],
+			priorityStats: [],
+			dailyResults: [],
+			topFailingCases: []
+		});
 	});
 });

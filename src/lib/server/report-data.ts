@@ -11,7 +11,7 @@ import {
 	issueLink,
 	user
 } from '$lib/server/db/schema';
-import { eq, and, sql, desc, count, isNotNull, gte, lte, max } from 'drizzle-orm';
+import { eq, and, sql, desc, count, countDistinct, isNotNull, gte, lte, max } from 'drizzle-orm';
 
 export interface ReportDateRange {
 	from: Date | null;
@@ -100,7 +100,7 @@ async function loadReportDataInternal(projectId: number, range: ReportDateRange)
 		db
 			.select({
 				environment: testRun.environment,
-				totalRuns: count(testRun.id),
+				totalRuns: countDistinct(testRun.id),
 				totalExecs: sql<number>`count(${testExecution.id})`.as('total_execs'),
 				passCount: sql<number>`count(case when ${testExecution.status} = 'PASS' then 1 end)`.as(
 					'pass_count'

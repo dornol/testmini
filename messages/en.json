@@ -933,6 +933,9 @@
 	"report_schedule_empty": "No scheduled reports",
 	"report_shared_title": "Shared Report",
 	"report_shared_expired": "This report link has expired",
+	"report_shared_unavailable": "Report link unavailable",
+	"report_shared_unavailable_hint": "Check the address or ask the person who shared the report for a new link.",
+	"report_shared_expired_hint": "Ask the person who shared the report for a new link.",
 
 	"param_title": "Parameters & Data",
 	"param_variables": "Parameters",

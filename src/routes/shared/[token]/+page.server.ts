@@ -28,12 +28,17 @@ export const load: PageServerLoad = async ({ params }) => {
 
 	const config = report.config as { from?: string; to?: string; preset?: string };
 	const range = parseDateRange(config);
-	const data = await loadReportData(report.projectId, range);
+	const { envStats, recentRuns, priorityStats, dailyResults, topFailingCases } =
+		await loadReportData(report.projectId, range);
 
 	return {
 		reportName: report.name,
 		projectName: proj.name,
-		...data,
+		envStats,
+		recentRuns,
+		priorityStats,
+		dailyResults,
+		topFailingCases,
 		dateRange: {
 			from: range.from ? reportCalendarDate(range.from) : null,
 			to: range.to ? reportCalendarDate(range.to) : null,

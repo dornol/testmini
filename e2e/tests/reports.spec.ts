@@ -1,6 +1,9 @@
 import { test, expect } from '../fixtures/auth.fixture';
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
+import { randomBytes } from 'node:crypto';
+
+const failingCaseTitle = 'Reports E2E Test Case ' + 'longidentifier'.repeat(8);
 
 async function checkReportChartData(page: Page) {
 	const runChart = page.locator('[role=region][aria-labelledby=report-results-by-run]');
@@ -15,7 +18,7 @@ async function checkReportChartData(page: Page) {
 		await expect(table.getByRole('columnheader')).toHaveCount(5);
 		const values = table.getByRole('cell');
 		await expect(values).toHaveCount(4);
-		for (const [index, count] of ['0', '1', '0', '0'].entries())
+		for (const [index, count] of ['0', '1', '1', '0'].entries())
 			await expect(values.nth(index)).toHaveAccessibleName(count);
 		await expect(table.getByRole('rowheader')).toBeVisible();
 		expect(await region.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(false);
@@ -199,7 +202,7 @@ test.describe.serial('Reports', () => {
 		await page.goto(`/projects/${projectId}/test-cases/new`);
 		await page.waitForLoadState('networkidle');
 
-		await page.fill('#title', 'Reports E2E Test Case');
+		await page.fill('#title', failingCaseTitle);
 		await page.fill('#precondition', 'Project exists');
 		await page.fill('#expectedResult', 'Test passes');
 		await page.click('button[type="submit"]');
@@ -213,6 +216,12 @@ test.describe.serial('Reports', () => {
 		});
 		expect(issue.status()).toBe(201);
 
+		await page.goto(`/projects/${projectId}/test-cases/new`);
+		await page.waitForLoadState('networkidle');
+		await page.fill('#title', 'Reports blocked case');
+		await page.click('button[type="submit"]');
+		await page.waitForURL(/test-cases\/\d+$/);
+
 		// Create a test run
 		await page.goto(`/projects/${projectId}/test-runs/new`);
 		await page.waitForLoadState('networkidle');
@@ -225,17 +234,27 @@ test.describe.serial('Reports', () => {
 			.getByRole('checkbox', { name: /Reports E2E Test Case/ })
 			.check();
 
+		await page
+			.locator('#run-cases')
+			.getByRole('checkbox', { name: /Reports blocked case/ })
+			.check();
+
 		await page.click('button[type="submit"]');
 		await page.waitForURL(new RegExp(`/projects/${projectId}/test-runs/\\d+$`), { timeout: 15000 });
 
 		// Complete the run so the report includes real results.
 		await page.locator('form[action*="updateRunStatus"] button[type=submit]').first().click();
-		await page.locator('[data-status-dropdown]:visible').first().click();
+		const failedRow = page.getByRole('row').filter({ hasText: failingCaseTitle });
+		const blockedRow = page.getByRole('row').filter({ hasText: 'Reports blocked case' });
+		await failedRow.locator('[data-status-dropdown]:visible').click();
 		await page.getByRole('menuitem', { name: 'FAIL', exact: true }).click();
 		const failure = page.getByRole('dialog', { name: /FAIL 처리/ });
 		await failure.locator('#addErrorMessage').fill('Report fixture failure');
 		await failure.getByRole('button', { name: 'FAIL 처리', exact: true }).click();
-		await expect(page.locator('[data-status-dropdown]:visible').first()).toContainText('FAIL');
+		await expect(failedRow.locator('[data-status-dropdown]:visible')).toContainText('FAIL');
+		await blockedRow.locator('[data-status-dropdown]:visible').click();
+		await page.getByRole('menuitem', { name: 'BLOCKED', exact: true }).click();
+		await expect(blockedRow.locator('[data-status-dropdown]:visible')).toContainText('BLOCKED');
 		await page.locator('form:has(input[value=COMPLETED]) button[type=submit]').click();
 		await expect(page.locator('form:has(input[value=COMPLETED])')).toHaveCount(0);
 	});
@@ -337,6 +356,7 @@ test.describe.serial('Reports', () => {
 
 	test('report sharing retries, preserves the draft, and exposes the new URL only at creation', async ({
 		page,
+		browser,
 		playwright
 	}, testInfo) => {
 		await page.setViewportSize({ width: 375, height: 850 });
@@ -423,7 +443,16 @@ test.describe.serial('Reports', () => {
 			dialog.locator('li p').filter({ hasText: /^Recoverable report share$/ })
 		).toHaveCount(0);
 		await expect(dialog.getByText('공유 링크가 없습니다')).toBeVisible();
-		expect((await page.request.get(url)).status()).toBe(404);
+		const anonymous = await browser.newContext();
+		try {
+			const publicPage = await anonymous.newPage();
+			expect((await publicPage.goto(url))?.status()).toBe(404);
+			await expect(
+				publicPage.getByRole('heading', { name: '보고서 링크를 열 수 없습니다' })
+			).toBeVisible();
+		} finally {
+			await anonymous.close();
+		}
 	});
 
 	test('schedule recovers from failed requests and preserves the true enabled state', async ({
@@ -682,10 +711,36 @@ test.describe.serial('Reports', () => {
 		publicChartShare = await share.json();
 	});
 
+	test('invalid and missing public links guide anonymous readers', async ({ browser, baseURL }) => {
+		const client = await browser.newContext({
+			baseURL,
+			viewport: { width: 375, height: 850 },
+			colorScheme: 'dark'
+		});
+		try {
+			await client.addCookies([{ name: 'PARAGLIDE_LOCALE', value: 'en', url: baseURL! }]);
+			const page = await client.newPage();
+			for (const token of ['invalid-link', randomBytes(32).toString('hex')]) {
+				expect((await page.goto('/shared/' + token))?.status()).toBe(404);
+				await expect(page.getByRole('heading', { name: 'Report link unavailable' })).toBeVisible();
+				await expect(
+					page.getByText(
+						'Check the address or ask the person who shared the report for a new link.'
+					)
+				).toBeVisible();
+				await page.keyboard.press('Tab');
+				await expect(page.getByRole('link', { name: 'Go home' })).toBeFocused();
+				await expect(page.getByRole('link', { name: 'Go home' })).toHaveAttribute('href', '/');
+			}
+		} finally {
+			await client.close();
+		}
+	});
+
 	for (const locale of ['ko', 'en'])
 		for (const theme of ['light', 'dark'] as const)
 			for (const width of [375, 768, 1440]) {
-				test(`public ${locale}/${theme}/${width}: charts supply exact counts without sign-in`, async ({
+				test(`public ${locale}/${theme}/${width}: charts and tables supply exact counts without sign-in`, async ({
 					browser,
 					baseURL
 				}, testInfo) => {
@@ -710,9 +765,23 @@ test.describe.serial('Reports', () => {
 						if (locale === 'en')
 							await expect(report.getByText(publicDateLabel, { exact: false })).toBeVisible();
 						await checkReportChartData(page);
+						const env = report.locator('table[aria-labelledby=shared-environments]');
+						await expect(env.getByRole('rowheader')).toBeVisible();
+						const envValues = env.getByRole('cell');
+						for (const [index, value] of ['1', '0', '1', '0%'].entries())
+							await expect(envValues.nth(index)).toHaveAccessibleName(value);
+						const priorities = report.locator('table[aria-labelledby=shared-priorities]');
+						await expect(priorities.getByRole('rowheader')).toBeVisible();
+						const failing = report.locator('table[aria-labelledby=shared-failing]');
+						await expect(failing.getByRole('rowheader')).toContainText(failingCaseTitle);
+						const runs = report.locator('table[aria-labelledby=shared-runs]');
+						await expect(runs.getByRole('rowheader')).toHaveText('Reports E2E Run');
+						await expect(report.locator('table[aria-labelledby^=shared-]')).toHaveCount(4);
+
 						const audit = await new AxeBuilder({ page })
 							.include('[aria-labelledby=report-results-by-run]')
 							.include('[aria-labelledby=report-results-by-date]')
+							.include('table[aria-labelledby^=shared-]')
 							.withTags(['wcag2a', 'wcag2aa'])
 							.analyze();
 						expect(

@@ -102,6 +102,7 @@ vi.mock('drizzle-orm', () => {
 		and: vi.fn((...args) => args),
 		sql: mockSql,
 		desc: vi.fn((a) => a),
+		countDistinct: vi.fn(() => 'count distinct'),
 		count: vi.fn((a) => a),
 		isNotNull: vi.fn((a) => a),
 		gte: vi.fn((a, b) => [a, b]),

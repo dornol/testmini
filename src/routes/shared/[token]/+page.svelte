@@ -1,7 +1,6 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
-	import { Badge } from '$lib/components/ui/badge/index.js';
 	import ReportResultCharts from '$lib/components/reports/ReportResultCharts.svelte';
 	import { formatReportCalendarDate } from '$lib/report-calendar';
 	import { getLocale } from '$lib/paraglide/runtime.js';
@@ -16,6 +15,14 @@
 	const topFailingCases = $derived(data.topFailingCases);
 	const dateRange = $derived(data.dateRange);
 
+	type MetricColumn = { label: string; tone?: string };
+	type MetricRow = { id: string | number; name: string; key?: string; values: (string | number)[] };
+
+	const total = $derived({ label: m.reports_executions() });
+	const pass = $derived({ label: m.shared_pass(), tone: 'report-result-pass' });
+	const fail = $derived({ label: m.shared_fail(), tone: 'report-result-fail' });
+	const rate = $derived({ label: m.shared_pass_rate() });
+
 	const activeDateLabel = $derived(
 		dateRange.allTime
 			? m.filter_all_time()
@@ -24,291 +31,129 @@
 				: m.filter_last_30_days()
 	);
 
-	function passRate(pass: number, total: number): string {
-		if (total === 0) return '-';
-		return `${Math.round((pass / total) * 100)}%`;
-	}
-
-	function barWidth(value: number, total: number): string {
-		if (total === 0) return '0%';
-		return `${(value / total) * 100}%`;
+	function passRate(passCount: number, totalCount: number): string {
+		return Number(totalCount) > 0 ? `${Math.round((passCount / totalCount) * 100)}%` : '—';
 	}
 </script>
 
-<main class="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
-	<!-- Header -->
-	<div class="space-y-1 text-center">
-		<h1 class="text-2xl font-bold [overflow-wrap:anywhere]">{data.reportName}</h1>
-		<p class="text-muted-foreground break-words text-sm">
-			{data.projectName} &middot; {activeDateLabel}
-		</p>
-	</div>
-
-	<!-- Environment Breakdown -->
-	{#if envStats.length > 0}
+{#snippet statistics(
+	id: string,
+	title: string,
+	rowLabel: string,
+	columns: MetricColumn[],
+	rows: MetricRow[]
+)}
+	{#if rows.length}
 		<Card.Root>
-			<Card.Header>
-				<Card.Title class="text-sm font-medium">{m.shared_env_summary()}</Card.Title>
-			</Card.Header>
-			<Card.Content>
-				<div class="grid gap-4 sm:grid-cols-2">
-					{#each envStats as env (env.environment)}
-						{@const rate =
-							env.totalExecs > 0 ? Math.round((env.passCount / env.totalExecs) * 100) : 0}
-						<div class="rounded-lg border p-4">
-							<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-								<Badge variant="outline" class="w-fit max-w-full whitespace-normal break-words"
-									>{env.environment}</Badge
+			<Card.Header><h2 {id} class="text-lg font-medium">{title}</h2></Card.Header>
+			<Card.Content class="p-0">
+				<Table.Root role="table" aria-labelledby={id} class="report-metrics sm:min-w-[30rem]">
+					<Table.Header role="rowgroup">
+						<Table.Row role="row">
+							<Table.Head scope="col" role="columnheader">{rowLabel}</Table.Head>
+							{#each columns as column (column.label)}
+								<Table.Head scope="col" role="columnheader" class="sm:w-24"
+									>{column.label}</Table.Head
 								>
-								<span
-									class="text-2xl font-bold {rate >= 80
-										? 'text-green-600'
-										: rate >= 50
-											? 'text-yellow-600'
-											: env.totalExecs === 0
-												? ''
-												: 'text-red-600'}"
+							{/each}
+						</Table.Row>
+					</Table.Header>
+					<Table.Body role="rowgroup">
+						{#each rows as row (row.id)}
+							<Table.Row role="row">
+								<Table.Head
+									scope="row"
+									role="rowheader"
+									class="report-metric-wide h-auto whitespace-normal py-2 text-foreground"
 								>
-									{env.totalExecs > 0 ? `${rate}%` : '-'}
-								</span>
-							</div>
-							<div class="mt-3 space-y-1">
-								<div class="bg-secondary flex h-2 overflow-hidden rounded-full">
-									{#if env.passCount > 0}
-										<div
-											class="bg-green-500"
-											style="width: {barWidth(env.passCount, env.totalExecs)}"
-										></div>
-									{/if}
-									{#if env.failCount > 0}
-										<div
-											class="bg-red-500"
-											style="width: {barWidth(env.failCount, env.totalExecs)}"
-										></div>
-									{/if}
-								</div>
-								<div
-									class="text-muted-foreground flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs"
-								>
-									<span>{m.shared_runs({ count: env.totalRuns })}</span>
-									<span>{m.shared_pass_fail({ pass: env.passCount, fail: env.failCount })}</span>
-								</div>
-							</div>
-						</div>
-					{/each}
-				</div>
+									{#if row.key}<span class="block text-xs text-muted-foreground">{row.key}</span
+										>{/if}
+									{row.name}
+								</Table.Head>
+								{#each columns as column, i (column.label)}
+									<Table.Cell role="cell" class="whitespace-normal {column.tone ?? ''}">
+										<span aria-hidden="true" class="block text-xs text-muted-foreground sm:hidden"
+											>{column.label}</span
+										>
+										{row.values[i]}
+									</Table.Cell>
+								{/each}
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
 			</Card.Content>
 		</Card.Root>
 	{/if}
+{/snippet}
+
+<svelte:head>
+	<title>{data.reportName} · {m.report_shared_title()}</title>
+</svelte:head>
+
+<main class="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+	<header class="space-y-1">
+		<h1 class="text-2xl font-bold [overflow-wrap:anywhere]">{data.reportName}</h1>
+		<p class="text-sm text-muted-foreground [overflow-wrap:anywhere]">
+			{data.projectName} · {activeDateLabel}
+		</p>
+	</header>
+
+	{@render statistics(
+		'shared-environments',
+		m.shared_env_summary(),
+		m.shared_environment(),
+		[{ label: m.tr_title() }, pass, fail, rate],
+		envStats.map((row) => ({
+			id: row.environment,
+			name: row.environment,
+			values: [row.totalRuns, row.passCount, row.failCount, passRate(row.passCount, row.totalExecs)]
+		}))
+	)}
 
 	<ReportResultCharts {recentRuns} {dailyResults} />
 
-	<!-- Priority Breakdown -->
-	{#if priorityStats.length > 0}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title class="text-sm font-medium">{m.shared_priority_breakdown()}</Card.Title>
-			</Card.Header>
-			<Card.Content class="p-0">
-				<Table.Root class="hidden md:table">
-					<Table.Header>
-						<Table.Row>
-							<Table.Head>{m.common_priority()}</Table.Head>
-							<Table.Head class="w-28">{m.shared_total()}</Table.Head>
-							<Table.Head class="w-28">{m.shared_pass()}</Table.Head>
-							<Table.Head class="w-28">{m.shared_fail()}</Table.Head>
-							<Table.Head class="w-28">{m.shared_pass_rate()}</Table.Head>
-						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{#each priorityStats as ps (ps.priority)}
-							<Table.Row>
-								<Table.Cell>
-									<Badge variant="outline">{ps.priority}</Badge>
-								</Table.Cell>
-								<Table.Cell>{ps.total}</Table.Cell>
-								<Table.Cell class="text-green-600">{ps.passCount}</Table.Cell>
-								<Table.Cell class="text-red-600">{ps.failCount}</Table.Cell>
-								<Table.Cell class="font-medium">{passRate(ps.passCount, ps.total)}</Table.Cell>
-							</Table.Row>
-						{/each}
-					</Table.Body>
-				</Table.Root>
-				<div class="space-y-3 p-4 md:hidden">
-					{#each priorityStats as ps (ps.priority)}
-						<div class="rounded-md border p-3">
-							<div>
-								<Badge variant="outline">{ps.priority}</Badge>
-							</div>
-							<div class="mt-3 grid grid-cols-2 gap-2 text-sm min-[420px]:grid-cols-4">
-								<div>
-									<p class="text-muted-foreground text-xs">{m.shared_total()}</p>
-									<p class="font-medium">{ps.total}</p>
-								</div>
-								<div>
-									<p class="text-muted-foreground text-xs">{m.shared_pass()}</p>
-									<p class="font-medium text-green-600">{ps.passCount}</p>
-								</div>
-								<div>
-									<p class="text-muted-foreground text-xs">{m.shared_fail()}</p>
-									<p class="font-medium text-red-600">{ps.failCount}</p>
-								</div>
-								<div>
-									<p class="text-muted-foreground text-xs">{m.shared_pass_rate()}</p>
-									<p class="font-medium">{passRate(ps.passCount, ps.total)}</p>
-								</div>
-							</div>
-						</div>
-					{/each}
-				</div>
-			</Card.Content>
-		</Card.Root>
-	{/if}
+	{@render statistics(
+		'shared-priorities',
+		m.shared_priority_breakdown(),
+		m.common_priority(),
+		[total, pass, fail, rate],
+		priorityStats.map((row) => ({
+			id: row.priority,
+			name: row.priority,
+			values: [row.total, row.passCount, row.failCount, passRate(row.passCount, row.total)]
+		}))
+	)}
 
-	<!-- Top Failing Test Cases -->
-	{#if topFailingCases.length > 0}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title class="text-sm font-medium">{m.shared_top_failing()}</Card.Title>
-			</Card.Header>
-			<Card.Content class="p-0">
-				<Table.Root class="hidden md:table">
-					<Table.Header>
-						<Table.Row>
-							<Table.Head>{m.shared_test_case()}</Table.Head>
-							<Table.Head class="w-28">{m.shared_total()}</Table.Head>
-							<Table.Head class="w-28">{m.shared_failures()}</Table.Head>
-							<Table.Head class="w-28">{m.shared_pass_rate()}</Table.Head>
-						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{#each topFailingCases as tc (tc.testCaseId)}
-							<Table.Row>
-								<Table.Cell>
-									<span class="text-muted-foreground text-xs">{tc.testCaseKey}</span>
-									<span class="ml-1 font-medium">{tc.title}</span>
-								</Table.Cell>
-								<Table.Cell>{tc.totalExecs}</Table.Cell>
-								<Table.Cell class="text-red-600 font-medium">{tc.failCount}</Table.Cell>
-								<Table.Cell class="font-medium">{passRate(tc.passCount, tc.totalExecs)}</Table.Cell>
-							</Table.Row>
-						{/each}
-					</Table.Body>
-				</Table.Root>
-				<div class="space-y-3 p-4 md:hidden">
-					{#each topFailingCases as tc (tc.testCaseId)}
-						<div class="rounded-md border p-3">
-							<div class="space-y-1">
-								<p class="text-muted-foreground text-xs break-all">{tc.testCaseKey}</p>
-								<p class="text-sm font-medium break-words">{tc.title}</p>
-							</div>
-							<div class="mt-3 grid grid-cols-1 gap-2 text-sm min-[360px]:grid-cols-3">
-								<div>
-									<p class="text-muted-foreground text-xs">{m.shared_total()}</p>
-									<p class="font-medium">{tc.totalExecs}</p>
-								</div>
-								<div>
-									<p class="text-muted-foreground text-xs">{m.shared_failures()}</p>
-									<p class="font-medium text-red-600">{tc.failCount}</p>
-								</div>
-								<div>
-									<p class="text-muted-foreground text-xs">{m.shared_pass_rate()}</p>
-									<p class="font-medium">{passRate(tc.passCount, tc.totalExecs)}</p>
-								</div>
-							</div>
-						</div>
-					{/each}
-				</div>
-			</Card.Content>
-		</Card.Root>
-	{/if}
+	{@render statistics(
+		'shared-failing',
+		m.shared_top_failing(),
+		m.shared_test_case(),
+		[total, { ...fail, label: m.shared_failures() }, rate],
+		topFailingCases.map((row) => ({
+			id: row.testCaseId,
+			name: row.title,
+			key: row.testCaseKey,
+			values: [row.totalExecs, row.failCount, passRate(row.passCount, row.totalExecs)]
+		}))
+	)}
 
-	<!-- Recent Runs -->
-	{#if recentRuns.length > 0}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title class="text-sm font-medium">{m.shared_recent_runs()}</Card.Title>
-			</Card.Header>
-			<Card.Content class="p-0">
-				<Table.Root class="hidden md:table">
-					<Table.Header>
-						<Table.Row>
-							<Table.Head>{m.shared_name()}</Table.Head>
-							<Table.Head class="w-24">{m.shared_environment()}</Table.Head>
-							<Table.Head class="w-20">{m.shared_pass()}</Table.Head>
-							<Table.Head class="w-20">{m.shared_fail()}</Table.Head>
-							<Table.Head class="w-28">{m.shared_pass_rate()}</Table.Head>
-						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{#each [...recentRuns].reverse() as run (run.id)}
-							{@const rate =
-								run.totalCount > 0 ? Math.round((run.passCount / run.totalCount) * 100) : 0}
-							<Table.Row>
-								<Table.Cell class="font-medium">
-									<span class="block truncate">{run.name}</span>
-								</Table.Cell>
-								<Table.Cell>
-									<Badge variant="outline" class="max-w-full truncate">{run.environment}</Badge>
-								</Table.Cell>
-								<Table.Cell class="text-green-600">{run.passCount}</Table.Cell>
-								<Table.Cell class="text-red-600">{run.failCount}</Table.Cell>
-								<Table.Cell>
-									<span
-										class="font-medium {rate >= 80
-											? 'text-green-600'
-											: rate >= 50
-												? 'text-yellow-600'
-												: 'text-red-600'}"
-									>
-										{rate}%
-									</span>
-								</Table.Cell>
-							</Table.Row>
-						{/each}
-					</Table.Body>
-				</Table.Root>
-				<div class="space-y-3 p-4 md:hidden">
-					{#each [...recentRuns].reverse() as run (run.id)}
-						{@const rate =
-							run.totalCount > 0 ? Math.round((run.passCount / run.totalCount) * 100) : 0}
-						<div class="rounded-md border p-3">
-							<div class="space-y-2">
-								<p class="text-sm font-medium break-words">{run.name}</p>
-								<Badge variant="outline" class="w-fit max-w-full whitespace-normal break-words"
-									>{run.environment}</Badge
-								>
-							</div>
-							<div class="mt-3 grid grid-cols-1 gap-2 text-sm min-[360px]:grid-cols-3">
-								<div>
-									<p class="text-muted-foreground text-xs">{m.shared_pass()}</p>
-									<p class="font-medium text-green-600">{run.passCount}</p>
-								</div>
-								<div>
-									<p class="text-muted-foreground text-xs">{m.shared_fail()}</p>
-									<p class="font-medium text-red-600">{run.failCount}</p>
-								</div>
-								<div>
-									<p class="text-muted-foreground text-xs">{m.shared_pass_rate()}</p>
-									<p
-										class="font-medium {rate >= 80
-											? 'text-green-600'
-											: rate >= 50
-												? 'text-yellow-600'
-												: 'text-red-600'}"
-									>
-										{rate}%
-									</p>
-								</div>
-							</div>
-						</div>
-					{/each}
-				</div>
-			</Card.Content>
-		</Card.Root>
-	{/if}
+	{@render statistics(
+		'shared-runs',
+		m.shared_recent_runs(),
+		m.shared_name(),
+		[{ label: m.shared_environment() }, pass, fail, rate],
+		[...recentRuns].reverse().map((row) => ({
+			id: row.id,
+			name: row.name,
+			values: [
+				row.environment,
+				row.passCount,
+				row.failCount,
+				passRate(row.passCount, row.totalCount)
+			]
+		}))
+	)}
 
-	<p class="text-muted-foreground text-center text-xs">
-		{m.shared_generated_by()}
-	</p>
+	<footer class="text-center text-xs text-muted-foreground">{m.shared_generated_by()}</footer>
 </main>

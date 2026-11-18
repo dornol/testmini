@@ -88,27 +88,24 @@
 							</Button>
 						{/snippet}
 					</AlertDialog.Trigger>
-					<AlertDialog.Portal>
-						<AlertDialog.Overlay />
-						<AlertDialog.Content>
-							<AlertDialog.Header>
-								<AlertDialog.Title>{m.team_delete_title()}</AlertDialog.Title>
-								<AlertDialog.Description>
-									{m.team_delete_confirm()}
-								</AlertDialog.Description>
-							</AlertDialog.Header>
-							<AlertDialog.Footer>
-								<AlertDialog.Cancel class="w-full sm:w-auto">
-									{m.common_cancel()}
-								</AlertDialog.Cancel>
-								<form class="w-full sm:w-auto" method="POST" action="?/delete">
-									<Button type="submit" variant="destructive" class="w-full sm:w-auto">
-										{m.common_delete()}
-									</Button>
-								</form>
-							</AlertDialog.Footer>
-						</AlertDialog.Content>
-					</AlertDialog.Portal>
+					<AlertDialog.Content>
+						<AlertDialog.Header>
+							<AlertDialog.Title>{m.team_delete_title()}</AlertDialog.Title>
+							<AlertDialog.Description>
+								{m.team_delete_confirm()}
+							</AlertDialog.Description>
+						</AlertDialog.Header>
+						<AlertDialog.Footer>
+							<AlertDialog.Cancel class="w-full sm:w-auto">
+								{m.common_cancel()}
+							</AlertDialog.Cancel>
+							<form class="w-full sm:w-auto" method="POST" action="?/delete">
+								<Button type="submit" variant="destructive" class="w-full sm:w-auto">
+									{m.common_delete()}
+								</Button>
+							</form>
+						</AlertDialog.Footer>
+					</AlertDialog.Content>
 				</AlertDialog.Root>
 			</Card.Content>
 		</Card.Root>

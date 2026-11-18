@@ -286,25 +286,22 @@
 
 <!-- Toggle Active Confirmation Dialog -->
 <AlertDialog.Root bind:open={confirmDialogOpen}>
-	<AlertDialog.Portal>
-		<AlertDialog.Overlay />
-		<AlertDialog.Content>
-			<AlertDialog.Header>
-				<AlertDialog.Title>{m.admin_confirm_toggle_title()}</AlertDialog.Title>
-				<AlertDialog.Description>
-					{confirmProjectActive ? m.admin_confirm_deactivate() : m.admin_confirm_activate()}
-				</AlertDialog.Description>
-			</AlertDialog.Header>
-			<AlertDialog.Footer>
-				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
-				<Button
-					variant={confirmProjectActive ? 'destructive' : 'default'}
-					class="w-full sm:w-auto"
-					onclick={handleConfirmToggle}
-				>
-					{confirmProjectActive ? m.admin_projects_deactivate() : m.admin_projects_activate()}
-				</Button>
-			</AlertDialog.Footer>
-		</AlertDialog.Content>
-	</AlertDialog.Portal>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>{m.admin_confirm_toggle_title()}</AlertDialog.Title>
+			<AlertDialog.Description>
+				{confirmProjectActive ? m.admin_confirm_deactivate() : m.admin_confirm_activate()}
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+			<Button
+				variant={confirmProjectActive ? 'destructive' : 'default'}
+				class="w-full sm:w-auto"
+				onclick={handleConfirmToggle}
+			>
+				{confirmProjectActive ? m.admin_projects_deactivate() : m.admin_projects_activate()}
+			</Button>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
 </AlertDialog.Root>

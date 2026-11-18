@@ -1,420 +1,421 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import type { SubmitFunction } from '@sveltejs/kit';
 	import { toast } from 'svelte-sonner';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import * as Select from '$lib/components/ui/select/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
-	import { Badge } from '$lib/components/ui/badge/index.js';
-	import * as m from '$lib/paraglide/messages.js';
+	import { Table } from '$lib/components/ui/table';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { apiFetch } from '$lib/api-client';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
-
+	const canManage = $derived(data.userRole === 'ADMIN' || data.userRole === 'PROJECT_ADMIN');
 	const roles = ['PROJECT_ADMIN', 'QA', 'DEV', 'VIEWER'] as const;
+	type Member = (typeof data.members)[number];
+	type User = { id: string; name: string; email: string };
+	type Change = { member: Member; role?: string };
+	type Action = 'add' | 'role' | 'remove';
 
-	// Add member dialog
-	let addDialogOpen = $state(false);
+	let addOpen = $state(false);
+	let confirmOpen = $state(false);
+	let change = $state<Change | null>(null);
+	let pending = $state(false);
+	let error = $state('');
+	let addButton = $state<HTMLButtonElement | null>(null);
+	let memberTable = $state<HTMLTableElement | null>(null);
+	let addError = $state<HTMLElement | null>(null);
+	let confirmError = $state<HTMLElement | null>(null);
+	let previousControl: HTMLElement | null = null;
+
 	let searchQuery = $state('');
-	let searchResults = $state<{ id: string; name: string; email: string }[]>([]);
-	let selectedUser = $state<{ id: string; name: string; email: string } | null>(null);
+	let searchResults = $state<User[]>([]);
+	let searchStatus = $state<'idle' | 'loading' | 'ready' | 'error'>('idle');
+	let searchRetry = $state(0);
+	let selectedUser = $state<User | null>(null);
 	let selectedRole = $state<string>('QA');
-	let searching = $state(false);
-	let searchTimeout: ReturnType<typeof setTimeout>;
+	let searchInput = $state<HTMLInputElement | null>(null);
+	let roleInput = $state<HTMLSelectElement | null>(null);
 
-	// Remove member dialog
-	let removeMemberId = $state<number | null>(null);
-	let removeMemberName = $state('');
-	let removeDialogOpen = $state(false);
-
-	// Role change confirmation dialog
-	let roleChangeDialogOpen = $state(false);
-	let roleChangeMemberId = $state<number | null>(null);
-	let roleChangeMemberName = $state('');
-	let roleChangeNewRole = $state('');
-
-	function confirmRoleChange(memberId: number, memberName: string, newRole: string) {
-		roleChangeMemberId = memberId;
-		roleChangeMemberName = memberName;
-		roleChangeNewRole = newRole;
-		roleChangeDialogOpen = true;
-	}
-
-	function executeRoleChange() {
-		if (!roleChangeMemberId) return;
-		const form =
-			document.querySelector<HTMLFormElement>(`[data-role-form="${roleChangeMemberId}"]`) ??
-			document.querySelector<HTMLFormElement>(`[data-role-form="mobile-${roleChangeMemberId}"]`);
-		if (form) {
-			const hidden = form.querySelector<HTMLInputElement>('input[name="role"]');
-			if (hidden) hidden.value = roleChangeNewRole;
-			form.requestSubmit();
-		}
-		roleChangeDialogOpen = false;
-	}
-
-	function handleSearch() {
-		clearTimeout(searchTimeout);
-		if (searchQuery.length < 2) {
+	$effect(() => {
+		const projectId = data.project.id;
+		const query = searchQuery.trim();
+		if (!addOpen || selectedUser || query.length < 2) {
 			searchResults = [];
+			searchStatus = 'idle';
 			return;
 		}
-		searchTimeout = setTimeout(async () => {
-			searching = true;
+		void searchRetry;
+		const controller = new AbortController();
+		searchStatus = 'loading';
+		searchResults = [];
+		const timer = setTimeout(async () => {
 			try {
-				const result = await apiFetch<{ data: { id: string; name: string; email: string }[] }>(
-					`/api/users/search?q=${encodeURIComponent(searchQuery)}&excludeProjectId=${data.project.id}`,
-					{ silent: true }
+				const response = await apiFetch<{ data: User[] }>(
+					`/api/users/search?q=${encodeURIComponent(query)}&excludeProjectId=${projectId}`,
+					{ silent: true, signal: controller.signal }
 				);
-				searchResults = result.data;
+				if (controller.signal.aborted) return;
+				searchResults = response.data;
+				searchStatus = 'ready';
 			} catch {
-				toast.error(m.error_operation_failed());
-			} finally {
-				searching = false;
+				if (!controller.signal.aborted) searchStatus = 'error';
 			}
 		}, 300);
+
+		return () => {
+			clearTimeout(timer);
+			controller.abort();
+		};
+	});
+
+	async function chooseUser(user: User | null) {
+		selectedUser = user;
+		error = '';
+		await tick();
+		if (user) roleInput?.focus();
+		else searchInput?.focus();
 	}
 
-	function selectUser(u: { id: string; name: string; email: string }) {
-		selectedUser = u;
-		searchQuery = '';
-		searchResults = [];
+	function confirm(next: Change, control: HTMLElement | null) {
+		change = next;
+		previousControl = control;
+		error = '';
+		confirmOpen = true;
 	}
 
-	function resetAddDialog() {
-		selectedUser = null;
-		searchQuery = '';
-		searchResults = [];
-		selectedRole = 'QA';
+	function restoreFocus(event: Event) {
+		event.preventDefault();
+		const target = previousControl?.getClientRects().length
+			? previousControl
+			: (addButton ?? memberTable);
+		target?.focus();
 	}
 
-	function openRemoveDialog(memberId: number, memberName: string) {
-		removeMemberId = memberId;
-		removeMemberName = memberName;
-		removeDialogOpen = true;
+	function failureMessage(action: Action, serverError: unknown) {
+		if (
+			serverError === 'Cannot demote the last project admin' ||
+			serverError === 'Cannot remove the last project admin'
+		)
+			return m.members_last_admin();
+		if (action === 'add') return m.error_add_failed();
+		if (action === 'role') return m.error_update_failed();
+		return m.error_remove_failed();
 	}
 
-	function roleBadgeVariant(role: string): 'default' | 'secondary' | 'outline' {
-		if (role === 'PROJECT_ADMIN') return 'default';
-		return 'secondary';
+	function submit(action: Action): SubmitFunction {
+		return ({ cancel }) => {
+			if (pending) {
+				cancel();
+				return;
+			}
+			pending = true;
+			error = '';
+			return async ({ result }) => {
+				try {
+					if (result.type === 'success') {
+						await invalidateAll();
+						if (action === 'add') {
+							toast.success(m.members_added());
+							addOpen = false;
+						} else {
+							toast.success(action === 'role' ? m.members_role_updated() : m.members_removed());
+							confirmOpen = false;
+						}
+					} else {
+						error = failureMessage(
+							action,
+							result.type === 'failure' ? result.data?.error : undefined
+						);
+						await tick();
+						(action === 'add' ? addError : confirmError)?.focus();
+					}
+				} finally {
+					pending = false;
+				}
+			};
+		};
 	}
 </script>
 
-<div class="space-y-4">
-	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-		<div class="min-w-0">
-			<h2 class="text-lg font-semibold">{m.members_title()}</h2>
-			<p class="text-muted-foreground text-sm">{m.members_desc()}</p>
-		</div>
+{#snippet roleOptions()}
+	{#each roles as role (role)}
+		<option value={role}>{role.replace('_', ' ')}</option>
+	{/each}
+{/snippet}
 
-		<Dialog.Root
-			bind:open={addDialogOpen}
-			onOpenChange={(open) => {
-				if (!open) resetAddDialog();
+{#snippet memberRole(member: Member)}
+	{#if canManage}
+		<select
+			class="h-10 max-w-full rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-2 focus-visible:outline-ring"
+			aria-label={m.members_role_label({ name: member.userName })}
+			value={member.role}
+			onchange={(event) => {
+				const control = event.currentTarget;
+				const role = control.value;
+				control.value = member.role;
+				if (role !== member.role) confirm({ member, role }, control);
 			}}
 		>
-			<Dialog.Trigger>
-				{#snippet child({ props })}
-					<Button class="self-start sm:self-auto" {...props}>{m.members_add()}</Button>
-				{/snippet}
-			</Dialog.Trigger>
-			<Dialog.Content class="sm:max-w-md">
-				<Dialog.Header>
-					<Dialog.Title>{m.members_add_title()}</Dialog.Title>
-					<Dialog.Description>{m.members_add_desc()}</Dialog.Description>
-				</Dialog.Header>
+			{@render roleOptions()}
+		</select>
+	{:else}
+		<Badge variant="secondary">{member.role.replace('_', ' ')}</Badge>
+	{/if}
+{/snippet}
 
-				<div class="space-y-4 py-4">
-					{#if selectedUser}
-						<div
-							class="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"
-						>
-							<div class="min-w-0">
-								<p class="break-words font-medium">{selectedUser.name}</p>
-								<p class="text-muted-foreground break-all text-sm">{selectedUser.email}</p>
-							</div>
-							<Button
-								variant="ghost"
-								size="sm"
-								class="w-full sm:w-auto"
-								onclick={() => (selectedUser = null)}
-							>
-								{m.members_change()}
-							</Button>
-						</div>
-					{:else}
-						<div class="space-y-2">
-							<Label for="member-search">{m.members_search_user()}</Label>
-							<Input
-								id="member-search"
-								placeholder={m.members_search_placeholder()}
-								bind:value={searchQuery}
-								oninput={handleSearch}
-							/>
-							{#if searchResults.length > 0}
-								<div class="max-h-48 overflow-y-auto rounded-md border">
-									{#each searchResults as u}
-										<button
-											type="button"
-											class="hover:bg-accent w-full px-3 py-2 text-left text-sm"
-											onclick={() => selectUser(u)}
-										>
-											<div class="font-medium">{u.name}</div>
-											<div class="text-muted-foreground text-xs">{u.email}</div>
-										</button>
-									{/each}
-								</div>
-							{:else if searchQuery.length >= 2 && !searching}
-								<p class="text-muted-foreground text-sm">{m.members_no_users()}</p>
-							{/if}
-						</div>
-					{/if}
+{#snippet removeButton(member: Member)}
+	<Button
+		variant="outline"
+		size="sm"
+		class="min-h-10 text-destructive hover:text-destructive"
+		aria-label={m.members_remove_label({ name: member.userName })}
+		onclick={(event) => confirm({ member }, event.currentTarget)}>{m.members_remove()}</Button
+	>
+{/snippet}
 
-					<div class="space-y-2">
-						<Label id="role-label">{m.common_role()}</Label>
-						<Select.Root
-							type="single"
-							value={selectedRole}
-							onValueChange={(v: string) => {
-								selectedRole = v;
-							}}
-						>
-							<Select.Trigger class="w-full" aria-labelledby="role-label">
-								{selectedRole.replace('_', ' ')}
-							</Select.Trigger>
-							<Select.Content>
-								{#each roles as r}
-									<Select.Item value={r} label={r.replace('_', ' ')} />
-								{/each}
-							</Select.Content>
-						</Select.Root>
-					</div>
-				</div>
-
-				{#if selectedUser}
-					<Dialog.Footer>
-						<form
-							class="w-full sm:w-auto"
-							method="POST"
-							action="?/addMember"
-							use:enhance={() => {
-								return async ({ result, update }) => {
-									if (result.type === 'success' || result.type === 'redirect') {
-										toast.success(m.members_added());
-										addDialogOpen = false;
-										resetAddDialog();
-										await invalidateAll();
-									} else {
-										toast.error(m.error_add_failed());
-										await update();
-									}
-								};
-							}}
-						>
-							<input type="hidden" name="userId" value={selectedUser.id} />
-							<input type="hidden" name="role" value={selectedRole} />
-							<Button type="submit" class="w-full sm:w-auto">{m.members_add()}</Button>
-						</form>
-					</Dialog.Footer>
-				{/if}
-			</Dialog.Content>
-		</Dialog.Root>
-	</div>
-
-	<div class="space-y-3 md:hidden">
-		{#each data.members as member}
-			<Card.Root>
-				<Card.Content class="space-y-3 p-4">
-					<div class="min-w-0">
-						<p class="font-medium break-words">{member.userName}</p>
-						<p class="text-muted-foreground text-sm break-all">{member.userEmail}</p>
-					</div>
-					<div class="flex flex-wrap items-center gap-2">
-						<form
-							method="POST"
-							action="?/updateRole"
-							data-role-form={`mobile-${member.id}`}
-							use:enhance={() => {
-								return async ({ result, update }) => {
-									if (result.type === 'success') {
-										toast.success(m.members_role_updated());
-										await invalidateAll();
-									} else if (result.type === 'failure') {
-										toast.error((result.data?.error as string) ?? m.error_update_failed());
-										await update();
-									}
-								};
-							}}
-						>
-							<input type="hidden" name="memberId" value={member.id} />
-							<input type="hidden" name="role" value={member.role} />
-							<Select.Root
-								type="single"
-								value={member.role}
-								onValueChange={(v: string) => {
-									if (v === member.role) return;
-									confirmRoleChange(member.id, member.userName, v);
-								}}
-							>
-								<Select.Trigger size="sm" class="h-8 text-xs" data-member-role={member.id}>
-									{member.role.replace('_', ' ')}
-								</Select.Trigger>
-								<Select.Content>
-									{#each roles as r}
-										<Select.Item value={r} label={r.replace('_', ' ')} />
-									{/each}
-								</Select.Content>
-							</Select.Root>
-						</form>
-						<Button
-							variant="outline"
-							size="sm"
-							class="text-destructive hover:text-destructive"
-							onclick={() => openRemoveDialog(member.id, member.userName)}
-						>
-							{m.members_remove()}
-						</Button>
-					</div>
-				</Card.Content>
-			</Card.Root>
-		{/each}
-	</div>
-
-	<Card.Root class="hidden overflow-hidden md:block">
-		<div class="overflow-x-auto">
-			<Table.Root class="min-w-full table-fixed">
-				<Table.Header>
-					<Table.Row class="text-xs">
-						<Table.Head class="w-[28%] py-1 px-2">{m.common_name()}</Table.Head>
-						<Table.Head class="w-[38%] py-1 px-2">{m.common_email()}</Table.Head>
-						<Table.Head class="w-[20%] py-1 px-2">{m.common_role()}</Table.Head>
-						<Table.Head class="py-1 px-2 w-24">{m.common_actions()}</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#each data.members as member}
-						<Table.Row class="text-xs">
-							<Table.Cell class="py-1 px-2 font-medium">
-								<span class="block truncate">{member.userName}</span>
-							</Table.Cell>
-							<Table.Cell class="py-1 px-2 text-muted-foreground">
-								<span class="block truncate">{member.userEmail}</span>
-							</Table.Cell>
-							<Table.Cell class="py-1 px-2">
-								<form
-									method="POST"
-									action="?/updateRole"
-									data-role-form={member.id}
-									use:enhance={() => {
-										return async ({ result, update }) => {
-											if (result.type === 'success') {
-												toast.success(m.members_role_updated());
-												await invalidateAll();
-											} else if (result.type === 'failure') {
-												toast.error((result.data?.error as string) ?? m.error_update_failed());
-												await update();
-											}
-										};
-									}}
-								>
-									<input type="hidden" name="memberId" value={member.id} />
-									<input type="hidden" name="role" value={member.role} />
-									<Select.Root
-										type="single"
-										value={member.role}
-										onValueChange={(v: string) => {
-											if (v === member.role) return;
-											confirmRoleChange(member.id, member.userName, v);
-										}}
-									>
-										<Select.Trigger size="sm" class="h-7 text-xs" data-member-role={member.id}>
-											{member.role.replace('_', ' ')}
-										</Select.Trigger>
-										<Select.Content>
-											{#each roles as r}
-												<Select.Item value={r} label={r.replace('_', ' ')} />
-											{/each}
-										</Select.Content>
-									</Select.Root>
-								</form>
-							</Table.Cell>
-							<Table.Cell class="py-1 px-2">
-								<Button
-									variant="ghost"
-									size="sm"
-									class="text-destructive hover:text-destructive h-7 text-xs"
-									onclick={() => openRemoveDialog(member.id, member.userName)}
-								>
-									{m.members_remove()}
-								</Button>
-							</Table.Cell>
-						</Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
-		</div>
-	</Card.Root>
-
-	<!-- Role Change Confirmation Dialog -->
-	<AlertDialog.Root bind:open={roleChangeDialogOpen}>
-		<AlertDialog.Content>
-			<AlertDialog.Header>
-				<AlertDialog.Title>{m.members_role_change_title()}</AlertDialog.Title>
-				<AlertDialog.Description>
-					{m.members_role_change_confirm({
-						name: roleChangeMemberName,
-						role: roleChangeNewRole.replace('_', ' ')
-					})}
-				</AlertDialog.Description>
-			</AlertDialog.Header>
-			<AlertDialog.Footer>
-				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
-				<Button class="w-full sm:w-auto" onclick={executeRoleChange}>
-					{m.members_role_change_action()}
-				</Button>
-			</AlertDialog.Footer>
-		</AlertDialog.Content>
-	</AlertDialog.Root>
-
-	<!-- Remove Member Dialog -->
-	<AlertDialog.Root bind:open={removeDialogOpen}>
-		<AlertDialog.Content>
-			<AlertDialog.Header>
-				<AlertDialog.Title>{m.members_remove_title()}</AlertDialog.Title>
-				<AlertDialog.Description>
-					{m.members_remove_confirm({ name: removeMemberName })}
-				</AlertDialog.Description>
-			</AlertDialog.Header>
-			<AlertDialog.Footer>
-				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
-				<form
-					class="w-full sm:w-auto"
-					method="POST"
-					action="?/removeMember"
-					use:enhance={() => {
-						return async ({ result, update }) => {
-							if (result.type === 'success') {
-								toast.success(m.members_removed());
-								removeDialogOpen = false;
-								await invalidateAll();
-							} else if (result.type === 'failure') {
-								toast.error((result.data?.error as string) ?? m.error_remove_failed());
-								await update();
-							}
-						};
+<div class="space-y-4">
+	<PageHeader
+		title={m.members_title()}
+		description={canManage ? m.members_desc() : m.members_readonly()}
+	>
+		{#snippet actions()}
+			{#if canManage}
+				<Dialog.Root
+					bind:open={addOpen}
+					onOpenChange={(open) => {
+						if (!open) return;
+						selectedUser = null;
+						searchQuery = '';
+						selectedRole = 'QA';
+						error = '';
 					}}
 				>
-					<input type="hidden" name="memberId" value={removeMemberId} />
-					<Button type="submit" variant="destructive" class="w-full sm:w-auto">
-						{m.members_remove()}
-					</Button>
-				</form>
-			</AlertDialog.Footer>
-		</AlertDialog.Content>
+					<Dialog.Trigger>
+						{#snippet child({ props })}
+							<Button bind:ref={addButton} class="w-full sm:w-auto" {...props}
+								>{m.members_add()}</Button
+							>
+						{/snippet}
+					</Dialog.Trigger>
+					<Dialog.Content
+						class="sm:max-w-md"
+						showCloseButton={!pending}
+						escapeKeydownBehavior={pending ? 'ignore' : 'close'}
+						interactOutsideBehavior={pending ? 'ignore' : 'close'}
+					>
+						<Dialog.Header>
+							<Dialog.Title>{m.members_add_title()}</Dialog.Title>
+							<Dialog.Description>{m.members_add_desc()}</Dialog.Description>
+						</Dialog.Header>
+						{#if selectedUser}
+							<div class="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
+								<div class="min-w-0 [overflow-wrap:anywhere]">
+									<p class="font-medium">{selectedUser.name}</p>
+									<p class="text-sm text-muted-foreground">{selectedUser.email}</p>
+								</div>
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={pending}
+									onclick={() => chooseUser(null)}
+								>
+									{m.members_change()}
+								</Button>
+							</div>
+							{#if error}
+								<p role="alert" tabindex="-1" bind:this={addError} class="text-sm text-destructive">
+									{error}
+								</p>
+							{/if}
+							<form
+								method="POST"
+								action="?/addMember"
+								use:enhance={submit('add')}
+								class="space-y-4"
+							>
+								<input type="hidden" name="userId" value={selectedUser.id} />
+								<input type="hidden" name="role" value={selectedRole} />
+								<div class="space-y-2">
+									<Label for="new-member-role">{m.common_role()}</Label>
+									<select
+										id="new-member-role"
+										bind:this={roleInput}
+										bind:value={selectedRole}
+										class="h-10 w-full rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-2 focus-visible:outline-ring"
+										disabled={pending}
+									>
+										{@render roleOptions()}
+									</select>
+								</div>
+								<Dialog.Footer>
+									<Dialog.Close disabled={pending}>
+										{#snippet child({ props })}
+											<Button type="button" variant="outline" {...props}>{m.common_cancel()}</Button
+											>
+										{/snippet}
+									</Dialog.Close>
+									<Button type="submit" disabled={pending}
+										>{pending ? m.common_saving() : m.members_add()}</Button
+									>
+								</Dialog.Footer>
+							</form>
+						{:else}
+							<div class="space-y-2">
+								<Label for="member-search">{m.members_search_user()}</Label>
+								<Input
+									id="member-search"
+									type="search"
+									maxlength={100}
+									bind:ref={searchInput}
+									bind:value={searchQuery}
+									aria-describedby="member-search-hint"
+								/>
+								<p id="member-search-hint" class="text-sm text-muted-foreground">
+									{m.members_search_hint()}
+								</p>
+							</div>
+							{#if searchStatus === 'error'}
+								<p role="alert" class="text-sm text-destructive">{m.members_search_failed()}</p>
+								<Button
+									variant="outline"
+									onclick={() => {
+										searchRetry++;
+										searchInput?.focus();
+									}}>{m.my_work_retry()}</Button
+								>
+							{:else}
+								<p role="status" class="text-sm text-muted-foreground empty:hidden">
+									{searchStatus === 'loading'
+										? m.common_loading()
+										: searchStatus === 'ready'
+											? searchResults.length
+												? m.members_search_count({ count: searchResults.length })
+												: m.members_no_users()
+											: ''}
+								</p>
+								{#if searchResults.length}
+									<ul class="max-h-56 divide-y overflow-y-auto rounded-md border">
+										{#each searchResults as user (user.id)}
+											<li>
+												<button
+													type="button"
+													class="block w-full px-3 py-2 text-start text-sm [overflow-wrap:anywhere] hover:bg-accent focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+													onclick={() => chooseUser(user)}
+												>
+													<span class="block font-medium">{user.name}</span>
+													<span class="block text-muted-foreground">{user.email}</span>
+												</button>
+											</li>
+										{/each}
+									</ul>
+								{/if}
+							{/if}
+						{/if}
+					</Dialog.Content>
+				</Dialog.Root>
+			{/if}
+		{/snippet}
+	</PageHeader>
+
+	{#if data.members.length === 0}
+		<p class="rounded-xl border bg-card p-4 text-sm text-muted-foreground">{m.members_empty()}</p>
+	{:else}
+		<Table
+			bind:ref={memberTable}
+			role="table"
+			tabindex={-1}
+			class="table-fixed max-lg:block max-lg:[&_td:first-child]:pl-0 lg:[&_td]:p-2 lg:[&_th]:p-2"
+			aria-label={m.members_title()}
+		>
+			<!-- svelte-ignore a11y_no_redundant_roles (Keep the table structure on narrow layouts.) -->
+			<thead
+				role="rowgroup"
+				class="border-b bg-muted/40 text-start text-muted-foreground max-lg:sr-only"
+			>
+				<tr class="[&>th]:text-start [&>th]:font-medium">
+					<th scope="col" role="columnheader" class="w-[28%]">{m.common_name()}</th>
+					<th scope="col" role="columnheader">{m.common_email()}</th>
+					<th scope="col" role="columnheader" class="w-40">{m.common_role()}</th>
+					{#if canManage}<th scope="col" role="columnheader" class="w-24">{m.common_actions()}</th
+						>{/if}
+				</tr>
+			</thead>
+			<!-- svelte-ignore a11y_no_redundant_roles (Keep row groups when the body becomes a block.) -->
+			<tbody role="rowgroup" class="divide-y max-lg:block">
+				{#each data.members as member (member.id)}
+					<!-- svelte-ignore a11y_no_redundant_roles (Keep row semantics when the row becomes a grid.) -->
+					<tr role="row" class="max-lg:grid max-lg:grid-cols-[auto_1fr] max-lg:gap-2 max-lg:p-4">
+						<td role="cell" class="col-span-2 font-medium [overflow-wrap:anywhere]"
+							>{member.userName}</td
+						>
+						<td role="cell" class="col-span-2 text-muted-foreground [overflow-wrap:anywhere]"
+							>{member.userEmail}</td
+						>
+						<td role="cell">{@render memberRole(member)}</td>
+						{#if canManage}<td role="cell">{@render removeButton(member)}</td>{/if}
+					</tr>
+				{/each}
+			</tbody>
+		</Table>
+	{/if}
+
+	<AlertDialog.Root bind:open={confirmOpen}>
+		{#if change}
+			<AlertDialog.Content
+				onCloseAutoFocus={restoreFocus}
+				escapeKeydownBehavior={pending ? 'ignore' : 'close'}
+			>
+				<AlertDialog.Header>
+					<AlertDialog.Title
+						>{change.role
+							? m.members_role_change_title()
+							: m.members_remove_title()}</AlertDialog.Title
+					>
+					<AlertDialog.Description class="[overflow-wrap:anywhere]">
+						{change.role
+							? m.members_role_change_confirm({
+									name: change.member.userName,
+									role: change.role.replace('_', ' ')
+								})
+							: m.members_remove_confirm({ name: change.member.userName })}
+					</AlertDialog.Description>
+				</AlertDialog.Header>
+				{#if error}
+					<p role="alert" tabindex="-1" bind:this={confirmError} class="text-sm text-destructive">
+						{error}
+					</p>
+				{/if}
+				<AlertDialog.Footer>
+					<AlertDialog.Cancel disabled={pending}>{m.common_cancel()}</AlertDialog.Cancel>
+					<form
+						method="POST"
+						action={change.role ? '?/updateRole' : '?/removeMember'}
+						use:enhance={submit(change.role ? 'role' : 'remove')}
+					>
+						<input type="hidden" name="memberId" value={change.member.id} />
+						{#if change.role}<input type="hidden" name="role" value={change.role} />{/if}
+						<Button
+							class="w-full sm:w-auto"
+							type="submit"
+							variant={change.role ? 'default' : 'destructive'}
+							disabled={pending}
+						>
+							{pending
+								? m.common_saving()
+								: change.role
+									? m.members_role_change_action()
+									: m.members_remove()}
+						</Button>
+					</form>
+				</AlertDialog.Footer>
+			</AlertDialog.Content>
+		{/if}
 	</AlertDialog.Root>
 </div>

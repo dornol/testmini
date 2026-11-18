@@ -129,108 +129,105 @@
 					<Button class="self-start sm:self-auto" {...props}>{m.team_add_member()}</Button>
 				{/snippet}
 			</Dialog.Trigger>
-			<Dialog.Portal>
-				<Dialog.Overlay />
-				<Dialog.Content class="sm:max-w-md">
-					<Dialog.Header>
-						<Dialog.Title>{m.team_add_member()}</Dialog.Title>
-					</Dialog.Header>
+			<Dialog.Content class="sm:max-w-md">
+				<Dialog.Header>
+					<Dialog.Title>{m.team_add_member()}</Dialog.Title>
+				</Dialog.Header>
 
-					<div class="space-y-4 py-4">
-						{#if selectedUser}
-							<div
-								class="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"
-							>
-								<div class="min-w-0">
-									<p class="break-words font-medium">{selectedUser.name}</p>
-									<p class="text-muted-foreground break-all text-sm">{selectedUser.email}</p>
-								</div>
-								<Button
-									variant="ghost"
-									size="sm"
-									class="w-full sm:w-auto"
-									onclick={() => (selectedUser = null)}
-								>
-									{m.members_change()}
-								</Button>
-							</div>
-						{:else}
-							<div class="space-y-2">
-								<Label for="member-search">{m.members_search_user()}</Label>
-								<Input
-									id="member-search"
-									placeholder={m.members_search_placeholder()}
-									bind:value={searchQuery}
-									oninput={handleSearch}
-								/>
-								{#if searchResults.length > 0}
-									<div class="max-h-48 overflow-y-auto rounded-md border">
-										{#each searchResults as u}
-											<button
-												type="button"
-												class="hover:bg-accent w-full px-3 py-2 text-left text-sm"
-												onclick={() => selectUser(u)}
-											>
-												<div class="font-medium">{u.name}</div>
-												<div class="text-muted-foreground text-xs">{u.email}</div>
-											</button>
-										{/each}
-									</div>
-								{:else if searchQuery.length >= 2 && !searching}
-									<p class="text-muted-foreground text-sm">{m.members_no_users()}</p>
-								{/if}
-							</div>
-						{/if}
-
-						<div class="space-y-2">
-							<Label id="role-label">{m.common_role()}</Label>
-							<Select.Root
-								type="single"
-								value={selectedRole}
-								onValueChange={(v: string) => {
-									selectedRole = v;
-								}}
-							>
-								<Select.Trigger class="w-full" aria-labelledby="role-label">
-									{roleLabel(selectedRole)}
-								</Select.Trigger>
-								<Select.Content>
-									{#each roles as r}
-										<Select.Item value={r} label={roleLabel(r)} />
-									{/each}
-								</Select.Content>
-							</Select.Root>
-						</div>
-					</div>
-
+				<div class="space-y-4 py-4">
 					{#if selectedUser}
-						<Dialog.Footer>
-							<form
+						<div
+							class="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"
+						>
+							<div class="min-w-0">
+								<p class="break-words font-medium">{selectedUser.name}</p>
+								<p class="text-muted-foreground break-all text-sm">{selectedUser.email}</p>
+							</div>
+							<Button
+								variant="ghost"
+								size="sm"
 								class="w-full sm:w-auto"
-								method="POST"
-								action="?/addMember"
-								use:enhance={() => {
-									return async ({ result, update }) => {
-										if (result.type === 'success' || result.type === 'redirect') {
-											toast.success(m.members_added());
-											addDialogOpen = false;
-											resetAddDialog();
-											await invalidateAll();
-										} else {
-											toast.error(m.error_add_failed());
-											await update();
-										}
-									};
-								}}
+								onclick={() => (selectedUser = null)}
 							>
-								<input type="hidden" name="userId" value={selectedUser.id} />
-								<input type="hidden" name="role" value={selectedRole} />
-								<Button type="submit" class="w-full sm:w-auto">{m.team_add_member()}</Button>
-							</form>
-						</Dialog.Footer>
+								{m.members_change()}
+							</Button>
+						</div>
+					{:else}
+						<div class="space-y-2">
+							<Label for="member-search">{m.members_search_user()}</Label>
+							<Input
+								id="member-search"
+								placeholder={m.members_search_placeholder()}
+								bind:value={searchQuery}
+								oninput={handleSearch}
+							/>
+							{#if searchResults.length > 0}
+								<div class="max-h-48 overflow-y-auto rounded-md border">
+									{#each searchResults as u}
+										<button
+											type="button"
+											class="hover:bg-accent w-full px-3 py-2 text-left text-sm"
+											onclick={() => selectUser(u)}
+										>
+											<div class="font-medium">{u.name}</div>
+											<div class="text-muted-foreground text-xs">{u.email}</div>
+										</button>
+									{/each}
+								</div>
+							{:else if searchQuery.length >= 2 && !searching}
+								<p class="text-muted-foreground text-sm">{m.members_no_users()}</p>
+							{/if}
+						</div>
 					{/if}
-				</Dialog.Content>
-			</Dialog.Portal>
+
+					<div class="space-y-2">
+						<Label id="role-label">{m.common_role()}</Label>
+						<Select.Root
+							type="single"
+							value={selectedRole}
+							onValueChange={(v: string) => {
+								selectedRole = v;
+							}}
+						>
+							<Select.Trigger class="w-full" aria-labelledby="role-label">
+								{roleLabel(selectedRole)}
+							</Select.Trigger>
+							<Select.Content>
+								{#each roles as r}
+									<Select.Item value={r} label={roleLabel(r)} />
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</div>
+				</div>
+
+				{#if selectedUser}
+					<Dialog.Footer>
+						<form
+							class="w-full sm:w-auto"
+							method="POST"
+							action="?/addMember"
+							use:enhance={() => {
+								return async ({ result, update }) => {
+									if (result.type === 'success' || result.type === 'redirect') {
+										toast.success(m.members_added());
+										addDialogOpen = false;
+										resetAddDialog();
+										await invalidateAll();
+									} else {
+										toast.error(m.error_add_failed());
+										await update();
+									}
+								};
+							}}
+						>
+							<input type="hidden" name="userId" value={selectedUser.id} />
+							<input type="hidden" name="role" value={selectedRole} />
+							<Button type="submit" class="w-full sm:w-auto">{m.team_add_member()}</Button>
+						</form>
+					</Dialog.Footer>
+				{/if}
+			</Dialog.Content>
 		</Dialog.Root>
 	</div>
 
@@ -370,65 +367,59 @@
 
 	<!-- Role Change Confirmation Dialog -->
 	<AlertDialog.Root bind:open={roleChangeDialogOpen}>
-		<AlertDialog.Portal>
-			<AlertDialog.Overlay />
-			<AlertDialog.Content>
-				<AlertDialog.Header>
-					<AlertDialog.Title>{m.team_change_role()}</AlertDialog.Title>
-					<AlertDialog.Description>
-						{m.members_role_change_confirm({
-							name: roleChangeMemberName,
-							role: roleLabel(roleChangeNewRole)
-						})}
-					</AlertDialog.Description>
-				</AlertDialog.Header>
-				<AlertDialog.Footer>
-					<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
-					<Button class="w-full sm:w-auto" onclick={executeRoleChange}>
-						{m.members_role_change_action()}
-					</Button>
-				</AlertDialog.Footer>
-			</AlertDialog.Content>
-		</AlertDialog.Portal>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>{m.team_change_role()}</AlertDialog.Title>
+				<AlertDialog.Description>
+					{m.members_role_change_confirm({
+						name: roleChangeMemberName,
+						role: roleLabel(roleChangeNewRole)
+					})}
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+				<Button class="w-full sm:w-auto" onclick={executeRoleChange}>
+					{m.members_role_change_action()}
+				</Button>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
 	</AlertDialog.Root>
 
 	<!-- Remove Member Dialog -->
 	<AlertDialog.Root bind:open={removeDialogOpen}>
-		<AlertDialog.Portal>
-			<AlertDialog.Overlay />
-			<AlertDialog.Content>
-				<AlertDialog.Header>
-					<AlertDialog.Title>{m.members_remove_title()}</AlertDialog.Title>
-					<AlertDialog.Description>
-						{m.members_remove_confirm({ name: removeMemberName })}
-					</AlertDialog.Description>
-				</AlertDialog.Header>
-				<AlertDialog.Footer>
-					<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
-					<form
-						class="w-full sm:w-auto"
-						method="POST"
-						action="?/removeMember"
-						use:enhance={() => {
-							return async ({ result, update }) => {
-								if (result.type === 'success') {
-									toast.success(m.members_removed());
-									removeDialogOpen = false;
-									await invalidateAll();
-								} else if (result.type === 'failure') {
-									toast.error((result.data?.error as string) ?? m.error_remove_failed());
-									await update();
-								}
-							};
-						}}
-					>
-						<input type="hidden" name="memberId" value={removeMemberId} />
-						<Button type="submit" variant="destructive" class="w-full sm:w-auto">
-							{m.team_remove_member()}
-						</Button>
-					</form>
-				</AlertDialog.Footer>
-			</AlertDialog.Content>
-		</AlertDialog.Portal>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>{m.members_remove_title()}</AlertDialog.Title>
+				<AlertDialog.Description>
+					{m.members_remove_confirm({ name: removeMemberName })}
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+				<form
+					class="w-full sm:w-auto"
+					method="POST"
+					action="?/removeMember"
+					use:enhance={() => {
+						return async ({ result, update }) => {
+							if (result.type === 'success') {
+								toast.success(m.members_removed());
+								removeDialogOpen = false;
+								await invalidateAll();
+							} else if (result.type === 'failure') {
+								toast.error((result.data?.error as string) ?? m.error_remove_failed());
+								await update();
+							}
+						};
+					}}
+				>
+					<input type="hidden" name="memberId" value={removeMemberId} />
+					<Button type="submit" variant="destructive" class="w-full sm:w-auto">
+						{m.team_remove_member()}
+					</Button>
+				</form>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
 	</AlertDialog.Root>
 </div>

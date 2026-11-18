@@ -136,10 +136,7 @@ test.describe.serial('Project Settings', () => {
 		const memberRows = page.locator('table tbody tr');
 		await expect(memberRows.first()).toBeVisible({ timeout: 10000 });
 
-		// At least one row should contain a role badge
-		await expect(
-			page.locator('table tbody').locator('text=/PROJECT.ADMIN|QA|DEV|VIEWER/i').first()
-		).toBeVisible();
+		await expect(memberRows.first().getByRole('combobox')).toHaveValue('PROJECT_ADMIN');
 	});
 
 	// -------------------------------------------------------------------------

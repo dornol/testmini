@@ -881,6 +881,8 @@
 	"req_title": "Requirements",
 	"req_desc": "Link requirements to test cases for traceability",
 	"req_new": "Add Requirement",
+	"req_form_hint": "Enter the requirement title and any details that help identify it.",
+	"req_remove_failed": "Unable to complete this change. Please try again.",
 	"req_edit": "Edit Requirement",
 	"req_delete": "Delete Requirement",
 	"req_delete_confirm": "This will permanently delete this requirement and all its test case links.",

@@ -14,8 +14,9 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import '$lib/components/reports/report-results.css';
 	import type { PageData } from './$types';
-	import { apiFetch, apiPost, apiPatch, apiDelete } from '$lib/api-client';
+	import { apiFetch } from '$lib/api-client';
 	import * as m from '$lib/paraglide/messages.js';
+	import { REQUIREMENT_LIMITS } from '$lib/requirement-limits';
 	import { statusColorBadge } from '$lib/execution-status';
 
 	let { data }: { data: PageData } = $props();
@@ -77,34 +78,26 @@
 		{ key: 'notExecuted', status: null, label: m.req_not_executed() }
 	] as const);
 
-	// Create dialog
-	let createDialogOpen = $state(false);
-	let newTitle = $state('');
-	let newExternalId = $state('');
-	let newSource = $state('');
-	let newDescription = $state('');
-	let creating = $state(false);
+	type Draft = { title: string; externalId: string; source: string; description: string };
+	type Removal = { requirement: Requirement; caseId?: number; caseKey?: string };
+	const requirementsEndpoint = $derived(`/api/projects/${projectId}/requirements`);
+	let newButton = $state<HTMLElement | null>(null);
+	let formOpen = $state(false);
+	let editing = $state<Requirement | null>(null);
+	let draft = $state<Draft>({ title: '', externalId: '', source: '', description: '' });
+	let formSaving = $state(false);
+	let titleInvalid = $state(false);
+	let formFailed = $state(false);
+	let titleInput = $state<HTMLInputElement | null>(null);
+	let formError = $state<HTMLElement | null>(null);
+	let formTrigger: HTMLElement | null = null;
 
-	// Edit dialog
-	let editDialogOpen = $state(false);
-	let editId = $state<number | null>(null);
-	let editTitle = $state('');
-	let editExternalId = $state('');
-	let editSource = $state('');
-	let editDescription = $state('');
-	let editSaving = $state(false);
-
-	// Delete dialog
-	let deleteDialogOpen = $state(false);
-	let deleteId = $state<number | null>(null);
-	let deleteSaving = $state(false);
-
-	// Unlink confirmation dialog
-	let unlinkDialogOpen = $state(false);
-	let unlinkReqId = $state<number | null>(null);
-	let unlinkTestCaseId = $state<number | null>(null);
-	let unlinkTestCaseKey = $state('');
-	let unlinkSaving = $state(false);
+	let removalOpen = $state(false);
+	let removal = $state<Removal | null>(null);
+	let removalSaving = $state(false);
+	let removalFailed = $state(false);
+	let removalError = $state<HTMLElement | null>(null);
+	let removalTrigger: HTMLElement | null = null;
 
 	// Link test case dialog
 	let linkDialogOpen = $state(false);
@@ -172,78 +165,95 @@
 		if (expandedId !== null || linkDialogOpen) await loadMatrix();
 	}
 
-	async function handleCreate() {
-		creating = true;
+	function openForm(trigger: HTMLElement, req: Requirement | null = null) {
+		formTrigger = trigger;
+		editing = req;
+		draft = {
+			title: req?.title ?? '',
+			externalId: req?.externalId ?? '',
+			source: req?.source ?? '',
+			description: req?.description ?? ''
+		};
+		titleInvalid = false;
+		formFailed = false;
+		formOpen = true;
+	}
+
+	function restoreFocus(event: Event, trigger: HTMLElement | null) {
+		event.preventDefault();
+		(trigger?.isConnected ? trigger : newButton)?.focus();
+	}
+
+	async function saveRequirement(event: SubmitEvent) {
+		event.preventDefault();
+		if (formSaving) return;
+		const title = draft.title.trim();
+		titleInvalid = !title;
+		formFailed = false;
+		if (titleInvalid) {
+			await tick();
+			titleInput?.focus();
+			return;
+		}
+		formSaving = true;
 		try {
-			await apiPost(`/api/projects/${projectId}/requirements`, {
-				title: newTitle,
-				externalId: newExternalId || undefined,
-				description: newDescription || undefined,
-				source: newSource || undefined
+			await apiFetch(editing ? `${requirementsEndpoint}/${editing.id}` : requirementsEndpoint, {
+				method: editing ? 'PATCH' : 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					title,
+					externalId: draft.externalId.trim() || null,
+					source: draft.source.trim() || null,
+					description: draft.description.trim() || null
+				}),
+				silent: true
 			});
-			createDialogOpen = false;
-			newTitle = '';
-			newExternalId = '';
-			newSource = '';
-			newDescription = '';
-			toast.success(m.req_saved());
 			await loadRequirements();
+			formOpen = false;
+			toast.success(m.req_saved());
 		} catch {
-			// error toast handled by apiPost
+			formFailed = true;
+			await tick();
+			formError?.focus();
 		} finally {
-			creating = false;
+			formSaving = false;
 		}
 	}
 
-	function openEdit(req: Requirement) {
-		editId = req.id;
-		editTitle = req.title;
-		editExternalId = req.externalId ?? '';
-		editSource = req.source ?? '';
-		editDescription = req.description ?? '';
-		editDialogOpen = true;
+	function openRemoval(trigger: HTMLElement, requirement: Requirement, tc?: LinkedTestCase) {
+		removalTrigger = trigger;
+		removal = { requirement, caseId: tc?.id, caseKey: tc?.key };
+		removalFailed = false;
+		removalOpen = true;
 	}
 
-	async function handleEdit() {
-		if (!editId) return;
-		editSaving = true;
+	async function removeRequirementOrLink() {
+		if (!removal || removalSaving) return;
+		const { requirement, caseId } = removal;
+		const url = `${requirementsEndpoint}/${requirement.id}`;
+		removalSaving = true;
+		removalFailed = false;
 		try {
-			await apiPatch(`/api/projects/${projectId}/requirements/${editId}`, {
-				title: editTitle,
-				externalId: editExternalId || null,
-				description: editDescription || null,
-				source: editSource || null
+			await apiFetch(caseId ? `${url}/test-cases?testCaseId=${caseId}` : url, {
+				method: 'DELETE',
+				silent: true
 			});
-			editDialogOpen = false;
-			toast.success(m.req_saved());
-			await loadRequirements();
-		} catch {
-			// error toast handled by apiPatch
-		} finally {
-			editSaving = false;
-		}
-	}
-
-	function openDelete(id: number) {
-		deleteId = id;
-		deleteDialogOpen = true;
-	}
-
-	async function handleDelete() {
-		if (!deleteId) return;
-		deleteSaving = true;
-		try {
-			await apiDelete(`/api/projects/${projectId}/requirements/${deleteId}`);
-			deleteDialogOpen = false;
-			if (expandedId === deleteId) {
-				expandedId = null;
+			if (caseId) {
+				removalTrigger = document.getElementById(`requirement-toggle-${requirement.id}`);
+			} else {
+				removalTrigger = null;
+				requirements = requirements.filter((req) => req.id !== requirement.id);
+				if (expandedId === requirement.id) expandedId = null;
 			}
-			toast.success(m.req_deleted());
 			await Promise.all([refreshMatrix(), loadRequirements()]);
+			removalOpen = false;
+			toast.success(caseId ? m.req_unlinked() : m.req_deleted());
 		} catch {
-			// error toast handled by apiDelete
+			removalFailed = true;
+			await tick();
+			removalError?.focus();
 		} finally {
-			deleteSaving = false;
+			removalSaving = false;
 		}
 	}
 
@@ -278,30 +288,6 @@
 		}
 	}
 
-	function openUnlink(reqId: number, tc: LinkedTestCase) {
-		unlinkReqId = reqId;
-		unlinkTestCaseId = tc.id;
-		unlinkTestCaseKey = tc.key;
-		unlinkDialogOpen = true;
-	}
-
-	async function handleUnlink() {
-		if (!unlinkReqId || !unlinkTestCaseId) return;
-		unlinkSaving = true;
-		try {
-			await apiDelete(
-				`/api/projects/${projectId}/requirements/${unlinkReqId}/test-cases?testCaseId=${unlinkTestCaseId}`
-			);
-			unlinkDialogOpen = false;
-			toast.success(m.req_unlinked());
-			await Promise.all([refreshMatrix(), loadRequirements()]);
-		} catch {
-			// error toast handled by apiDelete
-		} finally {
-			unlinkSaving = false;
-		}
-	}
-
 	onMount(() => {
 		loadRequirements();
 	});
@@ -324,7 +310,9 @@
 			<Button variant="outline" href={`/api/projects/${projectId}/requirements/matrix/export`}
 				>{m.req_export_matrix()}</Button
 			>
-			{#if canManage}<Button onclick={() => (createDialogOpen = true)}>{m.req_new()}</Button>{/if}
+			{#if canManage}<Button bind:ref={newButton} onclick={(event) => openForm(event.currentTarget)}
+					>{m.req_new()}</Button
+				>{/if}
 		{/snippet}
 	</PageHeader>
 
@@ -372,6 +360,7 @@
 							<button
 								type="button"
 								class="flex min-w-0 items-start gap-2 rounded-sm text-left font-medium hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+								id={`requirement-toggle-${req.id}`}
 								aria-expanded={expandedId === req.id}
 								aria-controls={expandedId === req.id ? `requirement-links-${req.id}` : undefined}
 								onclick={() => toggleExpand(req.id)}
@@ -416,14 +405,17 @@
 									<Button variant="outline" size="sm" onclick={() => openLinkDialog(req.id)}
 										>{m.req_link_test_case()}<span class="sr-only"> · {req.title}</span></Button
 									>
-									<Button variant="ghost" size="sm" onclick={() => openEdit(req)}
+									<Button
+										variant="ghost"
+										size="sm"
+										onclick={(event) => openForm(event.currentTarget, req)}
 										>{m.common_edit()}<span class="sr-only"> · {req.title}</span></Button
 									>
 									<Button
 										variant="ghost"
 										size="sm"
 										class="text-destructive"
-										onclick={() => openDelete(req.id)}
+										onclick={(event) => openRemoval(event.currentTarget, req)}
 										>{m.common_delete()}<span class="sr-only"> · {req.title}</span></Button
 									>
 								</div>
@@ -467,7 +459,7 @@
 														{#if canManage}<Button
 																variant="ghost"
 																size="sm"
-																onclick={() => openUnlink(req.id, tc)}
+																onclick={(event) => openRemoval(event.currentTarget, req, tc)}
 																>{m.req_unlink_test_case()}<span class="sr-only">
 																	· {tc.key}</span
 																></Button
@@ -487,201 +479,196 @@
 	{/if}
 </div>
 
-<!-- Create Requirement Dialog -->
-<Dialog.Root bind:open={createDialogOpen}>
-	<Dialog.Content class="sm:max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>{m.req_new()}</Dialog.Title>
-		</Dialog.Header>
-		<div class="space-y-4 py-4">
-			<div class="space-y-2">
-				<Label for="reqTitle">{m.common_title()}</Label>
-				<Input id="reqTitle" bind:value={newTitle} placeholder={m.common_title()} />
-			</div>
-			<div class="space-y-2">
-				<Label for="reqExternalId">{m.req_external_id()}</Label>
-				<Input
-					id="reqExternalId"
-					bind:value={newExternalId}
-					placeholder={m.req_external_id_placeholder()}
-				/>
-			</div>
-			<div class="space-y-2">
-				<Label for="reqSource">{m.req_source()}</Label>
-				<Input id="reqSource" bind:value={newSource} placeholder={m.req_source_placeholder()} />
-			</div>
-			<div class="space-y-2">
-				<Label for="reqDescription">{m.req_description()}</Label>
-				<Textarea id="reqDescription" bind:value={newDescription} rows={3} />
-			</div>
-		</div>
-		<Dialog.Footer>
-			<Button class="w-full sm:w-auto" variant="outline" onclick={() => (createDialogOpen = false)}>
-				{m.common_cancel()}
-			</Button>
-			<Button
-				class="w-full sm:w-auto"
-				onclick={handleCreate}
-				disabled={creating || !newTitle.trim()}
-			>
-				{creating ? m.common_creating() : m.common_save_changes()}
-			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
-
-<!-- Edit Requirement Dialog -->
-<Dialog.Root bind:open={editDialogOpen}>
-	<Dialog.Content class="sm:max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>{m.req_edit()}</Dialog.Title>
-		</Dialog.Header>
-		<div class="space-y-4 py-4">
-			<div class="space-y-2">
-				<Label for="editReqTitle">{m.common_title()}</Label>
-				<Input id="editReqTitle" bind:value={editTitle} />
-			</div>
-			<div class="space-y-2">
-				<Label for="editReqExternalId">{m.req_external_id()}</Label>
-				<Input
-					id="editReqExternalId"
-					bind:value={editExternalId}
-					placeholder={m.req_external_id_placeholder()}
-				/>
-			</div>
-			<div class="space-y-2">
-				<Label for="editReqSource">{m.req_source()}</Label>
-				<Input
-					id="editReqSource"
-					bind:value={editSource}
-					placeholder={m.req_source_placeholder()}
-				/>
-			</div>
-			<div class="space-y-2">
-				<Label for="editReqDescription">{m.req_description()}</Label>
-				<Textarea id="editReqDescription" bind:value={editDescription} rows={3} />
-			</div>
-		</div>
-		<Dialog.Footer>
-			<Button class="w-full sm:w-auto" variant="outline" onclick={() => (editDialogOpen = false)}>
-				{m.common_cancel()}
-			</Button>
-			<Button
-				class="w-full sm:w-auto"
-				onclick={handleEdit}
-				disabled={editSaving || !editTitle.trim()}
-			>
-				{editSaving ? m.common_saving() : m.common_save_changes()}
-			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
-
-<!-- Delete Requirement Dialog -->
-<AlertDialog.Root bind:open={deleteDialogOpen}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>{m.req_delete()}</AlertDialog.Title>
-			<AlertDialog.Description>{m.req_delete_confirm()}</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
-			<Button
-				variant="destructive"
-				class="w-full sm:w-auto"
-				onclick={handleDelete}
-				disabled={deleteSaving}
-			>
-				{deleteSaving ? m.common_saving() : m.common_delete()}
-			</Button>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
-
-<!-- Unlink Confirmation Dialog -->
-<AlertDialog.Root bind:open={unlinkDialogOpen}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>{m.req_unlink_test_case()}</AlertDialog.Title>
-			<AlertDialog.Description>
-				{m.req_unlink_confirm({ key: unlinkTestCaseKey })}
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
-			<Button
-				variant="destructive"
-				class="w-full sm:w-auto"
-				onclick={handleUnlink}
-				disabled={unlinkSaving}
-			>
-				{unlinkSaving ? m.common_saving() : m.req_unlink_test_case()}
-			</Button>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
-
-<!-- Link Test Case Dialog -->
-<Dialog.Root bind:open={linkDialogOpen}>
-	<Dialog.Content
-		class="sm:max-w-2xl"
-		showCloseButton={!linkLoading}
-		escapeKeydownBehavior={linkLoading ? 'ignore' : 'close'}
-		interactOutsideBehavior="ignore"
-	>
-		<Dialog.Header>
-			<Dialog.Title>{m.req_link_test_case()}</Dialog.Title>
-			<Dialog.Description
-				>{requirements.find((req) => req.id === linkReqId)?.title}</Dialog.Description
-			>
-		</Dialog.Header>
-		{#if matrixLoading}
-			<p role="status" class="text-sm text-muted-foreground">{m.common_loading()}</p>
-		{:else if matrixFailed}
-			{@render matrixError()}
-		{:else if matrix}
-			<div class="space-y-2">
-				<Label for="trace-case-search">{m.ui_case_search()}</Label>
-				<Input
-					id="trace-case-search"
-					bind:ref={searchInput}
-					bind:value={linkSearch}
-					oninput={() => (linkDisplayCount = 50)}
-				/>
-			</div>
-			{#if linkFailed}<p role="alert" class="text-sm text-destructive">{m.ui_save_failed()}</p>{/if}
-			<ul class="divide-y" aria-label={m.ui_case_list()}>
-				{#each filteredTestCases.slice(0, linkDisplayCount) as tc (tc.id)}
-					<li class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-						<span class="min-w-0 [overflow-wrap:anywhere]">
-							<span class="text-xs text-muted-foreground">{tc.key}</span>
-							{tc.title}
-						</span>
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={linkLoading}
-							onclick={() => linkTestCase(tc.id)}
-						>
-							{m.req_link_test_case()}<span class="sr-only"> · {tc.key} {tc.title}</span>
-						</Button>
-					</li>
-				{/each}
-			</ul>
-			{#if filteredTestCases.length === 0}
-				<p role="status" class="text-sm text-muted-foreground">
-					{linkSearch.trim() ? m.common_no_results() : m.req_no_available_cases()}
+{#if canManage}
+	<Dialog.Root bind:open={formOpen}>
+		<Dialog.Content
+			showCloseButton={!formSaving}
+			escapeKeydownBehavior={formSaving ? 'ignore' : 'close'}
+			interactOutsideBehavior="ignore"
+			onCloseAutoFocus={(event) => restoreFocus(event, formTrigger)}
+		>
+			<Dialog.Header>
+				<Dialog.Title>{editing ? m.req_edit() : m.req_new()}</Dialog.Title>
+				<Dialog.Description>{m.req_form_hint()}</Dialog.Description>
+			</Dialog.Header>
+			{#if formFailed}
+				<p role="alert" tabindex="-1" bind:this={formError} class="text-sm text-destructive">
+					{m.ui_save_failed()}
 				</p>
-			{:else if linkDisplayCount < filteredTestCases.length}
-				<Button variant="outline" onclick={() => (linkDisplayCount += 50)}
-					>{m.req_more_cases()}</Button
-				>
 			{/if}
-		{/if}
-		<Dialog.Footer>
-			<Button variant="outline" disabled={linkLoading} onclick={() => (linkDialogOpen = false)}
-				>{m.common_close()}</Button
-			>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+			<form onsubmit={saveRequirement} aria-busy={formSaving} class="space-y-4">
+				<fieldset disabled={formSaving} class="min-w-0 space-y-3">
+					<div class="space-y-1">
+						<Label for="requirement-title"
+							>{m.common_title()}
+							<span class="text-muted-foreground">({m.ui_required()})</span></Label
+						>
+						<Input
+							id="requirement-title"
+							bind:ref={titleInput}
+							bind:value={draft.title}
+							required
+							maxlength={REQUIREMENT_LIMITS.title}
+							aria-invalid={titleInvalid || undefined}
+							aria-describedby={titleInvalid ? 'requirement-title-error' : undefined}
+							oninput={() => (titleInvalid = false)}
+						/>
+						{#if titleInvalid}<p
+								id="requirement-title-error"
+								role="alert"
+								class="text-sm text-destructive"
+							>
+								{m.ui_title_required()}
+							</p>{/if}
+					</div>
+					<div class="space-y-1">
+						<Label for="requirement-external-id">{m.req_external_id()}</Label>
+						<Input
+							id="requirement-external-id"
+							bind:value={draft.externalId}
+							maxlength={REQUIREMENT_LIMITS.externalId}
+							placeholder={m.req_external_id_placeholder()}
+						/>
+					</div>
+					<div class="space-y-1">
+						<Label for="requirement-source">{m.req_source()}</Label>
+						<Input
+							id="requirement-source"
+							bind:value={draft.source}
+							maxlength={REQUIREMENT_LIMITS.source}
+							placeholder={m.req_source_placeholder()}
+						/>
+					</div>
+					<div class="space-y-1">
+						<Label for="requirement-description">{m.req_description()}</Label>
+						<Textarea
+							id="requirement-description"
+							bind:value={draft.description}
+							maxlength={REQUIREMENT_LIMITS.description}
+							rows={3}
+						/>
+					</div>
+				</fieldset>
+				<Dialog.Footer>
+					<Button
+						class="w-full sm:w-auto"
+						variant="outline"
+						disabled={formSaving}
+						onclick={() => (formOpen = false)}>{m.common_cancel()}</Button
+					>
+					<Button class="w-full sm:w-auto" type="submit" disabled={formSaving}
+						>{formSaving ? m.common_saving() : m.common_save_changes()}</Button
+					>
+				</Dialog.Footer>
+			</form>
+		</Dialog.Content>
+	</Dialog.Root>
+
+	<AlertDialog.Root bind:open={removalOpen}>
+		<AlertDialog.Content
+			escapeKeydownBehavior={removalSaving ? 'ignore' : 'close'}
+			onCloseAutoFocus={(event) => restoreFocus(event, removalTrigger)}
+		>
+			<AlertDialog.Header>
+				<AlertDialog.Title
+					>{removal?.caseId ? m.req_unlink_test_case() : m.req_delete()}</AlertDialog.Title
+				>
+				<AlertDialog.Description>
+					{removal?.caseKey
+						? m.req_unlink_confirm({ key: removal.caseKey })
+						: m.req_delete_confirm()}
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<p class="text-sm font-medium [overflow-wrap:anywhere]">{removal?.requirement.title}</p>
+			{#if removalFailed}
+				<p role="alert" tabindex="-1" bind:this={removalError} class="text-sm text-destructive">
+					{m.req_remove_failed()}
+				</p>
+			{/if}
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel class="w-full sm:w-auto" disabled={removalSaving}
+					>{m.common_cancel()}</AlertDialog.Cancel
+				>
+				<Button
+					variant="destructive"
+					class="w-full sm:w-auto"
+					disabled={removalSaving}
+					onclick={removeRequirementOrLink}
+				>
+					{removalSaving
+						? m.common_saving()
+						: removal?.caseId
+							? m.req_unlink_test_case()
+							: m.common_delete()}
+				</Button>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
+
+	<!-- Link Test Case Dialog -->
+	<Dialog.Root bind:open={linkDialogOpen}>
+		<Dialog.Content
+			class="sm:max-w-2xl"
+			showCloseButton={!linkLoading}
+			escapeKeydownBehavior={linkLoading ? 'ignore' : 'close'}
+			interactOutsideBehavior="ignore"
+		>
+			<Dialog.Header>
+				<Dialog.Title>{m.req_link_test_case()}</Dialog.Title>
+				<Dialog.Description
+					>{requirements.find((req) => req.id === linkReqId)?.title}</Dialog.Description
+				>
+			</Dialog.Header>
+			{#if matrixLoading}
+				<p role="status" class="text-sm text-muted-foreground">{m.common_loading()}</p>
+			{:else if matrixFailed}
+				{@render matrixError()}
+			{:else if matrix}
+				<div class="space-y-2">
+					<Label for="trace-case-search">{m.ui_case_search()}</Label>
+					<Input
+						id="trace-case-search"
+						bind:ref={searchInput}
+						bind:value={linkSearch}
+						oninput={() => (linkDisplayCount = 50)}
+					/>
+				</div>
+				{#if linkFailed}<p role="alert" class="text-sm text-destructive">
+						{m.ui_save_failed()}
+					</p>{/if}
+				<ul class="divide-y" aria-label={m.ui_case_list()}>
+					{#each filteredTestCases.slice(0, linkDisplayCount) as tc (tc.id)}
+						<li class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+							<span class="min-w-0 [overflow-wrap:anywhere]">
+								<span class="text-xs text-muted-foreground">{tc.key}</span>
+								{tc.title}
+							</span>
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={linkLoading}
+								onclick={() => linkTestCase(tc.id)}
+							>
+								{m.req_link_test_case()}<span class="sr-only"> · {tc.key} {tc.title}</span>
+							</Button>
+						</li>
+					{/each}
+				</ul>
+				{#if filteredTestCases.length === 0}
+					<p role="status" class="text-sm text-muted-foreground">
+						{linkSearch.trim() ? m.common_no_results() : m.req_no_available_cases()}
+					</p>
+				{:else if linkDisplayCount < filteredTestCases.length}
+					<Button variant="outline" onclick={() => (linkDisplayCount += 50)}
+						>{m.req_more_cases()}</Button
+					>
+				{/if}
+			{/if}
+			<Dialog.Footer>
+				<Button variant="outline" disabled={linkLoading} onclick={() => (linkDialogOpen = false)}
+					>{m.common_close()}</Button
+				>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Root>
+{/if}

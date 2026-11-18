@@ -110,13 +110,111 @@ test.describe.serial('Traceability', () => {
 		await expect(linked.getByRole('link', { name: new RegExp(secondTitle) })).toBeVisible();
 		const secondRow = linked.getByRole('listitem').filter({ hasText: secondTitle });
 		await secondRow.getByRole('button', { name: /연결 해제/ }).click();
-		await page.getByRole('alertdialog').getByRole('button', { name: '연결 해제' }).click();
+		const removal = page.getByRole('alertdialog');
+		await expect(removal.getByText(requirementTitle, { exact: true })).toBeVisible();
+		const removeLink = '**' + endpoint() + '/' + requirementId + '/test-cases?*';
+		await page.route(removeLink, (route) => route.fulfill({ status: 503, json: {} }));
+		await removal.getByRole('button', { name: '연결 해제' }).press('Enter');
+		await expect(removal.getByRole('alert')).toBeFocused();
+		await page.unroute(removeLink);
+		await removal.getByRole('button', { name: '연결 해제' }).press('Enter');
+		await expect(removal).toHaveCount(0);
 		await expect(linked.getByRole('link', { name: new RegExp(secondTitle) })).toHaveCount(0);
+		await expect(toggle).toBeFocused();
 
 		const csv = await request.get(endpoint() + '/matrix/export');
 		expect(csv.ok()).toBe(true);
 		expect(csv.headers()['content-disposition']).toContain('.csv');
 		expect(await csv.text()).toContain('TRACE-101');
+	});
+
+	test('create, edit, and delete can be retried with the original draft or target', async ({
+		page,
+		request
+	}) => {
+		await page.setViewportSize({ width: 375, height: 850 });
+		await page.goto(url());
+		await page.waitForLoadState('networkidle');
+		const create = page.getByRole('button', { name: '요구사항 추가' });
+		await create.press('Enter');
+		const dialog = page.getByRole('dialog', { name: '요구사항 추가' });
+		const title = dialog.getByRole('textbox', { name: /제목/ });
+		const source = dialog.locator('#requirement-source');
+		const description = dialog.locator('#requirement-description');
+		await expect(title).toHaveAttribute('required', '');
+		await expect(title).toHaveAttribute('maxlength', '255');
+		await expect(description).toHaveAttribute('maxlength', '10000');
+		await title.fill('   ');
+		await title.press('Enter');
+		await expect(title).toHaveAttribute('aria-invalid', 'true');
+		await expect(title).toBeFocused();
+		await expect(dialog.getByRole('alert')).toHaveText('제목을 입력해 주세요.');
+
+		await title.fill('Recoverable requirement');
+		await dialog.locator('#requirement-external-id').fill('TRACE-103');
+		await source.fill('Product brief');
+		await description.fill('Preserve this draft.');
+		const failed = { status: 503, json: {} };
+		await page.route('**' + endpoint(), (route) =>
+			route.request().method() === 'POST' ? route.fulfill(failed) : route.continue()
+		);
+		await title.press('Enter');
+		await expect(dialog.getByRole('alert')).toBeFocused();
+		await expect(title).toHaveValue('Recoverable requirement');
+		await expect(source).toHaveValue('Product brief');
+		await expect(description).toHaveValue('Preserve this draft.');
+		await page.unroute('**' + endpoint());
+		await title.press('Enter');
+		await expect(dialog).toHaveCount(0);
+		await expect(create).toBeFocused();
+
+		const edit = page.getByRole('button', { name: /수정.*Recoverable requirement/ });
+		await edit.press('Enter');
+		const editDialog = page.getByRole('dialog', { name: '요구사항 수정' });
+		const editTitle = editDialog.locator('#requirement-title');
+		await expect(editTitle).toHaveValue('Recoverable requirement');
+		const saved = await (await request.get(endpoint())).json();
+		const id = saved.find((req: { externalId: string }) => req.externalId === 'TRACE-103').id;
+		const mutation = '**' + endpoint() + '/' + id;
+		await page.route(mutation, (route) => route.fulfill(failed));
+		await editTitle.fill('Updated saved requirement');
+		await editDialog.locator('#requirement-source').fill('');
+		await editTitle.press('Enter');
+		await expect(editDialog.getByRole('alert')).toBeFocused();
+		await expect(editTitle).toHaveValue('Updated saved requirement');
+		await page.unroute(mutation);
+		await editTitle.press('Enter');
+		await expect(editDialog).toHaveCount(0);
+		await expect(
+			page.getByRole('button', { name: /수정.*Updated saved requirement/ })
+		).toBeFocused();
+		const updated = await (await request.get(endpoint())).json();
+		expect(updated.find((req: { id: number }) => req.id === id)).toMatchObject({
+			title: 'Updated saved requirement',
+			source: null,
+			description: 'Preserve this draft.'
+		});
+
+		const remove = page.getByRole('button', { name: /삭제.*Updated saved requirement/ });
+		await remove.press('Enter');
+		const confirmation = page.getByRole('alertdialog', { name: '요구사항 삭제' });
+		await expect(
+			confirmation.getByText('Updated saved requirement', { exact: true })
+		).toBeVisible();
+		await confirmation.getByRole('button', { name: '취소' }).click();
+		await expect(remove).toBeFocused();
+		await remove.press('Enter');
+		await page.route(mutation, (route) => route.fulfill(failed));
+		await confirmation.getByRole('button', { name: '삭제', exact: true }).press('Enter');
+		await expect(confirmation.getByRole('alert')).toBeFocused();
+		await expect(
+			confirmation.getByText('Updated saved requirement', { exact: true })
+		).toBeVisible();
+		await page.unroute(mutation);
+		await confirmation.getByRole('button', { name: '삭제', exact: true }).press('Enter');
+		await expect(confirmation).toHaveCount(0);
+		await expect(remove).toHaveCount(0);
+		await expect(create).toBeFocused();
 	});
 
 	for (const locale of ['ko', 'en'])
@@ -167,6 +265,45 @@ test.describe.serial('Traceability', () => {
 							contentType: 'image/png'
 						});
 					}
+					const formOpener = page.getByRole('button', { name: /요구사항 추가|Add Requirement/ });
+					await formOpener.press('Enter');
+					const form = page.getByRole('dialog');
+					await expect(form.locator('#requirement-title')).toBeVisible();
+					expect(await form.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(
+						false
+					);
+					const formAudit = await new AxeBuilder({ page })
+						.include('[data-slot=dialog-content]')
+						.withTags(['wcag2a', 'wcag2aa'])
+						.analyze();
+					expect(
+						formAudit.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? ''))
+					).toEqual([]);
+					if (locale === 'ko' && width === 375)
+						await testInfo.attach('traceability-form', {
+							body: await page.screenshot({ path: `/tmp/testmini-requirement-form-${theme}.png` }),
+							contentType: 'image/png'
+						});
+					await page.keyboard.press('Escape');
+					await expect(formOpener).toBeFocused();
+					const remove = table.getByRole('button', { name: /^(삭제|Delete).*Other requirement/ });
+					await remove.press('Enter');
+					const confirmation = page.getByRole('alertdialog');
+					await expect(confirmation.getByText(alternateTitle, { exact: true })).toBeVisible();
+					expect(
+						await confirmation.evaluate((element) => element.scrollWidth > element.clientWidth)
+					).toBe(false);
+					const confirmationAudit = await new AxeBuilder({ page })
+						.include('[data-slot=alert-dialog-content]')
+						.withTags(['wcag2a', 'wcag2aa'])
+						.analyze();
+					expect(
+						confirmationAudit.violations.filter((v) =>
+							['serious', 'critical'].includes(v.impact ?? '')
+						)
+					).toEqual([]);
+					await page.keyboard.press('Escape');
+					await expect(remove).toBeFocused();
 				});
 			}
 });

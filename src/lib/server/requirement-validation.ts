@@ -1,10 +1,8 @@
 import { badRequest } from '$lib/server/errors';
 import { isPlainRecord } from './object-validation';
 
-const MAX_REQUIREMENT_TITLE_LENGTH = 255;
-const MAX_REQUIREMENT_EXTERNAL_ID_LENGTH = 255;
-const MAX_REQUIREMENT_DESCRIPTION_LENGTH = 10_000;
-const MAX_REQUIREMENT_SOURCE_LENGTH = 255;
+import { REQUIREMENT_LIMITS } from '$lib/requirement-limits';
+
 const REQUIREMENT_FIELDS = new Set(['title', 'externalId', 'description', 'source']);
 
 export interface ValidatedRequirementFields {
@@ -50,8 +48,8 @@ export function validateRequirementFields(
 		if (typeof body.title !== 'string') return badRequest('Title must be a string');
 		const title = body.title.trim();
 		if (!title) return badRequest('Title is required');
-		if (title.length > MAX_REQUIREMENT_TITLE_LENGTH) {
-			return badRequest(`Title must be ${MAX_REQUIREMENT_TITLE_LENGTH} characters or less`);
+		if (title.length > REQUIREMENT_LIMITS.title) {
+			return badRequest(`Title must be ${REQUIREMENT_LIMITS.title} characters or less`);
 		}
 		fields.title = title;
 	} else if (options.requireTitle) {
@@ -62,7 +60,7 @@ export function validateRequirementFields(
 		body,
 		'externalId',
 		'External ID',
-		MAX_REQUIREMENT_EXTERNAL_ID_LENGTH
+		REQUIREMENT_LIMITS.externalId
 	);
 	if (externalId instanceof Response) return externalId;
 	if (externalId !== undefined) fields.externalId = externalId;
@@ -71,17 +69,12 @@ export function validateRequirementFields(
 		body,
 		'description',
 		'Description',
-		MAX_REQUIREMENT_DESCRIPTION_LENGTH
+		REQUIREMENT_LIMITS.description
 	);
 	if (description instanceof Response) return description;
 	if (description !== undefined) fields.description = description;
 
-	const source = validateOptionalStringField(
-		body,
-		'source',
-		'Source',
-		MAX_REQUIREMENT_SOURCE_LENGTH
-	);
+	const source = validateOptionalStringField(body, 'source', 'Source', REQUIREMENT_LIMITS.source);
 	if (source instanceof Response) return source;
 	if (source !== undefined) fields.source = source;
 

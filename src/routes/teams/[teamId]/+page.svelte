@@ -1,163 +1,133 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages.js';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { getLocale } from '$lib/paraglide/runtime';
+	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 
 	let { data } = $props();
-
-	function roleBadgeVariant(role: string): 'default' | 'secondary' | 'outline' {
-		if (role === 'OWNER') return 'default';
-		if (role === 'ADMIN') return 'secondary';
-		return 'outline';
-	}
+	const canManage = $derived(data.userTeamRole === 'OWNER' || data.userTeamRole === 'ADMIN');
+	const settingsLink = $derived('/teams/' + data.team.id + '/settings');
+	const roleLabels = {
+		OWNER: m.team_role_owner,
+		ADMIN: m.team_role_admin,
+		MEMBER: m.team_role_member
+	};
 </script>
 
-<div class="space-y-6">
-	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-		<div class="min-w-0">
-			<div class="mb-1">
-				<a href="/teams" class="text-muted-foreground hover:text-foreground text-sm"
-					>&larr; {m.common_back_to({ target: m.nav_teams() })}</a
-				>
-			</div>
-			<h1 class="break-words text-xl font-bold">{data.team.name}</h1>
-			{#if data.team.description}
-				<p class="text-muted-foreground mt-1 break-words text-sm">{data.team.description}</p>
-			{/if}
-		</div>
-		{#if data.userTeamRole === 'OWNER' || data.userTeamRole === 'ADMIN'}
-			<Button class="w-full sm:w-auto" variant="outline" href="/teams/{data.team.id}/settings">
-				{m.team_settings()}
-			</Button>
+{#snippet projectInfo(project: (typeof data.teamProjects)[number])}
+	<div class="flex flex-wrap items-start gap-2">
+		<h3
+			id={`team-project-${project.id}`}
+			class="min-w-0 flex-1 font-semibold [overflow-wrap:anywhere]"
+		>
+			{project.name}
+		</h3>
+		{#if !project.active}
+			<Badge variant="secondary">{m.common_inactive()}</Badge>
+		{:else if project.canOpen}
+			<ChevronRight class="size-4 shrink-0 self-center text-muted-foreground" aria-hidden="true" />
 		{/if}
 	</div>
+	{#if project.description}
+		<p
+			class="line-clamp-2 whitespace-pre-line text-sm text-muted-foreground [overflow-wrap:anywhere]"
+		>
+			{project.description}
+		</p>
+	{/if}
+	<div
+		class="mt-auto flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground"
+	>
+		<span>{m.projects_members_count({ count: project.memberCount })}</span>
+		{#if project.active && !project.canOpen}<span>{m.team_project_access_required()}</span>{/if}
+	</div>
+{/snippet}
 
-	<!-- Projects Section -->
-	<div class="space-y-3">
-		<h2 class="text-lg font-semibold">{m.team_projects()}</h2>
+<div class="space-y-5">
+	<a
+		href="/teams"
+		class="inline-block rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+	>
+		&larr; {m.common_back_to({ target: m.nav_teams() })}
+	</a>
+	<PageHeader title={data.team.name} description={data.team.description ?? undefined} level={1}>
+		{#snippet actions()}
+			{#if canManage}<Button class="w-full sm:w-auto" variant="outline" href={settingsLink}
+					>{m.team_settings()}</Button
+				>{/if}
+		{/snippet}
+	</PageHeader>
+
+	<section aria-labelledby="team-projects-heading" class="space-y-3">
+		<h2 id="team-projects-heading" class="text-lg font-semibold">
+			{m.team_projects()} ({data.teamProjects.length})
+		</h2>
 		{#if data.teamProjects.length === 0}
-			<div
-				class="flex flex-col items-center justify-center rounded-lg border border-dashed p-6 text-center"
-			>
-				<p class="text-muted-foreground text-sm">{m.team_no_projects()}</p>
-			</div>
+			<p class="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+				{m.team_no_projects()}
+			</p>
 		{:else}
-			<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-				{#each data.teamProjects as proj (proj.id)}
-					<a href="/projects/{proj.id}" class="block">
-						<Card.Root class="transition-shadow hover:shadow-md">
-							<Card.Header>
-								<div class="flex items-start justify-between gap-3">
-									<Card.Title class="min-w-0 break-words text-lg">{proj.name}</Card.Title>
-									{#if !proj.active}
-										<Badge variant="secondary" class="shrink-0">{m.common_inactive()}</Badge>
-									{/if}
-								</div>
-								{#if proj.description}
-									<Card.Description class="line-clamp-2 break-words"
-										>{proj.description}</Card.Description
-									>
-								{/if}
-							</Card.Header>
-							<Card.Footer class="text-muted-foreground text-sm">
-								<span class="flex items-center gap-1">
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										width="14"
-										height="14"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									>
-										<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-										<circle cx="9" cy="7" r="4" />
-										<path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-										<path d="M16 3.13a4 4 0 0 1 0 7.75" />
-									</svg>
-									{m.projects_members_count({ count: proj.memberCount })}
-								</span>
-							</Card.Footer>
-						</Card.Root>
-					</a>
+			<ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+				{#each data.teamProjects as project (project.id)}
+					<li class="min-w-0">
+						{#if project.active && project.canOpen}
+							<a
+								href={'/projects/' + project.id}
+								aria-labelledby={`team-project-${project.id}`}
+								class="flex h-full min-w-0 flex-col gap-2 rounded-xl border bg-card p-4 hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+							>
+								{@render projectInfo(project)}
+							</a>
+						{:else}
+							<div class="flex h-full min-w-0 flex-col gap-2 rounded-xl border bg-card p-4">
+								{@render projectInfo(project)}
+							</div>
+						{/if}
+					</li>
 				{/each}
-			</div>
+			</ul>
 		{/if}
-	</div>
+	</section>
 
-	<!-- Members Section -->
-	<div class="space-y-3">
-		<h2 class="text-lg font-semibold">{m.team_members()}</h2>
-		<div class="space-y-3 md:hidden">
-			{#each data.members as member}
-				<Card.Root>
-					<Card.Content class="space-y-2 p-4">
-						<div class="min-w-0">
-							<p class="font-medium break-words">{member.userName}</p>
-							<p class="text-muted-foreground text-sm break-all">{member.userEmail}</p>
-						</div>
-						<div class="flex flex-wrap items-center gap-2 text-sm">
-							<Badge variant={roleBadgeVariant(member.role)}>
-								{#if member.role === 'OWNER'}
-									{m.team_role_owner()}
-								{:else if member.role === 'ADMIN'}
-									{m.team_role_admin()}
-								{:else}
-									{m.team_role_member()}
-								{/if}
-							</Badge>
-							<span class="text-muted-foreground">
-								{new Date(member.joinedAt).toLocaleDateString()}
-							</span>
-						</div>
-					</Card.Content>
-				</Card.Root>
-			{/each}
+	<section aria-labelledby="team-members-heading" class="space-y-3">
+		<div class="flex flex-wrap items-center justify-between gap-2">
+			<h2 id="team-members-heading" class="text-lg font-semibold">
+				{m.team_members()} ({data.members.length})
+			</h2>
+			{#if canManage}<Button href={settingsLink + '/members'} variant="outline" size="sm"
+					>{m.team_manage_members()}</Button
+				>{/if}
 		</div>
-
-		<Card.Root class="hidden overflow-hidden md:block">
-			<div class="overflow-x-auto">
-				<Table.Root class="min-w-full table-fixed">
-					<Table.Header>
-						<Table.Row>
-							<Table.Head class="w-[30%]">{m.common_name()}</Table.Head>
-							<Table.Head class="w-[38%]">{m.common_email()}</Table.Head>
-							<Table.Head class="w-[16%]">{m.common_role()}</Table.Head>
-							<Table.Head class="w-[16%]">{m.common_date()}</Table.Head>
-						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{#each data.members as member}
-							<Table.Row>
-								<Table.Cell class="font-medium">
-									<span class="block truncate">{member.userName}</span>
-								</Table.Cell>
-								<Table.Cell class="text-muted-foreground">
-									<span class="block truncate">{member.userEmail}</span>
-								</Table.Cell>
-								<Table.Cell>
-									<Badge variant={roleBadgeVariant(member.role)}>
-										{#if member.role === 'OWNER'}
-											{m.team_role_owner()}
-										{:else if member.role === 'ADMIN'}
-											{m.team_role_admin()}
-										{:else}
-											{m.team_role_member()}
-										{/if}
-									</Badge>
-								</Table.Cell>
-								<Table.Cell class="text-muted-foreground">
-									{new Date(member.joinedAt).toLocaleDateString()}
-								</Table.Cell>
-							</Table.Row>
-						{/each}
-					</Table.Body>
-				</Table.Root>
-			</div>
-		</Card.Root>
-	</div>
+		{#if data.members.length === 0}
+			<p class="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+				{m.common_no_results()}
+			</p>
+		{:else}
+			<ul class="divide-y rounded-xl border bg-card">
+				{#each data.members as member (member.id)}
+					<li
+						class="flex min-w-0 flex-wrap items-center justify-between gap-3 p-4 [overflow-wrap:anywhere]"
+					>
+						<div class="min-w-0 basis-full sm:flex-1">
+							<p class="font-medium">{member.userName}</p>
+							<p class="text-sm text-muted-foreground">{member.userEmail}</p>
+						</div>
+						<Badge variant={member.role === 'OWNER' ? 'default' : 'secondary'}
+							>{roleLabels[member.role]()}</Badge
+						>
+						<time
+							datetime={new Date(member.joinedAt).toISOString()}
+							class="text-sm text-muted-foreground"
+							>{new Date(member.joinedAt).toLocaleDateString(getLocale(), {
+								dateStyle: 'medium',
+								timeZone: 'UTC'
+							})}</time
+						>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
 </div>

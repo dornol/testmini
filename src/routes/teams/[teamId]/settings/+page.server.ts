@@ -1,18 +1,21 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
-import { updateTeamSchema, type UpdateTeamInput } from '$lib/schemas/team.schema';
+import { createTeamSchema, updateTeamSchema, type UpdateTeamInput } from '$lib/schemas/team.schema';
 import { zodAdapter } from '$lib/server/form-utils';
+import { childLogger } from '$lib/server/logger';
 import { db } from '$lib/server/db';
 import { team, teamMember, project } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { requireAuth, isGlobalAdmin, parseId } from '$lib/server/auth-utils';
 
-const adapter = zodAdapter(updateTeamSchema);
+const fullForm = zodAdapter(createTeamSchema);
+const partialForm = zodAdapter(updateTeamSchema);
+const log = childLogger('team-settings');
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { team: t } = await parent();
-	const form = await superValidate({ name: t.name, description: t.description ?? '' }, adapter);
+	const form = await superValidate({ name: t.name, description: t.description ?? '' }, fullForm);
 
 	return { form };
 };
@@ -32,21 +35,28 @@ export const actions: Actions = {
 			}
 		}
 
-		const form = await superValidate(request, adapter);
+		const data = await request.formData();
+		const form = await superValidate(data, data.has('name') ? fullForm : partialForm);
 
 		if (!form.valid) {
 			return fail(400, { form });
 		}
 
 		const { name, description } = form.data as UpdateTeamInput;
-		const [updated] = await db
-			.update(team)
-			.set({
-				...(name !== undefined && { name }),
-				...(description !== undefined && { description: description || null })
-			})
-			.where(eq(team.id, teamId))
-			.returning();
+		let updated;
+		try {
+			[updated] = await db
+				.update(team)
+				.set({
+					...(name !== undefined && { name }),
+					...(description !== undefined && { description: description || null })
+				})
+				.where(eq(team.id, teamId))
+				.returning();
+		} catch {
+			log.error({ requestId: locals.requestId }, 'Team settings update failed');
+			return message(form, 'save_failed', { status: 500 });
+		}
 
 		if (!updated) {
 			error(404, 'Team not found');
@@ -69,14 +79,20 @@ export const actions: Actions = {
 			}
 		}
 
-		const deleted = await db.transaction(async (tx) => {
-			// Unassign projects (set teamId to null)
-			await tx.update(project).set({ teamId: null }).where(eq(project.teamId, teamId));
+		let deleted;
+		try {
+			deleted = await db.transaction(async (tx) => {
+				// Unassign projects (set teamId to null)
+				await tx.update(project).set({ teamId: null }).where(eq(project.teamId, teamId));
 
-			// Delete team (cascade will remove team_member rows)
-			const [deletedTeam] = await tx.delete(team).where(eq(team.id, teamId)).returning();
-			return deletedTeam;
-		});
+				// Delete team (cascade will remove team_member rows)
+				const [deletedTeam] = await tx.delete(team).where(eq(team.id, teamId)).returning();
+				return deletedTeam;
+			});
+		} catch {
+			log.error({ requestId: locals.requestId }, 'Team deletion transaction failed');
+			return fail(500, { deleteFailed: true });
+		}
 		if (!deleted) {
 			error(404, 'Team not found');
 		}

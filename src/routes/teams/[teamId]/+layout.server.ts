@@ -19,7 +19,8 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 
 	let userTeamRole: string | null = null;
 
-	if (isGlobalAdmin(user)) {
+	const globalAdmin = isGlobalAdmin(user);
+	if (globalAdmin) {
 		userTeamRole = 'ADMIN';
 	} else {
 		const membership = await db.query.teamMember.findFirst({
@@ -35,6 +36,7 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 
 	return {
 		team: teamData,
-		userTeamRole
+		userTeamRole,
+		canDeleteTeam: globalAdmin || userTeamRole === 'OWNER'
 	};
 };

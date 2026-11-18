@@ -20,20 +20,25 @@
 
 <div class="space-y-4">
 	<div>
-		<a href="/teams/{teamId}" class="text-muted-foreground hover:text-foreground text-sm">&larr; {m.common_back_to({ target: data.team.name })}</a>
+		<a
+			href="/teams/{teamId}"
+			class="inline-block rounded-sm text-sm text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring hover:text-foreground [overflow-wrap:anywhere]"
+			>&larr; {m.common_back_to({ target: data.team.name })}</a
+		>
 	</div>
 
 	<h1 class="text-xl font-bold">{m.team_settings()}</h1>
 
 	<div class="flex flex-col gap-4 md:flex-row md:gap-6">
-		<nav class="shrink-0 md:w-44">
-			<ul class="flex gap-1 overflow-x-auto scrollbar-none md:flex-col md:space-y-1 md:overflow-visible">
+		<nav class="min-w-0 shrink-0 md:w-44" aria-label={m.team_settings()}>
+			<ul class="flex flex-wrap gap-1 md:flex-col">
 				{#each subNav as item (item.href)}
 					<li class="shrink-0 md:shrink">
 						<a
 							href={item.href}
+							aria-current={isActive(item.href, item.exact) ? 'page' : undefined}
 							class={cn(
-								'block rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors md:py-2 md:text-sm',
+								'block rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring [overflow-wrap:anywhere]',
 								isActive(item.href, item.exact)
 									? 'bg-accent text-accent-foreground'
 									: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
@@ -47,7 +52,7 @@
 		</nav>
 
 		<div class="min-w-0 flex-1">
-			{@render children()}
+			{#key teamId}{@render children()}{/key}
 		</div>
 	</div>
 </div>

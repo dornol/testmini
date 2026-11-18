@@ -25,7 +25,7 @@ vi.mock('$lib/server/auth-utils', () => ({
 	isGlobalAdmin: vi.fn((user: { role?: string }) => user.role === 'admin'),
 	parseId: vi.fn((raw: string) => Number(raw))
 }));
-vi.mock('$lib/schemas/team.schema', () => ({ updateTeamSchema: {} }));
+vi.mock('$lib/schemas/team.schema', () => ({ createTeamSchema: {}, updateTeamSchema: {} }));
 vi.mock('$lib/server/form-utils', () => ({ zodAdapter: vi.fn(() => ({})) }));
 vi.mock('sveltekit-superforms', () => ({
 	superValidate: vi.fn(),
@@ -39,6 +39,7 @@ const PARAMS = { teamId: '5' };
 function createActionEvent(user: NonNullable<App.Locals['user']> | null = testUser) {
 	return createMockEvent({
 		method: 'POST',
+		formData: new FormData(),
 		params: PARAMS,
 		user
 	});
@@ -116,6 +117,17 @@ describe('/teams/[teamId]/settings +page.server', () => {
 			expect(mockDb.update).toHaveBeenCalled();
 		});
 
+		it('returns the submitted form when the database update fails', async () => {
+			const form = { valid: true, data: { name: 'Draft name', description: 'Draft description' } };
+			vi.mocked(superValidate).mockResolvedValueOnce(form as never);
+			mockDb.update.mockReturnValueOnce({
+				set: () => ({
+					where: () => ({ returning: vi.fn().mockRejectedValue(new Error('Unavailable')) })
+				})
+			});
+			expect(await actions.update(createActionEvent())).toEqual({ form, message: 'save_failed' });
+		});
+
 		it('should throw 404 when team disappears before update', async () => {
 			mockUpdateReturning(mockDb, []);
 
@@ -186,6 +198,14 @@ describe('/teams/[teamId]/settings +page.server', () => {
 				body: { message: 'Team not found' }
 			});
 			expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+		});
+
+		it('returns a retryable failure when the deletion transaction fails', async () => {
+			mockDb.transaction.mockRejectedValueOnce(new Error('Unavailable'));
+			await expect(actions.delete(createActionEvent())).resolves.toMatchObject({
+				status: 500,
+				data: { deleteFailed: true }
+			});
 		});
 	});
 });

@@ -9,7 +9,7 @@ import {
 	dashboardLayout
 } from '$lib/server/db/schema';
 import { eq, and, sql, desc, count } from 'drizzle-orm';
-import { DEFAULT_LAYOUT } from '$lib/dashboard-widgets';
+import { reconcileDashboardLayout } from '$lib/server/dashboard-layout';
 import { cacheGet, cacheSet } from '$lib/server/cache';
 import { parseId } from '$lib/server/auth-utils';
 
@@ -211,7 +211,7 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
 	const dashboardData = await loadDashboardStats(projectId);
 
 	// Dashboard layout is user-specific, not cached with stats
-	let initialLayout = DEFAULT_LAYOUT;
+	let savedLayout: unknown;
 	if (currentUser) {
 		const layoutRow = await db.query.dashboardLayout.findFirst({
 			where: and(
@@ -219,13 +219,11 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
 				eq(dashboardLayout.projectId, projectId)
 			)
 		});
-		if (layoutRow) {
-			initialLayout = layoutRow.layout;
-		}
+		savedLayout = layoutRow?.layout;
 	}
 
 	return {
 		...dashboardData,
-		initialLayout
+		initialLayout: reconcileDashboardLayout(savedLayout)
 	};
 };

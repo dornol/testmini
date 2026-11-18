@@ -1,7 +1,11 @@
 <script lang="ts">
-	import { flip } from 'svelte/animate';
-	import { toast } from 'svelte-sonner';
-	import { apiPut } from '$lib/api-client';
+	import { onDestroy, tick } from 'svelte';
+	import ArrowUp from '@lucide/svelte/icons/arrow-up';
+	import ArrowDown from '@lucide/svelte/icons/arrow-down';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
+	import Settings from '@lucide/svelte/icons/settings';
+	import { Button } from '$lib/components/ui/button';
+	import { apiFetch } from '$lib/api-client';
 	import * as m from '$lib/paraglide/messages.js';
 	import { DEFAULT_LAYOUT } from '$lib/dashboard-widgets';
 	import type { WidgetConfig } from '$lib/server/db/schema';
@@ -11,59 +15,82 @@
 	let open = $state(false);
 	let draggedId = $state<string | null>(null);
 	let dragOverId = $state<string | null>(null);
-	let saveTimer: ReturnType<typeof setTimeout> | null = null;
+	let phase = $state<'idle' | 'pending' | 'saved' | 'error'>('idle');
+	let moveAnnouncement = $state('');
+	let trigger = $state<HTMLElement | null>(null);
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	let saving = false;
+	let queued: { projectId: number; layout: WidgetConfig[] } | undefined;
 
-	function scheduleSave() {
-		if (saveTimer) clearTimeout(saveTimer);
-		saveTimer = setTimeout(saveLayout, 600);
+	function updateLayout(next: WidgetConfig[]) {
+		layout = next;
+		queued = { projectId, layout: $state.snapshot(layout) };
+		phase = 'pending';
+		clearTimeout(timer);
+		timer = setTimeout(() => {
+			timer = undefined;
+			void save();
+		}, 600);
 	}
 
-	async function saveLayout() {
+	async function save() {
+		if (saving || !queued) return;
+		const request = queued;
+		queued = undefined;
+		saving = true;
+		phase = 'pending';
 		try {
-			await apiPut(`/api/projects/${projectId}/dashboard-layout`, {
-				layout: $state.snapshot(layout)
+			await apiFetch(`/api/projects/${request.projectId}/dashboard-layout`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ layout: request.layout }),
+				silent: true
 			});
-			toast.success(m.dashboard_layout_saved());
+			if (!queued) phase = 'saved';
 		} catch {
-			// Error feedback is handled centrally by apiPut.
+			if (!queued) {
+				queued = request;
+				phase = 'error';
+			}
+		} finally {
+			saving = false;
+			if (queued && !timer && phase !== 'error') void save();
 		}
 	}
 
-	function toggleWidget(id: string) {
-		if (!layout.some((item) => item.id === id)) return;
-		layout = layout.map((item) => (item.id === id ? { ...item, visible: !item.visible } : item));
-		scheduleSave();
+	onDestroy(() => {
+		clearTimeout(timer);
+		timer = undefined;
+		if (phase === 'pending') void save();
+	});
+
+	function move(id: string, target: number, control?: HTMLElement) {
+		const from = layout.findIndex((widget) => widget.id === id);
+		if (from < 0 || target < 0 || target >= layout.length || from === target) return;
+		const next = [...layout];
+		const [moved] = next.splice(from, 1);
+		next.splice(target, 0, moved);
+		updateLayout(next.map((widget, order) => ({ ...widget, order })));
+		moveAnnouncement = m.dashboard_widget_moved({ name: widgetLabel(id), position: target + 1 });
+		if (control) void tick().then(() => control.focus());
 	}
 
-	function setSize(id: string, size: WidgetConfig['size']) {
-		if (!layout.some((item) => item.id === id)) return;
-		layout = layout.map((item) => (item.id === id ? { ...item, size } : item));
-		scheduleSave();
+	function drop(event: DragEvent, target: number) {
+		event.preventDefault();
+		if (draggedId) move(draggedId, target);
+		clearDrag();
 	}
 
-	function resetLayout() {
-		layout = DEFAULT_LAYOUT.map((widget) => ({ ...widget }));
-		scheduleSave();
-	}
-
-	function onDragOver(id: string) {
-		if (!draggedId || draggedId === id) return;
-		dragOverId = id;
-		const sorted = layout.slice().sort((a, b) => a.order - b.order);
-		const fromIndex = sorted.findIndex((widget) => widget.id === draggedId);
-		const toIndex = sorted.findIndex((widget) => widget.id === id);
-		if (fromIndex === -1 || toIndex === -1) return;
-		const [moved] = sorted.splice(fromIndex, 1);
-		sorted.splice(toIndex, 0, moved);
-		layout = sorted.map((widget, order) => ({ ...widget, order }));
-	}
-
-	function onDragEnd() {
+	function clearDrag() {
 		draggedId = null;
 		dragOverId = null;
-		scheduleSave();
 	}
 
+	async function close() {
+		open = false;
+		await tick();
+		trigger?.focus();
+	}
 	function widgetLabel(id: string) {
 		return (
 			{
@@ -91,62 +118,164 @@
 	}
 </script>
 
-<div class="mb-4 flex items-center justify-end">
-	<button
-		type="button"
-		onclick={() => (open = !open)}
-		class="text-muted-foreground hover:text-foreground hover:bg-accent flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors"
+<div class="mb-4 flex flex-wrap items-center justify-end gap-2">
+	{#if phase === 'error'}
+		<p role="alert" class="text-sm text-destructive">{m.ui_save_failed()}</p>
+		<Button
+			variant="outline"
+			onclick={async () => {
+				await save();
+				if (phase === 'saved') trigger?.focus();
+			}}>{m.ui_try_again()}</Button
+		>
+	{:else}
+		<span role="status" class="text-sm text-muted-foreground">
+			{phase === 'pending'
+				? m.common_saving()
+				: phase === 'saved'
+					? m.dashboard_layout_saved()
+					: ''}
+		</span>
+	{/if}
+	<Button
+		variant="outline"
+		bind:ref={trigger}
+		onclick={() => (open ? close() : (open = true))}
 		aria-expanded={open}
 		aria-controls="dashboard-customizer"
 		aria-label={m.dashboard_customize_layout()}
 	>
-		<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-			<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-			<circle cx="12" cy="12" r="3" />
-		</svg>
+		<Settings aria-hidden="true" />
 		{m.dashboard_customize()}
-	</button>
+	</Button>
 </div>
 
-{#if open}
-	<div id="dashboard-customizer" class="bg-card border-border mb-6 rounded-lg border p-4 shadow-sm" role="region" aria-label={m.dashboard_widgets()}>
-		<div class="mb-3 flex items-center justify-between">
-			<h2 class="text-sm font-semibold">{m.dashboard_widgets()}</h2>
-			<div class="flex items-center gap-2">
-				<button type="button" onclick={resetLayout} class="text-muted-foreground hover:text-foreground rounded px-2 py-1 text-xs transition-colors hover:underline">
-					{m.dashboard_reset_default()}
-				</button>
-				<button type="button" onclick={() => (open = false)} class="text-muted-foreground hover:text-foreground rounded p-1 transition-colors" aria-label={m.dashboard_close_panel()}>
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-				</button>
-			</div>
+<section
+	id="dashboard-customizer"
+	aria-labelledby="dashboard-widget-heading"
+	hidden={!open}
+	class="mb-4 space-y-3 rounded-lg border bg-card p-4"
+>
+	<div class="flex flex-wrap items-center justify-between gap-2">
+		<h3 id="dashboard-widget-heading" class="text-lg font-medium">{m.dashboard_widgets()}</h3>
+		<div class="flex flex-wrap gap-2">
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={() => updateLayout(DEFAULT_LAYOUT.map((widget) => ({ ...widget })))}
+			>
+				{m.dashboard_reset_default()}
+			</Button>
+			<Button variant="ghost" size="sm" onclick={close} aria-label={m.dashboard_close_panel()}>
+				{m.common_close()}
+			</Button>
 		</div>
-		<p class="text-muted-foreground mb-3 text-xs">{m.dashboard_customize_hint()}</p>
-		<ul class="space-y-1" aria-label={m.dashboard_widget_list()}>
-			{#each layout.slice().sort((a, b) => a.order - b.order) as widget (widget.id)}
-				<li
-					animate:flip={{ duration: 200 }}
-					class="bg-background border-border flex items-center gap-3 rounded-md border px-3 py-2 text-sm transition-colors {draggedId === widget.id ? 'opacity-50' : ''} {dragOverId === widget.id ? 'border-primary' : ''}"
-					draggable="true"
-					ondragstart={() => (draggedId = widget.id)}
-					ondragover={(event) => { event.preventDefault(); onDragOver(widget.id); }}
-					ondragend={onDragEnd}
-				>
-					<span class="text-muted-foreground cursor-grab active:cursor-grabbing" aria-hidden="true">⠿</span>
-					<button type="button" role="switch" aria-checked={widget.visible} aria-label={m.dashboard_toggle_widget({ name: widgetLabel(widget.id) })} onclick={() => toggleWidget(widget.id)} class="flex h-5 w-9 shrink-0 items-center rounded-full border-2 transition-colors {widget.visible ? 'bg-primary border-primary' : 'bg-muted border-muted'}">
-						<span class="bg-background block h-3.5 w-3.5 rounded-full shadow transition-transform {widget.visible ? 'translate-x-[18px]' : 'translate-x-0.5'}"></span>
-					</button>
-					<div class="min-w-0 flex-1">
-						<span class="font-medium {!widget.visible ? 'text-muted-foreground line-through' : ''}">{widgetLabel(widget.id)}</span>
-						<p class="text-muted-foreground truncate text-xs">{widgetDescription(widget.id)}</p>
+	</div>
+	<p class="text-sm text-muted-foreground">{m.dashboard_customize_hint()}</p>
+	<p role="status" class="sr-only">{moveAnnouncement}</p>
+	<ol class="space-y-2" aria-label={m.dashboard_widget_list()}>
+		{#each layout as widget, index (widget.id)}
+			{@const name = widgetLabel(widget.id)}
+			<li
+				class="space-y-2 rounded-md border bg-background p-3 {dragOverId === widget.id
+					? 'border-primary'
+					: ''}"
+				draggable="true"
+				ondragstart={(event) => {
+					draggedId = widget.id;
+					event.dataTransfer?.setData('text/plain', widget.id);
+				}}
+				ondragover={(event) => {
+					if (!draggedId) return;
+					event.preventDefault();
+					dragOverId = widget.id;
+				}}
+				ondrop={(event) => drop(event, index)}
+				ondragend={clearDrag}
+			>
+				<div class="flex flex-wrap items-start justify-between gap-2">
+					<div class="flex min-w-0 gap-2">
+						<GripVertical
+							class="mt-1 size-4 shrink-0 cursor-grab text-muted-foreground"
+							aria-hidden="true"
+						/>
+						<div class="min-w-0">
+							<p class="text-sm font-medium">{name}</p>
+							<p class="text-xs text-muted-foreground">{widgetDescription(widget.id)}</p>
+						</div>
 					</div>
-					<div class="flex items-center gap-1 rounded-md border p-0.5" role="group" aria-label={m.dashboard_widget_size({ name: widgetLabel(widget.id) })}>
-						{#each ['sm', 'md', 'lg'] as const as size (size)}
-							<button type="button" onclick={() => setSize(widget.id, size)} class="rounded px-2 py-0.5 text-xs transition-colors {widget.size === size ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'}" aria-pressed={widget.size === size} aria-label={m.dashboard_size_option({ size })}>{size}</button>
+					<Button
+						variant="outline"
+						size="sm"
+						role="switch"
+						aria-checked={widget.visible}
+						aria-label={m.dashboard_toggle_widget({ name })}
+						onclick={() =>
+							updateLayout(
+								layout.map((item) =>
+									item.id === widget.id ? { ...item, visible: !item.visible } : item
+								)
+							)}
+					>
+						<span
+							aria-hidden="true"
+							class="relative inline-flex h-4 w-7 items-center rounded-full border {widget.visible
+								? 'border-primary bg-primary'
+								: 'border-muted-foreground bg-muted'}"
+						>
+							<span
+								class="absolute size-2.5 rounded-full {widget.visible
+									? 'end-0.5 bg-primary-foreground'
+									: 'start-0.5 bg-muted-foreground'}"
+							></span>
+						</span>
+					</Button>
+				</div>
+				<div class="flex flex-wrap items-center justify-between gap-2">
+					<div
+						class="flex flex-wrap gap-1"
+						role="group"
+						aria-label={m.dashboard_widget_size({ name })}
+					>
+						{#each ['sm', 'md', 'lg'] as const as size, i (size)}
+							{@const label = [
+								m.dashboard_width_small(),
+								m.dashboard_width_medium(),
+								m.dashboard_width_large()
+							][i]}
+							<Button
+								size="sm"
+								variant={widget.size === size ? 'secondary' : 'outline'}
+								aria-pressed={widget.size === size}
+								onclick={() =>
+									updateLayout(
+										layout.map((item) => (item.id === widget.id ? { ...item, size } : item))
+									)}>{label}</Button
+							>
 						{/each}
 					</div>
-				</li>
-			{/each}
-		</ul>
-	</div>
-{/if}
+					<div class="flex gap-1">
+						<Button
+							variant="outline"
+							size="icon-sm"
+							aria-disabled={index === 0}
+							aria-label={m.dashboard_widget_move_up({ name })}
+							onclick={(event) => move(widget.id, index - 1, event.currentTarget)}
+						>
+							<ArrowUp aria-hidden="true" />
+						</Button>
+						<Button
+							variant="outline"
+							size="icon-sm"
+							aria-disabled={index === layout.length - 1}
+							aria-label={m.dashboard_widget_move_down({ name })}
+							onclick={(event) => move(widget.id, index + 1, event.currentTarget)}
+						>
+							<ArrowDown aria-hidden="true" />
+						</Button>
+					</div>
+				</div>
+			</li>
+		{/each}
+	</ol>
+</section>

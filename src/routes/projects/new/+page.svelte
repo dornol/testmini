@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages.js';
 	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
-	import ProjectDetailsForm from '$lib/components/ProjectDetailsForm.svelte';
+	import NameDescriptionForm from '$lib/components/NameDescriptionForm.svelte';
 	let { data, form } = $props();
 </script>
 
@@ -14,5 +14,5 @@
 	</a>
 	<PageHeader title={m.project_new_title()} description={m.project_new_desc()} level={1} />
 
-	<ProjectDetailsForm initial={form?.form ?? data.form} />
+	<NameDescriptionForm initial={form?.form ?? data.form} />
 </div>

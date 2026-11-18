@@ -1,11 +1,14 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, redirect, fail } from '@sveltejs/kit';
+import { message } from 'sveltekit-superforms';
+import { childLogger } from '$lib/server/logger';
 import { createTeamSchema, type CreateTeamInput } from '$lib/schemas/team.schema';
 import { emptyForm, validateForm } from '$lib/server/form-utils';
 import { db } from '$lib/server/db';
 import { team, teamMember } from '$lib/server/db/schema';
 import { assertContentLengthUnderLimit } from '$lib/server/request-size';
 
+const log = childLogger('team-create');
 const MAX_TEAM_CREATE_FORM_BODY_SIZE = 16 * 1024;
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -36,36 +39,42 @@ export const actions: Actions = {
 
 		const { name, description } = form.data as CreateTeamInput;
 
-		const newTeam = await db.transaction(async (tx) => {
-			const [created] = await tx
-				.insert(team)
-				.values({
-					name,
-					description: description || null,
-					createdBy: locals.user!.id
-				})
-				.returning({ id: team.id });
+		const newTeam = await db
+			.transaction(async (tx) => {
+				const [created] = await tx
+					.insert(team)
+					.values({
+						name,
+						description: description || null,
+						createdBy: locals.user!.id
+					})
+					.returning({ id: team.id });
 
-			if (!created) {
-				error(500, 'Failed to create team');
-			}
+				if (!created) {
+					error(500, 'Failed to create team');
+				}
 
-			const [member] = await tx
-				.insert(teamMember)
-				.values({
-					teamId: created.id,
-					userId: locals.user!.id,
-					role: 'OWNER'
-				})
-				.returning({ teamId: teamMember.teamId });
+				const [member] = await tx
+					.insert(teamMember)
+					.values({
+						teamId: created.id,
+						userId: locals.user!.id,
+						role: 'OWNER'
+					})
+					.returning({ teamId: teamMember.teamId });
 
-			if (!member) {
-				error(500, 'Failed to create team owner membership');
-			}
+				if (!member) {
+					error(500, 'Failed to create team owner membership');
+				}
 
-			return created;
-		});
+				return created;
+			})
+			.catch(() => {
+				log.error({ requestId: locals.requestId }, 'Team creation transaction failed');
+				return null;
+			});
 
+		if (!newTeam) return message(form, 'save_failed', { status: 500 });
 		redirect(303, `/teams/${newTeam.id}`);
 	}
 };

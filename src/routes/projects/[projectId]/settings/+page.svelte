@@ -2,7 +2,7 @@
 	import { tick, untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
-	import ProjectDetailsForm from '$lib/components/ProjectDetailsForm.svelte';
+	import NameDescriptionForm from '$lib/components/NameDescriptionForm.svelte';
 	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Button } from '$lib/components/ui/button';
@@ -51,7 +51,7 @@
 		description={canManage ? m.settings_general_desc() : m.settings_general_readonly()}
 	/>
 	{#if canManage}
-		<ProjectDetailsForm
+		<NameDescriptionForm
 			initial={form?.form ?? data.form}
 			action="?/update"
 			editing

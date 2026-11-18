@@ -1121,6 +1121,9 @@
 
 	"nav_teams": "Teams",
 	"team_title": "Teams",
+	"team_search": "Search team names or descriptions",
+	"team_results_count": "Teams found: {count}",
+	"team_no_search_results": "Try another team name or clear the search.",
 	"team_new": "New Team",
 	"team_create": "Create Team",
 	"team_created": "Team created",

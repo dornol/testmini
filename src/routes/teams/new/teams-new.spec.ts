@@ -296,11 +296,16 @@ describe('/teams/new', () => {
 
 			const event = createMockEvent({
 				method: 'POST',
-				formData: createFormData({ name: 'Team' }),
+				formData: createFormData({ name: 'Team', description: 'Keep this draft' }),
 				user: testUser
 			});
 
-			await expect(actions.default(event)).rejects.toMatchObject({ status: 500 });
+			await expect(actions.default(event)).resolves.toMatchObject({
+				status: 500,
+				data: {
+					form: { message: 'save_failed', data: { name: 'Team', description: 'Keep this draft' } }
+				}
+			});
 		});
 
 		it('should return 500 when owner membership insert creates no row', async () => {
@@ -326,7 +331,10 @@ describe('/teams/new', () => {
 				user: testUser
 			});
 
-			await expect(actions.default(event)).rejects.toMatchObject({ status: 500 });
+			await expect(actions.default(event)).resolves.toMatchObject({
+				status: 500,
+				data: { form: { message: 'save_failed' } }
+			});
 		});
 
 		it('should accept a name exactly 100 characters long', async () => {

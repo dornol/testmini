@@ -1121,6 +1121,9 @@
 
 	"nav_teams": "팀",
 	"team_title": "팀",
+	"team_search": "팀 이름 또는 설명 검색",
+	"team_results_count": "검색된 팀 {count}개",
+	"team_no_search_results": "다른 팀 이름으로 검색하거나 검색어를 지워 보세요.",
 	"team_new": "새 팀",
 	"team_create": "팀 생성",
 	"team_created": "팀이 생성되었습니다",

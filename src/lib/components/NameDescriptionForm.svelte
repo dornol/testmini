@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
 	import { superForm, type SuperValidated } from 'sveltekit-superforms';
-	import { createProjectSchema, type CreateProjectInput } from '$lib/schemas/project.schema';
+	import { createProjectSchema } from '$lib/schemas/project.schema';
+	import { createTeamSchema } from '$lib/schemas/team.schema';
 	import { zodValidators } from '$lib/form-utils';
 	import * as m from '$lib/paraglide/messages.js';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
@@ -15,12 +16,14 @@
 		initial,
 		action,
 		editing = false,
-		guard = false
+		guard = false,
+		team = false
 	}: {
-		initial: SuperValidated<CreateProjectInput>;
+		initial: SuperValidated<{ name: string; description?: string }>;
 		action?: string;
 		editing?: boolean;
 		guard?: boolean;
+		team?: boolean;
 	} = $props();
 	let summary = $state<HTMLDivElement | null>(null);
 	let submitted = $state(false);
@@ -33,7 +36,7 @@
 	const { form, errors, constraints, message, enhance, submitting, tainted } = superForm(
 		untrack(() => initial),
 		{
-			validators: zodValidators(createProjectSchema),
+			validators: zodValidators(untrack(() => (team ? createTeamSchema : createProjectSchema))),
 			autoFocusOnError: false,
 			scrollToError: 'off',
 			onSubmit: () => {
@@ -53,6 +56,12 @@
 
 	function validationMessage(error: string): string {
 		if (error === 'Project name is required') return m.validation_project_name_required();
+		if (error.includes('expected string to have >=1 characters'))
+			return m.validation_team_name_required();
+		if (error.includes('expected string to have <=100 characters'))
+			return m.validation_name_max_100();
+		if (error.includes('expected string to have <=1000 characters'))
+			return m.validation_description_max_1000();
 		if (error === 'Name must be 100 characters or less') return m.validation_name_max_100();
 		if (error === 'Description must be 1000 characters or less')
 			return m.validation_description_max_1000();
@@ -95,7 +104,7 @@
 	<fieldset disabled={$submitting} class="min-w-0 space-y-4">
 		<div class="space-y-1">
 			<Label for="name"
-				>{m.project_name_label()}
+				>{team ? m.team_name() : m.project_name_label()}
 				<span class="text-muted-foreground">({m.ui_required()})</span></Label
 			>
 			<Input
@@ -131,10 +140,14 @@
 					: m.common_save_changes()
 				: $submitting
 					? m.common_creating()
-					: m.projects_create()}
+					: team
+						? m.team_create()
+						: m.projects_create()}
 		</Button>
-		{#if !editing}<Button variant="outline" class="w-full sm:w-auto" href="/projects"
-				>{m.common_cancel()}</Button
+		{#if !editing}<Button
+				variant="outline"
+				class="w-full sm:w-auto"
+				href={team ? '/teams' : '/projects'}>{m.common_cancel()}</Button
 			>{/if}
 		{#if editing && $message && $message !== 'save_failed'}<p
 				role="status"

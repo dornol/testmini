@@ -5,20 +5,14 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { apiPost, apiDelete, apiFetch } from '$lib/api-client';
 	import { toast } from 'svelte-sonner';
+	import ReportShareDialog from './ReportShareDialog.svelte';
 	import ReportFilters from './ReportFilters.svelte';
 	import ReportSummaryCards from './ReportSummaryCards.svelte';
 	import ReportCharts from './ReportCharts.svelte';
 
 	let { data } = $props();
 
-	// ── Share dialog state ──
 	let shareDialogOpen = $state(false);
-	let shareName = $state('');
-	let shareExpiresDays = $state(0);
-	let sharedLinks = $state<
-		Array<{ id: number; token: string; name: string; expiresAt: string | null; createdAt: string }>
-	>([]);
-	let shareLoading = $state(false);
 
 	// ── Schedule dialog state ──
 	let scheduleDialogOpen = $state(false);
@@ -41,6 +35,12 @@
 
 	const projectId = $derived(data.project.id);
 	const isAdmin = $derived(data.userRole === 'PROJECT_ADMIN');
+	const canManageShare = $derived(isAdmin || data.userRole === 'QA' || data.userRole === 'ADMIN');
+	const shareConfig = $derived(
+		data.dateRange.allTime
+			? { preset: 'all_time' as const }
+			: { from: data.dateRange.from ?? undefined, to: data.dateRange.to ?? undefined }
+	);
 
 	function getPdfUrl(): string {
 		const params = new URLSearchParams();
@@ -51,57 +51,6 @@
 			if (data.dateRange.to) params.set('to', data.dateRange.to);
 		}
 		return `/api/projects/${projectId}/reports/pdf?${params.toString()}`;
-	}
-
-	async function openShareDialog() {
-		shareDialogOpen = true;
-		shareLoading = true;
-		try {
-			sharedLinks = await apiFetch(`/api/projects/${projectId}/reports/share`);
-		} catch {
-			/* handled by apiFetch */
-		}
-		shareLoading = false;
-	}
-
-	async function createShareLink() {
-		if (!shareName.trim()) return;
-		const config: Record<string, string> = {};
-		if (data.dateRange.allTime) {
-			config.preset = 'all';
-		} else {
-			if (data.dateRange.from) config.from = data.dateRange.from;
-			if (data.dateRange.to) config.to = data.dateRange.to;
-		}
-		try {
-			await apiPost(`/api/projects/${projectId}/reports/share`, {
-				name: shareName.trim(),
-				config,
-				expiresInDays: shareExpiresDays > 0 ? shareExpiresDays : undefined
-			});
-			toast.success(m.report_share_created());
-			shareName = '';
-			shareExpiresDays = 0;
-			sharedLinks = await apiFetch(`/api/projects/${projectId}/reports/share`);
-		} catch {
-			/* handled by apiFetch */
-		}
-	}
-
-	async function revokeShareLink(id: number) {
-		try {
-			await apiDelete(`/api/projects/${projectId}/reports/share/${id}`);
-			toast.success(m.report_share_revoked());
-			sharedLinks = sharedLinks.filter((l) => l.id !== id);
-		} catch {
-			/* handled by apiFetch */
-		}
-	}
-
-	function copyShareLink(token: string) {
-		const url = `${window.location.origin}/shared/${token}`;
-		navigator.clipboard.writeText(url);
-		toast.success(m.report_share_copied());
 	}
 
 	async function openScheduleDialog() {
@@ -171,7 +120,7 @@
 		invalidRange={data.invalidRange}
 		{isAdmin}
 		onExportPdf={() => window.open(getPdfUrl(), '_blank')}
-		onOpenShareDialog={openShareDialog}
+		onOpenShareDialog={() => (shareDialogOpen = true)}
 		onOpenScheduleDialog={openScheduleDialog}
 	/>
 
@@ -196,86 +145,14 @@
 	/>
 </div>
 
-<!-- Share Dialog -->
-<Dialog.Root bind:open={shareDialogOpen}>
-	<Dialog.Content class="sm:max-w-lg">
-		<Dialog.Header>
-			<Dialog.Title>{m.report_share()}</Dialog.Title>
-		</Dialog.Header>
-		<div class="space-y-4">
-			<!-- Create new share link -->
-			<div class="space-y-2">
-				<label for="share-name" class="text-sm font-medium">{m.report_share_name()}</label>
-				<input
-					id="share-name"
-					type="text"
-					bind:value={shareName}
-					placeholder={m.report_share_name()}
-					class="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
-				/>
-				<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-					<label for="share-expires" class="text-sm">{m.report_share_expires()}</label>
-					<input
-						id="share-expires"
-						type="number"
-						bind:value={shareExpiresDays}
-						min="0"
-						class="border-input bg-background w-full rounded-md border px-2 py-1 text-sm sm:w-20"
-					/>
-					<span class="text-muted-foreground text-xs">({m.report_share_never_expires()})</span>
-				</div>
-				<Button
-					size="sm"
-					class="w-full sm:w-auto"
-					onclick={createShareLink}
-					disabled={!shareName.trim()}
-				>
-					{m.report_share()}
-				</Button>
-			</div>
-
-			<!-- Existing share links -->
-			{#if shareLoading}
-				<p class="text-muted-foreground text-sm">{m.common_loading()}</p>
-			{:else if sharedLinks.length === 0}
-				<p class="text-muted-foreground text-sm">{m.report_share_empty()}</p>
-			{:else}
-				<div class="min-w-0 divide-y">
-					{#each sharedLinks as link (link.id)}
-						<div class="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between">
-							<div class="min-w-0">
-								<p class="break-words text-sm font-medium">{link.name}</p>
-								<p class="text-muted-foreground text-xs">
-									{link.expiresAt
-										? m.common_expires({ date: new Date(link.expiresAt).toLocaleDateString() })
-										: m.report_share_never_expires()}
-								</p>
-							</div>
-							<div class="flex flex-col gap-1 sm:flex-row">
-								<Button
-									size="sm"
-									variant="outline"
-									class="h-8 w-full text-xs sm:h-7 sm:w-auto"
-									onclick={() => copyShareLink(link.token)}
-								>
-									{m.report_share_copy()}
-								</Button>
-								<Button
-									size="sm"
-									variant="destructive"
-									class="h-8 w-full text-xs sm:h-7 sm:w-auto"
-									onclick={() => revokeShareLink(link.id)}
-								>
-									{m.report_share_revoke()}
-								</Button>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
-	</Dialog.Content>
-</Dialog.Root>
+{#key projectId}
+	<ReportShareDialog
+		bind:open={shareDialogOpen}
+		endpoint={`/api/projects/${projectId}/reports/share`}
+		config={shareConfig}
+		canManage={canManageShare}
+	/>
+{/key}
 
 <!-- Schedule Dialog -->
 {#if isAdmin}

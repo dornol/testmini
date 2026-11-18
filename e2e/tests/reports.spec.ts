@@ -17,6 +17,9 @@ test.describe.serial('Reports', () => {
 	const projectName = `Reports Project ${Date.now()}`;
 	let projectUrl: string;
 	let projectId: string;
+	test.afterAll(async ({ request }) => {
+		if (projectId) expect((await request.delete(`/api/projects/${projectId}`)).ok()).toBe(true);
+	});
 
 	// -------------------------------------------------------------------------
 	// Helper: build reports URL
@@ -293,6 +296,97 @@ test.describe.serial('Reports', () => {
 		}
 	});
 
+	test('report sharing retries, preserves the draft, and exposes the new URL only at creation', async ({
+		page,
+		playwright
+	}, testInfo) => {
+		await page.setViewportSize({ width: 375, height: 850 });
+		await page.goto(reportsUrl('preset=all'));
+		await page.waitForLoadState('networkidle');
+		const endpoint = `/api/projects/${projectId}/reports/share`;
+		const routePattern = '**' + endpoint;
+		await page.route(routePattern, (route) =>
+			route.fulfill({ status: 503, json: { message: 'Unavailable' } })
+		);
+		const opener = page.getByRole('button', { name: '리포트 공유', exact: true });
+		await opener.click();
+		const dialog = page.getByRole('dialog', { name: '리포트 공유' });
+		await expect(dialog.getByRole('alert')).toBeVisible();
+		await expect(dialog.getByText('공유 링크가 없습니다')).toHaveCount(0);
+		await page.unroute(routePattern);
+		await dialog.getByRole('button', { name: '다시 시도' }).click();
+		const name = dialog.locator('#share-name');
+		const expiry = dialog.locator('#share-expires');
+		await expect(name).toBeEnabled();
+		await name.fill('Recoverable report share');
+		await expiry.fill('7');
+		await page.route(routePattern, (route) =>
+			route.fulfill({ status: 503, json: { message: 'Unavailable' } })
+		);
+		await name.press('Enter');
+		await expect(dialog.getByRole('alert')).toBeFocused();
+		await expect(dialog.getByRole('alert')).toContainText('저장하지 못했습니다');
+		await expect(name).toHaveValue('Recoverable report share');
+		await expect(expiry).toHaveValue('7');
+		await page.unroute(routePattern);
+
+		const newLink = dialog.locator('#new-share-url');
+		await name.press('Enter');
+		await expect(newLink).toHaveValue(/\/shared\/[a-f0-9]{64}$/);
+		await expect(newLink).toBeFocused();
+		const url = await newLink.inputValue();
+		const publicClient = await playwright.request.newContext();
+		try {
+			expect((await publicClient.get(url)).ok()).toBe(true);
+		} finally {
+			await publicClient.dispose();
+		}
+		const list = await (await page.request.get(endpoint)).json();
+		const saved = list.find((item: { name: string }) => item.name === 'Recoverable report share');
+		expect(saved.config).toEqual({ preset: 'all_time' });
+		expect(saved).not.toHaveProperty('token');
+		await page.evaluate(() =>
+			Object.defineProperty(navigator, 'clipboard', {
+				configurable: true,
+				value: {
+					writeText: async () => {
+						throw new Error('Clipboard denied');
+					}
+				}
+			})
+		);
+		await dialog.getByRole('button', { name: '링크 복사' }).click();
+		await expect(dialog.getByRole('alert')).toContainText('직접 복사');
+		await expect(newLink).toBeFocused();
+		const result = await new AxeBuilder({ page })
+			.include('[data-slot=dialog-content]')
+			.withTags(['wcag2a', 'wcag2aa'])
+			.analyze();
+		expect(
+			result.violations
+				.filter((v) => ['critical', 'serious'].includes(v.impact ?? ''))
+				.map((v) => v.id)
+		).toEqual([]);
+		await testInfo.attach('share-dialog', {
+			body: await page.screenshot({ mask: [newLink], path: '/tmp/testmini-report-share.png' }),
+			contentType: 'image/png'
+		});
+		await page.keyboard.press('Escape');
+		await expect(dialog).toHaveCount(0);
+		await expect(opener).toBeFocused();
+		await opener.click();
+		await expect(
+			dialog.locator('li p').filter({ hasText: /^Recoverable report share$/ })
+		).toBeVisible();
+		await expect(newLink).toHaveCount(0);
+		await dialog.getByRole('button', { name: /링크 취소.*Recoverable report share/ }).click();
+		await expect(
+			dialog.locator('li p').filter({ hasText: /^Recoverable report share$/ })
+		).toHaveCount(0);
+		await expect(dialog.getByText('공유 링크가 없습니다')).toBeVisible();
+		expect((await page.request.get(url)).status()).toBe(404);
+	});
+
 	for (const locale of ['ko', 'en'])
 		for (const theme of ['light', 'dark'])
 			for (const width of [375, 768, 1440]) {
@@ -336,6 +430,23 @@ test.describe.serial('Reports', () => {
 							body: await page.screenshot({ path: `/tmp/testmini-report-range-${theme}.png` }),
 							contentType: 'image/png'
 						});
+					const share = filters.getByRole('button', { name: /^(리포트 공유|Share Report)$/ });
+					await share.click();
+					const shareDialog = page.getByRole('dialog');
+					await expect(shareDialog.locator('#share-name')).toBeEnabled();
+					expect(await shareDialog.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(false);
+					const shareAudit = await new AxeBuilder({ page })
+						.include('[data-slot=dialog-content]')
+						.withTags(['wcag2a', 'wcag2aa'])
+						.analyze();
+					expect(
+						shareAudit.violations
+							.filter((v) => ['serious', 'critical'].includes(v.impact ?? ''))
+							.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.failureSummary) }))
+					).toEqual([]);
+					await page.keyboard.press('Escape');
+					await expect(shareDialog).toHaveCount(0);
+					await expect(share).toBeFocused();
 				});
 			}
 });

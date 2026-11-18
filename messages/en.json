@@ -1486,5 +1486,7 @@
 	"quality_run_pass_count": "Passed {count} of {total}",
 	"report_date_range": "Report date range",
 	"report_dates_required": "Enter both a start date and an end date.",
-	"report_invalid_saved_range": "The link contains an invalid date range. The report shows the last 30 days."
+	"report_invalid_saved_range": "The link contains an invalid date range. The report shows the last 30 days.",
+	"report_share_description": "Anyone with the link can view the report. Save the URL when you create it.",
+	"report_share_copy_manually": "Copy the URL from the field below."
 }

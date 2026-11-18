@@ -12,3 +12,54 @@
 .report-result-caution {
 	@apply text-yellow-700 dark:text-yellow-400;
 }
+
+.report-runs {
+	overflow-wrap: anywhere;
+}
+
+@media (width >= 640px) {
+	.report-runs {
+		min-width: 820px;
+	}
+}
+
+@media (width < 640px) {
+	.report-runs,
+	.report-runs thead,
+	.report-runs tbody {
+		display: block;
+	}
+	.report-runs thead th:not(:first-child) {
+		position: absolute;
+		inline-size: 1px;
+		block-size: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+	}
+	.report-runs tbody tr {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		align-items: start;
+		gap: 0.5rem;
+		padding: 0.75rem;
+	}
+	.report-runs tbody td {
+		padding: 0;
+		white-space: normal;
+	}
+	.report-runs tbody td:first-child {
+		grid-column: 1 / -1;
+		padding: 0;
+	}
+	.report-runs .report-run-title,
+	.report-runs .report-run-meta {
+		grid-column: 1 / -1;
+	}
+}
+.report-run-title {
+	font-weight: 500;
+}
+.report-run-meta {
+	color: var(--muted-foreground);
+	font-size: var(--text-xs);
+}

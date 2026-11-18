@@ -950,150 +950,94 @@
 	</Card.Root>
 {/if}
 
-<!-- Recent Completed Runs Table -->
+<!-- Recent completed runs use one selection model and table at every width. -->
 {#if recentRuns.length > 0}
 	<Card.Root data-testid="recent-completed-runs">
-		<Card.Header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-			<Card.Title class="text-sm font-medium">{m.reports_recent_completed()}</Card.Title>
+		<Card.Header class="flex flex-wrap items-center justify-between gap-2">
+			<h3 id="report-recent-heading" class="text-sm font-medium">{m.reports_recent_completed()}</h3>
 			{#if selectedRunIds.size > 0}
-				<Button size="sm" class="h-8 w-full text-xs sm:h-7 sm:w-auto" onclick={exportSelected}>
+				<Button size="sm" onclick={exportSelected}>
 					{m.reports_export_selected({ count: selectedRunIds.size })}
 				</Button>
 			{/if}
 		</Card.Header>
 		<Card.Content class="p-0">
-			<div class="space-y-2 px-4 pb-4 sm:hidden">
-				{#each [...recentRuns].reverse() as run (run.id)}
-					{@const rate =
-						run.totalCount > 0 ? Math.round((run.passCount / run.totalCount) * 100) : 0}
-					<div class="rounded-md border p-3">
-						<div class="flex items-start gap-3">
-							<input
-								type="checkbox"
-								checked={selectedRunIds.has(run.id)}
-								onchange={() => toggleRun(run.id)}
-								aria-label={m.aria_select_item({ item: run.name })}
-								class="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300"
-							/>
-							<a
-								href={`/projects/${projectId}/test-runs/${run.id}`}
-								class="min-w-0 flex-1 rounded-sm text-left"
-							>
-								<p class="text-sm font-medium [overflow-wrap:anywhere]">{run.name}</p>
-								<div class="mt-2 flex flex-wrap items-center gap-2">
-									<Badge variant="outline" class="max-w-full whitespace-normal break-words">
-										{run.environment}
-									</Badge>
-									<span class="text-xs text-muted-foreground">
-										{run.finishedAt ? new Date(run.finishedAt).toLocaleDateString() : '-'}
-									</span>
-								</div>
-								<dl class="mt-3 grid grid-cols-2 gap-2 text-xs min-[420px]:grid-cols-4">
-									<div>
-										<dt class="text-muted-foreground">{m.reports_pass()}</dt>
-										<dd class="font-medium report-result-pass">{run.passCount}</dd>
-									</div>
-									<div>
-										<dt class="text-muted-foreground">{m.reports_fail()}</dt>
-										<dd class="font-medium report-result-fail">{run.failCount}</dd>
-									</div>
-									<div>
-										<dt class="text-muted-foreground">{m.dashboard_blocked()}</dt>
-										<dd class="font-medium report-result-blocked">
-											{run.blockedCount}
-										</dd>
-									</div>
-									<div>
-										<dt class="text-muted-foreground">{m.reports_pass_rate()}</dt>
-										<dd
-											class="font-medium {rate >= 80
-												? 'report-result-pass'
-												: rate >= 50
-													? 'report-result-caution'
-													: 'report-result-fail'}"
-										>
-											{rate}%
-										</dd>
-									</div>
-								</dl>
-							</a>
-						</div>
-					</div>
-				{/each}
-			</div>
-			<div class="hidden overflow-x-auto sm:block">
-				<Table.Root class="min-w-[820px] table-fixed">
-					<Table.Header>
-						<Table.Row>
-							<Table.Head class="w-10 px-2">
+			{@const resultLabels = [
+				m.reports_pass(),
+				m.reports_fail(),
+				m.dashboard_blocked(),
+				m.dashboard_skipped(),
+				m.reports_pass_rate()
+			]}
+			<Table.Root aria-labelledby="report-recent-heading" role="table" class="report-runs">
+				<Table.Header role="rowgroup">
+					<Table.Row role="row">
+						<Table.Head role="columnheader" scope="col" class="w-12">
+							<label class="inline-flex items-center gap-2">
 								<input
 									type="checkbox"
-									checked={recentRuns.length > 0 && selectedRunIds.size === recentRuns.length}
+									checked={selectedRunIds.size === recentRuns.length}
 									indeterminate={selectedRunIds.size > 0 && selectedRunIds.size < recentRuns.length}
 									onchange={toggleAll}
-									aria-label={m.reports_select_all()}
-									class="h-4 w-4 rounded border-gray-300"
 								/>
-							</Table.Head>
-							<Table.Head>{m.common_name()}</Table.Head>
-							<Table.Head class="w-28">{m.dashboard_env()}</Table.Head>
-							<Table.Head class="w-20">{m.reports_pass()}</Table.Head>
-							<Table.Head class="w-20">{m.reports_fail()}</Table.Head>
-							<Table.Head class="w-24">{m.dashboard_blocked()}</Table.Head>
-							<Table.Head class="w-24">{m.dashboard_skipped()}</Table.Head>
-							<Table.Head class="w-28">{m.reports_pass_rate()}</Table.Head>
-							<Table.Head class="w-32">{m.reports_finished()}</Table.Head>
-						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{#each [...recentRuns].reverse() as run (run.id)}
-							{@const rate =
-								run.totalCount > 0 ? Math.round((run.passCount / run.totalCount) * 100) : 0}
-							<Table.Row>
-								<Table.Cell class="px-2">
-									<input
-										type="checkbox"
-										checked={selectedRunIds.has(run.id)}
-										onchange={() => toggleRun(run.id)}
-										aria-label={m.aria_select_item({ item: run.name })}
-										class="h-4 w-4 rounded border-gray-300"
-									/>
-								</Table.Cell>
-								<Table.Cell class="min-w-0 font-medium">
-									<a
-										href={`/projects/${projectId}/test-runs/${run.id}`}
-										class="underline-offset-4 hover:underline [overflow-wrap:anywhere]"
-										>{run.name}</a
-									>
-								</Table.Cell>
-								<Table.Cell>
-									<Badge variant="outline" class="max-w-full truncate" title={run.environment}>
-										{run.environment}
-									</Badge>
-								</Table.Cell>
-								<Table.Cell class="report-result-pass">{run.passCount}</Table.Cell>
-								<Table.Cell class="report-result-fail">{run.failCount}</Table.Cell>
-								<Table.Cell class="report-result-blocked">{run.blockedCount}</Table.Cell>
-								<Table.Cell class="text-gray-500">{run.skippedCount}</Table.Cell>
-								<Table.Cell>
-									<span
-										class="font-medium {rate >= 80
+								<span class="sm:sr-only">{m.reports_select_all()}</span>
+							</label>
+						</Table.Head>
+						<Table.Head role="columnheader" scope="col">{m.common_name()}</Table.Head>
+						<Table.Head role="columnheader" scope="col">{m.dashboard_env()}</Table.Head>
+						{#each resultLabels as label (label)}
+							<Table.Head role="columnheader" scope="col">{label}</Table.Head>
+						{/each}
+						<Table.Head role="columnheader" scope="col">{m.reports_finished()}</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body role="rowgroup">
+					{#each [...recentRuns].reverse() as run (run.id)}
+						{@const rate =
+							run.totalCount > 0 ? Math.round((run.passCount / run.totalCount) * 100) : 0}
+						<Table.Row role="row">
+							<Table.Cell role="cell">
+								<input
+									type="checkbox"
+									checked={selectedRunIds.has(run.id)}
+									onchange={() => toggleRun(run.id)}
+									aria-label={m.aria_select_item({ item: run.name })}
+								/>
+							</Table.Cell>
+							<Table.Cell role="cell" class="report-run-title">
+								<a
+									href={`/projects/${projectId}/test-runs/${run.id}`}
+									class="underline-offset-4 hover:underline">{run.name}</a
+								>
+							</Table.Cell>
+							<Table.Cell role="cell" class="report-run-meta">{run.environment}</Table.Cell>
+							{#each [run.passCount, run.failCount, run.blockedCount, run.skippedCount, `${rate}%`] as count, i (i)}
+								<Table.Cell
+									role="cell"
+									class={[
+										'report-result-pass',
+										'report-result-fail',
+										'report-result-blocked',
+										'text-muted-foreground',
+										rate >= 80
 											? 'report-result-pass'
 											: rate >= 50
 												? 'report-result-caution'
-												: 'report-result-fail'}"
-									>
-										{rate}%
-									</span>
+												: 'report-result-fail'
+									][i]}
+								>
+									<span aria-hidden="true" class="mr-1 text-muted-foreground sm:hidden"
+										>{resultLabels[i]}</span
+									>{count}
 								</Table.Cell>
-								<Table.Cell class="text-muted-foreground text-xs">
-									{run.finishedAt ? new Date(run.finishedAt).toLocaleDateString() : '-'}
-								</Table.Cell>
-							</Table.Row>
-						{/each}
-					</Table.Body>
-				</Table.Root>
-			</div>
+							{/each}
+							<Table.Cell role="cell" class="report-run-meta"
+								>{run.finishedAt ? new Date(run.finishedAt).toLocaleDateString() : '—'}</Table.Cell
+							>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
 		</Card.Content>
 	</Card.Root>
 {/if}

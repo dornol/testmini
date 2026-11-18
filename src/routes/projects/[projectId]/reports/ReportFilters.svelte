@@ -8,7 +8,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { tick } from 'svelte';
-	import { reportCalendarDate } from '$lib/report-calendar';
+	import { reportCalendarDate, formatReportCalendarDate } from '$lib/report-calendar';
 
 	let {
 		dateRange,
@@ -99,11 +99,7 @@
 				? ['7', '30', '90'].find((days) => dateRange.from === afterDays(new Date(), -Number(days)))
 				: undefined
 	);
-	const formatDate = (iso: string) =>
-		new Date(iso + 'T00:00:00Z').toLocaleDateString(getLocale(), {
-			dateStyle: 'medium',
-			timeZone: 'UTC'
-		});
+	const formatDate = (iso: string) => formatReportCalendarDate(iso, getLocale());
 	const activeLabel = $derived(
 		dateRange.from && dateRange.to
 			? `${formatDate(dateRange.from)} – ${formatDate(dateRange.to)}`

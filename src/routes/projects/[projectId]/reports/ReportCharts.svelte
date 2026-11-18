@@ -1,13 +1,12 @@
 <script lang="ts">
-	import './report-results.css';
+	import '$lib/components/reports/report-results.css';
 	import * as m from '$lib/paraglide/messages.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import Chart from '$lib/components/Chart.svelte';
-	import type { ChartConfiguration } from 'chart.js';
+	import ReportResultCharts from '$lib/components/reports/ReportResultCharts.svelte';
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { formatDuration } from '$lib/format-utils';
@@ -145,80 +144,6 @@
 		window.location.href = `/api/projects/${projectId}/reports/export?runs=${ids}`;
 	}
 
-	const trendBarConfig = $derived<ChartConfiguration>({
-		type: 'bar',
-		data: {
-			labels: recentRuns.map((r) => (r.name.length > 10 ? r.name.slice(0, 10) + '..' : r.name)),
-			datasets: [
-				{
-					label: m.reports_pass(),
-					data: recentRuns.map((r) => r.passCount),
-					backgroundColor: '#22c55e'
-				},
-				{
-					label: m.reports_fail(),
-					data: recentRuns.map((r) => r.failCount),
-					backgroundColor: '#ef4444'
-				},
-				{
-					label: m.dashboard_blocked(),
-					data: recentRuns.map((r) => r.blockedCount),
-					backgroundColor: '#f97316'
-				},
-				{
-					label: m.dashboard_skipped(),
-					data: recentRuns.map((r) => r.skippedCount),
-					backgroundColor: '#9ca3af'
-				}
-			]
-		},
-		options: {
-			responsive: true,
-			plugins: { legend: { position: 'bottom' } },
-			scales: {
-				x: { stacked: true },
-				y: { stacked: true, beginAtZero: true }
-			}
-		}
-	});
-
-	const dailyBarConfig = $derived<ChartConfiguration>({
-		type: 'bar',
-		data: {
-			labels: dailyResults.map((d) => d.date),
-			datasets: [
-				{
-					label: m.reports_pass(),
-					data: dailyResults.map((d) => d.passCount),
-					backgroundColor: '#22c55e'
-				},
-				{
-					label: m.reports_fail(),
-					data: dailyResults.map((d) => d.failCount),
-					backgroundColor: '#ef4444'
-				},
-				{
-					label: m.dashboard_blocked(),
-					data: dailyResults.map((d) => d.blockedCount),
-					backgroundColor: '#f97316'
-				},
-				{
-					label: m.dashboard_skipped(),
-					data: dailyResults.map((d) => d.skippedCount),
-					backgroundColor: '#9ca3af'
-				}
-			]
-		},
-		options: {
-			responsive: true,
-			plugins: { legend: { position: 'bottom' } },
-			scales: {
-				x: { stacked: true },
-				y: { stacked: true, beginAtZero: true }
-			}
-		}
-	});
-
 	function passRate(pass: number, total: number): string {
 		if (total === 0) return '-';
 		return `${Math.round((pass / total) * 100)}%`;
@@ -234,29 +159,7 @@
 	}
 </script>
 
-<!-- Pass Rate Trend (bar chart) -->
-{#if recentRuns.length > 0}
-	<Card.Root>
-		<Card.Header>
-			<Card.Title class="text-sm font-medium">{m.reports_trend_title()}</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<Chart config={trendBarConfig} />
-		</Card.Content>
-	</Card.Root>
-{/if}
-
-<!-- Daily Test Run Results (stacked bar chart) -->
-{#if dailyResults.length > 0}
-	<Card.Root>
-		<Card.Header>
-			<Card.Title class="text-sm font-medium">{m.reports_daily_results()}</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<Chart config={dailyBarConfig} />
-		</Card.Content>
-	</Card.Root>
-{/if}
+<ReportResultCharts {recentRuns} {dailyResults} heading="h3" />
 
 <!-- Priority Breakdown -->
 {#if priorityStats.length > 0}

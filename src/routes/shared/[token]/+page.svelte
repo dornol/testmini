@@ -2,8 +2,9 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
-	import Chart from '$lib/components/Chart.svelte';
-	import type { ChartConfiguration } from 'chart.js';
+	import ReportResultCharts from '$lib/components/reports/ReportResultCharts.svelte';
+	import { formatReportCalendarDate } from '$lib/report-calendar';
+	import { getLocale } from '$lib/paraglide/runtime.js';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
@@ -15,20 +16,11 @@
 	const topFailingCases = $derived(data.topFailingCases);
 	const dateRange = $derived(data.dateRange);
 
-	function formatDisplayDate(iso: string | null): string {
-		if (!iso) return '';
-		return new Date(iso).toLocaleDateString(undefined, {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric'
-		});
-	}
-
 	const activeDateLabel = $derived(
 		dateRange.allTime
 			? m.filter_all_time()
 			: dateRange.from && dateRange.to
-				? `${formatDisplayDate(dateRange.from)} – ${formatDisplayDate(dateRange.to)}`
+				? `${formatReportCalendarDate(dateRange.from, getLocale())} – ${formatReportCalendarDate(dateRange.to, getLocale())}`
 				: m.filter_last_30_days()
 	);
 
@@ -41,86 +33,12 @@
 		if (total === 0) return '0%';
 		return `${(value / total) * 100}%`;
 	}
-
-	const trendBarConfig = $derived<ChartConfiguration>({
-		type: 'bar',
-		data: {
-			labels: recentRuns.map((r) => (r.name.length > 10 ? r.name.slice(0, 10) + '..' : r.name)),
-			datasets: [
-				{
-					label: m.shared_pass(),
-					data: recentRuns.map((r) => r.passCount),
-					backgroundColor: '#22c55e'
-				},
-				{
-					label: m.shared_fail(),
-					data: recentRuns.map((r) => r.failCount),
-					backgroundColor: '#ef4444'
-				},
-				{
-					label: m.shared_blocked(),
-					data: recentRuns.map((r) => r.blockedCount),
-					backgroundColor: '#f97316'
-				},
-				{
-					label: m.shared_skipped(),
-					data: recentRuns.map((r) => r.skippedCount),
-					backgroundColor: '#9ca3af'
-				}
-			]
-		},
-		options: {
-			responsive: true,
-			plugins: { legend: { position: 'bottom' } },
-			scales: {
-				x: { stacked: true },
-				y: { stacked: true, beginAtZero: true }
-			}
-		}
-	});
-
-	const dailyBarConfig = $derived<ChartConfiguration>({
-		type: 'bar',
-		data: {
-			labels: dailyResults.map((d) => d.date),
-			datasets: [
-				{
-					label: m.shared_pass(),
-					data: dailyResults.map((d) => d.passCount),
-					backgroundColor: '#22c55e'
-				},
-				{
-					label: m.shared_fail(),
-					data: dailyResults.map((d) => d.failCount),
-					backgroundColor: '#ef4444'
-				},
-				{
-					label: m.shared_blocked(),
-					data: dailyResults.map((d) => d.blockedCount),
-					backgroundColor: '#f97316'
-				},
-				{
-					label: m.shared_skipped(),
-					data: dailyResults.map((d) => d.skippedCount),
-					backgroundColor: '#9ca3af'
-				}
-			]
-		},
-		options: {
-			responsive: true,
-			plugins: { legend: { position: 'bottom' } },
-			scales: {
-				x: { stacked: true },
-				y: { stacked: true, beginAtZero: true }
-			}
-		}
-	});
 </script>
 
-<div class="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+<main class="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
 	<!-- Header -->
 	<div class="space-y-1 text-center">
-		<h1 class="break-words text-2xl font-bold">{data.reportName}</h1>
+		<h1 class="text-2xl font-bold [overflow-wrap:anywhere]">{data.reportName}</h1>
 		<p class="text-muted-foreground break-words text-sm">
 			{data.projectName} &middot; {activeDateLabel}
 		</p>
@@ -183,29 +101,7 @@
 		</Card.Root>
 	{/if}
 
-	<!-- Trend Chart -->
-	{#if recentRuns.length > 0}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title class="text-sm font-medium">{m.shared_pass_rate_trend()}</Card.Title>
-			</Card.Header>
-			<Card.Content>
-				<Chart config={trendBarConfig} />
-			</Card.Content>
-		</Card.Root>
-	{/if}
-
-	<!-- Daily Results -->
-	{#if dailyResults.length > 0}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title class="text-sm font-medium">{m.shared_daily_results()}</Card.Title>
-			</Card.Header>
-			<Card.Content>
-				<Chart config={dailyBarConfig} />
-			</Card.Content>
-		</Card.Root>
-	{/if}
+	<ReportResultCharts {recentRuns} {dailyResults} />
 
 	<!-- Priority Breakdown -->
 	{#if priorityStats.length > 0}
@@ -415,4 +311,4 @@
 	<p class="text-muted-foreground text-center text-xs">
 		{m.shared_generated_by()}
 	</p>
-</div>
+</main>

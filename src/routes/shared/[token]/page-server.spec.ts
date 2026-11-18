@@ -60,8 +60,8 @@ describe('/shared/[token] page server', () => {
 		mockSharedReportFindFirst.mockResolvedValue(report);
 		mockProjectFindFirst.mockResolvedValue(project);
 		mockParseDateRange.mockReturnValue({
-			from: new Date('2025-01-01T00:00:00.000Z'),
-			to: new Date('2025-01-31T23:59:59.999Z'),
+			from: new Date(2025, 0, 1),
+			to: new Date(2025, 0, 31, 23, 59, 59, 999),
 			allTime: false
 		});
 		mockLoadReportData.mockResolvedValue(reportData);

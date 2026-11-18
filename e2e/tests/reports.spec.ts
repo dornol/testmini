@@ -1,5 +1,27 @@
 import { test, expect } from '../fixtures/auth.fixture';
 import AxeBuilder from '@axe-core/playwright';
+import type { Page } from '@playwright/test';
+
+async function checkReportChartData(page: Page) {
+	const runChart = page.locator('[role=region][aria-labelledby=report-results-by-run]');
+	const dailyChart = page.locator('[role=region][aria-labelledby=report-results-by-date]');
+	for (const region of [runChart, dailyChart]) {
+		await expect(region.getByRole('img')).toBeVisible();
+		const summary = region.locator('summary');
+		const table = region.getByRole('table');
+		await expect(table).toHaveCount(0);
+		await summary.press('Enter');
+		await expect(summary).toBeFocused();
+		await expect(table.getByRole('columnheader')).toHaveCount(5);
+		const values = table.getByRole('cell');
+		await expect(values).toHaveCount(4);
+		for (const [index, count] of ['0', '1', '0', '0'].entries())
+			await expect(values.nth(index)).toHaveAccessibleName(count);
+		await expect(table.getByRole('rowheader')).toBeVisible();
+		expect(await region.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(false);
+	}
+	await expect(runChart.getByRole('rowheader')).toHaveText('Reports E2E Run');
+}
 
 /**
  * Reports page E2E tests.
@@ -17,7 +39,15 @@ test.describe.serial('Reports', () => {
 	const projectName = `Reports Project ${Date.now()}`;
 	let projectUrl: string;
 	let projectId: string;
+	let publicChartShare: { id: number; token: string };
+	let publicDateLabel: string;
 	test.afterAll(async ({ request }) => {
+		if (publicChartShare)
+			expect(
+				(
+					await request.delete(`/api/projects/${projectId}/reports/share/${publicChartShare.id}`)
+				).ok()
+			).toBe(true);
 		if (projectId) expect((await request.delete(`/api/projects/${projectId}`)).ok()).toBe(true);
 	});
 
@@ -472,6 +502,12 @@ test.describe.serial('Reports', () => {
 		}
 	});
 
+	test('execution charts disclose an empty date range', async ({ page }) => {
+		await page.goto(reportsUrl('from=2001-01-01&to=2001-01-02'));
+		await expect(page.getByText('이 기간의 실행 결과가 없습니다.')).toBeVisible();
+		await expect(page.locator('canvas')).toHaveCount(0);
+	});
+
 	for (const locale of ['ko', 'en'])
 		for (const theme of ['light', 'dark'])
 			for (const width of [375, 768, 1440]) {
@@ -518,10 +554,13 @@ test.describe.serial('Reports', () => {
 						).toBeVisible();
 					await expect(defectDensity.getByRole('row')).toHaveCount(2);
 
+					await checkReportChartData(page);
 					const result = await new AxeBuilder({ page })
 						.include('[data-slot=filter-toolbar]')
 						.include('[data-testid=recent-completed-runs]')
 						.include('.report-metrics')
+						.include('[aria-labelledby=report-results-by-run]')
+						.include('[aria-labelledby=report-results-by-date]')
 						.withTags(['wcag2a', 'wcag2aa'])
 						.analyze();
 					expect(
@@ -586,6 +625,114 @@ test.describe.serial('Reports', () => {
 					await page.keyboard.press('Escape');
 					await expect(scheduleDialog).toHaveCount(0);
 					await expect(schedule).toBeFocused();
+				});
+			}
+	test('public report presents an empty state outside execution dates', async ({
+		request,
+		browser,
+		baseURL
+	}) => {
+		const endpoint = `/api/projects/${projectId}/reports/share`;
+		const response = await request.post(endpoint, {
+			data: { name: 'Public Empty Chart', config: { from: '2001-01-01', to: '2001-01-02' } }
+		});
+		expect(response.status()).toBe(201);
+		const { id, token } = await response.json();
+		const client = await browser.newContext({ baseURL, viewport: { width: 375, height: 850 } });
+		try {
+			const page = await client.newPage();
+			await page.goto('/shared/' + token);
+			const main = page.getByRole('main');
+			await expect(
+				main.getByRole('heading', { level: 1, name: 'Public Empty Chart' })
+			).toBeVisible();
+			await expect(main.getByText('이 기간의 실행 결과가 없습니다.')).toBeVisible();
+			await expect(main.locator('canvas')).toHaveCount(0);
+		} finally {
+			await client.close();
+			expect((await request.delete(endpoint + '/' + id)).ok()).toBe(true);
+		}
+	});
+
+	test('create a public report with a calendar date range', async ({ request }) => {
+		const now = new Date();
+		const start = new Date(now);
+		start.setDate(start.getDate() - 2);
+		const end = new Date(now);
+		end.setDate(end.getDate() + 1);
+		const calendar = (date: Date) =>
+			new Intl.DateTimeFormat('sv-SE', {
+				year: 'numeric',
+				month: '2-digit',
+				day: '2-digit',
+				timeZone: 'Asia/Seoul'
+			}).format(date);
+		const from = calendar(start);
+		const to = calendar(end);
+		const format = (value: string) =>
+			new Date(value + 'T00:00:00Z').toLocaleDateString('en', {
+				dateStyle: 'medium',
+				timeZone: 'UTC'
+			});
+		publicDateLabel = `${format(from)} – ${format(to)}`;
+		const share = await request.post(`/api/projects/${projectId}/reports/share`, {
+			data: { name: 'Public Chart Data', config: { from, to } }
+		});
+		expect(share.status()).toBe(201);
+		publicChartShare = await share.json();
+	});
+
+	for (const locale of ['ko', 'en'])
+		for (const theme of ['light', 'dark'] as const)
+			for (const width of [375, 768, 1440]) {
+				test(`public ${locale}/${theme}/${width}: charts supply exact counts without sign-in`, async ({
+					browser,
+					baseURL
+				}, testInfo) => {
+					const client = await browser.newContext({
+						baseURL,
+						timezoneId: 'America/Los_Angeles',
+						viewport: { width, height: 850 },
+						colorScheme: theme,
+						reducedMotion: 'reduce'
+					});
+					try {
+						await client.addCookies([{ name: 'PARAGLIDE_LOCALE', value: locale, url: baseURL! }]);
+						const page = await client.newPage();
+						await page.goto('/shared/' + publicChartShare.token);
+						await expect(page.locator('html')).toHaveAttribute('lang', locale);
+						if (theme === 'dark') await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+						else await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
+						const report = page.getByRole('main');
+						await expect(
+							report.getByRole('heading', { level: 1, name: 'Public Chart Data' })
+						).toBeVisible();
+						if (locale === 'en')
+							await expect(report.getByText(publicDateLabel, { exact: false })).toBeVisible();
+						await checkReportChartData(page);
+						const audit = await new AxeBuilder({ page })
+							.include('[aria-labelledby=report-results-by-run]')
+							.include('[aria-labelledby=report-results-by-date]')
+							.withTags(['wcag2a', 'wcag2aa'])
+							.analyze();
+						expect(
+							audit.violations.filter((violation) =>
+								['serious', 'critical'].includes(violation.impact ?? '')
+							)
+						).toEqual([]);
+						expect(
+							await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)
+						).toBe(false);
+						if (locale === 'en' && width === 375) {
+							const chart = page.locator('[role=region][aria-labelledby=report-results-by-run]');
+							await testInfo.attach('public-report-chart', {
+								body: await chart.screenshot({ path: `/tmp/testmini-public-chart-${theme}.png` }),
+								contentType: 'image/png'
+							});
+						}
+					} finally {
+						await client.close();
+					}
 				});
 			}
 });

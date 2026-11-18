@@ -4,12 +4,9 @@ import { db } from '$lib/server/db';
 import { sharedReport, project } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { parseDateRange, loadReportData } from '$lib/server/report-data';
+import { reportCalendarDate } from '$lib/report-calendar';
 
 const SHARE_TOKEN_PATTERN = /^[a-f0-9]{64}$/;
-
-function toDateString(date: Date): string {
-	return date.toISOString().slice(0, 10);
-}
 
 export const load: PageServerLoad = async ({ params }) => {
 	if (!SHARE_TOKEN_PATTERN.test(params.token)) {
@@ -38,8 +35,8 @@ export const load: PageServerLoad = async ({ params }) => {
 		projectName: proj.name,
 		...data,
 		dateRange: {
-			from: range.from ? toDateString(range.from) : null,
-			to: range.to ? toDateString(range.to) : null,
+			from: range.from ? reportCalendarDate(range.from) : null,
+			to: range.to ? reportCalendarDate(range.to) : null,
 			allTime: range.allTime
 		}
 	};

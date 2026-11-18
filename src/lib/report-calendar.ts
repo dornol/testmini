@@ -13,3 +13,10 @@ export function parseReportCalendarDate(value: string): Date | null {
 	date.setHours(0, 0, 0, 0);
 	return reportCalendarDate(date) === value ? date : null;
 }
+
+export function formatReportCalendarDate(value: string, locale: string): string {
+	return new Date(value + 'T00:00:00Z').toLocaleDateString(locale, {
+		dateStyle: 'medium',
+		timeZone: 'UTC'
+	});
+}

@@ -1,25 +1,16 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
-	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
-	import { Badge } from '$lib/components/ui/badge/index.js';
-	import { toast } from 'svelte-sonner';
-	import { apiFetch, apiPost, apiPatch, apiDelete } from '$lib/api-client';
+	import { tick, untrack } from 'svelte';
+	import { apiFetch } from '$lib/api-client';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
 	import * as m from '$lib/paraglide/messages.js';
+	import { getLocale } from '$lib/paraglide/runtime';
 
-	interface Webhook {
-		id: number;
-		name: string;
-		url: string;
-		events: string[];
-		enabled: boolean;
-		createdAt: string | Date;
-	}
-
-	interface DeliveryLog {
+	let { data } = $props();
+	type Webhook = Omit<(typeof data.webhooks)[number], 'createdAt'>;
+	type DeliveryLog = {
 		id: number;
 		event: string;
 		statusCode: number | null;
@@ -27,435 +18,488 @@
 		errorMessage: string | null;
 		attempt: number;
 		duration: number | null;
-		createdAt: string | Date;
+		createdAt: string;
+	};
+	const events = {
+		TEST_RUN_COMPLETED: m.webhook_event_TEST_RUN_COMPLETED,
+		TEST_FAILED: m.webhook_event_TEST_FAILED,
+		COMMENT_ADDED: m.webhook_event_COMMENT_ADDED,
+		MEMBER_ADDED: m.webhook_event_MEMBER_ADDED,
+		ASSIGNED: m.webhook_event_ASSIGNED
+	};
+	const endpoint = $derived(`/api/projects/${data.project.id}/webhooks`);
+	let webhooks = $state<Webhook[]>(untrack(() => data.webhooks));
+	let createOpen = $state(false);
+	let name = $state('');
+	let url = $state('');
+	let secret = $state('');
+	let selectedEvents = $state<string[]>([]);
+	let pending = $state<'create' | 'delete' | 'test' | 'toggle' | null>(null);
+	let workingWebhook = $state<number | null>(null);
+	let createError = $state<string | null>(null);
+	let invalidName = $state(false);
+	let rowFeedback = $state<{ id: number; message: string; error?: boolean } | null>(null);
+	let deletedMessage = $state(false);
+	let deleteTarget = $state<Webhook | null>(null);
+	let deleteOpen = $state(false);
+	let deleteFailed = $state(false);
+	let deleteTrigger: HTMLElement | null = null;
+	let addButton = $state<HTMLButtonElement | null>(null);
+	let nameField = $state<HTMLInputElement | null>(null);
+	let createAlert = $state<HTMLElement | null>(null);
+	let deleteAlert = $state<HTMLElement | null>(null);
+
+	let expanded = $state<number | null>(null);
+	let logs = $state<DeliveryLog[]>([]);
+	let logState = $state<'loading' | 'ready' | 'error'>('ready');
+	let logHeading = $state<HTMLElement | null>(null);
+	let logRequest: AbortController | null = null;
+	$effect(() => () => logRequest?.abort());
+
+	function request<T>(method: 'POST' | 'PATCH' | 'DELETE', suffix = '', body?: object) {
+		return apiFetch<T>(endpoint + suffix, {
+			method,
+			silent: true,
+			...(body && { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+		});
 	}
 
-	const EVENT_TYPES = [
-		'TEST_RUN_COMPLETED',
-		'TEST_FAILED',
-		'COMMENT_ADDED',
-		'MEMBER_ADDED',
-		'ASSIGNED'
-	] as const;
-
-	let { data } = $props();
-
-	const projectId = $derived(data.project.id);
-
-	let webhooks = $state<Webhook[]>([]);
-
-	// Sync from data (reactive)
-	$effect(() => {
-		webhooks = data.webhooks as Webhook[];
-	});
-
-	// Create form
-	let showCreateForm = $state(false);
-	let newName = $state('');
-	let newUrl = $state('');
-	let newSecret = $state('');
-	let newEvents = $state<string[]>([]);
-	let creating = $state(false);
-
-	// Delete dialog
-	let deleteWebhook = $state<Webhook | null>(null);
-
-	// Delivery logs
-	let expandedWebhookId = $state<number | null>(null);
-	let deliveryLogs = $state<DeliveryLog[]>([]);
-	let loadingLogs = $state(false);
-
-	function eventLabel(event: string): string {
-		const labels: Record<string, () => string> = {
-			TEST_RUN_COMPLETED: m.webhook_event_TEST_RUN_COMPLETED,
-			TEST_FAILED: m.webhook_event_TEST_FAILED,
-			COMMENT_ADDED: m.webhook_event_COMMENT_ADDED,
-			MEMBER_ADDED: m.webhook_event_MEMBER_ADDED,
-			ASSIGNED: m.webhook_event_ASSIGNED
-		};
-		return labels[event]?.() ?? event;
+	async function openCreate() {
+		deletedMessage = false;
+		createOpen = true;
+		await tick();
+		nameField?.focus();
 	}
 
-	function toggleEvent(event: string) {
-		if (newEvents.includes(event)) {
-			newEvents = newEvents.filter((e) => e !== event);
-		} else {
-			newEvents = [...newEvents, event];
+	async function closeCreate() {
+		createOpen = false;
+		createError = null;
+		invalidName = false;
+		name = '';
+		url = '';
+		secret = '';
+		selectedEvents = [];
+		await tick();
+		addButton?.focus();
+	}
+
+	async function handleCreate(event: SubmitEvent) {
+		event.preventDefault();
+		if (pending) return;
+		createError = null;
+		invalidName = !name.trim();
+		if (invalidName) {
+			createError = m.settings_catalog_name_required();
+			await tick();
+			createAlert?.focus();
+			return;
 		}
-	}
-
-	async function handleCreate() {
-		if (creating) return;
-		creating = true;
+		pending = 'create';
 		try {
-			const created = await apiPost<Webhook>(`/api/projects/${projectId}/webhooks`, {
-				name: newName.trim(),
-				url: newUrl.trim(),
-				secret: newSecret.trim() || undefined,
-				events: newEvents
+			const created = await request<Webhook>('POST', '', {
+				name: name.trim(),
+				url: url.trim(),
+				secret: secret.trim() || undefined,
+				events: selectedEvents
 			});
 			webhooks = [created, ...webhooks];
-			toast.success(m.webhook_created());
-			resetForm();
+			rowFeedback = { id: created.id, message: m.webhook_created() };
+			pending = null;
+			await closeCreate();
 		} catch {
-			// apiPost handles toast
+			createError = m.ui_save_failed();
+			await tick();
+			createAlert?.focus();
 		} finally {
-			creating = false;
+			pending = null;
 		}
 	}
 
-	function resetForm() {
-		showCreateForm = false;
-		newName = '';
-		newUrl = '';
-		newSecret = '';
-		newEvents = [];
-	}
-
-	async function handleToggleEnabled(webhook: Webhook) {
+	async function updateWebhook(webhook: Webhook, action: 'toggle' | 'test') {
+		if (pending) return;
+		pending = action;
+		workingWebhook = webhook.id;
+		const previousLogRequest = logRequest;
+		rowFeedback = null;
 		try {
-			await apiPatch(`/api/projects/${projectId}/webhooks/${webhook.id}`, {
-				enabled: !webhook.enabled
-			});
-			webhooks = webhooks.map((w) => (w.id === webhook.id ? { ...w, enabled: !w.enabled } : w));
-			toast.success(m.webhook_updated());
+			if (action === 'toggle') {
+				const updated = await request<Webhook>('PATCH', '/' + webhook.id, {
+					enabled: !webhook.enabled
+				});
+				webhooks = webhooks.map((item) => (item.id === webhook.id ? updated : item));
+				rowFeedback = { id: webhook.id, message: m.webhook_updated() };
+			} else {
+				await request('POST', '/' + webhook.id + '/test', {});
+				rowFeedback = { id: webhook.id, message: m.webhook_test_processed() };
+				if (expanded === webhook.id || (expanded === null && logRequest === previousLogRequest))
+					void loadLogs(webhook.id);
+			}
 		} catch {
-			// handled
+			rowFeedback = {
+				id: webhook.id,
+				message: action === 'test' ? m.webhook_test_failed() : m.error_update_failed(),
+				error: true
+			};
+		} finally {
+			pending = null;
+			workingWebhook = null;
 		}
+	}
+
+	function openDelete(webhook: Webhook, trigger: HTMLElement) {
+		deleteTarget = webhook;
+		deleteTrigger = trigger;
+		deleteFailed = false;
+		deleteOpen = true;
 	}
 
 	async function handleDelete() {
-		if (!deleteWebhook) return;
-		const id = deleteWebhook.id;
+		if (!deleteTarget || pending) return;
+		const id = deleteTarget.id;
+		pending = 'delete';
+		deleteFailed = false;
 		try {
-			await apiDelete(`/api/projects/${projectId}/webhooks/${id}`);
-			webhooks = webhooks.filter((w) => w.id !== id);
-			if (expandedWebhookId === id) expandedWebhookId = null;
-			toast.success(m.webhook_deleted());
+			await request('DELETE', '/' + id);
+			webhooks = webhooks.filter((webhook) => webhook.id !== id);
+			if (expanded === id) closeLogs();
+			deletedMessage = true;
+			deleteOpen = false;
 		} catch {
-			// handled
+			deleteFailed = true;
+			await tick();
+			deleteAlert?.focus();
 		} finally {
-			deleteWebhook = null;
+			pending = null;
 		}
 	}
 
-	async function handleTest(webhook: Webhook) {
+	function restoreDeleteFocus(event: Event) {
+		event.preventDefault();
+		(deleteTrigger?.isConnected ? deleteTrigger : (addButton ?? nameField))?.focus();
+	}
+
+	function closeLogs() {
+		logRequest?.abort();
+		logRequest = null;
+		expanded = null;
+	}
+
+	async function loadLogs(id: number) {
+		logRequest?.abort();
+		const request = new AbortController();
+		logRequest = request;
+		expanded = id;
+		logState = 'loading';
 		try {
-			await apiPost(`/api/projects/${projectId}/webhooks/${webhook.id}/test`, {});
-			toast.success(m.webhook_test_sent());
-			// Refresh logs if this webhook's logs are expanded
-			if (expandedWebhookId === webhook.id) {
-				await loadDeliveryLogs(webhook.id);
+			const entries = await apiFetch<DeliveryLog[]>(`${endpoint}/${id}/logs`, {
+				silent: true,
+				signal: request.signal
+			});
+			if (!request.signal.aborted) {
+				logs = entries;
+				logState = 'ready';
 			}
 		} catch {
-			// handled
+			if (!request.signal.aborted) logState = 'error';
 		}
 	}
 
-	async function toggleLogs(webhookId: number) {
-		if (expandedWebhookId === webhookId) {
-			expandedWebhookId = null;
-			return;
-		}
-		await loadDeliveryLogs(webhookId);
+	function eventLabel(event: string) {
+		if (event === 'TEST') return m.webhook_test();
+		return events[event as keyof typeof events]?.() ?? event;
 	}
 
-	async function loadDeliveryLogs(webhookId: number) {
-		loadingLogs = true;
-		expandedWebhookId = webhookId;
-		try {
-			deliveryLogs = await apiFetch<DeliveryLog[]>(
-				`/api/projects/${projectId}/webhooks/${webhookId}/logs`
-			);
-		} catch {
-			deliveryLogs = [];
-		} finally {
-			loadingLogs = false;
-		}
-	}
-
-	function formatTime(date: string | Date): string {
-		return new Date(date).toLocaleString();
-	}
-
-	function formatDuration(ms: number | null): string {
-		if (ms === null) return '-';
-		if (ms < 1000) return `${ms}ms`;
-		return `${(ms / 1000).toFixed(1)}s`;
+	function formatDuration(ms: number | null) {
+		if (ms === null) return '—';
+		return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
 	}
 </script>
 
 <div class="space-y-4">
-	<div>
-		<h3 class="text-lg font-semibold">{m.webhook_title()}</h3>
-		<p class="text-muted-foreground text-sm">{m.webhook_desc()}</p>
-		<p class="text-muted-foreground mt-1 text-xs">{m.webhook_logs_retry_info()}</p>
-	</div>
-
-	{#if !showCreateForm}
-		<Button class="w-full sm:w-auto" onclick={() => (showCreateForm = true)}>
-			{m.webhook_new()}
-		</Button>
-	{:else}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title class="text-base">{m.webhook_new()}</Card.Title>
-			</Card.Header>
-			<Card.Content>
-				<form
-					onsubmit={(e) => {
-						e.preventDefault();
-						handleCreate();
-					}}
-					class="space-y-4"
+	<PageHeader title={m.webhook_title()} description={m.webhook_desc()}>
+		{#snippet actions()}
+			{#if !createOpen}
+				<Button
+					bind:ref={addButton}
+					class="w-full sm:w-auto"
+					disabled={pending !== null}
+					onclick={openCreate}>{m.webhook_new()}</Button
 				>
-					<div class="grid gap-4 sm:grid-cols-2">
-						<div class="space-y-2">
-							<Label for="wh-name">{m.webhook_name()}</Label>
-							<Input
-								id="wh-name"
-								placeholder={m.webhook_name_placeholder()}
-								bind:value={newName}
-								required
-							/>
-						</div>
-						<div class="space-y-2">
-							<Label for="wh-url">{m.webhook_url()}</Label>
-							<Input
-								id="wh-url"
-								type="url"
-								placeholder={m.webhook_url_placeholder()}
-								bind:value={newUrl}
-								required
-							/>
-						</div>
-					</div>
+			{/if}
+		{/snippet}
+	</PageHeader>
 
-					<div class="space-y-2">
-						<Label for="wh-secret">{m.webhook_secret()}</Label>
+	{#if createOpen}
+		<form
+			aria-label={m.webhook_new()}
+			onsubmit={handleCreate}
+			class="space-y-4 rounded-xl border bg-card p-4 sm:p-6"
+		>
+			{#if createError}<p
+					role="alert"
+					id="webhook-create-error"
+					tabindex="-1"
+					bind:this={createAlert}
+					class="rounded-md border border-destructive/40 p-3 text-sm text-destructive"
+				>
+					{createError}
+				</p>{/if}
+			<fieldset disabled={pending !== null} class="min-w-0 space-y-4">
+				<div class="grid gap-4 lg:grid-cols-2">
+					<div class="min-w-0 space-y-1">
+						<label for="wh-name" class="block text-sm font-medium">{m.webhook_name()}</label>
 						<Input
-							id="wh-secret"
-							placeholder={m.webhook_secret_placeholder()}
-							bind:value={newSecret}
+							id="wh-name"
+							bind:ref={nameField}
+							bind:value={name}
+							placeholder={m.webhook_name_placeholder()}
+							required
+							aria-invalid={invalidName || undefined}
+							aria-describedby={invalidName ? 'webhook-create-error' : undefined}
 						/>
 					</div>
-
-					<div class="space-y-2">
-						<Label>{m.webhook_events()}</Label>
-						<p class="text-muted-foreground text-xs">
-							{m.webhook_events_all()}
-						</p>
-						<div class="flex flex-wrap gap-3">
-							{#each EVENT_TYPES as event (event)}
-								<label class="flex min-w-0 items-start gap-1.5 text-sm">
-									<Checkbox
-										class="mt-0.5 shrink-0"
-										checked={newEvents.includes(event)}
-										onCheckedChange={() => toggleEvent(event)}
-									/>
-									<span class="min-w-0 break-words">{eventLabel(event)}</span>
-								</label>
-							{/each}
-						</div>
+					<div class="min-w-0 space-y-1">
+						<label for="wh-url" class="block text-sm font-medium">{m.webhook_url()}</label>
+						<Input
+							id="wh-url"
+							type="url"
+							bind:value={url}
+							placeholder={m.webhook_url_placeholder()}
+							required
+						/>
 					</div>
-
-					<div class="flex flex-col gap-2 sm:flex-row">
-						<Button
-							type="submit"
-							disabled={creating || !newName.trim() || !newUrl.trim()}
-							class="w-full sm:w-auto"
-						>
-							{m.webhook_new()}
-						</Button>
-						<Button type="button" variant="outline" onclick={resetForm} class="w-full sm:w-auto">
-							{m.common_cancel()}
-						</Button>
-					</div>
-				</form>
-			</Card.Content>
-		</Card.Root>
-	{/if}
-
-	{#if webhooks.length === 0}
-		<div
-			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
-		>
-			<p class="text-muted-foreground text-sm">{m.webhook_empty()}</p>
-		</div>
-	{:else}
-		<Card.Root>
-			<Card.Content class="pt-6">
-				<div class="space-y-3">
-					{#each webhooks as webhook (webhook.id)}
-						<div class="rounded-md border {webhook.enabled ? '' : 'opacity-50'}">
-							<div
-								class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-							>
-								<div class="min-w-0 flex-1">
-									<div class="flex flex-wrap items-center gap-2">
-										<p class="break-words text-sm font-medium">{webhook.name}</p>
-										{#if webhook.events.length > 0}
-											<span class="shrink-0 text-xs text-muted-foreground">
-												({webhook.events.length} events)
-											</span>
-										{:else}
-											<span class="shrink-0 text-xs text-muted-foreground">
-												({m.webhook_events_all()})
-											</span>
-										{/if}
-									</div>
-									<p class="break-all text-xs text-muted-foreground">{webhook.url}</p>
-								</div>
-
-								<div
-									class="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:shrink-0"
-								>
-									<Button
-										variant="outline"
-										size="sm"
-										class="w-full sm:w-auto"
-										onclick={() => toggleLogs(webhook.id)}
-									>
-										{m.webhook_logs_show()}
-									</Button>
-									<Button
-										variant="outline"
-										size="sm"
-										class="w-full sm:w-auto"
-										onclick={() => handleTest(webhook)}
-									>
-										{m.webhook_test()}
-									</Button>
-									<Button
-										variant={webhook.enabled ? 'default' : 'outline'}
-										size="sm"
-										class="w-full sm:w-auto"
-										onclick={() => handleToggleEnabled(webhook)}
-									>
-										{m.webhook_enabled()}
-									</Button>
-									<Button
-										variant="outline"
-										size="sm"
-										class="w-full sm:w-auto"
-										onclick={() => (deleteWebhook = webhook)}
-									>
-										{m.common_delete()}
-									</Button>
-								</div>
-							</div>
-
-							{#if expandedWebhookId === webhook.id}
-								<div class="border-t px-4 py-3">
-									<h4 class="mb-2 text-sm font-medium">{m.webhook_logs()}</h4>
-									{#if loadingLogs}
-										<p class="text-muted-foreground text-xs">...</p>
-									{:else if deliveryLogs.length === 0}
-										<p class="text-muted-foreground text-xs">{m.webhook_logs_empty()}</p>
-									{:else}
-										<div class="min-w-0 space-y-2 md:hidden">
-											{#each deliveryLogs as log (log.id)}
-												<div class="rounded-md border p-2 text-xs">
-													<div class="flex min-w-0 flex-wrap items-center gap-2">
-														<span class="min-w-0 break-words font-medium">
-															{eventLabel(log.event)}
-														</span>
-														{#if log.success}
-															<Badge variant="default" class="bg-green-600 text-xs"
-																>{log.statusCode ?? m.webhook_logs_success()}</Badge
-															>
-														{:else}
-															<Badge variant="destructive" class="text-xs"
-																>{log.statusCode ?? m.webhook_logs_failed()}</Badge
-															>
-														{/if}
-														<span class="text-muted-foreground">{log.attempt}/3</span>
-														<span class="text-muted-foreground">{formatDuration(log.duration)}</span
-														>
-													</div>
-													<div class="mt-1 text-muted-foreground">{formatTime(log.createdAt)}</div>
-													{#if log.errorMessage}
-														<div class="mt-1 break-words text-destructive">{log.errorMessage}</div>
-													{/if}
-												</div>
-											{/each}
-										</div>
-										<div class="hidden overflow-x-auto md:block">
-											<table class="min-w-[720px] table-fixed text-xs">
-												<thead>
-													<tr class="text-muted-foreground border-b text-left">
-														<th class="w-44 pb-1.5 pr-3 font-medium">{m.webhook_logs_time()}</th>
-														<th class="pb-1.5 pr-3 font-medium">{m.webhook_logs_event()}</th>
-														<th class="w-24 pb-1.5 pr-3 font-medium">{m.webhook_logs_status()}</th>
-														<th class="w-20 pb-1.5 pr-3 font-medium">{m.webhook_logs_attempt()}</th>
-														<th class="w-24 pb-1.5 pr-3 font-medium">{m.webhook_logs_duration()}</th
-														>
-														<th class="pb-1.5 font-medium">{m.webhook_logs_error()}</th>
-													</tr>
-												</thead>
-												<tbody>
-													{#each deliveryLogs as log (log.id)}
-														<tr class="border-b last:border-0">
-															<td class="whitespace-nowrap py-1.5 pr-3"
-																>{formatTime(log.createdAt)}</td
-															>
-															<td class="py-1.5 pr-3">
-																<div class="truncate" title={eventLabel(log.event)}>
-																	{eventLabel(log.event)}
-																</div>
-															</td>
-															<td class="py-1.5 pr-3">
-																{#if log.success}
-																	<Badge variant="default" class="bg-green-600 text-xs"
-																		>{log.statusCode ?? m.webhook_logs_success()}</Badge
-																	>
-																{:else}
-																	<Badge variant="destructive" class="text-xs"
-																		>{log.statusCode ?? m.webhook_logs_failed()}</Badge
-																	>
-																{/if}
-															</td>
-															<td class="py-1.5 pr-3">{log.attempt}/3</td>
-															<td class="py-1.5 pr-3">{formatDuration(log.duration)}</td>
-															<td class="py-1.5 text-destructive">
-																<div class="truncate" title={log.errorMessage ?? '-'}>
-																	{log.errorMessage ?? '-'}
-																</div>
-															</td>
-														</tr>
-													{/each}
-												</tbody>
-											</table>
-										</div>
-									{/if}
-								</div>
-							{/if}
-						</div>
-					{/each}
 				</div>
-			</Card.Content>
-		</Card.Root>
+				<div class="space-y-1">
+					<label for="wh-secret" class="block text-sm font-medium">{m.webhook_secret()}</label>
+					<Input
+						id="wh-secret"
+						type="password"
+						autocomplete="new-password"
+						bind:value={secret}
+						placeholder={m.webhook_secret_placeholder()}
+					/>
+				</div>
+				<fieldset aria-describedby="wh-events-hint" class="min-w-0">
+					<legend class="text-sm font-medium">{m.webhook_events()}</legend>
+					<p id="wh-events-hint" class="mt-1 text-sm text-muted-foreground">
+						{m.webhook_events_hint()}
+					</p>
+					<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+						{#each Object.keys(events) as event (event)}
+							<label class="flex min-h-9 min-w-0 items-center gap-2 text-sm">
+								<input
+									type="checkbox"
+									bind:group={selectedEvents}
+									value={event}
+									class="size-4 shrink-0 accent-primary"
+								/>
+								{eventLabel(event)}
+							</label>
+						{/each}
+					</div>
+				</fieldset>
+			</fieldset>
+			<div class="flex flex-wrap gap-2">
+				<Button type="submit" disabled={pending !== null} class="w-full sm:w-auto"
+					>{pending === 'create' ? m.common_creating() : m.webhook_new()}</Button
+				>
+				<Button
+					type="button"
+					variant="outline"
+					disabled={pending !== null}
+					class="w-full sm:w-auto"
+					onclick={closeCreate}>{m.common_cancel()}</Button
+				>
+			</div>
+		</form>
 	{/if}
 
-	<AlertDialog.Root
-		open={!!deleteWebhook}
-		onOpenChange={(open) => {
-			if (!open) deleteWebhook = null;
-		}}
-	>
-		<AlertDialog.Content>
+	{#if deletedMessage}<p role="status" class="text-sm text-muted-foreground">
+			{m.webhook_deleted()}
+		</p>{/if}
+	{#if webhooks.length === 0}
+		<p class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+			{m.webhook_empty()}
+		</p>
+	{:else}
+		<ul aria-label={m.webhook_title()} class="space-y-3">
+			{#each webhooks as webhook (webhook.id)}
+				{@const showLogs = expanded === webhook.id}
+				<li class="min-w-0 rounded-xl border bg-card p-4" aria-busy={workingWebhook === webhook.id}>
+					<div class="flex flex-wrap items-start justify-between gap-4">
+						<div class="min-w-0 basis-full space-y-1 [overflow-wrap:anywhere] lg:flex-1">
+							<h3 class="font-medium">{webhook.name}</h3>
+							<p class="text-sm text-muted-foreground">{webhook.url}</p>
+							<p class="text-sm text-muted-foreground">
+								{webhook.events.length
+									? webhook.events.map(eventLabel).join(', ')
+									: m.webhook_events_all()}
+							</p>
+						</div>
+						<div class="flex flex-wrap gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								aria-expanded={showLogs}
+								aria-controls={showLogs ? `webhook-logs-${webhook.id}` : undefined}
+								onclick={() => (showLogs ? closeLogs() : loadLogs(webhook.id))}
+								>{m.webhook_logs_show()}</Button
+							>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								disabled={pending !== null || !webhook.enabled}
+								onclick={() => updateWebhook(webhook, 'test')}
+								>{pending === 'test' && workingWebhook === webhook.id
+									? m.common_loading()
+									: m.webhook_test()}</Button
+							>
+							<Button
+								type="button"
+								role="switch"
+								aria-checked={webhook.enabled}
+								aria-label={m.webhook_enabled()}
+								variant={webhook.enabled ? 'default' : 'outline'}
+								size="sm"
+								disabled={pending !== null}
+								onclick={() => updateWebhook(webhook, 'toggle')}
+								>{webhook.enabled ? m.common_active() : m.common_inactive()}</Button
+							>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								disabled={pending !== null}
+								aria-label={m.settings_catalog_item_action({
+									name: webhook.name,
+									action: m.common_delete()
+								})}
+								onclick={(event) => openDelete(webhook, event.currentTarget)}
+								>{m.common_delete()}</Button
+							>
+						</div>
+					</div>
+					{#if rowFeedback?.id === webhook.id}
+						<p
+							role={rowFeedback.error ? 'alert' : 'status'}
+							class="mt-3 text-sm {rowFeedback.error
+								? 'text-destructive'
+								: 'text-muted-foreground'}"
+						>
+							{rowFeedback.message}
+						</p>
+					{/if}
+					{#if showLogs}
+						<section
+							id={`webhook-logs-${webhook.id}`}
+							aria-labelledby={`webhook-log-title-${webhook.id}`}
+							class="mt-4 space-y-2 border-t pt-4"
+						>
+							<h4
+								id={`webhook-log-title-${webhook.id}`}
+								tabindex="-1"
+								bind:this={logHeading}
+								class="text-sm font-medium"
+							>
+								{m.webhook_logs()}
+							</h4>
+							{#if logState === 'loading'}
+								<p role="status" class="text-sm text-muted-foreground">{m.common_loading()}</p>
+							{:else if logState === 'error'}
+								<p role="alert" class="text-sm text-destructive">
+									{m.webhook_logs_failed_to_load()}
+								</p>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onclick={() => {
+										logHeading?.focus();
+										void loadLogs(webhook.id);
+									}}>{m.my_work_retry()}</Button
+								>
+							{:else if logs.length === 0}
+								<p class="text-sm text-muted-foreground">{m.webhook_logs_empty()}</p>
+							{:else}
+								<p class="text-sm text-muted-foreground">{m.webhook_logs_retry_info()}</p>
+								<ul class="space-y-2">
+									{#each logs as log (log.id)}
+										<li class="space-y-1 rounded-md border p-3 text-sm [overflow-wrap:anywhere]">
+											<div class="flex flex-wrap items-start justify-between gap-2">
+												<span class="font-medium">{eventLabel(log.event)}</span>
+												<span class={log.success ? 'font-medium' : 'font-medium text-destructive'}>
+													{log.success ? m.webhook_logs_success() : m.webhook_logs_failed()}
+													{log.statusCode ?? ''}
+												</span>
+											</div>
+											<dl class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+												<div class="flex gap-1">
+													<dt>{m.webhook_logs_time()}</dt>
+													<dd>
+														<time datetime={log.createdAt}
+															>{new Date(log.createdAt).toLocaleString(getLocale(), {
+																timeZoneName: 'short'
+															})}</time
+														>
+													</dd>
+												</div>
+												<div class="flex gap-1">
+													<dt>{m.webhook_logs_attempt()}</dt>
+													<dd>{log.attempt}/3</dd>
+												</div>
+												<div class="flex gap-1">
+													<dt>{m.webhook_logs_duration()}</dt>
+													<dd>{formatDuration(log.duration)}</dd>
+												</div>
+											</dl>
+											{#if log.errorMessage}<p class="text-xs text-destructive">
+													{log.errorMessage}
+												</p>{/if}
+										</li>
+									{/each}
+								</ul>
+							{/if}
+						</section>
+					{/if}
+				</li>
+			{/each}
+		</ul>
+	{/if}
+</div>
+
+<AlertDialog.Root bind:open={deleteOpen}>
+	{#if deleteTarget}
+		<AlertDialog.Content
+			onCloseAutoFocus={restoreDeleteFocus}
+			escapeKeydownBehavior={pending === 'delete' ? 'ignore' : 'close'}
+		>
 			<AlertDialog.Header>
 				<AlertDialog.Title>{m.webhook_delete_title()}</AlertDialog.Title>
-				<AlertDialog.Description>
-					{m.webhook_delete_confirm({ name: deleteWebhook?.name ?? '' })}
-				</AlertDialog.Description>
+				<AlertDialog.Description class="[overflow-wrap:anywhere]"
+					>{m.webhook_delete_confirm({ name: deleteTarget.name })}</AlertDialog.Description
+				>
 			</AlertDialog.Header>
+			{#if deleteFailed}<p
+					role="alert"
+					tabindex="-1"
+					bind:this={deleteAlert}
+					class="text-sm text-destructive"
+				>
+					{m.error_remove_failed()}
+				</p>{/if}
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
-				<Button variant="destructive" class="w-full sm:w-auto" onclick={handleDelete}>
-					{m.common_delete()}
-				</Button>
+				<AlertDialog.Cancel disabled={pending !== null}>{m.common_cancel()}</AlertDialog.Cancel>
+				<Button
+					type="button"
+					variant="destructive"
+					disabled={pending !== null}
+					onclick={handleDelete}
+					class="w-full sm:w-auto"
+					>{pending === 'delete' ? m.common_saving() : m.common_delete()}</Button
+				>
 			</AlertDialog.Footer>
 		</AlertDialog.Content>
-	</AlertDialog.Root>
-</div>
+	{/if}
+</AlertDialog.Root>

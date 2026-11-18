@@ -1,6 +1,13 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { testCase, testRun, testExecution, user, dashboardLayout } from '$lib/server/db/schema';
+import {
+	testCase,
+	testCaseVersion,
+	testRun,
+	testExecution,
+	user,
+	dashboardLayout
+} from '$lib/server/db/schema';
 import { eq, and, sql, desc, count } from 'drizzle-orm';
 import { DEFAULT_LAYOUT } from '$lib/dashboard-widgets';
 import { cacheGet, cacheSet } from '$lib/server/cache';
@@ -13,7 +20,7 @@ interface RecentRun {
 	status: string;
 	createdAt: Date;
 	finishedAt: Date | null;
-	totalCount: number;
+	executedCount: number;
 	passCount: number;
 	failCount: number;
 }
@@ -22,7 +29,7 @@ interface TrendRun {
 	id: number;
 	name: string;
 	finishedAt: Date | null;
-	totalCount: number;
+	executedCount: number;
 	passCount: number;
 }
 
@@ -32,11 +39,24 @@ interface ActivityEntry {
 	executedBy: string | null;
 	executedAt: Date | null;
 	testRunName: string;
+	runId: number;
 }
 
 interface DashboardStats {
-	stats: { testCaseCount: number; runCounts: { total: number; created: number; inProgress: number; completed: number }; execCounts: { total: number; pass: number; fail: number; blocked: number; skipped: number; pending: number } };
+	stats: {
+		testCaseCount: number;
+		runCounts: { total: number; created: number; inProgress: number; completed: number };
+		execCounts: {
+			total: number;
+			pass: number;
+			fail: number;
+			blocked: number;
+			skipped: number;
+			pending: number;
+		};
+	};
 	recentRuns: RecentRun[];
+	priorityCounts: Array<{ priority: string; count: number }>;
 	trendRuns: TrendRun[];
 	activityLog: ActivityEntry[];
 }
@@ -51,6 +71,14 @@ async function loadDashboardStats(projectId: number): Promise<DashboardStats> {
 		.select({ count: count() })
 		.from(testCase)
 		.where(eq(testCase.projectId, projectId));
+
+	const priorityCounts = await db
+		.select({ priority: testCaseVersion.priority, count: count() })
+		.from(testCase)
+		.innerJoin(testCaseVersion, eq(testCase.latestVersionId, testCaseVersion.id))
+		.where(eq(testCase.projectId, projectId))
+		.groupBy(testCaseVersion.priority)
+		.orderBy(desc(count()), testCaseVersion.priority);
 
 	// Test run counts by status
 	const runStats = await db
@@ -105,7 +133,9 @@ async function loadDashboardStats(projectId: number): Promise<DashboardStats> {
 			status: testRun.status,
 			createdAt: testRun.createdAt,
 			finishedAt: testRun.finishedAt,
-			totalCount: sql<number>`count(${testExecution.id})`.as('total_count'),
+			executedCount: sql<number>`count(case when ${testExecution.status} <> 'PENDING' then 1 end)`
+				.mapWith(Number)
+				.as('executed_count'),
 			passCount: sql<number>`count(case when ${testExecution.status} = 'PASS' then 1 end)`.as(
 				'pass_count'
 			),
@@ -126,7 +156,9 @@ async function loadDashboardStats(projectId: number): Promise<DashboardStats> {
 			id: testRun.id,
 			name: testRun.name,
 			finishedAt: testRun.finishedAt,
-			totalCount: sql<number>`count(${testExecution.id})`.as('total_count'),
+			executedCount: sql<number>`count(case when ${testExecution.status} <> 'PENDING' then 1 end)`
+				.mapWith(Number)
+				.as('executed_count'),
 			passCount: sql<number>`count(case when ${testExecution.status} = 'PASS' then 1 end)`.as(
 				'pass_count'
 			)
@@ -145,14 +177,13 @@ async function loadDashboardStats(projectId: number): Promise<DashboardStats> {
 			status: testExecution.status,
 			executedBy: user.name,
 			executedAt: testExecution.executedAt,
-			testRunName: testRun.name
+			testRunName: testRun.name,
+			runId: testRun.id
 		})
 		.from(testExecution)
 		.innerJoin(testRun, eq(testExecution.testRunId, testRun.id))
 		.leftJoin(user, eq(testExecution.executedBy, user.id))
-		.where(
-			and(eq(testRun.projectId, projectId), sql`${testExecution.executedAt} IS NOT NULL`)
-		)
+		.where(and(eq(testRun.projectId, projectId), sql`${testExecution.executedAt} IS NOT NULL`))
 		.orderBy(desc(testExecution.executedAt))
 		.limit(20);
 
@@ -163,6 +194,7 @@ async function loadDashboardStats(projectId: number): Promise<DashboardStats> {
 			execCounts
 		},
 		recentRuns,
+		priorityCounts,
 		trendRuns: trendRuns.reverse(),
 		activityLog
 	};
@@ -171,7 +203,8 @@ async function loadDashboardStats(projectId: number): Promise<DashboardStats> {
 	return result;
 }
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, parent }) => {
+	await parent();
 	const projectId = parseId(params.projectId, 'project ID');
 	const currentUser = locals.user;
 

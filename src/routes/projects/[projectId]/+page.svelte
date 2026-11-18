@@ -1,6 +1,10 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages.js';
-	import { goto } from '$app/navigation';
+	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
+	import EmptyState from '$lib/components/patterns/EmptyState.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { getLocale } from '$lib/paraglide/runtime.js';
+	import '$lib/components/reports/report-results.css';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -42,13 +46,25 @@
 	);
 
 	// ── Chart configs ─────────────────────────────────────
-	const passRate = $derived(
-		stats.execCounts.total > 0
-			? Math.round((stats.execCounts.pass / stats.execCounts.total) * 100)
-			: 0
-	);
-
 	const executed = $derived(stats.execCounts.total - stats.execCounts.pending);
+	const passRate = $derived(percentPassed(stats.execCounts.pass, executed));
+	const runsPath = $derived(`/projects/${proj.id}/test-runs`);
+	const casesPath = $derived(`/projects/${proj.id}/test-cases`);
+	const canCreate = $derived(data.userRole !== 'VIEWER');
+
+	function percentPassed(pass: number, executedCount: number) {
+		return executedCount > 0 ? Math.round((pass / executedCount) * 100) : null;
+	}
+
+	function formatDate(date: Date | string) {
+		return new Date(date).toLocaleDateString(getLocale(), { dateStyle: 'medium' });
+	}
+	const resultLabels = $derived([
+		m.dashboard_env(),
+		m.common_status(),
+		m.dashboard_result(),
+		m.common_date()
+	]);
 
 	const trendConfig = $derived<ChartConfiguration>({
 		type: 'line',
@@ -57,9 +73,7 @@
 			datasets: [
 				{
 					label: m.dashboard_pass_rate(),
-					data: trendRuns.map((r) =>
-						r.totalCount > 0 ? Math.round((r.passCount / r.totalCount) * 100) : 0
-					),
+					data: trendRuns.map((run) => percentPassed(run.passCount, run.executedCount)),
 					borderColor: '#22c55e',
 					backgroundColor: 'rgba(34, 197, 94, 0.1)',
 					fill: true,
@@ -69,6 +83,7 @@
 		},
 		options: {
 			responsive: true,
+			animation: false,
 			plugins: { legend: { display: false } },
 			scales: {
 				y: { min: 0, max: 100, ticks: { callback: (v) => v + '%' } }
@@ -101,10 +116,25 @@
 		},
 		options: {
 			responsive: true,
+			animation: false,
 			plugins: {
 				legend: { position: 'bottom' }
 			}
 		}
+	});
+
+	const executionLabels = $derived<Record<string, string>>({
+		PASS: m.dashboard_pass(),
+		FAIL: m.dashboard_fail(),
+		BLOCKED: m.dashboard_blocked(),
+		SKIPPED: m.dashboard_skipped(),
+		PENDING: m.dashboard_pending()
+	});
+
+	const runLabels = $derived<Record<string, string>>({
+		CREATED: m.common_created(),
+		IN_PROGRESS: m.dashboard_status_in_progress(),
+		COMPLETED: m.dashboard_status_completed()
 	});
 
 	// ── Helpers ───────────────────────────────────────────
@@ -133,6 +163,51 @@
 	}
 </script>
 
+{#snippet activityLink(id: number, name: string)}
+	<a
+		href={runsPath + '/' + id}
+		class="min-w-0 rounded-sm text-foreground underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [overflow-wrap:anywhere]"
+	>
+		{name}
+	</a>
+{/snippet}
+
+{#snippet mobileLabel(label: string)}
+	<span aria-hidden="true" class="block text-xs text-muted-foreground sm:hidden">{label}</span>
+{/snippet}
+
+{#snippet runResult(label: string, value: string)}
+	<Table.Cell role="cell" class="whitespace-normal">
+		{@render mobileLabel(label)}
+		{value}
+	</Table.Cell>
+{/snippet}
+
+<div class="mb-4 space-y-3">
+	<PageHeader title={m.nav_dashboard()} />
+	{#if !stats.runCounts.total}
+		<EmptyState
+			title={stats.testCaseCount ? m.tr_empty_title() : m.tc_empty_title()}
+			description={canCreate
+				? stats.testCaseCount
+					? m.tr_empty_create()
+					: m.tc_empty_create()
+				: m.dashboard_wait_for_runs()}
+		>
+			{#snippet actions()}
+				{#if canCreate}
+					{#if stats.testCaseCount}
+						<Button href={runsPath + '/new'}>{m.tr_create()}</Button>
+					{:else}
+						<Button href={casesPath + '/new'}>{m.tc_create()}</Button>
+					{/if}
+				{:else}
+					<Button variant="outline" href={casesPath}>{m.nav_test_cases()}</Button>
+				{/if}
+			{/snippet}
+		</EmptyState>
+	{/if}
+</div>
 <DashboardCustomizer projectId={proj.id} bind:layout />
 
 <!-- ── Widget Grid ─────────────────────────────────────── -->
@@ -141,7 +216,7 @@
 		<div class="{SIZE_COLS[widget.size]} min-w-0">
 			<!-- stats_summary -->
 			{#if widget.id === 'stats_summary'}
-				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+				<div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
 					<Card.Root>
 						<Card.Header class="pb-2">
 							<Card.Title class="text-muted-foreground text-sm font-medium"
@@ -161,14 +236,14 @@
 						</Card.Header>
 						<Card.Content>
 							<p class="text-2xl font-bold">{stats.runCounts.total}</p>
-							<div class="text-muted-foreground mt-1 flex gap-2 text-xs">
+							<div class="text-muted-foreground mt-1 flex flex-wrap gap-2 text-xs">
 								{#if stats.runCounts.inProgress > 0}
-									<span class="text-blue-600"
+									<span class="text-muted-foreground"
 										>{m.dashboard_in_progress({ count: stats.runCounts.inProgress })}</span
 									>
 								{/if}
 								{#if stats.runCounts.completed > 0}
-									<span class="text-green-600"
+									<span class="report-result-pass"
 										>{m.dashboard_completed({ count: stats.runCounts.completed })}</span
 									>
 								{/if}
@@ -183,22 +258,14 @@
 							>
 						</Card.Header>
 						<Card.Content>
-							<p
-								class="text-2xl font-bold {passRate >= 80
-									? 'text-green-600'
-									: passRate >= 50
-										? 'text-yellow-600'
-										: stats.execCounts.total === 0
-											? ''
-											: 'text-red-600'}"
-							>
-								{stats.execCounts.total > 0 ? `${passRate}%` : '-'}
+							<p data-testid="dashboard-pass-rate" class="text-2xl font-bold tabular-nums">
+								{passRate === null ? '—' : `${passRate}%`}
 							</p>
-							{#if stats.execCounts.total > 0}
-								<p class="text-muted-foreground mt-1 text-xs">
-									{m.dashboard_executed({ pass: stats.execCounts.pass, executed })}
-								</p>
-							{/if}
+							<p class="mt-1 text-xs text-muted-foreground">
+								{passRate === null
+									? m.dashboard_no_executed()
+									: m.dashboard_executed({ pass: stats.execCounts.pass, executed })}
+							</p>
 						</Card.Content>
 					</Card.Root>
 
@@ -211,9 +278,9 @@
 						<Card.Content>
 							<p class="text-2xl font-bold">{proj.memberCount}</p>
 							<p class="text-muted-foreground mt-1 text-xs">
-								{proj.active ? m.common_active() : m.common_inactive()} &middot; {new Date(
+								{proj.active ? m.common_active() : m.common_inactive()} · {formatDate(
 									proj.createdAt
-								).toLocaleDateString()}
+								)}
 							</p>
 						</Card.Content>
 					</Card.Root>
@@ -322,114 +389,93 @@
 
 				<!-- recent_runs -->
 			{:else if widget.id === 'recent_runs'}
-				{#if recentRuns.length > 0}
-					<Card.Root class="h-full">
-						<Card.Header>
-							<div class="flex items-center justify-between">
-								<Card.Title class="text-sm font-medium">{m.dashboard_recent_runs()}</Card.Title>
-								<a
-									href="/projects/{proj.id}/test-runs"
-									class="text-muted-foreground hover:text-foreground text-xs"
-								>
-									{m.dashboard_view_all()} &rarr;
-								</a>
-							</div>
-						</Card.Header>
-						<Card.Content class="overflow-x-auto p-0">
-							<Table.Root class="min-w-[360px] table-fixed">
-								<Table.Header>
-									<Table.Row>
-										<Table.Head>{m.common_name()}</Table.Head>
-										<Table.Head class="w-24 hidden sm:table-cell">{m.dashboard_env()}</Table.Head>
-										<Table.Head class="w-28">{m.common_status()}</Table.Head>
-										<Table.Head class="w-40 hidden md:table-cell">{m.dashboard_result()}</Table.Head
-										>
-										<Table.Head class="w-28 hidden lg:table-cell">{m.common_date()}</Table.Head>
+				<Card.Root class="h-full">
+					<Card.Header>
+						<div class="flex flex-wrap items-center justify-between gap-2">
+							<h3 id="dashboard-recent-runs" class="text-lg font-medium">
+								{m.dashboard_recent_runs()}
+							</h3>
+							<Button href={runsPath} variant="outline" size="sm">{m.dashboard_view_all()}</Button>
+						</div>
+					</Card.Header>
+					{#if recentRuns.length}
+						<Card.Content class="p-0">
+							<Table.Root
+								role="table"
+								aria-labelledby="dashboard-recent-runs"
+								class="report-metrics sm:min-w-[34rem]"
+							>
+								<Table.Header role="rowgroup">
+									<Table.Row role="row">
+										<Table.Head scope="col" role="columnheader">{m.common_name()}</Table.Head>
+										{#each resultLabels as label (label)}
+											<Table.Head scope="col" role="columnheader">{label}</Table.Head>
+										{/each}
 									</Table.Row>
 								</Table.Header>
-								<Table.Body>
+								<Table.Body role="rowgroup">
 									{#each recentRuns as run (run.id)}
-										{@const runPassRate =
-											run.totalCount > 0 ? Math.round((run.passCount / run.totalCount) * 100) : 0}
-										<Table.Row
-											class="cursor-pointer"
-											onclick={() => goto(`/projects/${proj.id}/test-runs/${run.id}`)}
-										>
-											<Table.Cell class="min-w-0 font-medium">
-												<div class="truncate" title={run.name}>{run.name}</div>
+										{@const runRate = percentPassed(run.passCount, run.executedCount)}
+										<Table.Row role="row">
+											<Table.Head
+												scope="row"
+												role="rowheader"
+												class="report-metric-wide h-auto max-w-72 whitespace-normal py-2 text-foreground"
+											>
+												<a
+													href={runsPath + '/' + run.id}
+													class="inline-block rounded-sm font-medium hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+												>
+													{run.name}
+												</a>
+											</Table.Head>
+											{@render runResult(resultLabels[0], run.environment)}
+											<Table.Cell role="cell">
+												{@render mobileLabel(resultLabels[1])}
+												<Badge variant={statusVariant(run.status)}
+													>{runLabels[run.status] ?? run.status}</Badge
+												>
 											</Table.Cell>
-											<Table.Cell class="hidden sm:table-cell">
-												<Badge variant="outline">{run.environment}</Badge>
-											</Table.Cell>
-											<Table.Cell>
-												<Badge variant={statusVariant(run.status)}>
-													{run.status.replace('_', ' ')}
-												</Badge>
-											</Table.Cell>
-											<Table.Cell class="hidden md:table-cell">
-												<div class="flex items-center gap-2">
-													<div
-														class="bg-secondary flex h-2 w-20 overflow-hidden rounded-full"
-														title="{m.dashboard_pass()}: {run.passCount}, {m.dashboard_fail()}: {run.failCount}"
-													>
-														{#if run.passCount > 0}
-															<div
-																class="bg-green-500"
-																style="width: {(run.passCount / run.totalCount) * 100}%"
-															></div>
-														{/if}
-														{#if run.failCount > 0}
-															<div
-																class="bg-red-500"
-																style="width: {(run.failCount / run.totalCount) * 100}%"
-															></div>
-														{/if}
-													</div>
-													<span class="text-muted-foreground text-xs"
-														>{runPassRate}% ({run.passCount}P / {run.failCount}F)</span
-													>
-												</div>
-											</Table.Cell>
-											<Table.Cell class="text-muted-foreground text-xs hidden lg:table-cell">
-												{new Date(run.createdAt).toLocaleDateString()}
-											</Table.Cell>
+											{@render runResult(
+												resultLabels[2],
+												runRate === null
+													? m.dashboard_no_executed()
+													: `${runRate}% · ${m.shared_pass_fail({ pass: run.passCount, fail: run.failCount })}`
+											)}
+											{@render runResult(resultLabels[3], formatDate(run.createdAt))}
 										</Table.Row>
 									{/each}
 								</Table.Body>
 							</Table.Root>
 						</Card.Content>
-					</Card.Root>
-				{:else}
-					<Card.Root class="h-full">
-						<Card.Header>
-							<Card.Title class="text-sm font-medium">{m.dashboard_recent_runs()}</Card.Title>
-						</Card.Header>
+					{:else}
 						<Card.Content>
-							<p class="text-muted-foreground text-sm text-center py-8">
-								{m.dashboard_no_chart_data()}
-							</p>
+							<p class="text-sm text-muted-foreground">{m.tr_empty_title()}</p>
 						</Card.Content>
-					</Card.Root>
-				{/if}
+					{/if}
+				</Card.Root>
 
 				<!-- priority_breakdown -->
 			{:else if widget.id === 'priority_breakdown'}
 				<Card.Root class="h-full">
 					<Card.Header>
-						<Card.Title class="text-sm font-medium">{m.dashboard_priority_breakdown()}</Card.Title>
+						<h3 id="dashboard-priorities" class="text-lg font-medium">
+							{m.dashboard_priority_breakdown()}
+						</h3>
 					</Card.Header>
 					<Card.Content>
-						<div class="space-y-2 text-sm">
-							{#each [['CRITICAL', 'bg-red-500'], ['HIGH', 'bg-orange-500'], ['MEDIUM', 'bg-yellow-500'], ['LOW', 'bg-blue-400']] as const as [label, color] (label)}
-								<div class="flex items-center gap-2">
-									<span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full {color}"></span>
-									<span class="text-muted-foreground flex-1">{label}</span>
-								</div>
-							{/each}
-							<p class="text-muted-foreground pt-1 text-xs">
-								{m.dashboard_priority_hint()}
-							</p>
-						</div>
+						{#if data.priorityCounts.length}
+							<dl class="divide-y text-sm" aria-labelledby="dashboard-priorities">
+								{#each data.priorityCounts as priority (priority.priority)}
+									<div class="flex items-start justify-between gap-3 py-2">
+										<dt class="min-w-0 [overflow-wrap:anywhere]">{priority.priority}</dt>
+										<dd class="font-medium tabular-nums">{priority.count}</dd>
+									</div>
+								{/each}
+							</dl>
+						{:else}
+							<p class="text-sm text-muted-foreground">{m.tc_empty_title()}</p>
+						{/if}
 					</Card.Content>
 				</Card.Root>
 
@@ -437,19 +483,18 @@
 			{:else if widget.id === 'top_failing'}
 				<Card.Root class="h-full">
 					<Card.Header>
-						<Card.Title class="text-sm font-medium">{m.dashboard_top_failing()}</Card.Title>
+						<h3 id="dashboard-recent-failures" class="text-lg font-medium">
+							{m.dashboard_top_failing()}
+						</h3>
 					</Card.Header>
 					<Card.Content>
 						{#if activityLog.filter((a) => a.status === 'FAIL').length > 0}
-							<ul class="space-y-1.5 text-sm">
+							<ul class="space-y-1.5 text-sm" aria-labelledby="dashboard-recent-failures">
 								{#each activityLog
 									.filter((a) => a.status === 'FAIL')
 									.slice(0, 5) as activity (activity.id)}
-									<li class="flex items-center gap-2">
-										<span class="inline-block h-2 w-2 shrink-0 rounded-full bg-red-500"></span>
-										<span class="text-muted-foreground min-w-0 flex-1 truncate">
-											{activity.testRunName}
-										</span>
+									<li class="flex flex-wrap items-baseline justify-between gap-x-2 py-1">
+										{@render activityLink(activity.runId, activity.testRunName)}
 										<span class="text-muted-foreground shrink-0 text-xs">
 											{activity.executedAt ? timeAgo(activity.executedAt) : ''}
 										</span>
@@ -473,55 +518,49 @@
 			<Card.Title class="text-sm font-medium">{m.common_description()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
-			<p class="text-muted-foreground whitespace-pre-wrap">{proj.description}</p>
+			<p class="text-muted-foreground whitespace-pre-wrap [overflow-wrap:anywhere]">
+				{proj.description}
+			</p>
 		</Card.Content>
 	</Card.Root>
 {/if}
 
-<!-- Activity log (always shown below grid, not a customizable widget) -->
-{#if activityLog.length > 0}
+<!-- Activity log (always shown below grid) -->
+{#if activityLog.length}
 	<Card.Root class="mt-4">
 		<Card.Header>
-			<Card.Title class="text-sm font-medium">{m.dashboard_activity()}</Card.Title>
+			<h3 id="dashboard-activity" class="text-lg font-medium">{m.dashboard_activity()}</h3>
 		</Card.Header>
 		<Card.Content>
-			<div class="space-y-2">
+			<ul class="divide-y" aria-labelledby="dashboard-activity">
 				{#each visibleActivities as activity (activity.id)}
-					<div class="flex min-w-0 items-start gap-3 text-sm">
-						<span
-							class="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full {activity.status === 'PASS'
-								? 'bg-green-500'
-								: activity.status === 'FAIL'
-									? 'bg-red-500'
-									: activity.status === 'BLOCKED'
-										? 'bg-orange-500'
-										: 'bg-gray-400'}"
-						></span>
-						<span class="shrink-0 font-medium {statusColorText(activity.status)}"
-							>{activity.status}</span
-						>
-						<span
-							class="text-muted-foreground min-w-0 flex-1 truncate"
-							title="{activity.executedBy ?? '?'} · {activity.testRunName}"
-						>
-							{activity.executedBy ?? '?'} &middot; {activity.testRunName}
-						</span>
-						<span class="text-muted-foreground shrink-0 text-xs">
-							{activity.executedAt ? timeAgo(activity.executedAt) : ''}
-						</span>
-					</div>
+					<li class="min-w-0 space-y-1 py-2 text-sm">
+						<div class="flex flex-wrap items-baseline justify-between gap-x-3">
+							<span class="font-medium {statusColorText(activity.status)}">
+								{executionLabels[activity.status] ?? activity.status}
+							</span>
+							{#if activity.executedAt}
+								<time
+									datetime={new Date(activity.executedAt).toISOString()}
+									class="text-xs text-muted-foreground"
+								>
+									{timeAgo(activity.executedAt)}
+								</time>
+							{/if}
+						</div>
+						{@render activityLink(activity.runId, activity.testRunName)}
+						{#if activity.executedBy}
+							<p class="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+								{activity.executedBy}
+							</p>
+						{/if}
+					</li>
 				{/each}
-			</div>
+			</ul>
 			{#if activityLog.length > ACTIVITY_LIMIT && !showAllActivity}
-				<button
-					type="button"
-					class="mt-3 w-full text-center text-xs text-primary hover:underline"
-					onclick={() => {
-						showAllActivity = true;
-					}}
-				>
+				<Button variant="outline" class="mt-3" onclick={() => (showAllActivity = true)}>
 					{m.dashboard_activity_show_more()} ({activityLog.length - ACTIVITY_LIMIT})
-				</button>
+				</Button>
 			{/if}
 		</Card.Content>
 	</Card.Root>

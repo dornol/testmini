@@ -809,6 +809,12 @@
 
 	"custom_field_title": "Custom Fields",
 	"custom_field_desc": "Define custom fields for test cases in this project",
+	"custom_field_edit": "Edit Field",
+	"custom_field_readonly": "View custom fields and options. Project administrators can make changes.",
+	"custom_field_options_required": "Enter at least one option.",
+	"custom_field_options_duplicate": "Enter each option once. Options are compared without case.",
+	"custom_field_options_limits": "Use up to {count} options, with no more than {length} characters each.",
+	"custom_field_edit_options_hint": "Removed options will no longer be available when editing test cases. Previously saved values are kept.",
 	"custom_field_new": "Add Field",
 	"custom_field_name": "Field Name",
 	"custom_field_name_placeholder": "e.g., Browser, Module",

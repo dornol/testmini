@@ -809,6 +809,12 @@
 
 	"custom_field_title": "커스텀 필드",
 	"custom_field_desc": "이 프로젝트의 테스트 케이스에 사용할 커스텀 필드를 정의합니다",
+	"custom_field_edit": "필드 수정",
+	"custom_field_readonly": "커스텀 필드와 옵션을 확인할 수 있습니다. 변경은 프로젝트 관리자가 할 수 있습니다.",
+	"custom_field_options_required": "옵션을 하나 이상 입력하세요.",
+	"custom_field_options_duplicate": "같은 옵션은 한 번만 입력하세요. 대소문자는 구분하지 않습니다.",
+	"custom_field_options_limits": "옵션은 최대 {count}개, 각 옵션은 {length}자까지 입력할 수 있습니다.",
+	"custom_field_edit_options_hint": "삭제한 옵션은 테스트 케이스 편집 시 선택할 수 없습니다. 기존에 저장된 값은 유지됩니다.",
 	"custom_field_new": "필드 추가",
 	"custom_field_name": "필드 이름",
 	"custom_field_name_placeholder": "예: 브라우저, 모듈",

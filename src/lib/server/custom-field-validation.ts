@@ -1,17 +1,14 @@
 import { badRequest } from '$lib/server/errors';
 import { validateRequestBody } from '$lib/server/id-list-validation';
 
-export const CUSTOM_FIELD_TYPES = [
-	'TEXT',
-	'NUMBER',
-	'SELECT',
-	'MULTISELECT',
-	'DATE',
-	'CHECKBOX',
-	'URL'
-] as const;
-
-type CustomFieldType = (typeof CUSTOM_FIELD_TYPES)[number];
+import {
+	CUSTOM_FIELD_TYPES,
+	CUSTOM_FIELD_NAME_LIMIT,
+	CUSTOM_FIELD_OPTION_LIMIT,
+	CUSTOM_FIELD_OPTION_LENGTH_LIMIT,
+	requiresCustomFieldOptions,
+	type CustomFieldType
+} from '$lib/custom-fields';
 
 type CustomFieldInput = {
 	name?: string;
@@ -26,9 +23,6 @@ type CreateCustomFieldInput = CustomFieldInput & {
 	fieldType: CustomFieldType;
 };
 
-const MAX_NAME_LENGTH = 200;
-const MAX_OPTIONS = 100;
-const MAX_OPTION_LENGTH = 200;
 const CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
 const CREATE_CUSTOM_FIELD_FIELDS = new Set(['name', 'fieldType', 'options', 'required']);
 const UPDATE_CUSTOM_FIELD_FIELDS = new Set(['name', 'options', 'required', 'sortOrder']);
@@ -88,7 +82,7 @@ function validateCommonCustomFieldInput(
 ): CustomFieldInput | Response {
 	const input: CustomFieldInput = {};
 
-	if (body.options !== undefined || fieldType === 'SELECT' || fieldType === 'MULTISELECT') {
+	if (body.options !== undefined || requiresCustomFieldOptions(fieldType)) {
 		const options = validateOptions(body.options, fieldType);
 		if (options instanceof Response) return options;
 		input.options = options;
@@ -118,8 +112,8 @@ function validateCustomFieldName(value: unknown, emptyMessage: string): string |
 	if (CONTROL_CHAR_PATTERN.test(name)) {
 		return badRequest('Name must not contain control characters');
 	}
-	if (name.length > MAX_NAME_LENGTH) {
-		return badRequest(`Name must be ${MAX_NAME_LENGTH} characters or less`);
+	if (name.length > CUSTOM_FIELD_NAME_LIMIT) {
+		return badRequest(`Name must be ${CUSTOM_FIELD_NAME_LIMIT} characters or less`);
 	}
 	return name;
 }
@@ -133,7 +127,7 @@ function validateFieldType(value: unknown): CustomFieldType | Response {
 
 function validateOptions(value: unknown, fieldType?: CustomFieldType): string[] | null | Response {
 	if (value == null) {
-		if (fieldType === 'SELECT' || fieldType === 'MULTISELECT') {
+		if (requiresCustomFieldOptions(fieldType)) {
 			return badRequest('Options are required for SELECT/MULTISELECT fields');
 		}
 		return null;
@@ -141,8 +135,8 @@ function validateOptions(value: unknown, fieldType?: CustomFieldType): string[] 
 	if (!Array.isArray(value)) {
 		return badRequest('Options must be an array');
 	}
-	if (value.length > MAX_OPTIONS) {
-		return badRequest(`Options must contain ${MAX_OPTIONS} items or less`);
+	if (value.length > CUSTOM_FIELD_OPTION_LIMIT) {
+		return badRequest(`Options must contain ${CUSTOM_FIELD_OPTION_LIMIT} items or less`);
 	}
 
 	const options: string[] = [];
@@ -155,8 +149,8 @@ function validateOptions(value: unknown, fieldType?: CustomFieldType): string[] 
 		if (CONTROL_CHAR_PATTERN.test(trimmed)) {
 			return badRequest('Options must not contain control characters');
 		}
-		if (trimmed.length > MAX_OPTION_LENGTH) {
-			return badRequest(`Options must be ${MAX_OPTION_LENGTH} characters or less`);
+		if (trimmed.length > CUSTOM_FIELD_OPTION_LENGTH_LIMIT) {
+			return badRequest(`Options must be ${CUSTOM_FIELD_OPTION_LENGTH_LIMIT} characters or less`);
 		}
 		const key = trimmed.toLowerCase();
 		if (seen.has(key)) {
@@ -166,7 +160,7 @@ function validateOptions(value: unknown, fieldType?: CustomFieldType): string[] 
 		options.push(trimmed);
 	}
 
-	if ((fieldType === 'SELECT' || fieldType === 'MULTISELECT') && options.length === 0) {
+	if (requiresCustomFieldOptions(fieldType) && options.length === 0) {
 		return badRequest('Options are required for SELECT/MULTISELECT fields');
 	}
 

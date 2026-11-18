@@ -1,4 +1,9 @@
 <script lang="ts">
+	import WorkflowCreateDialog from '$lib/components/patterns/WorkflowCreateDialog.svelte';
+	import WorkflowField from '$lib/components/patterns/WorkflowField.svelte';
+	import { feedbackFor, workflowFormFeedback } from '$lib/form-feedback';
+	import { createReleaseSchema } from '$lib/schemas/release.schema';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import { isInteractiveTarget } from '$lib/utils';
 	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
 	import StatusFilter from '$lib/components/patterns/StatusFilter.svelte';
@@ -7,15 +12,13 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import * as Table from '$lib/components/ui/table/index.js';
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as m from '$lib/paraglide/messages.js';
-	import { apiPost, apiDelete } from '$lib/api-client';
+	import { apiDelete } from '$lib/api-client';
 
 	let { data } = $props();
 
@@ -72,7 +75,6 @@
 	let createName = $state('');
 	let createVersion = $state('');
 	let createDesc = $state('');
-	let createSaving = $state(false);
 
 	function openCreate() {
 		createName = '';
@@ -81,23 +83,20 @@
 		createDialogOpen = true;
 	}
 
-	async function handleCreate() {
-		if (!createName.trim()) return;
-		createSaving = true;
-		try {
-			const result = await apiPost<{ id: number }>(`/api/projects/${data.project.id}/releases`, {
-				name: createName.trim(),
-				version: createVersion.trim() || undefined,
-				description: createDesc.trim() || undefined
-			});
-			createDialogOpen = false;
-			toast.success(m.rel_created());
-			goto(`${basePath}/${result.id}`);
-		} catch {
-			// handled
-		} finally {
-			createSaving = false;
-		}
+	const createFields: Record<string, string> = {
+		name: 'relName',
+		version: 'relVersion',
+		description: 'relDesc'
+	};
+	function validateRelease() {
+		const parsed = createReleaseSchema.safeParse({
+			name: createName,
+			version: createVersion.trim() || undefined,
+			description: createDesc.trim() || undefined
+		});
+		return parsed.success
+			? { data: parsed.data }
+			: { errors: workflowFormFeedback(parsed.error.issues) };
 	}
 
 	// Delete dialog
@@ -345,48 +344,49 @@
 </div>
 
 <!-- Create Release Dialog -->
-<Dialog.Root bind:open={createDialogOpen}>
-	<Dialog.Portal>
-		<Dialog.Overlay />
-		<Dialog.Content class="sm:max-w-md">
-			<Dialog.Header>
-				<Dialog.Title>{m.rel_create()}</Dialog.Title>
-			</Dialog.Header>
-			<div class="space-y-4 py-4">
-				<div class="space-y-2">
-					<Label for="relName">{m.rel_name()}</Label>
-					<Input id="relName" bind:value={createName} placeholder={m.rel_name_placeholder()} />
-				</div>
-				<div class="space-y-2">
-					<Label for="relVersion">{m.rel_version()}</Label>
-					<Input
-						id="relVersion"
-						bind:value={createVersion}
-						placeholder={m.rel_version_placeholder()}
-					/>
-				</div>
-				<div class="space-y-2">
-					<Label for="relDesc">{m.common_description()}</Label>
-					<Input id="relDesc" bind:value={createDesc} />
-				</div>
-			</div>
-			<Dialog.Footer>
-				<Button
-					variant="outline"
-					class="w-full sm:w-auto"
-					onclick={() => (createDialogOpen = false)}>{m.common_cancel()}</Button
-				>
-				<Button
-					class="w-full sm:w-auto"
-					onclick={handleCreate}
-					disabled={createSaving || !createName.trim()}
-				>
-					{createSaving ? m.common_creating() : m.rel_create()}
-				</Button>
-			</Dialog.Footer>
-		</Dialog.Content>
-	</Dialog.Portal>
-</Dialog.Root>
+<WorkflowCreateDialog
+	bind:open={createDialogOpen}
+	title={m.rel_create()}
+	submitLabel={m.rel_create()}
+	endpoint={`/api/projects/${data.project.id}/releases`}
+	fieldTarget={(path) => createFields[path]}
+	validate={validateRelease}
+	onCreated={(id) => {
+		toast.success(m.rel_created());
+		void goto(`${basePath}/${id}`);
+	}}
+>
+	{#snippet children(errors)}
+		<WorkflowField
+			id={createFields.name}
+			label={m.rel_name()}
+			error={feedbackFor(errors, 'name')}
+			required
+		>
+			{#snippet children(props)}
+				<Input {...props} bind:value={createName} placeholder={m.rel_name_placeholder()} />
+			{/snippet}
+		</WorkflowField>
+		<WorkflowField
+			id={createFields.version}
+			label={m.rel_version()}
+			error={feedbackFor(errors, 'version')}
+		>
+			{#snippet children(props)}
+				<Input {...props} bind:value={createVersion} placeholder={m.rel_version_placeholder()} />
+			{/snippet}
+		</WorkflowField>
+		<WorkflowField
+			id={createFields.description}
+			label={m.common_description()}
+			error={feedbackFor(errors, 'description')}
+		>
+			{#snippet children(props)}
+				<Textarea {...props} bind:value={createDesc} rows={3} />
+			{/snippet}
+		</WorkflowField>
+	{/snippet}
+</WorkflowCreateDialog>
 
 <!-- Delete Release Dialog -->
 <AlertDialog.Root bind:open={deleteDialogOpen}>

@@ -298,6 +298,89 @@ test.describe.serial('Workflow form recovery and case selection', () => {
 		}
 	});
 
+	for (const resource of ['releases', 'exploratory'] as const) {
+		test(`${resource} creation validates fields and retries without losing input`, async ({
+			page
+		}, testInfo) => {
+			await page.setViewportSize({ width: 375, height: 800 });
+			await page.goto(`/projects/${projectId}/${resource}`);
+			await page.waitForLoadState('networkidle');
+			const exploratory = resource === 'exploratory';
+			if (
+				exploratory &&
+				!(await page.locator('html').evaluate((el) => el.classList.contains('dark')))
+			) {
+				await page.getByRole('button', { name: '테마 변경' }).click();
+			}
+			await page.locator('[data-slot=page-header]').getByRole('button').first().click();
+			const dialog = page.getByRole('dialog');
+			const submit = dialog.locator('button[type=submit]');
+			const summary = dialog.locator('[data-slot=form-error-summary]');
+			const primaryId = exploratory ? 'session-title' : 'relName';
+			const secondaryId = exploratory ? 'session-tags' : 'relVersion';
+			const primary = dialog.locator(`#${primaryId}`);
+			const secondary = dialog.locator(`#${secondaryId}`);
+			const description = dialog.getByRole('textbox').and(dialog.locator('textarea'));
+			const longValue = 'x'.repeat(101);
+			await secondary.fill(longValue);
+			await submit.click();
+			await expect(summary).toBeFocused();
+			await expect(primary).toHaveAttribute('aria-invalid', 'true');
+			await summary.locator(`a[href="#${secondaryId}"]`).click();
+			await expect(secondary).toBeFocused();
+			await expect(secondary).toHaveAttribute('aria-invalid', 'true');
+			expect(await dialog.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(false);
+			const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+			expect(
+				axe.violations
+					.filter((v) => ['critical', 'serious'].includes(v.impact ?? ''))
+					.map((v) => v.id)
+			).toEqual([]);
+			await testInfo.attach(`${resource}-error`, {
+				body: await page.screenshot({ path: `/tmp/testmini-${resource}-create-error.png` }),
+				contentType: 'image/png'
+			});
+
+			const title = `Recovered ${resource}`;
+			await primary.fill(title);
+			await secondary.fill(exploratory ? ' smoke, , ui ' : 'v1.0');
+			await description.fill('Line one\nLine two');
+			const endpoint = `**/api/projects/${projectId}/${exploratory ? 'exploratory-sessions' : resource}`;
+			let releaseResponse!: () => void;
+			const pending = new Promise<void>((resolve) => {
+				releaseResponse = resolve;
+			});
+			await page.route(endpoint, async (route) => {
+				await pending;
+				await route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+			});
+			await submit.click();
+			try {
+				await expect(submit).toBeDisabled();
+				await page.keyboard.press('Escape');
+				await expect(dialog).toBeVisible();
+			} finally {
+				releaseResponse();
+			}
+			await expect(summary).toBeFocused();
+			await expect(summary).toContainText('저장하지 못했습니다');
+			await expect(primary).toHaveValue(title);
+			await expect(description).toHaveValue('Line one\nLine two');
+			await page.unroute(endpoint);
+			const saved = page.waitForResponse(
+				(res) =>
+					res.url().endsWith(exploratory ? '/exploratory-sessions' : '/releases') &&
+					res.request().method() === 'POST'
+			);
+			await primary.press('Enter');
+			const response = await saved;
+			expect(response.ok()).toBe(true);
+			const data = await response.json();
+			if (exploratory) expect(data.tags).toEqual(['smoke', 'ui']);
+			await expect(page).toHaveURL(new RegExp(`/${resource}/${data.id}$`));
+		});
+	}
+
 	for (const locale of ['ko', 'en'])
 		for (const theme of ['light', 'dark'])
 			for (const width of [375, 768, 1440]) {

@@ -1,4 +1,14 @@
 <script lang="ts">
+	import WorkflowCreateDialog from '$lib/components/patterns/WorkflowCreateDialog.svelte';
+	import WorkflowField from '$lib/components/patterns/WorkflowField.svelte';
+	import { feedbackFor, type FormFeedback } from '$lib/form-feedback';
+	import {
+		MAX_TITLE_LENGTH,
+		MAX_TEXT_LENGTH,
+		MAX_ENVIRONMENT_LENGTH,
+		MAX_TAGS,
+		MAX_TAG_LENGTH
+	} from '$lib/exploratory-session-limits';
 	import { isInteractiveTarget } from '$lib/utils';
 	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
 	import StatusFilter from '$lib/components/patterns/StatusFilter.svelte';
@@ -8,13 +18,10 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import * as m from '$lib/paraglide/messages.js';
 	import { toast } from 'svelte-sonner';
-	import { apiPost } from '$lib/api-client';
 
 	let { data } = $props();
 
@@ -23,7 +30,6 @@
 	let newCharter = $state('');
 	let newEnvironment = $state('');
 	let newTags = $state('');
-	let creating = $state(false);
 
 	const projectId = $derived(data.project.id);
 	const canManage = $derived(data.userRole !== 'VIEWER');
@@ -79,33 +85,46 @@
 		return `${min}m ${s}s`;
 	}
 
-	async function createSession() {
-		if (!newTitle.trim()) return;
-		creating = true;
-		try {
-			const session = await apiPost<{ id: number }>(apiBase, {
-				title: newTitle.trim(),
-				charter: newCharter.trim() || undefined,
-				environment: newEnvironment.trim() || undefined,
-				tags: newTags.trim()
-					? newTags
-							.split(',')
-							.map((t) => t.trim())
-							.filter(Boolean)
-					: []
-			});
-			toast.success(m.exploratory_created());
-			showNewDialog = false;
-			newTitle = '';
-			newCharter = '';
-			newEnvironment = '';
-			newTags = '';
-			goto(`/projects/${projectId}/exploratory/${session.id}`);
-		} catch {
-			// error toast handled by apiPost
-		} finally {
-			creating = false;
+	const createFields: Record<string, string> = {
+		title: 'session-title',
+		charter: 'session-charter',
+		environment: 'session-environment',
+		tags: 'session-tags'
+	};
+
+	function validateSession() {
+		const title = newTitle.trim();
+		const charter = newCharter.trim();
+		const environment = newEnvironment.trim();
+		const tags = newTags
+			.split(',')
+			.map((tag) => tag.trim())
+			.filter(Boolean);
+		const errors: FormFeedback[] = [];
+		if (!title) errors.push({ path: 'title', messages: [m.ui_title_required()] });
+		for (const [path, value, max] of [
+			['title', title, MAX_TITLE_LENGTH],
+			['charter', charter, MAX_TEXT_LENGTH],
+			['environment', environment, MAX_ENVIRONMENT_LENGTH]
+		] as const) {
+			if (value.length > max)
+				errors.push({ path, messages: [m.ui_max_characters({ count: max })] });
 		}
+		const tagMessages: string[] = [];
+		if (tags.length > MAX_TAGS) tagMessages.push(m.ui_exploratory_tag_limit({ count: MAX_TAGS }));
+		if (tags.some((tag) => tag.length > MAX_TAG_LENGTH))
+			tagMessages.push(m.ui_exploratory_tag_length({ count: MAX_TAG_LENGTH }));
+		if (tagMessages.length) errors.push({ path: 'tags', messages: tagMessages });
+		return errors.length
+			? { errors }
+			: {
+					data: {
+						title,
+						charter: charter || undefined,
+						environment: environment || undefined,
+						tags
+					}
+				};
 	}
 </script>
 
@@ -256,58 +275,69 @@
 	{/if}
 </div>
 
-<Dialog.Root bind:open={showNewDialog}>
-	<Dialog.Content class="sm:max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>{m.exploratory_new()}</Dialog.Title>
-			<Dialog.Description>{m.exploratory_new_desc()}</Dialog.Description>
-		</Dialog.Header>
-		<div class="space-y-3">
-			<div>
-				<Label for="session-title">{m.common_title()}</Label>
-				<Input
-					id="session-title"
-					bind:value={newTitle}
-					placeholder={m.exploratory_title_placeholder()}
-				/>
-			</div>
-			<div>
-				<Label for="session-charter">{m.exploratory_charter()}</Label>
+<WorkflowCreateDialog
+	bind:open={showNewDialog}
+	title={m.exploratory_new()}
+	description={m.exploratory_new_desc()}
+	submitLabel={m.exploratory_start()}
+	endpoint={apiBase}
+	fieldTarget={(path) => createFields[path]}
+	validate={validateSession}
+	onCreated={(id) => {
+		toast.success(m.exploratory_created());
+		newTitle = '';
+		newCharter = '';
+		newEnvironment = '';
+		newTags = '';
+		void goto(`/projects/${projectId}/exploratory/${id}`);
+	}}
+>
+	{#snippet children(errors)}
+		<WorkflowField
+			id={createFields.title}
+			label={m.common_title()}
+			error={feedbackFor(errors, 'title')}
+			required
+		>
+			{#snippet children(props)}
+				<Input {...props} bind:value={newTitle} placeholder={m.exploratory_title_placeholder()} />
+			{/snippet}
+		</WorkflowField>
+		<WorkflowField
+			id={createFields.charter}
+			label={m.exploratory_charter()}
+			error={feedbackFor(errors, 'charter')}
+		>
+			{#snippet children(props)}
 				<Textarea
-					id="session-charter"
+					{...props}
 					bind:value={newCharter}
 					placeholder={m.exploratory_charter_placeholder()}
 					rows={3}
 				/>
-			</div>
-			<div>
-				<Label for="session-environment">{m.common_environment()}</Label>
+			{/snippet}
+		</WorkflowField>
+		<WorkflowField
+			id={createFields.environment}
+			label={m.common_environment()}
+			error={feedbackFor(errors, 'environment')}
+		>
+			{#snippet children(props)}
 				<Input
-					id="session-environment"
+					{...props}
 					bind:value={newEnvironment}
 					placeholder={m.exploratory_env_placeholder()}
 				/>
-			</div>
-			<div>
-				<Label for="session-tags">{m.exploratory_tags_label()}</Label>
-				<Input
-					id="session-tags"
-					bind:value={newTags}
-					placeholder={m.exploratory_tags_placeholder()}
-				/>
-			</div>
-		</div>
-		<Dialog.Footer>
-			<Button class="w-full sm:w-auto" variant="outline" onclick={() => (showNewDialog = false)}>
-				{m.common_cancel()}
-			</Button>
-			<Button
-				class="w-full sm:w-auto"
-				onclick={createSession}
-				disabled={creating || !newTitle.trim()}
-			>
-				{creating ? m.common_creating() : m.exploratory_start()}
-			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+			{/snippet}
+		</WorkflowField>
+		<WorkflowField
+			id={createFields.tags}
+			label={m.exploratory_tags_label()}
+			error={feedbackFor(errors, 'tags')}
+		>
+			{#snippet children(props)}
+				<Input {...props} bind:value={newTags} placeholder={m.exploratory_tags_placeholder()} />
+			{/snippet}
+		</WorkflowField>
+	{/snippet}
+</WorkflowCreateDialog>

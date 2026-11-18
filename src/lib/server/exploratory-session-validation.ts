@@ -1,11 +1,13 @@
 import { badRequest } from '$lib/server/errors';
 import { isPlainRecord } from '$lib/server/object-validation';
 
-const MAX_TITLE_LENGTH = 500;
-const MAX_TEXT_LENGTH = 10_000;
-const MAX_ENVIRONMENT_LENGTH = 255;
-const MAX_TAGS = 50;
-const MAX_TAG_LENGTH = 100;
+import {
+	MAX_TITLE_LENGTH,
+	MAX_TEXT_LENGTH,
+	MAX_ENVIRONMENT_LENGTH,
+	MAX_TAGS,
+	MAX_TAG_LENGTH
+} from '$lib/exploratory-session-limits';
 
 const SESSION_ACTIONS = ['pause', 'resume', 'complete'] as const;
 const CREATE_SESSION_FIELDS = new Set(['title', 'charter', 'environment', 'tags']);

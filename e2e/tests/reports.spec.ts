@@ -179,16 +179,14 @@ test.describe.serial('Reports', () => {
 
 		await page.fill('#name', 'Reports E2E Run');
 
-		// Select the first test case checkbox
-		const checkbox = page
-			.locator('tbody input[type="checkbox"], tbody button[role="checkbox"]')
-			.first();
-		if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await checkbox.click();
-		}
+		// Select the named case independently of the picker's layout.
+		await page
+			.locator('#run-cases')
+			.getByRole('checkbox', { name: /Reports E2E Test Case/ })
+			.check();
 
 		await page.click('button[type="submit"]');
-		await page.waitForURL(`**/projects/${projectId}/test-runs/**`, { timeout: 15000 });
+		await page.waitForURL(new RegExp(`/projects/${projectId}/test-runs/\\d+$`), { timeout: 15000 });
 
 		// Verify run page loaded
 		await expect(page).toHaveURL(new RegExp(`/projects/${projectId}/test-runs/\\d+`));

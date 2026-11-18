@@ -32,3 +32,5 @@ Svelte 5 / Tailwind 4 / bits-ui 기반 업무용 QA 제품. ui-ux-pro-max의 Dat
 - `patterns/FormErrorSummary.svelte`: 제출 실패 시 요약에 포커스하며, 오류 링크는 실제 입력으로 이동한다. 중첩 필드도 연결한다.
 - 공통 Table은 실제 가로 넘침이 있을 때만 명명된 키보드 스크롤 영역을 제공한다.
 - 행 안의 상세 링크는 네이티브 a를 사용한다. 링크에서 stopPropagation으로 SvelteKit 라우터를 막지 않는다. 행 클릭은 `isInteractiveTarget`으로 링크·버튼·입력을 제외한다.
+
+- `patterns/TestCasePicker.svelte`: 검색/우선순위/태그 필터, 전체·부분 선택과 필터 외 선택 보존, 명명된 가상 스크롤 목록을 공통으로 제공한다. 선택 오류는 fieldset 설명과 오류 요약에서 연결한다. 검색 Enter가 부모 form을 제출하지 않는다. 호출부는 저장 중 비활성화와 선택 한도에 따른 제출 차단을 담당한다.

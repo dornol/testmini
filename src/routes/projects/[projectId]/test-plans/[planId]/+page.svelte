@@ -12,7 +12,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
-	import VirtualList from '$lib/components/VirtualList.svelte';
+	import TestCasePicker from '$lib/components/patterns/TestCasePicker.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 	import { apiPatch, apiDelete, apiPost, apiFetch } from '$lib/api-client';
 
@@ -69,7 +69,6 @@
 
 	// Add cases dialog
 	let addCasesDialogOpen = $state(false);
-	let addCasesSearch = $state('');
 	let addCasesSelected = $state<Set<number>>(new Set());
 	let addCasesSaving = $state(false);
 
@@ -81,15 +80,7 @@
 
 	const planItemTcIds = $derived(new Set(data.items.map((i) => i.testCaseId)));
 
-	const availableCases = $derived(
-		data.allTestCases.filter((tc) => {
-			if (planItemTcIds.has(tc.id)) return false;
-			if (!addCasesSearch) return true;
-			const q = addCasesSearch.toLowerCase();
-			return tc.title.toLowerCase().includes(q) || tc.key.toLowerCase().includes(q);
-		})
-	);
-
+	const availableCases = $derived(data.allTestCases.filter((tc) => !planItemTcIds.has(tc.id)));
 	async function handleStatusChange(newStatus: string) {
 		try {
 			await apiPatch(`/api/projects/${data.project.id}/test-plans/${data.plan.id}`, {
@@ -116,23 +107,12 @@
 	}
 
 	function openAddCases() {
-		addCasesSearch = '';
 		addCasesSelected = new Set();
 		addCasesDialogOpen = true;
 	}
 
-	function toggleAddCase(id: number) {
-		const newSet = new Set(addCasesSelected);
-		if (newSet.has(id)) {
-			newSet.delete(id);
-		} else {
-			newSet.add(id);
-		}
-		addCasesSelected = newSet;
-	}
-
 	async function handleAddCases() {
-		if (addCasesSelected.size === 0) return;
+		if (addCasesSaving || addCasesSelected.size === 0 || addCasesSelected.size > 500) return;
 		addCasesSaving = true;
 		try {
 			await apiPost(`/api/projects/${data.project.id}/test-plans/${data.plan.id}/items`, {
@@ -614,63 +594,16 @@
 			<Dialog.Header>
 				<Dialog.Title>{m.tp_add_cases()}</Dialog.Title>
 			</Dialog.Header>
-			<div class="flex flex-1 flex-col space-y-3 overflow-hidden py-4">
-				<Input placeholder={m.tr_filter_placeholder()} bind:value={addCasesSearch} />
-				<div class="flex-1 rounded-md border">
-					<Table.Root class="hidden table-fixed md:table">
-						<Table.Header>
-							<Table.Row>
-								<Table.Head class="w-10"></Table.Head>
-								<Table.Head class="w-28">{m.common_key()}</Table.Head>
-								<Table.Head>{m.common_title()}</Table.Head>
-								<Table.Head class="w-28">{m.common_priority()}</Table.Head>
-							</Table.Row>
-						</Table.Header>
-					</Table.Root>
-					<VirtualList items={availableCases} rowHeight={44} height="360px">
-						{#snippet children({ item })}
-							{@const tc = item as (typeof availableCases)[0]}
-							<button
-								type="button"
-								class="flex h-11 w-full items-center gap-2 px-3 text-left text-sm md:hidden"
-								onclick={() => toggleAddCase(tc.id)}
-							>
-								<input
-									type="checkbox"
-									checked={addCasesSelected.has(tc.id)}
-									onchange={() => toggleAddCase(tc.id)}
-									onclick={(e: MouseEvent) => e.stopPropagation()}
-									class="rounded"
-									aria-label={tc.key}
-								/>
-								<span class="w-16 shrink-0 font-mono text-xs text-muted-foreground">{tc.key}</span>
-								<span class="min-w-0 flex-1 break-words font-medium line-clamp-2">{tc.title}</span>
-							</button>
-							<Table.Root class="hidden table-fixed md:table">
-								<Table.Body>
-									<Table.Row class="cursor-pointer" onclick={() => toggleAddCase(tc.id)}>
-										<Table.Cell class="w-10">
-											<input
-												type="checkbox"
-												checked={addCasesSelected.has(tc.id)}
-												onchange={() => toggleAddCase(tc.id)}
-												onclick={(e: MouseEvent) => e.stopPropagation()}
-												class="rounded"
-											/>
-										</Table.Cell>
-										<Table.Cell class="w-28 font-mono text-sm">{tc.key}</Table.Cell>
-										<Table.Cell class="min-w-0 font-medium">
-											<span class="block truncate">{tc.title}</span>
-										</Table.Cell>
-										<Table.Cell class="w-28">
-											<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
-										</Table.Cell>
-									</Table.Row>
-								</Table.Body>
-							</Table.Root>
-						{/snippet}
-					</VirtualList>
-				</div>
+			<div class="min-h-0 overflow-y-auto py-2">
+				{#if addCasesDialogOpen}
+					<TestCasePicker
+						id="plan-add-cases"
+						cases={availableCases}
+						bind:selected={addCasesSelected}
+						priorities={data.projectPriorities}
+						disabled={addCasesSaving}
+					/>
+				{/if}
 			</div>
 			<Dialog.Footer>
 				<Button
@@ -681,7 +614,7 @@
 				<Button
 					class="w-full sm:w-auto"
 					onclick={handleAddCases}
-					disabled={addCasesSaving || addCasesSelected.size === 0}
+					disabled={addCasesSaving || addCasesSelected.size === 0 || addCasesSelected.size > 500}
 				>
 					{addCasesSaving ? m.common_saving() : m.tp_add_cases()} ({addCasesSelected.size})
 				</Button>

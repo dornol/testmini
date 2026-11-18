@@ -7,6 +7,7 @@
 		overscan?: number;
 		height?: string;
 		useWindowScroll?: boolean;
+		label?: string;
 		children: Snippet<[{ item: unknown; index: number }]>;
 	}
 
@@ -16,6 +17,7 @@
 		overscan = 10,
 		height = '420px',
 		useWindowScroll = false,
+		label,
 		children
 	}: Props = $props();
 
@@ -100,20 +102,34 @@
 			viewportHeight = container.clientHeight;
 		}
 	});
+	// A filter must not leave the virtual viewport beyond the new end of the list.
+	$effect(() => {
+		if (!container || useWindowScroll) return;
+		const maxScroll = Math.max(0, totalHeight - container.clientHeight);
+		if (scrollTop > maxScroll) {
+			container.scrollTop = maxScroll;
+			scrollTop = maxScroll;
+		}
+	});
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_tabindex (A virtual scroll viewport needs keyboard scrolling.) -->
 <div
 	bind:this={container}
 	role="list"
+	aria-label={label}
+	tabindex={label && !useWindowScroll && totalHeight > viewportHeight ? 0 : undefined}
 	class={useWindowScroll ? '' : 'overflow-auto'}
-	style={useWindowScroll ? `min-height: ${totalHeight}px; position: relative;` : `height: ${height};`}
+	style={useWindowScroll
+		? `min-height: ${totalHeight}px; position: relative;`
+		: `height: ${height};`}
 	onscroll={useWindowScroll ? undefined : handleScroll}
 >
-	<div style="height: {topSpacer}px;"></div>
+	<div aria-hidden="true" style="height: {topSpacer}px;"></div>
 	{#each visibleItems as item, i (startIndex + i)}
-		<div role="listitem">
+		<div role="listitem" aria-setsize={items.length} aria-posinset={startIndex + i + 1}>
 			{@render children({ item, index: startIndex + i })}
 		</div>
 	{/each}
-	<div style="height: {bottomSpacer}px;"></div>
+	<div aria-hidden="true" style="height: {bottomSpacer}px;"></div>
 </div>

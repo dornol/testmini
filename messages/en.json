@@ -1439,5 +1439,20 @@
 	"ui_action_required": "Enter the action for this step.",
 	"ui_max_characters": "Use {count} characters or fewer.",
 	"ui_automation_key_exists": "This automation key is already in use. Choose another key.",
-	"ui_scroll_table": "Scroll table horizontally"
+	"ui_scroll_table": "Scroll table horizontally",
+	"ui_case_search": "Search cases",
+	"ui_case_list": "Available test cases",
+	"ui_case_results": "{count} of {total} cases",
+	"ui_select_filtered_cases": "Select all {count} matching cases",
+	"ui_case_no_results_description": "Try a different keyword, priority or tag, or clear the filters.",
+	"ui_case_selection_limit": "Select no more than {count} test cases.",
+	"ui_name_required": "Enter a name.",
+	"ui_case_selection_required": "Select at least one test case.",
+	"ui_environment_required": "Choose an environment.",
+	"ui_cross_environment_required": "Choose at least two environments.",
+	"ui_end_date_after_start": "The end date must be on or after the start date.",
+	"ui_invalid_value": "Check this value and try again.",
+	"ui_save_failed": "Unable to save. Your input has been kept. Please try again.",
+	"ui_suite_loaded": "Added {count} cases from the suite. Your earlier selection has been kept.",
+	"ui_environment_selection_limit": "Choose no more than {count} environments."
 }

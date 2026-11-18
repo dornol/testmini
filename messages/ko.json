@@ -1439,5 +1439,20 @@
 	"ui_action_required": "이 단계의 동작을 입력해 주세요.",
 	"ui_max_characters": "{count}자 이내로 입력해 주세요.",
 	"ui_automation_key_exists": "이미 사용 중인 자동화 키입니다. 다른 키를 입력해 주세요.",
-	"ui_scroll_table": "표를 좌우로 스크롤"
+	"ui_scroll_table": "표를 좌우로 스크롤",
+	"ui_case_search": "케이스 검색",
+	"ui_case_list": "선택 가능한 테스트 케이스",
+	"ui_case_results": "전체 {total}개 중 {count}개",
+	"ui_select_filtered_cases": "조건에 맞는 {count}개 모두 선택",
+	"ui_case_no_results_description": "검색어, 우선순위 또는 태그를 바꾸거나 필터를 초기화해 주세요.",
+	"ui_case_selection_limit": "테스트 케이스는 최대 {count}개까지 선택해 주세요.",
+	"ui_name_required": "이름을 입력해 주세요.",
+	"ui_case_selection_required": "테스트 케이스를 하나 이상 선택해 주세요.",
+	"ui_environment_required": "환경을 선택해 주세요.",
+	"ui_cross_environment_required": "환경을 두 개 이상 선택해 주세요.",
+	"ui_end_date_after_start": "종료일은 시작일 이후이거나 같은 날짜여야 합니다.",
+	"ui_invalid_value": "입력값을 확인하고 다시 시도해 주세요.",
+	"ui_save_failed": "저장하지 못했습니다. 입력한 내용은 유지됩니다. 다시 시도해 주세요.",
+	"ui_suite_loaded": "스위트에서 {count}개를 추가했습니다. 기존 선택은 유지됩니다.",
+	"ui_environment_selection_limit": "환경은 최대 {count}개까지 선택해 주세요."
 }

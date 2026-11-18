@@ -1,459 +1,333 @@
 <script lang="ts">
+	import type { SubmitFunction } from '@sveltejs/kit';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
-	import TagBadge from '$lib/components/TagBadge.svelte';
-	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
-	import VirtualList from '$lib/components/VirtualList.svelte';
-	import * as Select from '$lib/components/ui/select/index.js';
-	import * as m from '$lib/paraglide/messages.js';
-	import { apiPost } from '$lib/api-client';
+	import { tick } from 'svelte';
+	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import * as Select from '$lib/components/ui/select';
+	import TestCasePicker from '$lib/components/patterns/TestCasePicker.svelte';
+	import FormErrorSummary from '$lib/components/patterns/FormErrorSummary.svelte';
+	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
+	import { createTestRunSchema } from '$lib/schemas/test-run.schema';
+	import { createCrossEnvRunSchema } from '$lib/schemas/cross-env-run.schema';
+	import { workflowFormFeedback, feedbackFor, type FormFeedback } from '$lib/form-feedback';
+	import { apiFetch } from '$lib/api-client';
 	import { toast } from 'svelte-sonner';
-
-	type ProjectEnvironment = { name: string; isDefault: boolean };
-	type ProjectPriority = { name: string; color: string };
+	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
-	const actionData = $derived(page.form as Record<string, unknown> | null);
-
 	let selectedIds = $state<Set<number>>(new Set());
-	let searchFilter = $state('');
-	let priorityFilter = $state('');
-	let tagFilter = $state('');
 	let runName = $state('');
 	let crossEnvMode = $state(false);
 	let selectedEnvironments = $state<Set<string>>(new Set());
-	let creatingCrossEnv = $state(false);
-	const canCreateCrossEnv = $derived(
-		data.userRole === 'PROJECT_ADMIN' || data.userRole === 'ADMIN' || data.userRole === 'QA'
-	);
-	const defaultEnv = $derived(
-		(data.projectEnvironments as ProjectEnvironment[]).find((e) => e.isDefault)?.name ??
-			(data.projectEnvironments as ProjectEnvironment[])[0]?.name ??
+	let selectedEnv = $state('DEV');
+	let submitting = $state(false);
+	let loadingSuite = $state(false);
+	let selectedSuite = $state('');
+	let suiteNotice = $state('');
+	let errors = $state<FormFeedback[]>([]);
+	let summary = $state<HTMLDivElement | null>(null);
+	let initializedProjectId = $state<number | null>(null);
+	const canCreateCrossEnv = $derived(['PROJECT_ADMIN', 'ADMIN', 'QA'].includes(data.userRole));
+	const environments = $derived(data.projectEnvironments);
+	const initialEnvironment = $derived(
+		data.projectEnvironments.find((item) => item.isDefault)?.name ??
+			data.projectEnvironments[0]?.name ??
 			'DEV'
 	);
-	let selectedEnv = $state('DEV');
+	const dirty = $derived(
+		!!runName ||
+			crossEnvMode ||
+			selectedEnv !== initialEnvironment ||
+			selectedIds.size !== (data.preselectedIds?.length ?? 0) ||
+			(data.preselectedIds ?? []).some((id) => !selectedIds.has(id))
+	);
 
-	// Sync from data (reactive)
+	const fields: Record<string, string> = {
+		name: 'name',
+		environment: 'environment',
+		environments: 'environment',
+		testCaseIds: 'run-cases',
+		suite: 'load-suite'
+	};
+
+	// Do not discard a draft when a failed action updates page data.
 	$effect(() => {
+		if (initializedProjectId === data.project.id) return;
 		selectedIds = new Set(data.preselectedIds ?? []);
-		selectedEnv = defaultEnv;
-		selectedEnvironments = new Set([defaultEnv]);
+		selectedEnv =
+			data.projectEnvironments.find((item) => item.isDefault)?.name ??
+			data.projectEnvironments[0]?.name ??
+			'DEV';
+		selectedEnvironments = new Set([selectedEnv]);
+		initializedProjectId = data.project.id;
 	});
 
+	async function focusErrors() {
+		await tick();
+		summary?.focus();
+	}
 	function toggleEnvironment(name: string) {
 		const next = new Set(selectedEnvironments);
 		if (next.has(name)) next.delete(name);
 		else next.add(name);
 		selectedEnvironments = next;
 	}
+	function switchMode(value: boolean) {
+		crossEnvMode = value;
+		errors = [];
+	}
 
-	async function createCrossEnvironmentRuns() {
-		if (!runName.trim() || selectedIds.size === 0 || selectedEnvironments.size < 2) return;
-		creatingCrossEnv = true;
+	async function loadFromSuite(suiteId: string) {
+		if (!suiteId || loadingSuite) return;
+		loadingSuite = true;
+		suiteNotice = '';
+		errors = errors.filter((error) => error.path !== 'suite');
 		try {
-			const result = await apiPost<{ runs: { id: number; environment: string }[] }>(
-				`/api/projects/${data.project.id}/test-runs/cross-env`,
-				{
-					name: runName.trim(),
+			const suite = await apiFetch<{ items: { testCaseId: number }[] }>(
+				`/api/projects/${data.project.id}/test-suites/${suiteId}`,
+				{ silent: true }
+			);
+			const next = new Set(selectedIds);
+			const previous = next.size;
+			for (const item of suite.items) next.add(item.testCaseId);
+			selectedIds = next;
+			suiteNotice = m.ui_suite_loaded({ count: next.size - previous });
+		} catch {
+			errors = [...errors, { path: 'suite', messages: [m.ui_load_failed()] }];
+		} finally {
+			loadingSuite = false;
+		}
+		if (feedbackFor(errors, 'suite')) await focusErrors();
+	}
+
+	const prepareSubmit: SubmitFunction = async ({ cancel }) => {
+		if (submitting || loadingSuite) {
+			cancel();
+			return;
+		}
+		const parsed = crossEnvMode
+			? createCrossEnvRunSchema.safeParse({
+					name: runName,
 					testCaseIds: [...selectedIds],
 					environments: [...selectedEnvironments]
+				})
+			: createTestRunSchema.safeParse({
+					name: runName,
+					environment: selectedEnv,
+					testCaseIds: [...selectedIds]
+				});
+		errors = parsed.success ? [] : workflowFormFeedback(parsed.error.issues);
+		if (!parsed.success) {
+			cancel();
+			await focusErrors();
+			return;
+		}
+		submitting = true;
+		if (crossEnvMode) {
+			cancel();
+			try {
+				const result = await apiFetch<{ runs: { id: number }[] }>(
+					`/api/projects/${data.project.id}/test-runs/cross-env`,
+					{
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(parsed.data),
+						silent: true
+					}
+				);
+				toast.success(`${m.cross_env_create()} (${result.runs.length})`);
+				await goto(`/projects/${data.project.id}/test-runs`);
+			} catch {
+				errors = [{ path: '_form', messages: [m.ui_save_failed()] }];
+			} finally {
+				submitting = false;
+			}
+			if (errors.length) await focusErrors();
+			return;
+		}
+		return async ({ result, update }) => {
+			try {
+				if (result.type === 'failure' || result.type === 'error') {
+					errors = [{ path: '_form', messages: [m.ui_save_failed()] }];
+				} else {
+					await update({ reset: false });
 				}
-			);
-			toast.success(`${m.cross_env_create()} (${result.runs.length})`);
-			goto(`/projects/${data.project.id}/test-runs`);
-		} catch {
-			// error toast handled by apiPost
-		} finally {
-			creatingCrossEnv = false;
-		}
-	}
-
-	function loadFromSuite(suiteId: string) {
-		if (!suiteId) return;
-		// Fetch suite items and merge into selection
-		fetch(`/api/projects/${data.project.id}/test-suites/${suiteId}`)
-			.then((r) => {
-				if (!r.ok) return null;
-				return r.json();
-			})
-			.then((suiteData) => {
-				if (!suiteData) return;
-				const newSet = new Set(selectedIds);
-				for (const item of suiteData.items ?? []) {
-					newSet.add(item.testCaseId);
-				}
-				selectedIds = newSet;
-			});
-	}
-
-	const filteredCases = $derived(
-		data.testCases.filter((tc) => {
-			const matchSearch =
-				!searchFilter ||
-				tc.title.toLowerCase().includes(searchFilter.toLowerCase()) ||
-				tc.key.toLowerCase().includes(searchFilter.toLowerCase());
-			const matchPriority = !priorityFilter || tc.priority === priorityFilter;
-			const matchTag = !tagFilter || tc.tags.some((t) => t.id === Number(tagFilter));
-			return matchSearch && matchPriority && matchTag;
-		})
-	);
-
-	const allFilteredSelected = $derived(
-		filteredCases.length > 0 && filteredCases.every((tc) => selectedIds.has(tc.id))
-	);
-
-	function toggleAll() {
-		if (allFilteredSelected) {
-			const newSet = new Set(selectedIds);
-			filteredCases.forEach((tc) => newSet.delete(tc.id));
-			selectedIds = newSet;
-		} else {
-			const newSet = new Set(selectedIds);
-			filteredCases.forEach((tc) => newSet.add(tc.id));
-			selectedIds = newSet;
-		}
-	}
-
-	function toggleCase(id: number) {
-		const newSet = new Set(selectedIds);
-		if (newSet.has(id)) {
-			newSet.delete(id);
-		} else {
-			newSet.add(id);
-		}
-		selectedIds = newSet;
-	}
-
-	function getPriorityColor(name: string): string {
-		return (
-			(data.projectPriorities as ProjectPriority[]).find((p) => p.name === name)?.color ?? '#6b7280'
-		);
-	}
-
-	const environments = $derived(data.projectEnvironments);
+			} finally {
+				submitting = false;
+			}
+			if (errors.length) await focusErrors();
+		};
+	};
 </script>
 
-<div class="mx-auto max-w-3xl">
-	<div class="mb-4">
-		<a
-			href="/projects/{data.project.id}/test-runs"
-			class="text-muted-foreground hover:text-foreground text-sm"
-			>&larr; {m.common_back_to({ target: m.tr_title() })}</a
-		>
-	</div>
-
+<UnsavedChangesGuard dirty={initializedProjectId !== null && dirty && !submitting} />
+<div class="mx-auto max-w-3xl space-y-4">
+	<a
+		href="/projects/{data.project.id}/test-runs"
+		class="text-sm text-muted-foreground hover:text-foreground"
+		>&larr; {m.common_back_to({ target: m.tr_title() })}</a
+	>
 	<Card.Root>
-		<Card.Header>
-			<Card.Title class="text-xl">{m.tr_new_title()}</Card.Title>
-			<Card.Description>{m.tr_new_desc()}</Card.Description>
-		</Card.Header>
+		<Card.Header
+			><h2 class="text-2xl font-semibold tracking-tight">{m.tr_new_title()}</h2>
+			<Card.Description>{m.tr_new_desc()}</Card.Description></Card.Header
+		>
 		<Card.Content>
-			<form method="POST" use:enhance class="space-y-4">
-				<div class="grid gap-4 sm:grid-cols-2">
-					<div class="sm:col-span-2">
-						<div class="inline-flex w-full rounded-md border p-1 sm:w-auto" role="group">
-							<Button
-								type="button"
-								size="sm"
-								variant={!crossEnvMode ? 'default' : 'ghost'}
-								class="h-7 flex-1 text-xs sm:flex-none"
-								onclick={() => (crossEnvMode = false)}
-							>
-								{m.common_environment()}
-							</Button>
-							{#if canCreateCrossEnv}
-								<Button
-									type="button"
-									size="sm"
-									variant={crossEnvMode ? 'default' : 'ghost'}
-									class="h-7 flex-1 text-xs sm:flex-none"
-									onclick={() => (crossEnvMode = true)}
-								>
-									{m.cross_env_title()}
-								</Button>
-							{/if}
-						</div>
-					</div>
-					<div class="space-y-2">
-						<Label for="name">{m.tr_run_name()}</Label>
-						<Input
-							id="name"
-							name="name"
-							bind:value={runName}
-							placeholder={m.tr_run_name_placeholder()}
-							required
-						/>
-						{#if (actionData?.errors as Record<string, string[]> | undefined)?.name}
-							<p class="text-destructive text-sm">
-								{(actionData?.errors as Record<string, string[]>).name}
-							</p>
-						{/if}
-					</div>
-					<div class="space-y-2">
-						<Label for="environment"
-							>{crossEnvMode ? m.cross_env_select_envs() : m.common_environment()}</Label
-						>
-						{#if crossEnvMode}
-							<div class="grid grid-cols-2 gap-2 rounded-md border p-2">
-								{#each environments as env (env.id)}
-									<label class="flex min-w-0 cursor-pointer items-center gap-2 text-sm">
-										<input
-											type="checkbox"
-											checked={selectedEnvironments.has(env.name)}
-											onchange={() => toggleEnvironment(env.name)}
-											class="shrink-0 rounded"
-										/>
-										<span class="truncate" title={env.name}>{env.name}</span>
-									</label>
-								{/each}
-							</div>
-						{:else}
-							<input type="hidden" name="environment" value={selectedEnv} />
-							<Select.Root
-								type="single"
-								value={selectedEnv}
-								onValueChange={(v: string) => {
-									selectedEnv = v;
-								}}
-							>
-								<Select.Trigger class="w-full">
-									{selectedEnv}
-								</Select.Trigger>
-								<Select.Content>
-									{#each environments as env (env.id)}
-										<Select.Item value={env.name} label={env.name} />
-									{/each}
-								</Select.Content>
-							</Select.Root>
-						{/if}
-					</div>
-				</div>
-
-				<!-- Test Case Selection -->
-				<div class="space-y-3">
-					<div class="flex items-center justify-between">
-						<Label>{m.tr_select_cases({ count: selectedIds.size })}</Label>
-					</div>
-
-					{#if data.suites.length > 0}
-						<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-							<Label class="text-sm whitespace-nowrap">{m.tr_load_suite()}:</Label>
-							<Select.Root
-								type="single"
-								onValueChange={(v: string) => {
-									loadFromSuite(v);
-								}}
-							>
-								<Select.Trigger class="w-full sm:w-60">
-									{m.tr_load_suite()}
-								</Select.Trigger>
-								<Select.Content>
-									{#each data.suites as suite}
-										<Select.Item
-											value={String(suite.id)}
-											label="{suite.name} ({suite.itemCount})"
-										/>
-									{/each}
-								</Select.Content>
-							</Select.Root>
-						</div>
-					{/if}
-
-					<div class="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
-						<Input
-							placeholder={m.tr_filter_placeholder()}
-							class="w-full sm:max-w-xs"
-							bind:value={searchFilter}
-						/>
-						<div class="grid grid-cols-2 gap-1 min-[420px]:flex min-[420px]:flex-wrap">
-							<Button
-								type="button"
-								variant={priorityFilter === '' ? 'default' : 'outline'}
-								size="sm"
-								class="w-full min-[420px]:w-auto"
-								onclick={() => (priorityFilter = '')}
-							>
-								{m.common_all()}
-							</Button>
-							{#each data.projectPriorities as p (p.id)}
-								<Button
-									type="button"
-									variant={priorityFilter === p.name ? 'default' : 'outline'}
-									size="sm"
-									class="w-full min-[420px]:w-auto"
-									onclick={() => (priorityFilter = p.name)}
-								>
-									{p.name}
-								</Button>
-							{/each}
-						</div>
-						{#if data.projectTags.length > 0}
-							<div class="grid grid-cols-2 gap-1 min-[420px]:flex min-[420px]:flex-wrap">
-								<Button
-									type="button"
-									variant={!tagFilter ? 'default' : 'outline'}
-									size="sm"
-									class="w-full min-[420px]:w-auto"
-									onclick={() => (tagFilter = '')}
-								>
-									{m.common_all()}
-								</Button>
-								{#each data.projectTags as t (t.id)}
-									<Button
-										type="button"
-										variant={tagFilter === String(t.id) ? 'default' : 'outline'}
-										size="sm"
-										class="w-full min-[420px]:w-auto"
-										onclick={() => (tagFilter = String(t.id))}
-									>
-										<span
-											class="mr-1.5 inline-block h-2 w-2 rounded-full"
-											style="background-color: {t.color}"
-										></span>
-										{t.name}
-									</Button>
-								{/each}
-							</div>
-						{/if}
-					</div>
-
-					{#if data.testCases.length === 0}
-						<p class="text-muted-foreground text-sm">
-							{m.tr_no_cases()}
-						</p>
-					{:else}
-						<div class="rounded-lg border sm:hidden">
-							<label
-								class="flex min-h-11 items-center gap-3 border-b px-3 py-2 text-sm font-medium"
-							>
-								<input
-									type="checkbox"
-									checked={allFilteredSelected}
-									onchange={toggleAll}
-									class="rounded"
-								/>
-								<span>{m.common_all()}</span>
-							</label>
-							<VirtualList items={filteredCases} rowHeight={112} height="420px">
-								{#snippet children({ item })}
-									{@const tc = item as (typeof filteredCases)[0]}
-									<label
-										class="hover:bg-muted/50 flex min-h-28 cursor-pointer gap-3 border-b px-3 py-3 last:border-b-0"
-									>
-										<input
-											type="checkbox"
-											checked={selectedIds.has(tc.id)}
-											onchange={() => toggleCase(tc.id)}
-											class="mt-1 rounded"
-											aria-label={tc.title}
-										/>
-										<div class="min-w-0 flex-1 space-y-2">
-											<div class="flex min-w-0 items-start justify-between gap-2">
-												<span class="text-muted-foreground shrink-0 font-mono text-xs"
-													>{tc.key}</span
-												>
-												<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
-											</div>
-											<p class="text-sm leading-snug font-medium break-words">{tc.title}</p>
-											{#if tc.tags.length > 0}
-												<div class="flex flex-wrap gap-1">
-													{#each tc.tags as tag (tag.id)}
-														<TagBadge name={tag.name} color={tag.color} />
-													{/each}
-												</div>
-											{/if}
-										</div>
-									</label>
-								{/snippet}
-							</VirtualList>
-						</div>
-
-						<Card.Root class="hidden sm:block">
-							<Table.Root class="table-fixed">
-								<Table.Header>
-									<Table.Row>
-										<Table.Head class="w-10">
-											<input
-												type="checkbox"
-												checked={allFilteredSelected}
-												onchange={toggleAll}
-												class="rounded"
-											/>
-										</Table.Head>
-										<Table.Head class="w-24">{m.common_key()}</Table.Head>
-										<Table.Head>{m.common_title()}</Table.Head>
-										<Table.Head class="w-24">{m.common_priority()}</Table.Head>
-									</Table.Row>
-								</Table.Header>
-							</Table.Root>
-							<VirtualList items={filteredCases} rowHeight={64} height="420px">
-								{#snippet children({ item })}
-									{@const tc = item as (typeof filteredCases)[0]}
-									<Table.Root class="table-fixed">
-										<Table.Body>
-											<Table.Row class="cursor-pointer" onclick={() => toggleCase(tc.id)}>
-												<Table.Cell class="w-10">
-													<input
-														type="checkbox"
-														checked={selectedIds.has(tc.id)}
-														onchange={() => toggleCase(tc.id)}
-														onclick={(e: MouseEvent) => e.stopPropagation()}
-														class="rounded"
-													/>
-												</Table.Cell>
-												<Table.Cell class="w-24 font-mono text-sm">{tc.key}</Table.Cell>
-												<Table.Cell
-													class="min-w-0 whitespace-normal break-words font-medium leading-snug"
-													>{tc.title}</Table.Cell
-												>
-												<Table.Cell class="w-24">
-													<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
-												</Table.Cell>
-											</Table.Row>
-										</Table.Body>
-									</Table.Root>
-								{/snippet}
-							</VirtualList>
-						</Card.Root>
-					{/if}
-
-					{#if (actionData?.errors as Record<string, string[]> | undefined)?.testCaseIds}
-						<p class="text-destructive text-sm">
-							{(actionData?.errors as Record<string, string[]>).testCaseIds}
-						</p>
-					{/if}
-				</div>
-
-				<!-- Hidden inputs for selected test case IDs -->
-				{#each [...selectedIds] as id (id)}
-					<input type="hidden" name="testCaseIds" value={id} />
-				{/each}
-
-				<div class="flex flex-col gap-2 pt-2 sm:flex-row sm:gap-3">
-					{#if crossEnvMode}
+			<form
+				method="POST"
+				use:enhance={prepareSubmit}
+				novalidate
+				class="space-y-6"
+				aria-busy={submitting}
+			>
+				<FormErrorSummary {errors} bind:ref={summary} fieldTarget={(path) => fields[path]} />
+				<fieldset disabled={submitting} class="min-w-0 space-y-4">
+					<div role="group" aria-label={m.common_environment()} class="flex flex-wrap gap-2">
 						<Button
 							type="button"
-							class="w-full sm:w-auto"
-							disabled={creatingCrossEnv ||
-								!runName.trim() ||
-								selectedIds.size === 0 ||
-								selectedEnvironments.size < 2}
-							onclick={createCrossEnvironmentRuns}
+							variant={!crossEnvMode ? 'default' : 'outline'}
+							aria-pressed={!crossEnvMode}
+							onclick={() => switchMode(false)}>{m.common_environment()}</Button
 						>
-							{creatingCrossEnv ? m.common_creating() : m.cross_env_create()}
-						</Button>
-					{:else}
-						<Button type="submit" class="w-full sm:w-auto" disabled={selectedIds.size === 0}>
-							{m.tr_create_run({ count: selectedIds.size })}
-						</Button>
+						{#if canCreateCrossEnv}<Button
+								type="button"
+								variant={crossEnvMode ? 'default' : 'outline'}
+								aria-pressed={crossEnvMode}
+								onclick={() => switchMode(true)}>{m.cross_env_title()}</Button
+							>{/if}
+					</div>
+					<div class="grid gap-4 sm:grid-cols-2">
+						<div class="space-y-2">
+							<Label for="name"
+								>{m.tr_run_name()}
+								<span class="text-xs text-muted-foreground">({m.ui_required()})</span></Label
+							><Input
+								id="name"
+								name="name"
+								bind:value={runName}
+								placeholder={m.tr_run_name_placeholder()}
+								required
+								aria-invalid={!!feedbackFor(errors, 'name')}
+								aria-describedby={feedbackFor(errors, 'name') ? 'run-name-error' : undefined}
+							/>{#if feedbackFor(errors, 'name')}<p
+									id="run-name-error"
+									class="text-sm text-destructive"
+								>
+									{feedbackFor(errors, 'name')}
+								</p>{/if}
+						</div>
+						<div class="space-y-2">
+							<Label for={!crossEnvMode ? 'environment' : undefined}
+								>{crossEnvMode ? m.cross_env_select_envs() : m.common_environment()}</Label
+							>
+							{#if crossEnvMode}
+								<fieldset
+									id="environment"
+									tabindex="-1"
+									aria-describedby={feedbackFor(errors, 'environments')
+										? 'run-env-error'
+										: undefined}
+									class="grid grid-cols-2 gap-2 rounded-md border bg-background p-3"
+								>
+									<legend class="sr-only">{m.cross_env_select_envs()}</legend>
+									{#each environments as env (env.id)}<label
+											class="flex min-h-11 min-w-0 cursor-pointer items-center gap-2 text-sm"
+											><input
+												type="checkbox"
+												class="size-4 shrink-0 rounded border-input"
+												checked={selectedEnvironments.has(env.name)}
+												onchange={() => toggleEnvironment(env.name)}
+											/><span class="[overflow-wrap:anywhere]">{env.name}</span></label
+										>{/each}
+								</fieldset>
+							{:else}
+								<input type="hidden" name="environment" value={selectedEnv} />
+								<Select.Root type="single" bind:value={selectedEnv} disabled={submitting}
+									><Select.Trigger
+										id="environment"
+										class="w-full"
+										aria-invalid={!!feedbackFor(errors, 'environment')}
+										aria-describedby={feedbackFor(errors, 'environment')
+											? 'run-env-error'
+											: undefined}>{selectedEnv}</Select.Trigger
+									><Select.Content
+										>{#each environments as env (env.id)}<Select.Item
+												value={env.name}
+												label={env.name}
+											/>{/each}</Select.Content
+									></Select.Root
+								>
+							{/if}
+							{#if feedbackFor(errors, crossEnvMode ? 'environments' : 'environment')}<p
+									id="run-env-error"
+									class="text-sm text-destructive"
+								>
+									{feedbackFor(errors, crossEnvMode ? 'environments' : 'environment')}
+								</p>{/if}
+						</div>
+					</div>
+					{#if data.suites.length > 0}
+						<div class="space-y-2" aria-busy={loadingSuite}>
+							<div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+								<div class="min-w-0 flex-1 space-y-1">
+									<Label for="load-suite">{m.tr_load_suite()}</Label><Select.Root
+										type="single"
+										bind:value={selectedSuite}
+										onValueChange={(value) => loadFromSuite(value)}
+										disabled={submitting || loadingSuite}
+										><Select.Trigger id="load-suite" class="w-full"
+											><span class="truncate"
+												>{data.suites.find((item) => String(item.id) === selectedSuite)?.name ||
+													m.tr_load_suite()}</span
+											></Select.Trigger
+										><Select.Content
+											>{#each data.suites as suite (suite.id)}<Select.Item
+													value={String(suite.id)}
+													label={`${suite.name} (${suite.itemCount})`}
+												/>{/each}</Select.Content
+										></Select.Root
+									>
+								</div>
+								<Button
+									type="button"
+									variant="outline"
+									disabled={!selectedSuite || loadingSuite || submitting}
+									onclick={() => loadFromSuite(selectedSuite)}
+									>{loadingSuite ? m.common_loading() : m.tr_load_suite()}</Button
+								>
+							</div>
+							{#if suiteNotice}<p role="status" class="text-sm text-muted-foreground">
+									{suiteNotice}
+								</p>{/if}
+						</div>
 					{/if}
-					<Button
+					<TestCasePicker
+						id="run-cases"
+						cases={data.testCases}
+						bind:selected={selectedIds}
+						priorities={data.projectPriorities}
+						tags={data.projectTags}
+						error={feedbackFor(errors, 'testCaseIds')}
+						disabled={submitting || loadingSuite}
+					/>
+				</fieldset>
+				{#each [...selectedIds] as id (id)}<input
+						type="hidden"
+						name="testCaseIds"
+						value={id}
+					/>{/each}
+				<div class="flex flex-col gap-2 border-t pt-4 sm:flex-row">
+					<Button type="submit" class="w-full sm:w-auto" disabled={submitting || loadingSuite}
+						>{submitting
+							? m.common_creating()
+							: crossEnvMode
+								? m.cross_env_create()
+								: m.tr_create_run({ count: selectedIds.size })}</Button
+					><Button
 						variant="outline"
 						class="w-full sm:w-auto"
 						href="/projects/{data.project.id}/test-runs">{m.common_cancel()}</Button

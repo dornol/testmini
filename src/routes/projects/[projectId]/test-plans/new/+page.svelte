@@ -1,264 +1,195 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
-	import { Textarea } from '$lib/components/ui/textarea/index.js';
-	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
-	import VirtualList from '$lib/components/VirtualList.svelte';
+	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import { Textarea } from '$lib/components/ui/textarea';
+	import TestCasePicker from '$lib/components/patterns/TestCasePicker.svelte';
+	import FormErrorSummary from '$lib/components/patterns/FormErrorSummary.svelte';
+	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
+	import { createTestPlanSchema } from '$lib/schemas/test-plan.schema';
+	import { workflowFormFeedback, feedbackFor, type FormFeedback } from '$lib/form-feedback';
+	import { apiFetch } from '$lib/api-client';
 	import * as m from '$lib/paraglide/messages.js';
-	import { apiPost } from '$lib/api-client';
-
-	type ProjectPriority = { name: string; color: string };
 
 	let { data } = $props();
-
 	let name = $state('');
 	let description = $state('');
 	let milestone = $state('');
 	let startDate = $state('');
 	let endDate = $state('');
 	let selectedIds = $state<Set<number>>(new Set());
-	let searchFilter = $state('');
-	let priorityFilter = $state('');
 	let creating = $state(false);
-
-	const filteredCases = $derived(
-		data.testCases.filter((tc) => {
-			const matchSearch =
-				!searchFilter ||
-				tc.title.toLowerCase().includes(searchFilter.toLowerCase()) ||
-				tc.key.toLowerCase().includes(searchFilter.toLowerCase());
-			const matchPriority = !priorityFilter || tc.priority === priorityFilter;
-			return matchSearch && matchPriority;
-		})
+	let errors = $state<FormFeedback[]>([]);
+	let summary = $state<HTMLDivElement | null>(null);
+	const fields: Record<string, string> = {
+		name: 'planName',
+		description: 'planDesc',
+		milestone: 'planMilestone',
+		startDate: 'planStartDate',
+		endDate: 'planEndDate',
+		testCaseIds: 'plan-cases'
+	};
+	const dirty = $derived(
+		!!name || !!description || !!milestone || !!startDate || !!endDate || selectedIds.size > 0
 	);
-
-	const allFilteredSelected = $derived(
-		filteredCases.length > 0 && filteredCases.every((tc) => selectedIds.has(tc.id))
-	);
-
-	function toggleAll() {
-		if (allFilteredSelected) {
-			const newSet = new Set(selectedIds);
-			filteredCases.forEach((tc) => newSet.delete(tc.id));
-			selectedIds = newSet;
-		} else {
-			const newSet = new Set(selectedIds);
-			filteredCases.forEach((tc) => newSet.add(tc.id));
-			selectedIds = newSet;
-		}
-	}
-
-	function toggleCase(id: number) {
-		const newSet = new Set(selectedIds);
-		if (newSet.has(id)) {
-			newSet.delete(id);
-		} else {
-			newSet.add(id);
-		}
-		selectedIds = newSet;
-	}
-
-	function getPriorityColor(pName: string): string {
-		return (
-			(data.projectPriorities as ProjectPriority[]).find((p) => p.name === pName)?.color ??
-			'#6b7280'
-		);
-	}
 
 	async function handleCreate() {
-		if (!name.trim()) return;
+		if (creating) return;
+		const parsed = createTestPlanSchema.safeParse({
+			name,
+			description: description || undefined,
+			milestone: milestone || undefined,
+			startDate: startDate || undefined,
+			endDate: endDate || undefined,
+			testCaseIds: [...selectedIds]
+		});
+		errors = parsed.success ? [] : workflowFormFeedback(parsed.error.issues);
+		if (!parsed.success) {
+			await tick();
+			summary?.focus();
+			return;
+		}
 		creating = true;
 		try {
-			const result = await apiPost<{ id: number }>(`/api/projects/${data.project.id}/test-plans`, {
-				name,
-				description: description || undefined,
-				milestone: milestone || undefined,
-				startDate: startDate || undefined,
-				endDate: endDate || undefined,
-				testCaseIds: [...selectedIds]
+			const result = await apiFetch<{ id: number }>(`/api/projects/${data.project.id}/test-plans`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(parsed.data),
+				silent: true
 			});
 			toast.success(m.tp_created());
-			goto(`/projects/${data.project.id}/test-plans/${result.id}`);
+			await goto(`/projects/${data.project.id}/test-plans/${result.id}`);
 		} catch {
-			// error toast handled by apiPost
+			errors = [{ path: '_form', messages: [m.ui_save_failed()] }];
 		} finally {
 			creating = false;
+		}
+		if (errors.length) {
+			await tick();
+			summary?.focus();
 		}
 	}
 </script>
 
-<div class="mx-auto max-w-3xl">
-	<div class="mb-4">
-		<a
-			href="/projects/{data.project.id}/test-plans"
-			class="text-muted-foreground hover:text-foreground text-sm"
-			>&larr; {m.common_back_to({ target: m.tp_title() })}</a
-		>
-	</div>
-
+<UnsavedChangesGuard dirty={dirty && !creating} />
+<div class="mx-auto max-w-3xl space-y-4">
+	<a
+		href="/projects/{data.project.id}/test-plans"
+		class="text-sm text-muted-foreground hover:text-foreground"
+		>&larr; {m.common_back_to({ target: m.tp_title() })}</a
+	>
 	<Card.Root>
-		<Card.Header>
-			<Card.Title class="text-xl">{m.tp_create()}</Card.Title>
-		</Card.Header>
+		<Card.Header><h2 class="text-2xl font-semibold tracking-tight">{m.tp_create()}</h2></Card.Header
+		>
 		<Card.Content>
-			<div class="space-y-4">
-				<div class="grid gap-4 sm:grid-cols-2">
-					<div class="space-y-2">
-						<Label for="planName">{m.tp_name()}</Label>
-						<Input id="planName" bind:value={name} placeholder={m.tp_name()} required />
-					</div>
-					<div class="space-y-2">
-						<Label for="planMilestone">{m.tp_milestone()}</Label>
-						<Input id="planMilestone" bind:value={milestone} placeholder={m.tp_milestone()} />
-					</div>
-				</div>
-
-				<div class="space-y-2">
-					<Label for="planDesc">{m.tp_desc()}</Label>
-					<Textarea id="planDesc" bind:value={description} rows={3} />
-				</div>
-
-				<div class="grid gap-4 sm:grid-cols-2">
-					<div class="space-y-2">
-						<Label for="planStartDate">{m.tp_start_date()}</Label>
-						<Input id="planStartDate" type="date" bind:value={startDate} />
-					</div>
-					<div class="space-y-2">
-						<Label for="planEndDate">{m.tp_end_date()}</Label>
-						<Input id="planEndDate" type="date" bind:value={endDate} />
-					</div>
-				</div>
-
-				<!-- Test Case Selection -->
-				<div class="space-y-3">
-					<div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-						<Label>{m.tp_select_cases()} ({selectedIds.size})</Label>
-					</div>
-
-					<div class="flex flex-wrap items-center gap-2">
-						<Input
-							placeholder={m.tr_filter_placeholder()}
-							class="w-full sm:max-w-xs"
-							bind:value={searchFilter}
-						/>
-						<div class="flex flex-wrap gap-1">
-							<Button
-								type="button"
-								variant={priorityFilter === '' ? 'default' : 'outline'}
-								size="sm"
-								onclick={() => (priorityFilter = '')}
-							>
-								{m.common_all()}
-							</Button>
-							{#each data.projectPriorities as p (p.id)}
-								<Button
-									type="button"
-									variant={priorityFilter === p.name ? 'default' : 'outline'}
-									size="sm"
-									onclick={() => (priorityFilter = p.name)}
+			<form
+				novalidate
+				class="space-y-6"
+				aria-busy={creating}
+				onsubmit={(event) => {
+					event.preventDefault();
+					handleCreate();
+				}}
+			>
+				<FormErrorSummary {errors} bind:ref={summary} fieldTarget={(path) => fields[path]} />
+				<fieldset disabled={creating} class="min-w-0 space-y-4">
+					<div class="grid gap-4 sm:grid-cols-2">
+						<div class="space-y-2">
+							<Label for="planName"
+								>{m.tp_name()}
+								<span class="text-xs text-muted-foreground">({m.ui_required()})</span></Label
+							><Input
+								id="planName"
+								bind:value={name}
+								placeholder={m.tp_name()}
+								required
+								aria-invalid={!!feedbackFor(errors, 'name')}
+								aria-describedby={feedbackFor(errors, 'name') ? 'plan-name-error' : undefined}
+							/>{#if feedbackFor(errors, 'name')}<p
+									id="plan-name-error"
+									class="text-sm text-destructive"
 								>
-									{p.name}
-								</Button>
-							{/each}
+									{feedbackFor(errors, 'name')}
+								</p>{/if}
+						</div>
+						<div class="space-y-2">
+							<Label for="planMilestone">{m.tp_milestone()}</Label><Input
+								id="planMilestone"
+								bind:value={milestone}
+								aria-invalid={!!feedbackFor(errors, 'milestone')}
+								aria-describedby={feedbackFor(errors, 'milestone')
+									? 'plan-milestone-error'
+									: undefined}
+							/>{#if feedbackFor(errors, 'milestone')}<p
+									id="plan-milestone-error"
+									class="text-sm text-destructive"
+								>
+									{feedbackFor(errors, 'milestone')}
+								</p>{/if}
 						</div>
 					</div>
-
-					{#if data.testCases.length === 0}
-						<p class="text-muted-foreground text-sm">{m.tr_no_cases()}</p>
-					{:else}
-						<Card.Root class="overflow-hidden">
-							<Table.Root class="hidden table-fixed md:table">
-								<Table.Header>
-									<Table.Row>
-										<Table.Head class="w-10">
-											<input
-												type="checkbox"
-												checked={allFilteredSelected}
-												onchange={toggleAll}
-												class="rounded"
-											/>
-										</Table.Head>
-										<Table.Head class="w-24">{m.common_key()}</Table.Head>
-										<Table.Head>{m.common_title()}</Table.Head>
-										<Table.Head class="w-24">{m.common_priority()}</Table.Head>
-									</Table.Row>
-								</Table.Header>
-							</Table.Root>
-							<VirtualList items={filteredCases} rowHeight={64} height="420px">
-								{#snippet children({ item })}
-									{@const tc = item as (typeof filteredCases)[0]}
-									<button
-										type="button"
-										class="flex h-16 w-full items-center gap-2 px-3 text-left md:hidden"
-										onclick={() => toggleCase(tc.id)}
-									>
-										<input
-											type="checkbox"
-											checked={selectedIds.has(tc.id)}
-											onchange={() => toggleCase(tc.id)}
-											onclick={(e: MouseEvent) => e.stopPropagation()}
-											class="shrink-0 rounded"
-											aria-label={tc.key}
-										/>
-										<span class="w-16 shrink-0 font-mono text-xs text-muted-foreground"
-											>{tc.key}</span
-										>
-										<span class="min-w-0 flex-1 truncate text-sm font-medium" title={tc.title}
-											>{tc.title}</span
-										>
-										<span class="max-w-20 shrink-0 overflow-hidden">
-											<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
-										</span>
-									</button>
-									<Table.Root class="hidden table-fixed md:table">
-										<Table.Body>
-											<Table.Row class="cursor-pointer" onclick={() => toggleCase(tc.id)}>
-												<Table.Cell class="w-10">
-													<input
-														type="checkbox"
-														checked={selectedIds.has(tc.id)}
-														onchange={() => toggleCase(tc.id)}
-														onclick={(e: MouseEvent) => e.stopPropagation()}
-														class="rounded"
-													/>
-												</Table.Cell>
-												<Table.Cell class="w-24 font-mono text-sm">{tc.key}</Table.Cell>
-												<Table.Cell
-													class="min-w-0 whitespace-normal break-words font-medium leading-snug"
-													>{tc.title}</Table.Cell
-												>
-												<Table.Cell class="w-24">
-													<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
-												</Table.Cell>
-											</Table.Row>
-										</Table.Body>
-									</Table.Root>
-								{/snippet}
-							</VirtualList>
-						</Card.Root>
-					{/if}
-				</div>
-
-				<div class="flex flex-col gap-2 pt-2 sm:flex-row sm:gap-3">
-					<Button
-						class="w-full sm:w-auto"
-						onclick={handleCreate}
-						disabled={creating || !name.trim()}
-					>
-						{creating ? m.common_creating() : m.tp_create()}
-					</Button>
-					<Button
-						class="w-full sm:w-auto"
+					<div class="space-y-2">
+						<Label for="planDesc">{m.tp_desc()}</Label><Textarea
+							id="planDesc"
+							bind:value={description}
+							rows={3}
+							aria-invalid={!!feedbackFor(errors, 'description')}
+							aria-describedby={feedbackFor(errors, 'description') ? 'plan-desc-error' : undefined}
+						/>{#if feedbackFor(errors, 'description')}<p
+								id="plan-desc-error"
+								class="text-sm text-destructive"
+							>
+								{feedbackFor(errors, 'description')}
+							</p>{/if}
+					</div>
+					<div class="grid gap-4 sm:grid-cols-2">
+						<div class="space-y-2">
+							<Label for="planStartDate">{m.tp_start_date()}</Label><Input
+								id="planStartDate"
+								type="date"
+								bind:value={startDate}
+							/>
+						</div>
+						<div class="space-y-2">
+							<Label for="planEndDate">{m.tp_end_date()}</Label><Input
+								id="planEndDate"
+								type="date"
+								min={startDate || undefined}
+								bind:value={endDate}
+								aria-invalid={!!feedbackFor(errors, 'endDate')}
+								aria-describedby={feedbackFor(errors, 'endDate') ? 'plan-end-error' : undefined}
+							/>{#if feedbackFor(errors, 'endDate')}<p
+									id="plan-end-error"
+									class="text-sm text-destructive"
+								>
+									{feedbackFor(errors, 'endDate')}
+								</p>{/if}
+						</div>
+					</div>
+					<TestCasePicker
+						id="plan-cases"
+						cases={data.testCases}
+						bind:selected={selectedIds}
+						priorities={data.projectPriorities}
+						tags={data.projectTags}
+						error={feedbackFor(errors, 'testCaseIds')}
+						disabled={creating}
+					/>
+				</fieldset>
+				<div class="flex flex-col gap-2 border-t pt-4 sm:flex-row">
+					<Button type="submit" class="w-full sm:w-auto" disabled={creating}
+						>{creating ? m.common_creating() : m.tp_create()}</Button
+					><Button
 						variant="outline"
+						class="w-full sm:w-auto"
 						href="/projects/{data.project.id}/test-plans">{m.common_cancel()}</Button
 					>
 				</div>
-			</div>
+			</form>
 		</Card.Content>
 	</Card.Root>
 </div>

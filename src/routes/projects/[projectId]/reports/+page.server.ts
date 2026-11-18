@@ -26,6 +26,7 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 	return {
 		...data,
 		invalidRange,
+		scheduleTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 		dateRange: {
 			from: range.from ? reportCalendarDate(range.from) : null,
 			to: range.to ? reportCalendarDate(range.to) : null,

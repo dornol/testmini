@@ -164,7 +164,7 @@ test.describe.serial('Reports', () => {
 	// 8. Create a test run to populate the reports page with data
 	// -------------------------------------------------------------------------
 
-	test('8. Create a test case and test run for report data', async ({ page }) => {
+	test('8. Create a test case and test run for report data', async ({ page, request }) => {
 		// Create a test case first
 		await page.goto(`/projects/${projectId}/test-cases/new`);
 		await page.waitForLoadState('networkidle');
@@ -176,6 +176,12 @@ test.describe.serial('Reports', () => {
 		await page.waitForURL(new RegExp(`/projects/${projectId}/test-cases/\\d+$`), {
 			timeout: 15000
 		});
+
+		const caseId = Number(new URL(page.url()).pathname.split('/').at(-1));
+		const issue = await request.post(`/api/projects/${projectId}/issue-links`, {
+			data: { testCaseId: caseId, externalUrl: 'https://example.com/issues/1' }
+		});
+		expect(issue.status()).toBe(201);
 
 		// Create a test run
 		await page.goto(`/projects/${projectId}/test-runs/new`);
@@ -195,8 +201,11 @@ test.describe.serial('Reports', () => {
 		// Complete the run so the report includes real results.
 		await page.locator('form[action*="updateRunStatus"] button[type=submit]').first().click();
 		await page.locator('[data-status-dropdown]:visible').first().click();
-		await page.getByRole('menuitem', { name: 'PASS', exact: true }).click();
-		await expect(page.locator('[data-status-dropdown]:visible').first()).toContainText('PASS');
+		await page.getByRole('menuitem', { name: 'FAIL', exact: true }).click();
+		const failure = page.getByRole('dialog', { name: /FAIL 처리/ });
+		await failure.locator('#addErrorMessage').fill('Report fixture failure');
+		await failure.getByRole('button', { name: 'FAIL 처리', exact: true }).click();
+		await expect(page.locator('[data-status-dropdown]:visible').first()).toContainText('FAIL');
 		await page.locator('form:has(input[value=COMPLETED]) button[type=submit]').click();
 		await expect(page.locator('form:has(input[value=COMPLETED])')).toHaveCount(0);
 	});
@@ -387,6 +396,82 @@ test.describe.serial('Reports', () => {
 		expect((await page.request.get(url)).status()).toBe(404);
 	});
 
+	test('schedule recovers from failed requests and preserves the true enabled state', async ({
+		page
+	}) => {
+		await page.setViewportSize({ width: 375, height: 850 });
+		await page.goto(reportsUrl('preset=all'));
+		await page.waitForLoadState('networkidle');
+		const endpoint = `/api/projects/${projectId}/reports/schedules`;
+		const listRoute = '**' + endpoint;
+		const fail = { status: 503, json: { message: 'Unavailable' } };
+		await page.route(listRoute, (route) => route.fulfill(fail));
+		const opener = page.getByRole('button', { name: '예약 리포트', exact: true });
+		await opener.click();
+		const dialog = page.getByRole('dialog', { name: '예약 리포트' });
+		await expect(dialog.getByRole('alert')).toContainText('불러오지 못했습니다');
+		await expect(dialog.getByText('예약된 리포트가 없습니다')).toHaveCount(0);
+		await page.unroute(listRoute);
+		await dialog.getByRole('button', { name: '다시 시도' }).click();
+		await expect(dialog.getByText('예약된 리포트가 없습니다')).toBeVisible();
+		const name = dialog.getByRole('textbox', { name: '예약 이름' });
+		const recipients = dialog.getByRole('textbox', { name: '수신자' });
+		await expect(name).toBeFocused();
+		const create = dialog.getByRole('button', { name: '새 예약' });
+		await name.fill('Recoverable report schedule');
+		await dialog.getByRole('combobox', { name: '빈도' }).selectOption('0 9 1 * *');
+		await dialog.getByRole('combobox', { name: '리포트 기간' }).selectOption('last_30_days');
+		await recipients.fill('one@example.com, One@example.com');
+		await create.click();
+		await expect(dialog.getByRole('alert')).toBeFocused();
+		await expect(dialog.getByRole('alert')).toContainText('중복 없이');
+		await recipients.fill('one@example.com, two@example.com');
+		await page.route(listRoute, (route) => route.fulfill(fail));
+		await name.press('Enter');
+		await expect(dialog.getByRole('alert')).toContainText('저장하지 못했습니다');
+		await expect(name).toHaveValue('Recoverable report schedule');
+		await expect(recipients).toHaveValue('one@example.com, two@example.com');
+		await expect(dialog.getByRole('combobox', { name: '빈도' })).toHaveValue('0 9 1 * *');
+		await page.unroute(listRoute);
+		const created = page.waitForResponse(
+			(response) =>
+				response.url().endsWith(endpoint) && response.request().method() === 'POST' && response.ok()
+		);
+		await name.press('Enter');
+		const schedule = await (await created).json();
+		const detail = endpoint + '/' + schedule.id;
+		try {
+			expect(schedule.reportRange).toBe('last_30_days');
+			expect(schedule.recipientEmails).toEqual(['one@example.com', 'two@example.com']);
+			const toggle = dialog.getByRole('switch', { name: /Recoverable report schedule/ });
+			await expect(toggle).toHaveAttribute('aria-checked', 'true');
+			await expect(name).toHaveValue('');
+			await page.route('**' + detail, (route) => route.fulfill(fail));
+			await toggle.press('Space');
+			await expect(dialog.getByRole('alert')).toBeFocused();
+			await expect(toggle).toHaveAttribute('aria-checked', 'true');
+			await page.unroute('**' + detail);
+			await toggle.press('Space');
+			await expect(toggle).toHaveAttribute('aria-checked', 'false');
+			await page.keyboard.press('Escape');
+			await expect(opener).toBeFocused();
+			await opener.click();
+			await expect(toggle).toHaveAttribute('aria-checked', 'false');
+			const remove = dialog.getByRole('button', { name: /삭제.*Recoverable report schedule/ });
+			page.once('dialog', (confirmation) => confirmation.dismiss());
+			await remove.click();
+			await expect(toggle).toBeVisible();
+			page.once('dialog', (confirmation) => confirmation.accept());
+			await remove.click();
+			await expect(dialog.getByText('예약된 리포트가 없습니다')).toBeVisible();
+			await expect(name).toBeFocused();
+		} finally {
+			const remaining = await (await page.request.get(endpoint)).json();
+			if (remaining.some((item: { id: number }) => item.id === schedule.id))
+				await page.request.delete(detail);
+		}
+	});
+
 	for (const locale of ['ko', 'en'])
 		for (const theme of ['light', 'dark'])
 			for (const width of [375, 768, 1440]) {
@@ -415,9 +500,28 @@ test.describe.serial('Reports', () => {
 					expect(await page.locator('main').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
 						false
 					);
+					const failedCases = page.getByRole('table', { name: /실패 빈도 Top|Top Failing/ });
+					const defectDensity = page.getByRole('table', {
+						name: /그룹별 결함 밀도|Defect Density/
+					});
+					await expect(
+						failedCases.getByRole('link', { name: /Reports E2E Test Case/ })
+					).toHaveAttribute('href', /test-cases\/\d+$/);
+					for (const tableName of [
+						/미실행 테스트 케이스|Stale Test Cases/,
+						/가장 느린 테스트|Slowest Tests/
+					])
+						await expect(
+							page
+								.getByRole('table', { name: tableName })
+								.getByRole('link', { name: /Reports E2E Test Case/ })
+						).toBeVisible();
+					await expect(defectDensity.getByRole('row')).toHaveCount(2);
+
 					const result = await new AxeBuilder({ page })
 						.include('[data-slot=filter-toolbar]')
 						.include('[data-testid=recent-completed-runs]')
+						.include('.report-metrics')
 						.withTags(['wcag2a', 'wcag2aa'])
 						.analyze();
 					expect(
@@ -447,6 +551,41 @@ test.describe.serial('Reports', () => {
 					await page.keyboard.press('Escape');
 					await expect(shareDialog).toHaveCount(0);
 					await expect(share).toBeFocused();
+					const schedule = filters.getByRole('button', {
+						name: /^(예약 리포트|Scheduled Reports)$/
+					});
+					await schedule.click();
+					const scheduleDialog = page.getByRole('dialog');
+					await expect(
+						scheduleDialog.getByRole('button', { name: /새 예약|New Schedule/ })
+					).toBeEnabled();
+					expect(await scheduleDialog.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+						false
+					);
+					const scheduleControls = await scheduleDialog
+						.locator('form input, form select, form button[type=submit]')
+						.evaluateAll((controls) =>
+							controls.map((control) => control.getBoundingClientRect().height)
+						);
+					expect(new Set(scheduleControls).size).toBe(1);
+
+					const scheduleAudit = await new AxeBuilder({ page })
+						.include('[data-slot=dialog-content]')
+						.withTags(['wcag2a', 'wcag2aa'])
+						.analyze();
+					expect(
+						scheduleAudit.violations
+							.filter((v) => ['serious', 'critical'].includes(v.impact ?? ''))
+							.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.failureSummary) }))
+					).toEqual([]);
+					if (locale === 'ko' && width === 375)
+						await testInfo.attach('report-schedule', {
+							body: await page.screenshot({ path: `/tmp/testmini-report-schedule-${theme}.png` }),
+							contentType: 'image/png'
+						});
+					await page.keyboard.press('Escape');
+					await expect(scheduleDialog).toHaveCount(0);
+					await expect(schedule).toBeFocused();
 				});
 			}
 });

@@ -453,103 +453,86 @@
 	</Card.Root>
 {/if}
 
+{#snippet reportCaseLink(tc: { testCaseId: number; testCaseKey: string; title: string })}
+	<Table.Cell role="cell" class="report-metric-wide min-w-0 whitespace-normal">
+		<a
+			href={`/projects/${projectId}/test-cases/${tc.testCaseId}`}
+			class="inline-block rounded-sm font-medium hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+		>
+			<span class="block text-xs text-muted-foreground">{tc.testCaseKey}</span>
+			{tc.title}
+		</a>
+	</Table.Cell>
+{/snippet}
+
+{#snippet metricLabel(label: string)}
+	<span aria-hidden="true" class="block text-xs font-normal text-muted-foreground sm:hidden"
+		>{label}</span
+	>
+{/snippet}
+
+{#snippet metricValue(label: string, value: string | number, classes = '')}
+	<Table.Cell role="cell" class={classes}>
+		{@render metricLabel(label)}
+		{value}
+	</Table.Cell>
+{/snippet}
+
 <!-- Top Failing Test Cases -->
 {#if topFailingCases.length > 0}
-	{@const maxFailCount = Math.max(...topFailingCases.map((t) => t.failCount))}
 	<Card.Root>
 		<Card.Header>
-			<Card.Title class="text-sm font-medium">{m.reports_top_failing()}</Card.Title>
+			<h3 id="report-failing-heading" class="text-sm font-medium">{m.reports_top_failing()}</h3>
 		</Card.Header>
 		<Card.Content class="p-0">
-			<div class="space-y-2 px-4 pb-4 sm:hidden">
-				{#each topFailingCases as tc (tc.testCaseId)}
-					{@const total = tc.totalExecs}
-					{@const fail = tc.failCount}
-					{@const pass = tc.passCount}
-					<button
-						type="button"
-						class="w-full rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
-						onclick={() => {
-							window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`;
-						}}
-					>
-						<p class="font-mono text-xs text-muted-foreground">{tc.testCaseKey}</p>
-						<p class="mt-1 text-sm font-medium [overflow-wrap:anywhere]">{tc.title}</p>
-						<dl class="mt-3 grid grid-cols-2 gap-2 text-xs min-[420px]:grid-cols-4">
-							<div>
-								<dt class="text-muted-foreground">{m.reports_total()}</dt>
-								<dd class="font-medium">{total}</dd>
-							</div>
-							<div>
-								<dt class="text-muted-foreground">{m.reports_fail_count()}</dt>
-								<dd class="font-medium report-result-fail">{fail}</dd>
-							</div>
-							<div>
-								<dt class="text-muted-foreground">{m.reports_pass()}</dt>
-								<dd class="font-medium report-result-pass">{pass}</dd>
-							</div>
-							<div>
-								<dt class="text-muted-foreground">{m.reports_pass_rate()}</dt>
-								<dd class="font-medium">{passRate(pass, total)}</dd>
-							</div>
-						</dl>
-						<div class="mt-3 bg-secondary flex h-2 w-full overflow-hidden rounded-full">
-							{#if pass > 0}
-								<div class="bg-green-500" style="width: {barWidth(pass, total)}"></div>
-							{/if}
-							{#if fail > 0}
-								<div class="bg-red-500" style="width: {barWidth(fail, total)}"></div>
-							{/if}
-						</div>
-					</button>
-				{/each}
-			</div>
-			<div class="hidden overflow-x-auto sm:block">
-				<Table.Root class="min-w-[640px] table-fixed">
-					<Table.Header>
-						<Table.Row>
-							<Table.Head>{m.reports_test_case()}</Table.Head>
-							<Table.Head class="w-28">{m.reports_total()}</Table.Head>
-							<Table.Head class="w-28">{m.reports_fail_count()}</Table.Head>
-							<Table.Head class="w-28">{m.reports_pass()}</Table.Head>
-							<Table.Head class="w-28">{m.reports_pass_rate()}</Table.Head>
-							<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
+			<div class="overflow-x-auto">
+				<Table.Root
+					role="table"
+					aria-labelledby="report-failing-heading"
+					class="report-metrics min-w-0 sm:min-w-[640px]"
+				>
+					<Table.Header role="rowgroup">
+						<Table.Row role="row">
+							<Table.Head role="columnheader" scope="col">{m.reports_test_case()}</Table.Head>
+							<Table.Head role="columnheader" scope="col" class="w-24"
+								>{m.reports_total()}</Table.Head
+							>
+							<Table.Head role="columnheader" scope="col" class="w-24"
+								>{m.reports_fail_count()}</Table.Head
+							>
+							<Table.Head role="columnheader" scope="col" class="w-24"
+								>{m.reports_pass()}</Table.Head
+							>
+							<Table.Head role="columnheader" scope="col" class="w-24"
+								>{m.reports_pass_rate()}</Table.Head
+							>
+							<Table.Head role="columnheader" scope="col" class="w-32"
+								>{m.reports_distribution()}</Table.Head
+							>
 						</Table.Row>
 					</Table.Header>
-					<Table.Body>
+					<Table.Body role="rowgroup">
 						{#each topFailingCases as tc (tc.testCaseId)}
 							{@const total = tc.totalExecs}
 							{@const fail = tc.failCount}
 							{@const pass = tc.passCount}
-							<Table.Row
-								class="cursor-pointer"
-								onclick={() => {
-									window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`;
-								}}
-							>
-								<Table.Cell class="min-w-0">
-									<div class="min-w-0">
-										<span
-											class="block truncate text-xs text-muted-foreground"
-											title={tc.testCaseKey}
-										>
-											{tc.testCaseKey}
-										</span>
-										<span class="block truncate font-medium" title={tc.title}>{tc.title}</span>
-									</div>
-								</Table.Cell>
-								<Table.Cell>{total}</Table.Cell>
-								<Table.Cell class="report-result-fail font-medium">{fail}</Table.Cell>
-								<Table.Cell class="report-result-pass">{pass}</Table.Cell>
-								<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
-								<Table.Cell>
-									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
-										{#if pass > 0}
-											<div class="bg-green-500" style="width: {barWidth(pass, total)}"></div>
-										{/if}
-										{#if fail > 0}
-											<div class="bg-red-500" style="width: {barWidth(fail, total)}"></div>
-										{/if}
+							<Table.Row role="row">
+								{@render reportCaseLink(tc)}
+								{@render metricValue(m.reports_total(), total)}
+								{@render metricValue(
+									m.reports_fail_count(),
+									fail,
+									'report-result-fail font-medium'
+								)}
+								{@render metricValue(m.reports_pass(), pass, 'report-result-pass')}
+								{@render metricValue(m.reports_pass_rate(), passRate(pass, total), 'font-medium')}
+								<Table.Cell role="cell" class="report-metric-wide">
+									<div
+										class="bg-secondary flex h-2 overflow-hidden rounded-full"
+										aria-hidden="true"
+									>
+										<div class="bg-green-500" style:width={barWidth(pass, total)}></div>
+										<div class="bg-red-500" style:width={barWidth(fail, total)}></div>
 									</div>
 								</Table.Cell>
 							</Table.Row>
@@ -689,92 +672,50 @@
 {#if staleTests.length > 0}
 	<Card.Root>
 		<Card.Header>
-			<Card.Title class="text-sm font-medium">{m.stale_tests_title()}</Card.Title>
+			<h3 id="report-stale-heading" class="text-sm font-medium">{m.stale_tests_title()}</h3>
 			<Card.Description>{m.stale_tests_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content class="p-0">
-			<div class="space-y-2 px-4 pb-4 sm:hidden">
-				{#each staleTests as tc (tc.testCaseId)}
-					{@const daysAgo = tc.lastExecutedAt
-						? Math.floor((Date.now() - new Date(tc.lastExecutedAt).getTime()) / 86400000)
-						: null}
-					<button
-						type="button"
-						class="w-full rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
-						onclick={() => {
-							window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`;
-						}}
-					>
-						<div class="flex items-start justify-between gap-3">
-							<div class="min-w-0 flex-1">
-								<p class="font-mono text-xs text-muted-foreground">{tc.testCaseKey}</p>
-								<p class="mt-1 text-sm font-medium [overflow-wrap:anywhere]">{tc.title}</p>
-							</div>
-							<span class="shrink-0">
-								<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
-							</span>
-						</div>
-						<div class="mt-3">
-							{#if daysAgo === null}
-								<Badge variant="outline" class="bg-red-50 text-red-700 border-red-300 text-xs"
-									>{m.stale_tests_never()}</Badge
-								>
-							{:else}
-								<span
-									class="text-sm text-muted-foreground {daysAgo > 30
-										? 'font-medium report-result-caution'
-										: ''}">{m.stale_tests_days_ago({ days: daysAgo })}</span
-								>
-							{/if}
-						</div>
-					</button>
-				{/each}
-			</div>
-			<div class="hidden overflow-x-auto sm:block">
-				<Table.Root class="min-w-[560px] table-fixed">
-					<Table.Header>
-						<Table.Row>
-							<Table.Head>{m.reports_test_case()}</Table.Head>
-							<Table.Head class="w-28">{m.common_priority()}</Table.Head>
-							<Table.Head class="w-36">{m.stale_tests_last_executed()}</Table.Head>
+			<div class="overflow-x-auto">
+				<Table.Root
+					role="table"
+					aria-labelledby="report-stale-heading"
+					class="report-metrics min-w-0 sm:min-w-[560px]"
+				>
+					<Table.Header role="rowgroup">
+						<Table.Row role="row">
+							<Table.Head role="columnheader" scope="col">{m.reports_test_case()}</Table.Head>
+							<Table.Head role="columnheader" scope="col" class="w-28"
+								>{m.common_priority()}</Table.Head
+							>
+							<Table.Head role="columnheader" scope="col" class="w-36"
+								>{m.stale_tests_last_executed()}</Table.Head
+							>
 						</Table.Row>
 					</Table.Header>
-					<Table.Body>
+					<Table.Body role="rowgroup">
 						{#each staleTests as tc (tc.testCaseId)}
 							{@const daysAgo = tc.lastExecutedAt
 								? Math.floor((Date.now() - new Date(tc.lastExecutedAt).getTime()) / 86400000)
 								: null}
-							<Table.Row
-								class="cursor-pointer"
-								onclick={() => {
-									window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`;
-								}}
-							>
-								<Table.Cell class="min-w-0">
-									<div class="min-w-0">
-										<span
-											class="block truncate text-xs text-muted-foreground"
-											title={tc.testCaseKey}
-										>
-											{tc.testCaseKey}
-										</span>
-										<span class="block truncate font-medium" title={tc.title}>{tc.title}</span>
-									</div>
-								</Table.Cell>
-								<Table.Cell>
+							<Table.Row role="row">
+								{@render reportCaseLink(tc)}
+								<Table.Cell role="cell">
+									{@render metricLabel(m.common_priority())}
 									<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
 								</Table.Cell>
-								<Table.Cell>
+								<Table.Cell role="cell">
+									{@render metricLabel(m.stale_tests_last_executed())}
 									{#if daysAgo === null}
-										<Badge variant="outline" class="bg-red-50 text-red-700 border-red-300 text-xs"
-											>{m.stale_tests_never()}</Badge
-										>
+										<span class="report-result-fail font-medium">{m.stale_tests_never()}</span>
 									{:else}
 										<span
-											class="text-muted-foreground text-sm {daysAgo > 30
+											class={daysAgo > 30
 												? 'report-result-caution font-medium'
-												: ''}">{m.stale_tests_days_ago({ days: daysAgo })}</span
+												: 'text-muted-foreground'}
 										>
+											{m.stale_tests_days_ago({ days: daysAgo })}
+										</span>
 									{/if}
 								</Table.Cell>
 							</Table.Row>
@@ -790,83 +731,50 @@
 {#if slowestTests.length > 0}
 	<Card.Root>
 		<Card.Header>
-			<Card.Title class="text-sm font-medium">{m.slowest_tests_title()}</Card.Title>
+			<h3 id="report-slowest-heading" class="text-sm font-medium">{m.slowest_tests_title()}</h3>
 			<Card.Description>{m.slowest_tests_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content class="p-0">
-			<div class="space-y-2 px-4 pb-4 sm:hidden">
-				{#each slowestTests as tc (tc.testCaseId)}
-					<button
-						type="button"
-						class="w-full rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
-						onclick={() => {
-							window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`;
-						}}
-					>
-						<div class="flex items-start justify-between gap-3">
-							<div class="min-w-0 flex-1">
-								<p class="font-mono text-xs text-muted-foreground">{tc.testCaseKey}</p>
-								<p class="mt-1 text-sm font-medium [overflow-wrap:anywhere]">{tc.title}</p>
-							</div>
-							<span class="shrink-0">
-								<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
-							</span>
-						</div>
-						<dl class="mt-3 grid grid-cols-1 gap-2 text-xs min-[360px]:grid-cols-3">
-							<div>
-								<dt class="text-muted-foreground">{m.slowest_avg()}</dt>
-								<dd class="font-medium">{formatDuration(tc.avgDuration)}</dd>
-							</div>
-							<div>
-								<dt class="text-muted-foreground">{m.slowest_max()}</dt>
-								<dd class="font-medium">{formatDuration(tc.maxDuration)}</dd>
-							</div>
-							<div>
-								<dt class="text-muted-foreground">{m.slowest_execs()}</dt>
-								<dd class="font-medium">{tc.execCount}</dd>
-							</div>
-						</dl>
-					</button>
-				{/each}
-			</div>
-			<div class="hidden overflow-x-auto sm:block">
-				<Table.Root class="min-w-[640px] table-fixed">
-					<Table.Header>
-						<Table.Row>
-							<Table.Head>{m.reports_test_case()}</Table.Head>
-							<Table.Head class="w-28">{m.common_priority()}</Table.Head>
-							<Table.Head class="w-28">{m.slowest_avg()}</Table.Head>
-							<Table.Head class="w-28">{m.slowest_max()}</Table.Head>
-							<Table.Head class="w-24">{m.slowest_execs()}</Table.Head>
+			<div class="overflow-x-auto">
+				<Table.Root
+					role="table"
+					aria-labelledby="report-slowest-heading"
+					class="report-metrics min-w-0 sm:min-w-[640px]"
+				>
+					<Table.Header role="rowgroup">
+						<Table.Row role="row">
+							<Table.Head role="columnheader" scope="col">{m.reports_test_case()}</Table.Head>
+							<Table.Head role="columnheader" scope="col" class="w-28"
+								>{m.common_priority()}</Table.Head
+							>
+							<Table.Head role="columnheader" scope="col" class="w-28">{m.slowest_avg()}</Table.Head
+							>
+							<Table.Head role="columnheader" scope="col" class="w-28">{m.slowest_max()}</Table.Head
+							>
+							<Table.Head role="columnheader" scope="col" class="w-24"
+								>{m.slowest_execs()}</Table.Head
+							>
 						</Table.Row>
 					</Table.Header>
-					<Table.Body>
+					<Table.Body role="rowgroup">
 						{#each slowestTests as tc (tc.testCaseId)}
-							<Table.Row
-								class="cursor-pointer"
-								onclick={() => {
-									window.location.href = `/projects/${projectId}/test-cases/${tc.testCaseId}`;
-								}}
-							>
-								<Table.Cell class="min-w-0">
-									<div class="min-w-0">
-										<span
-											class="block truncate text-xs text-muted-foreground"
-											title={tc.testCaseKey}
-										>
-											{tc.testCaseKey}
-										</span>
-										<span class="block truncate font-medium" title={tc.title}>{tc.title}</span>
-									</div>
-								</Table.Cell>
-								<Table.Cell>
+							<Table.Row role="row">
+								{@render reportCaseLink(tc)}
+								<Table.Cell role="cell">
+									{@render metricLabel(m.common_priority())}
 									<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
 								</Table.Cell>
-								<Table.Cell class="font-medium">{formatDuration(tc.avgDuration)}</Table.Cell>
-								<Table.Cell class="text-muted-foreground"
-									>{formatDuration(tc.maxDuration)}</Table.Cell
-								>
-								<Table.Cell class="text-muted-foreground">{tc.execCount}</Table.Cell>
+								{@render metricValue(
+									m.slowest_avg(),
+									formatDuration(tc.avgDuration),
+									'font-medium'
+								)}
+								{@render metricValue(
+									m.slowest_max(),
+									formatDuration(tc.maxDuration),
+									'text-muted-foreground'
+								)}
+								{@render metricValue(m.slowest_execs(), tc.execCount, 'text-muted-foreground')}
 							</Table.Row>
 						{/each}
 					</Table.Body>
@@ -881,63 +789,58 @@
 	{@const maxDefects = Math.max(...defectDensity.map((d) => d.defectCount))}
 	<Card.Root>
 		<Card.Header>
-			<Card.Title class="text-sm font-medium">{m.defect_density_title()}</Card.Title>
+			<h3 id="report-defects-heading" class="text-sm font-medium">{m.defect_density_title()}</h3>
 			<Card.Description>{m.defect_density_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content class="p-0">
-			<div class="space-y-2 px-4 pb-4 sm:hidden">
-				{#each defectDensity.filter((d) => d.defectCount > 0) as dd (dd.groupId ?? 'ungrouped')}
-					{@const density = dd.caseCount > 0 ? (dd.defectCount / dd.caseCount).toFixed(2) : '0'}
-					<div class="rounded-md border p-3">
-						<p class="break-words text-sm font-medium">{dd.groupName ?? m.defect_ungrouped()}</p>
-						<dl class="mt-3 grid grid-cols-1 gap-2 text-xs min-[360px]:grid-cols-3">
-							<div>
-								<dt class="text-muted-foreground">{m.defect_cases()}</dt>
-								<dd class="font-medium">{dd.caseCount}</dd>
-							</div>
-							<div>
-								<dt class="text-muted-foreground">{m.defect_count()}</dt>
-								<dd class="font-medium report-result-fail">{dd.defectCount}</dd>
-							</div>
-							<div>
-								<dt class="text-muted-foreground">{m.defect_density()}</dt>
-								<dd class="font-medium">{density}</dd>
-							</div>
-						</dl>
-						<div class="mt-3 bg-secondary flex h-2 w-full overflow-hidden rounded-full">
-							<div class="bg-red-500" style="width: {barWidth(dd.defectCount, maxDefects)}"></div>
-						</div>
-					</div>
-				{/each}
-			</div>
-			<div class="hidden overflow-x-auto sm:block">
-				<Table.Root class="min-w-[560px] table-fixed">
-					<Table.Header>
-						<Table.Row>
-							<Table.Head>{m.defect_group()}</Table.Head>
-							<Table.Head class="w-28">{m.defect_cases()}</Table.Head>
-							<Table.Head class="w-28">{m.defect_count()}</Table.Head>
-							<Table.Head class="w-28">{m.defect_density()}</Table.Head>
-							<Table.Head class="w-40">{m.reports_distribution()}</Table.Head>
+			<div class="overflow-x-auto">
+				<Table.Root
+					role="table"
+					aria-labelledby="report-defects-heading"
+					class="report-metrics min-w-0 sm:min-w-[560px]"
+				>
+					<Table.Header role="rowgroup">
+						<Table.Row role="row">
+							<Table.Head role="columnheader" scope="col">{m.defect_group()}</Table.Head>
+							<Table.Head role="columnheader" scope="col" class="w-24"
+								>{m.defect_cases()}</Table.Head
+							>
+							<Table.Head role="columnheader" scope="col" class="w-24"
+								>{m.defect_count()}</Table.Head
+							>
+							<Table.Head role="columnheader" scope="col" class="w-24"
+								>{m.defect_density()}</Table.Head
+							>
+							<Table.Head role="columnheader" scope="col" class="w-32"
+								>{m.reports_distribution()}</Table.Head
+							>
 						</Table.Row>
 					</Table.Header>
-					<Table.Body>
+					<Table.Body role="rowgroup">
 						{#each defectDensity.filter((d) => d.defectCount > 0) as dd (dd.groupId ?? 'ungrouped')}
 							{@const density = dd.caseCount > 0 ? (dd.defectCount / dd.caseCount).toFixed(2) : '0'}
-							<Table.Row>
-								<Table.Cell class="min-w-0 font-medium">
-									<div class="truncate" title={dd.groupName ?? m.defect_ungrouped()}>
-										{dd.groupName ?? m.defect_ungrouped()}
-									</div>
+							<Table.Row role="row">
+								<Table.Cell
+									role="cell"
+									class="report-metric-wide min-w-0 whitespace-normal font-medium"
+								>
+									{dd.groupName ?? m.defect_ungrouped()}
 								</Table.Cell>
-								<Table.Cell>{dd.caseCount}</Table.Cell>
-								<Table.Cell class="report-result-fail font-medium">{dd.defectCount}</Table.Cell>
-								<Table.Cell>{density}</Table.Cell>
-								<Table.Cell>
-									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
+								{@render metricValue(m.defect_cases(), dd.caseCount)}
+								{@render metricValue(
+									m.defect_count(),
+									dd.defectCount,
+									'report-result-fail font-medium'
+								)}
+								{@render metricValue(m.defect_density(), density)}
+								<Table.Cell role="cell" class="report-metric-wide">
+									<div
+										class="bg-secondary flex h-2 overflow-hidden rounded-full"
+										aria-hidden="true"
+									>
 										<div
 											class="bg-red-500"
-											style="width: {barWidth(dd.defectCount, maxDefects)}"
+											style:width={barWidth(dd.defectCount, maxDefects)}
 										></div>
 									</div>
 								</Table.Cell>

@@ -1,9 +1,12 @@
 import { error } from '@sveltejs/kit';
 import cron from 'node-cron';
 
-export const MAX_REPORT_SCHEDULE_NAME_LENGTH = 120;
-export const MAX_REPORT_SCHEDULE_RECIPIENTS = 20;
-export const MAX_REPORT_SCHEDULE_EMAIL_LENGTH = 254;
+import {
+	MAX_REPORT_SCHEDULE_NAME_LENGTH,
+	MAX_REPORT_SCHEDULE_RECIPIENTS,
+	isScheduleEmail
+} from '$lib/report-schedule-limits';
+
 export const ALLOWED_REPORT_SCHEDULE_RANGES = new Set(['last_7_days', 'last_30_days', 'all']);
 export const REPORT_SCHEDULE_FIELDS = new Set([
 	'name',
@@ -12,8 +15,6 @@ export const REPORT_SCHEDULE_FIELDS = new Set([
 	'reportRange',
 	'enabled'
 ]);
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function isAllowedReportScheduleRange(value: unknown): value is string {
 	return typeof value === 'string' && ALLOWED_REPORT_SCHEDULE_RANGES.has(value);
@@ -61,7 +62,7 @@ export function validateScheduleRecipientEmails(value: unknown): string[] {
 	}
 
 	for (const email of uniqueEmails) {
-		if (!email || email.length > MAX_REPORT_SCHEDULE_EMAIL_LENGTH || !EMAIL_PATTERN.test(email)) {
+		if (!isScheduleEmail(email)) {
 			error(400, 'Invalid recipient email');
 		}
 	}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import './report-results.css';
 	import * as m from '$lib/paraglide/messages.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
@@ -7,6 +8,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Chart from '$lib/components/Chart.svelte';
 	import type { ChartConfiguration } from 'chart.js';
+	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { formatDuration } from '$lib/format-utils';
 
@@ -111,7 +113,15 @@
 		projectPriorities: Array<{ name: string; color: string }>;
 	} = $props();
 
-	let selectedRunIds = new SvelteSet<number>();
+	const selectedRunIds = new SvelteSet<number>();
+	$effect(() => {
+		const visible = new Set(recentRuns.map((run) => run.id));
+		untrack(() => {
+			for (const id of selectedRunIds) {
+				if (!visible.has(id)) selectedRunIds.delete(id);
+			}
+		});
+	});
 
 	function toggleRun(id: number) {
 		if (selectedRunIds.has(id)) {
@@ -277,8 +287,8 @@
 									<PriorityBadge name={ps.priority} color={getPriorityColor(ps.priority)} />
 								</Table.Cell>
 								<Table.Cell>{total}</Table.Cell>
-								<Table.Cell class="text-green-600">{pass}</Table.Cell>
-								<Table.Cell class="text-red-600">{fail}</Table.Cell>
+								<Table.Cell class="report-result-pass">{pass}</Table.Cell>
+								<Table.Cell class="report-result-fail">{fail}</Table.Cell>
 								<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
 								<Table.Cell>
 									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
@@ -369,8 +379,8 @@
 									<div class="truncate" title={as_.userName}>{as_.userName}</div>
 								</Table.Cell>
 								<Table.Cell>{as_.assignedCount}</Table.Cell>
-								<Table.Cell class="text-green-600">{pass}</Table.Cell>
-								<Table.Cell class="text-red-600">{fail}</Table.Cell>
+								<Table.Cell class="report-result-pass">{pass}</Table.Cell>
+								<Table.Cell class="report-result-fail">{fail}</Table.Cell>
 								<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
 								<Table.Cell>
 									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
@@ -421,8 +431,8 @@
 									<div class="truncate" title={es.userName}>{es.userName}</div>
 								</Table.Cell>
 								<Table.Cell>{total}</Table.Cell>
-								<Table.Cell class="text-green-600">{pass}</Table.Cell>
-								<Table.Cell class="text-red-600">{fail}</Table.Cell>
+								<Table.Cell class="report-result-pass">{pass}</Table.Cell>
+								<Table.Cell class="report-result-fail">{fail}</Table.Cell>
 								<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
 								<Table.Cell>
 									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
@@ -464,7 +474,7 @@
 						}}
 					>
 						<p class="font-mono text-xs text-muted-foreground">{tc.testCaseKey}</p>
-						<p class="mt-1 line-clamp-2 text-sm font-medium">{tc.title}</p>
+						<p class="mt-1 text-sm font-medium [overflow-wrap:anywhere]">{tc.title}</p>
 						<dl class="mt-3 grid grid-cols-2 gap-2 text-xs min-[420px]:grid-cols-4">
 							<div>
 								<dt class="text-muted-foreground">{m.reports_total()}</dt>
@@ -472,11 +482,11 @@
 							</div>
 							<div>
 								<dt class="text-muted-foreground">{m.reports_fail_count()}</dt>
-								<dd class="font-medium text-red-600">{fail}</dd>
+								<dd class="font-medium report-result-fail">{fail}</dd>
 							</div>
 							<div>
 								<dt class="text-muted-foreground">{m.reports_pass()}</dt>
-								<dd class="font-medium text-green-600">{pass}</dd>
+								<dd class="font-medium report-result-pass">{pass}</dd>
 							</div>
 							<div>
 								<dt class="text-muted-foreground">{m.reports_pass_rate()}</dt>
@@ -529,8 +539,8 @@
 									</div>
 								</Table.Cell>
 								<Table.Cell>{total}</Table.Cell>
-								<Table.Cell class="text-red-600 font-medium">{fail}</Table.Cell>
-								<Table.Cell class="text-green-600">{pass}</Table.Cell>
+								<Table.Cell class="report-result-fail font-medium">{fail}</Table.Cell>
+								<Table.Cell class="report-result-pass">{pass}</Table.Cell>
 								<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
 								<Table.Cell>
 									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
@@ -579,7 +589,7 @@
 							>
 							<div class="min-w-0">
 								<p class="font-mono text-xs text-muted-foreground">{tc.testCaseKey}</p>
-								<p class="mt-1 line-clamp-2 text-sm font-medium">{tc.title}</p>
+								<p class="mt-1 text-sm font-medium [overflow-wrap:anywhere]">{tc.title}</p>
 							</div>
 						</div>
 						<dl class="mt-3 grid grid-cols-2 gap-2 text-xs min-[420px]:grid-cols-4">
@@ -589,11 +599,11 @@
 							</div>
 							<div>
 								<dt class="text-muted-foreground">{m.trends_pass()}</dt>
-								<dd class="font-medium text-green-600">{pass}</dd>
+								<dd class="font-medium report-result-pass">{pass}</dd>
 							</div>
 							<div>
 								<dt class="text-muted-foreground">{m.trends_fail()}</dt>
-								<dd class="font-medium text-red-600">{fail}</dd>
+								<dd class="font-medium report-result-fail">{fail}</dd>
 							</div>
 							<div>
 								<dt class="text-muted-foreground">{m.reports_pass_rate()}</dt>
@@ -653,8 +663,8 @@
 									</div>
 								</Table.Cell>
 								<Table.Cell>{total}</Table.Cell>
-								<Table.Cell class="text-green-600">{pass}</Table.Cell>
-								<Table.Cell class="text-red-600 font-medium">{fail}</Table.Cell>
+								<Table.Cell class="report-result-pass">{pass}</Table.Cell>
+								<Table.Cell class="report-result-fail font-medium">{fail}</Table.Cell>
 								<Table.Cell class="font-medium">{passRate(pass, total)}</Table.Cell>
 								<Table.Cell>
 									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
@@ -698,7 +708,7 @@
 						<div class="flex items-start justify-between gap-3">
 							<div class="min-w-0 flex-1">
 								<p class="font-mono text-xs text-muted-foreground">{tc.testCaseKey}</p>
-								<p class="mt-1 line-clamp-2 text-sm font-medium">{tc.title}</p>
+								<p class="mt-1 text-sm font-medium [overflow-wrap:anywhere]">{tc.title}</p>
 							</div>
 							<span class="shrink-0">
 								<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
@@ -712,7 +722,7 @@
 							{:else}
 								<span
 									class="text-sm text-muted-foreground {daysAgo > 30
-										? 'font-medium text-yellow-600'
+										? 'font-medium report-result-caution'
 										: ''}">{m.stale_tests_days_ago({ days: daysAgo })}</span
 								>
 							{/if}
@@ -762,7 +772,7 @@
 									{:else}
 										<span
 											class="text-muted-foreground text-sm {daysAgo > 30
-												? 'text-yellow-600 font-medium'
+												? 'report-result-caution font-medium'
 												: ''}">{m.stale_tests_days_ago({ days: daysAgo })}</span
 										>
 									{/if}
@@ -796,7 +806,7 @@
 						<div class="flex items-start justify-between gap-3">
 							<div class="min-w-0 flex-1">
 								<p class="font-mono text-xs text-muted-foreground">{tc.testCaseKey}</p>
-								<p class="mt-1 line-clamp-2 text-sm font-medium">{tc.title}</p>
+								<p class="mt-1 text-sm font-medium [overflow-wrap:anywhere]">{tc.title}</p>
 							</div>
 							<span class="shrink-0">
 								<PriorityBadge name={tc.priority} color={getPriorityColor(tc.priority)} />
@@ -887,7 +897,7 @@
 							</div>
 							<div>
 								<dt class="text-muted-foreground">{m.defect_count()}</dt>
-								<dd class="font-medium text-red-600">{dd.defectCount}</dd>
+								<dd class="font-medium report-result-fail">{dd.defectCount}</dd>
 							</div>
 							<div>
 								<dt class="text-muted-foreground">{m.defect_density()}</dt>
@@ -921,7 +931,7 @@
 									</div>
 								</Table.Cell>
 								<Table.Cell>{dd.caseCount}</Table.Cell>
-								<Table.Cell class="text-red-600 font-medium">{dd.defectCount}</Table.Cell>
+								<Table.Cell class="report-result-fail font-medium">{dd.defectCount}</Table.Cell>
 								<Table.Cell>{density}</Table.Cell>
 								<Table.Cell>
 									<div class="bg-secondary flex h-2 w-full overflow-hidden rounded-full">
@@ -962,17 +972,14 @@
 								type="checkbox"
 								checked={selectedRunIds.has(run.id)}
 								onchange={() => toggleRun(run.id)}
-								aria-label={`${m.reports_select_all()} ${run.name}`}
+								aria-label={m.aria_select_item({ item: run.name })}
 								class="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300"
 							/>
-							<button
-								type="button"
-								class="min-w-0 flex-1 text-left"
-								onclick={() => {
-									window.location.href = `/projects/${projectId}/test-runs/${run.id}`;
-								}}
+							<a
+								href={`/projects/${projectId}/test-runs/${run.id}`}
+								class="min-w-0 flex-1 rounded-sm text-left"
 							>
-								<p class="line-clamp-2 text-sm font-medium">{run.name}</p>
+								<p class="text-sm font-medium [overflow-wrap:anywhere]">{run.name}</p>
 								<div class="mt-2 flex flex-wrap items-center gap-2">
 									<Badge variant="outline" class="max-w-full whitespace-normal break-words">
 										{run.environment}
@@ -984,30 +991,32 @@
 								<dl class="mt-3 grid grid-cols-2 gap-2 text-xs min-[420px]:grid-cols-4">
 									<div>
 										<dt class="text-muted-foreground">{m.reports_pass()}</dt>
-										<dd class="font-medium text-green-600">{run.passCount}</dd>
+										<dd class="font-medium report-result-pass">{run.passCount}</dd>
 									</div>
 									<div>
 										<dt class="text-muted-foreground">{m.reports_fail()}</dt>
-										<dd class="font-medium text-red-600">{run.failCount}</dd>
+										<dd class="font-medium report-result-fail">{run.failCount}</dd>
 									</div>
 									<div>
 										<dt class="text-muted-foreground">{m.dashboard_blocked()}</dt>
-										<dd class="font-medium text-orange-600">{run.blockedCount}</dd>
+										<dd class="font-medium report-result-blocked">
+											{run.blockedCount}
+										</dd>
 									</div>
 									<div>
 										<dt class="text-muted-foreground">{m.reports_pass_rate()}</dt>
 										<dd
 											class="font-medium {rate >= 80
-												? 'text-green-600'
+												? 'report-result-pass'
 												: rate >= 50
-													? 'text-yellow-600'
-													: 'text-red-600'}"
+													? 'report-result-caution'
+													: 'report-result-fail'}"
 										>
 											{rate}%
 										</dd>
 									</div>
 								</dl>
-							</button>
+							</a>
 						</div>
 					</div>
 				{/each}
@@ -1020,6 +1029,7 @@
 								<input
 									type="checkbox"
 									checked={recentRuns.length > 0 && selectedRunIds.size === recentRuns.length}
+									indeterminate={selectedRunIds.size > 0 && selectedRunIds.size < recentRuns.length}
 									onchange={toggleAll}
 									aria-label={m.reports_select_all()}
 									class="h-4 w-4 rounded border-gray-300"
@@ -1039,40 +1049,39 @@
 						{#each [...recentRuns].reverse() as run (run.id)}
 							{@const rate =
 								run.totalCount > 0 ? Math.round((run.passCount / run.totalCount) * 100) : 0}
-							<Table.Row
-								class="cursor-pointer"
-								onclick={() => {
-									window.location.href = `/projects/${projectId}/test-runs/${run.id}`;
-								}}
-							>
-								<Table.Cell class="px-2" onclick={(e: MouseEvent) => e.stopPropagation()}>
+							<Table.Row>
+								<Table.Cell class="px-2">
 									<input
 										type="checkbox"
 										checked={selectedRunIds.has(run.id)}
 										onchange={() => toggleRun(run.id)}
-										aria-label={`${m.reports_select_all()} ${run.name}`}
+										aria-label={m.aria_select_item({ item: run.name })}
 										class="h-4 w-4 rounded border-gray-300"
 									/>
 								</Table.Cell>
 								<Table.Cell class="min-w-0 font-medium">
-									<div class="truncate" title={run.name}>{run.name}</div>
+									<a
+										href={`/projects/${projectId}/test-runs/${run.id}`}
+										class="underline-offset-4 hover:underline [overflow-wrap:anywhere]"
+										>{run.name}</a
+									>
 								</Table.Cell>
 								<Table.Cell>
 									<Badge variant="outline" class="max-w-full truncate" title={run.environment}>
 										{run.environment}
 									</Badge>
 								</Table.Cell>
-								<Table.Cell class="text-green-600">{run.passCount}</Table.Cell>
-								<Table.Cell class="text-red-600">{run.failCount}</Table.Cell>
-								<Table.Cell class="text-orange-600">{run.blockedCount}</Table.Cell>
+								<Table.Cell class="report-result-pass">{run.passCount}</Table.Cell>
+								<Table.Cell class="report-result-fail">{run.failCount}</Table.Cell>
+								<Table.Cell class="report-result-blocked">{run.blockedCount}</Table.Cell>
 								<Table.Cell class="text-gray-500">{run.skippedCount}</Table.Cell>
 								<Table.Cell>
 									<span
 										class="font-medium {rate >= 80
-											? 'text-green-600'
+											? 'report-result-pass'
 											: rate >= 50
-												? 'text-yellow-600'
-												: 'text-red-600'}"
+												? 'report-result-caution'
+												: 'report-result-fail'}"
 									>
 										{rate}%
 									</span>

@@ -1,0 +1,14 @@
+@reference '../../../layout.css';
+
+.report-result-pass {
+	@apply text-green-700 dark:text-green-400;
+}
+.report-result-fail {
+	@apply text-red-700 dark:text-red-400;
+}
+.report-result-blocked {
+	@apply text-orange-700 dark:text-orange-400;
+}
+.report-result-caution {
+	@apply text-yellow-700 dark:text-yellow-400;
+}

@@ -1,203 +1,200 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages.js';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
+	import { getLocale } from '$lib/paraglide/runtime.js';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import FilterToolbar from '$lib/components/patterns/FilterToolbar.svelte';
 	import CalendarIcon from '@lucide/svelte/icons/calendar';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { tick } from 'svelte';
+	import { reportCalendarDate } from '$lib/report-calendar';
 
 	let {
 		dateRange,
+		invalidRange,
 		isAdmin,
 		onExportPdf,
 		onOpenShareDialog,
 		onOpenScheduleDialog
 	}: {
 		dateRange: { allTime: boolean; from: string | null; to: string | null };
+		invalidRange: boolean;
 		isAdmin: boolean;
 		onExportPdf: () => void;
 		onOpenShareDialog: () => void;
 		onOpenScheduleDialog: () => void;
 	} = $props();
 
-	const isAllTime = $derived(dateRange.allTime);
-	const fromInput = $derived(dateRange.from ?? '');
-	const toInput = $derived(dateRange.to ?? '');
+	let draft = $state<Partial<Record<'from' | 'to', string>>>({});
+	let fieldError = $state<'missing' | 'reversed' | null>(null);
+	let navigationFailed = $state(false);
+	let pending = $state(false);
+	let errorElement = $state<HTMLElement>();
+	const from = $derived(draft.from ?? dateRange.from ?? '');
+	const to = $derived(draft.to ?? dateRange.to ?? '');
 
-	let pendingFrom = $state('');
-	let pendingTo = $state('');
-
-	function buildUrl(from: string | null, to: string | null, preset?: string): string {
-		const url = new URL($page.url);
-		url.searchParams.delete('from');
-		url.searchParams.delete('to');
-		url.searchParams.delete('preset');
-		if (preset === 'all') {
-			url.searchParams.set('preset', 'all');
-		} else {
-			if (from) url.searchParams.set('from', from);
-			if (to) url.searchParams.set('to', to);
+	$effect(() => {
+		// The URL owns the applied range, including back and forward navigation.
+		const href = page.url.href;
+		if (href) {
+			draft = {};
+			fieldError = null;
+			navigationFailed = false;
 		}
-		return url.toString();
+	});
+
+	function afterDays(date: Date, days: number): string {
+		const result = new Date(date);
+		result.setDate(result.getDate() + days);
+		return reportCalendarDate(result);
 	}
 
-	function applyDateRange() {
-		goto(buildUrl(pendingFrom || null, pendingTo || null));
+	async function navigateRange(start: string, end: string, all = false) {
+		if (pending) return;
+		const url = new URL(page.url);
+		for (const key of ['from', 'to', 'preset']) url.searchParams.delete(key);
+		if (all) url.searchParams.set('preset', 'all');
+		else {
+			url.searchParams.set('from', start);
+			url.searchParams.set('to', end);
+		}
+		fieldError = null;
+		navigationFailed = false;
+		pending = true;
+		try {
+			await goto(url, { keepFocus: true, noScroll: true });
+			draft = {};
+		} catch {
+			navigationFailed = true;
+		} finally {
+			pending = false;
+		}
 	}
 
-	function applyPreset(days: number | 'all') {
-		if (days === 'all') {
-			goto(buildUrl(null, null, 'all'));
+	async function applyDateRange(event: SubmitEvent) {
+		event.preventDefault();
+		if (!from || !to || from > to) {
+			fieldError = !from || !to ? 'missing' : 'reversed';
+			await tick();
+			errorElement?.focus();
 			return;
 		}
-		const to = new Date();
-		const from = new Date();
-		from.setDate(from.getDate() - days);
-		goto(buildUrl(from.toISOString().slice(0, 10), to.toISOString().slice(0, 10)));
+		await navigateRange(from, to);
 	}
 
-	function formatDisplayDate(iso: string | null): string {
-		if (!iso) return '';
-		return new Date(iso).toLocaleDateString(undefined, {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric'
-		});
+	function applyPreset(preset: string) {
+		const today = new Date();
+		return preset === 'all'
+			? navigateRange('', '', true)
+			: navigateRange(afterDays(today, -Number(preset)), reportCalendarDate(today));
 	}
 
-	const activeDateLabel = $derived(
-		isAllTime
-			? m.filter_all_time()
-			: dateRange.from && dateRange.to
-				? `${formatDisplayDate(dateRange.from)} – ${formatDisplayDate(dateRange.to)}`
-				: m.filter_last_30_days()
-	);
-
-	function presetFromDate(days: number): string {
-		const d = new Date();
-		d.setDate(d.getDate() - days);
-		return d.toISOString().slice(0, 10);
-	}
-
+	const fields = ['from', 'to'] as const;
+	const currentDay = reportCalendarDate(new Date());
 	const activePreset = $derived(
-		isAllTime
+		dateRange.allTime
 			? 'all'
-			: fromInput === presetFromDate(7)
-				? '7'
-				: fromInput === presetFromDate(30)
-					? '30'
-					: fromInput === presetFromDate(90)
-						? '90'
-						: 'custom'
+			: dateRange.to === currentDay
+				? ['7', '30', '90'].find((days) => dateRange.from === afterDays(new Date(), -Number(days)))
+				: undefined
+	);
+	const formatDate = (iso: string) =>
+		new Date(iso + 'T00:00:00Z').toLocaleDateString(getLocale(), {
+			dateStyle: 'medium',
+			timeZone: 'UTC'
+		});
+	const activeLabel = $derived(
+		dateRange.from && dateRange.to
+			? `${formatDate(dateRange.from)} – ${formatDate(dateRange.to)}`
+			: m.filter_all_time()
 	);
 </script>
 
-<Card.Root>
-	<Card.Content class="pt-4 pb-3">
-		<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
-			<!-- Preset buttons -->
-			<div class="flex flex-wrap gap-1.5">
-				{#each [['7', m.filter_last_7_days()], ['30', m.filter_last_30_days()], ['90', m.filter_last_90_days()], ['all', m.filter_all_time()]] as [preset, label] (preset)}
-					<Button
-						size="sm"
-						variant={activePreset === preset ? 'default' : 'outline'}
-						onclick={() => applyPreset(preset === 'all' ? 'all' : Number(preset))}
-						class="h-8 px-2.5 text-xs"
-					>
-						{label}
-					</Button>
-				{/each}
-			</div>
-
-			<!-- Custom date inputs -->
-			<div class="grid grid-cols-2 items-end gap-2 sm:flex">
-				<div class="flex min-w-0 flex-col gap-1">
-					<label for="date-from" class="text-muted-foreground text-xs">{m.filter_from()}</label>
-					<div class="relative">
-						<Input
-							id="date-from"
-							type="date"
-							value={pendingFrom || fromInput}
-							oninput={(e) => {
-								pendingFrom = (e.currentTarget as HTMLInputElement).value;
-							}}
-							max={pendingTo || toInput || undefined}
-							class="report-date-input h-8 w-full px-2 pr-8 text-xs sm:w-36"
-						/>
-						<CalendarIcon
-							class="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2"
-							aria-hidden="true"
-						/>
-					</div>
-				</div>
-				<div class="flex min-w-0 flex-col gap-1">
-					<label for="date-to" class="text-muted-foreground text-xs">{m.filter_to()}</label>
-					<div class="relative">
-						<Input
-							id="date-to"
-							type="date"
-							value={pendingTo || toInput}
-							oninput={(e) => {
-								pendingTo = (e.currentTarget as HTMLInputElement).value;
-							}}
-							min={pendingFrom || fromInput || undefined}
-							class="report-date-input h-8 w-full px-2 pr-8 text-xs sm:w-36"
-						/>
-						<CalendarIcon
-							class="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2"
-							aria-hidden="true"
-						/>
-					</div>
-				</div>
-				<Button
-					size="sm"
-					class="col-span-2 h-8 w-full text-xs sm:w-auto"
-					onclick={applyDateRange}
-					disabled={!pendingFrom && !pendingTo && !fromInput && !toInput}
-				>
-					{m.filter_apply()}
-				</Button>
-			</div>
-		</div>
-
-		<!-- Active range label + action buttons -->
-		<div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-			<p class="text-muted-foreground min-w-0 text-xs">
-				{m.filter_showing_data_for()}
-				<span class="text-foreground font-medium">{activeDateLabel}</span>
+<FilterToolbar label={m.report_date_range()} class="flex-col items-stretch gap-4">
+	<div class="flex flex-wrap gap-2" role="group" aria-label={m.report_date_range()}>
+		{#each [['7', m.filter_last_7_days()], ['30', m.filter_last_30_days()], ['90', m.filter_last_90_days()], ['all', m.filter_all_time()]] as [preset, label] (preset)}
+			<Button
+				variant={activePreset === preset ? 'default' : 'outline'}
+				aria-pressed={activePreset === preset}
+				disabled={pending}
+				onclick={() => applyPreset(preset)}>{label}</Button
+			>
+		{/each}
+	</div>
+	<form novalidate aria-busy={pending} class="space-y-2" onsubmit={applyDateRange}>
+		{#if fieldError}
+			<p
+				id="report-range-error"
+				role="alert"
+				tabindex="-1"
+				bind:this={errorElement}
+				class="text-sm text-destructive"
+			>
+				{fieldError === 'missing' ? m.report_dates_required() : m.ui_end_date_after_start()}
 			</p>
-			<div class="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3 sm:flex sm:flex-wrap">
-				<Button
-					size="sm"
-					variant="outline"
-					class="h-8 w-full text-xs sm:h-7 sm:w-auto"
-					onclick={onExportPdf}
-				>
-					{m.report_export_pdf()}
-				</Button>
-				<Button
-					size="sm"
-					variant="outline"
-					class="h-8 w-full text-xs sm:h-7 sm:w-auto"
-					onclick={onOpenShareDialog}
-				>
-					{m.report_share()}
-				</Button>
-				{#if isAdmin}
-					<Button
-						size="sm"
-						variant="outline"
-						class="h-8 w-full text-xs sm:h-7 sm:w-auto"
-						onclick={onOpenScheduleDialog}
+		{/if}
+		<div class="grid min-w-0 grid-cols-2 items-end gap-2 sm:flex sm:flex-wrap">
+			{#each fields as field (field)}
+				{@const bad =
+					fieldError === 'reversed' ||
+					(fieldError === 'missing' && !(field === 'from' ? from : to))}
+				<div class="flex min-w-0 flex-col gap-1">
+					<label for={`date-${field}`} class="text-sm font-medium"
+						>{field === 'from' ? m.filter_from() : m.filter_to()}</label
 					>
-						{m.report_schedule()}
-					</Button>
-				{/if}
-			</div>
+					<div class="relative">
+						<Input
+							id={`date-${field}`}
+							type="date"
+							required
+							disabled={pending}
+							value={field === 'from' ? from : to}
+							aria-invalid={!!bad}
+							aria-describedby={bad ? 'report-range-error' : undefined}
+							max={field === 'from' ? to || undefined : undefined}
+							min={field === 'to' ? from || undefined : undefined}
+							oninput={(event) => {
+								draft[field] = event.currentTarget.value;
+								fieldError = null;
+							}}
+							class="report-date-input w-full px-2 pr-7 sm:w-40"
+						/>
+						<CalendarIcon
+							class="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2"
+							aria-hidden="true"
+						/>
+					</div>
+				</div>
+			{/each}
+			<Button type="submit" disabled={pending} class="col-span-2"
+				>{pending ? m.common_loading() : m.filter_apply()}</Button
+			>
 		</div>
-	</Card.Content>
-</Card.Root>
+	</form>
+	{#if invalidRange}<p class="text-sm text-destructive" role="status">
+			{m.report_invalid_saved_range()}
+		</p>{/if}
+	{#if navigationFailed}<p class="text-sm text-destructive" role="alert">
+			{m.ui_load_failed()}
+		</p>{/if}
+	<div class="flex min-w-0 flex-wrap items-center justify-between gap-3 border-t pt-3">
+		<p class="text-sm text-muted-foreground" role="status">
+			{m.filter_showing_data_for()} <span class="font-medium text-foreground">{activeLabel}</span>
+		</p>
+		<div class="flex min-w-0 flex-wrap gap-2">
+			<Button variant="outline" onclick={onExportPdf} disabled={pending}
+				>{m.report_export_pdf()}</Button
+			>
+			<Button variant="outline" onclick={onOpenShareDialog} disabled={pending}
+				>{m.report_share()}</Button
+			>
+			{#if isAdmin}<Button variant="outline" onclick={onOpenScheduleDialog}
+					>{m.report_schedule()}</Button
+				>{/if}
+		</div>
+	</div>
+</FilterToolbar>
 
 <style>
 	:global(.report-date-input) {

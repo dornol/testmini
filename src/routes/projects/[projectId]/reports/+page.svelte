@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -163,9 +164,11 @@
 </script>
 
 <div class="space-y-4">
+	<PageHeader title={m.nav_reports()} />
 	<!-- Date Range Filter -->
 	<ReportFilters
 		dateRange={data.dateRange}
+		invalidRange={data.invalidRange}
 		{isAdmin}
 		onExportPdf={() => window.open(getPdfUrl(), '_blank')}
 		onOpenShareDialog={openShareDialog}

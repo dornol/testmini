@@ -1483,5 +1483,8 @@
 	"quality_critical_risk_cases": "Critical-risk cases",
 	"quality_no_review_data": "Add modules or test cases to see what needs review.",
 	"quality_module_results_hint": "Pass and fail counts use the latest result for each case’s current version.",
-	"quality_run_pass_count": "Passed {count} of {total}"
+	"quality_run_pass_count": "Passed {count} of {total}",
+	"report_date_range": "Report date range",
+	"report_dates_required": "Enter both a start date and an end date.",
+	"report_invalid_saved_range": "The link contains an invalid date range. The report shows the last 30 days."
 }

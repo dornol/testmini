@@ -1483,5 +1483,8 @@
 	"quality_critical_risk_cases": "치명적 위험 케이스",
 	"quality_no_review_data": "모듈이나 테스트 케이스를 추가하면 검토할 항목이 표시됩니다.",
 	"quality_module_results_hint": "합격·실패는 각 케이스의 현재 버전에서 가장 최근 실행 결과를 기준으로 집계합니다.",
-	"quality_run_pass_count": "{total}개 중 {count}개 합격"
+	"quality_run_pass_count": "{total}개 중 {count}개 합격",
+	"report_date_range": "보고서 기간",
+	"report_dates_required": "시작일과 종료일을 모두 입력해 주세요.",
+	"report_invalid_saved_range": "링크의 기간이 올바르지 않아 최근 30일 보고서를 표시합니다."
 }

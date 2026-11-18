@@ -1,3 +1,4 @@
+import { parseReportCalendarDate } from '$lib/report-calendar';
 import { cacheGet, cacheSet } from '$lib/server/cache';
 import { db } from '$lib/server/db';
 import {
@@ -48,6 +49,7 @@ export function parseDateRange(params: {
 
 	const parseDate = (v: string | null | undefined) => {
 		if (!v) return null;
+		if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return parseReportCalendarDate(v);
 		const d = new Date(v);
 		return isNaN(d.getTime()) ? null : d;
 	};

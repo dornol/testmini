@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/auth.fixture';
+import AxeBuilder from '@axe-core/playwright';
 
 /**
  * Reports page E2E tests.
@@ -188,68 +189,35 @@ test.describe.serial('Reports', () => {
 		await page.click('button[type="submit"]');
 		await page.waitForURL(new RegExp(`/projects/${projectId}/test-runs/\\d+$`), { timeout: 15000 });
 
-		// Verify run page loaded
-		await expect(page).toHaveURL(new RegExp(`/projects/${projectId}/test-runs/\\d+`));
+		// Complete the run so the report includes real results.
+		await page.locator('form[action*="updateRunStatus"] button[type=submit]').first().click();
+		await page.locator('[data-status-dropdown]:visible').first().click();
+		await page.getByRole('menuitem', { name: 'PASS', exact: true }).click();
+		await expect(page.locator('[data-status-dropdown]:visible').first()).toContainText('PASS');
+		await page.locator('form:has(input[value=COMPLETED]) button[type=submit]').click();
+		await expect(page.locator('form:has(input[value=COMPLETED])')).toHaveCount(0);
 	});
 
-	// -------------------------------------------------------------------------
-	// 9. Recent runs table appears after creating a run
-	// -------------------------------------------------------------------------
-
-	test('9. Should display recent completed runs table', async ({ page }) => {
-		// Navigate to reports with "all time" so any run is included
+	test('completed runs link to the run and export only selected visible rows', async ({ page }) => {
 		await page.goto(reportsUrl('preset=all'));
 		await page.waitForLoadState('networkidle');
-
-		// The page should render without an unhandled error
-		await expect(page.locator('body')).toBeVisible();
-
-		// The recent runs section heading is shown when there is at least one run
-		// (may not show if the run is still CREATED and not COMPLETED — that is acceptable)
-		const hasRunsTable = await page
-			.locator('table')
-			.isVisible()
-			.catch(() => false);
-		const hasEmptyMsg = await page
-			.locator('text=/no runs|no data/i')
-			.isVisible()
-			.catch(() => false);
-
-		// At minimum one of these states should be true
-		expect(hasRunsTable || hasEmptyMsg || true).toBeTruthy();
-	});
-
-	// -------------------------------------------------------------------------
-	// 10. Run export: select-all checkbox is present when runs exist
-	// -------------------------------------------------------------------------
-
-	test('10. Should show run selection checkboxes when recent runs exist', async ({ page }) => {
-		// Navigate with "all time" preset to maximise chance of data being present
-		await page.goto(reportsUrl('preset=all'));
-		await page.waitForLoadState('networkidle');
-
-		// If there are runs in the recent completed runs card, the select-all checkbox and row
-		// checkboxes should be rendered inside that card.
-		const recentRunsCard = page.getByTestId('recent-completed-runs');
-		const rowCount = await recentRunsCard.locator('tbody tr').count();
-
-		if (rowCount > 0) {
-			// Select-all checkbox (aria-label set in the svelte template)
-			const selectAll = recentRunsCard.locator('input[type="checkbox"][aria-label]').first();
-			await expect(selectAll).toBeVisible();
-
-			// Select all runs
-			await selectAll.check();
-			await page.waitForTimeout(500);
-
-			// The "Export selected" button should now appear
-			await expect(page.locator('button', { hasText: /export|내보내기/i }).first()).toBeVisible({
-				timeout: 5000
-			});
-		} else {
-			// No runs yet — skip the selection assertion
-			test.skip();
-		}
+		const recentRuns = page.getByTestId('recent-completed-runs');
+		const run = recentRuns.getByRole('link', { name: 'Reports E2E Run', exact: true });
+		await expect(run).toHaveAttribute('href', /test-runs\/\d+$/);
+		const select = recentRuns.getByRole('checkbox', {
+			name: /Reports E2E Run.*선택|선택.*Reports E2E Run/
+		});
+		await select.check();
+		await expect(recentRuns.getByRole('button', { name: '선택 내보내기 (1)' })).toBeVisible();
+		await page.locator('#date-from').fill('2025-01-01');
+		await page.locator('#date-to').fill('2025-01-02');
+		await page.getByRole('button', { name: '적용', exact: true }).click();
+		await expect(page).toHaveURL(/from=2025-01-01/);
+		await expect(run).toHaveCount(0);
+		await expect(page.getByRole('button', { name: /선택 내보내기/ })).toHaveCount(0);
+		await page.goBack();
+		await expect(run).toBeVisible();
+		await expect(select).not.toBeChecked();
 	});
 
 	// -------------------------------------------------------------------------
@@ -276,4 +244,98 @@ test.describe.serial('Reports', () => {
 		expect(url.searchParams.get('from')).toBe(fromDate);
 		expect(url.searchParams.get('to')).toBe(toDate);
 	});
+
+	test('keeps both calendar dates through edit, reload, and browser history', async ({ page }) => {
+		await page.goto(reportsUrl('from=2025-06-01&to=2025-06-30&extra=keep'));
+		await page.waitForLoadState('networkidle');
+		const from = page.locator('#date-from');
+		const to = page.locator('#date-to');
+		await expect(from).toHaveValue('2025-06-01');
+		await expect(to).toHaveValue('2025-06-30');
+		await to.fill('');
+		await page.getByRole('button', { name: '적용', exact: true }).click();
+		await expect(page.getByRole('alert')).toBeFocused();
+		await expect(to).toHaveValue('');
+		await expect(to).toHaveAttribute('aria-invalid', 'true');
+		await to.fill('2025-01-01');
+		await page.getByRole('button', { name: '적용', exact: true }).click();
+		await expect(page.getByRole('alert')).toContainText('종료일은 시작일 이후');
+		await expect(page).toHaveURL(/to=2025-06-30/);
+		await to.fill('2025-06-29');
+		await to.press('Enter');
+		await expect(page).toHaveURL(/to=2025-06-29/);
+		expect(new URL(page.url()).searchParams.get('extra')).toBe('keep');
+		await page.reload();
+		await expect(from).toHaveValue('2025-06-01');
+		await expect(to).toHaveValue('2025-06-29');
+		await page.waitForLoadState('networkidle');
+		const all = page.getByRole('button', { name: '전체 기간', exact: true });
+		await all.click();
+		await expect(all).toHaveAttribute('aria-pressed', 'true');
+		await expect(from).toHaveValue('');
+		await page.goBack();
+		await expect(to).toHaveValue('2025-06-29');
+		await expect(all).toHaveAttribute('aria-pressed', 'false');
+		await page.goForward();
+		await expect(from).toHaveValue('');
+		await expect(all).toHaveAttribute('aria-pressed', 'true');
+	});
+
+	test('discloses fallback when a saved URL has an invalid range', async ({ page }) => {
+		for (const query of ['from=2025-02-30&to=2025-06-01', 'from=2025-12-31&to=2025-01-01']) {
+			await page.goto(reportsUrl(query));
+			await expect(
+				page.getByText('링크의 기간이 올바르지 않아 최근 30일 보고서를 표시합니다.')
+			).toBeVisible();
+			await expect(page.locator('#date-from')).not.toHaveValue(
+				new URLSearchParams(query).get('from')!
+			);
+		}
+	});
+
+	for (const locale of ['ko', 'en'])
+		for (const theme of ['light', 'dark'])
+			for (const width of [375, 768, 1440]) {
+				test(`${locale}/${theme}/${width}: report controls and completed runs remain usable`, async ({
+					page
+				}, testInfo) => {
+					await page.setViewportSize({ width, height: 850 });
+					await page.goto(reportsUrl('preset=all'));
+					await page.waitForLoadState('networkidle');
+					if (locale === 'en') {
+						await page.getByRole('button', { name: '언어 변경' }).click();
+						await page.getByRole('menuitem', { name: 'English' }).click();
+						await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+						await page.waitForLoadState('networkidle');
+					}
+					if (
+						(await page.locator('html').evaluate((el) => el.classList.contains('dark'))) !==
+						(theme === 'dark')
+					)
+						await page.getByRole('button', { name: /테마 변경|Toggle theme/ }).click();
+					const filters = page.locator('[data-slot=filter-toolbar]');
+					const recentRuns = page.getByTestId('recent-completed-runs');
+					await expect(recentRuns.getByRole('link', { name: /Reports E2E Run/ })).toBeVisible();
+					await filters.locator('button[type=submit]').click();
+					await expect(filters.getByRole('alert')).toBeFocused();
+					expect(await page.locator('main').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+						false
+					);
+					const result = await new AxeBuilder({ page })
+						.include('[data-slot=filter-toolbar]')
+						.include('[data-testid=recent-completed-runs]')
+						.withTags(['wcag2a', 'wcag2aa'])
+						.analyze();
+					expect(
+						result.violations
+							.filter((v) => ['serious', 'critical'].includes(v.impact ?? ''))
+							.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.failureSummary) }))
+					).toEqual([]);
+					if (locale === 'ko' && width === 375)
+						await testInfo.attach('report-range', {
+							body: await page.screenshot({ path: `/tmp/testmini-report-range-${theme}.png` }),
+							contentType: 'image/png'
+						});
+				});
+			}
 });

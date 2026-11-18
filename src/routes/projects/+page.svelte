@@ -4,7 +4,6 @@
 	import { onDestroy, untrack } from 'svelte';
 	import * as m from '$lib/paraglide/messages.js';
 	import { getLocale } from '$lib/paraglide/runtime.js';
-	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -46,10 +45,6 @@
 		return `/projects${params.size ? `?${params}` : ''}`;
 	}
 
-	const passthrough = $derived(
-		[...page.url.searchParams].filter(([key]) => !['search', 'page', 'active'].includes(key))
-	);
-
 	function applySearch() {
 		cancelSearch();
 		if (searchInput.trim() === data.search) return;
@@ -73,35 +68,6 @@
 	}
 </script>
 
-{#snippet card(project: PageData['projects'][number])}
-	<Card.Root class="h-full transition-colors group-hover:border-primary/40">
-		<Card.Header>
-			<div class="flex flex-wrap items-start justify-between gap-2">
-				<h3
-					id={`project-list-title-${project.id}`}
-					class="min-w-0 text-lg font-semibold leading-snug [overflow-wrap:anywhere]"
-				>
-					{project.name}
-				</h3>
-				{#if !project.active}<Badge variant="secondary">{m.common_inactive()}</Badge>{/if}
-			</div>
-			{#if project.description}
-				<Card.Description class="line-clamp-2 [overflow-wrap:anywhere]"
-					>{project.description}</Card.Description
-				>
-			{/if}
-		</Card.Header>
-		<Card.Footer
-			class="mt-auto flex flex-wrap gap-x-4 gap-y-1 border-t pt-4 text-sm text-muted-foreground"
-		>
-			<span>{m.projects_members_count({ count: project.memberCount })}</span>
-			<time datetime={new Date(project.createdAt).toISOString()}
-				>{formatDate(project.createdAt)}</time
-			>
-		</Card.Footer>
-	</Card.Root>
-{/snippet}
-
 <div class="space-y-4">
 	<PageHeader title={m.projects_title()} level={1}>
 		{#snippet actions()}<Button href="/projects/new">{m.projects_new()}</Button>{/snippet}
@@ -115,7 +81,7 @@
 			class="flex min-w-0 flex-1 basis-full flex-wrap items-center gap-2 sm:basis-auto"
 		>
 			{#if !data.active}<input type="hidden" name="active" value="false" />{/if}
-			{#each passthrough as [name, value]}<input type="hidden" {name} {value} />{/each}
+			<input type="hidden" name="limit" value={data.meta.limit} />
 			<Input
 				name="search"
 				type="search"
@@ -193,17 +159,40 @@
 				<ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 					{#each data.projects as project (project.id)}
 						<li class="min-w-0">
-							{#if project.active}
-								<a
-									href={`/projects/${project.id}`}
-									aria-labelledby={`project-list-title-${project.id}`}
-									class="group block h-full min-w-0 rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+							<article
+								class="relative flex h-full flex-col gap-4 rounded-xl border bg-card py-4 text-card-foreground shadow-sm transition-colors has-[a]:hover:border-primary/40 focus-within:ring-2 focus-within:ring-ring"
+							>
+								<div class="grid gap-1 px-4">
+									<div class="flex flex-wrap items-start justify-between gap-2">
+										<h3 class="min-w-0 text-lg font-semibold leading-snug [overflow-wrap:anywhere]">
+											{#if project.active}
+												<a
+													href={`/projects/${project.id}`}
+													class="after:absolute after:inset-0 focus-visible:outline-none"
+													>{project.name}</a
+												>
+											{:else}
+												{project.name}
+											{/if}
+										</h3>
+										{#if !project.active}<Badge variant="secondary">{m.common_inactive()}</Badge
+											>{/if}
+									</div>
+									{#if project.description}
+										<p class="line-clamp-2 text-sm text-muted-foreground [overflow-wrap:anywhere]">
+											{project.description}
+										</p>
+									{/if}
+								</div>
+								<footer
+									class="mt-auto flex flex-wrap gap-x-4 gap-y-1 border-t px-4 pt-4 text-sm text-muted-foreground"
 								>
-									{@render card(project)}
-								</a>
-							{:else}
-								{@render card(project)}
-							{/if}
+									<span>{m.projects_members_count({ count: project.memberCount })}</span>
+									<time datetime={new Date(project.createdAt).toISOString()}
+										>{formatDate(project.createdAt)}</time
+									>
+								</footer>
+							</article>
 						</li>
 					{/each}
 				</ul>

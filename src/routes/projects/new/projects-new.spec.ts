@@ -666,7 +666,10 @@ describe('/projects/new', () => {
 				user: testUser
 			});
 
-			await expect(actions.default(event)).rejects.toMatchObject({ status: 500 });
+			await expect(actions.default(event)).resolves.toMatchObject({
+				status: 500,
+				data: { form: { message: 'save_failed', data: { name: 'Test' } } }
+			});
 		});
 
 		it('should return 500 when default environment seed creates fewer rows than requested', async () => {
@@ -696,7 +699,10 @@ describe('/projects/new', () => {
 				user: testUser
 			});
 
-			await expect(actions.default(event)).rejects.toMatchObject({ status: 500 });
+			await expect(actions.default(event)).resolves.toMatchObject({
+				status: 500,
+				data: { form: { message: 'save_failed', data: { name: 'Test' } } }
+			});
 		});
 
 		it('should accept a name exactly 100 characters long', async () => {

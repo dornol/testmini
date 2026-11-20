@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { message } from 'sveltekit-superforms';
 import { addTeamMemberSchema } from '$lib/schemas/team.schema';
 import { emptyForm, validateForm, parsePositiveFormId } from '$lib/server/form-utils';
@@ -33,11 +33,12 @@ async function requireTeamAdmin(authUser: NonNullable<App.Locals['user']>, teamI
 		where: and(eq(teamMember.teamId, teamId), eq(teamMember.userId, authUser.id))
 	});
 	if (!membership || (membership.role !== 'OWNER' && membership.role !== 'ADMIN')) {
-		throw fail(403, { error: 'Insufficient permissions' });
+		error(403, 'Insufficient permissions');
 	}
 }
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, parent }) => {
+	await parent();
 	const teamId = parseId(params.teamId, 'team ID');
 
 	const members = await loadTeamMembers(teamId);
@@ -181,6 +182,8 @@ export const actions: Actions = {
 		if (!deleted) {
 			return fail(404, { error: 'Member not found' });
 		}
+
+		if (member.userId === authUser.id && !isGlobalAdmin(authUser)) redirect(303, '/teams');
 
 		return { success: true };
 	}

@@ -171,7 +171,9 @@ test.describe.serial('Team member settings', () => {
 		await expect(roleDialog.getByRole('alert')).toBeFocused();
 		await roleDialog.getByRole('button', { name: '취소' }).press('Enter');
 		await expect(ownerRole).toBeFocused();
-		const row = main.getByRole('row').filter({ has: ownerRole });
+		const row = main.getByRole('row').filter({
+			has: page.getByRole('combobox').filter({ has: page.locator('option:checked[value=OWNER]') })
+		});
 		await row.getByRole('button', { name: /제거$/ }).press('Enter');
 		const removeDialog = page.getByRole('alertdialog', { name: '멤버 제거' });
 		await removeDialog.getByRole('button', { name: '제거', exact: true }).press('Enter');

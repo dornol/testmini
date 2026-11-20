@@ -7,17 +7,37 @@
 
 	let { data } = $props();
 	let checking = $state(false);
+	let loggingOut = $state(false);
+	let notice = $state<{ kind: 'status' | 'error'; text: string } | null>(null);
 
 	async function checkStatus() {
+		if (checking) return;
 		checking = true;
-		await invalidateAll();
-		checking = false;
+		notice = null;
+		try {
+			// An approved user is redirected by the load function.
+			await invalidateAll();
+			notice = { kind: 'status', text: m.pending_still() };
+		} catch {
+			notice = { kind: 'error', text: m.pending_check_failed() };
+		} finally {
+			checking = false;
+		}
 	}
 
 	async function handleLogout() {
-		await authClient.signOut();
-		await invalidateAll();
-		goto('/auth/login');
+		if (loggingOut) return;
+		loggingOut = true;
+		notice = null;
+		try {
+			await authClient.signOut();
+			await invalidateAll();
+			await goto('/auth/login');
+		} catch {
+			notice = { kind: 'error', text: m.pending_logout_failed() };
+		} finally {
+			loggingOut = false;
+		}
 	}
 </script>
 
@@ -25,6 +45,7 @@
 	<Card.Header class="text-center">
 		<div
 			class="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900"
+			aria-hidden="true"
 		>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
@@ -43,19 +64,26 @@
 				<line x1="12" y1="16" x2="12.01" y2="16" />
 			</svg>
 		</div>
-		<Card.Title class="text-xl">{m.pending_title()}</Card.Title>
+		<Card.Title class="text-xl" role="heading" aria-level={1}>{m.pending_title()}</Card.Title>
 		<Card.Description>{m.pending_desc()}</Card.Description>
 	</Card.Header>
 	<Card.Content class="space-y-4">
 		<div class="min-w-0 rounded-md border p-3 text-sm">
-			<p class="break-words font-medium">{data.userName}</p>
-			<p class="text-muted-foreground break-all">{data.userEmail}</p>
+			<p class="font-medium [overflow-wrap:anywhere]">{data.userName}</p>
+			<p class="text-muted-foreground [overflow-wrap:anywhere]">{data.userEmail}</p>
 		</div>
+		<!-- Keep the status region mounted so the result of a check is announced. -->
+		<p role="status" class="text-sm text-muted-foreground empty:hidden">
+			{notice?.kind === 'status' ? notice.text : ''}
+		</p>
+		{#if notice?.kind === 'error'}
+			<p role="alert" class="text-sm text-destructive">{notice.text}</p>
+		{/if}
 		<div class="flex flex-col gap-2">
-			<Button variant="outline" onclick={checkStatus} disabled={checking}>
+			<Button class="min-h-10" variant="outline" onclick={checkStatus} disabled={checking}>
 				{checking ? m.common_loading() : m.pending_check_status()}
 			</Button>
-			<Button variant="ghost" onclick={handleLogout}>
+			<Button class="min-h-10" variant="ghost" onclick={handleLogout} disabled={loggingOut}>
 				{m.common_logout()}
 			</Button>
 		</div>

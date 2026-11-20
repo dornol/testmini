@@ -2673,7 +2673,14 @@ describe('MCP Server', () => {
 	describe('tool: update-exploratory-session', () => {
 		it('should complete a session', async () => {
 			mockDb.query.exploratorySession.findFirst
-				.mockResolvedValueOnce({ id: 1, projectId: 1, status: 'ACTIVE' })
+				.mockResolvedValueOnce({
+					id: 1,
+					projectId: 1,
+					status: 'ACTIVE',
+					startedAt: new Date('2025-01-01'),
+					pausedAt: null,
+					pausedDuration: 0
+				})
 				.mockResolvedValueOnce({ id: 1, projectId: 1, status: 'COMPLETED', summary: 'Done' });
 
 			const updateChain = {

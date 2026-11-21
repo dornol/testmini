@@ -18,6 +18,7 @@
 		"test": "npm run test:unit -- --run",
 		"test:coverage": "vitest run --coverage",
 		"test:e2e": "playwright test --config e2e/playwright.config.ts",
+		"test:e2e:sweep": "E2E_SWEEP=1 playwright test --config e2e/playwright.config.ts e2e/tests/theme-zoom-sweep.spec.ts",
 		"db:start": "docker compose up",
 		"db:push": "drizzle-kit push",
 		"db:generate": "drizzle-kit generate",

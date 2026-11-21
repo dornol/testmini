@@ -125,7 +125,7 @@
 		>
 	</div>
 
-	<div class="grid gap-3 md:hidden">
+	<div class="grid gap-3 xl:hidden">
 		{#each data.providers as provider (provider.id)}
 			<div class="rounded-md border p-3">
 				<a
@@ -150,7 +150,7 @@
 	</div>
 
 	{#if data.providers.length > 0}
-		<Card.Root class="hidden overflow-hidden md:block">
+		<Card.Root class="hidden overflow-x-auto xl:block">
 			<Table.Root class="table-fixed" aria-label={m.oidc_providers_title()}>
 				<Table.Header>
 					<Table.Row>

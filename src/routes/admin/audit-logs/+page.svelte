@@ -161,7 +161,7 @@
 	</Card.Root>
 
 	<!-- Mobile audit log list -->
-	<div class="space-y-3 md:hidden">
+	<div class="space-y-3 xl:hidden">
 		{#each data.logs as log (log.id)}
 			<Card.Root class="gap-3 rounded-lg p-4">
 				<div class="flex flex-wrap items-center justify-between gap-2">
@@ -209,7 +209,7 @@
 	</div>
 
 	<!-- Table -->
-	<Card.Root class="hidden overflow-hidden md:flex">
+	<Card.Root class="hidden overflow-x-auto xl:flex">
 		<Table.Root class="table-fixed" aria-label={m.audit_logs_title()}>
 			<Table.Header>
 				<Table.Row>

@@ -508,7 +508,8 @@
 				{/each}
 			</div>
 			<div class="hidden overflow-x-auto sm:block">
-				<Table.Root class="min-w-[640px] table-fixed">
+				<!-- Fixed columns take 608px; the rest is the name column, so it needs real room. -->
+				<Table.Root class="min-w-[52rem] table-fixed">
 					<Table.Header>
 						<Table.Row>
 							<Table.Head>{m.reports_test_case()}</Table.Head>

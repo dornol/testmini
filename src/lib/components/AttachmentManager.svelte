@@ -233,7 +233,7 @@
 						>
 							<UploadCloudIcon class="text-muted-foreground size-6" />
 							<p class="text-muted-foreground text-xs">{m.attachments_none()}</p>
-							<p class="text-muted-foreground/70 text-xs">{m.attachments_click_or_drag()}</p>
+							<p class="text-muted-foreground text-xs">{m.attachments_click_or_drag()}</p>
 						</div>
 					{:else}
 						<!-- Existing attachments list -->

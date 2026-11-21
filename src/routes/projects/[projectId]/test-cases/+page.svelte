@@ -1299,8 +1299,8 @@
 								{#if tc.tags && tc.tags.length > 0}
 									{#each tc.tags.slice(0, 3) as t (t.id)}
 										<span
-											class="rounded px-1 py-px text-[10px] leading-tight font-medium truncate max-w-[4rem]"
-											style="background-color: {t.color}20; color: {t.color}"
+											class="rounded border px-1 py-px text-[10px] leading-tight font-medium truncate max-w-[4rem] text-foreground"
+											style="background-color: {t.color}20; border-color: {t.color}60"
 											data-tip={t.name}>{t.name}</span
 										>
 									{/each}
@@ -1318,8 +1318,8 @@
 								{#if tc.tags && tc.tags.length > 0}
 									{#each tc.tags.slice(0, 3) as t (t.id)}
 										<span
-											class="rounded px-1 py-px text-[10px] leading-tight font-medium truncate max-w-[4rem]"
-											style="background-color: {t.color}20; color: {t.color}"
+											class="rounded border px-1 py-px text-[10px] leading-tight font-medium truncate max-w-[4rem] text-foreground"
+											style="background-color: {t.color}20; border-color: {t.color}60"
 											data-tip={t.name}>{t.name}</span
 										>
 									{/each}

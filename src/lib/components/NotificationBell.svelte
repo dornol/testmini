@@ -321,7 +321,7 @@
 								<p class="break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
 									{n.message}
 								</p>
-								<p class="mt-1 text-[11px] text-muted-foreground/70">
+								<p class="mt-1 text-[11px] text-muted-foreground">
 									{formatRelativeTime(n.createdAt)}
 								</p>
 							</div>

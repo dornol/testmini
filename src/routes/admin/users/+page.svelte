@@ -281,8 +281,8 @@
 		</div>
 	</form>
 
-	<!-- Mobile users list -->
-	<div class="space-y-3 sm:hidden">
+	<!-- Card list until there is room for the six-column table (also at 200% zoom) -->
+	<div class="space-y-3 xl:hidden">
 		{#each data.users as u (u.id)}
 			<Card.Root class="gap-3 rounded-lg p-4">
 				<div class="min-w-0 space-y-1 [overflow-wrap:anywhere]">
@@ -308,7 +308,7 @@
 	</div>
 
 	<!-- Users Table -->
-	<Card.Root class="hidden overflow-hidden sm:flex">
+	<Card.Root class="hidden overflow-x-auto xl:flex">
 		<Table.Root class="table-fixed" aria-label={m.nav_users()}>
 			<Table.Header>
 				<Table.Row>

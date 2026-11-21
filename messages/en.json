@@ -715,6 +715,13 @@
 	"admin_reject_confirm": "Reject {name}? Their account will be removed.",
 	"admin_user_approved": "User approved",
 	"admin_user_rejected": "User rejected",
+	"admin_role_change_title": "Change role",
+	"admin_make_admin_confirm": "Make {name} an administrator? They will be able to manage all projects and system settings.",
+	"admin_remove_admin_confirm": "Remove administrator access from {name}?",
+	"admin_user_action_label": "{action} {name}",
+	"admin_user_not_found": "User not found. The list was refreshed.",
+	"admin_user_state_changed": "This user was already changed. The list was refreshed.",
+	"admin_self_action": "This action is not available for your own account.",
 	"admin_show_pending": "Pending Only",
 
 	"nav_priorities": "Priorities",

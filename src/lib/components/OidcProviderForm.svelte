@@ -447,7 +447,7 @@
 						name="autoRegister"
 						type="checkbox"
 						bind:checked={autoRegister}
-						class="size-5 rounded border"
+						class="size-5 rounded border border-muted-foreground"
 					/>
 					<Label for="autoRegister">{m.oidc_auto_register()}</Label>
 				</div>

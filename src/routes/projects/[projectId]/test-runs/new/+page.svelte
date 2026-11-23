@@ -238,7 +238,7 @@
 											class="flex min-h-11 min-w-0 cursor-pointer items-center gap-2 text-sm"
 											><input
 												type="checkbox"
-												class="size-4 shrink-0 rounded border-input"
+												class="size-4 shrink-0 rounded border-muted-foreground"
 												checked={selectedEnvironments.has(env.name)}
 												onchange={() => toggleEnvironment(env.name)}
 											/><span class="[overflow-wrap:anywhere]">{env.name}</span></label

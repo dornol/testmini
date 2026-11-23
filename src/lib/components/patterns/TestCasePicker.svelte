@@ -165,7 +165,7 @@
 			>
 				<input
 					type="checkbox"
-					class="size-4 shrink-0 rounded border-input"
+					class="size-4 shrink-0 rounded border-muted-foreground"
 					checked={allSelected}
 					indeterminate={visibleSelected > 0 && !allSelected}
 					onchange={toggleAll}
@@ -182,7 +182,7 @@
 						<label class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 self-stretch">
 							<input
 								type="checkbox"
-								class="size-4 shrink-0 rounded border-input"
+								class="size-4 shrink-0 rounded border-muted-foreground"
 								aria-label={m.aria_select_item({ item: `${entry.key} ${entry.title}` })}
 								checked={selected.has(entry.id)}
 								onchange={() => toggle(entry.id)}

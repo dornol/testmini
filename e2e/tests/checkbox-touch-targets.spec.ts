@@ -32,6 +32,7 @@ async function borderContrast(page: Page, selector: string) {
 test.describe.serial('Checkbox touch targets and contrast', () => {
 	const key = randomUUID().slice(0, 8);
 	let projectId: number;
+	let runId: number;
 	let headers: Record<string, string>;
 
 	test.beforeAll(async ({ request, baseURL }) => {
@@ -42,18 +43,32 @@ test.describe.serial('Checkbox touch targets and contrast', () => {
 		});
 		expect(project.ok()).toBe(true);
 		projectId = (await project.json()).data.id;
+		const form = (body: string) => ({
+			data: body,
+			headers: {
+				...headers,
+				'content-type': 'application/x-www-form-urlencoded',
+				accept: 'application/json',
+				'x-sveltekit-action': 'true'
+			}
+		});
+		const caseIds: string[] = [];
 		for (const title of ['One', 'Two', 'Three']) {
-			const res = await request.post(`/projects/${projectId}/test-cases/new`, {
-				data: new URLSearchParams({ title: `${title} ${key}` }).toString(),
-				headers: {
-					...headers,
-					'content-type': 'application/x-www-form-urlencoded',
-					accept: 'application/json',
-					'x-sveltekit-action': 'true'
-				}
-			});
-			expect((await res.json()).type).toBe('redirect');
+			const res = await request.post(
+				`/projects/${projectId}/test-cases/new`,
+				form(new URLSearchParams({ title: `${title} ${key}` }).toString())
+			);
+			const json = await res.json();
+			expect(json.type).toBe('redirect');
+			caseIds.push(json.location.split('/').at(-1));
 		}
+		// A new run starts with every case pending, which is what the run page lets you select.
+		const body = new URLSearchParams({ name: `Run ${key}`, environment: 'e2e' });
+		for (const id of caseIds) body.append('testCaseIds', id);
+		const run = await request.post(`/projects/${projectId}/test-runs/new`, form(body.toString()));
+		const runJson = await run.json();
+		expect(runJson.type).toBe('redirect');
+		runId = Number(runJson.location.split('/').at(-1));
 	});
 
 	// Projects cannot be deleted, so leave the fixture inactive.
@@ -173,6 +188,71 @@ test.describe.serial('Checkbox touch targets and contrast', () => {
 			await page.waitForLoadState('networkidle');
 			const ratio = await borderContrast(page, 'label input[type=checkbox]');
 			expect(ratio).toBeGreaterThanOrEqual(3);
+		});
+	}
+
+	// ── Run page: selecting pending executions ───────────────────────────────────────────────
+	const execBoxes = (page: Page) =>
+		page.getByRole('checkbox', { name: /TC-\d+/ }).filter({ visible: true });
+
+	for (const [label, width] of [
+		['a phone', 375],
+		['a wide screen', 1280]
+	] as const) {
+		test(`run page execution checkboxes have a touch target on ${label}`, async ({ page }) => {
+			await page.setViewportSize({ width, height: 800 });
+			await page.goto(`/projects/${projectId}/test-runs/${runId}`);
+			await page.getByRole('heading').first().waitFor();
+			await page.waitForTimeout(800);
+
+			const boxes = execBoxes(page);
+			await expect(boxes.first()).toBeVisible();
+			const area = (await boxes.first().locator('xpath=..').boundingBox())!;
+			expect(area.width).toBeGreaterThanOrEqual(32);
+			expect(area.height).toBeGreaterThanOrEqual(32);
+			expect((await boxes.first().boundingBox())!.width).toBeLessThanOrEqual(18);
+		});
+	}
+
+	test('tapping the padding selects an execution without leaving the run page', async ({
+		page
+	}) => {
+		await page.setViewportSize({ width: 375, height: 800 });
+		await page.goto(`/projects/${projectId}/test-runs/${runId}`);
+		await page.getByRole('heading').first().waitFor();
+		await page.waitForTimeout(800);
+		const url = page.url();
+
+		const box = execBoxes(page).first();
+		await box.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+		const area = (await box.locator('xpath=..').boundingBox())!;
+		const drawn = (await box.boundingBox())!;
+		await expect(box).not.toBeChecked();
+		await page.mouse.click(area.x + 3, drawn.y + drawn.height / 2);
+		await expect(box).toBeChecked();
+		expect(page.url()).toBe(url);
+	});
+
+	test('select all on the run page checks every pending execution', async ({ page }) => {
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.goto(`/projects/${projectId}/test-runs/${runId}`);
+		await page.getByRole('heading').first().waitFor();
+		await page.waitForTimeout(800);
+		await page
+			.getByRole('checkbox', { name: /전체 선택|select all/i })
+			.first()
+			.check();
+		for (const row of await execBoxes(page).all()) await expect(row).toBeChecked();
+	});
+
+	for (const scheme of ['light', 'dark'] as const) {
+		test(`run page checkbox borders meet 3:1 in ${scheme} mode`, async ({ page }) => {
+			await page.emulateMedia({ colorScheme: scheme });
+			await page.setViewportSize({ width: 1280, height: 800 });
+			await page.goto(`/projects/${projectId}/test-runs/${runId}`);
+			await page.getByRole('heading').first().waitFor();
+			await page.waitForTimeout(800);
+			expect(await borderContrast(page, 'label input[type=checkbox]')).toBeGreaterThanOrEqual(3);
 		});
 	}
 });

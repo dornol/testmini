@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TouchCheckbox from '$lib/components/TouchCheckbox.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 	import { invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
@@ -339,11 +340,10 @@
 							scope="col"
 							class="text-foreground h-10 w-10 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap"
 						>
-							<input
-								type="checkbox"
+							<TouchCheckbox
+								dense
 								checked={allPendingSelected}
 								onchange={onTogglePendingAll}
-								class="rounded"
 								aria-label={m.aria_select_all()}
 							/>
 						</th>
@@ -427,11 +427,10 @@
 						<div class="min-w-0">
 							<div class="flex items-center gap-2">
 								{#if canExecute && pendingExecutions.length > 0 && exec.status === 'PENDING'}
-									<input
-										type="checkbox"
+									<TouchCheckbox
+										dense
 										checked={selectedPending.has(exec.id)}
 										onchange={() => onTogglePending(exec.id)}
-										class="rounded"
 										aria-label={m.aria_select_item({ item: exec.testCaseKey })}
 									/>
 								{/if}

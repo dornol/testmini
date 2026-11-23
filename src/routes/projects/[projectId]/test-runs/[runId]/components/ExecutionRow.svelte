@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TouchCheckbox from '$lib/components/TouchCheckbox.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -149,11 +150,10 @@
 	{#if showCheckbox}
 		<td class="bg-clip-padding p-2 align-middle whitespace-nowrap">
 			{#if exec.status === 'PENDING'}
-				<input
-					type="checkbox"
+				<TouchCheckbox
+					dense
 					checked={isSelected}
 					onchange={() => onToggleSelect(exec.id)}
-					class="rounded"
 					aria-label={m.aria_select_item({ item: exec.testCaseKey })}
 				/>
 			{/if}

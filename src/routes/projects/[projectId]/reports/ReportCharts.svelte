@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TouchCheckbox from '$lib/components/TouchCheckbox.svelte';
 	import '$lib/components/reports/report-results.css';
 	import * as m from '$lib/paraglide/messages.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -780,9 +781,11 @@
 				<Table.Header role="rowgroup">
 					<Table.Row role="row">
 						<Table.Head role="columnheader" scope="col" class="w-12">
-							<label class="inline-flex items-center gap-2">
+							<!-- The padding widens the hit area; the negative margin keeps the layout size. -->
+							<label class="-m-2 inline-flex cursor-pointer items-center gap-2 p-2">
 								<input
 									type="checkbox"
+									class="size-4 rounded border-muted-foreground"
 									checked={selectedRunIds.size === recentRuns.length}
 									indeterminate={selectedRunIds.size > 0 && selectedRunIds.size < recentRuns.length}
 									onchange={toggleAll}
@@ -804,8 +807,8 @@
 							run.totalCount > 0 ? Math.round((run.passCount / run.totalCount) * 100) : 0}
 						<Table.Row role="row">
 							<Table.Cell role="cell">
-								<input
-									type="checkbox"
+								<TouchCheckbox
+									dense
 									checked={selectedRunIds.has(run.id)}
 									onchange={() => toggleRun(run.id)}
 									aria-label={m.aria_select_item({ item: run.name })}

@@ -321,7 +321,7 @@
 							id="show-passwords"
 							type="checkbox"
 							bind:checked={showPasswords}
-							class="size-5 rounded border"
+							class="size-5 rounded border border-muted-foreground"
 						/>
 						<Label for="show-passwords">{m.auth_show_password()}</Label>
 					</div>

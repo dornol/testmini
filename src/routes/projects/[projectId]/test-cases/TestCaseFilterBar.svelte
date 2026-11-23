@@ -12,7 +12,7 @@
 	import { toast } from 'svelte-sonner';
 	import { apiPost } from '$lib/api-client';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
-	import { statusColorText } from '$lib/execution-status';
+	import { statusColorText, executionStatusLabel } from '$lib/execution-status';
 	import SavedFilterSelector from './SavedFilterSelector.svelte';
 
 	interface Props {
@@ -352,7 +352,7 @@
 								checked={selectedExecStatuses.includes(st)}
 								onCheckedChange={() => toggleFilter('execStatus', st)}
 							/>
-							<span class={statusColorText(st)}>{st}</span>
+							<span class={statusColorText(st)}>{executionStatusLabel(st)}</span>
 						</label>
 					{/each}
 				</Popover.Content>

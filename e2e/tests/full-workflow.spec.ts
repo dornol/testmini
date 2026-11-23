@@ -81,7 +81,7 @@ test.describe.serial('Full Workflow: Project → TC → Run → Execute', () => 
 		await expect(statusButton).toBeVisible({ timeout: 10000 });
 		await statusButton.click();
 
-		const passBtn = page.getByRole('menuitem', { name: 'PASS', exact: true });
+		const passBtn = page.getByRole('menuitem', { name: '합격', exact: true });
 		await expect(passBtn).toBeVisible({ timeout: 10000 });
 		await passBtn.evaluate((element) => (element as HTMLElement).click());
 
@@ -95,7 +95,7 @@ test.describe.serial('Full Workflow: Project → TC → Run → Execute', () => 
 
 		// Verify PASS status is shown somewhere in the execution table
 		await expect(
-			page.locator('[data-status-dropdown]:visible').filter({ hasText: 'PASS' }).first()
+			page.locator('[data-status-dropdown]:visible').filter({ hasText: '합격' }).first()
 		).toBeVisible({
 			timeout: 10000
 		});

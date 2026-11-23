@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { runStatusLabel } from '$lib/execution-status';
 	import { enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
@@ -262,7 +263,7 @@
 			{:else}
 				<Badge variant="outline">{run.environment}</Badge>
 			{/if}
-			<Badge variant={statusVariant(run.status)}>{run.status.replace('_', ' ')}</Badge>
+			<Badge variant={statusVariant(run.status)}>{runStatusLabel(run.status)}</Badge>
 			{#if run.retestOfRunId}
 				<a href="{basePath}/{run.retestOfRunId}" class="no-underline">
 					<Badge variant="secondary" class="text-xs">{m.tr_retest_badge()}</Badge>

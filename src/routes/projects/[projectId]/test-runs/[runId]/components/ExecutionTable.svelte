@@ -7,7 +7,7 @@
 	import { toast } from 'svelte-sonner';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { statusColorBg } from '$lib/execution-status';
+	import { statusColorBg, executionStatusLabel } from '$lib/execution-status';
 	import PriorityBadge from '$lib/components/PriorityBadge.svelte';
 	import AttachmentManager from '$lib/components/AttachmentManager.svelte';
 	import CommentSection from '$lib/components/CommentSection.svelte';
@@ -451,7 +451,7 @@
 								disabled={updatingExecId === exec.id}
 								onclick={(e) => toggleStatusDropdown(exec, e)}
 							>
-								{exec.status}
+								{executionStatusLabel(exec.status)}
 								{#if exec.status === 'FAIL' && failuresForExec.length > 0}
 									({failuresForExec.length})
 								{/if}
@@ -470,7 +470,7 @@
 								class:cursor-pointer={exec.status === 'FAIL'}
 								class:underline={exec.status === 'FAIL' && failuresForExec.length > 0}
 							>
-								{exec.status}
+								{executionStatusLabel(exec.status)}
 								{#if exec.status === 'FAIL' && failuresForExec.length > 0}
 									({failuresForExec.length})
 								{/if}
@@ -643,7 +643,7 @@
 					: ''}"
 				onclick={() => changeExecutionStatus(statusDropdown!.execId, s, statusDropdown!.tcKey)}
 			>
-				{s}
+				{executionStatusLabel(s)}
 				{#if s === statusDropdown.currentStatus}
 					<svg
 						xmlns="http://www.w3.org/2000/svg"

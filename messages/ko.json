@@ -1334,6 +1334,7 @@
 	"cycle_planned": "계획됨",
 	"cycle_in_progress": "진행 중",
 	"cycle_completed": "완료",
+	"run_status_created": "생성됨",
 	"cycle_start_date": "시작일",
 	"cycle_end_date": "종료일",
 	"cycle_runs": "연결된 런",

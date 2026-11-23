@@ -247,14 +247,14 @@ test.describe.serial('Reports', () => {
 		const failedRow = page.getByRole('row').filter({ hasText: failingCaseTitle });
 		const blockedRow = page.getByRole('row').filter({ hasText: 'Reports blocked case' });
 		await failedRow.locator('[data-status-dropdown]:visible').click();
-		await page.getByRole('menuitem', { name: 'FAIL', exact: true }).click();
+		await page.getByRole('menuitem', { name: '실패', exact: true }).click();
 		const failure = page.getByRole('dialog', { name: /FAIL 처리/ });
 		await failure.locator('#addErrorMessage').fill('Report fixture failure');
 		await failure.getByRole('button', { name: 'FAIL 처리', exact: true }).click();
-		await expect(failedRow.locator('[data-status-dropdown]:visible')).toContainText('FAIL');
+		await expect(failedRow.locator('[data-status-dropdown]:visible')).toContainText('실패');
 		await blockedRow.locator('[data-status-dropdown]:visible').click();
-		await page.getByRole('menuitem', { name: 'BLOCKED', exact: true }).click();
-		await expect(blockedRow.locator('[data-status-dropdown]:visible')).toContainText('BLOCKED');
+		await page.getByRole('menuitem', { name: '차단', exact: true }).click();
+		await expect(blockedRow.locator('[data-status-dropdown]:visible')).toContainText('차단');
 		await page.locator('form:has(input[value=COMPLETED]) button[type=submit]').click();
 		await expect(page.locator('form:has(input[value=COMPLETED])')).toHaveCount(0);
 	});

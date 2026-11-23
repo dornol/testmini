@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { executionStatusLabel } from '$lib/execution-status';
 	import * as m from '$lib/paraglide/messages.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
@@ -151,7 +152,9 @@
 
 {#snippet statusCell(status: string | null)}
 	{#if status}
-		<Badge variant={statusVariant(status)} class="px-1.5 py-0 text-xs">{status}</Badge>
+		<Badge variant={statusVariant(status)} class="px-1.5 py-0 text-xs"
+			>{executionStatusLabel(status)}</Badge
+		>
 	{:else}
 		<span aria-hidden="true" class="text-muted-foreground">—</span>
 		<span class="sr-only">{m.tr_compare_not_in_run()}</span>

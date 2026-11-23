@@ -1,3 +1,5 @@
+import * as m from '$lib/paraglide/messages.js';
+
 /**
  * Shared execution status color utilities.
  * All variants use orange for BLOCKED (not yellow).
@@ -52,5 +54,37 @@ export function statusColorBadge(status: string | null): string {
 			return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
 		default:
 			return 'bg-muted text-muted-foreground';
+	}
+}
+
+/** Localized label for an execution result; an unknown value is shown as it is. */
+export function executionStatusLabel(status: string | null): string {
+	switch (status) {
+		case 'PASS':
+			return m.dashboard_pass();
+		case 'FAIL':
+			return m.dashboard_fail();
+		case 'BLOCKED':
+			return m.dashboard_blocked();
+		case 'SKIPPED':
+			return m.dashboard_skipped();
+		case 'PENDING':
+			return m.dashboard_pending();
+		default:
+			return status ?? '';
+	}
+}
+
+/** Localized label for a test run's state; an unknown value is shown as it is. */
+export function runStatusLabel(status: string): string {
+	switch (status) {
+		case 'CREATED':
+			return m.run_status_created();
+		case 'IN_PROGRESS':
+			return m.cycle_in_progress();
+		case 'COMPLETED':
+			return m.cycle_completed();
+		default:
+			return status.replace('_', ' ');
 	}
 }

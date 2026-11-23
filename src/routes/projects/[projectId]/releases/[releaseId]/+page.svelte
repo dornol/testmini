@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { runStatusLabel } from '$lib/execution-status';
 	import { tick } from 'svelte';
 	import { Input } from '$lib/components/ui/input';
 	import FormErrorSummary from '$lib/components/patterns/FormErrorSummary.svelte';
@@ -362,8 +363,8 @@
 					>
 						<div class="font-medium [overflow-wrap:anywhere]">{run.name}</div>
 						<div class="mt-2 flex flex-wrap items-center gap-2">
-							<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}
-								>{run.status}</Badge
+							<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}>
+								{runStatusLabel(run.status)}</Badge
 							>
 							<Badge variant="outline">{run.environment}</Badge>
 						</div>
@@ -415,8 +416,8 @@
 									></Table.Cell
 								>
 								<Table.Cell>
-									<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}
-										>{run.status}</Badge
+									<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}>
+										{runStatusLabel(run.status)}</Badge
 									>
 								</Table.Cell>
 								<Table.Cell class="text-muted-foreground text-sm">{run.environment}</Table.Cell>
@@ -519,7 +520,7 @@
 										<span
 											class="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
 										>
-											<Badge variant="secondary">{item.status}</Badge>
+											<Badge variant="secondary">{runStatusLabel(item.status)}</Badge>
 											{#if 'environment' in item}
 												<span class="min-w-0 [overflow-wrap:anywhere]">{item.environment}</span>
 											{/if}

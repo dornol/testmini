@@ -159,8 +159,8 @@ test.describe.serial('Dashboard & Navigation', () => {
 		await expect(page.getByText('실시간', { exact: true })).toBeVisible();
 		const caseOne = page.getByRole('row').filter({ hasText: 'Dashboard case one' });
 		await caseOne.locator('[data-status-dropdown]:visible').click();
-		await page.getByRole('menuitem', { name: 'PASS', exact: true }).click();
-		await expect(caseOne.locator('[data-status-dropdown]:visible')).toContainText('PASS');
+		await page.getByRole('menuitem', { name: '합격', exact: true }).click();
+		await expect(caseOne.locator('[data-status-dropdown]:visible')).toContainText('합격');
 
 		await page.goto(dashboard);
 		await expect(page.getByTestId('dashboard-pass-rate')).toHaveText('100%');
@@ -175,11 +175,11 @@ test.describe.serial('Dashboard & Navigation', () => {
 		await expect(page.getByText('실시간', { exact: true })).toBeVisible();
 		const caseTwo = page.getByRole('row').filter({ hasText: 'Dashboard case two' });
 		await caseTwo.locator('[data-status-dropdown]:visible').click();
-		await page.getByRole('menuitem', { name: 'FAIL', exact: true }).click();
+		await page.getByRole('menuitem', { name: '실패', exact: true }).click();
 		const failure = page.getByRole('dialog', { name: /FAIL 처리/ });
 		await failure.locator('#addErrorMessage').fill('Dashboard activity fixture');
 		await failure.getByRole('button', { name: 'FAIL 처리', exact: true }).click();
-		await expect(caseTwo.locator('[data-status-dropdown]:visible')).toContainText('FAIL');
+		await expect(caseTwo.locator('[data-status-dropdown]:visible')).toContainText('실패');
 		await page.locator('form:has(input[value=COMPLETED]) button[type=submit]').click();
 		await expect(page.locator('form:has(input[value=COMPLETED])')).toHaveCount(0);
 		await page.goto(dashboard);

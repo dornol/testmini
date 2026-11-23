@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { runStatusLabel } from '$lib/execution-status';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -516,8 +517,8 @@
 									{run.environment} · {formatDate(run.createdAt)}
 								</p>
 							</div>
-							<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}
-								>{run.status}</Badge
+							<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}>
+								{runStatusLabel(run.status)}</Badge
 							>
 						</div>
 					</button>
@@ -543,8 +544,8 @@
 									<div class="truncate" title={run.name}>{run.name}</div>
 								</Table.Cell>
 								<Table.Cell>
-									<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}
-										>{run.status}</Badge
+									<Badge variant={run.status === 'COMPLETED' ? 'default' : 'secondary'}>
+										{runStatusLabel(run.status)}</Badge
 									>
 								</Table.Cell>
 								<Table.Cell class="min-w-0 text-sm text-muted-foreground">

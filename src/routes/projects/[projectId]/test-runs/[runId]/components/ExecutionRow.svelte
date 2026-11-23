@@ -10,7 +10,7 @@
 	import { CircleAlert } from 'lucide-svelte';
 	import { apiPost, apiDelete } from '$lib/api-client';
 	import { formatDurationFromDates } from '$lib/format-utils';
-	import { statusColorBg } from '$lib/execution-status';
+	import { statusColorBg, executionStatusLabel } from '$lib/execution-status';
 
 	interface IssueLinkRecord {
 		id: number;
@@ -177,7 +177,7 @@
 							disabled={isUpdating}
 							onclick={(e) => onToggleStatusDropdown(exec, e)}
 						>
-							{exec.status}
+							{executionStatusLabel(exec.status)}
 							{#if exec.status === 'FAIL' && failures.length > 0}
 								({failures.length})
 							{/if}
@@ -188,7 +188,7 @@
 								exec.status
 							)}"
 						>
-							{exec.status}
+							{executionStatusLabel(exec.status)}
 						</span>
 					{/if}
 				</div>
@@ -280,7 +280,7 @@
 						></path></svg
 					>
 				{/if}
-				{exec.status}
+				{executionStatusLabel(exec.status)}
 				{#if exec.status === 'FAIL' && failures.length > 0}
 					({failures.length})
 				{/if}
@@ -299,7 +299,7 @@
 				class:cursor-pointer={exec.status === 'FAIL'}
 				class:underline={exec.status === 'FAIL' && failures.length > 0}
 			>
-				{exec.status}
+				{executionStatusLabel(exec.status)}
 				{#if exec.status === 'FAIL' && failures.length > 0}
 					({failures.length})
 				{/if}

@@ -82,7 +82,7 @@ test.describe.serial('Test Run Execution', () => {
 		await expect(page.locator('text=TC-0001').first()).toBeVisible({ timeout: 10000 });
 
 		// Verify run status is CREATED
-		await expect(page.locator('text=CREATED').first()).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('text=생성됨').first()).toBeVisible({ timeout: 10000 });
 	});
 
 	// -------------------------------------------------------------------------
@@ -105,8 +105,8 @@ test.describe.serial('Test Run Execution', () => {
 		// Wait for status update
 		await page.waitForTimeout(2000);
 
-		// Verify the run status changed to IN_PROGRESS (shown as "IN PROGRESS")
-		await expect(page.locator('text=/IN.PROGRESS/').first()).toBeVisible({ timeout: 10000 });
+		// Verify the run status changed to IN_PROGRESS (shown as "진행 중")
+		await expect(page.locator('text=진행 중').first()).toBeVisible({ timeout: 10000 });
 	});
 
 	// -------------------------------------------------------------------------
@@ -128,7 +128,7 @@ test.describe.serial('Test Run Execution', () => {
 
 		// The floating dropdown should show status options.
 		// Clicking FAIL should open the failure detail dialog.
-		const failOption = page.getByRole('menuitem', { name: 'FAIL', exact: true });
+		const failOption = page.getByRole('menuitem', { name: '실패', exact: true });
 		await expect(failOption).toBeVisible({ timeout: 5000 });
 		await failOption.click();
 
@@ -148,7 +148,7 @@ test.describe.serial('Test Run Execution', () => {
 		await page.waitForTimeout(2000);
 
 		// Verify FAIL status is shown
-		await expect(page.locator('text=FAIL').first()).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('text=실패').first()).toBeVisible({ timeout: 10000 });
 	});
 
 	// -------------------------------------------------------------------------
@@ -169,7 +169,7 @@ test.describe.serial('Test Run Execution', () => {
 		await statusBadge.click();
 
 		// Select PASS from the dropdown
-		const passOption = page.getByRole('menuitem', { name: 'PASS', exact: true });
+		const passOption = page.getByRole('menuitem', { name: '합격', exact: true });
 		await expect(passOption).toBeVisible({ timeout: 5000 });
 		await passOption.evaluate((element) => (element as HTMLElement).click());
 
@@ -177,7 +177,7 @@ test.describe.serial('Test Run Execution', () => {
 
 		// Verify PASS status is shown
 		await expect(
-			page.locator('[data-status-dropdown]:visible').filter({ hasText: 'PASS' }).first()
+			page.locator('[data-status-dropdown]:visible').filter({ hasText: '합격' }).first()
 		).toBeVisible({
 			timeout: 10000
 		});
@@ -203,6 +203,6 @@ test.describe.serial('Test Run Execution', () => {
 		await page.waitForTimeout(2000);
 
 		// Verify the run status changed to COMPLETED
-		await expect(page.locator('text=COMPLETED').first()).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('text=완료').first()).toBeVisible({ timeout: 10000 });
 	});
 });

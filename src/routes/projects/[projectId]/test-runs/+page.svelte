@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { runStatusLabel } from '$lib/execution-status';
 	import TouchCheckbox from '$lib/components/TouchCheckbox.svelte';
 	import { isInteractiveTarget } from '$lib/utils';
 	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
@@ -235,14 +236,7 @@
 		onchange={setStatus}
 		options={statuses.map((value) => ({
 			value,
-			label:
-				value === 'CREATED'
-					? m.common_created()
-					: value === 'IN_PROGRESS'
-						? m.cycle_in_progress()
-						: value === 'COMPLETED'
-							? m.cycle_completed()
-							: m.common_all()
+			label: value ? runStatusLabel(value) : m.common_all()
 		}))}
 	/>
 
@@ -348,7 +342,7 @@
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2">
 								<Badge variant={statusVariant(run.status)} class="px-1.5 py-0 text-xs">
-									{run.status.replace('_', ' ')}
+									{runStatusLabel(run.status)}
 								</Badge>
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2 hidden md:table-cell">

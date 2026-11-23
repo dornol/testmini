@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { executionStatusLabel } from '$lib/execution-status';
 	import TouchCheckbox from '$lib/components/TouchCheckbox.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
@@ -1479,7 +1480,7 @@
 								{#if isRunCompleted}
 									<span
 										class="font-medium {statusColor(exec.status)}"
-										title={m.tc_completed_run_readonly()}>{exec.status}</span
+										title={m.tc_completed_run_readonly()}>{executionStatusLabel(exec.status)}</span
 									>
 								{:else}
 									<button
@@ -1488,7 +1489,7 @@
 										class="font-medium cursor-pointer {statusColor(exec.status)} hover:underline"
 										onclick={(e) => toggleDropdown(tc.id, run.id, e)}
 									>
-										{exec.status}
+										{executionStatusLabel(exec.status)}
 									</button>
 								{/if}
 							{:else if canEdit && !isRunCompleted}
@@ -1773,7 +1774,7 @@
 						)} {s === exec.status ? 'font-bold' : ''}"
 						onclick={() => updateExecutionStatus(runId, exec.executionId, s, tcKey)}
 					>
-						{s}
+						{executionStatusLabel(s)}
 					</button>
 				{/each}
 				{#if exec.status === 'FAIL'}

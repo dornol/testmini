@@ -1,5 +1,12 @@
-import { describe, it, expect } from 'vitest';
-import { statusColorText, statusColorBg, statusColorBadge } from './execution-status';
+import { beforeEach, describe, it, expect } from 'vitest';
+import { overwriteGetLocale } from '$lib/paraglide/runtime.js';
+import {
+	statusColorText,
+	statusColorBg,
+	statusColorBadge,
+	executionStatusLabel,
+	runStatusLabel
+} from './execution-status';
 
 const STATUSES = ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING'] as const;
 
@@ -104,5 +111,38 @@ describe('statusColorBadge', () => {
 
 	it('returns muted for unknown', () => {
 		expect(statusColorBadge('WHATEVER')).toContain('muted');
+	});
+});
+
+describe('status labels', () => {
+	beforeEach(() => overwriteGetLocale(() => 'en'));
+
+	it('localizes every execution result', () => {
+		expect(executionStatusLabel('PASS')).toBe('Pass');
+		expect(executionStatusLabel('FAIL')).toBe('Fail');
+		expect(executionStatusLabel('BLOCKED')).toBe('Blocked');
+		expect(executionStatusLabel('SKIPPED')).toBe('Skipped');
+		expect(executionStatusLabel('PENDING')).toBe('Pending');
+	});
+
+	it('follows the active language', () => {
+		overwriteGetLocale(() => 'ko');
+		expect(executionStatusLabel('PASS')).not.toBe('Pass');
+		expect(runStatusLabel('IN_PROGRESS')).not.toBe('In Progress');
+	});
+
+	it('shows an unknown or missing execution result as it is', () => {
+		expect(executionStatusLabel('MYSTERY')).toBe('MYSTERY');
+		expect(executionStatusLabel(null)).toBe('');
+	});
+
+	it('localizes the three run states with a label that is not the date column name', () => {
+		expect(runStatusLabel('CREATED')).toBe('Created');
+		expect(runStatusLabel('IN_PROGRESS')).toBe('In Progress');
+		expect(runStatusLabel('COMPLETED')).toBe('Completed');
+	});
+
+	it('shows an unknown run state readably', () => {
+		expect(runStatusLabel('ON_HOLD')).toBe('ON HOLD');
 	});
 });

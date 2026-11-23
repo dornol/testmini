@@ -61,8 +61,8 @@ test.describe.serial('Quality insights', () => {
 		await page.locator('form[action*="updateRunStatus"] button[type=submit]').first().click();
 		const status = page.locator('[data-status-dropdown]:visible').first();
 		await status.click();
-		await page.getByRole('menuitem', { name: 'PASS', exact: true }).click();
-		await expect(status).toContainText('PASS');
+		await page.getByRole('menuitem', { name: '합격', exact: true }).click();
+		await expect(status).toContainText('합격');
 	});
 
 	for (const locale of ['ko', 'en'])

@@ -1334,6 +1334,7 @@
 	"cycle_planned": "Planned",
 	"cycle_in_progress": "In Progress",
 	"cycle_completed": "Completed",
+	"run_status_created": "Created",
 	"cycle_start_date": "Start Date",
 	"cycle_end_date": "End Date",
 	"cycle_runs": "Linked Runs",

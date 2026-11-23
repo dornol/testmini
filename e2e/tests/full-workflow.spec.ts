@@ -34,7 +34,8 @@ test.describe.serial('Full Workflow: Project → TC → Run → Execute', () => 
 		await page.waitForURL('**/test-cases', { timeout: 10000 });
 
 		// Click create test case button
-		const createLink = page.locator('a[href*="test-cases/new"]').first();
+		// The list header renders a phone and a wide-screen variant; take the one that is shown.
+		const createLink = page.locator('a[href*="test-cases/new"]:visible').first();
 		await createLink.click();
 		await page.waitForURL('**/test-cases/new', { timeout: 10000 });
 

@@ -26,7 +26,14 @@ type Finding = { mode: string; path: string; issue: string };
  * Text under 12px is counted on every screen and reported at the end. Screens listed here have
  * been cleaned up, so any small text on them fails the sweep. Add a screen once it is done.
  */
-const SMALL_TEXT_ENFORCED = [/\/test-runs$/, /\/test-runs\/compare/, /\/test-cases$/];
+const SMALL_TEXT_ENFORCED = [
+	/\/test-runs$/,
+	/\/test-runs\/\d+$/,
+	/\/test-runs\/compare/,
+	/\/test-cases$/,
+	/\/exploratory$/,
+	/\/exploratory\/\d+$/
+];
 
 test.describe.serial('Dark mode and 200% zoom sweep', () => {
 	test.skip(!process.env.E2E_SWEEP, 'Slow (about 5 min). Run it with `pnpm test:e2e:sweep`.');

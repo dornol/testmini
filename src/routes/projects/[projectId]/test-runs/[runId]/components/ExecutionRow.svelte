@@ -450,7 +450,7 @@
 										{link.title || link.externalUrl}
 									</a>
 									{#if link.status}
-										<span class="shrink-0 rounded-full border px-1.5 py-0.5 text-[10px]"
+										<span class="shrink-0 rounded-full border px-1.5 py-0.5 text-xs"
 											>{link.status}</span
 										>
 									{/if}

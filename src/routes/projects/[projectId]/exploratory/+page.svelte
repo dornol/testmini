@@ -181,7 +181,7 @@
 								<p class="mt-1 line-clamp-2 text-xs text-muted-foreground">{session.charter}</p>
 							{/if}
 						</div>
-						<Badge variant={statusVariant(session.status)} class="w-fit text-[10px] px-1.5 py-0">
+						<Badge variant={statusVariant(session.status)} class="w-fit px-1.5 py-0 text-xs">
 							{statusLabel(session.status)}
 						</Badge>
 					</div>
@@ -240,7 +240,7 @@
 									class="block truncate underline-offset-4 hover:underline"
 									title={session.title}>{session.title}</a
 								>
-								<div class="text-muted-foreground md:hidden text-[10px] truncate max-w-[200px]">
+								<div class="text-muted-foreground md:hidden text-xs truncate max-w-[200px]">
 									{session.charter ?? ''}
 								</div>
 							</Table.Cell>
@@ -250,7 +250,7 @@
 								{session.charter ?? '-'}
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs">
-								<Badge variant={statusVariant(session.status)} class="text-[10px] px-1.5 py-0"
+								<Badge variant={statusVariant(session.status)} class="px-1.5 py-0 text-xs"
 									>{statusLabel(session.status)}</Badge
 								>
 							</Table.Cell>

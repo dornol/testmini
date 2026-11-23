@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TouchCheckbox from '$lib/components/TouchCheckbox.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
@@ -945,7 +946,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="space-y-4"
+	class="space-y-4 {selectedTcIds.size > 0 && canEdit ? 'pb-[55dvh] min-[520px]:pb-0' : ''}"
 	onclick={handleClickOutside}
 	onkeydown={(e) => {
 		if (e.key === 'Escape') {
@@ -1081,10 +1082,9 @@
 
 		{#snippet tcRow(tc: TcItem)}
 			{#if canEdit}
-				<input
-					type="checkbox"
+				<TouchCheckbox
+					dense
 					aria-label={m.aria_select_item({ item: tc.key })}
-					class="h-3.5 w-3.5 shrink-0 rounded border-gray-300"
 					checked={selectedTcIds.has(tc.id)}
 					onclick={(e) => {
 						e.stopPropagation();
@@ -2089,7 +2089,7 @@
 					>
 						<input
 							type="checkbox"
-							class="h-3 w-3"
+							class="size-4 rounded border-muted-foreground"
 							checked={selected.includes(opt)}
 							onchange={() => {
 								const cur = (

@@ -1875,7 +1875,7 @@
 													<input
 														type="checkbox"
 														checked={isSelected}
-														class="h-3 w-3 rounded border-gray-300"
+														class="size-4 rounded border-muted-foreground"
 														onclick={(e) => e.stopPropagation()}
 														onchange={() => toggleVersionSelect(v.versionNo)}
 													/>

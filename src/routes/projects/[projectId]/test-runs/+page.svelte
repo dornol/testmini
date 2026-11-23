@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TouchCheckbox from '$lib/components/TouchCheckbox.svelte';
 	import { isInteractiveTarget } from '$lib/utils';
 	import PageHeader from '$lib/components/patterns/PageHeader.svelte';
 	import StatusFilter from '$lib/components/patterns/StatusFilter.svelte';
@@ -321,16 +322,11 @@
 							}}
 						>
 							<Table.Cell class="px-2 py-1" onclick={(e: MouseEvent) => e.stopPropagation()}>
-								<!-- The label widens the touch target to 40px without making the row taller. -->
-								<label class="-m-3 flex size-10 cursor-pointer items-center justify-center">
-									<input
-										type="checkbox"
-										aria-label={`${m.tr_compare()}: ${run.name}`}
-										checked={compareSelectedIds.has(run.id)}
-										onchange={() => toggleCompareRun(run.id)}
-										class="size-4 rounded border-muted-foreground"
-									/>
-								</label>
+								<TouchCheckbox
+									aria-label={`${m.tr_compare()}: ${run.name}`}
+									checked={compareSelectedIds.has(run.id)}
+									onchange={() => toggleCompareRun(run.id)}
+								/>
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs font-medium">
 								<div class="flex items-center gap-1.5">

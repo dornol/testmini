@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TouchCheckbox from '$lib/components/TouchCheckbox.svelte';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as m from '$lib/paraglide/messages.js';
 
@@ -42,11 +43,10 @@
 	class="sticky top-0 z-10 flex items-center gap-2 rounded-t-lg border-x border-t border-b bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground"
 >
 	{#if canEdit}
-		<input
-			type="checkbox"
+		<TouchCheckbox
+			dense
 			aria-label={m.aria_select_all()}
 			indeterminate={selectedCount > 0 && selectedCount < testCaseCount}
-			class="h-3.5 w-3.5 shrink-0 rounded border-gray-300"
 			checked={selectedCount === testCaseCount && testCaseCount > 0}
 			onchange={onToggleSelectAll}
 		/>

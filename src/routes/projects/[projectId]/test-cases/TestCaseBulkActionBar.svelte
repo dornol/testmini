@@ -41,6 +41,8 @@
 		oncomplete,
 		onclear
 	}: Props = $props();
+	// Phones show only the count and a toggle until the actions are asked for.
+	let actionsOpen = $state(false);
 	let bulkLoading = $state(false);
 	let bulkDeleteOpen = $state(false);
 
@@ -89,38 +91,38 @@
 	}
 </script>
 
+<!-- On a phone the bar floats over the bottom of the screen instead of sitting above the list, so
+	selecting a row does not push the list down (the page adds bottom padding while it is shown). -->
 <div
-	class="sticky top-0 z-20 grid grid-cols-2 gap-2 rounded-lg border bg-background/95 px-3 py-2 shadow-sm backdrop-blur min-[520px]:flex min-[520px]:flex-wrap min-[520px]:items-center sm:px-4"
+	class="fixed inset-x-2 bottom-2 z-30 grid max-h-[50dvh] grid-cols-2 gap-2 overflow-y-auto rounded-lg border bg-background/95 px-3 py-2 shadow-lg backdrop-blur min-[520px]:sticky min-[520px]:inset-x-auto min-[520px]:top-0 min-[520px]:bottom-auto min-[520px]:z-20 min-[520px]:flex min-[520px]:max-h-none min-[520px]:flex-wrap min-[520px]:items-center min-[520px]:overflow-visible min-[520px]:shadow-sm sm:px-4"
 >
-	<span class="col-span-2 text-sm font-medium min-[520px]:col-span-1"
-		>{m.tc_bulk_selected({ count: selectedTcIds.size })}</span
-	>
+	<!-- One row on phones (count, toggle, cancel); on wider screens its children join the bar's row. -->
+	<div class="col-span-2 flex items-center gap-2 min-[520px]:contents">
+		<span class="min-w-0 flex-1 text-sm font-medium min-[520px]:flex-none"
+			>{m.tc_bulk_selected({ count: selectedTcIds.size })}</span
+		>
+		<Button
+			variant="outline"
+			size="sm"
+			class="h-8 text-xs min-[520px]:hidden"
+			aria-expanded={actionsOpen}
+			aria-controls="bulk-actions"
+			onclick={() => (actionsOpen = !actionsOpen)}
+		>
+			{actionsOpen ? m.common_close() : m.common_actions()}
+		</Button>
+		<Button
+			variant="ghost"
+			size="sm"
+			class="h-8 text-xs min-[520px]:order-last min-[520px]:ml-auto sm:h-7"
+			onclick={onclear}
+		>
+			{m.common_cancel()}
+		</Button>
+	</div>
 	<div class="hidden h-4 w-px bg-border min-[520px]:block"></div>
 
-	<DropdownMenu.Root>
-		<DropdownMenu.Trigger>
-			{#snippet child({ props })}
-				<Button
-					variant="outline"
-					size="sm"
-					class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
-					disabled={bulkLoading}
-					{...props}>{m.tc_export()}</Button
-				>
-			{/snippet}
-		</DropdownMenu.Trigger>
-		<DropdownMenu.Content align="start" class="min-w-[140px]">
-			<DropdownMenu.Item onclick={() => onExportSelected('csv')} class="text-xs">
-				{m.tc_export_csv()}
-			</DropdownMenu.Item>
-			<DropdownMenu.Item onclick={() => onExportSelected('json')} class="text-xs">
-				{m.tc_export_json()}
-			</DropdownMenu.Item>
-		</DropdownMenu.Content>
-	</DropdownMenu.Root>
-
-	<!-- Bulk Add Tag -->
-	{#if projectTags.length > 0}
+	<div id="bulk-actions" class={actionsOpen ? 'contents' : 'hidden min-[520px]:contents'}>
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
@@ -129,132 +131,133 @@
 						size="sm"
 						class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
 						disabled={bulkLoading}
-						{...props}>{m.tc_bulk_add_tag()}</Button
+						{...props}>{m.tc_export()}</Button
 					>
 				{/snippet}
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content align="start" class="min-w-[140px]">
-				{#each projectTags as t (t.id)}
-					<DropdownMenu.Item onclick={() => bulkAction('addTag', { tagId: t.id })} class="text-xs">
-						<span
-							class="mr-1.5 inline-block h-2 w-2 rounded-full"
-							style="background-color: {t.color}"
-						></span>
-						{t.name}
-					</DropdownMenu.Item>
-				{/each}
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
-
-		<!-- Bulk Remove Tag -->
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger>
-				{#snippet child({ props })}
-					<Button
-						variant="outline"
-						size="sm"
-						class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
-						disabled={bulkLoading}
-						{...props}>{m.tc_bulk_remove_tag()}</Button
-					>
-				{/snippet}
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="start" class="min-w-[140px]">
-				{#each projectTags as t (t.id)}
-					<DropdownMenu.Item
-						onclick={() => bulkAction('removeTag', { tagId: t.id })}
-						class="text-xs"
-					>
-						<span
-							class="mr-1.5 inline-block h-2 w-2 rounded-full"
-							style="background-color: {t.color}"
-						></span>
-						{t.name}
-					</DropdownMenu.Item>
-				{/each}
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
-	{/if}
-
-	<!-- Bulk Add Assignee -->
-	{#if projectMembers.length > 0}
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger>
-				{#snippet child({ props })}
-					<Button
-						variant="outline"
-						size="sm"
-						class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
-						disabled={bulkLoading}
-						{...props}>{m.tc_bulk_add_assignee()}</Button
-					>
-				{/snippet}
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="start" class="min-w-[140px]">
-				{#each projectMembers as member}
-					<DropdownMenu.Item
-						onclick={() => bulkAction('addAssignee', { userId: member.userId })}
-						class="text-xs"
-					>
-						{member.userName}
-					</DropdownMenu.Item>
-				{/each}
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
-
-		<!-- Bulk Remove Assignee -->
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger>
-				{#snippet child({ props })}
-					<Button
-						variant="outline"
-						size="sm"
-						class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
-						disabled={bulkLoading}
-						{...props}>{m.tc_bulk_remove_assignee()}</Button
-					>
-				{/snippet}
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="start" class="min-w-[140px]">
-				{#each projectMembers as member}
-					<DropdownMenu.Item
-						onclick={() => bulkAction('removeAssignee', { userId: member.userId })}
-						class="text-xs"
-					>
-						{member.userName}
-					</DropdownMenu.Item>
-				{/each}
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
-	{/if}
-
-	<!-- Bulk Set Priority -->
-	<DropdownMenu.Root>
-		<DropdownMenu.Trigger>
-			{#snippet child({ props })}
-				<Button
-					variant="outline"
-					size="sm"
-					class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
-					disabled={bulkLoading}
-					{...props}>{m.tc_bulk_set_priority()}</Button
-				>
-			{/snippet}
-		</DropdownMenu.Trigger>
-		<DropdownMenu.Content align="start" class="min-w-[120px]">
-			{#each projectPriorities as p (p.id)}
-				<DropdownMenu.Item
-					onclick={() => bulkAction('setPriority', { priority: p.name })}
-					class="text-xs"
-				>
-					<PriorityBadge name={p.name} color={p.color} />
+				<DropdownMenu.Item onclick={() => onExportSelected('csv')} class="text-xs">
+					{m.tc_export_csv()}
 				</DropdownMenu.Item>
-			{/each}
-		</DropdownMenu.Content>
-	</DropdownMenu.Root>
+				<DropdownMenu.Item onclick={() => onExportSelected('json')} class="text-xs">
+					{m.tc_export_json()}
+				</DropdownMenu.Item>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
 
-	<!-- Bulk Move to Group -->
-	{#if groups.length > 0}
+		<!-- Bulk Add Tag -->
+		{#if projectTags.length > 0}
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger>
+					{#snippet child({ props })}
+						<Button
+							variant="outline"
+							size="sm"
+							class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
+							disabled={bulkLoading}
+							{...props}>{m.tc_bulk_add_tag()}</Button
+						>
+					{/snippet}
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="start" class="min-w-[140px]">
+					{#each projectTags as t (t.id)}
+						<DropdownMenu.Item
+							onclick={() => bulkAction('addTag', { tagId: t.id })}
+							class="text-xs"
+						>
+							<span
+								class="mr-1.5 inline-block h-2 w-2 rounded-full"
+								style="background-color: {t.color}"
+							></span>
+							{t.name}
+						</DropdownMenu.Item>
+					{/each}
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
+
+			<!-- Bulk Remove Tag -->
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger>
+					{#snippet child({ props })}
+						<Button
+							variant="outline"
+							size="sm"
+							class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
+							disabled={bulkLoading}
+							{...props}>{m.tc_bulk_remove_tag()}</Button
+						>
+					{/snippet}
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="start" class="min-w-[140px]">
+					{#each projectTags as t (t.id)}
+						<DropdownMenu.Item
+							onclick={() => bulkAction('removeTag', { tagId: t.id })}
+							class="text-xs"
+						>
+							<span
+								class="mr-1.5 inline-block h-2 w-2 rounded-full"
+								style="background-color: {t.color}"
+							></span>
+							{t.name}
+						</DropdownMenu.Item>
+					{/each}
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
+		{/if}
+
+		<!-- Bulk Add Assignee -->
+		{#if projectMembers.length > 0}
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger>
+					{#snippet child({ props })}
+						<Button
+							variant="outline"
+							size="sm"
+							class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
+							disabled={bulkLoading}
+							{...props}>{m.tc_bulk_add_assignee()}</Button
+						>
+					{/snippet}
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="start" class="min-w-[140px]">
+					{#each projectMembers as member}
+						<DropdownMenu.Item
+							onclick={() => bulkAction('addAssignee', { userId: member.userId })}
+							class="text-xs"
+						>
+							{member.userName}
+						</DropdownMenu.Item>
+					{/each}
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
+
+			<!-- Bulk Remove Assignee -->
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger>
+					{#snippet child({ props })}
+						<Button
+							variant="outline"
+							size="sm"
+							class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
+							disabled={bulkLoading}
+							{...props}>{m.tc_bulk_remove_assignee()}</Button
+						>
+					{/snippet}
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="start" class="min-w-[140px]">
+					{#each projectMembers as member}
+						<DropdownMenu.Item
+							onclick={() => bulkAction('removeAssignee', { userId: member.userId })}
+							class="text-xs"
+						>
+							{member.userName}
+						</DropdownMenu.Item>
+					{/each}
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
+		{/if}
+
+		<!-- Bulk Set Priority -->
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
@@ -263,107 +266,125 @@
 						size="sm"
 						class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
 						disabled={bulkLoading}
-						{...props}>{m.tc_bulk_move_group()}</Button
+						{...props}>{m.tc_bulk_set_priority()}</Button
 					>
 				{/snippet}
 			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="start" class="min-w-[140px]">
-				<DropdownMenu.Item
-					onclick={() => bulkAction('moveToGroup', { groupId: null })}
-					class="text-xs"
-				>
-					{m.tc_filter_uncategorized()}
-				</DropdownMenu.Item>
-				{#each groups as g (g.id)}
+			<DropdownMenu.Content align="start" class="min-w-[120px]">
+				{#each projectPriorities as p (p.id)}
 					<DropdownMenu.Item
-						onclick={() => bulkAction('moveToGroup', { groupId: g.id })}
+						onclick={() => bulkAction('setPriority', { priority: p.name })}
 						class="text-xs"
 					>
-						{g.name}
+						<PriorityBadge name={p.name} color={p.color} />
 					</DropdownMenu.Item>
 				{/each}
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
-	{/if}
 
-	<!-- Bulk Add to Suite -->
-	{#if projectSuites.length > 0}
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger>
-				{#snippet child({ props })}
-					<Button
-						variant="outline"
-						size="sm"
-						class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
-						disabled={bulkLoading}
-						{...props}>{m.suite_add_cases()}</Button
+		<!-- Bulk Move to Group -->
+		{#if groups.length > 0}
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger>
+					{#snippet child({ props })}
+						<Button
+							variant="outline"
+							size="sm"
+							class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
+							disabled={bulkLoading}
+							{...props}>{m.tc_bulk_move_group()}</Button
+						>
+					{/snippet}
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="start" class="min-w-[140px]">
+					<DropdownMenu.Item
+						onclick={() => bulkAction('moveToGroup', { groupId: null })}
+						class="text-xs"
 					>
-				{/snippet}
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="start" class="min-w-[140px]">
-				{#each projectSuites as s (s.id)}
-					<DropdownMenu.Item onclick={() => bulkAddToSuite(s.id)} class="text-xs">
-						{s.name}
+						{m.tc_filter_uncategorized()}
 					</DropdownMenu.Item>
-				{/each}
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
-	{/if}
+					{#each groups as g (g.id)}
+						<DropdownMenu.Item
+							onclick={() => bulkAction('moveToGroup', { groupId: g.id })}
+							class="text-xs"
+						>
+							{g.name}
+						</DropdownMenu.Item>
+					{/each}
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
+		{/if}
 
-	<!-- Bulk Clone -->
-	<Button
-		variant="outline"
-		size="sm"
-		class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
-		disabled={bulkLoading}
-		onclick={() => bulkAction('clone')}
-	>
-		{m.tc_bulk_clone()}
-	</Button>
+		<!-- Bulk Add to Suite -->
+		{#if projectSuites.length > 0}
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger>
+					{#snippet child({ props })}
+						<Button
+							variant="outline"
+							size="sm"
+							class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
+							disabled={bulkLoading}
+							{...props}>{m.suite_add_cases()}</Button
+						>
+					{/snippet}
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="start" class="min-w-[140px]">
+					{#each projectSuites as s (s.id)}
+						<DropdownMenu.Item onclick={() => bulkAddToSuite(s.id)} class="text-xs">
+							{s.name}
+						</DropdownMenu.Item>
+					{/each}
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
+		{/if}
 
-	<!-- Bulk Delete -->
-	{#if canDelete}
-		<AlertDialog.Root bind:open={bulkDeleteOpen}>
-			<AlertDialog.Trigger>
-				{#snippet child({ props })}
-					<Button
-						variant="destructive"
-						size="sm"
-						class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
-						disabled={bulkLoading}
-						{...props}>{m.tc_bulk_delete()}</Button
-					>
-				{/snippet}
-			</AlertDialog.Trigger>
-			<AlertDialog.Portal>
-				<AlertDialog.Overlay />
-				<AlertDialog.Content>
-					<AlertDialog.Header>
-						<AlertDialog.Title>{m.tc_bulk_delete_title()}</AlertDialog.Title>
-						<AlertDialog.Description>
-							{m.tc_bulk_delete_confirm({ count: selectedTcIds.size })}
-						</AlertDialog.Description>
-					</AlertDialog.Header>
-					<AlertDialog.Footer>
-						<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+		<!-- Bulk Clone -->
+		<Button
+			variant="outline"
+			size="sm"
+			class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
+			disabled={bulkLoading}
+			onclick={() => bulkAction('clone')}
+		>
+			{m.tc_bulk_clone()}
+		</Button>
+
+		<!-- Bulk Delete -->
+		{#if canDelete}
+			<AlertDialog.Root bind:open={bulkDeleteOpen}>
+				<AlertDialog.Trigger>
+					{#snippet child({ props })}
 						<Button
 							variant="destructive"
-							class="w-full sm:w-auto"
+							size="sm"
+							class="h-8 w-full text-xs min-[520px]:w-auto sm:h-7"
 							disabled={bulkLoading}
-							onclick={() => bulkAction('delete')}>{m.common_delete()}</Button
+							{...props}>{m.tc_bulk_delete()}</Button
 						>
-					</AlertDialog.Footer>
-				</AlertDialog.Content>
-			</AlertDialog.Portal>
-		</AlertDialog.Root>
-	{/if}
-
-	<Button
-		variant="ghost"
-		size="sm"
-		class="col-span-2 h-8 w-full text-xs min-[520px]:col-span-1 min-[520px]:w-auto sm:ml-auto sm:h-7"
-		onclick={onclear}
-	>
-		{m.common_cancel()}
-	</Button>
+					{/snippet}
+				</AlertDialog.Trigger>
+				<AlertDialog.Portal>
+					<AlertDialog.Overlay />
+					<AlertDialog.Content>
+						<AlertDialog.Header>
+							<AlertDialog.Title>{m.tc_bulk_delete_title()}</AlertDialog.Title>
+							<AlertDialog.Description>
+								{m.tc_bulk_delete_confirm({ count: selectedTcIds.size })}
+							</AlertDialog.Description>
+						</AlertDialog.Header>
+						<AlertDialog.Footer>
+							<AlertDialog.Cancel class="w-full sm:w-auto">{m.common_cancel()}</AlertDialog.Cancel>
+							<Button
+								variant="destructive"
+								class="w-full sm:w-auto"
+								disabled={bulkLoading}
+								onclick={() => bulkAction('delete')}>{m.common_delete()}</Button
+							>
+						</AlertDialog.Footer>
+					</AlertDialog.Content>
+				</AlertDialog.Portal>
+			</AlertDialog.Root>
+		{/if}
+	</div>
 </div>

@@ -28,8 +28,19 @@ describe('NotificationBell', () => {
 
 	it('does not show unread badge when count is 0', () => {
 		const { container } = render(NotificationBell, { props: { initialUnreadCount: 0 } });
-		const badge = container.querySelector('[aria-label*="unread"]');
-		expect(badge).toBeNull();
+		expect(container.querySelector('#notification-unread')).toBeNull();
+		expect(
+			screen.getByRole('button', { name: 'Notifications' }).hasAttribute('aria-describedby')
+		).toBe(false);
+	});
+
+	it('reads the unread count out through the button description, not a bare aria-label', () => {
+		const { container } = render(NotificationBell, { props: { initialUnreadCount: 5 } });
+		const button = screen.getByRole('button', { name: 'Notifications' });
+		const description = document.getElementById(button.getAttribute('aria-describedby') ?? '');
+		expect(description?.textContent).toBe('5 unread notifications');
+		// The number itself is only a visual cue.
+		expect(container.querySelector('[aria-hidden="true"]:not(svg)')?.textContent?.trim()).toBe('5');
 	});
 
 	it('shows 99+ when count exceeds 99', () => {

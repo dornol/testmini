@@ -228,6 +228,7 @@
 		aria-label={m.aria_notifications()}
 		aria-haspopup="dialog"
 		aria-expanded={open}
+		aria-describedby={unreadCount > 0 ? 'notification-unread' : undefined}
 		class="relative"
 	>
 		<svg
@@ -246,14 +247,17 @@
 			<path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
 		</svg>
 
-		<!-- Unread badge -->
+		<!-- Unread badge: the number is visual only; the count is read out via aria-describedby -->
 		{#if unreadCount > 0}
 			<span
-				class="bg-destructive text-destructive-foreground ring-background absolute -right-0.5 -top-0.5 flex h-2.5 min-w-2.5 items-center justify-center rounded-full px-px text-[7px] font-bold leading-none ring-1"
-				aria-label={m.aria_unread_notifications({ count: unreadCount })}
+				aria-hidden="true"
+				class="bg-destructive text-destructive-foreground ring-background absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-xs font-bold leading-none ring-1"
 			>
 				{unreadCount > 99 ? '99+' : unreadCount}
 			</span>
+			<span id="notification-unread" class="sr-only"
+				>{m.aria_unread_notifications({ count: unreadCount })}</span
+			>
 		{/if}
 	</Button>
 

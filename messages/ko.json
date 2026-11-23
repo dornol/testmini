@@ -1471,7 +1471,6 @@
 	"filter_apply": "적용",
 	"filter_showing_data_for": "표시 기간:",
 
-	"common_loading": "로딩 중...",
 	"common_expires": "만료: {date}",
 	"common_recipients": "{count}명의 수신자",
 	"common_comma_separated": "(쉼표로 구분)",

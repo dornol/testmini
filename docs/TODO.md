@@ -8,46 +8,46 @@
 
 The following core capabilities are **already implemented**:
 
-| # | Category | Status | Notes |
-|---|----------|--------|-------|
-| 1 | Test Case CRUD | Done | Create/edit/delete, steps, preconditions, expected results |
-| 2 | Hierarchy & Organization | Done | Groups (sections), tags, drag-and-drop sorting |
-| 3 | Version Control | Done | Per-version history, diff viewer, revision-based optimistic locking |
-| 4 | Test Runs & Execution | Done | Run creation, execution status (Pass/Fail/Blocked/Skipped), bulk pass, progress tracking |
-| 5 | Failure Details | Done | Environment, error message, stack trace, comments per failure |
-| 6 | Dashboard & Reporting | Done | Pass/fail rates, per-environment/priority stats, Chart.js charts, CSV export |
-| 7 | User & Permission Management | Done | Global roles (ADMIN/USER), project roles (PROJECT_ADMIN/QA/DEV/VIEWER) |
-| 8 | File Attachments | Done | Upload/download/delete, linked to test cases |
-| 9 | Real-time Sync | Done | SSE for test run execution screen, Redis Pub/Sub |
-| 10 | CI/Automation Integration | Done | Automation key, result ingestion API, GitHub Actions/GitLab CI webhooks |
-| 11 | REST API | Done | Full CRUD for all entities, API key auth |
-| 12 | i18n | Done | Korean + English (paraglide) |
-| 13 | OIDC/OAuth SSO | Done | Dynamic IdP management, PKCE, account linking |
-| 14 | Custom Priorities | Done | Per-project configurable priorities with colors and ordering |
-| 15 | Templates | Done | Test case templates for quick creation |
-| 16 | Test Suites | Done | Grouping test cases into reusable suites |
-| 17 | Soft Locking | Done | Redis/in-memory edit locking with UI indicators |
-| 18 | Bulk Operations | Done | Bulk tag/priority/group/delete/clone for test cases |
-| 19 | Import/Export | Done | CSV and JSON import/export for test cases |
-| 20 | In-App Notifications | Done | Bell UI, polling, mark as read; triggered by key events |
-| 21 | MCP Server | Done | Resources + tools via Streamable HTTP, API key auth |
-| 22 | Outgoing Webhooks | Done | Per-project webhook config, Slack/generic HTTP, HMAC signing, event filtering |
-| 23 | Issue Tracker Integration | Done | Jira, GitHub, GitLab, Gitea, Custom webhook; link/create issues from test cases/executions |
-| 24 | Custom Fields | Done | Per-project field definitions (text/number/select/date/checkbox/URL), JSONB storage |
-| 25 | Execution Comments | Done | Comments on test run executions, inline in execution table |
-| 26 | Traceability Matrix | Done | Requirements ↔ test cases mapping, coverage gap analysis, CSV export |
-| 27 | Saved Filters & Views | Done | Per-user saved filter presets, quick switching in test case list |
-| 28 | Issue Status Sync | Done | Fetch/sync issue status from Jira/GitHub/GitLab/Gitea, bidirectional links, inbound webhooks |
-| 29 | Report Export | Done | PDF generation, shareable links with tokens, scheduled report emails |
-| 30 | Parameterized Tests | Done | Parameters, data sets, CSV import, test run expansion, shared data library |
-| 31 | BDD/Gherkin Support | Done | Given/When/Then syntax editor, auto-parse into steps, format toggle |
-| 32 | Test Case Approval Workflow | Done | Draft → In Review → Approved/Rejected, approval history, notifications |
-| 33 | Exploratory Test Sessions | Done | Timer-based sessions, notes with types, screenshot upload, charter |
-| 34 | S3/MinIO Object Storage | Done | Optional S3-compatible backend for file uploads, env-driven with local fallback |
-| 35 | Environment Matrix | Done | Per-project configurable environments with colors and ordering, replaces hardcoded enum |
-| 36 | Mobile-Optimized Views | Done | Responsive breakpoints, scrollable tabs, column hiding, collapsible settings nav |
-| 37 | Test Plans | Done | Separate planning entity with lifecycle (Draft→Approved→Active→Completed), linked test cases and runs |
-| 38 | Team/Organization Hierarchy | Done | Teams above projects, OWNER/ADMIN/MEMBER roles, project assignment, backward compatible |
+| #   | Category                     | Status | Notes                                                                                                 |
+| --- | ---------------------------- | ------ | ----------------------------------------------------------------------------------------------------- |
+| 1   | Test Case CRUD               | Done   | Create/edit/delete, steps, preconditions, expected results                                            |
+| 2   | Hierarchy & Organization     | Done   | Groups (sections), tags, drag-and-drop sorting                                                        |
+| 3   | Version Control              | Done   | Per-version history, diff viewer, revision-based optimistic locking                                   |
+| 4   | Test Runs & Execution        | Done   | Run creation, execution status (Pass/Fail/Blocked/Skipped), bulk pass, progress tracking              |
+| 5   | Failure Details              | Done   | Environment, error message, stack trace, comments per failure                                         |
+| 6   | Dashboard & Reporting        | Done   | Pass/fail rates, per-environment/priority stats, Chart.js charts, CSV export                          |
+| 7   | User & Permission Management | Done   | Global roles (ADMIN/USER), project roles (PROJECT_ADMIN/QA/DEV/VIEWER)                                |
+| 8   | File Attachments             | Done   | Upload/download/delete, linked to test cases                                                          |
+| 9   | Real-time Sync               | Done   | SSE for test run execution screen, Redis Pub/Sub                                                      |
+| 10  | CI/Automation Integration    | Done   | Automation key, result ingestion API, GitHub Actions/GitLab CI webhooks                               |
+| 11  | REST API                     | Done   | Full CRUD for all entities, API key auth                                                              |
+| 12  | i18n                         | Done   | Korean + English (paraglide)                                                                          |
+| 13  | OIDC/OAuth SSO               | Done   | Dynamic IdP management, PKCE, account linking                                                         |
+| 14  | Custom Priorities            | Done   | Per-project configurable priorities with colors and ordering                                          |
+| 15  | Templates                    | Done   | Test case templates for quick creation                                                                |
+| 16  | Test Suites                  | Done   | Grouping test cases into reusable suites                                                              |
+| 17  | Soft Locking                 | Done   | Redis/in-memory edit locking with UI indicators                                                       |
+| 18  | Bulk Operations              | Done   | Bulk tag/priority/group/delete/clone for test cases                                                   |
+| 19  | Import/Export                | Done   | CSV and JSON import/export for test cases                                                             |
+| 20  | In-App Notifications         | Done   | Bell UI, polling, mark as read; triggered by key events                                               |
+| 21  | MCP Server                   | Done   | Resources + tools via Streamable HTTP, API key auth                                                   |
+| 22  | Outgoing Webhooks            | Done   | Per-project webhook config, Slack/generic HTTP, HMAC signing, event filtering                         |
+| 23  | Issue Tracker Integration    | Done   | Jira, GitHub, GitLab, Gitea, Custom webhook; link/create issues from test cases/executions            |
+| 24  | Custom Fields                | Done   | Per-project field definitions (text/number/select/date/checkbox/URL), JSONB storage                   |
+| 25  | Execution Comments           | Done   | Comments on test run executions, inline in execution table                                            |
+| 26  | Traceability Matrix          | Done   | Requirements ↔ test cases mapping, coverage gap analysis, CSV export                                  |
+| 27  | Saved Filters & Views        | Done   | Per-user saved filter presets, quick switching in test case list                                      |
+| 28  | Issue Status Sync            | Done   | Fetch/sync issue status from Jira/GitHub/GitLab/Gitea, bidirectional links, inbound webhooks          |
+| 29  | Report Export                | Done   | PDF generation, shareable links with tokens, scheduled report emails                                  |
+| 30  | Parameterized Tests          | Done   | Parameters, data sets, CSV import, test run expansion, shared data library                            |
+| 31  | BDD/Gherkin Support          | Done   | Given/When/Then syntax editor, auto-parse into steps, format toggle                                   |
+| 32  | Test Case Approval Workflow  | Done   | Draft → In Review → Approved/Rejected, approval history, notifications                                |
+| 33  | Exploratory Test Sessions    | Done   | Timer-based sessions, notes with types, screenshot upload, charter                                    |
+| 34  | S3/MinIO Object Storage      | Done   | Optional S3-compatible backend for file uploads, env-driven with local fallback                       |
+| 35  | Environment Matrix           | Done   | Per-project configurable environments with colors and ordering, replaces hardcoded enum               |
+| 36  | Mobile-Optimized Views       | Done   | Responsive breakpoints, scrollable tabs, column hiding, collapsible settings nav                      |
+| 37  | Test Plans                   | Done   | Separate planning entity with lifecycle (Draft→Approved→Active→Completed), linked test cases and runs |
+| 38  | Team/Organization Hierarchy  | Done   | Teams above projects, OWNER/ADMIN/MEMBER roles, project assignment, backward compatible               |
 
 ---
 
@@ -352,16 +352,16 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ### 15.3 Benchmarked Endpoints
 
-| Tier | Endpoint | Notes |
-|------|----------|-------|
-| Critical | Dashboard page | 6+ queries, 5-min cache |
-| Critical | Test cases list | Full load, no pagination |
-| Critical | Test runs list | Paginated with subqueries |
-| High | Bulk operations | Up to 200 items, transactional |
-| High | Trends report | Aggregate queries with HAVING |
-| High | Requirements matrix | DISTINCT ON, multiple joins |
-| Medium | SSE events | Connection scalability |
-| Medium | Import/export | Streaming, file processing |
+| Tier     | Endpoint            | Notes                          |
+| -------- | ------------------- | ------------------------------ |
+| Critical | Dashboard page      | 6+ queries, 5-min cache        |
+| Critical | Test cases list     | Full load, no pagination       |
+| Critical | Test runs list      | Paginated with subqueries      |
+| High     | Bulk operations     | Up to 200 items, transactional |
+| High     | Trends report       | Aggregate queries with HAVING  |
+| High     | Requirements matrix | DISTINCT ON, multiple joins    |
+| Medium   | SSE events          | Connection scalability         |
+| Medium   | Import/export       | Streaming, file processing     |
 
 ---
 
@@ -420,14 +420,14 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ### 17.2 High-Coverage Modules
 
-| Module | Stmts | Notes |
-|--------|-------|-------|
-| `src/lib/utils/*` | 100% | percentile, navigation, unsaved-guard |
-| `src/lib/server/db/pool-config.ts` | 100% | Connection pool config |
-| `src/lib/server/db/query-logger.ts` | 100% | Query timing/logging |
-| `src/lib/server/mcp/server.ts` | 99% | MCP server |
-| `src/lib/schemas/*` | 100% | Zod validation schemas |
-| `src/lib/server/cache.ts` | 98% | TTL cache with stats |
+| Module                              | Stmts | Notes                                 |
+| ----------------------------------- | ----- | ------------------------------------- |
+| `src/lib/utils/*`                   | 100%  | percentile, navigation, unsaved-guard |
+| `src/lib/server/db/pool-config.ts`  | 100%  | Connection pool config                |
+| `src/lib/server/db/query-logger.ts` | 100%  | Query timing/logging                  |
+| `src/lib/server/mcp/server.ts`      | 99%   | MCP server                            |
+| `src/lib/schemas/*`                 | 100%  | Zod validation schemas                |
+| `src/lib/server/cache.ts`           | 98%   | TTL cache with stats                  |
 
 ---
 
@@ -488,28 +488,33 @@ Link test results to external issue trackers for end-to-end traceability.
 ### 20.2 New Tools (31) -- Done
 
 **Test Case Management:**
+
 - [x] `delete-test-case` -- delete by ID or key
 - [x] `complete-test-run` -- set run status to COMPLETED
 - [x] `update-approval-status` -- DRAFT → IN_REVIEW → APPROVED/REJECTED workflow
 
 **Tags (4):**
+
 - [x] `create-tag` -- create new tag
 - [x] `delete-tag` -- delete tag by ID
 - [x] `add-tag-to-test-case` -- tag a test case
 - [x] `remove-tag-from-test-case` -- untag a test case
 
 **Groups (3):**
+
 - [x] `list-groups` -- list test case groups/sections
 - [x] `create-group` -- create new group
 - [x] `delete-group` -- delete group (unassigns test cases)
 
 **Test Suites (4):**
+
 - [x] `get-test-suite` -- suite detail with test cases
 - [x] `create-test-suite` -- create new suite
 - [x] `add-suite-items` -- add test cases to suite
 - [x] `remove-suite-items` -- remove test cases from suite
 
 **Test Plans (6):**
+
 - [x] `get-test-plan` -- plan detail with test cases
 - [x] `create-test-plan` -- create plan with milestone/dates
 - [x] `update-test-plan` -- update name/status/milestone/dates
@@ -518,26 +523,31 @@ Link test results to external issue trackers for end-to-end traceability.
 - [x] `create-run-from-plan` -- generate test run from plan
 
 **Templates (3):**
+
 - [x] `get-template` -- template detail
 - [x] `create-template` -- create new template
 - [x] `create-test-case-from-template` -- create test case from template
 
 **Requirements & Traceability (3):**
+
 - [x] `create-requirement` -- create new requirement
 - [x] `link-requirement-test-case` -- link requirement to test case
 - [x] `get-traceability-matrix` -- coverage matrix with stats
 
 **Issue Links (2):**
+
 - [x] `list-issue-links` -- list issue links (filter by test case/execution)
 - [x] `create-issue-link` -- link external issue
 
 **Exploratory Sessions (4):**
+
 - [x] `create-exploratory-session` -- start new session
 - [x] `get-exploratory-session` -- session detail with notes
 - [x] `update-exploratory-session` -- pause/resume/complete
 - [x] `add-session-note` -- add note (NOTE/BUG/QUESTION/IDEA)
 
 **Comments (3):**
+
 - [x] `add-test-case-comment` -- comment on test case
 - [x] `list-test-case-comments` -- list test case comments
 - [x] `add-execution-comment` -- comment on test execution
@@ -815,6 +825,8 @@ Link test results to external issue trackers for end-to-end traceability.
 
 ## Future Considerations
 
-| Feature | Priority | Notes |
-|---------|----------|-------|
-| Bulk execution via CLI | Low | `testmini exec --run 123` for headless execution recording |
+| Feature                            | Priority | Notes                                                                                                                                                                                                                                                                                      |
+| ---------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Bulk execution via CLI             | Low      | `testmini exec --run 123` for headless execution recording                                                                                                                                                                                                                                 |
+| Distinguish password change errors | Low      | `changePassword` in `src/routes/account/profile/+page.server.ts` reports every Better Auth failure as `password_wrong`, so a rate limit or server error reads as "current password is incorrect". Map the error code (wrong password, too short, rate limited, other) to separate results. |
+| Localize execution statuses        | Low      | `PASS`, `FAIL`, `BLOCKED`, `SKIPPED`, `PENDING`, `IN PROGRESS` are shown as raw enum text on run lists, run details, comparison, traceability and reports. Add a shared label helper plus message keys (ko/en) and use it everywhere.                                                      |

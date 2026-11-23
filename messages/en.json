@@ -1471,7 +1471,6 @@
 	"filter_apply": "Apply",
 	"filter_showing_data_for": "Showing data for:",
 
-	"common_loading": "Loading...",
 	"common_expires": "Expires: {date}",
 	"common_recipients": "{count} recipients",
 	"common_comma_separated": "(comma-separated)",

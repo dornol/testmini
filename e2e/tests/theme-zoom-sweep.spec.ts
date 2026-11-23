@@ -8,7 +8,7 @@ import { test, expect } from '../fixtures/auth.fixture';
  * serious/critical axe findings (which include colour contrast) or horizontal overflow.
  * Slow, so it only runs with E2E_SWEEP=1 (`pnpm test:e2e:sweep`).
  * Set SWEEP_SHOTS=<dir> to also save a screenshot of every visit for manual review, and
- * SWEEP_ONLY=<regex> to open overlays only on matching paths (full run: about 25 min).
+ * SWEEP_ONLY=<regex> to visit only matching paths (full run: about 25 min).
  */
 
 const MODES = [
@@ -26,7 +26,7 @@ type Finding = { mode: string; path: string; issue: string };
  * Text under 12px is counted on every screen and reported at the end. Screens listed here have
  * been cleaned up, so any small text on them fails the sweep. Add a screen once it is done.
  */
-const SMALL_TEXT_ENFORCED = [/\/test-runs$/, /\/test-runs\/compare/];
+const SMALL_TEXT_ENFORCED = [/\/test-runs$/, /\/test-runs\/compare/, /\/test-cases$/];
 
 test.describe.serial('Dark mode and 200% zoom sweep', () => {
 	test.skip(!process.env.E2E_SWEEP, 'Slow (about 5 min). Run it with `pnpm test:e2e:sweep`.');
@@ -342,7 +342,8 @@ test.describe.serial('Dark mode and 200% zoom sweep', () => {
 			test.use({ viewport: mode.viewport, colorScheme: mode.colorScheme });
 			test(`sweep ${mode.name}`, async ({ page }) => {
 				test.setTimeout(900_000);
-				for (const path of paths) await check(page, mode.name, path);
+				const only = process.env.SWEEP_ONLY ? new RegExp(process.env.SWEEP_ONLY) : null;
+				for (const path of paths) if (!only || only.test(path)) await check(page, mode.name, path);
 			});
 		});
 	}

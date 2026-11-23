@@ -39,7 +39,7 @@
 </script>
 
 <div
-	class="sticky top-0 z-10 flex items-center gap-2 rounded-t-lg border-x border-t border-b bg-card px-3 py-1.5 text-[10px] font-medium tracking-wider text-muted-foreground uppercase"
+	class="sticky top-0 z-10 flex items-center gap-2 rounded-t-lg border-x border-t border-b bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground"
 >
 	{#if canEdit}
 		<input
@@ -61,7 +61,7 @@
 			<span class="hidden w-16 shrink-0 text-center md:block">{m.common_priority()}</span>
 		{:else if colId === 'tags'}
 			{#if projectTagsCount > 0 || canEdit}
-				<span class="hidden w-28 shrink-0 text-center lg:block">{m.tag_title()}</span>
+				<span class="hidden w-32 shrink-0 text-center lg:block">{m.tag_title()}</span>
 			{/if}
 		{:else if colId === 'assignees'}
 			<span class="hidden w-16 shrink-0 text-center lg:block">{m.assignee_title()}</span>

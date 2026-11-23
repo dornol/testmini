@@ -1241,13 +1241,13 @@
 									d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
 								/></svg
 							>
-							<span class="text-[10px]">{tc.issueLinkCount}</span>
+							<span class="text-xs">{tc.issueLinkCount}</span>
 						</span>
 					{/if}
 					<!-- Approval Status (always after title) -->
 					{#if tc.approvalStatus && tc.approvalStatus !== 'DRAFT'}
 						<span
-							class="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none {tc.approvalStatus ===
+							class="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium leading-none {tc.approvalStatus ===
 							'IN_REVIEW'
 								? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
 								: tc.approvalStatus === 'APPROVED'
@@ -1290,7 +1290,7 @@
 								type="button"
 								data-tag-popover
 								aria-label={m.aria_manage_tags()}
-								class="w-28 shrink-0 gap-0.5 items-center overflow-hidden hidden lg:flex cursor-pointer rounded hover:bg-muted/50 transition-colors px-0.5 -mx-0.5"
+								class="w-32 shrink-0 gap-0.5 items-center overflow-hidden hidden lg:flex cursor-pointer rounded hover:bg-muted/50 transition-colors px-0.5 -mx-0.5"
 								onclick={(e) => {
 									e.stopPropagation();
 									openTagPopover(tc.id, e);
@@ -1299,14 +1299,13 @@
 								{#if tc.tags && tc.tags.length > 0}
 									{#each tc.tags.slice(0, 3) as t (t.id)}
 										<span
-											class="rounded border px-1 py-px text-[10px] leading-tight font-medium truncate max-w-[4rem] text-foreground"
+											class="rounded border px-1 py-px text-xs leading-tight font-medium truncate max-w-[4.5rem] text-foreground"
 											style="background-color: {t.color}20; border-color: {t.color}60"
 											data-tip={t.name}>{t.name}</span
 										>
 									{/each}
 									{#if tc.tags.length > 3}
-										<span class="text-[10px] text-muted-foreground shrink-0"
-											>+{tc.tags.length - 3}</span
+										<span class="text-xs text-muted-foreground shrink-0">+{tc.tags.length - 3}</span
 										>
 									{/if}
 								{:else}
@@ -1314,18 +1313,17 @@
 								{/if}
 							</button>
 						{:else}
-							<div class="w-28 shrink-0 gap-0.5 items-center overflow-hidden hidden lg:flex">
+							<div class="w-32 shrink-0 gap-0.5 items-center overflow-hidden hidden lg:flex">
 								{#if tc.tags && tc.tags.length > 0}
 									{#each tc.tags.slice(0, 3) as t (t.id)}
 										<span
-											class="rounded border px-1 py-px text-[10px] leading-tight font-medium truncate max-w-[4rem] text-foreground"
+											class="rounded border px-1 py-px text-xs leading-tight font-medium truncate max-w-[4.5rem] text-foreground"
 											style="background-color: {t.color}20; border-color: {t.color}60"
 											data-tip={t.name}>{t.name}</span
 										>
 									{/each}
 									{#if tc.tags.length > 3}
-										<span class="text-[10px] text-muted-foreground shrink-0"
-											>+{tc.tags.length - 3}</span
+										<span class="text-xs text-muted-foreground shrink-0">+{tc.tags.length - 3}</span
 										>
 									{/if}
 								{/if}

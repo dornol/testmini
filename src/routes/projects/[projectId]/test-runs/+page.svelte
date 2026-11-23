@@ -297,13 +297,13 @@
 							>{m.common_environment()}</Table.Head
 						>
 						<Table.Head class="w-24 py-1 px-2 text-xs">{m.common_status()}</Table.Head>
-						<Table.Head class="w-36 py-1 px-2 text-xs hidden md:table-cell"
+						<Table.Head class="w-48 py-1 px-2 text-xs hidden md:table-cell"
 							>{m.tr_progress()}</Table.Head
 						>
-						<Table.Head class="w-24 py-1 px-2 text-xs hidden lg:table-cell"
+						<Table.Head class="w-24 py-1 px-2 text-xs hidden xl:table-cell"
 							>{m.tr_created_by()}</Table.Head
 						>
-						<Table.Head class="w-28 py-1 px-2 text-xs hidden lg:table-cell"
+						<Table.Head class="w-28 py-1 px-2 text-xs hidden xl:table-cell"
 							>{m.tr_created_at()}</Table.Head
 						>
 						{#if canExecute}
@@ -338,20 +338,20 @@
 										>{run.name}</a
 									>
 									{#if run.retestOfRunId}
-										<Badge variant="secondary" class="text-[9px] px-1 py-0"
+										<Badge variant="secondary" class="px-1.5 py-0 text-xs"
 											>{m.tr_retest_badge()}</Badge
 										>
 									{/if}
 								</div>
-								<div class="text-muted-foreground sm:hidden text-[10px]">
+								<div class="text-muted-foreground sm:hidden text-xs">
 									{run.environment} &middot; {pct}%
 								</div>
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2 hidden sm:table-cell">
-								<Badge variant="outline" class="text-[10px] px-1.5 py-0">{run.environment}</Badge>
+								<Badge variant="outline" class="px-1.5 py-0 text-xs">{run.environment}</Badge>
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2">
-								<Badge variant={statusVariant(run.status)} class="text-[10px] px-1.5 py-0">
+								<Badge variant={statusVariant(run.status)} class="px-1.5 py-0 text-xs">
 									{run.status.replace('_', ' ')}
 								</Badge>
 							</Table.Cell>
@@ -366,15 +366,15 @@
 											style="width: {pct}%"
 										></div>
 									</div>
-									<span class="text-muted-foreground w-16 text-right text-[10px]">
+									<span class="text-muted-foreground w-24 text-right text-xs whitespace-nowrap">
 										{pct}% ({run.passedCount}/{run.totalCount})
 									</span>
 								</div>
 							</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden lg:table-cell"
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden xl:table-cell"
 								>{run.createdBy}</Table.Cell
 							>
-							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden lg:table-cell">
+							<Table.Cell class="text-muted-foreground py-1 px-2 text-xs hidden xl:table-cell">
 								{new Date(run.createdAt).toLocaleDateString()}
 							</Table.Cell>
 							{#if canExecute}

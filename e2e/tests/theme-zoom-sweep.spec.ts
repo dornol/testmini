@@ -22,6 +22,12 @@ const MODES = [
 
 type Finding = { mode: string; path: string; issue: string };
 
+/**
+ * Text under 12px is counted on every screen and reported at the end. Screens listed here have
+ * been cleaned up, so any small text on them fails the sweep. Add a screen once it is done.
+ */
+const SMALL_TEXT_ENFORCED = [/\/test-runs$/, /\/test-runs\/compare/];
+
 test.describe.serial('Dark mode and 200% zoom sweep', () => {
 	test.skip(!process.env.E2E_SWEEP, 'Slow (about 5 min). Run it with `pnpm test:e2e:sweep`.');
 	const key = randomUUID().slice(0, 8);
@@ -29,6 +35,7 @@ test.describe.serial('Dark mode and 200% zoom sweep', () => {
 	let headers: Record<string, string>;
 	let paths: string[] = [];
 	const findings: Finding[] = [];
+	const smallText = new Map<string, string[]>();
 	const providerName = `Sweep provider ${key}`;
 
 	const idOf = (json: { id?: number; data?: { id: number } }) => (json.id ?? json.data?.id)!;
@@ -296,6 +303,34 @@ test.describe.serial('Dark mode and 200% zoom sweep', () => {
 				path,
 				issue: `layout x${layout.length}: ${layout.slice(0, 3).join(' | ')}`
 			});
+		// Font size does not change between the modes, so measure once.
+		if (mode === 'dark-1440') {
+			const small = await page.evaluate(() => {
+				const out: string[] = [];
+				for (const el of document.querySelectorAll('body *')) {
+					if (el.closest('kbd, script, style, [aria-hidden=true], .sr-only')) continue;
+					const cs = getComputedStyle(el);
+					if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+					const own = Array.from(el.childNodes)
+						.filter((n) => n.nodeType === 3)
+						.map((n) => n.textContent?.trim() ?? '')
+						.filter(Boolean)
+						.join(' ');
+					const size = parseFloat(cs.fontSize);
+					// Short counters such as "+3" are allowed; real labels and values are not.
+					if (own.length >= 3 && size < 12)
+						out.push(`${size}px ${el.tagName.toLowerCase()} "${own.slice(0, 22)}"`);
+				}
+				return out;
+			});
+			smallText.set(path, small);
+			if (small.length && SMALL_TEXT_ENFORCED.some((re) => re.test(path)))
+				findings.push({
+					mode,
+					path,
+					issue: `text under 12px x${small.length}: ${small.slice(0, 3).join(' | ')}`
+				});
+		}
 		const overflow = await page.evaluate(
 			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
 		);
@@ -482,6 +517,14 @@ test.describe.serial('Dark mode and 200% zoom sweep', () => {
 	});
 
 	test('no serious findings', () => {
+		const small = [...smallText]
+			.filter(([, list]) => list.length)
+			.sort((a, b) => b[1].length - a[1].length);
+		if (small.length)
+			console.log(
+				`SMALL TEXT (<12px): ${small.reduce((n, [, l]) => n + l.length, 0)} elements on ${small.length} screens\n` +
+					small.map(([path, list]) => `  ${String(list.length).padStart(3)}  ${path}`).join('\n')
+			);
 		const lines = findings.map((f) => `${f.mode}  ${f.path}\n    ${f.issue}`);
 		if (lines.length) console.log(`SWEEP FINDINGS (${lines.length})\n${lines.join('\n')}`);
 		expect(lines).toEqual([]);

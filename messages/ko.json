@@ -1582,6 +1582,7 @@
 	"ui_step_move_down": "{n}단계 아래로 이동",
 	"ui_step_remove": "{n}단계 삭제",
 	"ui_filters": "검색 및 필터",
+	"ui_filters_short": "필터",
 	"ui_required": "필수",
 	"ui_test_case_saved": "테스트 케이스를 수정했습니다",
 	"ui_test_case_details": "테스트 케이스의 상세 정보, 단계 및 활동을 확인하세요.",

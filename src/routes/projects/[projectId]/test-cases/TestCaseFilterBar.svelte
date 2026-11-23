@@ -80,6 +80,16 @@
 		customFieldFilters,
 		savedFilters
 	}: Props = $props();
+
+	// Phones show the search and one toggle; the rest of the filters open on request.
+	let filtersOpen = $state(false);
+	const activeFilterCount = $derived(
+		[priority, tagIds, groupId, createdBy, assigneeId, suiteId, execStatus, approvalStatus].filter(
+			Boolean
+		).length +
+			(selectedRunIds.length > 0 ? 1 : 0) +
+			customFieldFilters.length
+	);
 	const execStatusOptions = ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING', 'NOT_EXECUTED'];
 	const approvalStatusOptions = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'REJECTED'];
 	const selectedApprovalStatuses = $derived(parseMulti(approvalStatus));
@@ -197,413 +207,427 @@
 
 	<Input
 		placeholder={m.tc_search_placeholder()}
-		class="h-8 w-full sm:max-w-xs"
+		class="h-8 min-w-32 flex-1 sm:w-full sm:max-w-xs sm:flex-none"
 		bind:value={searchInput}
 		oninput={handleSearch}
 		aria-label={m.tc_search_placeholder()}
 	/>
-
-	<!-- Priority filter -->
-	<Popover.Root>
-		<Popover.Trigger>
-			{#snippet child({ props })}
-				<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
-					{m.common_priority()}{selectedPriorities.length > 0
-						? ` (${selectedPriorities.length})`
-						: ''}
-				</Button>
-			{/snippet}
-		</Popover.Trigger>
-		<Popover.Content class="w-40 p-2" align="start">
-			{#each projectPriorities as p (p.id)}
-				<label
-					class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
-				>
-					<Checkbox
-						checked={selectedPriorities.includes(p.name)}
-						onCheckedChange={() => toggleFilter('priority', p.name)}
-					/>
-					<PriorityBadge name={p.name} color={p.color} />
-				</label>
-			{/each}
-		</Popover.Content>
-	</Popover.Root>
-
-	<!-- Approval status filter -->
-	<Popover.Root>
-		<Popover.Trigger>
-			{#snippet child({ props })}
-				<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
-					{m.approval_filter()}{selectedApprovalStatuses.length > 0
-						? ` (${selectedApprovalStatuses.length})`
-						: ''}
-				</Button>
-			{/snippet}
-		</Popover.Trigger>
-		<Popover.Content class="w-40 p-2" align="start">
-			{#each approvalStatusOptions as st}
-				{@const label =
-					st === 'DRAFT'
-						? m.approval_draft()
-						: st === 'IN_REVIEW'
-							? m.approval_in_review()
-							: st === 'APPROVED'
-								? m.approval_approved()
-								: m.approval_rejected()}
-				<label
-					class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
-				>
-					<Checkbox
-						checked={selectedApprovalStatuses.includes(st)}
-						onCheckedChange={() => toggleFilter('approvalStatus', st)}
-					/>
-					{label}
-				</label>
-			{/each}
-		</Popover.Content>
-	</Popover.Root>
-
-	<!-- Retest needed filter -->
 	<Button
-		aria-pressed={page.url.searchParams.get('retestNeeded') === 'true'}
-		variant={page.url.searchParams.get('retestNeeded') === 'true' ? 'default' : 'outline'}
+		variant={activeFilterCount > 0 ? 'secondary' : 'outline'}
 		size="sm"
-		class="h-8 px-2 text-xs"
-		onclick={() => {
-			const params = new URLSearchParams(page.url.searchParams);
-			if (params.get('retestNeeded') === 'true') {
-				params.delete('retestNeeded');
-			} else {
-				params.set('retestNeeded', 'true');
-			}
-			goto(`${basePath}?${params.toString()}`);
-		}}
+		class="h-8 px-3 text-xs min-[640px]:hidden"
+		aria-expanded={filtersOpen}
+		aria-controls="tc-filter-panel"
+		onclick={() => (filtersOpen = !filtersOpen)}
 	>
-		{m.retest_filter()}
+		{m.ui_filters_short()}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
 	</Button>
 
-	<!-- Suite filter -->
-	{#if projectSuites.length > 0}
+	<div id="tc-filter-panel" class={filtersOpen ? 'contents' : 'hidden min-[640px]:contents'}>
+		<!-- Priority filter -->
 		<Popover.Root>
 			<Popover.Trigger>
 				{#snippet child({ props })}
 					<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
-						{m.tc_filter_suite()}{selectedSuiteIds.length > 0
-							? ` (${selectedSuiteIds.length})`
+						{m.common_priority()}{selectedPriorities.length > 0
+							? ` (${selectedPriorities.length})`
 							: ''}
 					</Button>
 				{/snippet}
 			</Popover.Trigger>
-			<Popover.Content class="w-[min(16rem,calc(100vw-2rem))] p-2" align="start">
-				{#each projectSuites as s (s.id)}
+			<Popover.Content class="w-40 p-2" align="start">
+				{#each projectPriorities as p (p.id)}
 					<label
 						class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
 					>
 						<Checkbox
-							checked={selectedSuiteIds.includes(String(s.id))}
-							onCheckedChange={() => toggleFilter('suiteId', String(s.id))}
+							checked={selectedPriorities.includes(p.name)}
+							onCheckedChange={() => toggleFilter('priority', p.name)}
 						/>
-						<span class="min-w-0 flex-1 truncate" title={s.name}>{s.name}</span>
+						<PriorityBadge name={p.name} color={p.color} />
 					</label>
 				{/each}
 			</Popover.Content>
 		</Popover.Root>
-	{/if}
 
-	<!-- Execution status filter (only when runs are selected) -->
-	{#if selectedRunIds.length > 0}
+		<!-- Approval status filter -->
 		<Popover.Root>
 			<Popover.Trigger>
 				{#snippet child({ props })}
 					<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
-						{m.tc_filter_exec_status()}{selectedExecStatuses.length > 0
-							? ` (${selectedExecStatuses.length})`
+						{m.approval_filter()}{selectedApprovalStatuses.length > 0
+							? ` (${selectedApprovalStatuses.length})`
 							: ''}
 					</Button>
 				{/snippet}
 			</Popover.Trigger>
-			<Popover.Content class="w-44 p-2" align="start">
-				{#each execStatusOptions as st}
+			<Popover.Content class="w-40 p-2" align="start">
+				{#each approvalStatusOptions as st}
+					{@const label =
+						st === 'DRAFT'
+							? m.approval_draft()
+							: st === 'IN_REVIEW'
+								? m.approval_in_review()
+								: st === 'APPROVED'
+									? m.approval_approved()
+									: m.approval_rejected()}
 					<label
 						class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
 					>
 						<Checkbox
-							checked={selectedExecStatuses.includes(st)}
-							onCheckedChange={() => toggleFilter('execStatus', st)}
+							checked={selectedApprovalStatuses.includes(st)}
+							onCheckedChange={() => toggleFilter('approvalStatus', st)}
 						/>
-						<span class={statusColorText(st)}>{st}</span>
+						{label}
 					</label>
 				{/each}
 			</Popover.Content>
 		</Popover.Root>
-	{/if}
 
-	<!-- Group filter (single-select) -->
-	{#if groups.length > 0}
-		{@const selectedGroupName =
-			selectedGroupId === 'uncategorized'
-				? m.tc_filter_uncategorized()
-				: groups.find((g) => String(g.id) === selectedGroupId)?.name}
-		<Popover.Root>
-			<Popover.Trigger>
-				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-8 px-2 text-xs gap-1" {...props}>
-						{selectedGroupName ?? m.tc_filter_group()}
-						{#if selectedGroupId}
-							<span
-								class="ml-0.5 -mr-1 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
-								onclick={(e) => {
-									e.stopPropagation();
-									setSingleFilter('groupId', selectedGroupId);
-								}}
-								onkeydown={(e) => {
-									if (e.key === 'Enter' || e.key === ' ') {
-										e.preventDefault();
+		<!-- Retest needed filter -->
+		<Button
+			aria-pressed={page.url.searchParams.get('retestNeeded') === 'true'}
+			variant={page.url.searchParams.get('retestNeeded') === 'true' ? 'default' : 'outline'}
+			size="sm"
+			class="h-8 px-2 text-xs"
+			onclick={() => {
+				const params = new URLSearchParams(page.url.searchParams);
+				if (params.get('retestNeeded') === 'true') {
+					params.delete('retestNeeded');
+				} else {
+					params.set('retestNeeded', 'true');
+				}
+				goto(`${basePath}?${params.toString()}`);
+			}}
+		>
+			{m.retest_filter()}
+		</Button>
+
+		<!-- Suite filter -->
+		{#if projectSuites.length > 0}
+			<Popover.Root>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
+							{m.tc_filter_suite()}{selectedSuiteIds.length > 0
+								? ` (${selectedSuiteIds.length})`
+								: ''}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content class="w-[min(16rem,calc(100vw-2rem))] p-2" align="start">
+					{#each projectSuites as s (s.id)}
+						<label
+							class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
+						>
+							<Checkbox
+								checked={selectedSuiteIds.includes(String(s.id))}
+								onCheckedChange={() => toggleFilter('suiteId', String(s.id))}
+							/>
+							<span class="min-w-0 flex-1 truncate" title={s.name}>{s.name}</span>
+						</label>
+					{/each}
+				</Popover.Content>
+			</Popover.Root>
+		{/if}
+
+		<!-- Execution status filter (only when runs are selected) -->
+		{#if selectedRunIds.length > 0}
+			<Popover.Root>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
+							{m.tc_filter_exec_status()}{selectedExecStatuses.length > 0
+								? ` (${selectedExecStatuses.length})`
+								: ''}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content class="w-44 p-2" align="start">
+					{#each execStatusOptions as st}
+						<label
+							class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
+						>
+							<Checkbox
+								checked={selectedExecStatuses.includes(st)}
+								onCheckedChange={() => toggleFilter('execStatus', st)}
+							/>
+							<span class={statusColorText(st)}>{st}</span>
+						</label>
+					{/each}
+				</Popover.Content>
+			</Popover.Root>
+		{/if}
+
+		<!-- Group filter (single-select) -->
+		{#if groups.length > 0}
+			{@const selectedGroupName =
+				selectedGroupId === 'uncategorized'
+					? m.tc_filter_uncategorized()
+					: groups.find((g) => String(g.id) === selectedGroupId)?.name}
+			<Popover.Root>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" size="sm" class="h-8 px-2 text-xs gap-1" {...props}>
+							{selectedGroupName ?? m.tc_filter_group()}
+							{#if selectedGroupId}
+								<span
+									class="ml-0.5 -mr-1 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
+									onclick={(e) => {
 										e.stopPropagation();
 										setSingleFilter('groupId', selectedGroupId);
-									}
-								}}
-								role="button"
-								tabindex="-1"
-								aria-label={m.aria_clear_filter()}
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="10"
-									height="10"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="3"
-									stroke-linecap="round"
-									stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
+									}}
+									onkeydown={(e) => {
+										if (e.key === 'Enter' || e.key === ' ') {
+											e.preventDefault();
+											e.stopPropagation();
+											setSingleFilter('groupId', selectedGroupId);
+										}
+									}}
+									role="button"
+									tabindex="-1"
+									aria-label={m.aria_clear_filter()}
 								>
-							</span>
-						{/if}
-					</Button>
-				{/snippet}
-			</Popover.Trigger>
-			<Popover.Content class="w-[min(16rem,calc(100vw-2rem))] p-1" align="start">
-				<button
-					type="button"
-					class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer {selectedGroupId ===
-					'uncategorized'
-						? 'bg-muted font-medium'
-						: ''}"
-					onclick={() => setSingleFilter('groupId', 'uncategorized')}
-				>
-					{m.tc_filter_uncategorized()}
-				</button>
-				{#each groups as g (g.id)}
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="10"
+										height="10"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="3"
+										stroke-linecap="round"
+										stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
+									>
+								</span>
+							{/if}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content class="w-[min(16rem,calc(100vw-2rem))] p-1" align="start">
 					<button
 						type="button"
 						class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer {selectedGroupId ===
-						String(g.id)
+						'uncategorized'
 							? 'bg-muted font-medium'
 							: ''}"
-						onclick={() => setSingleFilter('groupId', String(g.id))}
+						onclick={() => setSingleFilter('groupId', 'uncategorized')}
 					>
-						{#if g.color}
-							<span
-								class="inline-block h-2 w-2 shrink-0 rounded-full"
-								style="background-color: {g.color}"
-							></span>
-						{/if}
-						<span class="min-w-0 flex-1 truncate" title={g.name}>{g.name}</span>
+						{m.tc_filter_uncategorized()}
 					</button>
-				{/each}
-			</Popover.Content>
-		</Popover.Root>
-	{/if}
-
-	<!-- Tag filter -->
-	{#if projectTags.length > 0}
-		<Popover.Root>
-			<Popover.Trigger>
-				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
-						{m.nav_tags()}{selectedTagIds.length > 0 ? ` (${selectedTagIds.length})` : ''}
-					</Button>
-				{/snippet}
-			</Popover.Trigger>
-			<Popover.Content class="w-[min(16rem,calc(100vw-2rem))] p-2" align="start">
-				{#each projectTags as t (t.id)}
-					<label
-						class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
-					>
-						<Checkbox
-							checked={selectedTagIds.includes(t.id)}
-							onCheckedChange={() => toggleFilter('tagIds', String(t.id))}
-						/>
-						<span class="inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"
-						></span>
-						<span class="min-w-0 flex-1 truncate" title={t.name}>{t.name}</span>
-					</label>
-				{/each}
-			</Popover.Content>
-		</Popover.Root>
-	{/if}
-
-	<!-- CreatedBy filter -->
-	{#if projectMembers.length > 0}
-		<Popover.Root>
-			<Popover.Trigger>
-				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
-						{m.tc_filter_created_by()}{selectedCreatedByIds.length > 0
-							? ` (${selectedCreatedByIds.length})`
-							: ''}
-					</Button>
-				{/snippet}
-			</Popover.Trigger>
-			<Popover.Content class="w-[min(16rem,calc(100vw-2rem))] p-2" align="start">
-				{#each projectMembers as member}
-					<label
-						class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
-					>
-						<Checkbox
-							checked={selectedCreatedByIds.includes(member.userId)}
-							onCheckedChange={() => toggleFilter('createdBy', member.userId)}
-						/>
-						<span class="min-w-0 flex-1 truncate" title={member.userName}>{member.userName}</span>
-					</label>
-				{/each}
-			</Popover.Content>
-		</Popover.Root>
-
-		<!-- Assignee filter -->
-		<Popover.Root>
-			<Popover.Trigger>
-				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
-						{m.tc_filter_assignee()}{selectedAssigneeIds.length > 0
-							? ` (${selectedAssigneeIds.length})`
-							: ''}
-					</Button>
-				{/snippet}
-			</Popover.Trigger>
-			<Popover.Content class="w-[min(16rem,calc(100vw-2rem))] p-2" align="start">
-				{#each projectMembers as member}
-					<label
-						class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
-					>
-						<Checkbox
-							checked={selectedAssigneeIds.includes(member.userId)}
-							onCheckedChange={() => toggleFilter('assigneeId', member.userId)}
-						/>
-						<span class="min-w-0 flex-1 truncate" title={member.userName}>{member.userName}</span>
-					</label>
-				{/each}
-			</Popover.Content>
-		</Popover.Root>
-	{/if}
-
-	<!-- Custom field filters -->
-	{#if projectCustomFields.length > 0}
-		<Popover.Root>
-			<Popover.Trigger>
-				{#snippet child({ props })}
-					<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
-						{m.tc_custom_field_filter()}{activeCfFilterCount > 0 ? ` (${activeCfFilterCount})` : ''}
-					</Button>
-				{/snippet}
-			</Popover.Trigger>
-			<Popover.Content class="w-[min(18rem,calc(100vw-2rem))] p-3 space-y-3" align="start">
-				{#each projectCustomFields as cf (cf.id)}
-					<div class="space-y-1">
-						<label
-							class="block truncate text-xs font-medium text-muted-foreground"
-							for="cf-filter-{cf.id}"
-							title={cf.name}>{cf.name}</label
+					{#each groups as g (g.id)}
+						<button
+							type="button"
+							class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer {selectedGroupId ===
+							String(g.id)
+								? 'bg-muted font-medium'
+								: ''}"
+							onclick={() => setSingleFilter('groupId', String(g.id))}
 						>
-						{#if cf.fieldType === 'TEXT' || cf.fieldType === 'URL'}
-							<Input
-								id="cf-filter-{cf.id}"
-								class="h-8 text-xs"
-								placeholder={cf.name}
-								value={getCfFilterValue(cf.id)}
-								onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLInputElement).value)}
+							{#if g.color}
+								<span
+									class="inline-block h-2 w-2 shrink-0 rounded-full"
+									style="background-color: {g.color}"
+								></span>
+							{/if}
+							<span class="min-w-0 flex-1 truncate" title={g.name}>{g.name}</span>
+						</button>
+					{/each}
+				</Popover.Content>
+			</Popover.Root>
+		{/if}
+
+		<!-- Tag filter -->
+		{#if projectTags.length > 0}
+			<Popover.Root>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
+							{m.nav_tags()}{selectedTagIds.length > 0 ? ` (${selectedTagIds.length})` : ''}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content class="w-[min(16rem,calc(100vw-2rem))] p-2" align="start">
+					{#each projectTags as t (t.id)}
+						<label
+							class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
+						>
+							<Checkbox
+								checked={selectedTagIds.includes(t.id)}
+								onCheckedChange={() => toggleFilter('tagIds', String(t.id))}
 							/>
-						{:else if cf.fieldType === 'NUMBER'}
-							<Input
-								id="cf-filter-{cf.id}"
-								type="number"
-								class="h-8 text-xs"
-								placeholder={cf.name}
-								value={getCfFilterValue(cf.id)}
-								onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLInputElement).value)}
+							<span class="inline-block h-2 w-2 rounded-full" style="background-color: {t.color}"
+							></span>
+							<span class="min-w-0 flex-1 truncate" title={t.name}>{t.name}</span>
+						</label>
+					{/each}
+				</Popover.Content>
+			</Popover.Root>
+		{/if}
+
+		<!-- CreatedBy filter -->
+		{#if projectMembers.length > 0}
+			<Popover.Root>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
+							{m.tc_filter_created_by()}{selectedCreatedByIds.length > 0
+								? ` (${selectedCreatedByIds.length})`
+								: ''}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content class="w-[min(16rem,calc(100vw-2rem))] p-2" align="start">
+					{#each projectMembers as member}
+						<label
+							class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
+						>
+							<Checkbox
+								checked={selectedCreatedByIds.includes(member.userId)}
+								onCheckedChange={() => toggleFilter('createdBy', member.userId)}
 							/>
-						{:else if cf.fieldType === 'DATE'}
-							<Input
-								id="cf-filter-{cf.id}"
-								type="date"
-								class="h-8 text-xs"
-								value={getCfFilterValue(cf.id)}
-								onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLInputElement).value)}
+							<span class="min-w-0 flex-1 truncate" title={member.userName}>{member.userName}</span>
+						</label>
+					{/each}
+				</Popover.Content>
+			</Popover.Root>
+
+			<!-- Assignee filter -->
+			<Popover.Root>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
+							{m.tc_filter_assignee()}{selectedAssigneeIds.length > 0
+								? ` (${selectedAssigneeIds.length})`
+								: ''}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content class="w-[min(16rem,calc(100vw-2rem))] p-2" align="start">
+					{#each projectMembers as member}
+						<label
+							class="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted cursor-pointer"
+						>
+							<Checkbox
+								checked={selectedAssigneeIds.includes(member.userId)}
+								onCheckedChange={() => toggleFilter('assigneeId', member.userId)}
 							/>
-						{:else if cf.fieldType === 'CHECKBOX'}
-							<select
-								id="cf-filter-{cf.id}"
-								class="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
-								value={getCfFilterValue(cf.id)}
-								onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLSelectElement).value)}
+							<span class="min-w-0 flex-1 truncate" title={member.userName}>{member.userName}</span>
+						</label>
+					{/each}
+				</Popover.Content>
+			</Popover.Root>
+		{/if}
+
+		<!-- Custom field filters -->
+		{#if projectCustomFields.length > 0}
+			<Popover.Root>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" size="sm" class="h-8 px-2 text-xs" {...props}>
+							{m.tc_custom_field_filter()}{activeCfFilterCount > 0
+								? ` (${activeCfFilterCount})`
+								: ''}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content class="w-[min(18rem,calc(100vw-2rem))] p-3 space-y-3" align="start">
+					{#each projectCustomFields as cf (cf.id)}
+						<div class="space-y-1">
+							<label
+								class="block truncate text-xs font-medium text-muted-foreground"
+								for="cf-filter-{cf.id}"
+								title={cf.name}>{cf.name}</label
 							>
-								<option value="">--</option>
-								<option value="true">true</option>
-								<option value="false">false</option>
-							</select>
-						{:else if (cf.fieldType === 'SELECT' || cf.fieldType === 'MULTISELECT') && cf.options}
-							{@const selectedValues = getCfFilterValue(cf.id).split(',').filter(Boolean)}
-							{#each cf.options as opt}
-								<label
-									class="flex items-center gap-2 rounded px-2 py-1 text-xs hover:bg-muted cursor-pointer"
+							{#if cf.fieldType === 'TEXT' || cf.fieldType === 'URL'}
+								<Input
+									id="cf-filter-{cf.id}"
+									class="h-8 text-xs"
+									placeholder={cf.name}
+									value={getCfFilterValue(cf.id)}
+									onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLInputElement).value)}
+								/>
+							{:else if cf.fieldType === 'NUMBER'}
+								<Input
+									id="cf-filter-{cf.id}"
+									type="number"
+									class="h-8 text-xs"
+									placeholder={cf.name}
+									value={getCfFilterValue(cf.id)}
+									onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLInputElement).value)}
+								/>
+							{:else if cf.fieldType === 'DATE'}
+								<Input
+									id="cf-filter-{cf.id}"
+									type="date"
+									class="h-8 text-xs"
+									value={getCfFilterValue(cf.id)}
+									onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLInputElement).value)}
+								/>
+							{:else if cf.fieldType === 'CHECKBOX'}
+								<select
+									id="cf-filter-{cf.id}"
+									class="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+									value={getCfFilterValue(cf.id)}
+									onchange={(e) => setCfFilter(cf.id, (e.currentTarget as HTMLSelectElement).value)}
 								>
-									<Checkbox
-										checked={selectedValues.includes(opt)}
-										onCheckedChange={() => toggleCfMultiValue(cf.id, opt)}
-									/>
-									<span class="min-w-0 flex-1 truncate" title={opt}>{opt}</span>
-								</label>
-							{/each}
-						{/if}
-					</div>
-				{/each}
-			</Popover.Content>
-		</Popover.Root>
-	{/if}
+									<option value="">--</option>
+									<option value="true">true</option>
+									<option value="false">false</option>
+								</select>
+							{:else if (cf.fieldType === 'SELECT' || cf.fieldType === 'MULTISELECT') && cf.options}
+								{@const selectedValues = getCfFilterValue(cf.id).split(',').filter(Boolean)}
+								{#each cf.options as opt}
+									<label
+										class="flex items-center gap-2 rounded px-2 py-1 text-xs hover:bg-muted cursor-pointer"
+									>
+										<Checkbox
+											checked={selectedValues.includes(opt)}
+											onCheckedChange={() => toggleCfMultiValue(cf.id, opt)}
+										/>
+										<span class="min-w-0 flex-1 truncate" title={opt}>{opt}</span>
+									</label>
+								{/each}
+							{/if}
+						</div>
+					{/each}
+				</Popover.Content>
+			</Popover.Root>
+		{/if}
 
-	<!-- Clear all filters -->
-	{#if hasActiveFilters}
-		<Button
-			variant="ghost"
-			size="sm"
-			class="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-			onclick={clearAllFilters}
-		>
-			{m.tc_filter_clear()}
-		</Button>
-	{/if}
-
-	<!-- New group input -->
-	{#if canEdit}
-		<div class="flex min-w-0 w-full items-center gap-2 sm:ml-auto sm:w-auto">
-			<Input
-				placeholder={m.group_name_placeholder()}
-				class="h-8 min-w-0 flex-1 sm:w-40"
-				aria-label={m.group_name_placeholder()}
-				bind:value={newGroupName}
-				onkeydown={(e) => {
-					if (e.key === 'Enter') createGroup();
-				}}
-			/>
+		<!-- Clear all filters -->
+		{#if hasActiveFilters}
 			<Button
+				variant="ghost"
 				size="sm"
-				class="h-8 px-2 text-xs"
-				disabled={!newGroupName.trim() || creatingGroup}
-				onclick={createGroup}
+				class="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+				onclick={clearAllFilters}
 			>
-				{m.group_new()}
+				{m.tc_filter_clear()}
 			</Button>
-		</div>
-	{/if}
+		{/if}
+
+		<!-- New group input -->
+		{#if canEdit}
+			<div class="flex min-w-0 w-full items-center gap-2 sm:ml-auto sm:w-auto">
+				<Input
+					placeholder={m.group_name_placeholder()}
+					class="h-8 min-w-0 flex-1 sm:w-40"
+					aria-label={m.group_name_placeholder()}
+					bind:value={newGroupName}
+					onkeydown={(e) => {
+						if (e.key === 'Enter') createGroup();
+					}}
+				/>
+				<Button
+					size="sm"
+					class="h-8 px-2 text-xs"
+					disabled={!newGroupName.trim() || creatingGroup}
+					onclick={createGroup}
+				>
+					{m.group_new()}
+				</Button>
+			</div>
+		{/if}
+	</div>
 </FilterToolbar>

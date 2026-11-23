@@ -25,8 +25,35 @@
 			<span class="text-muted-foreground text-xs">{m.common_total_count({ count: total })}</span>
 		{/if}
 	</div>
+	<!-- Phones: the main action plus one menu, so the header takes a single row. -->
+	<div class="flex items-center gap-2 min-[520px]:hidden">
+		{#if canEdit}
+			<Button class="min-w-0 flex-1" href={newHref}>{m.tc_new()}</Button>
+		{/if}
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger>
+				{#snippet child({ props })}
+					<Button class={canEdit ? '' : 'flex-1'} variant="outline" {...props}>
+						{m.common_actions()}
+					</Button>
+				{/snippet}
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="end">
+				<DropdownMenu.Item onclick={() => onExport('csv')}>
+					{m.tc_export_csv()}
+				</DropdownMenu.Item>
+				<DropdownMenu.Item onclick={() => onExport('json')}>
+					{m.tc_export_json()}
+				</DropdownMenu.Item>
+				{#if canEdit}
+					<DropdownMenu.Separator />
+					<DropdownMenu.Item onclick={onImport}>{m.tc_import()}</DropdownMenu.Item>
+				{/if}
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
+	</div>
 	<div
-		class="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center"
+		class="hidden w-full grid-cols-3 gap-2 min-[520px]:grid sm:flex sm:w-auto sm:flex-wrap sm:items-center"
 	>
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>

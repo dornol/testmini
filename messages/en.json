@@ -1582,6 +1582,7 @@
 	"ui_step_move_down": "Move step {n} down",
 	"ui_step_remove": "Remove step {n}",
 	"ui_filters": "Search and filters",
+	"ui_filters_short": "Filters",
 	"ui_required": "Required",
 	"ui_test_case_saved": "Test case updated",
 	"ui_test_case_details": "Review test case details, steps and activity.",

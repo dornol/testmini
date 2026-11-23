@@ -559,6 +559,7 @@
 	"tr_compare": "비교",
 	"tr_compare_title": "런 비교",
 	"tr_compare_select_hint": "비교할 런을 정확히 2개 선택하세요",
+	"tr_compare_ready": "{a}와(과) {b}을(를) 비교할 수 있습니다.",
 	"tr_compare_same": "동일",
 	"tr_compare_changed": "변경",
 	"tr_compare_regression": "회귀",

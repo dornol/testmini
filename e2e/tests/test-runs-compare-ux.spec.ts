@@ -114,6 +114,28 @@ test.describe.serial('Test run comparison UX', () => {
 		await expect(page.getByRole('heading', { name: '런 비교' })).toBeVisible();
 	});
 
+	test('on a phone-sized screen two runs can be selected and compared', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 800 });
+		await page.goto(`/projects/${projectId}/test-runs`);
+		await page.waitForLoadState('networkidle');
+		const first = page.getByRole('checkbox', { name: `비교: ${names.a}` });
+		const second = page.getByRole('checkbox', { name: `비교: ${names.b}` });
+		await expect(first).toBeVisible();
+
+		// A 16px box with a 40px touch target around it.
+		const target = await first.locator('xpath=..').boundingBox();
+		expect(target!.width).toBeGreaterThanOrEqual(40);
+		expect(target!.height).toBeGreaterThanOrEqual(40);
+
+		await first.check();
+		await expect(page.getByRole('status')).toContainText('정확히 2개');
+		await second.check();
+		await expect(page.getByRole('status')).toContainText(names.b);
+		await page.getByRole('button', { name: '비교', exact: true }).click();
+		await expect(page).toHaveURL(/test-runs\/compare\?runA=\d+&runB=\d+/);
+		await expect(page.getByRole('heading', { name: '런 비교' })).toBeVisible();
+	});
+
 	test('each kind of change is named in text and cases link to their detail', async ({ page }) => {
 		await page.goto(compareUrl());
 		await page.waitForLoadState('networkidle');

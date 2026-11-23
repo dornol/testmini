@@ -65,6 +65,15 @@
 		compareSelectedIds = next;
 	}
 
+	const runName = (id: number) => data.runs.find((r) => r.id === id)?.name ?? `#${id}`;
+	// Always mounted below, so a change in the selection is announced.
+	const compareStatus = $derived.by(() => {
+		const ids = Array.from(compareSelectedIds);
+		if (ids.length === 1) return m.tr_compare_select_hint();
+		if (ids.length === 2) return m.tr_compare_ready({ a: runName(ids[0]), b: runName(ids[1]) });
+		return '';
+	});
+
 	function goToCompare() {
 		const ids = Array.from(compareSelectedIds);
 		if (ids.length === 2) {
@@ -211,10 +220,6 @@
 					<Button variant="outline" class="w-full sm:w-auto" onclick={goToCompare}
 						>{m.tr_compare()}</Button
 					>
-				{:else if compareSelectedIds.size > 0}
-					<span class="text-muted-foreground text-xs sm:text-right"
-						>{m.tr_compare_select_hint()}</span
-					>
 				{/if}
 				{#if data.userRole !== 'VIEWER'}
 					<Button href="{basePath}/new" class="w-full sm:w-auto">{m.tr_new()}</Button>
@@ -222,6 +227,7 @@
 			</div>
 		{/snippet}
 	</PageHeader>
+	<p role="status" class="text-xs text-muted-foreground empty:hidden">{compareStatus}</p>
 
 	<StatusFilter
 		value={data.statusFilter}
@@ -283,7 +289,9 @@
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head class="w-8 py-1 px-2 hidden sm:table-cell"></Table.Head>
+						<Table.Head class="w-10 px-2 py-1"
+							><span class="sr-only">{m.tr_compare()}</span></Table.Head
+						>
 						<Table.Head class="py-1 px-2 text-xs">{m.common_name()}</Table.Head>
 						<Table.Head class="w-20 py-1 px-2 text-xs hidden sm:table-cell"
 							>{m.common_environment()}</Table.Head
@@ -312,17 +320,17 @@
 								if (!isInteractiveTarget(event.target)) goto(`${basePath}/${run.id}`);
 							}}
 						>
-							<Table.Cell
-								class="py-1 px-2 hidden sm:table-cell"
-								onclick={(e: MouseEvent) => e.stopPropagation()}
-							>
-								<input
-									type="checkbox"
-									aria-label={`${m.tr_compare()}: ${run.name}`}
-									checked={compareSelectedIds.has(run.id)}
-									onchange={() => toggleCompareRun(run.id)}
-									class="h-3.5 w-3.5 rounded border-gray-300"
-								/>
+							<Table.Cell class="px-2 py-1" onclick={(e: MouseEvent) => e.stopPropagation()}>
+								<!-- The label widens the touch target to 40px without making the row taller. -->
+								<label class="-m-3 flex size-10 cursor-pointer items-center justify-center">
+									<input
+										type="checkbox"
+										aria-label={`${m.tr_compare()}: ${run.name}`}
+										checked={compareSelectedIds.has(run.id)}
+										onchange={() => toggleCompareRun(run.id)}
+										class="size-4 rounded border-muted-foreground"
+									/>
+								</label>
 							</Table.Cell>
 							<Table.Cell class="py-1 px-2 text-xs font-medium">
 								<div class="flex items-center gap-1.5">
@@ -377,7 +385,7 @@
 												<Button
 													variant="ghost"
 													size="sm"
-													class="h-6 w-6 p-0"
+													class="size-10 p-0 sm:size-6"
 													{...props}
 													onclick={(e: MouseEvent) => e.stopPropagation()}
 													aria-label={m.common_actions()}
@@ -448,29 +456,32 @@
 		</div>
 
 		{#if data.meta.totalPages > 1}
-			<div class="flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
+			<nav
+				class="flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center"
+				aria-label={m.pagination_label()}
+			>
 				<Button
 					variant="outline"
 					size="sm"
-					class="h-8 w-full px-2 text-xs sm:h-7 sm:w-auto"
+					class="h-10 w-full px-2 text-xs sm:h-7 sm:w-auto"
 					disabled={data.meta.page <= 1}
 					onclick={() => goToPage(data.meta.page - 1)}
 				>
 					{m.common_previous()}
 				</Button>
 				<span class="text-muted-foreground text-center text-xs">
-					Page {data.meta.page} of {data.meta.totalPages}
+					{m.common_page_of({ page: data.meta.page, totalPages: data.meta.totalPages })}
 				</span>
 				<Button
 					variant="outline"
 					size="sm"
-					class="h-8 w-full px-2 text-xs sm:h-7 sm:w-auto"
+					class="h-10 w-full px-2 text-xs sm:h-7 sm:w-auto"
 					disabled={data.meta.page >= data.meta.totalPages}
 					onclick={() => goToPage(data.meta.page + 1)}
 				>
 					{m.common_next()}
 				</Button>
-			</div>
+			</nav>
 		{/if}
 	{/if}
 </div>

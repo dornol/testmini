@@ -228,11 +228,11 @@
 									<div class="flex items-center gap-2 mb-1">
 										<span class="text-xs font-bold text-muted-foreground">#{idx + 1}</span>
 										{#if !s1}
-											<Badge variant="outline" class="text-[10px] text-green-600"
+											<Badge variant="outline" class="text-xs text-green-700 dark:text-green-400"
 												>{m.tc_version_diff_added()}</Badge
 											>
 										{:else if !s2}
-											<Badge variant="outline" class="text-[10px] text-red-600"
+											<Badge variant="outline" class="text-xs text-red-700 dark:text-red-400"
 												>{m.tc_version_diff_removed()}</Badge
 											>
 										{/if}

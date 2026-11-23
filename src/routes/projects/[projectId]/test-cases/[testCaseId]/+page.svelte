@@ -1426,9 +1426,7 @@
 														{link.status}
 													</span>
 												{/if}
-												<span class="text-[10px] text-muted-foreground uppercase"
-													>{link.provider}</span
-												>
+												<span class="text-xs text-muted-foreground uppercase">{link.provider}</span>
 											</div>
 											<span class="text-sm truncate block pl-5">
 												{link.title || link.externalUrl}
@@ -1536,7 +1534,7 @@
 														<div class="flex flex-wrap gap-1">
 															{#each issueDetailData.labels as label (label.name)}
 																<span
-																	class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border text-foreground"
+																	class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border text-foreground"
 																	style="background-color: {label.color}20; border-color: {label.color}60"
 																>
 																	{label.name}

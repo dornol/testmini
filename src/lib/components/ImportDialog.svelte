@@ -248,7 +248,7 @@
 										<div class="space-y-1.5">
 											{#each preview.headers as h, j (h)}
 												<div class="min-w-0">
-													<div class="break-words text-[11px] font-medium text-muted-foreground">
+													<div class="break-words text-xs font-medium text-muted-foreground">
 														{h}
 													</div>
 													<div class="break-words text-xs">{row[j] ?? ''}</div>

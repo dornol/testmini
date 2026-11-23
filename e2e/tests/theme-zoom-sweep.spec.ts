@@ -31,9 +31,33 @@ const SMALL_TEXT_ENFORCED = [
 	/\/test-runs\/\d+$/,
 	/\/test-runs\/compare/,
 	/\/test-cases$/,
+	/\/test-cases\/\d+$/,
 	/\/exploratory$/,
 	/\/exploratory\/\d+$/
 ];
+
+/** Elements under `scope` whose own text is set smaller than 12px (decorative ones are skipped). */
+async function smallTextIn(page: Page, scope: string) {
+	return page.evaluate((scope) => {
+		const out: string[] = [];
+		const roots = Array.from(document.querySelectorAll(scope));
+		for (const el of roots.flatMap((root) => [root, ...root.querySelectorAll('*')])) {
+			if (el.closest('kbd, script, style, [aria-hidden=true], .sr-only')) continue;
+			const cs = getComputedStyle(el);
+			if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+			const own = Array.from(el.childNodes)
+				.filter((n) => n.nodeType === 3)
+				.map((n) => n.textContent?.trim() ?? '')
+				.filter(Boolean)
+				.join(' ');
+			const size = parseFloat(cs.fontSize);
+			// Short counters such as "+3" are allowed; real labels and values are not.
+			if (own.length >= 3 && size < 12)
+				out.push(`${size}px ${el.tagName.toLowerCase()} "${own.slice(0, 22)}"`);
+		}
+		return out;
+	}, scope);
+}
 
 test.describe.serial('Dark mode and 200% zoom sweep', () => {
 	test.skip(!process.env.E2E_SWEEP, 'Slow (about 5 min). Run it with `pnpm test:e2e:sweep`.');
@@ -312,24 +336,7 @@ test.describe.serial('Dark mode and 200% zoom sweep', () => {
 			});
 		// Font size does not change between the modes, so measure once.
 		if (mode === 'dark-1440') {
-			const small = await page.evaluate(() => {
-				const out: string[] = [];
-				for (const el of document.querySelectorAll('body *')) {
-					if (el.closest('kbd, script, style, [aria-hidden=true], .sr-only')) continue;
-					const cs = getComputedStyle(el);
-					if (cs.display === 'none' || cs.visibility === 'hidden') continue;
-					const own = Array.from(el.childNodes)
-						.filter((n) => n.nodeType === 3)
-						.map((n) => n.textContent?.trim() ?? '')
-						.filter(Boolean)
-						.join(' ');
-					const size = parseFloat(cs.fontSize);
-					// Short counters such as "+3" are allowed; real labels and values are not.
-					if (own.length >= 3 && size < 12)
-						out.push(`${size}px ${el.tagName.toLowerCase()} "${own.slice(0, 22)}"`);
-				}
-				return out;
-			});
+			const small = await smallTextIn(page, 'body');
 			smallText.set(path, small);
 			if (small.length && SMALL_TEXT_ENFORCED.some((re) => re.test(path)))
 				findings.push({
@@ -405,6 +412,11 @@ test.describe.serial('Dark mode and 200% zoom sweep', () => {
 		}, OVERLAY);
 		for (const o of outside) add(o);
 
+		if (SMALL_TEXT_ENFORCED.some((re) => re.test(path))) {
+			const small = await smallTextIn(page, OVERLAY);
+			if (small.length) add(`text under 12px x${small.length}: ${small.slice(0, 3).join(' | ')}`);
+		}
+
 		const dialog = page
 			.locator('[role=dialog], [role=alertdialog]')
 			.filter({ visible: true })
@@ -421,6 +433,40 @@ test.describe.serial('Dark mode and 200% zoom sweep', () => {
 		if (await page.locator(OVERLAY).filter({ visible: true }).count()) {
 			findings.push({ mode, path, issue: `[${trigger}] Escape does not close the overlay` });
 			await settle(page, path);
+		}
+	}
+
+	// Opens every tab in `scope` and checks what it shows (a default tab hides the rest).
+	async function sweepTabs(page: Page, mode: string, path: string, label: string, scope: string) {
+		const tabs = page.locator(scope).getByRole('tab');
+		const count = await tabs.count();
+		for (let i = 0; i < count; i++) {
+			const tab = tabs.nth(i);
+			if (!(await tab.isVisible())) continue;
+			const name = (await tab.innerText()).replace(/\s+/g, ' ').trim() || `#${i + 1}`;
+			await tab.click();
+			await page.waitForTimeout(450);
+			const trigger = `${label} tab ${name}`;
+			const axe = await new AxeBuilder({ page })
+				.include(scope)
+				.withTags(['wcag2a', 'wcag2aa'])
+				.analyze();
+			for (const v of axe.violations)
+				if (v.impact === 'serious' || v.impact === 'critical')
+					findings.push({
+						mode,
+						path,
+						issue: `[${trigger}] ${v.id} x${v.nodes.length}: ${v.nodes[0]?.target.join(' ')} | ${v.nodes[0]?.failureSummary?.split('\n')[1]?.trim() ?? ''}`
+					});
+			if (SMALL_TEXT_ENFORCED.some((re) => re.test(path))) {
+				const small = await smallTextIn(page, scope);
+				if (small.length)
+					findings.push({
+						mode,
+						path,
+						issue: `[${trigger}] text under 12px x${small.length}: ${small.slice(0, 3).join(' | ')}`
+					});
+			}
 		}
 	}
 
@@ -481,6 +527,27 @@ test.describe.serial('Dark mode and 200% zoom sweep', () => {
 				const only = process.env.SWEEP_ONLY ? new RegExp(process.env.SWEEP_ONLY) : null;
 				for (const path of pages)
 					if (!only || only.test(path)) await sweepButtons(page, mode.name, path);
+
+				// The case detail sheet and the case page, tab by tab.
+				const list = `/projects/${ids.project}/test-cases`;
+				if (!only || only.test(list)) {
+					await settle(page, list);
+					await page.getByText(`Login ${key}`).filter({ visible: true }).first().click();
+					const sheet = page.locator('[data-slot=sheet-content]').first();
+					const opened = await sheet.waitFor({ timeout: 8000 }).then(
+						() => true,
+						() => false
+					);
+					if (opened) {
+						await inspectOverlay(page, mode.name, list, 'case sheet');
+						await sweepTabs(page, mode.name, list, 'case sheet', '[data-slot=sheet-content]');
+						await closeOverlay(page, mode.name, list, 'case sheet');
+					} else findings.push({ mode: mode.name, path: list, issue: '[case sheet] did not open' });
+
+					const detail = `${list}/${ids.case}`;
+					await settle(page, detail);
+					await sweepTabs(page, mode.name, detail, 'case page', 'body');
+				}
 
 				// Admin dialogs: only ever opened, never confirmed.
 				const admin: [string, RegExp | string, string][] = [

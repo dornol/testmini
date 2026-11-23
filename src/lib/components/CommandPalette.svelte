@@ -261,7 +261,7 @@
 								{/if}
 							</span>
 							<span
-								class="max-w-[40%] shrink-0 break-words rounded bg-muted px-1.5 py-0.5 text-right text-[11px] leading-tight text-muted-foreground"
+								class="max-w-[40%] shrink-0 break-words rounded bg-muted px-1.5 py-0.5 text-right text-xs leading-tight text-muted-foreground"
 							>
 								{resultTypeLabel(result.type)}
 							</span>

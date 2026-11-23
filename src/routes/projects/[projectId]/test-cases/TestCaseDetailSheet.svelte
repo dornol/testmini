@@ -775,7 +775,7 @@
 							<span class="text-muted-foreground text-xs">v{version?.versionNo ?? 0}</span>
 							{#if tc.approvalStatus}
 								<span
-									class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium {getApprovalBadgeClass(
+									class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium {getApprovalBadgeClass(
 										tc.approvalStatus
 									)}"
 								>
@@ -956,7 +956,7 @@
 									{#each detailData.assignedTags as t (t.id)}
 										{#if canEdit}
 											<span
-												class="inline-flex items-center gap-1 rounded-full border px-1.5 text-[11px] font-medium hover:bg-muted/50 transition-colors leading-5 whitespace-nowrap"
+												class="inline-flex items-center gap-1 rounded-full border px-1.5 text-xs font-medium hover:bg-muted/50 transition-colors leading-5 whitespace-nowrap"
 											>
 												<span
 													class="h-1.5 w-1.5 rounded-full shrink-0"
@@ -1109,7 +1109,7 @@
 									{#each detailData.assignedAssignees as a (a.userId)}
 										{#if canEdit}
 											<span
-												class="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1.5 text-[11px] font-medium hover:bg-muted transition-colors leading-5 whitespace-nowrap"
+												class="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1.5 text-xs font-medium hover:bg-muted transition-colors leading-5 whitespace-nowrap"
 											>
 												{a.userName}
 												<button
@@ -1357,7 +1357,7 @@
 									{m.issue_link_title()}
 									{#if issueLinks.length > 0}
 										<span
-											class="ml-1 inline-flex items-center justify-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium leading-none"
+											class="ml-1 inline-flex items-center justify-center rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium leading-none"
 											>{issueLinks.length}</span
 										>
 									{/if}
@@ -1568,7 +1568,7 @@
 															{/if}
 															{#if link.status}
 																<span
-																	class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium {link.status ===
+																	class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium {link.status ===
 																	'closed'
 																		? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
 																		: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}"
@@ -1576,7 +1576,7 @@
 																	{link.status}
 																</span>
 															{/if}
-															<span class="text-[10px] text-muted-foreground uppercase"
+															<span class="text-xs text-muted-foreground uppercase"
 																>{link.provider}</span
 															>
 														</div>
@@ -1689,7 +1689,7 @@
 																<div class="flex flex-wrap gap-1">
 																	{#each issueDetail.labels as label (label.name)}
 																		<span
-																			class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border text-foreground"
+																			class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border text-foreground"
 																			style="background-color: {label.color}20; border-color: {label.color}60"
 																		>
 																			{label.name}
@@ -1841,13 +1841,11 @@
 							{#if detailData.versions.length >= 2}
 								<div class="flex items-center gap-2">
 									{#if compareSelectedVersions.length < 2}
-										<span class="text-[10px] text-muted-foreground"
-											>{m.tc_version_select_hint()}</span
-										>
+										<span class="text-xs text-muted-foreground">{m.tc_version_select_hint()}</span>
 									{/if}
 									<Button
 										size="sm"
-										class="h-6 text-[10px] px-2"
+										class="h-6 text-xs px-2"
 										disabled={compareSelectedVersions.length !== 2 || diffLoading}
 										onclick={compareVersions}
 									>
@@ -1887,7 +1885,7 @@
 													>v{v.versionNo}</span
 												>
 												{#if v.id === version?.id}
-													<span class="text-[10px] bg-primary/10 text-primary rounded px-1.5 py-0.5"
+													<span class="text-xs bg-primary/10 text-primary rounded px-1.5 py-0.5"
 														>{m.common_latest()}</span
 													>
 												{/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { fly } from 'svelte/transition';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -22,6 +23,8 @@
 	let { initialUnreadCount = 0 }: { initialUnreadCount?: number } = $props();
 
 	let open = $state(false);
+	let bellButton = $state<HTMLButtonElement | null>(null);
+	let panelEl = $state<HTMLElement | null>(null);
 	let notifications = $state<Notification[]>([]);
 	let loading = $state(false);
 	let nextCursor = $state<string | null>(null);
@@ -139,10 +142,15 @@
 		}
 	}
 
-	function toggleOpen() {
+	async function toggleOpen() {
 		open = !open;
 		if (open && notifications.length === 0) {
 			loadNotifications(true);
+		}
+		if (open) {
+			// Move focus into the panel so keyboard and screen reader users land in it.
+			await tick();
+			panelEl?.focus();
 		}
 	}
 
@@ -188,20 +196,26 @@
 		};
 	});
 
-	// Outside-click to close — only registered while panel is open
-	$effect(() => {
-		if (!open) return;
-		document.addEventListener('click', handleOutsideClick);
-		return () => document.removeEventListener('click', handleOutsideClick);
-	});
-
-	// Escape key to close panel
+	// Escape closes the panel wherever focus is (the bell button or inside the panel),
+	// and focus goes back to the bell so it is not lost when the panel disappears.
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape' && open) {
 			event.preventDefault();
 			open = false;
+			bellButton?.focus();
 		}
 	}
+
+	// Outside-click and Escape to close — only registered while the panel is open
+	$effect(() => {
+		if (!open) return;
+		document.addEventListener('click', handleOutsideClick);
+		document.addEventListener('keydown', handleKeydown);
+		return () => {
+			document.removeEventListener('click', handleOutsideClick);
+			document.removeEventListener('keydown', handleKeydown);
+		};
+	});
 </script>
 
 <div class="relative" data-notification-bell>
@@ -209,9 +223,10 @@
 	<Button
 		variant="ghost"
 		size="icon"
+		bind:ref={bellButton}
 		onclick={toggleOpen}
 		aria-label={m.aria_notifications()}
-		aria-haspopup="true"
+		aria-haspopup="dialog"
 		aria-expanded={open}
 		class="relative"
 	>
@@ -244,15 +259,13 @@
 
 	<!-- Dropdown panel -->
 	{#if open}
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			transition:fly={{ y: -8, duration: 150 }}
 			class="border-border bg-popover text-popover-foreground fixed left-2 right-2 top-12 z-50 flex max-h-[calc(100dvh-3.5rem)] flex-col overflow-hidden rounded-md border shadow-lg sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-1 sm:w-96"
 			role="dialog"
-			aria-modal="true"
 			aria-label={m.aria_notifications_panel()}
 			tabindex="-1"
-			onkeydown={handleKeydown}
+			bind:this={panelEl}
 		>
 			<!-- Header -->
 			<div class="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3">
@@ -273,7 +286,7 @@
 			<div class="min-h-0 flex-1 overflow-y-auto">
 				{#if loading && notifications.length === 0}
 					<div class="flex items-center justify-center py-8 text-sm text-muted-foreground">
-						Loading…
+						{m.common_loading()}
 					</div>
 				{:else if notifications.length === 0}
 					<div

@@ -7,7 +7,8 @@ import { test, expect } from '../fixtures/auth.fixture';
  * Sweeps the main screens in dark mode and at 200% zoom (1280px → 640 CSS px) and fails on
  * serious/critical axe findings (which include colour contrast) or horizontal overflow.
  * Slow, so it only runs with E2E_SWEEP=1 (`pnpm test:e2e:sweep`).
- * Set SWEEP_SHOTS=<dir> to also save a screenshot of every visit for manual review.
+ * Set SWEEP_SHOTS=<dir> to also save a screenshot of every visit for manual review, and
+ * SWEEP_ONLY=<regex> to open overlays only on matching paths (full run: about 25 min).
  */
 
 const MODES = [
@@ -28,6 +29,7 @@ test.describe.serial('Dark mode and 200% zoom sweep', () => {
 	let headers: Record<string, string>;
 	let paths: string[] = [];
 	const findings: Finding[] = [];
+	const providerName = `Sweep provider ${key}`;
 
 	const idOf = (json: { id?: number; data?: { id: number } }) => (json.id ?? json.data?.id)!;
 
@@ -140,6 +142,27 @@ test.describe.serial('Dark mode and 200% zoom sweep', () => {
 		);
 		ids.team = Number(teamLoc.split('/').at(-1));
 
+		// A provider of our own, so the admin dialogs can be opened without touching real ones.
+		await action(
+			request,
+			'/admin/oidc-providers/new?/create',
+			new URLSearchParams({
+				name: providerName,
+				slug: `sweep-${key}`,
+				providerType: 'OIDC',
+				clientId: 'sweep-client',
+				clientSecret: 'sweep-secret',
+				authorizationUrl: 'https://1.1.1.1/authorize',
+				tokenUrl: 'https://1.1.1.1/token'
+			}).toString()
+		);
+		const list = await (await request.get('/admin/oidc-providers')).text();
+		ids.provider = Number(
+			list
+				.split(providerName)[0]
+				.match(/\/admin\/oidc-providers\/(\d+)(?!.*\/admin\/oidc-providers\/\d+)/s)?.[1]
+		);
+
 		const P = `/projects/${p}`;
 		paths = [
 			'/projects',
@@ -192,6 +215,11 @@ test.describe.serial('Dark mode and 200% zoom sweep', () => {
 	});
 
 	test.afterAll(async ({ request }) => {
+		if (ids.provider)
+			await request.post(`/admin/oidc-providers/${ids.provider}?/deleteProvider`, {
+				form: {},
+				headers: { ...headers, accept: 'application/json', 'x-sveltekit-action': 'true' }
+			});
 		if (ids.project)
 			await request.post(`/projects/${ids.project}/settings?/deactivate`, {
 				form: {},
@@ -280,6 +308,162 @@ test.describe.serial('Dark mode and 200% zoom sweep', () => {
 			test(`sweep ${mode.name}`, async ({ page }) => {
 				test.setTimeout(900_000);
 				for (const path of paths) await check(page, mode.name, path);
+			});
+		});
+	}
+
+	// ── Open states: dialogs, sheets, menus and popovers ──────────────────────────────────────
+	const OVERLAY =
+		'[role=dialog], [role=alertdialog], [role=menu], [data-slot=sheet-content], [data-slot=popover-content]';
+	// Buttons that would change or remove data. The admin ones are opened explicitly below.
+	const SKIP = /삭제|제거|비활성화|차단|초기화|로그아웃|완료/;
+	// 200% zoom of a 1280x900 window is 640x450 CSS px, so overlays must fit that height too.
+	const OVERLAY_MODES = [
+		{ name: 'dark-1440', viewport: { width: 1440, height: 900 }, colorScheme: 'dark' as const },
+		{ name: 'dark-zoom200', viewport: { width: 640, height: 450 }, colorScheme: 'dark' as const }
+	];
+
+	async function settle(page: Page, path: string) {
+		await page.goto(path, { waitUntil: 'load' });
+		await page.getByRole('heading').first().waitFor({ timeout: 30_000 });
+		await page.waitForTimeout(800);
+	}
+
+	async function inspectOverlay(page: Page, mode: string, path: string, trigger: string) {
+		const add = (issue: string) => findings.push({ mode, path, issue: `[${trigger}] ${issue}` });
+		const axe = await new AxeBuilder({ page })
+			.include(OVERLAY)
+			.withTags(['wcag2a', 'wcag2aa'])
+			.analyze();
+		for (const v of axe.violations)
+			if (v.impact === 'serious' || v.impact === 'critical')
+				add(
+					`${v.id} x${v.nodes.length}: ${v.nodes[0]?.target.join(' ')} | ${v.nodes[0]?.failureSummary?.split('\n')[1]?.trim() ?? ''}`
+				);
+
+		const outside = await page.evaluate((sel) => {
+			const out: string[] = [];
+			for (const el of document.querySelectorAll(sel)) {
+				const box = el.getBoundingClientRect();
+				const cs = getComputedStyle(el);
+				if (cs.display === 'none' || cs.visibility === 'hidden' || !box.width || !box.height)
+					continue;
+				if (
+					box.top < -1 ||
+					box.left < -1 ||
+					box.bottom > innerHeight + 1 ||
+					box.right > innerWidth + 1
+				)
+					out.push(
+						`${el.getAttribute('role') ?? el.getAttribute('data-slot')} leaves the viewport: ${Math.round(box.left)},${Math.round(box.top)} to ${Math.round(box.right)},${Math.round(box.bottom)} in ${innerWidth}x${innerHeight}`
+					);
+			}
+			return out;
+		}, OVERLAY);
+		for (const o of outside) add(o);
+
+		const dialog = page
+			.locator('[role=dialog], [role=alertdialog]')
+			.filter({ visible: true })
+			.first();
+		if (await dialog.count()) {
+			const focusInside = await dialog.evaluate((el) => el.contains(document.activeElement));
+			if (!focusInside) add('focus did not move into the dialog');
+		}
+	}
+
+	async function closeOverlay(page: Page, mode: string, path: string, trigger: string) {
+		await page.keyboard.press('Escape');
+		await page.waitForTimeout(300);
+		if (await page.locator(OVERLAY).filter({ visible: true }).count()) {
+			findings.push({ mode, path, issue: `[${trigger}] Escape does not close the overlay` });
+			await settle(page, path);
+		}
+	}
+
+	// Presses each visible, non-destructive button once and inspects whatever opens.
+	async function sweepButtons(page: Page, mode: string, path: string) {
+		await settle(page, path);
+		const names = await page.getByRole('button').evaluateAll((els) => {
+			const seen = new Set<string>();
+			for (const el of els) {
+				if (!el.getClientRects().length || el.closest('[aria-hidden=true], [inert]')) continue;
+				if ((el as HTMLButtonElement).disabled) continue;
+				const name = (el.getAttribute('aria-label') || el.textContent || '')
+					.replace(/\s+/g, ' ')
+					.trim();
+				if (name && name.length <= 60) seen.add(name);
+			}
+			return [...seen];
+		});
+		for (const name of names.slice(0, 30)) {
+			if (SKIP.test(name)) continue;
+			const button = page.getByRole('button', { name }).filter({ visible: true }).first();
+			if (!(await button.count())) continue;
+			const before = page.url();
+			try {
+				await button.click({ timeout: 3000 });
+			} catch {
+				continue;
+			}
+			await page.waitForTimeout(350);
+			if (page.url() !== before) {
+				await settle(page, path);
+				continue;
+			}
+			if (await page.locator(OVERLAY).filter({ visible: true }).count()) {
+				await inspectOverlay(page, mode, path, name);
+				await closeOverlay(page, mode, path, name);
+			}
+		}
+	}
+
+	for (const mode of OVERLAY_MODES) {
+		test.describe(`overlays ${mode.name}`, () => {
+			test.use({ viewport: mode.viewport, colorScheme: mode.colorScheme });
+
+			test(`overlays ${mode.name}`, async ({ page }) => {
+				test.setTimeout(2_400_000);
+				const pages = [
+					'/projects',
+					'/my-work',
+					...paths.filter(
+						(p) =>
+							/^\/(projects\/\d+|teams\/\d+)/.test(p) &&
+							!p.includes('/new') &&
+							!p.includes('compare')
+					)
+				];
+				// SWEEP_ONLY=<regex> narrows the run to matching paths (for a quick re-check).
+				const only = process.env.SWEEP_ONLY ? new RegExp(process.env.SWEEP_ONLY) : null;
+				for (const path of pages)
+					if (!only || only.test(path)) await sweepButtons(page, mode.name, path);
+
+				// Admin dialogs: only ever opened, never confirmed.
+				const admin: [string, RegExp | string, string][] = [
+					['/admin/users', /관리자 지정$/, 'make admin'],
+					['/admin/users', /차단$/, 'ban'],
+					['/admin/projects', /비활성화$/, 'deactivate project'],
+					['/admin/oidc-providers', new RegExp(`${providerName} 비활성화$`), 'disable provider'],
+					['/admin/oidc-providers', new RegExp(`${providerName} 삭제$`), 'delete provider'],
+					[`/admin/oidc-providers/${ids.provider}`, '삭제', 'delete on provider page']
+				];
+				for (const [path, trigger, label] of admin) {
+					if (only && !only.test(path)) continue;
+					await settle(page, path);
+					const button = page
+						.getByRole('button', { name: trigger })
+						.filter({ visible: true })
+						.first();
+					if (!(await button.count())) {
+						findings.push({ mode: mode.name, path, issue: `[${label}] trigger not found` });
+						continue;
+					}
+					await button.click();
+					await page.waitForTimeout(400);
+					await inspectOverlay(page, mode.name, path, label);
+					await closeOverlay(page, mode.name, path, label);
+				}
 			});
 		});
 	}

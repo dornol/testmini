@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/svelte';
+import { render, screen, waitFor } from '@testing-library/svelte';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { apiFetch, apiPost } from '$lib/api-client';
 import NotificationBell from '../NotificationBell.svelte';
@@ -58,7 +59,7 @@ describe('NotificationBell', () => {
 		screen.getByRole('button', { name: 'Notifications' }).click();
 
 		await vi.waitFor(() => {
-			expect(screen.getByText('Loading…')).toBeTruthy();
+			expect(screen.getByText('Loading...')).toBeTruthy();
 		});
 
 		// Resolve to clean up
@@ -256,7 +257,46 @@ describe('NotificationBell', () => {
 	it('has correct aria attributes on bell button', () => {
 		render(NotificationBell, { props: { initialUnreadCount: 3 } });
 		const button = screen.getByRole('button', { name: 'Notifications' });
-		expect(button.getAttribute('aria-haspopup')).toBe('true');
+		expect(button.getAttribute('aria-haspopup')).toBe('dialog');
 		expect(button.getAttribute('aria-expanded')).toBe('false');
+	});
+
+	describe('keyboard behaviour', () => {
+		const bell = () => screen.getByRole('button', { name: 'Notifications' });
+		const panel = () => screen.getByRole('dialog');
+
+		it('moves focus into the panel when it opens', async () => {
+			render(NotificationBell, { props: { initialUnreadCount: 0 } });
+			await userEvent.click(bell());
+			await waitFor(() => expect(document.activeElement).toBe(panel()));
+		});
+
+		it('does not claim to be modal, since clicking outside closes it', async () => {
+			render(NotificationBell, { props: { initialUnreadCount: 0 } });
+			await userEvent.click(bell());
+			expect(panel().hasAttribute('aria-modal')).toBe(false);
+		});
+
+		it('closes with Escape from the panel and returns focus to the bell', async () => {
+			render(NotificationBell, { props: { initialUnreadCount: 0 } });
+			await userEvent.click(bell());
+			await waitFor(() => expect(document.activeElement).toBe(panel()));
+
+			await userEvent.keyboard('{Escape}');
+			// The exit transition does not finish in jsdom, so assert the state, not the removal.
+			await waitFor(() => expect(bell().getAttribute('aria-expanded')).toBe('false'));
+			expect(document.activeElement).toBe(bell());
+		});
+
+		it('closes with Escape even when focus is still on the bell button', async () => {
+			render(NotificationBell, { props: { initialUnreadCount: 0 } });
+			await userEvent.click(bell());
+			await screen.findByRole('dialog');
+			bell().focus(); // e.g. the user shift-tabbed back to the trigger
+
+			await userEvent.keyboard('{Escape}');
+			await waitFor(() => expect(bell().getAttribute('aria-expanded')).toBe('false'));
+			expect(document.activeElement).toBe(bell());
+		});
 	});
 });

@@ -30,6 +30,7 @@ test.describe.serial('VIEWER access to workflow pages', () => {
 		{ path: 'exploratory', create: '새 세션', seed: seeded.exploratory },
 		{ path: 'test-runs', create: '새 테스트 런', seed: null }
 	];
+	const detailIds = new Map<string, number>();
 	const headers = (baseURL: string) => ({ origin: baseURL });
 
 	test.beforeAll(async ({ request, baseURL }) => {
@@ -51,19 +52,48 @@ test.describe.serial('VIEWER access to workflow pages', () => {
 		expect(member.ok()).toBe(true);
 
 		const base = `/api/projects/${projectId}`;
-		for (const [endpoint, data] of [
-			['releases', { name: seeded.releases }],
-			['test-cycles', { name: seeded['test-cycles'], cycleNumber: 1 }],
-			['test-plans', { name: seeded['test-plans'] }],
-			['test-suites', { name: seeded['test-suites'] }],
-			['exploratory-sessions', { title: seeded.exploratory, charter: 'Explore the viewer flow' }]
-		] as const) {
+		const create = async (endpoint: string, data: object) => {
 			const response = await request.post(`${base}/${endpoint}`, {
 				data,
 				headers: headers(baseURL!)
 			});
 			expect(response.ok(), `${endpoint}: ${response.status()}`).toBe(true);
-		}
+			const body = await response.json();
+			return (body.data ?? body).id as number;
+		};
+		const created = await request.post(`/projects/${projectId}/test-cases/new`, {
+			form: { title: `Case ${key.slice(0, 8)}`, priority: 'MEDIUM' },
+			headers: { 'x-sveltekit-action': 'true', accept: 'application/json', ...headers(baseURL!) }
+		});
+		expect(created.ok()).toBe(true);
+		const { location } = (await created.json()) as { location: string };
+		const testCaseId = Number(location.match(/test-cases\/(\d+)/)?.[1]);
+		expect(testCaseId, `test case location: ${location}`).toBeGreaterThan(0);
+		detailIds.set('releases', await create('releases', { name: seeded.releases }));
+		await create('test-cycles', { name: seeded['test-cycles'], cycleNumber: 1 });
+		detailIds.set('test-plans', await create('test-plans', { name: seeded['test-plans'] }));
+		detailIds.set('test-suites', await create('test-suites', { name: seeded['test-suites'] }));
+		detailIds.set(
+			'exploratory',
+			await create('exploratory-sessions', {
+				title: seeded.exploratory,
+				charter: 'Explore the viewer flow'
+			})
+		);
+		const run = await request.post(`/projects/${projectId}/test-runs/new`, {
+			form: {
+				name: `Run ${key.slice(0, 8)}`,
+				environment: 'staging',
+				testCaseIds: String(testCaseId)
+			},
+			headers: { 'x-sveltekit-action': 'true', accept: 'application/json', ...headers(baseURL!) }
+		});
+		expect(run.ok()).toBe(true);
+		const runLocation = ((await run.json()) as { location: string }).location;
+		const runId = Number(runLocation.match(/test-runs\/(\d+)/)?.[1]);
+		expect(runId, `run location: ${runLocation}`).toBeGreaterThan(0);
+		detailIds.set('test-runs', runId);
+		detailIds.set('test-cases', testCaseId);
 	});
 
 	test.afterAll(async ({ request, baseURL }) => {
@@ -113,6 +143,63 @@ test.describe.serial('VIEWER access to workflow pages', () => {
 				} finally {
 					await viewer.close();
 				}
+			}
+		});
+	}
+
+	const mutation = /수정|편집|삭제|추가|연결|완료|시작|저장|서명|승인|제거|복제|가져오기/;
+	const names = async (page: import('@playwright/test').Page) =>
+		(
+			await page
+				.getByRole('main')
+				.getByRole('button')
+				.evaluateAll((els) =>
+					els
+						.filter((el) => (el as HTMLElement).offsetParent !== null)
+						.map((el) => (el.getAttribute('aria-label') ?? el.textContent ?? '').trim())
+				)
+		).filter(Boolean);
+
+	for (const path of [
+		'releases',
+		'test-plans',
+		'test-suites',
+		'exploratory',
+		'test-runs',
+		'test-cases'
+	]) {
+		test(`${path}/[id]: a VIEWER sees the detail without mutation controls`, async ({
+			page,
+			browser,
+			baseURL
+		}) => {
+			const url = `/projects/${projectId}/${path}/${detailIds.get(path)}`;
+			await page.goto(url);
+			await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeVisible();
+			const adminNames = await names(page);
+
+			const viewer = await browser.newContext({ baseURL, viewport: { width: 375, height: 850 } });
+			try {
+				const login = await viewer.request.post('/api/auth/sign-in/email', {
+					data: { email, password },
+					headers: headers(baseURL!)
+				});
+				expect(login.ok()).toBe(true);
+				const vp = await viewer.newPage();
+				await vp.goto(url);
+				const main = vp.getByRole('main');
+				await expect(main.getByRole('heading', { level: 1 })).toBeVisible();
+				const viewerNames = await names(vp);
+				// The admin has controls the VIEWER lacks, so the check below is not vacuous.
+				expect(adminNames.filter((n) => mutation.test(n)).length).toBeGreaterThan(0);
+				expect(viewerNames.filter((n) => mutation.test(n))).toEqual([]);
+				expect(await main.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(false);
+				const audit = await new AxeBuilder({ page: vp }).withTags(['wcag2a', 'wcag2aa']).analyze();
+				expect(
+					audit.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? ''))
+				).toEqual([]);
+			} finally {
+				await viewer.close();
 			}
 		});
 	}

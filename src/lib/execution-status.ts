@@ -76,6 +76,40 @@ export function executionStatusLabel(status: string | null): string {
 }
 
 /** Localized label for a test run's state; an unknown value is shown as it is. */
+export function planStatusLabel(status: string): string {
+	switch (status) {
+		case 'DRAFT':
+			return m.tp_status_draft();
+		case 'IN_REVIEW':
+			return m.tp_status_in_review();
+		case 'APPROVED':
+			return m.tp_status_approved();
+		case 'ACTIVE':
+			return m.tp_status_active();
+		case 'COMPLETED':
+			return m.tp_status_completed();
+		case 'ARCHIVED':
+			return m.tp_status_archived();
+		default:
+			return status.replace('_', ' ');
+	}
+}
+
+export function approvalStatusLabel(status: string): string {
+	switch (status) {
+		case 'DRAFT':
+			return m.approval_draft();
+		case 'IN_REVIEW':
+			return m.approval_in_review();
+		case 'APPROVED':
+			return m.approval_approved();
+		case 'REJECTED':
+			return m.approval_rejected();
+		default:
+			return status.replace('_', ' ');
+	}
+}
+
 export function runStatusLabel(status: string): string {
 	switch (status) {
 		case 'CREATED':

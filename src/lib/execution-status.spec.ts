@@ -5,7 +5,9 @@ import {
 	statusColorBg,
 	statusColorBadge,
 	executionStatusLabel,
-	runStatusLabel
+	runStatusLabel,
+	planStatusLabel,
+	approvalStatusLabel
 } from './execution-status';
 
 const STATUSES = ['PASS', 'FAIL', 'BLOCKED', 'SKIPPED', 'PENDING'] as const;
@@ -144,5 +146,14 @@ describe('status labels', () => {
 
 	it('shows an unknown run state readably', () => {
 		expect(runStatusLabel('ON_HOLD')).toBe('ON HOLD');
+	});
+
+	it('localizes plan and approval states and keeps unknown ones readable', () => {
+		expect(planStatusLabel('IN_REVIEW')).toBe('In Review');
+		expect(planStatusLabel('ARCHIVED')).toBe('Archived');
+		expect(planStatusLabel('ON_HOLD')).toBe('ON HOLD');
+		expect(approvalStatusLabel('APPROVED')).toBe('Approved');
+		expect(approvalStatusLabel('REJECTED')).toBe('Rejected');
+		expect(approvalStatusLabel('NEEDS_WORK')).toBe('NEEDS WORK');
 	});
 });

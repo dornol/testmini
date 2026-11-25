@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { runStatusLabel } from '$lib/execution-status';
+	import { planStatusLabel, runStatusLabel } from '$lib/execution-status';
 	import { tick } from 'svelte';
 	import { Input } from '$lib/components/ui/input';
 	import FormErrorSummary from '$lib/components/patterns/FormErrorSummary.svelte';
@@ -288,7 +288,7 @@
 					>
 						<div class="font-medium [overflow-wrap:anywhere]">{plan.name}</div>
 						<div class="mt-2 flex flex-wrap items-center gap-2">
-							<Badge variant="secondary">{plan.status}</Badge>
+							<Badge variant="secondary">{planStatusLabel(plan.status)}</Badge>
 							<span class="text-xs text-muted-foreground"
 								>{m.tp_milestone()}: {plan.milestone ?? '-'}</span
 							>
@@ -320,7 +320,9 @@
 										class="underline-offset-4 hover:underline">{plan.name}</a
 									></Table.Cell
 								>
-								<Table.Cell><Badge variant="secondary">{plan.status}</Badge></Table.Cell>
+								<Table.Cell
+									><Badge variant="secondary">{planStatusLabel(plan.status)}</Badge></Table.Cell
+								>
 								<Table.Cell class="text-muted-foreground text-sm"
 									>{plan.milestone ?? '-'}</Table.Cell
 								>

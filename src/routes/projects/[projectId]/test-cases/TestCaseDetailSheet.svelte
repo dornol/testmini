@@ -31,6 +31,7 @@
 	import DetailSheetCustomFieldsTab from './DetailSheetCustomFieldsTab.svelte';
 	import VersionDiffDialog from './VersionDiffDialog.svelte';
 	import * as m from '$lib/paraglide/messages.js';
+	import { approvalStatusLabel } from '$lib/execution-status';
 	import { toast } from 'svelte-sonner';
 	import { apiFetch, apiPut, apiDelete, apiPost } from '$lib/api-client';
 	import { TAG_PALETTE } from '$lib/constants';
@@ -779,7 +780,7 @@
 										tc.approvalStatus
 									)}"
 								>
-									{tc.approvalStatus}
+									{approvalStatusLabel(tc.approvalStatus)}
 								</span>
 							{/if}
 						</div>

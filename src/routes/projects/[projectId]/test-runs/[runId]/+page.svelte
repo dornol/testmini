@@ -11,7 +11,7 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { apiFetch } from '$lib/api-client';
 	import { formatDuration } from '$lib/format-utils';
-	import { statusColorText } from '$lib/execution-status';
+	import { executionStatusLabel, statusColorText } from '$lib/execution-status';
 	import RunHeader from './components/RunHeader.svelte';
 	import ExecutionFilters from './components/ExecutionFilters.svelte';
 	import ExecutionTable from './components/ExecutionTable.svelte';
@@ -299,13 +299,13 @@
 									<div>
 										<div class="text-muted-foreground">{m.comparison_original()}</div>
 										<div class="font-medium {statusColorText(c.originalStatus)}">
-											{c.originalStatus}
+											{executionStatusLabel(c.originalStatus)}
 										</div>
 									</div>
 									<div>
 										<div class="text-muted-foreground">{m.comparison_retest()}</div>
 										<div class="font-medium {statusColorText(c.retestStatus)}">
-											{c.retestStatus}
+											{executionStatusLabel(c.retestStatus)}
 										</div>
 									</div>
 								</div>
@@ -334,12 +334,12 @@
 										</Table.Cell>
 										<Table.Cell>
 											<span class="font-medium {statusColorText(c.originalStatus)}"
-												>{c.originalStatus}</span
+												>{executionStatusLabel(c.originalStatus)}</span
 											>
 										</Table.Cell>
 										<Table.Cell>
 											<span class="font-medium {statusColorText(c.retestStatus)}"
-												>{c.retestStatus}</span
+												>{executionStatusLabel(c.retestStatus)}</span
 											>
 										</Table.Cell>
 										<Table.Cell>

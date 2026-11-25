@@ -243,7 +243,12 @@ test.describe.serial('Traceability', () => {
 						name: locale === 'en' ? 'Requirements' : '요구사항'
 					});
 					const toggle = table.getByRole('button', { name: /TRACE-101/ });
-					await toggle.press('Enter');
+					// A key press before hydration finishes is ignored, so retry until the row opens.
+					await expect(async () => {
+						if ((await toggle.getAttribute('aria-expanded')) !== 'true')
+							await toggle.press('Enter');
+						await expect(toggle).toHaveAttribute('aria-expanded', 'true', { timeout: 1000 });
+					}).toPass({ timeout: 10000 });
 					await expect(toggle).toBeFocused();
 					const target = table.locator(`#requirement-links-${requirementId}`);
 					await expect(target.getByRole('link', { name: new RegExp(firstTitle) })).toBeVisible();

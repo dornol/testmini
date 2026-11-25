@@ -204,6 +204,61 @@ test.describe.serial('VIEWER access to workflow pages', () => {
 		});
 	}
 
+	test('the API refuses VIEWER updates and deletes and leaves the items untouched', async ({
+		request,
+		browser,
+		baseURL
+	}) => {
+		const endpoints: Array<[string, string]> = [
+			['releases', 'releases'],
+			['test-plans', 'test-plans'],
+			['test-suites', 'test-suites'],
+			['exploratory', 'exploratory-sessions'],
+			['test-runs', 'test-runs'],
+			['test-cases', 'test-cases']
+		];
+		// Control: the same request shape is accepted for an admin, so a 403 below is about the role.
+		const control = await request.patch(
+			`/api/projects/${projectId}/releases/${detailIds.get('releases')}`,
+			{ data: { name: seeded.releases }, headers: headers(baseURL!) }
+		);
+		expect(control.ok(), `control PATCH: ${control.status()}`).toBe(true);
+		const viewer = await browser.newContext({ baseURL });
+		try {
+			const login = await viewer.request.post('/api/auth/sign-in/email', {
+				data: { email, password },
+				headers: headers(baseURL!)
+			});
+			expect(login.ok()).toBe(true);
+			for (const [page, endpoint] of endpoints) {
+				const url = `/api/projects/${projectId}/${endpoint}/${detailIds.get(page)}`;
+				const patch = await viewer.request.patch(url, {
+					data: { name: 'Hijacked', title: 'Hijacked' },
+					headers: headers(baseURL!)
+				});
+				expect(patch.status(), `PATCH ${endpoint}`).toBe(403);
+				const remove = await viewer.request.delete(url, { headers: headers(baseURL!) });
+				expect(remove.status(), `DELETE ${endpoint}`).toBe(403);
+			}
+		} finally {
+			await viewer.close();
+		}
+		// The refused requests must not have changed or removed anything.
+		for (const [page, endpoint] of endpoints.filter(([page]) => page !== 'test-runs')) {
+			const response = await request.get(
+				`/api/projects/${projectId}/${endpoint}/${detailIds.get(page)}`
+			);
+			expect(response.ok(), `GET ${endpoint}`).toBe(true);
+			expect(JSON.stringify(await response.json())).not.toContain('Hijacked');
+		}
+		// The run has no JSON GET endpoint, so check that its page still renders.
+		const runPage = await request.get(
+			`/projects/${projectId}/test-runs/${detailIds.get('test-runs')}`
+		);
+		expect(runPage.status()).toBe(200);
+		expect(await runPage.text()).not.toContain('Hijacked');
+	});
+
 	test('the API refuses writes from a VIEWER', async ({ browser, baseURL }) => {
 		const viewer = await browser.newContext({ baseURL });
 		try {

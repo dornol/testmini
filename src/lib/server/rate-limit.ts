@@ -11,6 +11,17 @@ export interface RateLimitResult {
 	retryAfter?: number;
 }
 
+/**
+ * Multiplier for every rate limit, read from RATE_LIMIT_MULTIPLIER.
+ * Only the E2E server sets it, because a single browser session shares one IP and
+ * exceeds the per-minute budget. Missing, invalid or below-1 values mean 1, so a
+ * typo can never make production limits stricter or looser by accident.
+ */
+export function rateLimitMultiplier(raw: string | undefined = process.env.RATE_LIMIT_MULTIPLIER) {
+	const value = Number(raw);
+	return Number.isFinite(value) && value >= 1 ? Math.floor(value) : 1;
+}
+
 // --- In-memory fallback ---
 
 const memWindows = new Map<string, number[]>();

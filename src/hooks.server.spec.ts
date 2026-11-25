@@ -74,7 +74,8 @@ vi.mock('$lib/paraglide/server', () => ({
 }));
 
 vi.mock('$lib/server/rate-limit', () => ({
-	checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 99 })
+	checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 99 }),
+	rateLimitMultiplier: () => 1
 }));
 
 vi.mock('$lib/server/db/migrate', () => ({

@@ -19,7 +19,7 @@ vi.mock('$lib/server/logger', () => ({
 	childLogger: () => mockLog
 }));
 
-const { checkRateLimit } = await import('$lib/server/rate-limit');
+const { checkRateLimit, rateLimitMultiplier } = await import('$lib/server/rate-limit');
 
 describe('checkRateLimit (in-memory fallback)', () => {
 	beforeEach(() => {
@@ -160,5 +160,18 @@ describe('checkRateLimit (redis logging)', () => {
 		expect(logMeta).not.toHaveProperty('key');
 		expect(logMeta.err.message).not.toContain('rate-limit-token-12345');
 		expect(logMeta.err).not.toHaveProperty('stack');
+	});
+});
+
+describe('rateLimitMultiplier', () => {
+	it('defaults to 1 for missing, invalid or lowering values', () => {
+		for (const raw of [undefined, '', 'abc', '0', '-3', '0.5', 'Infinity', 'NaN'])
+			expect(rateLimitMultiplier(raw)).toBe(1);
+	});
+
+	it('accepts whole multipliers of 1 or more', () => {
+		expect(rateLimitMultiplier('1')).toBe(1);
+		expect(rateLimitMultiplier('10')).toBe(10);
+		expect(rateLimitMultiplier('2.9')).toBe(2);
 	});
 });

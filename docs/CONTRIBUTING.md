@@ -487,6 +487,7 @@ E2E tests live in `e2e/tests/` and use Playwright with a custom auth fixture. Ru
 - `e2e/global-setup.ts` — Registers a test user, saves auth state
 - `e2e/fixtures/auth.fixture.ts` — Reuses stored auth state
 - `e2e/tests/*.spec.ts` — Test suites (serial execution, shared project state)
+- `RATE_LIMIT_MULTIPLIER` — Set to `20` by `e2e/playwright.config.ts` for the E2E server only. The suite runs from a single IP and would otherwise hit the per-minute API limits (429). If you run your own dev server for E2E, start it with `RATE_LIMIT_MULTIPLIER=20`. Never set it in production.
 
 **Writing a new E2E test:**
 ```typescript

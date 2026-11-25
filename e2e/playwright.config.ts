@@ -27,7 +27,9 @@ export default defineConfig({
 		// Better Auth validates the request origin against ORIGIN. Override a
 		// developer's local .env value so the isolated E2E server always matches
 		// Playwright's configured base URL (including custom CI URLs).
-		command: `ORIGIN=${baseURL} pnpm dev`,
+		// RATE_LIMIT_MULTIPLIER: one browser session shares a single IP, so the suite would
+		// otherwise exceed the per-minute API limits and fail with 429 at random.
+		command: `ORIGIN=${baseURL} RATE_LIMIT_MULTIPLIER=20 pnpm dev`,
 		port: 5173,
 		reuseExistingServer: !process.env.CI,
 		cwd: '..'

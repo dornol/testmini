@@ -6,7 +6,7 @@ import { svelteKitHandler } from 'better-auth/svelte-kit';
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { getTextDirection } from '$lib/paraglide/runtime';
 import { paraglideMiddleware } from '$lib/paraglide/server';
-import { checkRateLimit } from '$lib/server/rate-limit';
+import { checkRateLimit, rateLimitMultiplier } from '$lib/server/rate-limit';
 import { logger } from '$lib/server/logger';
 import { runMigrations } from '$lib/server/db/migrate';
 import { seedAdminUser } from '$lib/server/db/seed';
@@ -202,7 +202,8 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 		const authHeader = event.request.headers.get('authorization');
 		const isApiKey = authHeader?.startsWith('Bearer tmk_') ?? false;
 
-		const limit = isApiKey && rule.apiKeyLimit ? rule.apiKeyLimit : rule.limit;
+		const baseLimit = isApiKey && rule.apiKeyLimit ? rule.apiKeyLimit : rule.limit;
+		const limit = baseLimit * rateLimitMultiplier();
 		const key = isApiKey
 			? `${rule.label}:apikey:${pathname.split('/')[2] ?? 'unknown'}`
 			: `${rule.label}:${ip}`;

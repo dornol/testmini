@@ -1390,6 +1390,9 @@
 
 	"error_go_home": "Go home",
 	"error_something_went_wrong": "Something went wrong",
+	"error_bad_request": "This is not a valid request. Check the address.",
+	"error_forbidden": "You do not have permission to view this page.",
+	"error_not_found": "We could not find what you asked for. It may have been deleted or the address may be wrong.",
 
 	"dashboard_customize": "Customize",
 	"dashboard_widgets": "Dashboard Widgets",

@@ -216,6 +216,8 @@
 						{provider.enabled
 							? m.oidc_disable_confirm({ name: provider.name })
 							: m.oidc_enable_confirm({ name: provider.name })}
+					{:else if disablesInstead}
+						{m.oidc_disable_confirm({ name: provider.name })}
 					{:else}
 						{m.oidc_delete_confirm({ name: provider.name })}
 					{/if}

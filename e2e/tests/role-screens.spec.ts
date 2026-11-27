@@ -79,6 +79,39 @@ const screens: Screen[] = [
 	}
 ];
 
+/** Settings pages: path under /projects/:id/settings and the buttons each role may see. */
+const settings: Array<{ path: string; buttons: Array<[string, Role[]]> }> = [
+	{
+		path: '',
+		buttons: [
+			['변경사항 저장', PA],
+			['프로젝트 비활성화', PA]
+		]
+	},
+	{ path: '/tags', buttons: [['태그 추가', PQD]] },
+	{
+		path: '/priorities',
+		buttons: [
+			['우선순위 추가', PQD],
+			['LOW 수정', PQD],
+			['LOW 삭제', PQD]
+		]
+	},
+	{
+		path: '/environments',
+		buttons: [
+			['환경 추가', PQD],
+			['DEV 수정', PQD],
+			['DEV 삭제', PQD]
+		]
+	},
+	{ path: '/custom-fields', buttons: [['필드 추가', PA]] },
+	{ path: '/members', buttons: [['멤버 추가', PA]] },
+	{ path: '/webhooks', buttons: [['웹훅 추가', PA]] },
+	{ path: '/api-keys', buttons: [['API 키 생성', PA]] },
+	{ path: '/issue-tracker', buttons: [['설정 저장', PA]] }
+];
+
 test.describe.serial('Role-dependent screens', () => {
 	const key = randomUUID().slice(0, 8);
 	const password = randomUUID();
@@ -203,6 +236,41 @@ test.describe.serial('Role-dependent screens', () => {
 						if (shown !== allowed.includes(role))
 							mismatches.push(
 								`${resource} detail: "${name}" is ${shown ? 'shown' : 'hidden'} for ${role}`
+							);
+					}
+				}
+				expect(mismatches).toEqual([]);
+			} finally {
+				await context.close();
+			}
+		});
+
+	for (const role of roles)
+		test(`${role}: settings screens offer exactly the allowed actions`, async ({
+			browser,
+			baseURL
+		}) => {
+			test.setTimeout(120_000);
+			const context = await browser.newContext({
+				baseURL,
+				viewport: { width: 1440, height: 900 }
+			});
+			try {
+				const login = await context.request.post('/api/auth/sign-in/email', {
+					data: { email: users.get(role)!.email, password },
+					headers: { origin: baseURL! }
+				});
+				expect(login.ok()).toBe(true);
+				const page = await context.newPage();
+				const mismatches: string[] = [];
+				for (const { path, buttons } of settings) {
+					await page.goto(`/projects/${projectId}/settings${path}`);
+					await expect(page.getByRole('main')).toBeVisible();
+					for (const [name, allowed] of buttons) {
+						const shown = await visible(page, name, 'button');
+						if (shown !== allowed.includes(role))
+							mismatches.push(
+								`settings${path}: "${name}" is ${shown ? 'shown' : 'hidden'} for ${role}`
 							);
 					}
 				}

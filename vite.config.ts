@@ -4,6 +4,7 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { visualizer } from 'rollup-plugin-visualizer';
+import { paraglideDirectImports } from './scripts/vite-paraglide-direct-imports';
 
 const analyze = process.env.ANALYZE === 'true';
 
@@ -18,13 +19,15 @@ export default defineConfig({
 		tailwindcss(),
 		sveltekit(),
 		paraglideVitePlugin({ project: './project.inlang', outdir: './src/lib/paraglide' }),
-		analyze && visualizer({
-			filename: 'build/stats.html',
-			open: true,
-			gzipSize: true,
-			brotliSize: true,
-			template: 'treemap'
-		})
+		paraglideDirectImports('./messages/ko.json'),
+		analyze &&
+			visualizer({
+				filename: 'build/stats.html',
+				open: true,
+				gzipSize: true,
+				brotliSize: true,
+				template: 'treemap'
+			})
 	],
 	test: {
 		expect: { requireAssertions: true },
@@ -32,10 +35,7 @@ export default defineConfig({
 			provider: 'v8',
 			reporter: ['text', 'text-summary', 'html', 'json-summary'],
 			reportsDirectory: 'coverage',
-			include: [
-				'src/lib/**/*.ts',
-				'src/hooks*.ts'
-			],
+			include: ['src/lib/**/*.ts', 'src/hooks*.ts'],
 			exclude: [
 				'src/**/*.{test,spec}.{ts,js}',
 				'src/**/*.svelte.{test,spec}.{ts,js}',

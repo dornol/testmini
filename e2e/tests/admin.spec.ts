@@ -155,12 +155,12 @@ test.describe('Admin Panel', () => {
 		await expect(page).toHaveURL(/\/admin\/audit-logs/);
 	});
 
-	test('should block non-admin users from accessing admin panel', async ({ browser }) => {
+	test('should block non-admin users from accessing admin panel', async ({ browser, baseURL }) => {
 		// Use a fresh context without any auth state (anonymous user)
-		const context = await browser.newContext();
+		const context = await browser.newContext({ baseURL });
 		const page = await context.newPage();
 
-		await page.goto('http://localhost:5173/admin/users');
+		await page.goto('/admin/users');
 		await page.waitForLoadState('networkidle');
 		// Should either redirect to login or show a 403 error
 		const url = page.url();

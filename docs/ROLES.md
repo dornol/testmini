@@ -3,7 +3,7 @@
 > **Status: agreed reference** (the current rules were reviewed and accepted, see
 > "Decisions"). The table was extracted from the code at `55f31df`. If the code and this table
 > disagree, one of them is wrong: fix it deliberately, and update
-> `e2e/tests/role-matrix.spec.ts`, which checks the table against the running app.
+> `e2e/tests/role-matrix.spec.ts` (server responses) and `e2e/tests/role-screens.spec.ts` (which buttons each role sees), which check the table against the running app.
 
 ## How roles work
 

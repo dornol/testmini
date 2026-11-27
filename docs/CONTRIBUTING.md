@@ -559,6 +559,25 @@ Run `pnpm build:analyze` to generate a treemap visualization of the client bundl
 pnpm build:analyze   # opens build/stats.html in browser
 ```
 
+#### Bundle budgets
+
+`pnpm build` ends with `scripts/check-bundle-budget.mjs`, which fails the build (and CI) when the client JavaScript exceeds `config/bundle-budgets.json`. Two kinds of limits:
+
+- **What a visitor downloads** (the ones that matter): `shellGzipBytes` is the part every page loads, and `heaviestRouteGzipBytes` is the largest first load of any single route (shell + layouts + page, gzip, following static imports).
+- **Whole-app totals**: `clientJsTotalBytes` (every client file added together, which grows with every page you add), `largestClientChunkBytes` and `largestRouteNodeBytes`.
+
+Prefer splitting or lazy-loading over raising a limit. If a legitimate change (for example a security update of a client library) needs more room, raise the limit by the measured amount plus a small margin and say why in the commit.
+
+#### Messages are split per route
+
+`import * as m from '$lib/paraglide/messages.js'` goes through a barrel that re-exports every message, so the bundler used to put all ~1,400 messages (both languages) into one chunk that every page downloaded. `scripts/vite-paraglide-direct-imports.ts` (logic in `src/lib/build/paraglide-direct-imports.ts`) rewrites `m.some_key` into a direct import of that one message in the **client build only**, so each message ends up in the chunks of the routes that use it. Source files are unchanged, and the dev server and tests are not affected.
+
+Things to know when writing code:
+
+- Keep using `m.some_key()` with a literal key. Do not pass `m` around, spread it, or index it (`m[key]`); such a file keeps the barrel import (correct, but it loads every message again for that page).
+- The rewrite needs paraglide's `message-modules` output, which the production build uses. A unit test checks the file naming against the files paraglide really generates, so an upgrade that changes it fails there.
+- Verify a change that touches this against a production build, not the dev server: `pnpm build`, then run the app with `node build/index.js` and point Playwright at it with `PLAYWRIGHT_BASE_URL`.
+
 ### Lighthouse CI
 
 Run `pnpm lighthouse` to measure performance and accessibility scores:

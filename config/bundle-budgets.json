@@ -1,5 +1,7 @@
 {
-	"clientJsTotalBytes": 1980000,
+	"clientJsTotalBytes": 2061000,
 	"largestClientChunkBytes": 195000,
-	"largestRouteNodeBytes": 140000
+	"largestRouteNodeBytes": 155000,
+	"shellGzipBytes": 146000,
+	"heaviestRouteGzipBytes": 261000
 }

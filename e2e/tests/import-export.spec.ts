@@ -89,7 +89,7 @@ test.describe.serial('Import / Export', () => {
 	// 4. Import a CSV file with test case data
 	// -------------------------------------------------------------------------
 
-	test('4. Import a CSV file', async ({ page }) => {
+	test('4. Import a CSV file', async ({ page, baseURL }) => {
 		await page.goto(`/projects/${projectId}/test-cases`);
 		await page.waitForLoadState('networkidle');
 
@@ -110,7 +110,9 @@ test.describe.serial('Import / Export', () => {
 					mimeType: 'text/csv',
 					buffer: Buffer.from(csvContent)
 				}
-			}
+			},
+			// A production build rejects a multipart POST that carries no Origin header.
+			headers: { origin: baseURL! }
 		});
 		expect(response.ok()).toBeTruthy();
 		const result = await response.json();

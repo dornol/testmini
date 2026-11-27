@@ -265,7 +265,10 @@ test.describe.serial('Role-dependent screens', () => {
 				const mismatches: string[] = [];
 				for (const { path, buttons } of settings) {
 					await page.goto(`/projects/${projectId}/settings${path}`);
-					await expect(page.getByRole('main')).toBeVisible();
+					await expect(
+						page.getByRole('main'),
+						`settings${path} as ${role}: ${page.url()}`
+					).toBeVisible();
 					for (const [name, allowed] of buttons) {
 						const shown = await visible(page, name, 'button');
 						if (shown !== allowed.includes(role))

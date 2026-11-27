@@ -12,7 +12,7 @@ test.describe.serial('Workflow form recovery and case selection', () => {
 			if (!result.ok()) throw new Error(`Fixture cleanup failed: ${result.status()}`);
 		}
 	});
-	test('prepare isolated large and long-title fixtures', async ({ page }) => {
+	test('prepare isolated large and long-title fixtures', async ({ page, baseURL }) => {
 		const project = await page.request.post('/api/projects', {
 			data: { name: `Forms UX ${Date.now()}` }
 		});
@@ -29,7 +29,9 @@ test.describe.serial('Workflow form recovery and case selection', () => {
 					mimeType: 'application/json',
 					buffer: Buffer.from(JSON.stringify(rows))
 				}
-			}
+			},
+			// A production build rejects a multipart POST that carries no Origin header.
+			headers: { origin: baseURL! }
 		});
 		expect(imported.ok(), await imported.text()).toBe(true);
 		expect((await imported.json()).imported).toBe(501);

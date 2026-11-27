@@ -2,6 +2,22 @@ import AxeBuilder from '@axe-core/playwright';
 import { test, expect } from '../fixtures/auth.fixture';
 
 test.describe('Admin audit logs UX', () => {
+	// A fresh database has no audit entries (and so no actions to filter by); creating a
+	// project writes one, which these tests rely on.
+	let projectId: number;
+
+	test.beforeAll(async ({ request }) => {
+		const created = await request.post('/api/projects', {
+			data: { name: `Audit UX ${Date.now()}` }
+		});
+		expect(created.ok()).toBe(true);
+		projectId = (await created.json()).data.id;
+	});
+
+	test.afterAll(async ({ request }) => {
+		if (projectId) await request.delete(`/api/projects/${projectId}`);
+	});
+
 	test('filters submit with Enter and are labelled', async ({ page }) => {
 		await page.goto('/admin/audit-logs');
 		await page.waitForLoadState('networkidle');
@@ -34,12 +50,12 @@ test.describe('Admin audit logs UX', () => {
 	});
 
 	test('a project filter from the URL survives searching', async ({ page }) => {
-		await page.goto('/admin/audit-logs?projectId=1');
+		await page.goto(`/admin/audit-logs?projectId=${projectId}`);
 		await page.waitForLoadState('networkidle');
-		await expect(page.getByText('프로젝트 #1')).toBeVisible();
+		await expect(page.getByText(`프로젝트 #${projectId}`)).toBeVisible();
 		await page.getByLabel('액션', { exact: true }).selectOption({ index: 1 });
 		await page.getByRole('button', { name: '검색', exact: true }).click();
-		await expect(page).toHaveURL(/projectId=1/);
+		await expect(page).toHaveURL(new RegExp(`projectId=${projectId}`));
 		await expect(page).toHaveURL(/action=/);
 	});
 

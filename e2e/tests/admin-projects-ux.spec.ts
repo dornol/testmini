@@ -80,8 +80,9 @@ test.describe.serial('Admin projects UX', () => {
 			await page.setViewportSize({ width, height: 800 });
 			await page.goto(`/admin/projects?search=${encodeURIComponent(key)}`);
 			await page.waitForLoadState('networkidle');
-			// The page renders a card list (<640px) and a table; only one is visible.
-			await expect(page.getByText(name).locator('visible=true')).toBeVisible();
+			// The page renders a card list (<640px) and a table; only one is visible. Stay inside
+			// <main>: the header's project switcher can show the same name.
+			await expect(page.getByRole('main').getByText(name).locator('visible=true')).toBeVisible();
 
 			const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
 			expect(

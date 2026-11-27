@@ -1,8 +1,9 @@
 # Roles and permissions
 
-> **Status: draft extracted from the code at `55f31df`.** The code is the source of truth until
-> the open questions at the bottom are answered. Once they are, this table becomes the reference
-> and E2E role tests are written from it, not from the code.
+> **Status: agreed reference** (the current rules were reviewed and accepted, see
+> "Decisions"). The table was extracted from the code at `55f31df`. If the code and this table
+> disagree, one of them is wrong: fix it deliberately, and update
+> `e2e/tests/role-matrix.spec.ts`, which checks the table against the running app.
 
 ## How roles work
 
@@ -70,26 +71,23 @@
 | Delete a test case comment                       | Its author, **PA**, or global admin                     |
 | Edit / delete an execution comment               | Its author, or global admin (**PA cannot**)             |
 
-## Open questions
+## Decisions
 
-Each item is a place where the rules differ and it is not clear whether that is intended.
-Answer them, change either the code or the wording here, and the table above becomes the
-agreed reference.
+These places have different rules for similar resources. The owner reviewed them and the
+current behavior is **intended**; do not "fix" them for consistency.
 
-1. **Who may delete?** Test cases, plans, releases, cycles and runs are deletable by PA only.
-   Suites are also deletable by **QA**, exploratory sessions by **QA and DEV**, shared datasets
-   by **QA and DEV**. Should deletion be PA-only everywhere, or are these three intentional?
-2. **How far does DEV reach into planning?** DEV can create and edit **plans** but not
-   releases, cycles, suites or requirements (QA and above). Is plan the one planning artifact
-   DEV should own, or should plans follow the same rule as the others?
-3. **Who configures the project?** Tags, priorities and environments can be created, edited and
-   **deleted** by DEV, while custom fields, members, webhooks and the issue tracker are PA only.
-   Deleting a priority or environment that test cases use affects everyone. Should these three
-   be PA QA, or stay open to DEV?
-4. **Who moderates comments?** PA can delete other people's test case comments but not other
-   people's execution comments. Should both behave the same?
-5. **Should VIEWER comment?** Today VIEWER cannot comment anywhere. Confirm that read-only
-   means no comments either.
+1. **Delete rights differ.** Test cases, plans, releases, cycles and runs are deletable by PA
+   only. Suites are also deletable by QA; exploratory sessions and shared datasets by QA and
+   DEV.
+2. **DEV can plan.** DEV may create and edit plans, but not releases, cycles, suites or
+   requirements (QA and above).
+3. **DEV can configure.** Tags, priorities and environments can be created, edited and deleted
+   by DEV. Custom fields, members, webhooks and the issue tracker are PA only.
+4. **Comment moderation differs.** PA can delete other people's test case comments but not
+   other people's execution comments.
+
+**Still open:** VIEWER cannot comment anywhere today. Treat that as intended until someone
+says otherwise.
 
 ## Not covered here
 

@@ -56,3 +56,6 @@ coverage/
 
 # Scripts (seed data, local helpers)
 scripts/seed-*.ts
+
+# Agent skills (sources of the symlinks under .claude/skills, local tooling)
+.agents/

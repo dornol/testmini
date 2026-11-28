@@ -73,6 +73,7 @@ pnpm dev               # http://localhost:5173
 | `pnpm test:unit` | Run unit tests in watch mode |
 | `pnpm test:coverage` | Run tests with coverage report |
 | `pnpm test:e2e` | Run Playwright end-to-end tests |
+| `pnpm test:e2e:build` | Run end-to-end tests against the output of `pnpm build` (what CI does) |
 | `pnpm lint` | ESLint |
 | `pnpm format` | Prettier (write) |
 | `pnpm format:check` | Prettier (check) |
@@ -481,7 +482,9 @@ describe('POST /api/projects/:projectId/test-cases/bulk', () => {
 
 ### E2E Tests (Playwright)
 
-E2E tests live in `e2e/tests/` and use Playwright with a custom auth fixture. Run with `pnpm test:e2e`.
+E2E tests live in `e2e/tests/` and use Playwright with a custom auth fixture. Run with `pnpm test:e2e`, which starts the dev server (no build needed).
+
+CI runs `pnpm test:e2e:build` instead, against the production build: some transforms only happen there. To reproduce CI, run `pnpm build` first; the command starts its own server on the port of `PLAYWRIGHT_BASE_URL` (default 5173, which must be free) and never reuses a running one. CI also starts from an empty database, so a spec must create the data it relies on.
 
 **Structure:**
 - `e2e/global-setup.ts` — Registers a test user, saves auth state
@@ -576,7 +579,7 @@ Things to know when writing code:
 
 - Keep using `m.some_key()` with a literal key. Do not pass `m` around, spread it, or index it (`m[key]`); such a file keeps the barrel import (correct, but it loads every message again for that page).
 - The rewrite needs paraglide's `message-modules` output, which the production build uses. A unit test checks the file naming against the files paraglide really generates, so an upgrade that changes it fails there.
-- Verify a change that touches this against a production build, not the dev server: `pnpm build`, then run the app with `node build/index.js` and point Playwright at it with `PLAYWRIGHT_BASE_URL`.
+- Verify a change that touches this against a production build, not the dev server: `pnpm build && pnpm test:e2e:build`.
 
 #### Heavy libraries load on use
 

@@ -8,8 +8,7 @@
 	import { tick } from 'svelte';
 	let errorSummary = $state<HTMLDivElement | null>(null);
 	import { superForm } from 'sveltekit-superforms';
-	import { createTestCaseSchema } from '$lib/schemas/test-case.schema';
-	import { zodValidators } from '$lib/form-utils';
+	import { lazyZodValidators } from '$lib/form-utils';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -34,7 +33,9 @@
 	let { data } = $props();
 	let formDirty = $state(false);
 
-	const validators = zodValidators(createTestCaseSchema);
+	const validators = lazyZodValidators(() =>
+		import('$lib/schemas/test-case.schema').then((module) => module.createTestCaseSchema)
+	);
 	const { form, errors, allErrors, enhance, submitting, tainted } = superForm(
 		// svelte-ignore state_referenced_locally
 		data.form,

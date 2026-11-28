@@ -1,51 +1,24 @@
 <script lang="ts">
-	import {
-		Chart,
-		BarController,
-		LineController,
-		DoughnutController,
-		CategoryScale,
-		LinearScale,
-		BarElement,
-		LineElement,
-		PointElement,
-		ArcElement,
-		Tooltip,
-		Legend,
-		Filler,
-		type ChartConfiguration
-	} from 'chart.js';
+	import type { Chart, ChartConfiguration } from 'chart.js';
 
-	Chart.register(
-		BarController,
-		LineController,
-		DoughnutController,
-		CategoryScale,
-		LinearScale,
-		BarElement,
-		LineElement,
-		PointElement,
-		ArcElement,
-		Tooltip,
-		Legend,
-		Filler
-	);
-
-	let { config, 'aria-label': ariaLabel }: { config: ChartConfiguration; 'aria-label'?: string } = $props();
+	let { config, 'aria-label': ariaLabel }: { config: ChartConfiguration; 'aria-label'?: string } =
+		$props();
 
 	let canvas: HTMLCanvasElement;
-	let chart: Chart | undefined;
 
 	$effect(() => {
 		const cfg = config;
-		if (chart) {
-			chart.destroy();
-		}
-		chart = new Chart(canvas, cfg);
+		let chart: Chart | undefined;
+		let cancelled = false;
+
+		// chart.js is about 60 KiB gzipped, so it is fetched when a chart is drawn, not with the page.
+		import('$lib/chart-setup').then(({ Chart }) => {
+			if (!cancelled) chart = new Chart(canvas, cfg);
+		});
 
 		return () => {
+			cancelled = true;
 			chart?.destroy();
-			chart = undefined;
 		};
 	});
 </script>

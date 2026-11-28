@@ -578,6 +578,12 @@ Things to know when writing code:
 - The rewrite needs paraglide's `message-modules` output, which the production build uses. A unit test checks the file naming against the files paraglide really generates, so an upgrade that changes it fails there.
 - Verify a change that touches this against a production build, not the dev server: `pnpm build`, then run the app with `node build/index.js` and point Playwright at it with `PLAYWRIGHT_BASE_URL`.
 
+#### Heavy libraries load on use
+
+- **Charts**: `Chart.svelte` fetches `chart.js` (about 60 KiB gzipped) when a chart is drawn. Do not import `chart.js` statically from a page or component; use `Chart.svelte` or `LazyChart.svelte`.
+- **Form validation**: use `lazyZodValidators(() => import('$lib/schemas/x.schema').then((m) => m.xSchema))` instead of a static schema import for `superForm`'s `validators`. Zod and the schema then arrive on the first blur or submit. The server validates every submission regardless.
+- Import a single adapter from a small module (see `src/lib/zod-client-adapter.ts`), never `import('sveltekit-superforms/adapters')`: a dynamic import of the whole module keeps every adapter library (class-validator and others) in the bundle.
+
 ### Lighthouse CI
 
 Run `pnpm lighthouse` to measure performance and accessibility scores:

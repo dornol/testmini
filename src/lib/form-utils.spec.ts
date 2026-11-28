@@ -1,51 +1,51 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
-import { zodValidators } from './form-utils';
+import { lazyZodValidators } from './form-utils';
 
-const testSchema = z.object({
-	name: z.string().min(1)
+const schema = z.object({
+	name: z.string().min(1),
+	description: z.string().optional()
 });
 
-describe('client form-utils', () => {
-	// ── zodValidators ───────────────────────────────────
+describe('lazyZodValidators', () => {
+	it('is a superforms zod4 client adapter', () => {
+		const validators = lazyZodValidators(async () => schema);
 
-	describe('zodValidators', () => {
-		it('should return a validators object', () => {
-			const validators = zodValidators(testSchema);
+		expect(validators.superFormValidationLibrary).toBe('zod4');
+		expect(typeof validators.validate).toBe('function');
+	});
 
-			expect(validators).toBeDefined();
-			expect(validators).not.toBeNull();
-		});
+	it('does not load the schema until the first validation', async () => {
+		const load = vi.fn(async () => schema);
+		const validators = lazyZodValidators(load);
+		expect(load).not.toHaveBeenCalled();
 
-		it('should return an object (not a primitive)', () => {
-			const validators = zodValidators(testSchema);
+		await validators.validate({ name: 'ok' });
+		await validators.validate({ name: 'again' });
+		expect(load).toHaveBeenCalledTimes(1);
+	});
 
-			expect(typeof validators).toBe('object');
-		});
+	it('accepts valid data and reports issues for invalid data', async () => {
+		const validators = lazyZodValidators(async () => schema);
 
-		it('should work with different schema types', () => {
-			const complexSchema = z.object({
-				title: z.string().min(1),
-				count: z.number().min(0),
-				active: z.boolean().default(true)
-			});
+		const valid = await validators.validate({ name: 'Case', description: 'text' });
+		expect(valid.success).toBe(true);
 
-			const validators = zodValidators(complexSchema);
+		const invalid = await validators.validate({ name: '' });
+		expect(invalid.success).toBe(false);
+		expect(invalid.success === false && invalid.issues[0].path).toEqual(['name']);
+	});
 
-			expect(validators).toBeDefined();
-			expect(typeof validators).toBe('object');
-		});
+	it('validates concurrent calls against the same loaded schema', async () => {
+		const load = vi.fn(async () => schema);
+		const validators = lazyZodValidators(load);
 
-		it('should work with optional fields', () => {
-			const optionalSchema = z.object({
-				name: z.string().min(1),
-				description: z.string().optional()
-			});
+		const results = await Promise.all([
+			validators.validate({ name: '' }),
+			validators.validate({ name: 'x' })
+		]);
 
-			const validators = zodValidators(optionalSchema);
-
-			expect(validators).toBeDefined();
-			expect(typeof validators).toBe('object');
-		});
+		expect(results.map((r) => r.success)).toEqual([false, true]);
+		expect(load).toHaveBeenCalledTimes(1);
 	});
 });

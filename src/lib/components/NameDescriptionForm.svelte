@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
 	import { superForm, type SuperValidated } from 'sveltekit-superforms';
-	import { createProjectSchema } from '$lib/schemas/project.schema';
-	import { createTeamSchema } from '$lib/schemas/team.schema';
-	import { zodValidators } from '$lib/form-utils';
+	import { lazyZodValidators } from '$lib/form-utils';
 	import * as m from '$lib/paraglide/messages.js';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import FormErrorSummary from '$lib/components/patterns/FormErrorSummary.svelte';
@@ -36,7 +34,11 @@
 	const { form, errors, constraints, message, enhance, submitting, tainted } = superForm(
 		untrack(() => initial),
 		{
-			validators: zodValidators(untrack(() => (team ? createTeamSchema : createProjectSchema))),
+			validators: lazyZodValidators(async () =>
+				untrack(() => team)
+					? (await import('$lib/schemas/team.schema')).createTeamSchema
+					: (await import('$lib/schemas/project.schema')).createProjectSchema
+			),
 			autoFocusOnError: false,
 			scrollToError: 'off',
 			onSubmit: () => {
